@@ -4,15 +4,14 @@
 //   기존 BankAccountsOverview / TransactionsView 미사용 (그쪽은 /transactions 에서 그대로).
 //   표시 전용 — 새 mutation·RPC 0. read-only 쿼리만.
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { DateField } from "@/components/date-field";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { SiyanPageHeader } from "@/components/siyan";
-import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias } from "@/lib/queries";
+import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
@@ -33,11 +32,17 @@ const MAPPING_META: Record<string, { label: string; bg: string; text: string }> 
   ignored: { label: "무시", bg: "bg-[var(--text-muted)]/10", text: "text-[var(--text-muted)]" },
 };
 
+// 인라인 매핑용 분류(카테고리) 목록
+const BANK_CATEGORIES = ["복리후생비", "소모품비", "통신비", "교통비", "광고선전비", "접대비", "보험료", "세금공과", "수수료", "임대료", "기타비용"];
+
 export default function BankPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
+  const userId = user?.id ?? null;
   const [tab, setTab] = useState<Tab>("accounts");
   const queryClient = useQueryClient();
+  const [mapOpenId, setMapOpenId] = useState<string | null>(null);
+  const [mapCat, setMapCat] = useState("");
   const { toast } = useToast();
   const [syncing, setSyncing] = useState(false);
   // 통장 카드 클릭 시 거래내역 필터 — accountNo + 표시 이름 동시 보관.
@@ -74,80 +79,27 @@ export default function BankPage() {
     }
   };
 
-  // ── 영수증 스캔(OCR) → 지출 거래 등록 ──
-  const ocrFileRef = useRef<HTMLInputElement>(null);
-  const [ocrScanning, setOcrScanning] = useState(false);
-  const [ocrSaving, setOcrSaving] = useState(false);
-  const [ocrForm, setOcrForm] = useState<{ amount: string; merchant: string; date: string; category: string; memo: string } | null>(null);
-  const handleOcrScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !companyId) return;
-    setOcrScanning(true);
-    try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${companyId}/ocr/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("receipts").upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
-      // Edge 가 서버에서 fetch 하므로 서명 URL(시간제한) 사용 — 버킷 public/private 무관 동작.
-      const { data: signed, error: signErr } = await supabase.storage.from("receipts").createSignedUrl(path, 300);
-      if (signErr || !signed?.signedUrl) throw signErr || new Error("이미지 URL 생성 실패");
-      const { data, error } = await supabase.functions.invoke("ocr-receipt", { body: { image_url: signed.signedUrl } });
-      if (error) throw error;
-      if (!data?.success || !data.confidence) { toast("영수증을 인식하지 못했습니다. 다시 시도해주세요.", "error"); return; }
-      const catMap: Record<string, string> = {
-        "식대": "복리후생비", "교통": "교통비", "소모품": "소모품비", "사무용품": "소모품비",
-        "접대": "접대비", "통신": "통신비", "기타": "기타비용",
-      };
-      setOcrForm({
-        amount: data.amount ? String(data.amount) : "",
-        merchant: data.merchant || "",
-        date: data.date || ymd(new Date()),
-        category: data.category ? (catMap[data.category] || "") : "",
-        memo: Array.isArray(data.items) && data.items.length ? data.items.join(", ") : "",
-      });
-      toast(`영수증 인식 완료 (확신도 ${data.confidence}%) — 확인 후 등록하세요`, "success");
-    } catch (err: any) {
-      toast(friendlyError(err, "영수증 스캔 실패"), "error");
-    } finally {
-      setOcrScanning(false);
-      if (ocrFileRef.current) ocrFileRef.current.value = "";
-    }
-  };
-  const saveOcrTx = async () => {
-    if (!ocrForm || !companyId || ocrSaving) return;
-    const amount = Number(ocrForm.amount);
-    if (!amount || amount <= 0) { toast("금액을 입력하세요", "error"); return; }
-    if (!ocrForm.date) { toast("거래일을 입력하세요", "error"); return; }
-    setOcrSaving(true);
-    try {
-      // /bank 표·통계·리포트(pnl)가 모두 bank_transactions 를 읽으므로 여기에 등록(금액 양수 + type 으로 수입/지출 구분).
-      const externalId = `receipt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const { error } = await db.from("bank_transactions").insert({
-        company_id: companyId,
-        external_id: externalId,
-        amount,
-        type: "expense",
-        description: ocrForm.merchant || "영수증",
-        transaction_date: ocrForm.date,
-        source: "manual",
-        counterparty: ocrForm.merchant || null,
-        category: ocrForm.category || null,
-        memo: ocrForm.memo || null,
-        mapping_status: ocrForm.category ? "manual_mapped" : "unmapped",
-      });
-      if (error) throw error;
-      toast("지출 거래가 등록되었습니다", "success");
-      setOcrForm(null);
-      setTab("transactions");
+  // 통장 거래 인라인 매핑 (미매핑 배지에서 바로 처리 — 거래매칭 페이지 불필요)
+  const mapMut = useMutation({
+    mutationFn: async ({ id, category }: { id: string; category: string }) => {
+      await mapBankTransaction(id, { category: category || null, classification: category || null, mappedBy: userId || "" });
+    },
+    onSuccess: () => {
+      toast("매핑 완료", "success");
+      setMapOpenId(null);
       queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
-      queryClient.invalidateQueries({ queryKey: ["bank-page-flow-v2"] });
-      queryClient.invalidateQueries({ queryKey: ["bank-page-changes"] });
-    } catch (err: any) {
-      toast(friendlyError(err, "등록 실패"), "error");
-    } finally {
-      setOcrSaving(false);
-    }
-  };
+    },
+    onError: (err: any) => toast(friendlyError(err, "매핑 실패"), "error"),
+  });
+  const ignoreMut = useMutation({
+    mutationFn: async (id: string) => { await ignoreBankTransaction(id); },
+    onSuccess: () => {
+      toast("무시 처리됨", "success");
+      setMapOpenId(null);
+      queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
+    },
+    onError: (err: any) => toast(friendlyError(err, "처리 실패"), "error"),
+  });
 
   // 통장 연동(CODEF 은행 sync + 잔액 재계산) — /transactions 의 동일 흐름 재사용.
   const handleSyncBank = async () => {
@@ -246,7 +198,7 @@ export default function BankPage() {
     queryFn: async () => {
       // accountNo 는 client-side 필터 (raw_data->>accountNo PostgREST eq 불안정 — transactions 페이지와 동일 패턴)
       const q = db.from("bank_transactions")
-        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, raw_data, journal_entry_id")
+        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
         .limit(selectedAccountNo ? 2000 : 50);
@@ -395,19 +347,6 @@ export default function BankPage() {
           <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => ocrFileRef.current?.click()}
-            disabled={ocrScanning || !companyId}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] font-semibold text-sm hover:border-[var(--primary)] transition disabled:opacity-50"
-            title="영수증 사진으로 지출 거래를 자동 등록합니다"
-          >
-            {ocrScanning ? (
-              <><span className="w-3.5 h-3.5 border-2 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin" /> 분석 중...</>
-            ) : (
-              <><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.66-.9l.82-1.2A2 2 0 0110.07 4h3.86a2 2 0 011.66.9l.82 1.2a2 2 0 001.66.9H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><circle cx="12" cy="13" r="3" /></svg> 영수증 스캔</>
-            )}
-          </button>
-          <button
-            type="button"
             onClick={handleSyncBank}
             disabled={syncing || !companyId}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-50"
@@ -428,7 +367,6 @@ export default function BankPage() {
           </div>
         }
       />
-      <input ref={ocrFileRef} type="file" accept="image/*" capture="environment" onChange={handleOcrScan} className="hidden" />
 
       {/* 시안 stat 4 그라데이션 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -630,16 +568,18 @@ export default function BankPage() {
                       className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
                     />
                   </th>
-                  <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">거래{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">예금주명{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th className="text-left px-6 py-4 font-semibold select-none">거래내용</th>
                   <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th className="text-right px-6 py-4 font-semibold select-none">잔액</th>
                   <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   <th onDoubleClick={() => onSortTx("type")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">상태{sortKey === "type" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedTx.length === 0 ? (
-                  <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">최근 거래내역이 없습니다</td></tr>
+                  <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">최근 거래내역이 없습니다</td></tr>
                 ) : sortedTx.map((tx) => {
                   const isIncome = tx.type === "income";
                   const m = MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped;
@@ -666,17 +606,43 @@ export default function BankPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? "M7 17l9-9m0 0H9m7 0v7" : "M17 7l-9 9m0 0h7m-7 0V9"} />
                             </svg>
                           </div>
-                          <span className="font-medium text-[var(--text)] truncate">{tx.counterparty || tx.description || "—"}</span>
+                          <span className="font-medium text-[var(--text)] truncate">{tx.counterparty || "—"}</span>
                         </div>
                       </td>
+                      <td className="px-6 py-4 text-sm text-[var(--text-muted)] max-w-[240px]"><span className="block truncate" title={tx.description || undefined}>{tx.description || "—"}</span></td>
                       <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{tx.classification || tx.category || "—"}</td>
                       <td className={`px-6 py-4 font-semibold mono-number ${isIncome ? "text-emerald-500" : "text-red-500"}`}>
                         {isIncome ? "+" : "-"}{fmtW(Math.abs(Number(tx.amount || 0)))}
                       </td>
+                      <td className="px-6 py-4 text-sm text-[var(--text-muted)] mono-number text-right whitespace-nowrap">{tx.balance_after != null ? fmtW(Number(tx.balance_after)) : "—"}</td>
                       <td className="px-6 py-4 text-sm text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${m.bg} ${m.text}`}>{m.label}</span>
+                      <td className="px-6 py-4 relative">
+                        <button
+                          type="button"
+                          onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); }}
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${m.bg} ${m.text} cursor-pointer hover:ring-1 hover:ring-current`}
+                          title="클릭해서 바로 매핑/무시 처리"
+                        >{m.label}</button>
                         {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500">전표처리됨</span>}
+                        {mapOpenId === tx.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setMapOpenId(null)} />
+                            <div className="absolute z-50 mt-1 right-4 w-56 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-3 text-left">
+                              <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">분류 선택 후 매핑 처리</div>
+                              <select value={mapCat} onChange={(e) => setMapCat(e.target.value)}
+                                className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs mb-2 focus:outline-none focus:border-[var(--primary)]">
+                                <option value="">(분류 없음)</option>
+                                {BANK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                              <div className="flex gap-1.5">
+                                <button type="button" onClick={() => mapMut.mutate({ id: tx.id, category: mapCat })} disabled={mapMut.isPending}
+                                  className="flex-1 px-2 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white disabled:opacity-50 hover:brightness-110">매핑 완료</button>
+                                <button type="button" onClick={() => ignoreMut.mutate(tx.id)} disabled={ignoreMut.isPending}
+                                  className="px-2 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">무시</button>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </td>
                     </tr>
                   );
@@ -720,58 +686,6 @@ export default function BankPage() {
         </div>
       )}
 
-      {/* 영수증 스캔 결과 확인·등록 모달 */}
-      {ocrForm && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setOcrForm(null)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-base font-bold">영수증 인식 결과</h3>
-              <button onClick={() => setOcrForm(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
-            </div>
-            <p className="text-[11px] text-[var(--text-dim)] mb-4">내용을 확인·수정한 뒤 <b className="text-[var(--text-muted)]">지출 거래</b>로 등록됩니다.</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">금액 (원) *</label>
-                <input type="text" inputMode="numeric" value={ocrForm.amount ? Number(ocrForm.amount).toLocaleString("ko-KR") : ""}
-                  onChange={(e) => setOcrForm((f) => f && ({ ...f, amount: e.target.value.replace(/[^0-9]/g, "") }))}
-                  placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">거래처</label>
-                <input value={ocrForm.merchant} onChange={(e) => setOcrForm((f) => f && ({ ...f, merchant: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1.5">거래일 *</label>
-                  <DateField value={ocrForm.date} onChange={(e) => setOcrForm((f) => f && ({ ...f, date: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-                </div>
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1.5">카테고리</label>
-                  <select value={ocrForm.category} onChange={(e) => setOcrForm((f) => f && ({ ...f, category: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
-                    <option value="">선택 안함</option>
-                    <option value="복리후생비">복리후생비</option><option value="소모품비">소모품비</option><option value="통신비">통신비</option>
-                    <option value="교통비">교통비</option><option value="광고선전비">광고선전비</option><option value="접대비">접대비</option>
-                    <option value="보험료">보험료</option><option value="세금공과">세금공과</option><option value="수수료">수수료</option>
-                    <option value="임대료">임대료</option><option value="기타비용">기타비용</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">메모 (품목)</label>
-                <input value={ocrForm.memo} onChange={(e) => setOcrForm((f) => f && ({ ...f, memo: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2.5 mt-5">
-              <button onClick={() => setOcrForm(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-              <button onClick={saveOcrTx} disabled={ocrSaving} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{ocrSaving ? "등록 중..." : "지출 거래 등록"}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
