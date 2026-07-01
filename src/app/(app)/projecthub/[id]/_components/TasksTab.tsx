@@ -5,12 +5,13 @@
 //   간트: start_date~due_date 막대를 일 타임라인에 커스텀 div 로 렌더(의존성 화살표 제외, today 라인).
 //   진행률 = done/전체(archived 제외). 지연 = due_date<today && status!='done'.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
+import { uploadTaskAttachment, taskAttachmentUrl, removeTaskAttachment, isImageAtt, type TaskAttachment } from "@/lib/task-attachments";
 
 const db = supabase as any;
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -39,7 +40,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
     queryKey: ["project-tasks", dealId],
     queryFn: async () => {
       const { data } = await db.from("project_tasks")
-        .select("id, title, description, status, assignee_id, start_date, due_date, progress, position")
+        .select("id, title, description, status, assignee_id, start_date, due_date, progress, position, attachments")
         .eq("deal_id", dealId).is("archived_at", null)
         .order("position", { ascending: true }).order("created_at", { ascending: true });
       return (data || []) as any[];
@@ -125,6 +126,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
                       {t.assignee_id && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{userName[t.assignee_id] || "담당"}</span>}
                       {t.due_date && <span className={`text-[10px] mono-number ${isDelayed(t) ? "text-red-500 font-semibold" : "text-[var(--text-dim)]"}`}>~{String(t.due_date).slice(5, 10)}</span>}
                       {isDelayed(t) && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-semibold">지연</span>}
+                      {Array.isArray(t.attachments) && t.attachments.length > 0 && <span className="text-[10px] text-[var(--text-dim)]">📎 {t.attachments.length}</span>}
                     </div>
                   </div>
                 ))}
@@ -239,6 +241,49 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   const [saving, setSaving] = useState(false);
   const isEdit = !!task;
 
+  // ── 첨부(이미지·파일) + 클립보드 붙여넣기 ──
+  const [atts, setAtts] = useState<TaskAttachment[]>(Array.isArray(task?.attachments) ? task.attachments : []);
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      for (const a of atts) {
+        if (isImageAtt(a) && !urls[a.path]) {
+          const u = await taskAttachmentUrl(a.path);
+          if (alive && u) setUrls((m) => ({ ...m, [a.path]: u }));
+        }
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const addFiles = async (files: File[]) => {
+    if (files.length === 0 || !companyId) return;
+    setUploading(true);
+    try {
+      for (const f of files) {
+        const a = await uploadTaskAttachment(companyId, f);
+        setAtts((p) => [...p, a]);
+        if (isImageAtt(a)) { const u = await taskAttachmentUrl(a.path); if (u) setUrls((m) => ({ ...m, [a.path]: u })); }
+      }
+    } catch (e: any) { toast(e?.message || "첨부 업로드 실패", "error"); }
+    finally { setUploading(false); }
+  };
+  const onPaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imgs: File[] = [];
+    for (const it of Array.from(items)) {
+      if (it.type.startsWith("image/")) { const f = it.getAsFile(); if (f) imgs.push(f); }
+    }
+    if (imgs.length) { e.preventDefault(); addFiles(imgs); }
+  };
+  const removeAtt = (a: TaskAttachment) => { setAtts((p) => p.filter((x) => x.id !== a.id)); removeTaskAttachment(a.path); };
+
   const save = async () => {
     if (!title.trim()) { toast("태스크명을 입력하세요", "error"); return; }
     setSaving(true);
@@ -246,6 +291,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
       const payload: any = {
         title: title.trim(), description: desc.trim() || null, status,
         assignee_id: assignee || null, start_date: start || null, due_date: due || null,
+        attachments: atts,
         updated_at: new Date().toISOString(),
       };
       if (isEdit) {
@@ -283,7 +329,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
           <div className="text-sm font-bold text-[var(--text)]">{isEdit ? "태스크 수정" : "+ 태스크 추가"}</div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
-        <div className="p-5 space-y-3">
+        <div className="p-5 space-y-3" onPaste={onPaste}>
           <div>
             <label className={LB}>태스크명 *</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="할 일" className={IN} autoFocus />
@@ -316,6 +362,30 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
           <div>
             <label className={LB}>설명 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
             <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} className={IN} />
+          </div>
+          <div>
+            <label className={LB}>첨부 <span className="font-normal text-[var(--text-dim)]">(이미지·파일 · Ctrl+V 붙여넣기)</span></label>
+            <div className="flex items-center gap-2 mb-2">
+              <button type="button" onClick={() => fileRef.current?.click()} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">파일 선택</button>
+              <span className="text-[11px] text-[var(--text-dim)]">{uploading ? "업로드 중…" : "이미지는 캡처 후 Ctrl+V로 바로 붙여넣기"}</span>
+              <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => { addFiles(Array.from(e.target.files || [])); e.target.value = ""; }} />
+            </div>
+            {atts.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {atts.map((a) => (
+                  <div key={a.id} className="relative group rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--bg-surface)]">
+                    <button type="button" onClick={() => removeAtt(a)} className="absolute top-0.5 right-0.5 z-10 w-5 h-5 rounded-full bg-black/60 text-white text-xs leading-none opacity-0 group-hover:opacity-100 transition" aria-label="첨부 삭제">×</button>
+                    {isImageAtt(a) && urls[a.path] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <a href={urls[a.path]} target="_blank" rel="noreferrer"><img src={urls[a.path]} alt={a.name} className="w-full h-16 object-cover" /></a>
+                    ) : (
+                      <div className="h-16 flex items-center justify-center text-2xl">📄</div>
+                    )}
+                    <div className="px-1.5 py-1 text-[10px] text-[var(--text-muted)] truncate" title={a.name}>{a.name}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <div className="px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2">
