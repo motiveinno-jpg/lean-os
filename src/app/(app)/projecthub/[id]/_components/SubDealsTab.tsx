@@ -31,7 +31,7 @@ const STATUS_LABEL: Record<string, string> = Object.fromEntries(STATUS_OPTS.map(
 // 금액은 '입력한 총액' 그대로 저장하고 vat_type(포함/별도) 플래그를 함께 저장. 마진은 뷰에서 net 역산.
 const emptyForm = () => ({ name: "", type: "purchase", partner_id: "", contract_amount: "", status: "estimate", start_date: "", end_date: "", vat_type: "exclude" as "exclude" | "include" });
 
-export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: string | null }) {
+export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; companyId: string | null; direction?: "sales" | "purchase" }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
@@ -74,7 +74,7 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
     return partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").replace(/-/g, "").includes(tn)).slice(0, 200);
   }, [partners, ptSearch]);
 
-  const openCreate = () => { setEditId(null); setForm(emptyForm()); setPtSearch(""); setShowForm(true); };
+  const openCreate = () => { setEditId(null); setForm({ ...emptyForm(), type: direction ?? emptyForm().type }); setPtSearch(""); setShowForm(true); };
   const openEdit = (s: SubDeal) => {
     setEditId(s.id);
     // 저장값은 입력한 총액 그대로 → vat_type 플래그를 그대로 복원
@@ -129,6 +129,8 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
 
   const salesSum = subs.filter((s) => s.type === "sales").reduce((a, s) => a + Number(s.contract_amount || 0), 0);
   const purchaseSum = subs.filter((s) => s.type === "purchase").reduce((a, s) => a + Number(s.contract_amount || 0), 0);
+  // 방향 지정 시 그 방향만 표시(파이프라인 탭). 없으면 전체.
+  const shown = direction ? subs.filter((s) => s.type === direction) : subs;
 
   return (
     <div className="space-y-3">
@@ -139,8 +141,8 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
 
       {isLoading ? (
         <div className="glass-card p-8 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>
-      ) : subs.length === 0 ? (
-        <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">세부 프로젝트가 없습니다. “+ 세부 추가”로 매출/매입 세부를 등록하세요.</div>
+      ) : shown.length === 0 ? (
+        <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">{direction === "sales" ? "매출" : direction === "purchase" ? "매입" : "매출/매입"} 세부가 없습니다. “+ 세부 추가”로 등록하세요.</div>
       ) : (
         <div className="glass-card overflow-x-auto">
           <table className="w-full text-sm border-collapse">
@@ -157,7 +159,7 @@ export function SubDealsTab({ dealId, companyId }: { dealId: string; companyId: 
               </tr>
             </thead>
             <tbody>
-              {subs.map((s) => (
+              {shown.map((s) => (
                 <tr key={s.id} className="hover:bg-[var(--bg-surface)]/50">
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40"><button onClick={() => openEdit(s)} className="text-[var(--text)] font-medium hover:text-[var(--primary)] hover:underline text-left">{s.name}</button></td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center">

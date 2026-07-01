@@ -24,6 +24,8 @@ export type ProjectTabKey =
   | "quote"
   | "contract"
   | "subdeals"
+  | "sales_pipeline"
+  | "purchase_pipeline"
   | "subprojects"
   | "pnl"
   | "performance"
@@ -48,8 +50,9 @@ export const PROJECT_TYPES: Record<ProjectType, ProjectTypeConfig> = {
     icon: "💰",
     desc: "계약·매출·매입으로 마진(수익성)을 관리하는 프로젝트. 견적·계약·손익 전체를 다룹니다.",
     hero: "마진률",
-    // 현행 전체 탭 (회귀 0 — 기존과 동일 순서)
-    tabs: ["overview", "quote", "contract", "subdeals", "subprojects", "pnl"],
+    // 방향별 파이프라인 탭 — 수주(매출)/발주(매입)이 각각 견적▶계약▶서명▶진행▶정산 한 흐름.
+    //   기존 quote/contract/subdeals 는 파이프라인 탭에 방향 필터로 흡수(탭 목록에선 제외).
+    tabs: ["overview", "sales_pipeline", "purchase_pipeline", "pnl", "subprojects"],
   },
   goal: {
     type: "goal",

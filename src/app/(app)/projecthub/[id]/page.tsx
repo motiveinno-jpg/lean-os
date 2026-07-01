@@ -97,13 +97,15 @@ const TAB_LABEL: Record<TabKey, string> = {
   quote: "견적서",
   contract: "전자계약",
   subdeals: "매출/매입 관리",
+  sales_pipeline: "수주(매출)",
+  purchase_pipeline: "발주(매입)",
   subprojects: "세부 프로젝트(캠페인)",
   pnl: "프로젝트 운영",
   performance: "성과",
   tasks: "태스크",
   workflow: "워크플로우",
 };
-const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "subprojects", "pnl", "performance", "tasks", "workflow"];
+const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "sales_pipeline", "purchase_pipeline", "subprojects", "pnl", "performance", "tasks", "workflow"];
 
 export default function ProjectHubDetailPage() {
   const { user } = useUser();
@@ -527,6 +529,10 @@ export default function ProjectHubDetailPage() {
     } catch (e: any) { toast(e?.message || "삭제 실패", "error"); } finally { setDeletingChild(false); }
   };
 
+  // 파이프라인(방향) 탭 — 견적/계약/매출·매입을 방향(sub_deal.type)으로 걸러 한 흐름에 표시
+  const pipelineDir: "sales" | "purchase" | null = tab === "sales_pipeline" ? "sales" : tab === "purchase_pipeline" ? "purchase" : null;
+  const isDocTab = tab === "quote" || tab === "contract" || !!pipelineDir;
+
   // 견적/계약 — documents(deal_id) + quote_tracking + quote_approvals + signature_requests
   const { data: documents = [] } = useQuery({
     queryKey: ["projecthub-docs", dealId],
@@ -534,7 +540,7 @@ export default function ProjectHubDetailPage() {
       const { data } = await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json, sub_deal_id, source_document_id").eq("deal_id", dealId).order("created_at", { ascending: false });
       return (data || []) as any[];
     },
-    enabled: !!dealId && (tab === "quote" || tab === "contract"),
+    enabled: !!dealId && isDocTab,
   });
   const docIds = useMemo(() => documents.map((d) => d.id), [documents]);
   // 견적서 탭 / 전자계약 탭 문서 분리 — 견적서(invoice·quote) vs 계약(나머지)
@@ -547,7 +553,7 @@ export default function ProjectHubDetailPage() {
       const { data } = await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at", { ascending: true });
       return (data || []) as { id: string; name: string; type: string | null }[];
     },
-    enabled: !!dealId && tab === "quote",
+    enabled: !!dealId && (tab === "quote" || !!pipelineDir),
   });
   const { data: quoteTracking = [] } = useQuery({
     queryKey: ["projecthub-quotes", dealId, docIds.length],
@@ -556,7 +562,7 @@ export default function ProjectHubDetailPage() {
       const { data } = await db.from("quote_tracking").select("*").in("document_id", docIds);
       return (data || []) as any[];
     },
-    enabled: tab === "quote" && docIds.length > 0,
+    enabled: (tab === "quote" || !!pipelineDir) && docIds.length > 0,
   });
   const { data: approvals = [] } = useQuery({
     queryKey: ["projecthub-approvals", dealId],
@@ -564,7 +570,7 @@ export default function ProjectHubDetailPage() {
       const { data } = await db.from("quote_approvals").select("*").eq("deal_id", dealId).order("created_at", { ascending: false });
       return (data || []) as any[];
     },
-    enabled: (tab === "quote" || tab === "contract") && !!dealId,
+    enabled: isDocTab && !!dealId,
   });
   const { data: sigRequests = [] } = useQuery({
     queryKey: ["projecthub-sigs", dealId, docIds.length],
@@ -573,7 +579,7 @@ export default function ProjectHubDetailPage() {
       const { data } = await db.from("signature_requests").select("id, title, status, signer_name, signer_email, signed_at, our_signed_at, signed_contract_url, document_id").in("document_id", docIds).order("created_at", { ascending: false });
       return (data || []) as any[];
     },
-    enabled: tab === "contract" && docIds.length > 0,
+    enabled: (tab === "contract" || !!pipelineDir) && docIds.length > 0,
   });
 
   // 손익 — 프로젝트(deal_id)에 태그된 비용처리 내역: 세금계산서(매입)·현금영수증·카드사용·수동전표
@@ -654,6 +660,15 @@ export default function ProjectHubDetailPage() {
     { key: "card", label: "카드사용", total: costCardSum, count: costCards.length, items: costCards as any[] },
     { key: "voucher", label: "수동 전표", total: costVoucherSum, count: costVouchers.length, items: costVouchers as any[] },
   ];
+
+  // 방향별 파이프라인 표시 — 문서 방향 판정(sub_deal.type, 미지정=매출) + 방향 필터 + 진행 스텝
+  const dirOfDoc = (d: any): "sales" | "purchase" => {
+    const sd = (subDealOpts as any[]).find((x) => x.id === d.sub_deal_id);
+    return sd?.type === "purchase" ? "purchase" : "sales";
+  };
+  const quoteDocsShown = pipelineDir ? (quoteDocs as any[]).filter((d) => dirOfDoc(d) === pipelineDir) : (quoteDocs as any[]);
+  const contractDocsShown = pipelineDir ? (contractDocs as any[]).filter((d) => dirOfDoc(d) === pipelineDir) : (contractDocs as any[]);
+  const stepReached = (sigRequests as any[]).length > 0 ? 2 : contractDocsShown.length > 0 ? 1 : quoteDocsShown.length > 0 ? 0 : -1;
 
   return (
     <div className="space-y-4">
@@ -740,7 +755,25 @@ export default function ProjectHubDetailPage() {
       {tab === "subdeals" && companyId && <SubDealsTab dealId={dealId} companyId={companyId} />}
 
       {/* 견적서 */}
-      {tab === "quote" && (
+      {/* 방향별 파이프라인 스텝 인디케이터 (수주/발주 탭 상단) */}
+      {pipelineDir && (
+        <div className="glass-card p-4">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+            <h3 className="text-sm font-bold text-[var(--text)]">{pipelineDir === "sales" ? "📤 수주(매출) 파이프라인" : "📥 발주(매입) 파이프라인"}</h3>
+            <span className="text-[11px] text-[var(--text-dim)]">{pipelineDir === "sales" ? "고객 견적 발송 → 승인 → 계약 생성 → 서명 → 정산" : "협력사 견적 등록 → 발주 계약 → 서명 → 검수 → 정산"}</span>
+          </div>
+          <div className="flex items-center gap-0.5 overflow-x-auto pb-1">
+            {["견적", "계약", "서명", "진행", "정산"].map((s, i) => (
+              <div key={s} className="flex items-center">
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${i <= stepReached ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>{s}</span>
+                {i < 4 && <span className={`mx-0.5 text-xs ${i < stepReached ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>▶</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(tab === "quote" || pipelineDir) && (
         <div className="space-y-3">
           {/* 회사 견적 양식 PDF 업로드 → AI 인식 → 견적 생성 시 그 디자인으로 자동 작성 */}
           {companyId && <FormTemplateManager companyId={companyId} only="quote" />}
@@ -768,7 +801,7 @@ export default function ProjectHubDetailPage() {
             </div>
           </div>
 
-          {quoteDocs.length === 0 ? (
+          {quoteDocsShown.length === 0 ? (
             <Empty text="이 프로젝트에 연결된 견적서가 없습니다. 위 “+ 견적서 작성”으로 만들어 보세요." />
           ) : (
             <div className="glass-card overflow-x-auto">
@@ -782,7 +815,7 @@ export default function ProjectHubDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {quoteDocs.map((doc) => {
+                  {quoteDocsShown.map((doc) => {
                     const qt = quoteTracking.find((q) => q.document_id === doc.id);
                     const header = (doc.content_json as any)?.header || {};
                     const st = qt?.status || doc.status || "—";
@@ -831,7 +864,7 @@ export default function ProjectHubDetailPage() {
       )}
 
       {/* 계약 */}
-      {tab === "contract" && (
+      {(tab === "contract" || pipelineDir) && (
         <div className="space-y-3">
           {/* 회사 계약 양식 PDF 업로드 → AI 인식 → 서명완료 계약 PDF를 그 디자인+서명칸으로 자동 생성 */}
           {companyId && <FormTemplateManager companyId={companyId} only="contract" />}
@@ -846,10 +879,10 @@ export default function ProjectHubDetailPage() {
           </div>
 
           {/* 계약 문서 (견적서 제외) — 작성·편집 */}
-          {contractDocs.length > 0 && (
+          {contractDocsShown.length > 0 && (
             <div className="glass-card overflow-hidden divide-y divide-[var(--border)]/40">
               <div className="px-4 py-2.5 bg-[var(--bg-surface)] text-[11px] font-bold text-[var(--text-muted)]">계약 문서</div>
-              {contractDocs.map((doc) => (
+              {contractDocsShown.map((doc) => (
                 <div key={doc.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
                   <Link href={`/documents?id=${doc.id}`} className="min-w-0 flex-1 text-sm text-[var(--primary)] font-medium hover:underline truncate">{doc.name || "계약서"}</Link>
                   {doc.source_document_id && (() => {
@@ -891,6 +924,14 @@ export default function ProjectHubDetailPage() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* 매출/매입 관리 — 파이프라인 탭(방향별) 하단 */}
+      {pipelineDir && companyId && (
+        <div>
+          <div className="text-xs font-bold text-[var(--text-muted)] mb-2 mt-1">{pipelineDir === "sales" ? "매출 세부 관리" : "매입 세부 관리"}</div>
+          <SubDealsTab dealId={dealId} companyId={companyId} direction={pipelineDir} />
         </div>
       )}
 
