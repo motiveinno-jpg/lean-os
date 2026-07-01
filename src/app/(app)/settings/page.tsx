@@ -15,7 +15,6 @@ import { useToast } from "@/components/toast";
 import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
 import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
-import ContractTemplatesManager from "@/components/contract-templates-manager";
 import { TaxAutomationTab } from "./_components/TaxAutomationTab";
 import { CertificateManagementTab } from "./_components/CertificateManagementTab";
 import { BankIntegrationTab } from "./_components/BankIntegrationTab";
@@ -543,8 +542,7 @@ export default function SettingsPage() {
       {mainTab === "company" && (
         <div className="space-y-6">
           <CompanyInfoTab companyId={companyId} />
-          {/* L 견적/계약: 계약서 양식 관리 — 시스템 양식 3종 + 회사 자체 양식 CRUD */}
-          {companyId && <ContractTemplatesManager companyId={companyId} />}
+          {/* 계약서 양식 관리는 전자계약 > 양식 관리 탭으로 이관됨 (2026-07-01) */}
         </div>
       )}
 

@@ -15,6 +15,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocuments, getDocTemplates } from "@/lib/queries";
 import { TemplatesTab } from "@/components/templates-tab";
+import ContractTemplatesManager from "@/components/contract-templates-manager";
 import {
   getSignatureRequests,
   getSignatureProof,
@@ -336,13 +337,17 @@ export default function SignaturesDashboardPage() {
       </div>
 
       {subTab === "templates" && companyId && userId && (
-        <TemplatesTab
-          scope="business"
-          companyId={companyId}
-          userId={userId}
-          templates={docTemplates as any[]}
-          onInvalidate={() => qc.invalidateQueries({ queryKey: ["doc-templates", companyId] })}
-        />
+        <div className="space-y-6">
+          <TemplatesTab
+            scope="business"
+            companyId={companyId}
+            userId={userId}
+            templates={docTemplates as any[]}
+            onInvalidate={() => qc.invalidateQueries({ queryKey: ["doc-templates", companyId] })}
+          />
+          {/* 계약서 본문 양식(변수 치환형) — 회사설정에서 이관 (2026-07-01) */}
+          <ContractTemplatesManager companyId={companyId} />
+        </div>
       )}
 
       {subTab === "requests" && (
