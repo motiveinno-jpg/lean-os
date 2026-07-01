@@ -282,13 +282,13 @@ export async function issueTaxInvoice(
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) throw new Error('Supabase URL 미설정');
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/popbill-issue`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/hometax-issue`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ action: 'issue', invoice_id: invoiceId }),
+    body: JSON.stringify({ invoice_id: invoiceId }),
   });
   const result = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -306,30 +306,25 @@ export async function issueTaxInvoice(
   return invoice;
 }
 
-// ── 전자세금계산서 발행 등록 (최초 1회): 팝빌 회원가입 + 인증서 등록 URL ──
-//   발행 PDF 선행 절차. certURL(팝빌 인증서 등록 페이지)을 받아 새 창으로 연다.
+// ── 전자세금계산서 발행 등록 (최초 1회): CODEF 제휴사 회원가입 + 공동인증서 등록 URL ──
+//   발행 선행 절차. certURL(인증서 등록 페이지)을 받아 새 창으로 연다.
 export async function registerHometaxIssuer(companyId: string): Promise<{ certURL: string; joinCode?: string; message?: string }> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('로그인이 필요합니다');
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) throw new Error('Supabase URL 미설정');
 
-  // 팝빌 직접: 회원사 가입(join) → 인증서 등록 URL(cert-url)
-  await fetch(`${supabaseUrl}/functions/v1/popbill-issue`, {
+  // CODEF: 제휴사 회원가입 + 인증서 등록 URL 발급 (register-issuer 한 번의 호출로 처리)
+  const res = await fetch(`${supabaseUrl}/functions/v1/hometax-issue`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-    body: JSON.stringify({ action: 'join', companyId }),
-  }).catch(() => {});
-  const res = await fetch(`${supabaseUrl}/functions/v1/popbill-issue`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-    body: JSON.stringify({ action: 'cert-url', companyId }),
+    body: JSON.stringify({ action: 'register-issuer', companyId }),
   });
   const result = await res.json().catch(() => ({}));
   if (!res.ok || !result.certURL) {
     throw new Error(result.error || `발행 등록 실패 (HTTP ${res.status})`);
   }
-  return { certURL: result.certURL, message: result.message };
+  return { certURL: result.certURL, joinCode: result.joinCode, message: result.message };
 }
 
 // ── Period Aggregation (월/분기/연간) ──

@@ -3020,7 +3020,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
     setIssueLoading(false);
   };
 
-  // 발행 등록(최초 1회): 팝빌 회원가입 + 인증서 등록 URL → 새 창
+  // 발행 등록(최초 1회): CODEF 제휴사 회원가입 + 공동인증서 등록 URL → 새 창
   const handleRegisterIssuer = async () => {
     setRegisterLoading(true);
     try {
