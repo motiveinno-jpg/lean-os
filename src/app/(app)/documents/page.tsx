@@ -256,6 +256,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     onError: (err: any) => toast(`저장 실패: ${err.message || err}`, "error"),
   });
 
+  const [savedModal, setSavedModal] = useState<null | { invoiceId: string | null }>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
   // 저장/전표 — 견적서 저장 + 품목 합계로 매출 세금계산서(초안) 자동 생성 (견적→매출 전표 연동)
   const saveAndInvoiceMut = useMutation({
     mutationFn: async () => {
@@ -270,7 +273,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       if (editPaymentSchedule.length > 0) cj.paymentSchedule = editPaymentSchedule;
       await saveRevision({ documentId: id, authorId: userId!, contentJson: cj as unknown as Json, comment: comment || "저장/전표" });
       // 2) 매출 세금계산서(초안) 생성
-      await createTaxInvoice({
+      const inv = await createTaxInvoice({
         companyId: companyId!,
         dealId: (doc as any)?.deal_id || undefined,
         type: "sales",
@@ -280,8 +283,14 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         issueDate: new Date().toISOString().slice(0, 10),
         label: `견적서: ${doc?.name || "견적"}`,
       });
+      return inv;
     },
-    onSuccess: () => { invalidate(); setComment(""); toast("견적서 저장 + 매출 세금계산서(초안) 생성 완료 — 세금계산서 메뉴에서 확인/발행하세요", "success"); },
+    onSuccess: (inv) => {
+      invalidate(); setComment("");
+      setSavedModal({ invoiceId: (inv as any)?.id || null });
+      // 편집영역 대신 '생성된 견적서'(미리보기 결과물)로 스크롤
+      setTimeout(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    },
     onError: (err: any) => toast(`저장/전표 실패: ${err.message || err}`, "error"),
   });
 
@@ -992,6 +1001,20 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             </div>
           )}
 
+          {/* 저장/전표 후 — 세금계산서 발행 여부 팝업 */}
+          {savedModal && (
+            <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={() => setSavedModal(null)}>
+              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <div className="text-base font-bold text-[var(--text)] mb-1">✅ 견적서가 저장되었습니다</div>
+                <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">아래에 생성된 견적서가 표시됩니다. 매출 세금계산서 <b className="text-[var(--text)]">초안</b>도 만들어졌어요. 지금 발행하시겠어요?</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setSavedModal(null)} className="flex-1 py-2 rounded-lg border border-[var(--border)] text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">나중에</button>
+                  <button onClick={() => { setSavedModal(null); window.location.href = "/tax-invoices"; }} className="flex-1 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90">지금 발행하러 가기 →</button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── 견적서 미리보기 (헤더·품목 값으로 구성된 결과물) ── */}
           {(contentType === 'invoice' || contentType === 'quote') && (() => {
             const validItems = editItems.filter((i: any) => i && (i.name || Number(i.supplyAmount)));
@@ -1001,8 +1024,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             const grand = supplyTotal + taxTotal - discountVal;
             const w = (n: number) => `₩${(Number(n) || 0).toLocaleString('ko')}`;
             return (
-              <div className="glass-card overflow-hidden">
-                <div className="px-5 py-3 border-b border-[var(--border)] text-xs text-[var(--text-dim)] font-medium">견적서 미리보기</div>
+              <div ref={previewRef} className="glass-card overflow-hidden scroll-mt-4">
+                <div className="px-5 py-3 border-b border-[var(--border)] text-xs text-[var(--text-dim)] font-medium">견적서 미리보기 (저장된 결과물)</div>
                 <div className="p-6 bg-white text-[#222]">
                   <div className="text-center text-2xl font-bold mb-5 tracking-[0.3em] text-[#222]">견 적 서</div>
                   <div className="flex justify-between text-xs mb-4 text-[#333]">
