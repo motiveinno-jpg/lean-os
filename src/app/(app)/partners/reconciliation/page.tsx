@@ -32,7 +32,8 @@ export default function ReconciliationPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set()); // 확인 큐 선택 매칭
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
-  const [matchDocType, setMatchDocType] = useState<"invoice" | "cash" | "card">("invoice"); // 수동매칭 연결 대상 종류
+  const [matchDocType, setMatchDocType] = useState<"invoice" | "cash" | "card" | "voucher">("invoice"); // 수동매칭 연결 대상 종류
+  const [newAcct, setNewAcct] = useState<{ code: string; name: string; type: string } | null>(null); // 직접입력용 커스텀 계정 추가 폼
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set()); // 카드 다대일 선택
   const [manualSearch, setManualSearch] = useState(""); // 수동 매칭 탭 거래처(입금자) 검색
   // 확인 큐 — 엑셀식 컬럼 너비 (드래그/더블클릭 자동맞춤, localStorage 기억)
@@ -364,6 +365,15 @@ export default function ReconciliationPage() {
     },
     enabled: !!companyId && tab === "manual",
   });
+  // 직접입력(전표) — 계정과목 마스터 (증빙 없는 거래를 계정으로 바로 기장)
+  const { data: coaAccounts = [] } = useQuery<any[]>({
+    queryKey: ["recon-coa", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("chart_of_accounts").select("id, code, name, account_type, is_system").eq("company_id", companyId).order("code");
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && tab === "manual",
+  });
 
   // 현금영수증 연결 — cash_receipts.bank_transaction_id 세팅 + 통장거래 settled 마킹
   const cashLinkMut = useMutation({
@@ -388,6 +398,28 @@ export default function ReconciliationPage() {
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-card"] }); setMatchTx(null); setInvSearch(""); setSelectedCardIds(new Set()); toast("카드사용 연결 완료", "success"); },
     onError: (e: any) => toast(e?.message || "연결 실패", "error"),
+  });
+
+  // 직접입력(전표) — 증빙 없는 거래를 계정과목으로 바로 분개 기장(post_bank_voucher) + 정산완료 마킹.
+  //   예: 사무실 임차보증금(자산) 등 증빙 없이 자산·비용으로 처리해야 하는 입출금.
+  const voucherMut = useMutation({
+    mutationFn: async ({ tx, accountId }: { tx: OpenTx; accountId: string }) => {
+      const { error } = await db.rpc("post_bank_voucher", { p_bank_tx_id: tx.id, p_account_id: accountId, p_remember: false });
+      if (error) throw new Error(error.message);
+      // 증빙 매칭이 아니라 전표로 정리 — 미정산 목록에서 제외
+      await db.from("bank_transactions").update({ settlement_status: "settled", settled_amount: tx.amount }).eq("id", tx.id);
+    },
+    onSuccess: () => { invalidateAll(); qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); setMatchTx(null); setInvSearch(""); toast("전표 처리 완료 — 거래가 정리되었습니다", "success"); },
+    onError: (e: any) => toast(e?.message || "전표 처리 실패", "error"),
+  });
+  // 직접입력용 커스텀 계정과목 추가 (is_system=false, 회사스코프 RLS)
+  const addAcctMut = useMutation({
+    mutationFn: async (a: { code: string; name: string; type: string }) => {
+      const { error } = await db.from("chart_of_accounts").insert({ company_id: companyId, code: a.code.trim(), name: a.name.trim(), account_type: a.type, is_system: false });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["recon-coa"] }); setNewAcct(null); toast("계정과목 추가됨", "success"); },
+    onError: (e: any) => toast(e?.message || "계정 추가 실패 (코드 중복 등)", "error"),
   });
 
   // 수동 연결 — match_source='manual', status='confirmed' (즉시 미수금 차감).
@@ -419,6 +451,11 @@ export default function ReconciliationPage() {
   const txRemaining = (t: OpenTx) => Number(t.amount || 0) - Number(t.settled_amount || 0);
   const invRemaining = (i: UnsettledInv) => Number(i.total_amount || 0) - Number(i.settled_amount || 0);
   const matchInvType = matchTx?.type === "income" ? "sales" : "purchase";
+  const coaFiltered = useMemo(() => {
+    const q = invSearch.trim().toLowerCase();
+    if (!q) return coaAccounts as any[];
+    return (coaAccounts as any[]).filter((a) => `${a.code} ${a.name}`.toLowerCase().includes(q));
+  }, [coaAccounts, invSearch]);
   const filteredInv = useMemo(() => {
     const q = invSearch.trim().toLowerCase();
     const qDigits = q.replace(/[^0-9]/g, "");
@@ -718,7 +755,7 @@ export default function ReconciliationPage() {
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{matchTx.counterparty || "—"} · {matchTx.transaction_date} · 잔여 {won(txRemaining(matchTx))}</div>
             </div>
             <div className="px-5 pt-3 flex gap-1.5">
-              {([["invoice", "세금계산서"], ["cash", "현금영수증"], ["card", "카드사용"]] as const).map(([k, label]) => (
+              {([["invoice", "세금계산서"], ["cash", "현금영수증"], ["card", "카드사용"], ["voucher", "직접입력"]] as const).map(([k, label]) => (
                 <button key={k} onClick={() => setMatchDocType(k)}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${matchDocType === k ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
                   {label}
@@ -726,7 +763,7 @@ export default function ReconciliationPage() {
               ))}
             </div>
             <div className="px-5 py-3 border-b border-[var(--border)]">
-              <input value={invSearch} onChange={(e) => setInvSearch(e.target.value)} placeholder="거래처명 또는 금액으로 검색"
+              <input value={invSearch} onChange={(e) => setInvSearch(e.target.value)} placeholder={matchDocType === "voucher" ? "계정과목명 또는 코드로 검색" : "거래처명 또는 금액으로 검색"}
                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" />
             </div>
             <div className="flex-1 overflow-auto p-2">
@@ -781,6 +818,41 @@ export default function ReconciliationPage() {
                     );
                   })}
                 </>
+              )}
+              {matchDocType === "voucher" && (
+                <div className="space-y-1">
+                  <p className="px-1 pb-1 text-[11px] text-[var(--text-dim)]">증빙(세금계산서·현금영수증·카드)이 없는 거래를 계정과목으로 바로 전표처리합니다 (예: 임차보증금 → 자산). 처리하면 이 거래가 정리됩니다.</p>
+                  {coaFiltered.length === 0 ? (
+                    <div className="p-6 text-center text-sm text-[var(--text-muted)]">{(coaAccounts as any[]).length === 0 ? "계정과목 마스터가 없습니다. 아래에서 추가하세요." : "검색 결과가 없습니다."}</div>
+                  ) : coaFiltered.map((a: any) => (
+                    <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)]">
+                      <div className="min-w-0">
+                        <div className="text-sm text-[var(--text)] truncate">{a.name}{!a.is_system && <span className="text-[10px] text-[var(--primary)] ml-1">· 내 계정</span>}</div>
+                        <div className="text-[11px] text-[var(--text-dim)] mono-number">{a.code} · {a.account_type}</div>
+                      </div>
+                      <button onClick={() => voucherMut.mutate({ tx: matchTx, accountId: a.id })} disabled={voucherMut.isPending}
+                        className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">전표처리</button>
+                    </div>
+                  ))}
+                  {newAcct ? (
+                    <div className="mt-1.5 p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] space-y-2">
+                      <div className="text-[11px] font-semibold text-[var(--text-muted)]">새 계정과목 직접 추가</div>
+                      <div className="flex gap-1.5">
+                        <input value={newAcct.code} onChange={(e) => setNewAcct({ ...newAcct, code: e.target.value })} placeholder="코드(예:176)" className="w-24 px-2 py-1.5 text-xs rounded bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)]" />
+                        <input value={newAcct.name} onChange={(e) => setNewAcct({ ...newAcct, name: e.target.value })} placeholder="계정명(예:임차보증금)" className="flex-1 px-2 py-1.5 text-xs rounded bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)]" />
+                      </div>
+                      <div className="flex gap-1.5">
+                        <select value={newAcct.type} onChange={(e) => setNewAcct({ ...newAcct, type: e.target.value })} className="px-2 py-1.5 text-xs rounded bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)]">
+                          {([["asset", "자산"], ["liability", "부채"], ["equity", "자본"], ["revenue", "수익"], ["expense", "비용"]] as const).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                        <button onClick={() => addAcctMut.mutate(newAcct)} disabled={addAcctMut.isPending || !newAcct.code.trim() || !newAcct.name.trim()} className="px-3 py-1.5 text-xs font-semibold rounded bg-[var(--primary)] text-white disabled:opacity-50">추가</button>
+                        <button onClick={() => setNewAcct(null)} className="px-2 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setNewAcct({ code: "", name: "", type: "asset" })} className="mt-1.5 w-full px-3 py-2 text-xs font-semibold rounded-lg border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]">+ 직접 계정과목 추가 (기본 계정 외)</button>
+                  )}
+                </div>
               )}
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
