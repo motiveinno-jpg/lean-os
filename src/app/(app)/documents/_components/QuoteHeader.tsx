@@ -35,6 +35,7 @@ export function QuoteHeader({
   const [users, setUsers] = useState<any[]>([]);
   const [pSearch, setPSearch] = useState("");
   const [pOpen, setPOpen] = useState(false);
+  const [pIdx, setPIdx] = useState(0);
 
   useEffect(() => {
     if (!companyId) return;
@@ -75,18 +76,27 @@ export function QuoteHeader({
             <input
               value={header.partnerName || ""}
               disabled={!editable}
-              onChange={(e) => { set({ partnerName: e.target.value, partnerId: "" }); setPSearch(e.target.value); setPOpen(true); }}
-              onFocus={() => editable && setPOpen(true)}
+              onChange={(e) => { set({ partnerName: e.target.value, partnerId: "" }); setPSearch(e.target.value); setPOpen(true); setPIdx(0); }}
+              onFocus={() => { if (editable) { setPOpen(true); setPIdx(0); } }}
               onBlur={() => setTimeout(() => setPOpen(false), 200)}
+              onKeyDown={(e) => {
+                if (!pOpen || filtered.length === 0) return;
+                const max = Math.min(filtered.length, 200);
+                if (e.key === "ArrowDown") { e.preventDefault(); setPIdx((i) => (i + 1) % max); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setPIdx((i) => (i - 1 + max) % max); }
+                else if (e.key === "Enter") { const p = filtered[pIdx]; if (p) { e.preventDefault(); set({ partnerId: p.id, partnerName: p.name }); setPOpen(false); } }
+                else if (e.key === "Escape") { setPOpen(false); }
+              }}
               placeholder="거래처 검색/입력"
               className={IN}
             />
             {pOpen && editable && filtered.length > 0 && (
               <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg max-h-72 overflow-y-auto">
-                {filtered.slice(0, 200).map((p) => (
+                {filtered.slice(0, 200).map((p, i) => (
                   <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setPIdx(i)}
                     onClick={() => { set({ partnerId: p.id, partnerName: p.name }); setPOpen(false); }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-surface)] text-xs flex items-center justify-between">
+                    className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between ${i === pIdx ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
                     <span className="font-medium">{p.name}</span>
                     {p.business_number && <span className="caption">{p.business_number}</span>}
                   </button>
