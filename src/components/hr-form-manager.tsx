@@ -13,7 +13,7 @@ import { useToast } from "@/components/toast";
 import FormTemplateEditor from "@/components/form-template-editor";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
 import {
-  rasterizePdf, uploadTemplateFile, saveFormTemplate, listFormTemplates, deleteFormTemplate,
+  rasterizePdf, uploadTemplateFile, saveFormTemplate, updateFormTemplateFields, listFormTemplates, deleteFormTemplate,
   downloadTemplateFile, type OverlayField, type PdfFormTemplate,
 } from "@/lib/form-templates";
 
@@ -34,6 +34,7 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<null | {
     pageImages: string[]; pageSizes: { w: number; h: number }[]; filePath: string; pageCount: number;
+    initialFields?: OverlayField[]; editId?: string;
   }>(null);
   const [filling, setFilling] = useState<null | { tpl: PdfFormTemplate; values: Record<string, string> }>(null);
 
@@ -64,13 +65,39 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
   const onSaveFields = async (fields: OverlayField[]) => {
     if (!companyId || !editing) return;
     try {
-      await saveFormTemplate({
-        companyId, name: name.trim(), docType: "hr_form",
-        filePath: editing.filePath, pageCount: editing.pageCount, pageSizes: editing.pageSizes, fields,
-      });
-      toast(`'${name.trim()}' 양식을 저장했습니다`, "success");
+      if (editing.editId) {
+        // 기존 양식 재편집 — 필드만 갱신(원본 PDF 유지)
+        await updateFormTemplateFields(editing.editId, fields);
+        toast(`'${name.trim() || "양식"}' 필드를 수정했습니다`, "success");
+      } else {
+        await saveFormTemplate({
+          companyId, name: name.trim(), docType: "hr_form",
+          filePath: editing.filePath, pageCount: editing.pageCount, pageSizes: editing.pageSizes, fields,
+        });
+        toast(`'${name.trim()}' 양식을 저장했습니다`, "success");
+      }
       setEditing(null); setName(""); refresh();
     } catch (e: any) { toast("저장 실패: " + (e?.message || ""), "error"); }
+  };
+
+  // 저장된 양식 재편집 — 원본 PDF 재래스터 후 기존 필드로 에디터 재오픈
+  const startEdit = async (t: PdfFormTemplate) => {
+    if (!companyId || busy) return;
+    setBusy(true);
+    try {
+      const buf = await downloadTemplateFile(t.file_path);
+      const file = new File([buf], `${t.name || "form"}.pdf`, { type: "application/pdf" });
+      const { pages, pageSizes } = await rasterizePdf(file);
+      setName(t.name || "");
+      setEditing({
+        pageImages: pages.map((b) => `data:image/png;base64,${b}`),
+        pageSizes, filePath: t.file_path, pageCount: t.page_count || pages.length,
+        initialFields: t.fields || [], editId: t.id,
+      });
+      toast("필드를 수정한 뒤 저장하세요", "info");
+    } catch (e: any) {
+      toast("편집 열기 실패: " + (e?.message || ""), "error");
+    } finally { setBusy(false); }
   };
 
   const remove = async (t: PdfFormTemplate) => {
@@ -132,6 +159,7 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
               <span className="flex-1 text-sm text-[var(--text)] font-medium truncate">{t.name}
                 <span className="ml-1 text-[10px] text-[var(--text-dim)]">{t.page_count}p · 필드 {t.fields?.length || 0}</span>
               </span>
+              <button onClick={() => startEdit(t)} disabled={busy} className="text-xs px-2 py-1 rounded text-[var(--text)] font-medium hover:bg-[var(--bg-card)] disabled:opacity-50">편집</button>
               <button onClick={() => setFilling({ tpl: t, values: {} })} className="text-xs px-2 py-1 rounded text-[var(--primary)] hover:bg-[var(--primary)]/10">채우기·출력</button>
               <button onClick={() => downloadBlank(t)} className="text-xs px-2 py-1 rounded text-[var(--text-muted)] hover:bg-[var(--bg-card)]">빈 양식</button>
               <button onClick={() => remove(t)} className="text-xs px-2 py-1 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
@@ -149,7 +177,7 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
               docType="hr_form"
               pageImages={editing.pageImages}
               pageSizes={editing.pageSizes}
-              initialFields={[]}
+              initialFields={editing.initialFields || []}
               onSave={onSaveFields}
               onCancel={() => setEditing(null)}
             />
