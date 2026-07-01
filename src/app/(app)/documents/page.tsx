@@ -256,7 +256,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     onError: (err: any) => toast(`저장 실패: ${err.message || err}`, "error"),
   });
 
-  const [savedModal, setSavedModal] = useState<null | { invoiceId: string | null }>(null);
+  const [savedModal, setSavedModal] = useState(false);
+  const [issuing, setIssuing] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
   // 저장/전표 — 견적서 저장 + 품목 합계로 매출 세금계산서(초안) 자동 생성 (견적→매출 전표 연동)
@@ -272,27 +273,51 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       if (editItems.length > 0) cj.items = editItems;
       if (editPaymentSchedule.length > 0) cj.paymentSchedule = editPaymentSchedule;
       await saveRevision({ documentId: id, authorId: userId!, contentJson: cj as unknown as Json, comment: comment || "저장/전표" });
-      // 2) 매출 세금계산서(초안) 생성
-      const inv = await createTaxInvoice({
-        companyId: companyId!,
-        dealId: (doc as any)?.deal_id || undefined,
-        type: "sales",
-        counterpartyName: counterparty,
-        partnerId: quoteHeader.partnerId || undefined,
-        supplyAmount: supply,
-        issueDate: new Date().toISOString().slice(0, 10),
-        label: `견적서: ${doc?.name || "견적"}`,
-      });
-      return inv;
+      // 저장만 — 세금계산서 발행 방식(품목 일괄/품목별 개별)은 저장 후 팝업에서 선택
+      void counterparty;
     },
-    onSuccess: (inv) => {
+    onSuccess: () => {
       invalidate(); setComment("");
-      setSavedModal({ invoiceId: (inv as any)?.id || null });
+      setSavedModal(true);
       // 편집영역 대신 '생성된 견적서'(미리보기 결과물)로 스크롤
       setTimeout(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     },
     onError: (err: any) => toast(`저장/전표 실패: ${err.message || err}`, "error"),
   });
+
+  // 저장 후 세금계산서 발행 — 견적서 품목대로. bulk=합계 1건("품목 외 N건"), per-item=품목별 N건.
+  const issueInvoices = async (mode: "bulk" | "per-item") => {
+    const items = editItems.filter((i: any) => i && (i.name || Number(i.supplyAmount)));
+    const counterparty = quoteHeader.partnerName || docPartnerName || "";
+    const issueDate = new Date().toISOString().slice(0, 10);
+    if (items.length === 0) { toast("발행할 품목이 없습니다", "error"); return; }
+    if (!counterparty) { toast("거래처를 입력하세요", "error"); return; }
+    setIssuing(true);
+    try {
+      if (mode === "per-item") {
+        for (const it of items) {
+          await createTaxInvoice({
+            companyId: companyId!, dealId: (doc as any)?.deal_id || undefined, type: "sales",
+            counterpartyName: counterparty, partnerId: quoteHeader.partnerId || undefined,
+            supplyAmount: Number(it.supplyAmount || 0), issueDate, label: it.name || "품목",
+          });
+        }
+        toast(`품목별 세금계산서 ${items.length}건을 생성했습니다`, "success");
+      } else {
+        const total = items.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0);
+        const label = items.length === 1 ? (items[0].name || "품목") : `${items[0].name || "품목"} 외 ${items.length - 1}건`;
+        await createTaxInvoice({
+          companyId: companyId!, dealId: (doc as any)?.deal_id || undefined, type: "sales",
+          counterpartyName: counterparty, partnerId: quoteHeader.partnerId || undefined,
+          supplyAmount: total, issueDate, label,
+        });
+        toast("세금계산서(일괄)를 생성했습니다", "success");
+      }
+      setSavedModal(false);
+      window.location.href = "/tax-invoices";
+    } catch (e: any) { toast("발행 실패: " + (e?.message || ""), "error"); }
+    finally { setIssuing(false); }
+  };
 
   const submitMut = useMutation({
     mutationFn: () => submitForReview(id),
@@ -1001,19 +1026,30 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             </div>
           )}
 
-          {/* 저장/전표 후 — 세금계산서 발행 여부 팝업 */}
-          {savedModal && (
-            <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={() => setSavedModal(null)}>
-              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-                <div className="text-base font-bold text-[var(--text)] mb-1">✅ 견적서가 저장되었습니다</div>
-                <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">아래에 생성된 견적서가 표시됩니다. 매출 세금계산서 <b className="text-[var(--text)]">초안</b>도 만들어졌어요. 지금 발행하시겠어요?</p>
-                <div className="flex gap-2">
-                  <button onClick={() => setSavedModal(null)} className="flex-1 py-2 rounded-lg border border-[var(--border)] text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">나중에</button>
-                  <button onClick={() => { setSavedModal(null); window.location.href = "/tax-invoices"; }} className="flex-1 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90">지금 발행하러 가기 →</button>
+          {/* 저장 후 — 세금계산서 발행 방식(품목 일괄/품목별 개별) 팝업 */}
+          {savedModal && (() => {
+            const issItems = editItems.filter((i: any) => i && (i.name || Number(i.supplyAmount)));
+            return (
+              <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={() => setSavedModal(false)}>
+                <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="text-base font-bold text-[var(--text)] mb-1">✅ 견적서가 저장되었습니다</div>
+                  <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">매출 세금계산서를 <b className="text-[var(--text)]">견적서 품목대로</b> 발행할까요? (품목 {issItems.length}개)</p>
+                  <div className="space-y-2">
+                    <button onClick={() => issueInvoices("bulk")} disabled={issuing} className="w-full py-2.5 px-3 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 text-left">
+                      📄 품목 일괄 발행 <span className="text-white/80 text-xs">— 합계 1건{issItems.length > 1 ? ` (${issItems[0]?.name || "품목"} 외 ${issItems.length - 1}건)` : ""}</span>
+                    </button>
+                    {issItems.length > 1 && (
+                      <button onClick={() => issueInvoices("per-item")} disabled={issuing} className="w-full py-2.5 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] text-sm font-semibold hover:border-[var(--primary)] disabled:opacity-50 text-left">
+                        📑 품목별 개별 발행 <span className="text-[var(--text-muted)] text-xs">— {issItems.length}건 각각(예: 선금/중도금/잔금)</span>
+                      </button>
+                    )}
+                    <button onClick={() => setSavedModal(false)} className="w-full py-2 rounded-lg text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">나중에</button>
+                  </div>
+                  {issuing && <div className="text-xs text-[var(--text-dim)] mt-2 text-center">발행 중…</div>}
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── 견적서 미리보기 (헤더·품목 값으로 구성된 결과물) ── */}
           {(contentType === 'invoice' || contentType === 'quote') && (() => {
