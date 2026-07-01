@@ -233,7 +233,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4">
+            <Link href="/" aria-label="오너뷰 홈으로" title="오너뷰 홈으로" className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 hover:opacity-80 transition cursor-pointer">
               <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
                 <rect width="40" height="40" rx="10" fill="#111"/>
                 <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none"/>
@@ -241,7 +241,7 @@ export default function AuthPage() {
                 <polyline points="12,20 15,18 18,19 22,14" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                 <circle cx="22" cy="14" r="1.5" fill="#3b82f6"/>
               </svg>
-            </div>
+            </Link>
           </div>
 
           {/* Card */}
@@ -350,7 +350,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4">
+          <Link href="/" aria-label="오너뷰 홈으로" title="오너뷰 홈으로" className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 hover:opacity-80 transition cursor-pointer">
             <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
               <rect width="40" height="40" rx="10" fill="#111"/>
               <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none"/>
@@ -358,7 +358,7 @@ export default function AuthPage() {
               <polyline points="12,20 15,18 18,19 22,14" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
               <circle cx="22" cy="14" r="1.5" fill="#3b82f6"/>
             </svg>
-          </div>
+          </Link>
           <h1 className="text-2xl font-extrabold text-[var(--text)]"><RollingBrandText /></h1>
           <p className="text-[var(--text-muted)] text-sm mt-1">대표를 위한 회사 상황판 OS</p>
         </div>
