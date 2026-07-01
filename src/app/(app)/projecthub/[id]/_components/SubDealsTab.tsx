@@ -197,9 +197,10 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">구분</label>
+                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">구분{direction ? <span className="ml-1 text-[10px] text-[var(--text-dim)]">· {direction === "sales" ? "매출" : "매입"} 탭 고정</span> : null}</label>
                   <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-                    className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]">
+                    disabled={!!direction}
+                    className={`w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)] ${direction ? "opacity-70 cursor-not-allowed" : ""}`}>
                     <option value="purchase">매입 (줄 돈 · 거래처=매입처)</option>
                     <option value="sales">매출 (받을 돈 · 거래처=고객)</option>
                   </select>
