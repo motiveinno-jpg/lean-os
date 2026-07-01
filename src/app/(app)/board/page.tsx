@@ -409,6 +409,26 @@ export default function BoardPage() {
         }
       }
 
+      // 대댓글 알림 — 내 댓글에 답글이 달리면 원 댓글 작성자에게 (본인·멘션·글작성자와 중복 제외)
+      if (parentCommentId) {
+        const { data: parent } = await db.from("board_comments").select("author_id").eq("id", parentCommentId).maybeSingle();
+        const parentAuthorId = parent?.author_id as string | undefined;
+        const postAuthorId = posts.find((p) => p.id === postId)?.author_id;
+        if (parentAuthorId && parentAuthorId !== user?.id && !mentioned.includes(parentAuthorId) && parentAuthorId !== postAuthorId) {
+          const preview = text.length > 80 ? `${text.slice(0, 80)}…` : text;
+          await db.from("notifications").insert({
+            company_id: companyId,
+            user_id: parentAuthorId,
+            type: "chat" as const,
+            title: "내 댓글에 답글",
+            message: `${user?.name || user?.email || "누군가"} 님이 회원님의 댓글에 답글을 남겼습니다: ${preview}`,
+            entity_type: "board_post",
+            entity_id: postId,
+            is_read: false,
+          }); // best-effort
+        }
+      }
+
       return { postId, parentCommentId, draftKey, insertedId: inserted?.id };
     },
     onSuccess: (res) => {
