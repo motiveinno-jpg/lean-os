@@ -1,7 +1,7 @@
 // 회계마감시점 + 계정별/거래처별 기초잔액 CRUD (2026-07-01)
 //   accounting_closing 테이블(회사당 1행, opening_lines jsonb). settings 화면에서 입력.
 //   계정과목(chart_of_accounts) 선택 + 집계구분(계정별/거래처별). 거래처별은 통장·카드·등록거래처로 세분화.
-//   금액은 부호 있는 단일 값(자산 +, 부채 −). 수집 하한(floor)은 DB data_sync_floor()/codef-sync 에서 적용.
+//   금액은 차변/대변(debit/credit) 2칸. 수집 하한(floor)은 DB data_sync_floor()/codef-sync 에서 적용.
 
 import { supabase } from "@/lib/supabase";
 
@@ -13,39 +13,50 @@ export type AccountType = "asset" | "liability" | "equity" | "revenue" | "expens
 export type PartyType = "bank" | "card" | "partner" | "manual";
 
 export const PARTY_TYPE_LABEL: Record<PartyType, string> = {
-  bank: "통장",
-  card: "카드",
-  partner: "거래처",
-  manual: "직접입력",
+  bank: "통장", card: "카드", partner: "거래처", manual: "직접입력",
 };
+
+// 계정유형 그룹 라벨/순서 (자산·부채·자본·수익·비용)
+export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
+  asset: "자산", liability: "부채", equity: "자본", revenue: "수익", expense: "비용",
+};
+export const ACCOUNT_TYPE_ORDER: AccountType[] = ["asset", "liability", "equity", "revenue", "expense"];
 
 // 거래처별 세분화 한 줄
 export interface OpeningParty {
   id: string;
   party_type: PartyType;
-  party_id: string | null;   // 통장/카드/거래처 원본 id (직접입력이면 null)
+  party_id: string | null;
   name: string;
-  amount: number;            // 부호 있는 금액
+  debit: number;
+  credit: number;
 }
 
 // 계정별 기초잔액 한 줄
 export interface OpeningLine {
   id: string;
   account_id: string | null;   // chart_of_accounts.id
-  code: string;                // 계정코드
-  name: string;                // 계정명
+  code: string;
+  name: string;
   account_type: AccountType | null;
   mode: "account" | "party";   // 계정별 | 거래처별
-  amount: number;              // mode='account' 일 때 금액(부호)
-  parties: OpeningParty[];     // mode='party' 일 때 거래처별 금액
+  debit: number;               // mode='account' 일 때
+  credit: number;
+  parties: OpeningParty[];     // mode='party' 일 때
 }
 
-export function lineAmount(l: OpeningLine): number {
-  if (l.mode === "party") return (l.parties || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-  return Number(l.amount) || 0;
+export function lineDebit(l: OpeningLine): number {
+  if (l.mode === "party") return (l.parties || []).reduce((s, p) => s + (Number(p.debit) || 0), 0);
+  return Number(l.debit) || 0;
 }
-export function openingTotal(lines: OpeningLine[]): number {
-  return lines.reduce((s, l) => s + lineAmount(l), 0);
+export function lineCredit(l: OpeningLine): number {
+  if (l.mode === "party") return (l.parties || []).reduce((s, p) => s + (Number(p.credit) || 0), 0);
+  return Number(l.credit) || 0;
+}
+export function openingDebit(lines: OpeningLine[]): number { return lines.reduce((s, l) => s + lineDebit(l), 0); }
+export function openingCredit(lines: OpeningLine[]): number { return lines.reduce((s, l) => s + lineCredit(l), 0); }
+export function lineHasValue(l: OpeningLine): boolean {
+  return lineDebit(l) !== 0 || lineCredit(l) !== 0 || (l.mode === "party" && (l.parties || []).some((p) => (p.name || "").trim() !== ""));
 }
 
 export interface AccountingClosing {
@@ -58,10 +69,7 @@ export interface AccountingClosing {
 
 export async function getAccountingClosing(companyId: string): Promise<AccountingClosing | null> {
   const { data, error } = await db
-    .from("accounting_closing")
-    .select("*")
-    .eq("company_id", companyId)
-    .maybeSingle();
+    .from("accounting_closing").select("*").eq("company_id", companyId).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   return { ...data, opening_lines: Array.isArray(data.opening_lines) ? data.opening_lines : [] } as AccountingClosing;
@@ -74,9 +82,9 @@ export interface SaveClosingInput {
 }
 
 export async function saveAccountingClosing(companyId: string, userId: string | null, input: SaveClosingInput): Promise<void> {
-  // 계정 미선택 줄 제거 + 거래처별은 이름 있는 거래처만 저장
+  // 값(차변/대변/거래처) 있는 계정만 저장
   const lines = (input.opening_lines || [])
-    .filter((l) => (l.name || "").trim() !== "" || l.account_id)
+    .filter((l) => lineHasValue(l) && ((l.name || "").trim() !== "" || l.account_id))
     .map((l) => ({
       id: l.id,
       account_id: l.account_id,
@@ -84,11 +92,12 @@ export async function saveAccountingClosing(companyId: string, userId: string | 
       name: (l.name || "").trim(),
       account_type: l.account_type,
       mode: l.mode,
-      amount: l.mode === "account" ? (Number(l.amount) || 0) : 0,
+      debit: l.mode === "account" ? (Number(l.debit) || 0) : 0,
+      credit: l.mode === "account" ? (Number(l.credit) || 0) : 0,
       parties: l.mode === "party"
         ? (l.parties || [])
-            .filter((p) => (p.name || "").trim() !== "")
-            .map((p) => ({ id: p.id, party_type: p.party_type, party_id: p.party_id ?? null, name: p.name.trim(), amount: Number(p.amount) || 0 }))
+            .filter((p) => (p.name || "").trim() !== "" || Number(p.debit) || Number(p.credit))
+            .map((p) => ({ id: p.id, party_type: p.party_type, party_id: p.party_id ?? null, name: p.name.trim(), debit: Number(p.debit) || 0, credit: Number(p.credit) || 0 }))
         : [],
     }));
   const { error } = await db.from("accounting_closing").upsert(
