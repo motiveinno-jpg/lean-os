@@ -299,6 +299,8 @@ export default function PnlPage() {
   });
   // sync 후 강제 재fetch trigger
   const [refreshKey, setRefreshKey] = useState(0);
+  // 손익 항목 드릴다운 (줄 클릭 → 원천 내역 모달)
+  const [drill, setDrill] = useState<{ source: "sales" | "purchase" | "opex"; category?: string; label: string } | null>(null);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -408,6 +410,7 @@ export default function PnlPage() {
       isTotal?: boolean;
       indent?: boolean;
       prevTotal?: number;
+      drill?: { source: "sales" | "purchase" | "opex"; category?: string };
     },
   ) => {
     const total = months.reduce((s, m) => s + (row[m] || 0), 0);
@@ -436,7 +439,17 @@ export default function PnlPage() {
             zIndex: 2,
           }}
         >
-          {label}
+          {options?.drill ? (
+            <button
+              type="button"
+              onClick={() => setDrill({ source: options.drill!.source, category: options.drill!.category, label })}
+              style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit", cursor: "pointer", textAlign: "left" }}
+              className="hover:underline hover:text-[var(--primary)]"
+              title="클릭하면 상세 내역을 봅니다"
+            >
+              {label} <span style={{ fontSize: 10, opacity: 0.55 }}>›</span>
+            </button>
+          ) : label}
         </td>
         <td
           style={{
@@ -793,13 +806,13 @@ export default function PnlPage() {
           <tbody>
             {/* Revenue Section — 2026-05-22 세금계산서(sales) 공급가액 기준. 기타수익 분리 제거. */}
             {renderSectionHeader("매출 (Revenue)", months)}
-            {renderRow("매출 (세금계산서 기준)", data.revenue, months, { isSubtotal: true, isBold: true, prevTotal: isCompareMode ? prevSum(data.revenue) : undefined })}
+            {renderRow("매출 (세금계산서 기준)", data.revenue, months, { isSubtotal: true, isBold: true, prevTotal: isCompareMode ? prevSum(data.revenue) : undefined, drill: { source: "sales" } })}
 
             {renderDivider(months, "div-1")}
 
             {/* Cost of Revenue — 발생주의: 매입 세금계산서 기준 (2026-06-10) */}
             {renderSectionHeader("매출원가 (COGS · 매입 세금계산서)", months)}
-            {renderRow("매입원가", data.purchaseCost, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.purchaseCost) : undefined })}
+            {renderRow("매입원가", data.purchaseCost, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.purchaseCost) : undefined, drill: { source: "purchase" } })}
 
             {renderDivider(months, "div-2")}
 
@@ -823,6 +836,7 @@ export default function PnlPage() {
               .map(([name, row]) => renderRow(name, row, months, {
                 indent: true,
                 prevTotal: isCompareMode ? data.prevMonths.reduce((s, m) => s + (row[m] || 0), 0) : undefined,
+                drill: { source: "opex", category: name },
               }))}
             {renderRow("판매관리비 합계", computed.totalOpex, months, {
               isSubtotal: true,
@@ -892,6 +906,110 @@ export default function PnlPage() {
           <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">당기순이익</b> = 영업이익 (영업외손익·법인세 미반영)</div>
         </div>
       </details>
+
+      {drill && companyId && data && (
+        <PnlDrillModal
+          companyId={companyId}
+          source={drill.source}
+          category={drill.category}
+          label={drill.label}
+          start={months[0]}
+          end={months[months.length - 1]}
+          onClose={() => setDrill(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// 손익 항목 드릴다운 모달 — 클릭한 줄의 원천 내역(매출/매입 세금계산서 · 판관비 분류 거래)을 기간으로 조회.
+function PnlDrillModal({ companyId, source, category, label, start, end, onClose }: {
+  companyId: string;
+  source: "sales" | "purchase" | "opex";
+  category?: string;
+  label: string;
+  start: string;
+  end: string;
+  onClose: () => void;
+}) {
+  const [rows, setRows] = useState<{ date: string; name: string; amount: number }[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    const startDate = `${start}-01`;
+    const [ey, em] = end.split("-").map(Number);
+    const endExclusive = em === 12 ? `${ey + 1}-01-01` : `${ey}-${String(em + 1).padStart(2, "0")}-01`;
+    (async () => {
+      try {
+        if (source === "opex") {
+          const { data, error } = await (supabase as any)
+            .from("bank_transactions")
+            .select("transaction_date, counterparty, description, amount, category")
+            .eq("company_id", companyId).in("type", ["expense", "출금"]).eq("category", category)
+            .gte("transaction_date", startDate).lt("transaction_date", endExclusive)
+            .order("transaction_date", { ascending: true }).limit(2000);
+          if (error) throw error;
+          setRows((data || []).map((r: any) => ({ date: r.transaction_date, name: r.counterparty || r.description || "—", amount: Math.abs(Number(r.amount || 0)) })));
+        } else {
+          const types = source === "sales" ? ["sales", "매출"] : ["purchase", "매입"];
+          const { data, error } = await (supabase as any)
+            .from("tax_invoices")
+            .select("issue_date, counterparty_name, supply_amount, type, status")
+            .eq("company_id", companyId).in("type", types).neq("status", "void")
+            .gte("issue_date", startDate).lt("issue_date", endExclusive)
+            .order("issue_date", { ascending: true }).limit(2000);
+          if (error) throw error;
+          setRows((data || []).map((r: any) => ({ date: r.issue_date, name: r.counterparty_name || "—", amount: Number(r.supply_amount || 0) })));
+        }
+      } catch (e: any) { setErr(e?.message || "불러오기 실패"); }
+    })();
+  }, [companyId, source, category, start, end]);
+
+  const total = (rows || []).reduce((s, r) => s + r.amount, 0);
+  const srcLabel = source === "opex" ? "분류된 거래내역" : source === "sales" ? "매출 세금계산서" : "매입 세금계산서";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[82vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+          <div>
+            <div className="text-sm font-bold text-[var(--text)]">{label} — 상세 내역</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{start} ~ {end} · {srcLabel}</div>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+        </div>
+        <div className="flex-1 overflow-auto">
+          {err ? (
+            <div className="p-8 text-center text-sm text-red-400">{err}</div>
+          ) : rows === null ? (
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>
+          ) : rows.length === 0 ? (
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">해당 기간 내역이 없습니다.{source === "opex" ? " (급여·4대보험 등은 직원 등록 기반 추정치라 거래가 없을 수 있습니다.)" : ""}</div>
+          ) : (
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                <tr>
+                  <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">일자</th>
+                  <th className="text-left px-4 py-2 font-semibold">{source === "opex" ? "거래처 / 적요" : "거래처"}</th>
+                  <th className="text-right px-4 py-2 font-semibold whitespace-nowrap">금액</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-t border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
+                    <td className="px-4 py-2 text-[var(--text-muted)] mono-number whitespace-nowrap align-top">{r.date}</td>
+                    <td className="px-4 py-2 text-[var(--text)]">{r.name}</td>
+                    <td className="px-4 py-2 text-right mono-number text-[var(--text)] whitespace-nowrap align-top">{formatKrw(r.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between">
+          <span className="text-[11px] text-[var(--text-muted)]">{rows ? `${rows.length}건` : ""}</span>
+          <span className="text-sm font-bold mono-number text-[var(--text)]">합계 {formatKrw(total)}</span>
+        </div>
+      </div>
     </div>
   );
 }
