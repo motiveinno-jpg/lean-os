@@ -52,18 +52,18 @@ export default function BillingPage() {
       if (!companyId) return null;
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
       const iso = monthStart.toISOString();
-      const [emp, deals, sigs, ai, partners] = await Promise.all([
+      const [emp, deals, sigs, partners] = await Promise.all([
         db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId).in("status", ["active", "joined"]),
         db.from("deals").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("signature_requests").select("id", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", iso),
-        db.from("ai_usage_logs").select("id", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", iso),
         db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),
       ]);
+      // ai_usage_logs 테이블 미존재(AI 사용량 미추적) — 쿼리 제거(404 방지). 추적 도입 시 복원.
       return {
         employees: emp.count || 0,
         deals: deals.count || 0,
         signatures: sigs.count || 0,
-        aiCalls: ai.count || 0,
+        aiCalls: 0,
         partners: partners.count || 0,
       };
     },
