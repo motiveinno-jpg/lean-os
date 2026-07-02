@@ -100,7 +100,7 @@ export default function PlatformSupportPage() {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filter === f.key ? "bg-blue-600 text-white" : "bg-[#111827] text-[#64748b] hover:text-white border border-[#1e293b]"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filter === f.key ? "bg-cyan-600 text-white" : "bg-[#111827] text-[#64748b] hover:text-white border border-[#1e293b]"}`}
           >
             {f.label}
           </button>
@@ -144,13 +144,13 @@ export default function PlatformSupportPage() {
                       onChange={(e) => setDrafts((d) => ({ ...d, [t.id]: e.target.value }))}
                       rows={3}
                       placeholder={t.answer ? "답변 수정…" : "답변을 입력하세요"}
-                      className="w-full px-3 py-2.5 bg-[#0b0f1a] border border-[#1e293b] rounded-xl text-sm text-white placeholder-[#64748b] focus:outline-none focus:border-blue-500 resize-y"
+                      className="w-full px-3 py-2.5 bg-[#0b0f1a] border border-[#1e293b] rounded-xl text-sm text-white placeholder-[#64748b] focus:outline-none focus:border-cyan-500 resize-y"
                     />
                     <div className="flex justify-end mt-2">
                       <button
                         onClick={() => answerMut.mutate({ id: t.id, answer: draft })}
                         disabled={!draft.trim() || answerMut.isPending}
-                        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold transition"
+                        className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-xs font-semibold transition"
                       >
                         {answerMut.isPending ? "저장 중…" : t.answer ? "답변 수정" : "답변 등록"}
                       </button>

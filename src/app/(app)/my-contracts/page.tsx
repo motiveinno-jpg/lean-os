@@ -103,7 +103,7 @@ export default function MyContractsPage() {
         </button>
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="seg-bar mb-4">
         {[
           { key: "pending" as const, label: "대기 중", count: counts.pending },
           { key: "completed" as const, label: "완료", count: counts.completed },
@@ -112,15 +112,11 @@ export default function MyContractsPage() {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              filter === f.key
-                ? "bg-[var(--primary)] text-white"
-                : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`seg-item ${filter === f.key ? "seg-item-active" : ""}`}
           >
             {f.label}
             {f.count > 0 && (
-              <span className="ml-1 text-[10px] px-1 py-0.5 rounded-full bg-white/20">
+              <span className="ml-1 badge badge-muted">
                 {f.count}
               </span>
             )}

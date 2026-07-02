@@ -683,31 +683,31 @@ export default function PartnersPage() {
         </div>
         <div className="flex gap-2 flex-shrink-0 overflow-x-auto">
           <Link href="/partners/ledger"
-            className="px-3 py-2.5 bg-[var(--primary)]/10 border border-[var(--primary)]/30 hover:bg-[var(--primary)]/20 text-[var(--primary)] rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap"
+            className="btn-secondary whitespace-nowrap"
             title="거래처별 미수금/미지급금 원장 (채권·채무 대사)">
             📒 거래처 원장
           </Link>
           <button onClick={downloadCSVTemplate}
-            className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-xl text-xs font-semibold transition"
+            className="btn-secondary"
             title="CSV 템플릿 다운로드">
             템플릿
           </button>
-          <label className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text)] rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer whitespace-nowrap">
+          <label className="btn-secondary whitespace-nowrap cursor-pointer">
             CSV 임포트
             <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
           </label>
           <button onClick={handleExport}
-            className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] text-[var(--text)] rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap">
+            className="btn-secondary whitespace-nowrap">
             Excel 내보내기
           </button>
           <button onClick={runDormancyDetect} disabled={detecting}
-            className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:border-amber-500/50 text-[var(--text-muted)] hover:text-amber-500 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap disabled:opacity-50"
+            className="btn-secondary whitespace-nowrap disabled:opacity-50"
             title="6개월 이상 거래·연락 없는 거래처를 휴면으로 표시하고 담당자에게 리마인더 알림 발송">
             {detecting ? "감지 중..." : "💤 휴면 감지"}
           </button>
           <button onClick={openCreate}
-            className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">
+            className="btn-primary whitespace-nowrap">
             + 새 거래처
           </button>
         </div>
@@ -843,8 +843,8 @@ export default function PartnersPage() {
           )}
           <div className="overflow-auto max-h-[60vh]">
             <table className="w-full min-w-[600px]">
-              <thead className="bg-[var(--bg-card)] text-[var(--text-muted)] sticky top-0 z-10">
-                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)] whitespace-nowrap">
+              <thead className="bg-[var(--bg-surface)]/50 text-[var(--text-muted)] sticky top-0 z-10">
+                <tr className="text-[11px] font-semibold text-[var(--text-dim)] tracking-wide border-b border-[var(--border)] whitespace-nowrap">
                   <th className="text-center px-3 py-3 w-10">
                     <input
                       type="checkbox"
@@ -1113,7 +1113,7 @@ export default function PartnersPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-[var(--border)]">
+            <div className="tab-bar px-4">
               {([
                 { key: "info" as const, label: "기본정보" },
                 { key: "timeline" as const, label: `타임라인 (${timeline.length})` },
@@ -1123,11 +1123,7 @@ export default function PartnersPage() {
                 { key: "comms" as const, label: `커뮤니케이션 (${partnerComms.length})` },
               ]).map((tab) => (
                 <button key={tab.key} onClick={() => setDetailTab(tab.key)}
-                  className={`px-5 py-3 text-sm font-medium transition border-b-2 ${
-                    detailTab === tab.key
-                      ? "border-[var(--primary)] text-[var(--primary)]"
-                      : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
-                  }`}>
+                  className={`tab-item ${detailTab === tab.key ? "tab-item-active" : ""}`}>
                   {tab.label}
                 </button>
               ))}

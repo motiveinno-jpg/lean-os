@@ -53,7 +53,7 @@ export default function CustomersPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="회사명 검색..."
-          className="w-full max-w-sm px-4 py-2.5 bg-[#111827] border border-[#1e293b] rounded-xl text-sm text-white placeholder-[#64748b] focus:outline-none focus:border-blue-500"
+          className="w-full max-w-sm px-4 py-2.5 bg-[#111827] border border-[#1e293b] rounded-xl text-sm text-white placeholder-[#64748b] focus:outline-none focus:border-cyan-500"
         />
         <div className="flex gap-1">
           {[
@@ -65,7 +65,7 @@ export default function CustomersPage() {
               key={f.key}
               onClick={() => setStatusFilter(f.key)}
               className={`px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                statusFilter === f.key ? "bg-blue-600 text-white" : "bg-[#1e293b] text-[#94a3b8] hover:text-white"
+                statusFilter === f.key ? "bg-cyan-600 text-white" : "bg-[#1e293b] text-[#94a3b8] hover:text-white"
               }`}
             >
               {f.label}

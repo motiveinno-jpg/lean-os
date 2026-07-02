@@ -50,16 +50,12 @@ export default function SchedulePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--bg-surface)] p-1 rounded-xl w-fit">
+      <div className="seg-bar">
         {([["calendar", "📅 캘린더"], ["todo", "✓ 할 일"]] as [Tab, string][]).map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${
-              tab === k
-                ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`seg-item ${tab === k ? "seg-item-active" : ""}`}
           >
             {label}
           </button>
@@ -201,7 +197,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
         </div>
         <div className="flex items-center gap-2">
           {/* 전체공유 / 개인 보기 전환 */}
-          <div className="flex gap-1 bg-[var(--bg-surface)] p-1 rounded-xl">
+          <div className="seg-bar">
             {/* v4 S1: 3 모드 — 전체공유 / 개인 / 통합(both) */}
             {([
               ["shared", "🏢 전체공유"],
@@ -211,11 +207,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
               <button
                 key={k}
                 onClick={() => setScope(k)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition ${
-                  scope === k
-                    ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
-                }`}
+                className={`seg-item ${scope === k ? "seg-item-active" : ""}`}
                 title={
                   k === "shared"
                     ? "회사 전 구성원이 함께 보는 일정"

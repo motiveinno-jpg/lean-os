@@ -349,10 +349,10 @@ export default function LoansPage() {
         {statCards.map((c) => (
           <div
             key={c.label}
-            className={`rounded-2xl border p-4 ${
+            className={`p-4 ${
               (c as { highlight?: boolean }).highlight
-                ? "bg-[var(--warning)]/5 border-[var(--warning)]/30"
-                : "bg-[var(--bg-card)] border-[var(--border)]"
+                ? "rounded-2xl border bg-[var(--warning)]/5 border-[var(--warning)]/30"
+                : "glass-card"
             }`}
           >
             <div className="text-[11px] text-[var(--text-dim)] mb-1">{c.label}</div>
@@ -365,12 +365,10 @@ export default function LoansPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 mb-4">
+      <div className="seg-bar mb-4 max-w-full overflow-x-auto">
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex-1 text-xs font-semibold py-2 rounded-lg transition ${
-              tab === t.key ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}>
+            className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
             {t.label}
           </button>
         ))}

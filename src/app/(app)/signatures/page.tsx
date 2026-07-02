@@ -317,20 +317,16 @@ export default function SignaturesDashboardPage() {
       </header>
 
       {/* 상단 탭 토글 — 서명 요청 / 양식 관리 */}
-      <div className="flex gap-2">
+      <div className="tab-bar">
         <button
           onClick={() => setSubTab("requests")}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-            subTab === "requests" ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-          }`}
+          className={`tab-item ${subTab === "requests" ? "tab-item-active" : ""}`}
         >
           서명 요청
         </button>
         <button
           onClick={() => setSubTab("templates")}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-            subTab === "templates" ? "bg-purple-500/10 text-purple-500" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-          }`}
+          className={`tab-item ${subTab === "templates" ? "tab-item-active" : ""}`}
         >
           양식 관리
         </button>

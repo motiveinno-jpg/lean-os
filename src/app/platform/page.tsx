@@ -99,15 +99,15 @@ export default function PlatformOverview() {
       {/* KPI Row 1 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, color: "from-blue-600 to-blue-800" },
-          { label: "총 사용자", value: totalUsers, sub: `회사당 ${totalCompanies ? (totalUsers / totalCompanies).toFixed(1) : 0}명`, color: "from-purple-600 to-purple-800" },
-          { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%`, color: "from-emerald-600 to-emerald-800" },
-          { label: "활성 구독", value: activeSubs, sub: "체험+유료 포함", color: "from-amber-600 to-amber-800" },
+          { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}` },
+          { label: "총 사용자", value: totalUsers, sub: `회사당 ${totalCompanies ? (totalUsers / totalCompanies).toFixed(1) : 0}명` },
+          { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%` },
+          { label: "활성 구독", value: activeSubs, sub: "체험+유료 포함" },
         ].map((kpi) => (
-          <div key={kpi.label} className={`bg-gradient-to-br ${kpi.color} rounded-2xl p-5 text-white`}>
-            <div className="text-xs font-semibold opacity-70 mb-2">{kpi.label}</div>
-            <div className="text-3xl font-extrabold">{kpi.value}</div>
-            <div className="text-[11px] opacity-60 mt-1">{kpi.sub}</div>
+          <div key={kpi.label} className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
+            <div className="text-xs font-semibold text-[#64748b] mb-2">{kpi.label}</div>
+            <div className="text-3xl font-extrabold text-white">{kpi.value}</div>
+            <div className="text-[11px] text-[#64748b] mt-1">{kpi.sub}</div>
           </div>
         ))}
       </div>

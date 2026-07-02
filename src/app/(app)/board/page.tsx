@@ -650,7 +650,7 @@ export default function BoardPage() {
               resetForm();
               setShowForm(true);
             }}
-            className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition"
+            className="btn-primary"
           >
             + 글쓰기
           </button>
@@ -659,7 +659,7 @@ export default function BoardPage() {
 
       {/* 플렉스식 필터 + 검색 바 */}
       <div className="flex flex-wrap items-center gap-2 mb-5">
-        <div className="flex flex-wrap gap-1">
+        <div className="seg-bar flex-wrap">
           {(
             [
               ["all", `전체 ${posts.length}`],
@@ -673,11 +673,7 @@ export default function BoardPage() {
             <button
               key={k}
               onClick={() => setFilter(k)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-                filter === k
-                  ? "bg-[var(--primary)] text-white"
-                  : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
-              }`}
+              className={`seg-item ${filter === k ? "seg-item-active" : ""}`}
             >
               {label}
             </button>

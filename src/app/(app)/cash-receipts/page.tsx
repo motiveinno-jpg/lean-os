@@ -100,7 +100,7 @@ export default function CashReceiptsPage() {
     else { setCrSortKey(k); setCrSortDir(k === "issue_date" ? "desc" : "asc"); }
   };
   const crSortTh = (k: CrSortKey, label: string, cls: string) => (
-    <th className={`${cls} px-5 py-3 font-medium cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleCrSort(k)}>
+    <th className={`${cls} px-5 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleCrSort(k)}>
       <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
         {label}
         <span className={`text-[9px] ${crSortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{crSortKey === k ? (crSortDir === "asc" ? "▲" : "▼") : "↕"}</span>
@@ -462,36 +462,36 @@ export default function CashReceiptsPage() {
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="glass-card p-4">
-            <div className="text-[10px] text-[var(--text-dim)] font-medium">매출 발행</div>
-            <div className="text-lg font-black text-blue-400 mt-1">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매출 발행</div>
+            <div className="text-2xl font-black mono-number text-[var(--text)] mt-1">
               {summary.incomeCount}건
             </div>
-            <div className="text-xs text-[var(--text-muted)]">
+            <div className="text-xs text-[var(--text-muted)] mono-number">
               ₩{summary.incomeTotal.toLocaleString()}
             </div>
           </div>
           <div className="glass-card p-4">
-            <div className="text-[10px] text-[var(--text-dim)] font-medium">매입 수취</div>
-            <div className="text-lg font-black text-green-400 mt-1">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입 수취</div>
+            <div className="text-2xl font-black mono-number text-[var(--text)] mt-1">
               {summary.expenseCount}건
             </div>
-            <div className="text-xs text-[var(--text-muted)]">
+            <div className="text-xs text-[var(--text-muted)] mono-number">
               ₩{summary.expenseTotal.toLocaleString()}
             </div>
           </div>
           <div className="glass-card p-4">
-            <div className="text-[10px] text-[var(--text-dim)] font-medium">매입세액 공제</div>
-            <div className="text-lg font-black text-[var(--primary)] mt-1">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입세액 공제</div>
+            <div className="text-2xl font-black mono-number text-[var(--primary)] mt-1">
               ₩{summary.expenseTax.toLocaleString()}
             </div>
             <div className="text-xs text-[var(--text-muted)]">부가세 신고 시 공제</div>
           </div>
           <div className="glass-card p-4">
-            <div className="text-[10px] text-[var(--text-dim)] font-medium">합계</div>
-            <div className="text-lg font-black mt-1">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">합계</div>
+            <div className="text-2xl font-black mono-number text-[var(--text)] mt-1">
               {summary.incomeCount + summary.expenseCount}건
             </div>
-            <div className="text-xs text-[var(--text-muted)]">
+            <div className="text-xs text-[var(--text-muted)] mono-number">
               ₩{(summary.incomeTotal + summary.expenseTotal).toLocaleString()}
             </div>
           </div>
@@ -499,7 +499,7 @@ export default function CashReceiptsPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--bg-surface)] p-1 rounded-xl w-fit">
+      <div className="seg-bar w-fit">
         {/* A3: '등록' 탭은 직원 요청으로 메뉴 제거. 백엔드 코드/엔드포인트는
             보존 (CODEF 자동 sync BLOCKED 해제 시 즉시 재노출 가능). */}
         {(
@@ -511,11 +511,7 @@ export default function CashReceiptsPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${
-              tab === t
-                ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`seg-item ${tab === t ? "seg-item-active" : ""}`}
           >
             {label}
           </button>

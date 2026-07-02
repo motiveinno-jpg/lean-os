@@ -128,7 +128,7 @@ export default function AnnouncementsPage() {
         {canWrite && !showForm && (
           <button
             onClick={() => { resetForm(); setShowForm(true); }}
-            className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition"
+            className="btn-primary"
           >
             + 공지 작성
           </button>
@@ -176,14 +176,14 @@ export default function AnnouncementsPage() {
             <div className="flex gap-2">
               <button
                 onClick={resetForm}
-                className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-xl text-sm hover:text-[var(--text)] transition"
+                className="btn-secondary"
               >
                 취소
               </button>
               <button
                 onClick={() => saveMut.mutate()}
                 disabled={saveMut.isPending || !form.title.trim() || !form.content.trim()}
-                className="px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition"
+                className="btn-primary"
               >
                 {saveMut.isPending ? "저장 중..." : editing ? "수정 저장" : "등록"}
               </button>

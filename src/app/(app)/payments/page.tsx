@@ -95,16 +95,12 @@ export default function PaymentsPage() {
       )}
 
       {/* Tab navigation */}
-      <div className="flex gap-1 mb-6 bg-[var(--bg-surface)] rounded-xl p-1 overflow-x-auto scrollbar-hide">
+      <div className="tab-bar mb-6">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`shrink-0 flex-1 min-w-fit px-3 sm:px-4 py-2.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
-              tab === t.key
-                ? 'bg-[var(--bg-card)] text-[var(--text)] shadow-sm'
-                : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-            }`}
+            className={`tab-item ${tab === t.key ? 'tab-item-active' : ''}`}
           >
             {t.label}
           </button>
@@ -330,8 +326,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 
       {/* Add button */}
       <div className="flex justify-end mb-4">
-        <button onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
           + 수동 결제 등록
         </button>
       </div>
@@ -363,15 +358,13 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       )}
 
       {/* Filter */}
-      <div className="flex gap-2 mb-4">
+      <div className="seg-bar mb-4">
         {[
           { key: "all", label: "전체" }, { key: "pending", label: "승인대기" },
           { key: "approved", label: "승인완료" }, { key: "executed", label: "실행완료" }, { key: "refunded", label: "환불" }, { key: "rejected", label: "거부" },
         ].map((f) => (
           <button key={f.key} onClick={() => setFilter(f.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              filter === f.key ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}>
+            className={`seg-item ${filter === f.key ? "seg-item-active" : ""}`}>
             {f.label}
           </button>
         ))}
@@ -738,7 +731,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
           <p className="text-xs text-[var(--text-muted)] mt-1">전 직원 급여 배치 생성 → 대표 승인 → 일괄 이체</p>
         </div>
         <button onClick={handleGenerate} disabled={generating}
-          className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+          className="btn-primary disabled:opacity-50">
           {generating ? '생성 중...' : '이번 달 급여 배치 생성'}
         </button>
       </div>
@@ -880,7 +873,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
           <p className="text-xs text-[var(--text-muted)] mt-1">반복결제(임대/보험/구독 등) 배치 → 대표 승인 → 일괄 이체</p>
         </div>
         <button onClick={handleGenerate} disabled={generating}
-          className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+          className="btn-primary disabled:opacity-50">
           {generating ? '생성 중...' : '이번 달 고정비 배치 생성'}
         </button>
       </div>
@@ -1356,8 +1349,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
           >
             {refreshing ? '최신화 중...' : '금액 최신화'}
           </button>
-          <button onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary">
             + 반복결제 추가
           </button>
         </div>
@@ -1997,18 +1989,15 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
 
       {/* Actions */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-2">
+        <div className="seg-bar">
           {['all', 'pending', 'approved', 'paid', 'rejected'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                statusFilter === s ? 'bg-[var(--primary)]/10 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-              }`}>
+              className={`seg-item ${statusFilter === s ? 'seg-item-active' : ''}`}>
               {s === 'all' ? '전체' : (EXPENSE_STATUS as any)[s]?.label || s}
             </button>
           ))}
         </div>
-        <button onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
           + 지출결의/품의 작성
         </button>
       </div>

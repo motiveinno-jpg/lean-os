@@ -320,10 +320,10 @@ export default function BusinessFlowPage() {
       </div>
 
       {/* ═══ 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) ═══ */}
-      <div className="flex gap-1.5 mb-4 no-print">
+      <div className="seg-bar mb-4 no-print">
         {([{ k: "month", l: "이번달 흐름" }, { k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }] as const).map((t) => (
           <button key={t.k} onClick={() => setFlowView(t.k)}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg border transition ${flowView === t.k ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+            className={`seg-item ${flowView === t.k ? "seg-item-active" : ""}`}>
             {t.l}
           </button>
         ))}

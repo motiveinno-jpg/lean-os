@@ -1020,7 +1020,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       <ShareStatusPanel documentId={id} />
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 mb-6">
+      <div className="tab-bar mb-6">
         {(
           [
             { key: "content" as const, label: "내용" },
@@ -1029,9 +1029,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           ] as const
         ).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              tab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}>
+            className={`tab-item ${tab === t.key ? "tab-item-active" : ""}`}>
             {t.label}
           </button>
         ))}

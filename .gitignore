@@ -54,3 +54,5 @@ _QA_LOG_*.md
 .claude/worktrees/
 .claude/scheduled_tasks.lock
 .claude/settings.local.json
+.tmp_qa/
+.env.local

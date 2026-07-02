@@ -52,13 +52,13 @@ export default function RevenuePage() {
 
       {/* Revenue KPI */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 text-white">
-          <div className="text-xs font-semibold opacity-70 mb-1">MRR</div>
-          <div className="text-2xl font-extrabold">{fmtW(mrr)}</div>
+        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
+          <div className="text-xs text-[#64748b] mb-1">MRR</div>
+          <div className="text-2xl font-extrabold text-cyan-300">{fmtW(mrr)}</div>
         </div>
-        <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl p-5 text-white">
-          <div className="text-xs font-semibold opacity-70 mb-1">ARR</div>
-          <div className="text-2xl font-extrabold">{fmtW(mrr * 12)}</div>
+        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
+          <div className="text-xs text-[#64748b] mb-1">ARR</div>
+          <div className="text-2xl font-extrabold text-white">{fmtW(mrr * 12)}</div>
         </div>
         <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
           <div className="text-xs text-[#64748b] mb-1">누적 매출</div>

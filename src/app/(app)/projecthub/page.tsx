@@ -296,7 +296,7 @@ export default function ProjectHubPage() {
               🎯 성과 대시보드
             </button>
           )}
-          <button onClick={() => setShowCreate(true)} className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">
+          <button onClick={() => setShowCreate(true)} className="btn-primary">
             + 프로젝트 생성
           </button>
         </div>
@@ -415,22 +415,22 @@ export default function ProjectHubPage() {
         <div className="overflow-auto max-h-[640px]">
           <table className={`w-full text-xs border-collapse ${typeFilter === "margin" ? "min-w-[1100px]" : "min-w-[720px]"}`}>
             <thead className="sticky top-0 z-10">
-              <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+              <tr className="bg-[var(--bg-surface)]/50 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide border-b border-[var(--border)]">
                 {sortableTh("name", "프로젝트명", "px-3 py-2 text-left font-semibold")}
-                {typeFilter !== "delivery" && sortableTh("partner", "거래처", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60")}
-                {sortableTh("manager", "담당자", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[100px]")}
-                {sortableTh("progress", typeFilter === "margin" ? "마진률" : typeFilter === "goal" ? "달성률" : "진행률", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[150px]")}
-                {typeFilter === "delivery" && <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]">지연</th>}
-                {sortableTh("stage", "단계", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[80px]")}
+                {typeFilter !== "delivery" && sortableTh("partner", "거래처", "px-3 py-2 text-left font-semibold")}
+                {sortableTh("manager", "담당자", "px-3 py-2 text-left font-semibold w-[100px]")}
+                {sortableTh("progress", typeFilter === "margin" ? "마진률" : typeFilter === "goal" ? "달성률" : "진행률", "px-3 py-2 text-center font-semibold w-[150px]")}
+                {typeFilter === "delivery" && <th className="px-3 py-2 text-center font-semibold w-[70px]">지연</th>}
+                {sortableTh("stage", "단계", "px-3 py-2 text-center font-semibold w-[80px]")}
                 {typeFilter === "margin" && (<>
-                  {sortableTh("contract", "계약금액(VAT별도)", "px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]")}
-                  <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[90px]">VAT(10%)</th>
-                  <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">합계(VAT포함)</th>
-                  {sortableTh("direct_cost", "직접원가", "px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[110px]")}
-                  {sortableTh("cost_ratio", "원가율", "px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[70px]")}
+                  {sortableTh("contract", "계약금액(VAT별도)", "px-3 py-2 text-right font-semibold w-[120px]")}
+                  <th className="px-3 py-2 text-right font-semibold w-[90px]">VAT(10%)</th>
+                  <th className="px-3 py-2 text-right font-semibold w-[120px]">합계(VAT포함)</th>
+                  {sortableTh("direct_cost", "직접원가", "px-3 py-2 text-right font-semibold w-[110px]")}
+                  {sortableTh("cost_ratio", "원가율", "px-3 py-2 text-center font-semibold w-[70px]")}
                 </>)}
-                {sortableTh("period", "기간", "px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60 w-[150px]")}
-                <th className="px-3 py-2 text-center font-semibold border-l border-[var(--border)]/60 w-[110px]">관리</th>
+                {sortableTh("period", "기간", "px-3 py-2 text-left font-semibold w-[150px]")}
+                <th className="px-3 py-2 text-center font-semibold w-[110px]">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -458,10 +458,10 @@ export default function ProjectHubPage() {
                         </span>
                       )}
                     </td>
-                    {typeFilter !== "delivery" && <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/30 truncate">{partnerName[d.partner_id] || "—"}</td>}
-                    <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/30 truncate">{userName[d.internal_manager_id] || "—"}</td>
+                    {typeFilter !== "delivery" && <td className="px-3 py-2 text-[var(--text-muted)] truncate">{partnerName[d.partner_id] || "—"}</td>}
+                    <td className="px-3 py-2 text-[var(--text-muted)] truncate">{userName[d.internal_manager_id] || "—"}</td>
                     {/* 핵심지표 — 유형별 마진률/달성률/진행률 0~100% 막대(위험=빨강) */}
-                    <td className="px-3 py-2 border-l border-[var(--border)]/30">
+                    <td className="px-3 py-2">
                       {!hero || hero.raw == null ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
                         <div className="flex items-center gap-1.5" title={`${PROJECT_TYPES[ptype].hero} ${hero.label}`}>
                           <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
@@ -472,11 +472,11 @@ export default function ProjectHubPage() {
                       )}
                     </td>
                     {typeFilter === "delivery" && (
-                      <td className="px-3 py-2 text-center border-l border-[var(--border)]/30">
+                      <td className="px-3 py-2 text-center">
                         {hero?.delayed ? <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-red-500/10 text-red-500">지연</span> : <span className="text-[var(--text-dim)]">—</span>}
                       </td>
                     )}
-                    <td className="px-3 py-2 text-center border-l border-[var(--border)]/30">
+                    <td className="px-3 py-2 text-center">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
                     </td>
                     {typeFilter === "margin" && (() => {
@@ -484,21 +484,21 @@ export default function ProjectHubPage() {
                       const vat = Math.round(sup * 0.1);
                       const dash = <span className="text-[var(--text-dim)]">—</span>;
                       return (<>
-                        <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/30">{sup > 0 ? won(sup) : dash}</td>
-                        <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] border-l border-[var(--border)]/30">{sup > 0 ? won(vat) : dash}</td>
-                        <td className="px-3 py-2 text-right mono-number font-bold text-[var(--text)] border-l border-[var(--border)]/30">{sup > 0 ? won(sup + vat) : dash}</td>
-                        <td className="px-3 py-2 text-right mono-number border-l border-[var(--border)]/30 text-[var(--text-muted)]">{p && Number(p.direct_cost) > 0 ? won(p.direct_cost) : dash}</td>
-                        <td className="px-3 py-2 text-center mono-number border-l border-[var(--border)]/30">
+                        <td className="px-3 py-2 text-right mono-number text-[var(--text)]">{sup > 0 ? won(sup) : dash}</td>
+                        <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)]">{sup > 0 ? won(vat) : dash}</td>
+                        <td className="px-3 py-2 text-right mono-number font-bold text-[var(--text)]">{sup > 0 ? won(sup + vat) : dash}</td>
+                        <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)]">{p && Number(p.direct_cost) > 0 ? won(p.direct_cost) : dash}</td>
+                        <td className="px-3 py-2 text-center mono-number">
                           {ratio == null || ratio === 0 ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
                             <span className={ratio >= 1 ? "text-red-500 font-semibold" : ratio >= 0.8 ? "text-amber-500" : "text-[var(--text)]"}>{Math.round(ratio * 100)}%</span>
                           )}
                         </td>
                       </>);
                     })()}
-                    <td className="px-3 py-2 text-[var(--text-muted)] mono-number border-l border-[var(--border)]/30 text-[11px]">
+                    <td className="px-3 py-2 text-[var(--text-muted)] mono-number text-[11px]">
                       {fmtDate(d.start_date) || "—"}{d.end_date ? ` ~ ${fmtDate(d.end_date)}` : ""}
                     </td>
-                    <td className="px-3 py-2 text-center border-l border-[var(--border)]/30 whitespace-nowrap">
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <button onClick={(e) => { e.stopPropagation(); setEditDeal(d); }}
                         className="px-2 py-1 text-[11px] font-semibold rounded-md text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 transition">수정</button>
                       <button onClick={(e) => { e.stopPropagation(); setDelDeal(d); }}

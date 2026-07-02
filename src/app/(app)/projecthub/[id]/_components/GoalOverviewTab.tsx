@@ -249,9 +249,9 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
       <section className="glass-card p-4">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h3 className="text-sm font-bold text-[var(--text)]">매출 분해</h3>
-          <div className="flex gap-1">
+          <div className="seg-bar">
             {([["channel", "채널(거래처)"], ["campaign", "세부프로젝트"], ["manager", "담당자"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setBreakdown(k)} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border transition ${breakdown === k ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>{l}</button>
+              <button key={k} onClick={() => setBreakdown(k)} className={`seg-item ${breakdown === k ? "seg-item-active" : ""}`}>{l}</button>
             ))}
           </div>
         </div>

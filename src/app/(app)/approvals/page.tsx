@@ -190,20 +190,16 @@ export default function ApprovalsPage() {
       </div>
 
       {/* Tab navigation */}
-      <div className="flex gap-1 mb-6 bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)]">
+      <div className="tab-bar mb-6">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold transition ${
-              tab === t.key
-                ? "bg-[var(--primary)] text-white"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`tab-item ${tab === t.key ? "tab-item-active" : ""}`}
           >
             {t.label}
             {t.count !== undefined && t.count > 0 && (
-              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-white/20">{t.count}</span>
+              <span className="ml-1.5 badge badge-primary">{t.count}</span>
             )}
           </button>
         ))}
@@ -727,13 +723,13 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
         <table className="w-full text-left min-w-[640px]">
           <thead>
             <tr className="border-b border-[var(--border)]">
-              <th className="px-4 py-3 text-xs font-semibold text-[var(--text-muted)]">상태</th>
-              <th className="px-4 py-3 text-xs font-semibold text-[var(--text-muted)]">유형</th>
-              <th className="px-4 py-3 text-xs font-semibold text-[var(--text-muted)]">제목</th>
-              <th className="px-4 py-3 text-xs font-semibold text-[var(--text-muted)]">요청자</th>
-              <th className="px-4 py-3 text-xs font-semibold text-[var(--text-muted)] text-right">금액</th>
-              <th className="px-4 py-3 text-xs font-semibold text-[var(--text-muted)]">진행</th>
-              <th className="px-4 py-3 text-xs font-semibold text-[var(--text-muted)]">요청일</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">유형</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right">금액</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
             </tr>
           </thead>
           <tbody>
@@ -1364,7 +1360,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             <button
               onClick={() => canSubmit && createMut.mutate()}
               disabled={!canSubmit || createMut.isPending}
-              className="px-6 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
+              className="btn-primary disabled:opacity-50"
             >
               {createMut.isPending ? "제출 중..." : "결재 요청"}
             </button>
@@ -1376,7 +1372,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 localStorage.setItem(draftKey, JSON.stringify(draft));
                 alert("임시저장되었습니다");
               }}
-              className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-xl text-sm font-semibold hover:border-[var(--primary)] transition"
+              className="btn-secondary"
             >
               임시저장
             </button>
@@ -1604,7 +1600,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       <div className="flex justify-end mb-4">
         <button
           onClick={() => { resetForm(); setShowForm(true); }}
-          className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
+          className="btn-primary"
         >
           + 정책 추가
         </button>
@@ -1762,7 +1758,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             <button
               onClick={() => form.name.trim() && upsertMut.mutate()}
               disabled={!form.name.trim() || form.stages.some((s) => !s.name.trim()) || upsertMut.isPending}
-              className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition"
+              className="btn-primary disabled:opacity-50"
             >
               {upsertMut.isPending ? "저장 중..." : editingPolicy ? "수정" : "저장"}
             </button>

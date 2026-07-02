@@ -269,7 +269,7 @@ export default function BillingPage() {
       </div>
 
       {/* Current plan summary */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 mb-6 text-white">
+      <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-2xl p-6 mb-6 text-white">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <div className="text-xs font-semibold opacity-80 mb-1">현재 플랜</div>
@@ -379,12 +379,12 @@ export default function BillingPage() {
                     isCurrent
                       ? "border-[var(--primary)] bg-[var(--primary)]/5"
                       : meta.recommended
-                      ? "border-purple-300 bg-[var(--bg-card)]"
+                      ? "border-[var(--primary)]/40 bg-[var(--bg-card)]"
                       : "border-[var(--border)] bg-[var(--bg-card)]"
                   }`}
                 >
                   {meta.recommended && !isCurrent && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-bold bg-purple-600 text-white">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-bold bg-[var(--primary)] text-white">
                       추천
                     </div>
                   )}
@@ -634,7 +634,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                     <div className="text-xs text-[var(--text-muted)]">추천 가입</div>
                   </div>
                   <div className="p-4 rounded-xl bg-[var(--bg-surface)] text-center">
-                    <div className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">₩{((referral.credit_earned || 0)).toLocaleString()}</div>
+                    <div className="text-2xl font-extrabold text-[var(--primary)]">₩{((referral.credit_earned || 0)).toLocaleString()}</div>
                     <div className="text-xs text-[var(--text-muted)]">적립 크레딧</div>
                   </div>
                 </div>

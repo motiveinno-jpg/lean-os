@@ -57,7 +57,7 @@ export default function QuotesPage() {
           <p className="text-xs text-[var(--text-dim)] mt-1">프로젝트와 연동된 견적서를 한곳에서 작성·관리합니다. 작성 시 기존 프로젝트를 고르거나 새 프로젝트를 만들 수 있습니다.</p>
         </div>
         <button onClick={() => setShowCreate(true)}
-          className="px-4 py-2 text-sm font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 shrink-0">+ 견적서 작성</button>
+          className="btn-primary shrink-0">+ 견적서 작성</button>
       </div>
 
       <div className="glass-card overflow-hidden">
@@ -73,30 +73,30 @@ export default function QuotesPage() {
           <div className="overflow-auto max-h-[640px]">
             <table className="w-full text-xs border-collapse" style={{ minWidth: 760 }}>
               <thead className="sticky top-0 z-10">
-                <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+                <tr className="bg-[var(--bg-surface)]/50 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide border-b border-[var(--border)]">
                   <th className="px-3 py-2.5 text-left font-semibold w-[130px]">견적No.</th>
-                  <th className="px-3 py-2.5 text-left font-semibold border-l border-[var(--border)]/50">견적서명</th>
-                  <th className="px-3 py-2.5 text-left font-semibold border-l border-[var(--border)]/50 w-[180px]">프로젝트</th>
-                  <th className="px-3 py-2.5 text-right font-semibold border-l border-[var(--border)]/50 w-[120px]">금액</th>
-                  <th className="px-3 py-2.5 text-center font-semibold border-l border-[var(--border)]/50 w-[90px]">상태</th>
-                  <th className="px-3 py-2.5 text-left font-semibold border-l border-[var(--border)]/50 w-[110px]">작성일</th>
-                  <th className="px-3 py-2.5 text-center font-semibold border-l border-[var(--border)]/50 w-[90px]">관리</th>
+                  <th className="px-3 py-2.5 text-left font-semibold">견적서명</th>
+                  <th className="px-3 py-2.5 text-left font-semibold w-[180px]">프로젝트</th>
+                  <th className="px-3 py-2.5 text-right font-semibold w-[120px]">금액</th>
+                  <th className="px-3 py-2.5 text-center font-semibold w-[90px]">상태</th>
+                  <th className="px-3 py-2.5 text-left font-semibold w-[110px]">작성일</th>
+                  <th className="px-3 py-2.5 text-center font-semibold w-[90px]">관리</th>
                 </tr>
               </thead>
               <tbody>
                 {quotes.map((q) => (
                   <tr key={q.id} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
                     <td className="px-3 py-2 mono-number text-[var(--text-muted)] text-[11px]">{q.document_number || fmtDate(q.created_at)}</td>
-                    <td className="px-3 py-2 text-[var(--text)] font-medium border-l border-[var(--border)]/30">{q.name || "(이름 없음)"}</td>
-                    <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/30 truncate">
+                    <td className="px-3 py-2 text-[var(--text)] font-medium">{q.name || "(이름 없음)"}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)] truncate">
                       {q.deal_id ? <Link href={`/projecthub/${q.deal_id}`} className="text-[var(--primary)] hover:underline">{q.deals?.name || "프로젝트"}</Link> : "—"}
                     </td>
-                    <td className="px-3 py-2 text-right mono-number border-l border-[var(--border)]/30">{q.contract_amount != null ? won(q.contract_amount) : "—"}</td>
-                    <td className="px-3 py-2 text-center border-l border-[var(--border)]/30">
+                    <td className="px-3 py-2 text-right mono-number">{q.contract_amount != null ? won(q.contract_amount) : "—"}</td>
+                    <td className="px-3 py-2 text-center">
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{q.status || "draft"}</span>
                     </td>
-                    <td className="px-3 py-2 text-[var(--text-muted)] mono-number border-l border-[var(--border)]/30 text-[11px]">{fmtDate(q.created_at)}</td>
-                    <td className="px-3 py-2 text-center border-l border-[var(--border)]/30">
+                    <td className="px-3 py-2 text-[var(--text-muted)] mono-number text-[11px]">{fmtDate(q.created_at)}</td>
+                    <td className="px-3 py-2 text-center">
                       <Link href={`/documents?id=${q.id}`} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">열기/편집 →</Link>
                     </td>
                   </tr>

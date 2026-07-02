@@ -100,12 +100,12 @@ function Inner() {
           <h1 className="text-2xl font-extrabold mt-1">🔗 3-Way 매칭</h1>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">세금계산서 ↔ 거래처 ↔ 입출금 자동 추천 (거래처명·대표자명·금액±10%)</p>
         </div>
-        <div className="flex gap-1 bg-[var(--bg-card)] rounded-lg p-0.5 border border-[var(--border)]">
+        <div className="seg-bar">
           {(["all", "sales", "purchase"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded ${typeFilter === t ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)]'}`}
+              className={`seg-item ${typeFilter === t ? 'seg-item-active' : ''}`}
             >
               {t === 'all' ? '전체' : t === 'sales' ? '매출' : '매입'}
             </button>

@@ -191,20 +191,16 @@ export default function EmployeesPage() {
       )}
 
       {/* Tabs — horizontally scrollable on mobile */}
-      <div className="flex gap-1 mb-6 bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)] overflow-x-auto scrollbar-hide">
+      <div className="tab-bar mb-6">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`whitespace-nowrap px-3 py-2.5 rounded-lg text-sm font-semibold transition shrink-0 ${
-              effectiveTab === t.key
-                ? "bg-[var(--primary)] text-white"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`tab-item ${effectiveTab === t.key ? "tab-item-active" : ""}`}
           >
             {t.label}
             {t.count !== undefined && t.count > 0 && (
-              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/20">{t.count}</span>
+              <span className="ml-1.5 badge badge-primary">{t.count}</span>
             )}
           </button>
         ))}
@@ -214,11 +210,10 @@ export default function EmployeesPage() {
       {/* 플렉스 스타일(2026-06-12): 디렉토리(카드 그리드+프로필 슬라이드) 기본, 추가/수정은 관리 모드 */}
       {effectiveTab === "employees" && (
         <>
-          <div className="mb-4 inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1 gap-1">
+          <div className="seg-bar mb-4">
             {([["dir", "👥 디렉토리"], ["manage", "⚙️ 관리 · 추가/수정"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setEmpView(k)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition ${empView === k ? "text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
-                style={empView === k ? { background: "#6C5CE7" } : undefined}>
+                className={`seg-item ${empView === k ? "seg-item-active" : ""}`}>
                 {l}
               </button>
             ))}
@@ -607,11 +602,11 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       )}
 
       {/* 뷰 전환: 목록 / 조직도 */}
-      <div className="flex items-center gap-2 mb-4">
-        <button onClick={() => setViewMode("list")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${viewMode === "list" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)]"}`}>
+      <div className="seg-bar mb-4">
+        <button onClick={() => setViewMode("list")} className={`seg-item ${viewMode === "list" ? "seg-item-active" : ""}`}>
           <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>목록
         </button>
-        <button onClick={() => setViewMode("orgchart")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${viewMode === "orgchart" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)]"}`}>
+        <button onClick={() => setViewMode("orgchart")} className={`seg-item ${viewMode === "orgchart" ? "seg-item-active" : ""}`}>
           <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>조직도
         </button>
       </div>
@@ -1689,13 +1684,13 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           <div className="flex gap-1 bg-[var(--bg-surface)] rounded-full p-1 border border-[var(--border)]">
             <button
               onClick={() => setViewMode("calendar")}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === "calendar" ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === "calendar" ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
             >
               캘린더
             </button>
             <button
               onClick={() => setViewMode("table")}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === "table" ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === "table" ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
             >
               테이블
             </button>

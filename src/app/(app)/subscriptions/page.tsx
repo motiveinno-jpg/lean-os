@@ -161,8 +161,7 @@ export default function SubscriptionsPage() {
           </p>
         </div>
         {canEdit && (
-          <button onClick={() => { resetForm(); setShowForm(true); }}
-            className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold hover:opacity-90">
+          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary">
             + 구독 추가
           </button>
         )}
@@ -274,13 +273,13 @@ export default function SubscriptionsPage() {
         <table className="w-full text-sm min-w-[760px]">
           <thead>
             <tr className="border-b border-[var(--border)]">
-              <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">서비스</th>
-              <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">카테고리</th>
-              <th className="text-right p-4 text-xs text-[var(--text-dim)] font-medium">월 금액</th>
-              <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">주기</th>
-              <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">다음 결제</th>
-              <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">담당자</th>
-              <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">상태</th>
+              <th className="text-left p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">서비스</th>
+              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">카테고리</th>
+              <th className="text-right p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">월 금액</th>
+              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">주기</th>
+              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">다음 결제</th>
+              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">담당자</th>
+              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
             </tr>
           </thead>
           <tbody>

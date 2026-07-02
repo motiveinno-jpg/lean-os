@@ -113,7 +113,7 @@ export default function AttendancePage() {
       <SiyanPageHeader
         title="근태 관리"
         subtitle={`출퇴근 기록 · 월별 근무시간 · 휴가 사용 현황${isManager ? ` · 재직 ${activeEmp.toLocaleString()}명` : ""}`}
-        gradient="from-blue-600 to-cyan-500"
+        gradient="from-indigo-600 to-indigo-500"
       />
 
       {/* 시안 통계 4 (출석/지각/결석/휴가) — 관리자 노출. 실데이터 + derive(결석). */}
@@ -141,10 +141,10 @@ export default function AttendancePage() {
       )}
 
       {/* 상위 섹션 탭 — 근무현황 / 휴가 / 연장근무 (신청·승인 통합) */}
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      <div className="tab-bar mb-4">
         {([["work", "🗓 근무 현황"], ["leave", "🏖 휴가"], ["overtime", "🌙 연장근무"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setSection(k)}
-            className={`px-4 py-2 rounded-lg text-xs font-bold border transition ${section === k ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+            className={`tab-item ${section === k ? "tab-item-active" : ""}`}>
             {l}
           </button>
         ))}
@@ -153,11 +153,10 @@ export default function AttendancePage() {
       {section === "work" && (
         <>
           {/* 플렉스 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
-          <div className="mb-4 inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1 gap-1">
+          <div className="seg-bar mb-4">
             {([["work", "📊 워크보드 (주간)"], ["records", "📋 기록 상세"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setAttView(k)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition ${attView === k ? "text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
-                style={attView === k ? { background: "#6C5CE7" } : undefined}>
+                className={`seg-item ${attView === k ? "seg-item-active" : ""}`}>
                 {l}
               </button>
             ))}

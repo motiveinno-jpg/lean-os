@@ -107,9 +107,9 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
           {delayedCount > 0 && <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 font-semibold">지연 {delayedCount}</span>}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
-            <button onClick={() => setView("kanban")} className={`px-3 py-1.5 font-semibold ${view === "kanban" ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>칸반</button>
-            <button onClick={() => setView("gantt")} className={`px-3 py-1.5 font-semibold ${view === "gantt" ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>간트</button>
+          <div className="seg-bar">
+            <button onClick={() => setView("kanban")} className={`seg-item ${view === "kanban" ? "seg-item-active" : ""}`}>칸반</button>
+            <button onClick={() => setView("gantt")} className={`seg-item ${view === "gantt" ? "seg-item-active" : ""}`}>간트</button>
           </div>
           <button onClick={openNew} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 태스크</button>
         </div>

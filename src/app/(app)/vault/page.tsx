@@ -651,16 +651,12 @@ export default function VaultPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 mb-4">
+      <div className="tab-bar mb-4">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => { setTab(t.key); setShowForm(false); setEditingId(null); }}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-              tab === t.key
-                ? "bg-[var(--primary)] text-white"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`tab-item ${tab === t.key ? "tab-item-active" : ""}`}
           >
             {t.label} ({t.count})
           </button>

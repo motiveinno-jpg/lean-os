@@ -145,8 +145,7 @@ export default function NotificationsPage() {
           <p className="text-xs text-[var(--text-dim)] mt-1">{rows.length}건 · 안읽음 {unread}건</p>
         </div>
         {unread > 0 && (
-          <button onClick={markAllRead}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+          <button onClick={markAllRead} className="btn-secondary">
             모두 읽음 표시
           </button>
         )}
