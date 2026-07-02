@@ -129,6 +129,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|html)$).*)',
+    // robots.txt·sitemap.xml 은 검색로봇용 공개 파일 — auth 미들웨어 제외 (네이버가 robots.txt 307 리다이렉트 받던 문제, 2026-07-02)
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|html)$).*)',
   ],
 };
