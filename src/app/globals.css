@@ -103,7 +103,13 @@
 }
 
 body {
-  background: var(--bg);
+  /* 2026-07-02 프리미엄 무드 — 평면 배경 위에 은은한 브랜드 오로라 틴트(우상단 인디고, 좌하단 청록기).
+     fixed 라 스크롤해도 고정, 라이트/다크 모두 토큰 기반 자동 대응. 인쇄는 @media print 에서 흰색 강제. */
+  background:
+    radial-gradient(1100px 550px at 85% -8%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 62%),
+    radial-gradient(900px 500px at -10% 105%, color-mix(in srgb, var(--info) 5%, transparent), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   /* Pretendard 우선 — 한글 가독성 ↑ (Inter 는 라틴 fallback) */
   font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;

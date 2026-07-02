@@ -303,7 +303,7 @@ export function Sidebar() {
           <Link href={item.href}
             className={`flex items-center rounded-lg text-[13px] transition-all ${
               collapsed ? "justify-center px-0 py-2.5" : `gap-2.5 px-2.5 py-2 ${isChild ? "pl-8" : ""}`
-            } ${active ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+            } ${active ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold shadow-[inset_3px_0_0_0_var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
             <span className="relative">
               <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
               {collapsed && badge > 0 && (
@@ -345,7 +345,7 @@ export function Sidebar() {
     return (
       <div key={item.href} className="relative flex items-center">
         <Link href={item.href}
-          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${isChild ? "pl-8" : ""} ${active ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${isChild ? "pl-8" : ""} ${active ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold shadow-[inset_3px_0_0_0_var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
           <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
           <span className="flex-1">{item.label}</span>
           {badge > 0 && (
@@ -448,7 +448,7 @@ export function Sidebar() {
 
   const sidebarContent = (
     <aside
-      className={`${sidebarWidth} h-screen bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col transition-all duration-200 overflow-hidden`}
+      className={`${sidebarWidth} h-screen bg-[var(--bg-card)]/85 backdrop-blur-xl border-r border-[var(--border)]/70 flex flex-col transition-all duration-200 overflow-hidden`}
       style={{ boxShadow: "var(--shadow-sm)" }}
     >
       {/* Logo — U1: 로고 클릭 → /dashboard */}
@@ -460,8 +460,8 @@ export function Sidebar() {
               <div className="text-sm font-bold text-[var(--text)]"><RollingBrandText /></div>
               <div className="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
                 {user?.name || user?.email?.split("@")[0] || ""}
-                <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold text-white ${
-                  role === "owner" ? "bg-[#2563EB]" : role === "admin" ? "bg-[#0891B2]" : role === "partner" ? "bg-[#7C3AED]" : "bg-[#059669]"
+                <span className={`inline-block px-1.5 py-0.5 rounded-full text-[8px] font-bold ${
+                  role === "owner" ? "bg-[var(--primary-light)] text-[var(--primary)]" : role === "admin" ? "bg-cyan-500/12 text-cyan-600" : role === "partner" ? "bg-violet-500/12 text-violet-600" : "bg-emerald-500/12 text-emerald-600"
                 }`}>
                   {role === "owner" ? "대표" : role === "admin" ? "관리자" : role === "partner" ? "파트너" : "직원"}
                 </span>
@@ -476,7 +476,7 @@ export function Sidebar() {
         <Tooltip label="검색 (⌘K)" show={collapsed}>
           <button
             onClick={() => openGlobalSearch()}
-            className={`w-full flex items-center rounded-lg text-xs text-[var(--text-dim)] bg-[var(--bg-surface)] hover:bg-[var(--border)] transition border border-[var(--border)] ${
+            className={`w-full flex items-center rounded-xl text-xs text-[var(--text-dim)] bg-[var(--bg)]/70 hover:bg-[var(--bg-surface)] hover:text-[var(--text-muted)] transition border border-[var(--border)]/80 ${
               collapsed ? "justify-center px-0 py-2" : "gap-2 px-3 py-2"
             }`}
           >
@@ -519,7 +519,7 @@ export function Sidebar() {
                         collapsed ? "justify-center px-0 py-2.5" : "gap-2.5 px-2.5 py-2"
                       } ${
                         active
-                          ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                          ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold shadow-[inset_3px_0_0_0_var(--primary)]"
                           : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                       }`}
                     >
@@ -735,7 +735,7 @@ export function Sidebar() {
                       <Link key={`mpin-${item.href}`} href={item.href}
                         className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
                           active
-                            ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
+                            ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold shadow-[inset_3px_0_0_0_var(--primary)]"
                             : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                         }`}>
                         <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
