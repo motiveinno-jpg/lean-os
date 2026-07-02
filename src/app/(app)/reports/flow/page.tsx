@@ -170,14 +170,17 @@ export default function BusinessFlowPage() {
     setTimeout(() => setSavedFlow(false), 2000);
   };
 
-  /* ① 영업 파이프라인 — 진행중 딜 (deals, /projects 동일 소스) */
+  /* ① 영업 파이프라인 — 진행중 딜. 프로젝트 목록과 동일 기준: 소프트 삭제(archived_at) 제외 + 상위 프로젝트만
+     (세부 프로젝트(캠페인)는 상위 롤업에 포함되므로 건수·금액 중복 방지) */
   const { data: pipeline } = useQuery({
     queryKey: ["flow-pipeline", companyId],
     queryFn: async () => {
       const { data } = await db.from("deals")
         .select("contract_total, stage")
         .eq("company_id", companyId)
-        .eq("status", "active");
+        .eq("status", "active")
+        .is("archived_at", null)
+        .is("parent_deal_id", null);
       const rows = (data || []) as { contract_total: number | null; stage: string | null }[];
       return {
         count: rows.length,
