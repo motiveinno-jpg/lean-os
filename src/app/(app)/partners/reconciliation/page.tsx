@@ -310,23 +310,37 @@ export default function ReconciliationPage() {
   const highConfIds = queue.filter((m) => (m.confidence ?? 0) >= 0.9).map((m) => m.id);
 
   // 수동 매칭 — 미정산 입출금 목록 (확정 안 된 건). settlement_status open/partial.
-  //   확인 큐 제안(suggested)만 걸린 거래도 open 이라 여기 포함됨 — 제안 건수를 함께 보여 이중 처리 방지.
+  //   확인 큐 제안(suggested)만 걸린 거래도 open 이라 여기 포함됨 — 제안 건수·상대 계산서 거래처를 함께 표시.
+  //   (통장 입금자명 ≠ 계산서 거래처인 케이스에서 "추천에 뜬 거래를 수동매칭에서 못 찾는" 문제 해결 — 검색도 양쪽 매칭)
   //   상단 매칭 기간(engStart~engEnd)을 그대로 적용 + limit 2000.
   const { data: openTx = [] } = useQuery<OpenTx[]>({
     queryKey: ["manual-open-tx", companyId, tab, engStart, engEnd],
     queryFn: async () => {
       const { data } = await db.from("bank_transactions")
-        .select("id, amount, settled_amount, transaction_date, counterparty, type, invoice_settlements(status)")
+        .select("id, amount, settled_amount, transaction_date, counterparty, type, invoice_settlements(status, tax_invoices(counterparty_name))")
         .eq("company_id", companyId).in("settlement_status", ["open", "partial"]).in("type", ["income", "expense"])
         .gte("transaction_date", engStart).lte("transaction_date", engEnd)
         .gt("amount", 0).order("transaction_date", { ascending: false }).limit(2000);
-      return ((data || []) as any[]).map((t) => ({
-        ...t,
-        suggestedCount: ((t.invoice_settlements || []) as { status: string }[]).filter((s) => s.status === "suggested" || s.status === "needs_review").length,
-      })) as OpenTx[];
+      return ((data || []) as any[]).map((t) => {
+        const pending = ((t.invoice_settlements || []) as { status: string; tax_invoices?: { counterparty_name: string | null } | null }[])
+          .filter((s) => s.status === "suggested" || s.status === "needs_review");
+        return {
+          ...t,
+          suggestedCount: pending.length,
+          suggestedPartners: [...new Set(pending.map((s) => s.tax_invoices?.counterparty_name).filter(Boolean))] as string[],
+        };
+      }) as OpenTx[];
     },
     enabled: !!companyId && tab === "manual",
   });
+
+  // 수동 매칭 검색 — 통장 입금자명 + 추천(제안) 계산서 거래처 양쪽 매칭
+  const manualTxMatch = (t: OpenTx) => {
+    const q = manualSearch.trim().toLowerCase();
+    if (!q) return true;
+    if ((t.counterparty || "").toLowerCase().includes(q)) return true;
+    return (t.suggestedPartners || []).some((n) => n.toLowerCase().includes(q));
+  };
 
   // 미정산 세금계산서 (수동 매칭 후보)
   const { data: unsettledInv = [] } = useQuery<UnsettledInv[]>({
@@ -686,9 +700,9 @@ export default function ReconciliationPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-[var(--text-muted)]">
               규칙·AI 가 못 잡은 입출금을 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.
-              <span className="ml-2 text-[var(--text-dim)]">기간 {engStart} ~ {engEnd} (상단에서 변경) · {openTx.filter((t) => !manualSearch.trim() || (t.counterparty || "").toLowerCase().includes(manualSearch.trim().toLowerCase())).length}건</span>
+              <span className="ml-2 text-[var(--text-dim)]">기간 {engStart} ~ {engEnd} (상단에서 변경) · {openTx.filter(manualTxMatch).length}건</span>
             </p>
-            <input value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} placeholder="거래처(입금자) 검색"
+            <input value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} placeholder="입금자·추천 계산서 거래처 검색"
               className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-44" />
           </div>
           {openTx.length === 0 ? (
@@ -709,7 +723,7 @@ export default function ReconciliationPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {openTx.filter((t) => !manualSearch.trim() || (t.counterparty || "").toLowerCase().includes(manualSearch.trim().toLowerCase())).map((t) => (
+                    {openTx.filter(manualTxMatch).map((t) => (
                       <tr key={t.id} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
                         <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{t.transaction_date}</td>
                         <td className={`${GRID_TD} text-center`}>
@@ -720,9 +734,9 @@ export default function ReconciliationPage() {
                             <span className="truncate">{t.counterparty || "—"}</span>
                             {(t.suggestedCount ?? 0) > 0 && (
                               <button onClick={() => setTab("queue")}
-                                className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-semibold hover:bg-amber-500/20 transition"
-                                title="이 거래에 자동 매칭 제안이 거래 정리 탭에 대기 중입니다 — 클릭하면 이동. 여기서 직접 연결하면 그 제안과 별개로 확정됩니다.">
-                                제안 {t.suggestedCount}건
+                                className="shrink-0 max-w-[160px] truncate text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-semibold hover:bg-amber-500/20 transition"
+                                title={`이 거래에 자동 매칭 제안이 거래 정리 탭에 대기 중입니다${(t.suggestedPartners?.length ?? 0) > 0 ? ` (추천 계산서: ${t.suggestedPartners!.join(", ")})` : ""} — 클릭하면 이동. 여기서 직접 연결하면 그 제안과 별개로 확정됩니다.`}>
+                                제안 {t.suggestedCount}건{(t.suggestedPartners?.length ?? 0) > 0 ? ` · ${t.suggestedPartners![0]}${t.suggestedPartners!.length > 1 ? ` 외 ${t.suggestedPartners!.length - 1}` : ""}` : ""}
                               </button>
                             )}
                           </span>

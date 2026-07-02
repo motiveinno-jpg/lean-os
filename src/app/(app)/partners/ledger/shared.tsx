@@ -28,7 +28,7 @@ export type QueueRow = {
   transaction_date: string; txn_amount: number; counterparty: string | null; txn_type: string;
   issue_date: string; invoice_amount: number; counterparty_name: string | null; invoice_type: string;
 };
-export type OpenTx = { id: string; amount: number; settled_amount: number; transaction_date: string; counterparty: string | null; type: string; suggestedCount?: number };
+export type OpenTx = { id: string; amount: number; settled_amount: number; transaction_date: string; counterparty: string | null; type: string; suggestedCount?: number; suggestedPartners?: string[] };
 export type UnsettledInv = { id: string; type: string; issue_date: string; total_amount: number; settled_amount: number; counterparty_name: string | null; partner_id: string | null };
 
 // ── 포맷 ──
