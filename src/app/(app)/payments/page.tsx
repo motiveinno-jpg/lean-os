@@ -91,7 +91,7 @@ export default function PaymentsPage() {
 
       {/* Smart Setup Banner + Pipeline + Automation */}
       {companyId && (
-        <SmartSetupBanner companyId={companyId} invalidate={invalidate} />
+        <SmartSetupBanner companyId={companyId} invalidate={invalidate} onRegistered={() => setTab('recurring')} />
       )}
 
       {/* Tab navigation */}
@@ -1579,7 +1579,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 
 // ── Smart Setup Banner (이체내역 분석 + 자동화 실행 + 진행 현황) ──
 
-function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
+function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: string; invalidate: () => void; onRegistered?: () => void }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<AutomationResult | null>(null);
   const [includeRisky, setIncludeRisky] = useState(false);
@@ -1630,7 +1630,8 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
       invalidate();
       refetchDetect();
       queryClient.invalidateQueries({ queryKey: ["recurring-payments", companyId] });
-      toast(`'${d.suggestedName || d.counterparty}'을(를) 고정비(반복결제)로 등록했습니다`, "success");
+      toast(`'${d.suggestedName || d.counterparty}'을(를) 등록했습니다 — 아래 '반복 결제 설정' 탭에서 확인·수정하세요`, "success");
+      onRegistered?.(); // 등록물이 어디 갔는지 바로 보이도록 반복 결제 설정 탭으로 전환
     } catch (e: any) {
       toast("등록 실패: " + (e?.message || "오류"), "error");
     } finally {
@@ -1809,7 +1810,8 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
                   invalidate();
                   refetchDetect();
                   queryClient.invalidateQueries({ queryKey: ["recurring-payments", companyId] });
-                  toast(`${freshDetected.length}건을 고정비(반복결제)로 등록했습니다`, "success");
+                  toast(`${freshDetected.length}건을 등록했습니다 — 아래 '반복 결제 설정' 탭에서 확인·수정하세요`, "success");
+                  onRegistered?.();
                 }}
                 className="px-3 py-1 bg-[var(--bg-card)] border border-blue-500/30 text-blue-500 rounded-lg text-[10px] font-semibold hover:bg-blue-500/10 transition"
                 title="목록 전체를 한 번에 등록 (확인 후 진행)"
