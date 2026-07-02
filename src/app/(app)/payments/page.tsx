@@ -1606,6 +1606,39 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
     staleTime: 10 * 60 * 1000,
   });
 
+  // 감지 후보 개별 등록/미등록 — 반복 이체라고 전부 정기결제는 아니므로 건별 판단.
+  //   미등록(숨김)은 회사별 localStorage 기억 → 재분석 때 다시 안 뜸. 등록은 건별 registerDetectedRecurring.
+  const dismissKey = `recurring-dismissed-${companyId}`;
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try { return new Set(JSON.parse(localStorage.getItem(`recurring-dismissed-${companyId}`) || "[]")); } catch { return new Set(); }
+  });
+  const detKey = (d: DetectedRecurring) => `${d.counterparty}|${d.amount}`;
+  const dismissDetected = (d: DetectedRecurring) => {
+    setDismissed((prev) => {
+      const next = new Set(prev); next.add(detKey(d));
+      try { localStorage.setItem(dismissKey, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const [registeringKey, setRegisteringKey] = useState<string | null>(null);
+  const registerOne = async (d: DetectedRecurring) => {
+    if (registeringKey) return;
+    setRegisteringKey(detKey(d));
+    try {
+      await registerDetectedRecurring(companyId, [d]);
+      invalidate();
+      refetchDetect();
+      queryClient.invalidateQueries({ queryKey: ["recurring-payments", companyId] });
+      toast(`'${d.suggestedName || d.counterparty}'을(를) 고정비(반복결제)로 등록했습니다`, "success");
+    } catch (e: any) {
+      toast("등록 실패: " + (e?.message || "오류"), "error");
+    } finally {
+      setRegisteringKey(null);
+    }
+  };
+  const freshDetected = detected.filter((d) => !d.alreadyRegistered && !dismissed.has(detKey(d)));
+
   async function handleRunAutomation() {
     setRunning(true);
     try {
@@ -1760,47 +1793,71 @@ function SmartSetupBanner({ companyId, invalidate }: { companyId: string; invali
         </div>
       )}
 
-      {/* Detected patterns from bank tx */}
+      {/* Detected patterns from bank tx — 건별 등록/미등록 (반복 이체 ≠ 전부 정기결제) */}
       {detected.length > 0 && (
         <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <div className="text-xs font-bold text-blue-500">
-              이체내역에서 {detected.filter(d => !d.alreadyRegistered).length}건 신규 감지 / {detected.filter(d => d.alreadyRegistered).length}건 기등록
+              이체내역에서 {freshDetected.length}건 신규 감지 / {detected.filter(d => d.alreadyRegistered).length}건 기등록
+              <span className="ml-1.5 font-normal text-[10px] text-[var(--text-dim)]">건별로 등록 여부를 선택하세요</span>
             </div>
-            {detected.filter(d => !d.alreadyRegistered).length > 0 && (
+            {freshDetected.length > 1 && (
               <button
                 onClick={async () => {
-                  const newItems = detected.filter(d => !d.alreadyRegistered);
-                  await registerDetectedRecurring(companyId, newItems);
+                  if (!confirm(`감지된 ${freshDetected.length}건을 전부 고정비(반복결제)로 등록할까요?\n반복 이체라도 정기결제가 아닐 수 있으니 목록을 확인한 뒤 진행하세요.`)) return;
+                  await registerDetectedRecurring(companyId, freshDetected);
                   invalidate();
                   refetchDetect();
                   queryClient.invalidateQueries({ queryKey: ["recurring-payments", companyId] });
-                  toast(`${newItems.length}건을 고정비(반복결제)로 등록했습니다`, "success");
+                  toast(`${freshDetected.length}건을 고정비(반복결제)로 등록했습니다`, "success");
                 }}
-                className="px-3 py-1 bg-blue-500 text-white rounded-lg text-[10px] font-semibold hover:bg-blue-600 transition"
+                className="px-3 py-1 bg-[var(--bg-card)] border border-blue-500/30 text-blue-500 rounded-lg text-[10px] font-semibold hover:bg-blue-500/10 transition"
+                title="목록 전체를 한 번에 등록 (확인 후 진행)"
               >
-                전체 자동등록
+                전체 등록
               </button>
             )}
           </div>
-          <div className="space-y-1">
-            {detected.filter(d => !d.alreadyRegistered).slice(0, 8).map((d, i) => (
-              <div key={i} className="flex items-center justify-between text-[11px]">
-                <div className="flex items-center gap-2">
-                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
-                    d.confidence === 'high' ? 'bg-green-500/10 text-green-500' :
-                    d.confidence === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
-                    'bg-gray-500/10 text-gray-400'
-                  }`}>
-                    {d.occurrences}회
-                  </span>
-                  <span>{d.counterparty}</span>
-                  <span className="text-[var(--text-dim)]">({d.suggestedCategory})</span>
+          {freshDetected.length === 0 ? (
+            <p className="text-[11px] text-[var(--text-dim)]">신규 후보가 없습니다. (미등록 처리한 항목은 다시 표시되지 않습니다)</p>
+          ) : (
+            <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+              {freshDetected.map((d) => (
+                <div key={detKey(d)} className="flex items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                      d.confidence === 'high' ? 'bg-green-500/10 text-green-500' :
+                      d.confidence === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
+                      'bg-gray-500/10 text-gray-400'
+                    }`}>
+                      {d.occurrences}회
+                    </span>
+                    <span className="truncate">{d.counterparty}</span>
+                    <span className="shrink-0 text-[var(--text-dim)]">({d.suggestedCategory})</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold">₩{d.amount.toLocaleString()}</span>
+                    <button
+                      onClick={() => registerOne(d)}
+                      disabled={!!registeringKey}
+                      className="px-2 py-0.5 rounded bg-blue-500 text-white text-[10px] font-semibold hover:bg-blue-600 transition disabled:opacity-50"
+                      title="이 항목만 고정비(반복결제)로 등록"
+                    >
+                      {registeringKey === detKey(d) ? "등록 중…" : "등록"}
+                    </button>
+                    <button
+                      onClick={() => dismissDetected(d)}
+                      disabled={!!registeringKey}
+                      className="px-2 py-0.5 rounded bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] text-[10px] font-semibold hover:text-[var(--text)] transition disabled:opacity-50"
+                      title="정기결제가 아님 — 이 항목은 다시 추천하지 않습니다"
+                    >
+                      미등록
+                    </button>
+                  </div>
                 </div>
-                <span className="font-bold">₩{d.amount.toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
