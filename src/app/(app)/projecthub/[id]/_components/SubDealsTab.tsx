@@ -32,7 +32,11 @@ const STATUS_LABEL: Record<string, string> = Object.fromEntries(STATUS_OPTS.map(
 // 금액은 '입력한 총액' 그대로 저장하고 vat_type(포함/별도) 플래그를 함께 저장. 마진은 뷰에서 net 역산.
 const emptyForm = () => ({ name: "", type: "purchase", partner_id: "", contract_amount: "", status: "estimate", start_date: "", end_date: "", vat_type: "exclude" as "exclude" | "include" });
 
-export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; companyId: string | null; direction?: "sales" | "purchase" }) {
+export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
+  dealId: string; companyId: string | null; direction?: "sales" | "purchase";
+  // 상위(최상위) 프로젝트의 파이프라인 탭에서만 전달 — 항목 추가 시 '세부 프로젝트(캠페인)로도 생성' 옵션 활성화 + 상속 필드.
+  campaignInherit?: { partnerId: string | null; managerId: string | null; classification: string | null } | null;
+}) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
@@ -40,11 +44,25 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
   const [form, setForm] = useState(emptyForm());
   const [ptSearch, setPtSearch] = useState("");
   const [ptOpen, setPtOpen] = useState(false);
+  const [asCampaign, setAsCampaign] = useState(false);
+
+  // 파이프라인(방향) 탭에서는 세부 프로젝트(캠페인) 소속 항목도 함께 표시 — 개요 롤업과 동일한 시야.
+  const { data: childDeals = [] } = useQuery({
+    queryKey: ["sub-deals-children", dealId],
+    queryFn: async () => {
+      const { data } = await db.from("deals").select("id, name").eq("parent_deal_id", dealId).is("archived_at", null);
+      return (data || []) as { id: string; name: string }[];
+    },
+    enabled: !!dealId && !!direction,
+  });
+  const childIdsKey = direction ? childDeals.map((c) => c.id).join(",") : "";
+  const childNameById = useMemo(() => Object.fromEntries(childDeals.map((c) => [c.id, c.name])), [childDeals]);
 
   const { data: subs = [], isLoading } = useQuery({
-    queryKey: ["sub-deals", dealId],
+    queryKey: ["sub-deals", dealId, childIdsKey],
     queryFn: async () => {
-      const { data } = await db.from("sub_deals").select("id, parent_deal_id, name, type, contract_amount, partner_id, vat_type, status, start_date, end_date").eq("parent_deal_id", dealId).order("created_at", { ascending: true });
+      const parentIds = direction ? [dealId, ...childDeals.map((c) => c.id)] : [dealId];
+      const { data } = await db.from("sub_deals").select("id, parent_deal_id, name, type, contract_amount, partner_id, vat_type, status, start_date, end_date").in("parent_deal_id", parentIds).order("created_at", { ascending: true });
       return (data || []) as SubDeal[];
     },
     enabled: !!dealId,
@@ -75,7 +93,7 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
     return partners.filter((p) => p.name.toLowerCase().includes(t) || (p.business_number || "").replace(/-/g, "").includes(tn)).slice(0, 200);
   }, [partners, ptSearch]);
 
-  const openCreate = () => { setEditId(null); setForm({ ...emptyForm(), type: direction ?? emptyForm().type }); setPtSearch(""); setShowForm(true); };
+  const openCreate = () => { setEditId(null); setForm({ ...emptyForm(), type: direction ?? emptyForm().type }); setPtSearch(""); setAsCampaign(!!campaignInherit); setShowForm(true); };
   const openEdit = (s: SubDeal) => {
     setEditId(s.id);
     // 저장값은 입력한 총액 그대로 → vat_type 플래그를 그대로 복원
@@ -86,8 +104,26 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
 
   const saveMut = useMutation({
     mutationFn: async () => {
+      if (!form.name.trim()) throw new Error("항목명을 입력하세요");
+      // '캠페인으로도 생성' — 같은 이름의 세부 프로젝트(자식 deal)를 만들고 항목을 그 소속으로 저장.
+      //   상단 '세부 프로젝트(캠페인)' 탭에 표시되고, 금액은 캠페인 롤업으로 1회만 집계됨(중복 없음).
+      let ownerDealId = dealId;
+      let madeCampaign = false;
+      if (!editId && asCampaign && campaignInherit && companyId) {
+        const { data: child, error: cErr } = await db.from("deals").insert({
+          company_id: companyId, parent_deal_id: dealId, name: form.name.trim(),
+          status: "active", stage: "estimate",
+          partner_id: form.partner_id || campaignInherit.partnerId || null,
+          internal_manager_id: campaignInherit.managerId || null,
+          classification: campaignInherit.classification || null,
+          start_date: form.start_date || null, end_date: form.end_date || null,
+        }).select("id").single();
+        if (cErr) throw new Error(cErr.message);
+        ownerDealId = child.id;
+        madeCampaign = true;
+      }
       const payload = {
-        parent_deal_id: dealId,
+        parent_deal_id: ownerDealId,
         name: form.name.trim(),
         type: form.type,
         partner_id: form.partner_id || null,
@@ -98,7 +134,6 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
         start_date: form.start_date || null,
         end_date: form.end_date || null,
       };
-      if (!payload.name) throw new Error("항목명을 입력하세요");
       if (editId) {
         const { error } = await db.from("sub_deals").update(payload).eq("id", editId);
         if (error) throw new Error(error.message);
@@ -106,12 +141,20 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
         const { error } = await db.from("sub_deals").insert(payload);
         if (error) throw new Error(error.message);
       }
+      return { madeCampaign };
     },
-    onSuccess: () => {
+    onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["sub-deals", dealId] });
       qc.invalidateQueries({ queryKey: ["project-margin", dealId] });
+      if (r?.madeCampaign) {
+        // 캠페인 목록·개요 롤업·프로젝트 목록 배지 갱신
+        qc.invalidateQueries({ queryKey: ["sub-deals-children", dealId] });
+        qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
+        qc.invalidateQueries({ queryKey: ["projecthub-subdeals-roll", dealId] });
+        qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      }
       setShowForm(false);
-      toast(editId ? "항목을 수정했습니다" : "항목을 추가했습니다", "success");
+      toast(editId ? "항목을 수정했습니다" : r?.madeCampaign ? "항목을 추가하고 세부 프로젝트(캠페인)로도 생성했습니다" : "항목을 추가했습니다", "success");
     },
     onError: (e: any) => toast(e?.message || "저장 실패", "error"),
   });
@@ -162,7 +205,12 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
             <tbody>
               {shown.map((s) => (
                 <tr key={s.id} className="hover:bg-[var(--bg-surface)]/50">
-                  <td className="px-3 py-2.5 border-b border-[var(--border)]/40"><button onClick={() => openEdit(s)} className="text-[var(--text)] font-medium hover:text-[var(--primary)] hover:underline text-left">{s.name}</button></td>
+                  <td className="px-3 py-2.5 border-b border-[var(--border)]/40">
+                    <button onClick={() => openEdit(s)} className="text-[var(--text)] font-medium hover:text-[var(--primary)] hover:underline text-left">{s.name}</button>
+                    {s.parent_deal_id !== dealId && (
+                      <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap" title="세부 프로젝트(캠페인) 소속 항목">📁 {childNameById[s.parent_deal_id] || "캠페인"}</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center">
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${s.type === "sales" ? "bg-blue-500/10 text-blue-600" : "bg-orange-500/10 text-orange-600"}`}>{s.type === "sales" ? "매출" : "매입"}</span>
                   </td>
@@ -261,6 +309,12 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
                     className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
                 </div>
               </div>
+              {!editId && campaignInherit && (
+                <label className="flex items-start gap-2 text-xs text-[var(--text-muted)] cursor-pointer pt-1">
+                  <input type="checkbox" checked={asCampaign} onChange={(e) => setAsCampaign(e.target.checked)} className="accent-[var(--primary)] mt-0.5" />
+                  <span>세부 프로젝트(캠페인)로도 생성 <span className="text-[var(--text-dim)]">— 상단 ‘세부 프로젝트(캠페인)’ 탭에 같은 이름으로 표시되고, 항목은 그 캠페인 소속이 됩니다</span></span>
+                </label>
+              )}
             </div>
             <div className="flex items-center justify-end gap-2.5 mt-5">
               <button onClick={() => setShowForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)]">취소</button>

@@ -983,7 +983,9 @@ export default function ProjectHubDetailPage() {
       {pipelineDir && companyId && (
         <div>
           <div className="text-xs font-bold text-[var(--text-muted)] mb-2 mt-1">{pipelineDir === "sales" ? "매출 항목 관리" : "매입 항목 관리"}</div>
-          <SubDealsTab dealId={dealId} companyId={companyId} direction={pipelineDir} />
+          {/* 최상위 프로젝트에서만 '캠페인으로도 생성' 허용 (세부 프로젝트 2단계 제한) */}
+          <SubDealsTab dealId={dealId} companyId={companyId} direction={pipelineDir}
+            campaignInherit={deal.parent_deal_id ? null : { partnerId: deal?.partner_id || null, managerId: deal?.internal_manager_id || null, classification: deal?.classification || null }} />
         </div>
       )}
 
