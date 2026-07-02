@@ -120,7 +120,7 @@ export default function OperatorUsersPage() {
       </div>
 
       {/* 탭 */}
-      <div className="flex gap-1 mb-5 border-b border-[var(--border)]">
+      <div className="tab-bar mb-5">
         {[
           { k: "view" as const, label: "🔍 회원 조회" },
           { k: "edit" as const, label: "✏️ 계정 수정" },
@@ -128,11 +128,7 @@ export default function OperatorUsersPage() {
           <button
             key={t.k}
             onClick={() => setTab(t.k)}
-            className={`px-4 py-2 text-sm font-semibold transition border-b-2 -mb-px ${
-              tab === t.k
-                ? "border-[var(--primary)] text-[var(--text)]"
-                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`tab-item ${tab === t.k ? "tab-item-active" : ""}`}
           >
             {t.label}
           </button>

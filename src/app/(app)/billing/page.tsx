@@ -302,16 +302,12 @@ export default function BillingPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 mb-6 overflow-x-auto">
+      <div className="seg-bar mb-6 overflow-x-auto">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold whitespace-nowrap transition ${
-              tab === t.key
-                ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`seg-item inline-flex items-center gap-1.5 ${tab === t.key ? "seg-item-active" : ""}`}
           >
             <span>{t.icon}</span> {t.label}
           </button>

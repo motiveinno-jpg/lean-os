@@ -577,10 +577,10 @@ export default function ReconciliationPage() {
         </div>
       )}
 
-      <div className="flex gap-2 border-b border-[var(--border)]">
+      <div className="tab-bar">
         {([["queue", `거래 정리${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["confirmed", `정리 내역${confirmed.length ? ` (${confirmed.length})` : ""}`]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition ${tab === k ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+            className={`tab-item ${tab === k ? "tab-item-active" : ""}`}>
             {label}</button>
         ))}
       </div>

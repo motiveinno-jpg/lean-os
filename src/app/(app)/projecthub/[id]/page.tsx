@@ -752,10 +752,10 @@ export default function ProjectHubDetailPage() {
       </div>
 
       {/* 탭 — 유형별 노출 탭(typeCfg.tabs). 세부 프로젝트(캠페인) 화면에서는 '세부 프로젝트'(2단계 제한)·'프로젝트 운영' 숨김 */}
-      <div className="flex gap-2 border-b border-[var(--border)] overflow-x-auto">
+      <div className="tab-bar overflow-x-auto">
         {typeCfg.tabs.filter((k) => !(deal.parent_deal_id && (k === "subprojects" || k === "pnl"))).map((k) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap ${tab === k ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+            className={`tab-item ${tab === k ? "tab-item-active" : ""}`}>
             {TAB_LABEL[k]}
             {k === "subprojects" && hasChildren && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{(children as any[]).length}</span>}
           </button>
