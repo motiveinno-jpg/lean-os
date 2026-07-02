@@ -126,9 +126,9 @@ export function DashboardSiyanHero({
       {/* ── 메트릭 3 (흰/다크 카드 적응 · 그린 델타칩 · 미니바) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {metrics.map((m) => (
-          <div key={m.label} className="rounded-2xl p-5 bg-[var(--bg-card)] border border-[var(--border)]" style={{ boxShadow: "var(--shadow-sm)" }}>
+          <div key={m.label} className="card-hover rounded-2xl p-5 bg-[var(--bg-card)] border border-[var(--border)]">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[12px] font-medium text-[var(--text-muted)]">{m.label}</p>
+              <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{m.label}</p>
               {m.chip && (
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[11px] font-bold"
                   style={{ background: m.chip.up ? "rgba(31,174,107,0.14)" : "rgba(224,82,79,0.14)", color: m.chip.up ? A.green : A.red }}>
