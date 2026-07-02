@@ -268,7 +268,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   void openingFromRpc; // RPC 이월값은 참고용 — 시트는 자체 합산(원장 행과 1원 단위 일치 보장)
 
   const num = (n: number) => (n ? Math.round(n).toLocaleString() : "");
-  const cellR = "px-3 py-2.5 text-right mono-number";
+  const cellR = "px-3 py-2 text-right mono-number";
 
   const downloadCsv = () => {
     const rows: string[][] = [["일자", "적요", "차변", "대변", "잔액"]];
@@ -298,17 +298,22 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
 
   return (
     <div className="glass-card overflow-hidden">
-      {/* 시트 헤더 */}
-      <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-bold text-[var(--text)] truncate">{partnerName}</span>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${pal.tintBg} ${pal.tintText}`}>{pal.acct}</span>
-          <span className="text-[11px] text-[var(--text-dim)] shrink-0">{yStart} ~ {yEnd}</span>
+      {/* 시트 헤더 — 거래처명 크게 + 유형·기간 pill + 우측 액션 */}
+      <div className="px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-surface)]/60 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span aria-hidden className="w-1.5 h-5 rounded-full shrink-0" style={{ background: pal.main }} />
+            <span className="text-lg font-extrabold tracking-tight text-[var(--text)] truncate">{partnerName}</span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${pal.tintBg} ${pal.tintText}`}>{pal.acct}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-dim)] mono-number">{yStart} ~ {yEnd}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={() => setNewOpen(true)} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[var(--primary)] text-white hover:opacity-90">+ 전표 입력</button>
-          <button onClick={downloadCsv} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">엑셀</button>
-          <button onClick={onOpenDetail} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50">상세 · 차액 마감</button>
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          <button onClick={() => setNewOpen(true)} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--primary)] text-white shadow-sm hover:opacity-90 transition">+ 전표 입력</button>
+          <button onClick={downloadCsv} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">엑셀</button>
+          <button onClick={onOpenDetail} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition">상세 · 차액 마감</button>
         </div>
       </div>
 
@@ -317,11 +322,11 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
         <table className="w-full min-w-[640px] text-xs border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left w-[92px]">일자</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left">적요</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[130px]">잔액</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-left w-[92px]">일자</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-left">적요</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-right w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-right w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-right w-[130px]">잔액</th>
             </tr>
           </thead>
           <tbody>
@@ -329,9 +334,9 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
               <tr><td colSpan={5} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
             ) : (
               <>
-                <tr className="bg-[var(--bg-surface)]/70 border-b border-[var(--border)]/60 font-semibold">
-                  <td className="px-3 py-1.5 text-[var(--text-dim)]">{yStart}</td>
-                  <td className="px-3 py-1.5 text-[var(--text-muted)]">[전기이월]</td>
+                <tr className="bg-[var(--bg-surface)]/70 border-b border-[var(--border)]/60 font-bold">
+                  <td className="px-3 py-2 text-[var(--text-dim)] mono-number">{yStart}</td>
+                  <td className="px-3 py-2 text-[var(--text-muted)]">[전기이월]</td>
                   <td className={cellR} /><td className={cellR} />
                   <td className={`${cellR} ${opening !== 0 ? "text-amber-500" : "text-[var(--text-dim)]"}`}>{Math.round(opening).toLocaleString()}</td>
                 </tr>
@@ -348,9 +353,9 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                       {entries.map((e, i) => {
                         running += isSales ? e.debit - e.credit : e.credit - e.debit;
                         return (
-                          <tr key={`${m}-${i}`} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
-                            <td className="px-3 py-1.5 text-[var(--text-muted)] mono-number">{e.date}</td>
-                            <td className={`px-3 py-1.5 truncate max-w-[260px] ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>
+                          <tr key={`${m}-${i}`} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/60 transition-colors">
+                            <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{e.date}</td>
+                            <td className={`px-3 py-2 truncate max-w-[260px] font-medium ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>
                               {e.isAdj && e.sid ? (
                                 <button onClick={() => setAdjView(e.sid!)}
                                   className="underline decoration-dotted underline-offset-2 hover:text-amber-400 text-left"
@@ -369,16 +374,16 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                       })}
                       {/* 월계 — 연한 초록 */}
                       <tr className="bg-emerald-500/10 border-b border-[var(--border)]/40 text-emerald-700 dark:text-emerald-300 font-semibold">
-                        <td className="px-3 py-1.5">{Number(m.slice(5, 7))}월</td>
-                        <td className="px-3 py-1.5">[월 계]</td>
+                        <td className="px-3 py-2">{Number(m.slice(5, 7))}월</td>
+                        <td className="px-3 py-2">[월 계]</td>
                         <td className={cellR}>{num(md)}</td>
                         <td className={cellR}>{num(mc)}</td>
                         <td className={cellR} />
                       </tr>
                       {/* 누계 — 진한 초록 (월계와 색상 구분) */}
                       <tr className="bg-emerald-500/20 border-b border-[var(--border)]/60 text-emerald-800 dark:text-emerald-200 font-bold">
-                        <td className="px-3 py-1.5" />
-                        <td className="px-3 py-1.5">[누 계]</td>
+                        <td className="px-3 py-2" />
+                        <td className="px-3 py-2">[누 계]</td>
                         <td className={cellR}>{num(cumDebit)}</td>
                         <td className={cellR}>{num(cumCredit)}</td>
                         <td className={cellR} />
@@ -387,8 +392,8 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                   );
                 })}
                 <tr className="bg-[var(--bg-surface)] border-t-2 border-[var(--border)] font-bold text-[var(--text)]">
-                  <td className="px-3 py-2" />
-                  <td className="px-3 py-2">[합계]</td>
+                  <td className="px-3 py-2.5" />
+                  <td className="px-3 py-2.5">[합계]</td>
                   <td className={cellR}>{num(totals.debit)}</td>
                   <td className={cellR}>{num(totals.credit)}</td>
                   <td className={`${cellR} ${totals.ending > 0 ? pal.tintText : totals.ending < 0 ? "text-red-500" : ""}`}>{Math.round(totals.ending).toLocaleString()}</td>
@@ -398,7 +403,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
           </tbody>
         </table>
       </div>
-      <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
+      <div className="px-5 py-2.5 border-t border-[var(--border)] bg-[var(--bg-surface)]/40 text-[10px] text-[var(--text-dim)]">
         발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · <span className="text-[var(--primary)]">파란 글씨</span> = 수동 전표(클릭 시 수정·삭제, 일자 변경 포함) · 상단 “+ 전표 입력”으로 신규 작성
       </div>
 

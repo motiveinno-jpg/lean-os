@@ -46,6 +46,16 @@ function thisMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/* ── 6단계 정의 — 타임라인 노드 + 카드 액센트가 같은 소스를 공유 ── */
+const FLOW_STEPS = [
+  { no: 1, title: "영업", accent: "var(--primary)" },
+  { no: 2, title: "매출", accent: "#6366f1" },
+  { no: 3, title: "수금", accent: "#10b981" },
+  { no: 4, title: "비용", accent: "#f97316" },
+  { no: 5, title: "손익 · 세금", accent: "#ec4899" },
+  { no: 6, title: "결산", accent: "#06b6d4" },
+] as const;
+
 /* ── 단계 카드 공통 — 상단 액센트 라인 + 단계 번호 칩 ── */
 function StepCard({
   no, title, accent, links, children,
@@ -57,38 +67,33 @@ function StepCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="glass-card" style={{ padding: 18, position: "relative", overflow: "hidden" }}>
+    <div className="relative flex flex-col overflow-hidden rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 p-5 backdrop-blur transition-shadow hover:shadow-lg hover:shadow-black/5">
       {/* 단계 액센트 라인 — 흐름의 연속성을 색으로 표현 */}
       <div
-        style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: 3,
-          background: `linear-gradient(90deg, ${accent}, color-mix(in srgb, ${accent} 25%, transparent))`,
-        }}
+        className="absolute top-0 left-0 right-0 h-[3px]"
+        style={{ background: `linear-gradient(90deg, ${accent}, color-mix(in srgb, ${accent} 25%, transparent))` }}
       />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+      <div className="mb-3.5 flex items-center gap-2.5">
         <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[14px] font-black"
           style={{
-            width: 26, height: 26, borderRadius: 8, flexShrink: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
             background: `color-mix(in srgb, ${accent} 14%, transparent)`,
-            color: accent, fontSize: 13, fontWeight: 800,
+            color: accent,
+            boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 30%, transparent)`,
           }}
         >
           {no}
         </div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{title}</div>
+        <div className="text-[15px] font-extrabold tracking-tight text-[var(--text)]">{title}</div>
       </div>
-      <div style={{ flex: 1 }}>{children}</div>
-      <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+      <div className="flex-1">{children}</div>
+      <div className="mt-3.5 flex flex-wrap gap-2">
         {links.map((l) => (
           <Link
             key={l.href + l.label}
             href={l.href}
-            style={{
-              fontSize: 11.5, fontWeight: 600, color: accent, textDecoration: "none",
-              padding: "4px 10px", borderRadius: 999,
-              background: `color-mix(in srgb, ${accent} 10%, transparent)`,
-            }}
+            className="rounded-full px-2.5 py-1 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
+            style={{ color: accent, background: `color-mix(in srgb, ${accent} 10%, transparent)` }}
           >
             {l.label} →
           </Link>
@@ -100,9 +105,12 @@ function StepCard({
 
 function Row({ label, value, color, bold }: { label: string; value: string; color?: string; bold?: boolean }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0" }}>
-      <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{label}</span>
-      <span className="mono-number" style={{ fontSize: bold ? 15 : 13, fontWeight: bold ? 800 : 600, color: color || "var(--text)" }}>
+    <div className="flex items-center justify-between py-[5px]">
+      <span className="text-[12.5px] text-[var(--text-muted)]">{label}</span>
+      <span
+        className={`mono-number ${bold ? "text-[15px] font-extrabold" : "text-[13px] font-semibold"}`}
+        style={{ color: color || "var(--text)" }}
+      >
         {value}
       </span>
     </div>
@@ -113,12 +121,15 @@ function Row({ label, value, color, bold }: { label: string; value: string; colo
 function MiniBar({ pct, color, label }: { pct: number; color: string; label?: string }) {
   const clamped = Math.max(0, Math.min(100, Math.round(pct)));
   return (
-    <div style={{ margin: "6px 0 2px" }}>
-      <div style={{ height: 6, borderRadius: 999, background: "var(--bg-surface)", overflow: "hidden" }}>
-        <div style={{ width: `${clamped}%`, height: "100%", borderRadius: 999, background: color, transition: "width 0.4s ease" }} />
+    <div className="mt-1.5 mb-0.5">
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-surface)]">
+        <div
+          className="h-full rounded-full transition-[width] duration-500 ease-out"
+          style={{ width: `${clamped}%`, background: color }}
+        />
       </div>
       {label && (
-        <div style={{ fontSize: 10.5, color: "var(--text-dim)", marginTop: 4, textAlign: "right" }}>{label}</div>
+        <div className="mt-1 text-right text-[10.5px] text-[var(--text-dim)]">{label}</div>
       )}
     </div>
   );
@@ -296,43 +307,63 @@ export default function BusinessFlowPage() {
   const monthLabel = `${Number(month.split("-")[1])}월`;
 
   return (
-    <div>
-      <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
-        ← 분석 허브
-      </Link>
-      <div className="page-sticky-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-        <div>
-          <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
-            경영 흐름
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 6 }}>
-            영업 → 매출 → 수금 → 비용 → 손익 → 세금 → 결산. 회사 돈의 흐름을 한 줄로 봅니다.
-          </p>
-        </div>
-        <MonthField
-          value={month}
-          onChange={(e) => e.target.value && setMonth(e.target.value)}
-          style={{
-            padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)",
-            background: "var(--bg-card)", color: "var(--text)", fontSize: 13,
-          }}
-        />
-      </div>
+    <div className="space-y-6">
+      {/* ═══ 히어로 밴드 — 경영 콕핏 ═══ */}
+      <div className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 p-6 backdrop-blur">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div className="min-w-[240px]">
+            <Link
+              href="/reports"
+              className="no-print mb-3 inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-muted)] no-underline transition-colors hover:text-[var(--text)]"
+            >
+              ← 분석 허브
+            </Link>
+            <div className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--primary)]">
+              Business Flow
+            </div>
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[var(--text)]">
+              경영 흐름
+            </h1>
+            <p className="mt-1.5 text-sm text-[var(--text-muted)]">
+              영업 → 매출 → 수금 → 비용 → 손익 → 세금 → 결산. 회사 돈의 흐름을 한 줄로 봅니다.
+            </p>
+          </div>
 
-      {/* ═══ 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) ═══ */}
-      <div className="seg-bar mb-4 no-print">
-        {([{ k: "month", l: "이번달 흐름" }, { k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }] as const).map((t) => (
-          <button key={t.k} onClick={() => setFlowView(t.k)}
-            className={`seg-item ${flowView === t.k ? "seg-item-active" : ""}`}>
-            {t.l}
-          </button>
-        ))}
+          <div className="flex flex-col items-stretch gap-2.5 sm:items-end">
+            <div className="no-print flex flex-wrap items-center justify-end gap-2">
+              <MonthField
+                value={month}
+                onChange={(e) => e.target.value && setMonth(e.target.value)}
+                style={{
+                  padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border)",
+                  background: "var(--bg-surface)", color: "var(--text)", fontSize: 13,
+                }}
+              />
+              <button
+                onClick={saveFlowSettings}
+                className="rounded-full border border-[var(--border)] px-3 py-[7px] text-[11px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)]"
+                title="현재 뷰·렌즈·기간을 기본값으로 저장"
+              >
+                {savedFlow ? "✓ 저장됨" : "⭐ 기본값 저장"}
+              </button>
+            </div>
+            {/* 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) / 월별표 */}
+            <div className="seg-bar no-print">
+              {([{ k: "month", l: "이번달 흐름" }, { k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }] as const).map((t) => (
+                <button key={t.k} onClick={() => setFlowView(t.k)}
+                  className={`seg-item ${flowView === t.k ? "seg-item-active" : ""}`}>
+                  {t.l}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ═══ 콕핏 — 미래 현금 예측 + 다각도 (P1~) ═══ */}
       {flowView === "cockpit" && companyId && (
         <div className="space-y-4">
-          <div className="flex items-center justify-end gap-2 no-print -mb-1">
+          <div className="no-print -mb-1 flex items-center justify-end gap-2">
             <span className="text-[11px] text-[var(--text-muted)]">과거 범위</span>
             {[6, 12].map((n) => (
               <button key={n} onClick={() => setPastN(n)}
@@ -340,9 +371,6 @@ export default function BusinessFlowPage() {
                 {n}개월
               </button>
             ))}
-            <button onClick={saveFlowSettings} className="ml-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]" title="현재 뷰·렌즈·기간을 기본값으로 저장">
-              {savedFlow ? "✓ 저장됨" : "⭐ 기본값 저장"}
-            </button>
           </div>
           <CashPulseHeader companyId={companyId} userId={userId || undefined} />
           <FlowTrend companyId={companyId} userId={userId || undefined} anchorMonth={month} pastN={pastN} lens={lens} onLensChange={setLens} />
@@ -351,138 +379,179 @@ export default function BusinessFlowPage() {
       )}
 
       {flowView === "matrix" && companyId && (
-        <div className="space-y-2">
-          <div className="flex justify-end no-print">
-            <button onClick={saveFlowSettings} className="px-2.5 py-1 text-[11px] font-semibold rounded-full border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]" title="이 뷰를 기본값으로 저장">
-              {savedFlow ? "✓ 저장됨" : "⭐ 기본값 저장"}
-            </button>
-          </div>
-          <FlowMatrix companyId={companyId} currentMonth={month} />
-        </div>
+        <FlowMatrix companyId={companyId} currentMonth={month} />
       )}
 
       {flowView === "month" && (
       <>
-      {/* ═══ 핵심 요약 스트립 ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" style={{ marginBottom: 16 }}>
+      {/* ═══ 핵심 요약 스트립 — KPI ═══ */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { label: `${monthLabel} 발행 매출`, value: issuedThisMonth, color: "var(--primary)", hint: "세금계산서 합계 (부가세 포함)" },
           { label: `${monthLabel} 수금`, value: settledThisMonth, color: "#10b981", hint: "확정 매칭 입금 (부가세 포함)" },
           { label: `${monthLabel} 지출`, value: monthBudget?.expenseTotal ?? 0, color: "#f97316", hint: "고정비 + 변동비" },
           { label: "부가세 예상", value: monthVat?.netVAT ?? 0, color: "#ec4899", hint: `${quarter.split("-")[1]} 분기 누적` },
         ].map((c) => (
-          <div key={c.label} className="glass-card" style={{ padding: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 }}>{c.label}</div>
-            <div className="mono-number" style={{ fontSize: 18, fontWeight: 800, color: c.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>₩{fmtKrw(c.value)}</div>
-            <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 4 }}>{c.hint}</div>
+          <div key={c.label} className="relative overflow-hidden rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 p-5 backdrop-blur">
+            <div
+              className="absolute top-0 left-0 h-full w-[3px]"
+              style={{ background: `linear-gradient(180deg, ${c.color}, color-mix(in srgb, ${c.color} 20%, transparent))` }}
+            />
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{c.label}</div>
+            <div className="mono-number truncate text-2xl font-black" style={{ color: c.color }}>₩{fmtKrw(c.value)}</div>
+            <div className="mt-1.5 text-[10px] text-[var(--text-dim)]">{c.hint}</div>
           </div>
         ))}
       </div>
 
       {/* ═══ 흐름 경고 — 단계 사이가 막힌 곳 ═══ */}
       {((receivable?.over30 ?? 0) > 0 || monthGap > 0 || (vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0)) && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+        <div className="flex flex-col gap-2">
           {(receivable?.over30 ?? 0) > 0 && (
-            <Link href="/partners/ledger" style={{ textDecoration: "none", display: "block", padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, #ef4444 8%, transparent)", border: "1px solid color-mix(in srgb, #ef4444 25%, transparent)", fontSize: 12.5, color: "#ef4444", fontWeight: 600 }}>
+            <Link
+              href="/partners/ledger"
+              className="block rounded-xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-85"
+              style={{ background: "color-mix(in srgb, #ef4444 8%, transparent)", border: "1px solid color-mix(in srgb, #ef4444 25%, transparent)", color: "#ef4444" }}
+            >
               ⚠️ 30일 넘은 미수금 ₩{fmtKrw(receivable!.over30)} — 거래처 원장에서 확인·독촉하세요 →
             </Link>
           )}
           {monthGap > 0 && (
-            <Link href="/partners/reconciliation" style={{ textDecoration: "none", display: "block", padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, #f59e0b 8%, transparent)", border: "1px solid color-mix(in srgb, #f59e0b 25%, transparent)", fontSize: 12.5, color: "#d97706", fontWeight: 600 }}>
+            <Link
+              href="/partners/reconciliation"
+              className="block rounded-xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-85"
+              style={{ background: "color-mix(in srgb, #f59e0b 8%, transparent)", border: "1px solid color-mix(in srgb, #f59e0b 25%, transparent)", color: "#d97706" }}
+            >
               💸 {monthLabel} 발행액 중 ₩{fmtKrw(monthGap)} 아직 수금 확인 안 됨 — 입금 매칭으로 확인하세요 →
             </Link>
           )}
           {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && (
-            <Link href="/tax-invoices" style={{ textDecoration: "none", display: "block", padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, #ec4899 8%, transparent)", border: "1px solid color-mix(in srgb, #ec4899 25%, transparent)", fontSize: 12.5, color: "#ec4899", fontWeight: 600 }}>
+            <Link
+              href="/tax-invoices"
+              className="block rounded-xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-85"
+              style={{ background: "color-mix(in srgb, #ec4899 8%, transparent)", border: "1px solid color-mix(in srgb, #ec4899 25%, transparent)", color: "#ec4899" }}
+            >
               🧾 부가세 신고 D-{vatDday} ({monthVat!.dueDate}) — 예상 납부 ₩{fmtKrw(monthVat!.netVAT)} 현금 준비 →
             </Link>
           )}
         </div>
       )}
 
-      {/* ═══ 6단계 흐름 ═══ */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
-        {/* ① 영업 */}
-        <StepCard no={1} title="영업" accent="var(--primary)"
-          links={[{ href: "/projects", label: "프로젝트" }, { href: "/partners", label: "거래처" }]}>
-          <Row label="진행중 프로젝트" value={`${pipeline?.count ?? 0}건`} />
-          <Row label="계약 총액 (파이프라인)" value={`₩${fmtKrw(pipeline?.total ?? 0)}`} bold />
-          {(pipeline?.settling ?? 0) > 0 && (
-            <Row label="정산 단계" value={`${pipeline!.settling}건`} color="#f59e0b" />
-          )}
-        </StepCard>
-
-        {/* ② 매출 */}
-        <StepCard no={2} title="매출" accent="#6366f1"
-          links={[{ href: "/tax-invoices", label: "세금계산서" }]}>
-          <Row label="매출 발행" value={`${monthInv?.salesCount ?? 0}건 · ₩${fmtKrw(monthInv?.salesTotal ?? 0)}`} bold />
-          <Row label="공급가액" value={`₩${fmtKrw(monthInv?.salesSupply ?? 0)}`} />
-          <Row label="매출세액 (부가세)" value={`₩${fmtKrw(monthInv?.salesTax ?? 0)}`} color="var(--text-muted)" />
-        </StepCard>
-
-        {/* ③ 수금 */}
-        <StepCard no={3} title="수금" accent="#10b981"
-          links={[{ href: "/partners/ledger", label: "거래처 원장 · 입금 매칭" }, { href: "/bank", label: "통장" }]}>
-          <Row label="확정 수금" value={`${settled?.count ?? 0}건 · ₩${fmtKrw(settledThisMonth)}`} bold color="#10b981" />
-          {issuedThisMonth > 0 && (
-            <MiniBar
-              pct={(settledThisMonth / issuedThisMonth) * 100}
-              color="#10b981"
-              label={`${monthLabel} 발행 대비 수금률 ${Math.min(100, Math.round((settledThisMonth / issuedThisMonth) * 100))}%`}
-            />
-          )}
-          <Row label="미수금 잔액 (전체)" value={`₩${fmtKrw(receivable?.total ?? 0)}`} color={(receivable?.total ?? 0) > 0 ? "var(--primary)" : "var(--text)"} />
-          {(receivable?.over30 ?? 0) > 0 && (
-            <Row label="30일+ 연체" value={`₩${fmtKrw(receivable!.over30)}`} color="#ef4444" />
-          )}
-        </StepCard>
-
-        {/* ④ 비용 */}
-        <StepCard no={4} title="비용" accent="#f97316"
-          links={[{ href: "/reports/costs", label: "고정비·변동비" }, { href: "/cards", label: "카드" }, { href: "/payments", label: "결제" }]}>
-          <Row label="지출 합계" value={`₩${fmtKrw(monthBudget?.expenseTotal ?? 0)}`} bold color="#f97316" />
-          <Row label="고정비" value={`₩${fmtKrw(monthBudget?.fixedCosts ?? 0)}`} />
-          <Row label="변동비" value={`₩${fmtKrw(monthBudget?.variableCosts ?? 0)}`} />
-        </StepCard>
-
-        {/* ⑤ 손익 + 세무 */}
-        <StepCard no={5} title="손익 · 세금" accent="#ec4899"
-          links={[{ href: "/reports/pnl", label: "손익계산서" }, { href: "/reports/bs", label: "재무상태표" }]}>
-          <Row label="수입 합계 (자금 기준)" value={`₩${fmtKrw(monthBudget?.incomeTotal ?? 0)}`} />
-          <Row label="이번 달 순흐름" value={`₩${fmtKrw(monthNet)}`} bold color={monthNet >= 0 ? "#10b981" : "#ef4444"} />
-          <Row label={`부가세 예상 (${quarter.split("-")[1]})`} value={`₩${fmtKrw(monthVat?.netVAT ?? 0)}`} color="#ec4899" />
-          {vatDday !== null && (
-            <Row label="신고 기한" value={vatDday >= 0 ? `${monthVat!.dueDate} (D-${vatDday})` : monthVat!.dueDate} color={vatDday >= 0 && vatDday <= 30 ? "#ef4444" : "var(--text-muted)"} />
-          )}
-        </StepCard>
-
-        {/* ⑥ 결산 */}
-        <StepCard no={6} title="결산" accent="#06b6d4"
-          links={[{ href: "/dashboard", label: "월결산 체크리스트" }]}>
-          {closing ? (
-            <>
-              <Row label="필수 항목" value={`${closing.requiredDone} / ${closing.requiredTotal} 완료`} bold
-                color={closing.requiredDone === closing.requiredTotal ? "#10b981" : "var(--text)"} />
-              {closing.total > 0 && (
-                <MiniBar
-                  pct={(closing.done / closing.total) * 100}
-                  color={closing.requiredDone === closing.requiredTotal ? "#10b981" : "#06b6d4"}
-                  label={`전체 진행 ${Math.round((closing.done / closing.total) * 100)}%`}
-                />
+      {/* ═══ 6단계 흐름 — 가로 타임라인 + 카드 그리드 ═══ */}
+      <div>
+        {/* 흐름 타임라인 — 단계 노드 + 연결선 (넓은 화면 전용 오리엔테이션) */}
+        <div className="mb-4 hidden items-center px-1 lg:flex" aria-hidden="true">
+          {FLOW_STEPS.map((s, i) => (
+            <div key={s.no} className={`flex items-center ${i < FLOW_STEPS.length - 1 ? "flex-1" : "flex-none"}`}>
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-black"
+                  style={{
+                    background: `color-mix(in srgb, ${s.accent} 14%, transparent)`,
+                    color: s.accent,
+                    boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${s.accent} 35%, transparent)`,
+                  }}
+                >
+                  {s.no}
+                </div>
+                <span className="whitespace-nowrap text-xs font-bold text-[var(--text)]">{s.title}</span>
+              </div>
+              {i < FLOW_STEPS.length - 1 && (
+                <div className="mx-3 flex flex-1 items-center">
+                  <div
+                    className="h-px flex-1"
+                    style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${s.accent} 45%, transparent), color-mix(in srgb, ${FLOW_STEPS[i + 1].accent} 45%, transparent))` }}
+                  />
+                  <span className="ml-1 text-[10px] leading-none" style={{ color: `color-mix(in srgb, ${FLOW_STEPS[i + 1].accent} 60%, transparent)` }}>▶</span>
+                </div>
               )}
-              <Row label="전체 진행" value={`${closing.done} / ${closing.total}`} />
-              <Row label="상태" value={closing.status === "locked" ? "잠금 🔒" : closing.status === "completed" ? "마감 완료 ✅" : "진행 중"}
-                color={closing.status === "open" ? "var(--text-muted)" : "#10b981"} />
-            </>
-          ) : (
-            <div style={{ fontSize: 12.5, color: "var(--text-dim)", padding: "8px 0" }}>체크리스트 불러오는 중…</div>
-          )}
-        </StepCard>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {/* ① 영업 */}
+          <StepCard no={1} title="영업" accent="var(--primary)"
+            links={[{ href: "/projects", label: "프로젝트" }, { href: "/partners", label: "거래처" }]}>
+            <Row label="진행중 프로젝트" value={`${pipeline?.count ?? 0}건`} />
+            <Row label="계약 총액 (파이프라인)" value={`₩${fmtKrw(pipeline?.total ?? 0)}`} bold />
+            {(pipeline?.settling ?? 0) > 0 && (
+              <Row label="정산 단계" value={`${pipeline!.settling}건`} color="#f59e0b" />
+            )}
+          </StepCard>
+
+          {/* ② 매출 */}
+          <StepCard no={2} title="매출" accent="#6366f1"
+            links={[{ href: "/tax-invoices", label: "세금계산서" }]}>
+            <Row label="매출 발행" value={`${monthInv?.salesCount ?? 0}건 · ₩${fmtKrw(monthInv?.salesTotal ?? 0)}`} bold />
+            <Row label="공급가액" value={`₩${fmtKrw(monthInv?.salesSupply ?? 0)}`} />
+            <Row label="매출세액 (부가세)" value={`₩${fmtKrw(monthInv?.salesTax ?? 0)}`} color="var(--text-muted)" />
+          </StepCard>
+
+          {/* ③ 수금 */}
+          <StepCard no={3} title="수금" accent="#10b981"
+            links={[{ href: "/partners/ledger", label: "거래처 원장 · 입금 매칭" }, { href: "/bank", label: "통장" }]}>
+            <Row label="확정 수금" value={`${settled?.count ?? 0}건 · ₩${fmtKrw(settledThisMonth)}`} bold color="#10b981" />
+            {issuedThisMonth > 0 && (
+              <MiniBar
+                pct={(settledThisMonth / issuedThisMonth) * 100}
+                color="#10b981"
+                label={`${monthLabel} 발행 대비 수금률 ${Math.min(100, Math.round((settledThisMonth / issuedThisMonth) * 100))}%`}
+              />
+            )}
+            <Row label="미수금 잔액 (전체)" value={`₩${fmtKrw(receivable?.total ?? 0)}`} color={(receivable?.total ?? 0) > 0 ? "var(--primary)" : "var(--text)"} />
+            {(receivable?.over30 ?? 0) > 0 && (
+              <Row label="30일+ 연체" value={`₩${fmtKrw(receivable!.over30)}`} color="#ef4444" />
+            )}
+          </StepCard>
+
+          {/* ④ 비용 */}
+          <StepCard no={4} title="비용" accent="#f97316"
+            links={[{ href: "/reports/costs", label: "고정비·변동비" }, { href: "/cards", label: "카드" }, { href: "/payments", label: "결제" }]}>
+            <Row label="지출 합계" value={`₩${fmtKrw(monthBudget?.expenseTotal ?? 0)}`} bold color="#f97316" />
+            <Row label="고정비" value={`₩${fmtKrw(monthBudget?.fixedCosts ?? 0)}`} />
+            <Row label="변동비" value={`₩${fmtKrw(monthBudget?.variableCosts ?? 0)}`} />
+          </StepCard>
+
+          {/* ⑤ 손익 + 세무 */}
+          <StepCard no={5} title="손익 · 세금" accent="#ec4899"
+            links={[{ href: "/reports/pnl", label: "손익계산서" }, { href: "/reports/bs", label: "재무상태표" }]}>
+            <Row label="수입 합계 (자금 기준)" value={`₩${fmtKrw(monthBudget?.incomeTotal ?? 0)}`} />
+            <Row label="이번 달 순흐름" value={`₩${fmtKrw(monthNet)}`} bold color={monthNet >= 0 ? "#10b981" : "#ef4444"} />
+            <Row label={`부가세 예상 (${quarter.split("-")[1]})`} value={`₩${fmtKrw(monthVat?.netVAT ?? 0)}`} color="#ec4899" />
+            {vatDday !== null && (
+              <Row label="신고 기한" value={vatDday >= 0 ? `${monthVat!.dueDate} (D-${vatDday})` : monthVat!.dueDate} color={vatDday >= 0 && vatDday <= 30 ? "#ef4444" : "var(--text-muted)"} />
+            )}
+          </StepCard>
+
+          {/* ⑥ 결산 */}
+          <StepCard no={6} title="결산" accent="#06b6d4"
+            links={[{ href: "/dashboard", label: "월결산 체크리스트" }]}>
+            {closing ? (
+              <>
+                <Row label="필수 항목" value={`${closing.requiredDone} / ${closing.requiredTotal} 완료`} bold
+                  color={closing.requiredDone === closing.requiredTotal ? "#10b981" : "var(--text)"} />
+                {closing.total > 0 && (
+                  <MiniBar
+                    pct={(closing.done / closing.total) * 100}
+                    color={closing.requiredDone === closing.requiredTotal ? "#10b981" : "#06b6d4"}
+                    label={`전체 진행 ${Math.round((closing.done / closing.total) * 100)}%`}
+                  />
+                )}
+                <Row label="전체 진행" value={`${closing.done} / ${closing.total}`} />
+                <Row label="상태" value={closing.status === "locked" ? "잠금 🔒" : closing.status === "completed" ? "마감 완료 ✅" : "진행 중"}
+                  color={closing.status === "open" ? "var(--text-muted)" : "#10b981"} />
+              </>
+            ) : (
+              <div className="py-2 text-[12.5px] text-[var(--text-dim)]">체크리스트 불러오는 중…</div>
+            )}
+          </StepCard>
+        </div>
       </div>
 
       {/* Footer note */}
-      <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: 8, background: "var(--bg-surface)", border: "1px solid var(--border)", fontSize: 12, color: "var(--text-dim)", lineHeight: 1.6 }}>
-        <strong style={{ color: "var(--text-muted)" }}>숫자 기준</strong>
+      <div className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-surface)]/60 px-5 py-4 text-xs leading-relaxed text-[var(--text-dim)]">
+        <strong className="text-[var(--text-muted)]">숫자 기준</strong>
         <br />- 매출·부가세는 세금계산서(발행) 기준, 수금은 입금 매칭 확정 기준, 비용은 정기결제+카드+일회성 지출 기준입니다.
         <br />- 각 카드의 숫자는 해당 상세 화면(세금계산서·거래처 원장·고정비/변동비·손익계산서)과 동일한 집계를 사용합니다.
         <br />- 발행했는데 수금 확인이 안 된 금액은 거래처 원장의 입금 매칭에서 확정하면 즉시 반영됩니다.

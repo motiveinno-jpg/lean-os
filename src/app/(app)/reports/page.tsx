@@ -43,7 +43,7 @@ const CARDS: HubCard[] = [
     href: "/reports/bs",
     title: "재무상태표",
     desc: "회사가 가진 자산·부채·자본을 한눈에. 현재 회사의 재무 건강 상태를 봅니다.",
-    accent: "var(--primary)",
+    accent: "#3b82f6",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <line x1="12" y1="20" x2="12" y2="10" />
@@ -68,7 +68,7 @@ const CARDS: HubCard[] = [
     href: "/reports/costs",
     title: "고정비 · 변동비",
     desc: "매달 꼭 나가는 돈(고정비)과 그때그때 바뀌는 돈(변동비)을 분리해 봅니다.",
-    accent: "#f97316",
+    accent: "#f59e0b",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -103,91 +103,69 @@ export default function ReportsHubPage() {
     return <AccessDenied detail="회계 분석 허브는 대표·관리자 전용입니다." />;
   }
 
+  const visibleCards = CARDS.filter((c) => !c.roles || c.roles.includes(role as "owner" | "admin"));
+
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1100 }}>
-      {/* Header */}
-      <div className="mb-6">
-        <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1.5">Reports</div>
-        <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: "var(--text)", margin: 0 }}>
-          회계 분석
-        </h1>
-        <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 6 }}>
-          재무제표와 비용 구조를 한 곳에서. 보고 싶은 분석을 선택하세요.
-        </p>
+    <div className="mx-auto max-w-[1100px] space-y-6 px-7 py-6">
+      {/* Hero band */}
+      <div className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 p-6 backdrop-blur">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--primary)]">
+              Analytics
+            </div>
+            <h1 className="m-0 text-2xl font-extrabold tracking-tight text-[var(--text)]">분석</h1>
+            <p className="mt-1.5 text-sm text-[var(--text-muted)]">
+              재무제표와 비용 구조를 한 곳에서. 보고 싶은 분석을 선택하세요.
+            </p>
+          </div>
+          <div className="hidden items-center gap-2 rounded-full border border-[var(--border)]/70 bg-[var(--bg-surface)]/60 px-3.5 py-1.5 sm:flex">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+              리포트 {visibleCards.length}종
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: 16,
-        }}
-      >
-        {CARDS.filter((c) => !c.roles || c.roles.includes(role as "owner" | "admin")).map((c) => (
+      {/* Report launcher grid */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {visibleCards.map((c) => (
           <Link
             key={c.href}
             href={c.href}
-            className="group"
-            style={{
-              display: "block",
-              padding: "22px 24px",
-              borderRadius: 16,
-              border: "1px solid var(--border)",
-              background: "var(--bg-card)",
-              textDecoration: "none",
-              transition: "border-color 0.15s, transform 0.15s, box-shadow 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.borderColor = c.accent;
-              el.style.transform = "translateY(-2px)";
-              el.style.boxShadow = "var(--shadow-sm)";
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.borderColor = "var(--border)";
-              el.style.transform = "translateY(0)";
-              el.style.boxShadow = "none";
-            }}
+            className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 no-underline transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--primary)] hover:shadow-lg hover:shadow-[var(--primary)]/5"
           >
+            {/* top accent glow */}
             <div
+              aria-hidden
+              className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-0 blur-2xl transition-opacity duration-200 group-hover:opacity-100"
+              style={{ background: `color-mix(in srgb, ${c.accent} 18%, transparent)` }}
+            />
+            <div
+              className="flex h-11 w-11 items-center justify-center rounded-xl"
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 11,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: `color-mix(in srgb, ${c.accent} 12%, transparent)`,
+                background: `linear-gradient(135deg, color-mix(in srgb, ${c.accent} 18%, transparent), color-mix(in srgb, ${c.accent} 7%, transparent))`,
                 color: c.accent,
-                marginBottom: 14,
               }}
             >
               {c.icon}
             </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>
-              {c.title}
-            </div>
-            <div style={{ fontSize: 12.5, color: "var(--text-dim)", lineHeight: 1.55 }}>
+            <div className="mt-4 text-[15px] font-bold text-[var(--text)]">{c.title}</div>
+            <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-[var(--text-muted)]">
               {c.desc}
-            </div>
-            <div
-              style={{
-                marginTop: 14,
-                fontSize: 12,
-                fontWeight: 600,
-                color: c.accent,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              열기
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
+            </p>
+            <div className="mt-auto flex items-center justify-end pt-4">
+              <span
+                className="inline-flex items-center gap-1 text-xs font-semibold transition-transform duration-150 group-hover:translate-x-0.5"
+                style={{ color: c.accent }}
+              >
+                열기
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </span>
             </div>
           </Link>
         ))}

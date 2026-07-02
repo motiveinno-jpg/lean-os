@@ -478,19 +478,41 @@ export default function VoucherEntryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">Journal Voucher</p>
-          <h1 className="text-2xl font-extrabold text-[var(--text)] mt-0.5">전표입력</h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">상단에서 분개 입력 → 저장하면 하단 전표목록에 바로 쌓입니다 · 차변·대변이 일치해야 저장됩니다</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/partners/reconciliation" className="px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">← 거래 매칭</Link>
-          <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); }} disabled={busy}
-            className="px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40">새 전표</button>
-          <button onClick={save} disabled={!canSave}
-            className="px-5 py-2 text-xs font-bold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">
-            {busy ? "저장 중..." : "저장"}</button>
+      {/* ══ 히어로 밴드 — 모던 장부 콘솔 ══ */}
+      <div className="relative overflow-hidden rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 backdrop-blur p-6">
+        <div aria-hidden className="pointer-events-none absolute -top-28 -right-20 h-64 w-64 rounded-full bg-[var(--primary)]/10 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-32 left-1/3 h-56 w-56 rounded-full bg-[var(--primary)]/5 blur-3xl" />
+        <div className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--primary)]">Journal Voucher</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text)] mt-1">전표입력</h1>
+            <p className="text-sm text-[var(--text-muted)] mt-1.5">상단에서 분개 입력 → 저장하면 하단 전표목록에 바로 쌓입니다 · 차변·대변이 일치해야 저장됩니다</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Link href="/partners/reconciliation" className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">← 거래 매칭</Link>
+            <div className="flex items-center gap-1.5 pl-2.5 pr-1 py-0.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+              <span className="text-[11px] font-semibold text-[var(--text-dim)]">일자</span>
+              <DateField value={entryDate}
+                onChange={(e) => { if (!e.target.value) return; setEntryDate(e.target.value); setEdits({}); setSelected(new Set()); }}
+                className="px-1.5 py-1.5 rounded-lg bg-transparent text-xs font-semibold text-[var(--text)]" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-[var(--text-dim)]">구분</span>
+              <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-0.5">
+                {VTYPES.map((t) => (
+                  <button key={t.id} onClick={() => changeVtype(t.id)} title={t.desc}
+                    className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition ${vtype === t.id ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); }} disabled={busy}
+              className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40 transition">새 전표</button>
+            <button onClick={save} disabled={!canSave}
+              className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/25 hover:opacity-90 disabled:opacity-40 disabled:shadow-none transition">
+              {busy ? "저장 중..." : "저장"}</button>
+          </div>
         </div>
       </div>
 
@@ -501,46 +523,33 @@ export default function VoucherEntryPage() {
       )}
 
       {/* ══ 상단: 입력 영역 (§3-3) ══ */}
-      <div ref={topRef} onKeyDown={onTopKey} className="glass-card" style={{ overflow: "visible" }}>
-        <div className="px-4 py-3 border-b border-[var(--border)] flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="font-semibold text-[var(--text-muted)]">일자</span>
-            <DateField value={entryDate}
-              onChange={(e) => { if (!e.target.value) return; setEntryDate(e.target.value); setEdits({}); setSelected(new Set()); }}
-              className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]" />
-          </div>
-          <span className="text-[11px] text-[var(--text-dim)]">전표번호: 자동(일자별 순번)</span>
-          <div className="flex items-center gap-1.5 text-xs ml-auto">
-            <span className="font-semibold text-[var(--text-muted)]">구분</span>
-            <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-0.5">
-              {VTYPES.map((t) => (
-                <button key={t.id} onClick={() => changeVtype(t.id)} title={t.desc}
-                  className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition ${vtype === t.id ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div ref={topRef} onKeyDown={onTopKey} className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 backdrop-blur shadow-[0_12px_40px_-16px_rgba(0,0,0,0.25)]" style={{ overflow: "visible" }}>
+        <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
+            <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-[var(--primary)]" />분개 입력
+          </span>
+          <span className="hidden sm:inline text-[11px] text-[var(--text-dim)]">{VTYPES.find((t) => t.id === vtype)?.desc}</span>
+          <span className="ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-dim)]">전표번호: 자동(일자별 순번)</span>
         </div>
         {/* 입력 영역은 가로 스크롤 컨테이너를 쓰지 않음 — overflow-x-auto 면 거래처 자동완성 드롭다운이
             세로로도 잘려(CSS상 overflow-y 도 auto 강제) 가로 스크롤해야 보였음. 폭에 맞춰 한눈에 표시. */}
         <div className="overflow-visible">
           <table className="w-full text-xs border-collapse table-fixed">
             <thead>
-              <tr className="bg-[var(--bg-surface)]/50 border-b border-[var(--border)]">
-                <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">No</th>
-                <th className="px-2 py-2 w-[68px] text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">구분</th>
-                <th className="px-2 py-2 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">계정과목</th>
-                <th className="px-2 py-2 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">거래처</th>
-                <th className="px-2 py-2 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">적요</th>
-                <th className="px-2 py-2 w-[110px] text-right text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">차변</th>
-                <th className="px-2 py-2 w-[110px] text-right text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">대변</th>
-                <th className="px-2 py-2 w-8" />
+              <tr className="border-b border-[var(--border)]">
+                <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">No</th>
+                <th className="px-2 py-2.5 w-[68px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정과목</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">적요</th>
+                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">차변</th>
+                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">대변</th>
+                <th className="px-2 py-2.5 w-8" />
               </tr>
             </thead>
             <tbody>
               {pend.map((l, i) => (
-                <tr key={l.key} className="border-b border-[var(--border)]/40"
+                <tr key={l.key} className="border-b border-[var(--border)]/40 transition-colors focus-within:bg-[var(--primary)]/[0.04]"
                   onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, rowId: `p:${l.key}` }); }}>
                   <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{i + 1}</td>
                   <td className={`${TD} w-[68px]`}>
@@ -585,56 +594,65 @@ export default function VoucherEntryPage() {
                 </td>
               </tr>
             </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-bold">
-                <td colSpan={5} className="px-3 py-2 text-right text-[var(--text-muted)]">합계</td>
-                <td className="px-2 py-2 text-right mono-number text-[var(--text)]">{pendTotalD.toLocaleString()}</td>
-                <td className="px-2 py-2 text-right mono-number text-[var(--text)]">{pendTotalC.toLocaleString()}</td>
-                <td />
-              </tr>
-            </tfoot>
           </table>
         </div>
-        <div className={`px-4 py-2 border-t border-[var(--border)] text-xs font-bold flex items-center gap-3 ${pendBalanced ? "text-emerald-500" : pendTotalD + pendTotalC === 0 ? "text-[var(--text-dim)]" : "text-red-500"}`}>
-          {pendTotalD + pendTotalC === 0 ? <span className="font-semibold">금액을 입력하세요</span>
-            : pendBalanced ? <>✅ 차대일치 — 저장 가능</>
-            : <>⚠️ 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}) — 저장 불가</>}
-          {pendMissing && <span className="text-amber-500 font-semibold">· 계정과목 미지정 행 있음</span>}
+        {/* 스티키 풋터 바 — 합계(차변합/대변합) + 차대일치 상태 pill */}
+        <div className="sticky bottom-0 z-10 px-5 py-3 border-t-2 border-[var(--border)] rounded-b-2xl bg-[var(--bg-card)]/90 backdrop-blur flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-dim)]">차변합</span>
+            <span className="text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalD.toLocaleString()}</span>
+          </div>
+          <span aria-hidden className="hidden sm:block w-px h-6 bg-[var(--border)]" />
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-dim)]">대변합</span>
+            <span className="text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalC.toLocaleString()}</span>
+          </div>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {pendMissing && <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[11px] font-bold">· 계정과목 미지정 행 있음</span>}
+            {pendTotalD + pendTotalC === 0 ? (
+              <span className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-semibold text-[var(--text-dim)]">금액을 입력하세요</span>
+            ) : pendBalanced ? (
+              <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">✅ 차대일치 — 저장 가능</span>
+            ) : (
+              <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold">⚠️ 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}) — 저장 불가</span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ══ 하단: 전표목록 그리드 (§3-3-A 사용자 지정 스펙) ══ */}
-      <div className="glass-card" style={{ overflow: "visible" }}>
-        <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
-          <span className="text-xs font-bold text-[var(--text)]">{entryDate} 전표목록 <span className="text-[var(--text-dim)] font-normal">— 셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span></span>
-          <div className="flex items-center gap-2">
-            <span className="caption">{entries.length}건</span>
-            <button onClick={deleteSelected} disabled={busy || selected.size === 0}
-              className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-400/40 disabled:opacity-40">
-              선택 삭제{selected.size ? ` (${selected.size})` : ""}</button>
-          </div>
+      <div className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 backdrop-blur" style={{ overflow: "visible" }}>
+        <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
+            <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-emerald-500" />{entryDate} 전표목록
+          </span>
+          <span className="px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-bold mono-number">{entries.length}건</span>
+          <span className="hidden md:inline text-[11px] text-[var(--text-dim)]">셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span>
+          <button onClick={deleteSelected} disabled={busy || selected.size === 0}
+            className="ml-auto px-3 py-1.5 text-[11px] font-semibold rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-400/40 disabled:opacity-40 transition">
+            선택 삭제{selected.size ? ` (${selected.size})` : ""}</button>
         </div>
         {/* 전표목록도 가로 스크롤 제거 — 폭에 맞춰(w-full) 표시하고 페이지가 세로로 스크롤되게.
             (overflow-y 컨테이너로 만들면 overflow-x 도 auto 강제돼 거래처 드롭다운이 잘림 → overflow-visible 유지) */}
         <div className="overflow-visible">
           <table className="w-full text-xs border-collapse table-fixed">
             <thead>
-              <tr className="bg-[var(--bg-surface)]/50 border-b border-[var(--border)]">
+              <tr className="border-b border-[var(--border)]">
                 <th className="px-2 py-2.5 w-8 text-center font-semibold">
                   <input type="checkbox"
                     checked={entries.length > 0 && selected.size >= entries.length}
                     onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => `s:${x.id}`)) : new Set())} />
                 </th>
-                <th className="px-2 py-2.5 w-9 text-center font-semibold">No</th>
-                <th className="px-2 py-2.5 w-[76px] text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">구분</th>
-                <th className="px-2 py-2.5 w-[72px] text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">계정코드</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">계정명</th>
-                <th className="px-2 py-2.5 w-[100px] text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">거래처코드</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">거래처명</th>
-                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">차변</th>
-                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">대변</th>
-                <th className="px-2 py-2.5 w-[64px] text-center font-semibold">적요코드</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">적요</th>
+                <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">No</th>
+                <th className="px-2 py-2.5 w-[76px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
+                <th className="px-2 py-2.5 w-[72px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정코드</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정명</th>
+                <th className="px-2 py-2.5 w-[100px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처코드</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처명</th>
+                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">차변</th>
+                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">대변</th>
+                <th className="px-2 py-2.5 w-[64px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">적요코드</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">적요</th>
               </tr>
             </thead>
             <tbody>
@@ -694,7 +712,7 @@ export default function VoucherEntryPage() {
                   return (
                     <tr key={rowId}
                       ref={isFlash && i === 0 ? (el) => { if (el && !flashScrolled.current) { flashScrolled.current = true; el.scrollIntoView({ behavior: "smooth", block: "center" }); } } : undefined}
-                      className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/40 transition-colors duration-700 ${isFlash ? "bg-emerald-500/15" : ""} ${i === 0 ? "border-t-2 border-t-[var(--border)]" : ""}`}
+                      className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/60 transition-colors duration-700 ${isFlash ? "bg-emerald-500/15" : ""} ${i === 0 ? "border-t-2 border-t-[var(--border)]" : ""}`}
                       onContextMenu={(ev) => { ev.preventDefault(); setCtx({ x: ev.clientX, y: ev.clientY, rowId }); }}
                       title={`전표 #${e.voucher_no ?? "—"}${e.description ? ` · ${e.description}` : ""} — 셀 클릭으로 인라인 수정`}>
                       <td className="px-2 py-1 text-center">
@@ -727,11 +745,13 @@ export default function VoucherEntryPage() {
             </tbody>
             {entries.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-bold">
-                  <td colSpan={7} className="px-3 py-2 text-right text-[var(--text-muted)]">합계</td>
-                  <td className="px-2 py-2 text-right mono-number text-[var(--text)]">{entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.debit, 0), 0).toLocaleString()}</td>
-                  <td className="px-2 py-2 text-right mono-number text-[var(--text)]">{entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.credit, 0), 0).toLocaleString()}</td>
-                  <td colSpan={2} className="px-2 py-2 text-[11px] font-bold text-emerald-500">✅ 차대일치</td>
+                <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)]/70 font-bold">
+                  <td colSpan={7} className="px-3 py-2.5 text-right text-[10px] uppercase tracking-wide text-[var(--text-dim)]">합계</td>
+                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.debit, 0), 0).toLocaleString()}</td>
+                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.credit, 0), 0).toLocaleString()}</td>
+                  <td colSpan={2} className="px-2 py-2.5">
+                    <span className="inline-flex px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">✅ 차대일치</span>
+                  </td>
                 </tr>
               </tfoot>
             )}
@@ -741,7 +761,7 @@ export default function VoucherEntryPage() {
 
       {/* 우클릭 메뉴 (§3-3-A: 행 삽입/복사/삭제) */}
       {ctx && (
-        <div className="fixed z-[80] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1 text-xs"
+        <div className="fixed z-[80] rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/95 backdrop-blur shadow-2xl p-1.5 text-xs"
           style={{ left: ctx.x, top: ctx.y }} onClick={(e) => e.stopPropagation()}>
           {ctx.rowId.startsWith("s:") ? (
             <>

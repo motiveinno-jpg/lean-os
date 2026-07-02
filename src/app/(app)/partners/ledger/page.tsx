@@ -173,118 +173,124 @@ export default function PartnerLedgerPage() {
 
   return (
     <div className="space-y-6">
-      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">AR / AP Ledger</p>
-          <h1 className="text-2xl font-extrabold text-[var(--text)] mt-0.5">거래처 원장</h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">매출처·매입처 잔액을 거래처별로 관리합니다</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link href="/partners" className="px-3 py-2 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">← 거래처</Link>
-          <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
-            className="px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50"
-            title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
-            {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
-          <Link href="/partners/reconciliation"
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90"
-            title="입금·계산서 자동 매칭 (확인 큐 / 수동 매칭 / 확정 내역)">
-            ⚙️ 거래 매칭 →
-          </Link>
-        </div>
-      </div>
+      {/* ── 히어로 밴드: 타이틀·액션 + 세그먼트·기간·검색·정렬 툴바 + KPI ── */}
+      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-6">
+        {/* 활성 탭 색 글로우 (장식) */}
+        <div aria-hidden className="pointer-events-none absolute -top-28 -right-20 w-80 h-80 rounded-full blur-3xl opacity-[0.13] transition-colors" style={{ background: pal.main }} />
 
-      {/* ── 세그먼트 탭: 매출처(파랑) / 매입처(주황) — 색+라벨+방향 아이콘 3중 신호 ── */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1 gap-1">
-          {(["sales", "purchase"] as const).map((t) => {
-            const p = AR_AP[t];
-            const active = ledgerType === t;
-            return (
-              <button key={t} onClick={() => setLedgerType(t)}
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1.5 ${active ? "text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
-                style={active ? { background: p.main } : undefined}>
-                <span className="text-base leading-none">{p.arrow}</span>
-                {p.label}
-              </button>
-            );
-          })}
+        <div className="relative flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold text-[var(--primary)] uppercase tracking-[0.15em]">AR / AP Ledger</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text)] mt-1">거래처 원장</h1>
+            <p className="text-sm text-[var(--text-muted)] mt-1">매출처·매입처 잔액을 거래처별로 관리합니다</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <Link href="/partners" className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)]/80 border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">← 거래처</Link>
+            <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
+              className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50 transition"
+              title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
+              {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
+            <Link href="/partners/reconciliation"
+              className="px-4 py-2 text-xs font-semibold rounded-xl bg-[var(--primary)] text-white shadow-sm hover:opacity-90 transition"
+              title="입금·계산서 자동 매칭 (확인 큐 / 수동 매칭 / 확정 내역)">
+              ⚙️ 거래 매칭 →
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-          <span className="font-semibold">회계기간</span>
-          <select value={periodMode === "custom" ? "custom" : String(ledgerYear)}
-            onChange={(e) => {
-              if (e.target.value === "custom") setPeriodMode("custom");
-              else { setPeriodMode("year"); setLedgerYear(Number(e.target.value)); }
-            }}
-            className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
-            {[...new Set([...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i), ledgerYear])]
-              .sort((a, b) => b - a)
-              .map((y) => (
-                <option key={y} value={String(y)}>{y}-01-01 ~ {y}-12-31</option>
-              ))}
-            <option value="custom">기간 직접 선택</option>
-          </select>
-          {periodMode === "year" ? (
-            <>
-              {/* 연도 직접 입력 — 드롭다운 밖 연도도 타이핑(Enter/포커스 아웃 적용) */}
-              <input
-                type="number" inputMode="numeric" min={2000} max={2100}
-                value={yearInput}
-                onChange={(e) => setYearInput(e.target.value)}
-                onBlur={() => { const y = Number(yearInput); if (y >= 2000 && y <= 2100) setLedgerYear(y); else setYearInput(String(ledgerYear)); }}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                title="연도 직접 입력 (Enter)"
-                className="w-[68px] px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number"
-              />
-              <span className="text-[var(--text-dim)]">년</span>
-            </>
-          ) : (
-            <span className="inline-flex items-center gap-1">
-              {/* 기간 직접 선택 — 부터~까지 임의 지정 */}
-              <DateField value={customFrom} max={customTo}
-                onChange={(e) => e.target.value && setCustomFrom(e.target.value)}
-                title="시작일"
-                className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-              <span className="text-[var(--text-dim)]">~</span>
-              <DateField value={customTo} min={customFrom}
-                onChange={(e) => e.target.value && setCustomTo(e.target.value)}
-                title="종료일"
-                className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-            </span>
-          )}
-        </div>
-        <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
-          className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36" />
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "outstanding" | "name" | "code")}
-          className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
-          <option value="outstanding">잔액 큰 순</option>
-          <option value="code">코드순</option>
-          <option value="name">거래처명 순</option>
-        </select>
-      </div>
 
-      {/* ── 요약 카드 (선택 탭 기준) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-stretch">
-        <div className="glass-card px-5 py-5 flex flex-wrap items-center gap-x-8 gap-y-2" style={{ borderTop: `3px solid ${pal.main}` }}>
+        {/* 툴바: 세그먼트 탭(매출처=파랑 / 매입처=주황 — 색+라벨+방향 아이콘 3중 신호) + 회계기간 + 검색 + 정렬 */}
+        <div className="relative mt-5 flex items-center gap-2 flex-wrap">
+          <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/80 p-1 gap-1">
+            {(["sales", "purchase"] as const).map((t) => {
+              const p = AR_AP[t];
+              const active = ledgerType === t;
+              return (
+                <button key={t} onClick={() => setLedgerType(t)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1.5 ${active ? "text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
+                  style={active ? { background: p.main } : undefined}>
+                  <span className="text-base leading-none">{p.arrow}</span>
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+            <span className="font-semibold">회계기간</span>
+            <select value={periodMode === "custom" ? "custom" : String(ledgerYear)}
+              onChange={(e) => {
+                if (e.target.value === "custom") setPeriodMode("custom");
+                else { setPeriodMode("year"); setLedgerYear(Number(e.target.value)); }
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
+              {[...new Set([...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i), ledgerYear])]
+                .sort((a, b) => b - a)
+                .map((y) => (
+                  <option key={y} value={String(y)}>{y}-01-01 ~ {y}-12-31</option>
+                ))}
+              <option value="custom">기간 직접 선택</option>
+            </select>
+            {periodMode === "year" ? (
+              <>
+                {/* 연도 직접 입력 — 드롭다운 밖 연도도 타이핑(Enter/포커스 아웃 적용) */}
+                <input
+                  type="number" inputMode="numeric" min={2000} max={2100}
+                  value={yearInput}
+                  onChange={(e) => setYearInput(e.target.value)}
+                  onBlur={() => { const y = Number(yearInput); if (y >= 2000 && y <= 2100) setLedgerYear(y); else setYearInput(String(ledgerYear)); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                  title="연도 직접 입력 (Enter)"
+                  className="w-[68px] px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number"
+                />
+                <span className="text-[var(--text-dim)]">년</span>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                {/* 기간 직접 선택 — 부터~까지 임의 지정 */}
+                <DateField value={customFrom} max={customTo}
+                  onChange={(e) => e.target.value && setCustomFrom(e.target.value)}
+                  title="시작일"
+                  className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+                <span className="text-[var(--text-dim)]">~</span>
+                <DateField value={customTo} min={customFrom}
+                  onChange={(e) => e.target.value && setCustomTo(e.target.value)}
+                  title="종료일"
+                  className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+              </span>
+            )}
+          </div>
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
+            <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
+              className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36 focus:border-[var(--primary)]/60 focus:outline-none transition" />
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "outstanding" | "name" | "code")}
+              className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
+              <option value="outstanding">잔액 큰 순</option>
+              <option value="code">코드순</option>
+              <option value="name">거래처명 순</option>
+            </select>
+          </div>
+        </div>
+
+        {/* KPI: 총 미수금/미지급 + 거래처 수 + 반대편 미니 카드(클릭 전환) */}
+        <div className="relative mt-5 pt-5 border-t border-[var(--border)]/60 flex flex-wrap items-end gap-x-10 gap-y-4">
           <div>
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</div>
-            <div className="text-2xl font-black mono-number mt-0.5" style={{ color: pal.main }}>{won(total)}</div>
+            <div className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-[0.15em]">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</div>
+            <div className="text-3xl font-black mono-number tracking-tight mt-1" style={{ color: pal.main }}>{won(total)}</div>
           </div>
           <div>
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{pal.label}</div>
-            <div className="text-2xl font-black mono-number mt-0.5 text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></div>
+            <div className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-[0.15em]">{pal.label}</div>
+            <div className="text-3xl font-black mono-number tracking-tight mt-1 text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></div>
           </div>
-          <div className="text-[11px] text-[var(--text-dim)] leading-relaxed ml-auto hidden md:block">
+          {/* 반대편 미니 요약 — 클릭하면 탭 전환 */}
+          <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
+            className="text-left px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/60 hover:bg-[var(--bg-surface)] transition min-w-[170px]"
+            title="클릭하여 전환">
+            <div className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-[0.15em] flex items-center gap-1">{other.arrow} {other.label}</div>
+            <div className={`text-base font-bold mono-number mt-1 ${other.tintText}`}>{won(otherTotal)}</div>
+          </button>
+          <div className="text-[11px] text-[var(--text-dim)] leading-relaxed ml-auto hidden md:block text-right">
             잔액 = 전기이월 + 당기 잔액<br />확정된 매칭(거래 매칭)만 정산으로 반영
           </div>
         </div>
-        {/* 반대편 미니 요약 — 클릭하면 탭 전환 */}
-        <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
-          className="glass-card px-4 py-3 text-left hover:bg-[var(--bg-surface)] transition min-w-[170px]"
-          title="클릭하여 전환">
-          <div className="text-[11px] text-[var(--text-dim)] flex items-center gap-1">{other.arrow} {other.label}</div>
-          <div className={`text-base font-bold mono-number mt-0.5 ${other.tintText}`}>{won(otherTotal)}</div>
-        </button>
       </div>
 
       {lLoading ? (
@@ -327,7 +333,7 @@ export default function PartnerLedgerPage() {
                 </button>
               </div>
             )}
-            <div className="overflow-y-auto max-h-[560px]">
+            <div className="overflow-y-auto max-h-[560px] p-1.5 space-y-0.5">
               {shown.length === 0 ? (
                 <div className="py-12 px-4 text-center">
                   <div className="text-3xl mb-3">{sq ? "🔍" : "📒"}</div>
@@ -339,18 +345,19 @@ export default function PartnerLedgerPage() {
                 const out = ledgerOut(r);
                 return (
                   <div key={`${key}-${r.type}`}
-                    className={`flex items-stretch border-b border-[var(--border)]/40 transition border-l-2 ${active ? "" : "hover:bg-[var(--bg-surface)] border-l-transparent"}`}
-                    style={active ? { background: `color-mix(in srgb, ${pal.main} 8%, transparent)`, borderLeftColor: pal.main } : undefined}>
-                    <label className="flex items-center pl-2.5 pr-1 cursor-pointer" title="일괄 엑셀 내보내기 선택">
+                    className={`relative flex items-stretch rounded-lg transition ${active ? "" : "hover:bg-[var(--bg-surface)]/70"}`}
+                    style={active ? { background: `color-mix(in srgb, ${pal.main} 9%, transparent)` } : undefined}>
+                    {active && <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full" style={{ background: pal.main }} />}
+                    <label className="flex items-center pl-3 pr-1 cursor-pointer" title="일괄 엑셀 내보내기 선택">
                       <input type="checkbox" checked={checkedIds.has(key)} onChange={() => toggleChecked(key)} />
                     </label>
                     <button onClick={() => setSelLedger(key)}
-                      className="flex-1 min-w-0 flex items-center justify-between gap-2 pl-1 pr-3 py-2 text-left">
+                      className="flex-1 min-w-0 flex items-center justify-between gap-2 pl-1 pr-3 py-2.5 text-left">
                       <span className="min-w-0">
                         <span className="block text-[10px] text-[var(--text-dim)] mono-number">{r.partner_id && partnerCodeMap[r.partner_id] ? String(partnerCodeMap[r.partner_id]).padStart(4, "0") : "—"}</span>
-                        <span className={`block text-xs truncate ${active ? "font-bold" : "text-[var(--text)]"}`} style={active ? { color: pal.main } : undefined}>{nameOf(r.partner_id)}</span>
+                        <span className={`block text-xs truncate ${active ? "font-bold" : "font-medium text-[var(--text)]"}`} style={active ? { color: pal.main } : undefined}>{nameOf(r.partner_id)}</span>
                       </span>
-                      <span className={`shrink-0 text-xs mono-number ${out > 0 ? pal.tintText : out < 0 ? "text-red-500" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</span>
+                      <span className={`shrink-0 text-xs font-semibold mono-number ${out > 0 ? pal.tintText : out < 0 ? "text-red-500" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</span>
                     </button>
                   </div>
                 );

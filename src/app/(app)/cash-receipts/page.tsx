@@ -100,7 +100,7 @@ export default function CashReceiptsPage() {
     else { setCrSortKey(k); setCrSortDir(k === "issue_date" ? "desc" : "asc"); }
   };
   const crSortTh = (k: CrSortKey, label: string, cls: string) => (
-    <th className={`${cls} px-5 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleCrSort(k)}>
+    <th className={`${cls} px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)] cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleCrSort(k)}>
       <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
         {label}
         <span className={`text-[9px] ${crSortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{crSortKey === k ? (crSortDir === "asc" ? "▲" : "▼") : "↕"}</span>
@@ -402,319 +402,181 @@ export default function CashReceiptsPage() {
 
   return (
     <div className="space-y-6 mx-auto">
-      {/* Header */}
-      <div className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold">현금영수증</h1>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            매출/매입 현금영수증 관리 · 부가세 공제 자동 반영
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* 조회기간 — 목록·요약·홈택스 동기화 공통 기준 (기준 하나로 통일) */}
-          <span className="text-[11px] font-semibold text-[var(--text-muted)]">조회기간</span>
-          <DateField
-            value={startDate}
-            max={endDate || undefined}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
-            aria-label="조회 시작일"
-          />
-          <span className="text-[var(--text-dim)] text-xs">~</span>
-          <DateField
-            value={endDate}
-            min={startDate || undefined}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
-            aria-label="조회 종료일"
-          />
-          <button
-            onClick={startSync}
-            disabled={syncStarting || !!activeJobId}
-            aria-busy={syncStarting || !!activeJobId}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
-            title="조회기간 범위로 홈택스에서 현금영수증 매출(발행) 내역 가져오기. 매입 내역은 CODEF API 미지원."
-          >
-            <svg className={`w-3.5 h-3.5 ${(syncStarting || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span aria-live="polite">
-              {syncStarting ? "시작 중..."
-                : activeJobId
-                  ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ""})`
-                  : "홈택스 매출 가져오기"}
-            </span>
-          </button>
-          <label className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-xs font-semibold cursor-pointer hover:bg-[var(--bg)] transition">
-            {uploading ? "업로드 중..." : "엑셀 업로드"}
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={handleExcelUpload}
-              disabled={uploading}
-            />
-          </label>
+      {/* ─── 히어로 밴드 ─── */}
+      <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-6">
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--primary)]">
+              Cash Receipts
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text)] mt-1">현금영수증</h1>
+            <p className="text-sm text-[var(--text-muted)] mt-1">
+              매출/매입 현금영수증 관리 · 부가세 공제 자동 반영
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* 조회기간 — 목록·요약·홈택스 동기화 공통 기준 (기준 하나로 통일) */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)]/70 border border-[var(--border)]/70">
+              <span className="text-[11px] font-semibold text-[var(--text-muted)]">조회기간</span>
+              <DateField
+                value={startDate}
+                max={endDate || undefined}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-2 py-1 text-xs bg-transparent border-0 rounded-lg text-[var(--text)] focus:outline-none"
+                aria-label="조회 시작일"
+              />
+              <span className="text-[var(--text-dim)] text-xs">~</span>
+              <DateField
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-2 py-1 text-xs bg-transparent border-0 rounded-lg text-[var(--text)] focus:outline-none"
+                aria-label="조회 종료일"
+              />
+            </div>
+            <button
+              onClick={startSync}
+              disabled={syncStarting || !!activeJobId}
+              aria-busy={syncStarting || !!activeJobId}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--primary)] text-white hover:brightness-110 text-xs font-semibold shadow-sm shadow-[var(--primary)]/25 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              title="조회기간 범위로 홈택스에서 현금영수증 매출(발행) 내역 가져오기. 매입 내역은 CODEF API 미지원."
+            >
+              <svg className={`w-3.5 h-3.5 ${(syncStarting || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span aria-live="polite">
+                {syncStarting ? "시작 중..."
+                  : activeJobId
+                    ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ""})`
+                    : "홈택스 매출 가져오기"}
+              </span>
+            </button>
+            <label className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-semibold text-[var(--text)] cursor-pointer hover:border-[var(--primary)]/50 hover:text-[var(--primary)] transition">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              {uploading ? "업로드 중..." : "엑셀 업로드"}
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={handleExcelUpload}
+                disabled={uploading}
+              />
+            </label>
+          </div>
         </div>
       </div>
 
-      {/* Summary cards */}
+      {/* ─── KPI 스탯 ─── */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매출 발행</div>
-            <div className="text-2xl font-black mono-number text-[var(--text)] mt-1">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-5">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </span>
+              <span className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매출 발행</span>
+            </div>
+            <div className="text-2xl font-black mono-number text-[var(--text)] mt-3">
               {summary.incomeCount}건
             </div>
-            <div className="text-xs text-[var(--text-muted)] mono-number">
+            <div className="text-xs text-[var(--text-muted)] mono-number mt-0.5">
               ₩{summary.incomeTotal.toLocaleString()}
             </div>
           </div>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입 수취</div>
-            <div className="text-2xl font-black mono-number text-[var(--text)] mt-1">
+          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-5">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4m0 0l6-6m-6 6l6 6" />
+                </svg>
+              </span>
+              <span className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입 수취</span>
+            </div>
+            <div className="text-2xl font-black mono-number text-[var(--text)] mt-3">
               {summary.expenseCount}건
             </div>
-            <div className="text-xs text-[var(--text-muted)] mono-number">
+            <div className="text-xs text-[var(--text-muted)] mono-number mt-0.5">
               ₩{summary.expenseTotal.toLocaleString()}
             </div>
           </div>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입세액 공제</div>
-            <div className="text-2xl font-black mono-number text-[var(--primary)] mt-1">
+          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-5">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+              <span className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입세액 공제</span>
+            </div>
+            <div className="text-2xl font-black mono-number text-[var(--primary)] mt-3">
               ₩{summary.expenseTax.toLocaleString()}
             </div>
-            <div className="text-xs text-[var(--text-muted)]">부가세 신고 시 공제</div>
+            <div className="text-xs text-[var(--text-muted)] mt-0.5">부가세 신고 시 공제</div>
           </div>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">합계</div>
-            <div className="text-2xl font-black mono-number text-[var(--text)] mt-1">
+          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-5">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]/60 flex items-center justify-center shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </span>
+              <span className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">합계</span>
+            </div>
+            <div className="text-2xl font-black mono-number text-[var(--text)] mt-3">
               {summary.incomeCount + summary.expenseCount}건
             </div>
-            <div className="text-xs text-[var(--text-muted)] mono-number">
+            <div className="text-xs text-[var(--text-muted)] mono-number mt-0.5">
               ₩{(summary.incomeTotal + summary.expenseTotal).toLocaleString()}
             </div>
           </div>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="seg-bar w-fit">
-        {/* A3: '등록' 탭은 직원 요청으로 메뉴 제거. 백엔드 코드/엔드포인트는
-            보존 (CODEF 자동 sync BLOCKED 해제 시 즉시 재노출 가능). */}
-        {(
-          [
-            ["expense", "매입 (수취)"],
-            ["income", "매출 (발행)"],
-          ] as [Tab, string][]
-        ).map(([t, label]) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`seg-item ${tab === t ? "seg-item-active" : ""}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       <QueryErrorBanner error={error} />
 
-      {/* Register tab */}
-      {tab === "register" && (
-        <div className="glass-card p-6 space-y-4">
-          <h2 className="text-sm font-bold">현금영수증 수동 등록</h2>
-
-          <div className="flex gap-2">
-            {(["expense", "income"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setForm((f) => ({ ...f, type: t }))}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition ${
-                  form.type === t
-                    ? t === "income"
-                      ? "bg-blue-500 text-white"
-                      : "bg-green-500 text-white"
-                    : "bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"
-                }`}
-              >
-                {t === "income" ? "매출 (발행)" : "매입 (수취)"}
-              </button>
-            ))}
+      {/* 선택 액션바 */}
+      {tab !== "register" && selectedReceipts.length > 0 && (
+        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 backdrop-blur border border-[var(--primary)]/30">
+          <span className="text-sm font-semibold text-[var(--text)]"><b className="text-[var(--primary)]">{selectedReceipts.length}건</b> 선택됨</span>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:brightness-110 transition">
+              전표처리({selectedReceipts.length})
+            </button>
+            <button type="button" onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition">
+              선택 해제
+            </button>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                발행일 *
-              </label>
-              <DateField
-                value={form.issueDate}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, issueDate: e.target.value }))
-                }
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                합계금액 (VAT포함) *
-              </label>
-              <CurrencyInput
-                value={form.amount}
-                onValueChange={(raw) => {
-                  setForm((f) => ({ ...f, amount: raw }));
-                }}
-                placeholder="110,000"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]"
-              />
-              {form.amount && Number(form.amount) > 0 && (
-                <div className="text-[10px] text-[var(--text-dim)] mt-1">
-                  공급가액: ₩
-                  {Math.round(
-                    Number(form.amount) / 1.1,
-                  ).toLocaleString()}{" "}
-                  / 세액: ₩
-                  {(
-                    Number(form.amount) -
-                    Math.round(Number(form.amount) / 1.1)
-                  ).toLocaleString()}
-                </div>
-              )}
-            </div>
-            <div className="relative">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                거래처명
-              </label>
-              <input
-                value={form.counterpartyName}
-                onChange={(e) => {
-                  setForm((f) => ({ ...f, counterpartyName: e.target.value }));
-                  setPartnerSearch(e.target.value);
-                  setShowPartnerDropdown(e.target.value.length > 0);
-                }}
-                onFocus={() => form.counterpartyName && setShowPartnerDropdown(true)}
-                onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
-                placeholder="거래처명 검색"
-                className="field-input"
-              />
-              {showPartnerDropdown && filteredPartners.length > 0 && (
-                <div className="absolute z-20 w-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-lg max-h-40 overflow-y-auto">
-                  {filteredPartners.slice(0, 8).map((p: any) => (
-                    <button key={p.id} type="button"
-                      onClick={() => {
-                        setForm((f) => ({ ...f, counterpartyName: p.name, counterpartyBizno: p.business_number || "" }));
-                        setShowPartnerDropdown(false);
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition">
-                      <span className="font-medium">{p.name}</span>
-                      {p.business_number && <span className="text-xs text-[var(--text-dim)] ml-2">{p.business_number}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                사업자번호
-              </label>
-              <input
-                value={form.counterpartyBizno}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    counterpartyBizno: e.target.value,
-                  }))
-                }
-                placeholder="000-00-00000"
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                승인번호
-              </label>
-              <input
-                value={form.approvalNumber}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, approvalNumber: e.target.value }))
-                }
-                placeholder="승인번호"
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                용도 *
-              </label>
-              <select
-                value={form.purpose}
-                onChange={(e) => {
-                  const purpose = e.target.value as any;
-                  setForm((f) => ({
-                    ...f,
-                    purpose,
-                    identityType: purpose === "income_deduction" ? "phone" : "bizno",
-                    identityNumber: "",
-                  }));
-                }}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm"
-              >
-                <option value="expenditure_proof">지출증빙</option>
-                <option value="income_deduction">소득공제</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                {form.purpose === "income_deduction" ? "전화번호" : "사업자등록번호"}
-              </label>
-              <input
-                value={form.identityNumber}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    identityNumber: e.target.value,
-                  }))
-                }
-                placeholder={form.purpose === "income_deduction" ? "010-0000-0000" : "000-00-00000"}
-                className="field-input"
-              />
-              <div className="text-[10px] text-[var(--text-dim)] mt-1">
-                {form.purpose === "income_deduction"
-                  ? "소득공제용: 소비자 전화번호 입력"
-                  : "지출증빙용: 거래처 사업자등록번호 입력"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                메모
-              </label>
-              <input
-                value={form.memo}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, memo: e.target.value }))
-                }
-                placeholder="비고"
-                className="field-input"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={handleSave}
-            disabled={saving || !companyId}
-            className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
-          >
-            {saving ? "저장 중..." : "현금영수증 등록"}
-          </button>
         </div>
       )}
 
-      {/* List tabs */}
-      {tab !== "register" && (
-        <div className="space-y-3">
-        {receipts.length > 0 && (
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+      {/* ─── 세그먼트 탭 + 리스트/등록 패널 ─── */}
+      <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border)]/60 flex items-center justify-between gap-3 flex-wrap">
+          <div className="seg-bar w-fit">
+            {/* A3: '등록' 탭은 직원 요청으로 메뉴 제거. 백엔드 코드/엔드포인트는
+                보존 (CODEF 자동 sync BLOCKED 해제 시 즉시 재노출 가능). */}
+            {(
+              [
+                ["expense", "매입 (수취)"],
+                ["income", "매출 (발행)"],
+              ] as [Tab, string][]
+            ).map(([t, label]) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`seg-item ${tab === t ? "seg-item-active" : ""}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {tab !== "register" && receipts.length > 0 && (
             <SortToolbar
               options={[
                 { key: "issue_date", label: "발행일" },
@@ -727,32 +589,208 @@ export default function CashReceiptsPage() {
               sortDir={crSortDir}
               onSort={(k) => toggleCrSort(k as any)}
             />
-          </div>
-        )}
-        {/* 선택 액션바 */}
-        {selectedReceipts.length > 0 && (
-          <div className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
-            <span className="text-sm font-semibold text-[var(--text)]"><b className="text-[var(--primary)]">{selectedReceipts.length}건</b> 선택됨</span>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:brightness-110 transition">
-                전표처리({selectedReceipts.length})
-              </button>
-              <button type="button" onClick={() => setSelectedIds(new Set())}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition">
-                선택 해제
-              </button>
+          )}
+        </div>
+
+        {/* Register tab */}
+        {tab === "register" && (
+          <div className="p-6 space-y-4">
+            <h2 className="text-sm font-bold text-[var(--text)]">현금영수증 수동 등록</h2>
+
+            <div className="flex gap-2">
+              {(["expense", "income"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setForm((f) => ({ ...f, type: t }))}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition ${
+                    form.type === t
+                      ? t === "income"
+                        ? "bg-blue-500 text-white"
+                        : "bg-green-500 text-white"
+                      : "bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"
+                  }`}
+                >
+                  {t === "income" ? "매출 (발행)" : "매입 (수취)"}
+                </button>
+              ))}
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">
+                  발행일 *
+                </label>
+                <DateField
+                  value={form.issueDate}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, issueDate: e.target.value }))
+                  }
+                  className="field-input"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">
+                  합계금액 (VAT포함) *
+                </label>
+                <CurrencyInput
+                  value={form.amount}
+                  onValueChange={(raw) => {
+                    setForm((f) => ({ ...f, amount: raw }));
+                  }}
+                  placeholder="110,000"
+                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]"
+                />
+                {form.amount && Number(form.amount) > 0 && (
+                  <div className="text-[10px] text-[var(--text-dim)] mt-1">
+                    공급가액: ₩
+                    {Math.round(
+                      Number(form.amount) / 1.1,
+                    ).toLocaleString()}{" "}
+                    / 세액: ₩
+                    {(
+                      Number(form.amount) -
+                      Math.round(Number(form.amount) / 1.1)
+                    ).toLocaleString()}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <label className="block text-xs text-[var(--text-muted)] mb-1">
+                  거래처명
+                </label>
+                <input
+                  value={form.counterpartyName}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, counterpartyName: e.target.value }));
+                    setPartnerSearch(e.target.value);
+                    setShowPartnerDropdown(e.target.value.length > 0);
+                  }}
+                  onFocus={() => form.counterpartyName && setShowPartnerDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
+                  placeholder="거래처명 검색"
+                  className="field-input"
+                />
+                {showPartnerDropdown && filteredPartners.length > 0 && (
+                  <div className="absolute z-20 w-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-lg max-h-40 overflow-y-auto">
+                    {filteredPartners.slice(0, 8).map((p: any) => (
+                      <button key={p.id} type="button"
+                        onClick={() => {
+                          setForm((f) => ({ ...f, counterpartyName: p.name, counterpartyBizno: p.business_number || "" }));
+                          setShowPartnerDropdown(false);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition">
+                        <span className="font-medium">{p.name}</span>
+                        {p.business_number && <span className="text-xs text-[var(--text-dim)] ml-2">{p.business_number}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">
+                  사업자번호
+                </label>
+                <input
+                  value={form.counterpartyBizno}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      counterpartyBizno: e.target.value,
+                    }))
+                  }
+                  placeholder="000-00-00000"
+                  className="field-input"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">
+                  승인번호
+                </label>
+                <input
+                  value={form.approvalNumber}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, approvalNumber: e.target.value }))
+                  }
+                  placeholder="승인번호"
+                  className="field-input"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">
+                  용도 *
+                </label>
+                <select
+                  value={form.purpose}
+                  onChange={(e) => {
+                    const purpose = e.target.value as any;
+                    setForm((f) => ({
+                      ...f,
+                      purpose,
+                      identityType: purpose === "income_deduction" ? "phone" : "bizno",
+                      identityNumber: "",
+                    }));
+                  }}
+                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm"
+                >
+                  <option value="expenditure_proof">지출증빙</option>
+                  <option value="income_deduction">소득공제</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">
+                  {form.purpose === "income_deduction" ? "전화번호" : "사업자등록번호"}
+                </label>
+                <input
+                  value={form.identityNumber}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      identityNumber: e.target.value,
+                    }))
+                  }
+                  placeholder={form.purpose === "income_deduction" ? "010-0000-0000" : "000-00-00000"}
+                  className="field-input"
+                />
+                <div className="text-[10px] text-[var(--text-dim)] mt-1">
+                  {form.purpose === "income_deduction"
+                    ? "소득공제용: 소비자 전화번호 입력"
+                    : "지출증빙용: 거래처 사업자등록번호 입력"}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">
+                  메모
+                </label>
+                <input
+                  value={form.memo}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, memo: e.target.value }))
+                  }
+                  placeholder="비고"
+                  className="field-input"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSave}
+              disabled={saving || !companyId}
+              className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+            >
+              {saving ? "저장 중..." : "현금영수증 등록"}
+            </button>
           </div>
         )}
-        <div className="glass-card overflow-hidden">
-          {isLoading ? (
+
+        {/* List tabs */}
+        {tab !== "register" && (
+          isLoading ? (
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">
               불러오는 중...
             </div>
           ) : receipts.length === 0 ? (
             <div className="py-16 px-6 text-center">
-              <div className="text-5xl mb-4">🧾</div>
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center text-3xl mb-4">🧾</div>
               <div className="text-base font-semibold text-[var(--text)]">
                 {tab === "income"
                   ? "매출 현금영수증이 없습니다"
@@ -786,7 +824,7 @@ export default function CashReceiptsPage() {
                     {crSortTh("tax_amount", "세액", "text-right")}
                     {crSortTh("purpose", "용도", "text-center")}
                     {crSortTh("status", "상태", "text-center")}
-                    <th className="th-cell text-center">
+                    <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)] text-center">
                       작업
                     </th>
                   </tr>
@@ -800,7 +838,7 @@ export default function CashReceiptsPage() {
                     return (
                       <tr
                         key={r.id}
-                        className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition ${checked ? "bg-[var(--primary)]/5" : ""}`}
+                        className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 transition ${checked ? "bg-[var(--primary)]/5" : ""}`}
                       >
                         <td className="px-3 py-3 text-center">
                           <input
@@ -813,11 +851,11 @@ export default function CashReceiptsPage() {
                             className="h-3.5 w-3.5 cursor-pointer accent-[var(--primary)] disabled:opacity-40 disabled:cursor-not-allowed"
                           />
                         </td>
-                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
+                        <td className="px-5 py-3 text-xs text-[var(--text-dim)] mono-number whitespace-nowrap">
                           {r.issue_date}
                           {posted && <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-500">전표</span>}
                         </td>
-                        <td className="px-5 py-3 text-sm font-medium">
+                        <td className="px-5 py-3 text-sm font-medium text-[var(--text)]">
                           {r.counterparty_name || "—"}
                           {r.approval_number && (
                             <span className="ml-2 text-[10px] text-[var(--text-dim)]">
@@ -825,17 +863,17 @@ export default function CashReceiptsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-sm text-right font-semibold">
+                        <td className="px-5 py-3 text-sm text-right font-semibold mono-number">
                           ₩{Number(r.amount).toLocaleString()}
                         </td>
-                        <td className="px-5 py-3 text-xs text-right text-[var(--text-muted)]">
+                        <td className="px-5 py-3 text-xs text-right text-[var(--text-muted)] mono-number">
                           ₩{Number(r.supply_amount || 0).toLocaleString()}
                         </td>
-                        <td className="px-5 py-3 text-xs text-right text-[var(--text-muted)]">
+                        <td className="px-5 py-3 text-xs text-right text-[var(--text-muted)] mono-number">
                           ₩{Number(r.tax_amount || 0).toLocaleString()}
                         </td>
                         <td className="px-5 py-3 text-center">
-                          <span className="caption">
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--bg-surface)] border border-[var(--border)]/60 text-[var(--text-muted)] whitespace-nowrap">
                             {r.purpose
                               ? PURPOSE_LABELS[r.purpose] || r.purpose
                               : "—"}
@@ -852,7 +890,7 @@ export default function CashReceiptsPage() {
                           {r.status === "issued" && (
                             <button
                               onClick={() => handleCancel(r)}
-                              className="text-[10px] text-red-400 hover:text-red-300 transition"
+                              className="text-[10px] font-semibold px-2 py-1 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition"
                             >
                               취소
                             </button>
@@ -870,7 +908,7 @@ export default function CashReceiptsPage() {
                     >
                       합계 ({receipts.length}건)
                     </td>
-                    <td className="px-5 py-3 text-sm text-right font-bold">
+                    <td className="px-5 py-3 text-sm text-right font-bold mono-number">
                       ₩
                       {receipts
                         .reduce(
@@ -879,7 +917,7 @@ export default function CashReceiptsPage() {
                         )
                         .toLocaleString()}
                     </td>
-                    <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)]">
+                    <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)] mono-number">
                       ₩
                       {receipts
                         .reduce(
@@ -888,7 +926,7 @@ export default function CashReceiptsPage() {
                         )
                         .toLocaleString()}
                     </td>
-                    <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)]">
+                    <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)] mono-number">
                       ₩
                       {receipts
                         .reduce(
@@ -902,14 +940,13 @@ export default function CashReceiptsPage() {
                 </tfoot>
               </table>
             </div>
-          )}
-        </div>
-        </div>
-      )}
+          )
+        )}
+      </div>
 
       {/* 일괄 전표처리 모달 — 선택된 미처리 현금영수증을 계정 1개로 일괄 생성 */}
       {showBulkPost && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkPost(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowBulkPost(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
