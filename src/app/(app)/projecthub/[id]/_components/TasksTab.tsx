@@ -26,10 +26,13 @@ const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
 
 const isDelayed = (t: any) => t.due_date && t.status !== "done" && String(t.due_date).slice(0, 10) < todayStr();
 
-// ── 태스크 라벨 (색상+텍스트 자유 태그) — project_tasks.labels jsonb ──
+// ── 태스크 라벨 (색상+텍스트 자유 태그) — project_tasks.labels jsonb (태스크엔 스냅샷 저장, 사전은 task_labels 테이블) ──
 interface TaskLabel { text: string; color: string }
 const LABEL_COLORS = ["#ef4444", "#f97316", "#f59e0b", "#22c55e", "#0ea5e9", "#6366f1", "#a855f7", "#64748b"];
 const taskLabels = (t: any): TaskLabel[] => (Array.isArray(t?.labels) ? t.labels : []).filter((l: any) => l && l.text);
+// 다중 담당자 — assignee_ids jsonb 우선, 없으면 기존 단일 assignee_id 로 폴백(하위호환)
+const taskAssignees = (t: any): string[] =>
+  Array.isArray(t?.assignee_ids) && t.assignee_ids.length > 0 ? t.assignee_ids : t?.assignee_id ? [t.assignee_id] : [];
 const LabelChip = ({ l }: { l: TaskLabel }) => (
   <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold leading-none"
     style={{ backgroundColor: `${l.color}24`, color: l.color }}>{l.text}</span>
@@ -49,7 +52,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
     queryKey: ["project-tasks", dealId],
     queryFn: async () => {
       const { data } = await db.from("project_tasks")
-        .select("id, title, description, status, assignee_id, start_date, due_date, progress, position, attachments, labels")
+        .select("id, title, description, status, assignee_id, assignee_ids, start_date, due_date, progress, position, attachments, labels")
         .eq("deal_id", dealId).is("archived_at", null)
         .order("position", { ascending: true }).order("created_at", { ascending: true });
       return (data || []) as any[];
@@ -137,7 +140,12 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
                     )}
                     <div className="text-sm font-medium text-[var(--text)] break-words">{t.title}</div>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      {t.assignee_id && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{userName[t.assignee_id] || "담당"}</span>}
+                      {taskAssignees(t).length > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]"
+                          title={taskAssignees(t).map((id) => userName[id] || "담당").join(", ")}>
+                          {userName[taskAssignees(t)[0]] || "담당"}{taskAssignees(t).length > 1 ? ` 외 ${taskAssignees(t).length - 1}` : ""}
+                        </span>
+                      )}
                       {t.due_date && <span className={`text-[10px] mono-number ${isDelayed(t) ? "text-red-500 font-semibold" : "text-[var(--text-dim)]"}`}>~{String(t.due_date).slice(5, 10)}</span>}
                       {isDelayed(t) && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-semibold">지연</span>}
                       {Array.isArray(t.attachments) && t.attachments.length > 0 && <span className="text-[10px] text-[var(--text-dim)]">📎 {t.attachments.length}</span>}
@@ -229,7 +237,7 @@ function GanttChart({ tasks, userName, onTaskClick }: { tasks: any[]; userName: 
                   <div onClick={() => onTaskClick(t)}
                     className={`absolute h-5 rounded ${barColor} opacity-85 hover:opacity-100 cursor-pointer flex items-center px-1.5 overflow-hidden`}
                     style={{ left: `${left}%`, width: `${width}%` }}
-                    title={`${t.title} · ${t.start_date ? String(t.start_date).slice(0, 10) : "?"} ~ ${t.due_date ? String(t.due_date).slice(0, 10) : "?"}${t.assignee_id ? ` · ${userName[t.assignee_id] || ""}` : ""}`}>
+                    title={`${t.title} · ${t.start_date ? String(t.start_date).slice(0, 10) : "?"} ~ ${t.due_date ? String(t.due_date).slice(0, 10) : "?"}${taskAssignees(t).length > 0 ? ` · ${taskAssignees(t).map((id) => userName[id] || "").filter(Boolean).join(", ")}` : ""}`}>
                     <span className="text-[10px] text-white font-medium truncate">{t.title}</span>
                   </div>
                 </div>
@@ -246,8 +254,12 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   dealId: string; companyId: string; users: any[]; task: any | null; userId: string | null; existingCount: number; onClose: () => void; onSaved: () => void;
 }) {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [title, setTitle] = useState(task?.title || "");
-  const [assignee, setAssignee] = useState(task?.assignee_id || "");
+  // 다중 담당자 — 기존 단일 assignee_id 는 첫 담당자로 흡수(하위호환)
+  const [assignees, setAssignees] = useState<string[]>(() => taskAssignees(task));
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const toggleAssignee = (id: string) => setAssignees((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const [status, setStatus] = useState<TaskStatus>((task?.status as TaskStatus) || "todo");
   const [start, setStart] = useState((task?.start_date || "").slice(0, 10));
   const [due, setDue] = useState((task?.due_date || "").slice(0, 10));
@@ -257,16 +269,46 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   const [saving, setSaving] = useState(false);
   const isEdit = !!task;
 
-  // ── 라벨 (색상+텍스트) ──
+  // ── 라벨 — 회사 공용 사전(task_labels)에서 선택. 태스크엔 {text,color} 스냅샷 저장(사전 삭제돼도 유지) ──
   const [labels, setLabels] = useState<TaskLabel[]>(Array.isArray(task?.labels) ? task.labels.filter((l: any) => l && l.text) : []);
+  const { data: dictLabels = [] } = useQuery({
+    queryKey: ["task-labels-dict", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("task_labels").select("id, name, color").eq("company_id", companyId).order("created_at", { ascending: true });
+      return (data || []) as { id: string; name: string; color: string }[];
+    },
+    enabled: !!companyId,
+  });
+  const hasLabel = (name: string) => labels.some((l) => l.text === name);
+  const toggleLabel = (dl: { name: string; color: string }) =>
+    setLabels((p) => (hasLabel(dl.name) ? p.filter((l) => l.text !== dl.name) : [...p, { text: dl.name, color: dl.color }]));
+  // 새 라벨 만들기(사전 등록 + 즉시 선택)
+  const [showLabelMaker, setShowLabelMaker] = useState(false);
   const [labelText, setLabelText] = useState("");
   const [labelColor, setLabelColor] = useState(LABEL_COLORS[4]);
-  const addLabel = () => {
-    const text = labelText.trim();
-    if (!text) return;
-    if (labels.some((l) => l.text === text)) { setLabelText(""); return; }
-    setLabels((p) => [...p, { text, color: labelColor }]);
-    setLabelText("");
+  const [labelSaving, setLabelSaving] = useState(false);
+  const createLabel = async () => {
+    const name = labelText.trim();
+    if (!name || labelSaving) return;
+    const exists = dictLabels.find((d) => d.name === name);
+    if (exists) { if (!hasLabel(name)) toggleLabel(exists); setLabelText(""); return; }
+    setLabelSaving(true);
+    try {
+      const { error } = await db.from("task_labels").insert({ company_id: companyId, name, color: labelColor });
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["task-labels-dict", companyId] });
+      setLabels((p) => [...p, { text: name, color: labelColor }]);
+      setLabelText("");
+      toast(`'${name}' 라벨을 만들었습니다`, "success");
+    } catch (e: any) { toast(e?.message || "라벨 생성 실패", "error"); } finally { setLabelSaving(false); }
+  };
+  const deleteDictLabel = async (dl: { id: string; name: string }) => {
+    if (!confirm(`'${dl.name}' 라벨을 목록에서 삭제할까요?\n(이미 태스크에 붙어 있는 라벨은 그대로 유지됩니다)`)) return;
+    try {
+      const { error } = await db.from("task_labels").delete().eq("id", dl.id);
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["task-labels-dict", companyId] });
+    } catch (e: any) { toast(e?.message || "삭제 실패", "error"); }
   };
 
   // ── 첨부(이미지·파일) + 클립보드 붙여넣기 ──
@@ -327,7 +369,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
     try {
       const payload: any = {
         title: title.trim(), description: desc.trim() || null, status,
-        assignee_id: assignee || null, start_date: start || null, due_date: due || null,
+        assignee_ids: assignees, assignee_id: assignees[0] || null, start_date: start || null, due_date: due || null,
         attachments: atts, labels,
         updated_at: new Date().toISOString(),
       };
@@ -372,12 +414,28 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="할 일" className={IN} autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LB}>담당</label>
-              <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className={IN}>
-                <option value="">미지정</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
+            <div className="relative">
+              <label className={LB}>담당 <span className="font-normal text-[var(--text-dim)]">(여러 명)</span></label>
+              <button type="button" onClick={() => setAssigneeOpen((v) => !v)} className={`${IN} text-left truncate`}>
+                {assignees.length === 0
+                  ? <span className="text-[var(--text-dim)]">미지정</span>
+                  : assignees.map((id) => users.find((u) => u.id === id)?.name || "구성원").join(", ")}
+              </button>
+              {assigneeOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setAssigneeOpen(false)} />
+                  <div className="absolute z-40 mt-1 w-full max-h-52 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl p-1.5">
+                    {users.length === 0 ? (
+                      <div className="px-2 py-2 text-xs text-[var(--text-dim)]">구성원이 없습니다</div>
+                    ) : users.map((u) => (
+                      <label key={u.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer text-sm text-[var(--text)]">
+                        <input type="checkbox" checked={assignees.includes(u.id)} onChange={() => toggleAssignee(u.id)} className="accent-[var(--primary)]" />
+                        {u.name}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             <div>
               <label className={LB}>상태</label>
@@ -404,31 +462,52 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
             <textarea value={desc} onChange={(e) => setDesc(e.target.value)} onDoubleClick={() => setDescBig(true)} rows={descBig ? 9 : 2} title="더블클릭하거나 '크게'를 누르면 넓어집니다" className={IN} />
           </div>
           <div>
-            <label className={LB}>라벨 <span className="font-normal text-[var(--text-dim)]">(색상+텍스트 · 자유 태그)</span></label>
-            {labels.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                {labels.map((l, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full font-semibold leading-none"
-                    style={{ backgroundColor: `${l.color}24`, color: l.color }}>
-                    {l.text}
-                    <button type="button" onClick={() => setLabels((p) => p.filter((_, j) => j !== i))} className="hover:opacity-70 leading-none" aria-label="라벨 삭제">×</button>
-                  </span>
-                ))}
+            <div className="flex items-center justify-between">
+              <label className={LB}>라벨 <span className="font-normal text-[var(--text-dim)]">(클릭해서 선택/해제)</span></label>
+              <button type="button" onClick={() => setShowLabelMaker((v) => !v)}
+                className="text-[10px] font-semibold text-[var(--primary)] hover:underline">{showLabelMaker ? "닫기 ▲" : "+ 새 라벨 만들기"}</button>
+            </div>
+            {showLabelMaker && (
+              <div className="flex items-center gap-1.5 mb-2 p-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]/50">
+                <input value={labelText} onChange={(e) => setLabelText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); createLabel(); } }}
+                  placeholder="새 라벨 이름" className={`${IN} flex-1 min-w-0`} />
+                <div className="flex items-center gap-1 shrink-0">
+                  {LABEL_COLORS.map((c) => (
+                    <button key={c} type="button" onClick={() => setLabelColor(c)} aria-label={`라벨 색상 ${c}`}
+                      className={`w-[18px] h-[18px] rounded-full transition ${labelColor === c ? "ring-2 ring-offset-1 ring-[var(--primary)] ring-offset-[var(--bg-card)]" : "opacity-60 hover:opacity-100"}`}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+                <button type="button" onClick={createLabel} disabled={!labelText.trim() || labelSaving}
+                  className="shrink-0 px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">{labelSaving ? "…" : "만들기"}</button>
               </div>
             )}
-            <div className="flex items-center gap-1.5">
-              <input value={labelText} onChange={(e) => setLabelText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLabel(); } }}
-                placeholder="라벨 텍스트" className={`${IN} flex-1 min-w-0`} />
-              <div className="flex items-center gap-1 shrink-0">
-                {LABEL_COLORS.map((c) => (
-                  <button key={c} type="button" onClick={() => setLabelColor(c)} aria-label={`라벨 색상 ${c}`}
-                    className={`w-[18px] h-[18px] rounded-full transition ${labelColor === c ? "ring-2 ring-offset-1 ring-[var(--primary)] ring-offset-[var(--bg-card)]" : "opacity-60 hover:opacity-100"}`}
-                    style={{ backgroundColor: c }} />
-                ))}
-              </div>
-              <button type="button" onClick={addLabel} disabled={!labelText.trim()}
-                className="shrink-0 px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40">추가</button>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {dictLabels.map((dl) => {
+                const sel = hasLabel(dl.name);
+                return (
+                  <button key={dl.id} type="button" onClick={() => toggleLabel(dl)}
+                    title={sel ? "클릭하면 이 태스크에서 해제" : "클릭하면 이 태스크에 추가"}
+                    className={`group inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full font-semibold leading-none transition ${sel ? "" : "opacity-50 hover:opacity-100"}`}
+                    style={{ backgroundColor: `${dl.color}${sel ? "33" : "14"}`, color: dl.color, boxShadow: sel ? `inset 0 0 0 1.5px ${dl.color}` : undefined }}>
+                    {sel && <span aria-hidden>✓</span>}{dl.name}
+                    <span role="button" tabIndex={-1} onClick={(e) => { e.stopPropagation(); deleteDictLabel(dl); }}
+                      className="hidden group-hover:inline leading-none opacity-60 hover:opacity-100" title="라벨 목록에서 삭제">×</span>
+                  </button>
+                );
+              })}
+              {/* 사전에 없는(과거 자유입력) 라벨 — 선택된 상태로 표시, ×로 해제 */}
+              {labels.filter((l) => !dictLabels.some((d) => d.name === l.text)).map((l, i) => (
+                <span key={`legacy-${i}`} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full font-semibold leading-none"
+                  style={{ backgroundColor: `${l.color}33`, color: l.color, boxShadow: `inset 0 0 0 1.5px ${l.color}` }}>
+                  ✓ {l.text}
+                  <button type="button" onClick={() => setLabels((p) => p.filter((x) => x.text !== l.text))} className="hover:opacity-70 leading-none" aria-label="라벨 해제">×</button>
+                </span>
+              ))}
+              {dictLabels.length === 0 && labels.length === 0 && (
+                <span className="text-[11px] text-[var(--text-dim)]">아직 라벨이 없습니다 — ‘+ 새 라벨 만들기’로 등록하면 다음부터 클릭만으로 붙일 수 있습니다</span>
+              )}
             </div>
           </div>
           <div>
