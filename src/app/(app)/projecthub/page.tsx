@@ -545,6 +545,16 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const comma = (s: string) => { const n = Number(String(s).replace(/[^0-9]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
 
+  // 거래처 검색 픽커 — 네이티브 select(620개) 대신 검색 입력 + 스타일 드롭다운 (SubDealsTab 동일 패턴)
+  const [ptSearch, setPtSearch] = useState(() => (editDeal?.partner_id ? ((partners as any[]).find((p) => p.id === editDeal.partner_id)?.name || "") : ""));
+  const [ptOpen, setPtOpen] = useState(false);
+  const ptMatches = useMemo(() => {
+    const t = ptSearch.trim().toLowerCase();
+    if (!t) return (partners as any[]).slice(0, 30);
+    const tn = t.replace(/-/g, "");
+    return (partners as any[]).filter((p) => (p.name || "").toLowerCase().includes(t) || (p.business_number || "").replace(/-/g, "").includes(tn)).slice(0, 200);
+  }, [partners, ptSearch]);
+
   // 목표형 — 생성 시 정의할 KPI 목록(1개 이상). 수정은 '성과' 탭에서 관리하므로 여기선 생성에만 사용.
   type KpiDraft = { label: string; target: string; unit: string; direction: "up" | "down"; source: KpiSource };
   const [kpiDrafts, setKpiDrafts] = useState<KpiDraft[]>([{ label: "매출", target: "", unit: "원", direction: "up", source: "revenue_auto" }]);
@@ -682,12 +692,32 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               <div className="grid grid-cols-2 gap-3">
                 {/* 거래처 — 실행형(내부 태스크)은 숨김, 목표형은 선택 */}
                 {projectType !== "delivery" && (
-                  <div>
+                  <div className="relative">
                     <label className={LB}>거래처 {projectType === "goal" && <span className="font-normal text-[var(--text-dim)]">(선택)</span>}</label>
-                    <select value={form.partner_id} onChange={(e) => set({ partner_id: e.target.value })} className={IN}>
-                      <option value="">미지정</option>
-                      {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                    <input
+                      value={ptSearch}
+                      onChange={(e) => { setPtSearch(e.target.value); setPtOpen(true); if (form.partner_id) set({ partner_id: "" }); }}
+                      onFocus={() => setPtOpen(true)}
+                      onBlur={() => setTimeout(() => setPtOpen(false), 150)}
+                      placeholder="거래처명·사업자번호 검색"
+                      className={IN}
+                    />
+                    {ptOpen && (
+                      <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg">
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { set({ partner_id: "" }); setPtSearch(""); setPtOpen(false); }}
+                          className={`block w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-surface)] ${!form.partner_id ? "text-[var(--primary)] font-semibold" : "text-[var(--text-muted)]"}`}>
+                          미지정
+                        </button>
+                        {ptMatches.length === 0 ? (
+                          <div className="px-3 py-2 text-xs text-[var(--text-dim)]">검색 결과 없음</div>
+                        ) : ptMatches.map((p: any) => (
+                          <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { set({ partner_id: p.id }); setPtSearch(p.name); setPtOpen(false); }}
+                            className={`block w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-surface)] ${form.partner_id === p.id ? "text-[var(--primary)] font-semibold" : "text-[var(--text)]"}`}>
+                            {p.name}{p.business_number ? <span className="text-[11px] text-[var(--text-dim)] ml-1.5">{p.business_number}</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className={projectType === "delivery" ? "col-span-2" : ""}>
