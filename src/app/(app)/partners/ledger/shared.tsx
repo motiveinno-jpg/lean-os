@@ -236,12 +236,13 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     // 수동 전표(직접 입력)를 해당 거래처의 AR/AP 라인(매출처=외상매출금108, 매입처=외상매입금251) 기준으로
     //   그리드에 날짜순 통합 — 차변/대변·잔액에 반영, 적요 = 라인 적요, 클릭 = 수정/삭제 모달.
     const arApCode = isSales ? "108" : "251";
-    const voucherEntry = (v: any): SheetEntry | null => {
-      const line = (v.journal_lines || []).find((l: any) => l.partner_id === partnerId && l.chart_of_accounts?.code === arApCode);
-      if (!line) return null;
-      return { date: String(v.entry_date), desc: line.description || v.description || "전표", debit: Number(line.debit || 0), credit: Number(line.credit || 0), isVoucher: true, vid: v.id };
-    };
-    const voucherRows = manualVouchers.map(voucherEntry).filter((e): e is SheetEntry => !!e);
+    // 한 전표에 같은 거래처·AR/AP 계정 라인이 여러 개(차변+대변)일 수 있음 — find()로 첫 줄만 잡으면
+    //   반대편 줄이 누락돼 잔액이 한쪽으로 쏠림(차·대 동액 전표가 잔액 ±로 표시되던 버그). 전 라인 반영.
+    const voucherEntries = (v: any): SheetEntry[] =>
+      ((v.journal_lines || []) as any[])
+        .filter((l) => l.partner_id === partnerId && l.chart_of_accounts?.code === arApCode)
+        .map((l) => ({ date: String(v.entry_date), desc: l.description || v.description || "전표", debit: Number(l.debit || 0), credit: Number(l.credit || 0), isVoucher: true, vid: v.id }));
+    const voucherRows = manualVouchers.flatMap(voucherEntries);
 
     const all: SheetEntry[] = [...invoices.map(occur), ...settles.map(settle), ...voucherRows];
     const before = all.filter((e) => e.date < yStart);
