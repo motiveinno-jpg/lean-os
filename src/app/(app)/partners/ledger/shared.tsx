@@ -43,8 +43,8 @@ export const AR_AP = {
 export const palette = (type: string) => (type === "sales" ? AR_AP.sales : AR_AP.purchase);
 
 // ── 위하고식 그리드 공통 셀 클래스 ──
-export const GRID_TH = "px-3 py-2 font-semibold whitespace-nowrap border-l border-[var(--border)]/60 first:border-l-0";
-export const GRID_TD = "px-3 py-1.5 border-l border-[var(--border)]/60 first:border-l-0 whitespace-nowrap overflow-hidden text-ellipsis";
+export const GRID_TH = "px-3 py-2 font-semibold whitespace-nowrap";
+export const GRID_TD = "px-3 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis";
 
 export const MATCH_LABEL: Record<string, string> = {
   one_to_one: "1:1 정확", aggregate: "합산입금", partial: "부분입금", withholding: "원천징수", manual: "수동", adjustment: "차액 마감",
@@ -268,7 +268,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   void openingFromRpc; // RPC 이월값은 참고용 — 시트는 자체 합산(원장 행과 1원 단위 일치 보장)
 
   const num = (n: number) => (n ? Math.round(n).toLocaleString() : "");
-  const cellR = "px-3 py-1.5 text-right mono-number border-l border-[var(--border)]/60";
+  const cellR = "px-3 py-1.5 text-right mono-number";
 
   const downloadCsv = () => {
     const rows: string[][] = [["일자", "적요", "차변", "대변", "잔액"]];
@@ -318,10 +318,10 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
           <thead className="sticky top-0 z-10">
             <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
               <th className="px-3 py-2 text-left font-semibold w-[92px]">일자</th>
-              <th className="px-3 py-2 text-left font-semibold border-l border-[var(--border)]/60">적요</th>
-              <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
-              <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
-              <th className="px-3 py-2 text-right font-semibold border-l border-[var(--border)]/60 w-[130px]">잔액</th>
+              <th className="px-3 py-2 text-left font-semibold">적요</th>
+              <th className="px-3 py-2 text-right font-semibold w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
+              <th className="px-3 py-2 text-right font-semibold w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
+              <th className="px-3 py-2 text-right font-semibold w-[130px]">잔액</th>
             </tr>
           </thead>
           <tbody>
@@ -331,7 +331,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
               <>
                 <tr className="bg-[var(--bg-surface)]/70 border-b border-[var(--border)]/60 font-semibold">
                   <td className="px-3 py-1.5 text-[var(--text-dim)]">{yStart}</td>
-                  <td className="px-3 py-1.5 text-[var(--text-muted)] border-l border-[var(--border)]/60">[전기이월]</td>
+                  <td className="px-3 py-1.5 text-[var(--text-muted)]">[전기이월]</td>
                   <td className={cellR} /><td className={cellR} />
                   <td className={`${cellR} ${opening !== 0 ? "text-amber-500" : "text-[var(--text-dim)]"}`}>{Math.round(opening).toLocaleString()}</td>
                 </tr>
@@ -350,7 +350,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                         return (
                           <tr key={`${m}-${i}`} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
                             <td className="px-3 py-1.5 text-[var(--text-muted)] mono-number">{e.date}</td>
-                            <td className={`px-3 py-1.5 border-l border-[var(--border)]/60 truncate max-w-[260px] ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>
+                            <td className={`px-3 py-1.5 truncate max-w-[260px] ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>
                               {e.isAdj && e.sid ? (
                                 <button onClick={() => setAdjView(e.sid!)}
                                   className="underline decoration-dotted underline-offset-2 hover:text-amber-400 text-left"
@@ -370,7 +370,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                       {/* 월계 — 연한 초록 */}
                       <tr className="bg-emerald-500/10 border-b border-[var(--border)]/40 text-emerald-700 dark:text-emerald-300 font-semibold">
                         <td className="px-3 py-1.5">{Number(m.slice(5, 7))}월</td>
-                        <td className="px-3 py-1.5 border-l border-[var(--border)]/60">[월 계]</td>
+                        <td className="px-3 py-1.5">[월 계]</td>
                         <td className={cellR}>{num(md)}</td>
                         <td className={cellR}>{num(mc)}</td>
                         <td className={cellR} />
@@ -378,7 +378,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                       {/* 누계 — 진한 초록 (월계와 색상 구분) */}
                       <tr className="bg-emerald-500/20 border-b border-[var(--border)]/60 text-emerald-800 dark:text-emerald-200 font-bold">
                         <td className="px-3 py-1.5" />
-                        <td className="px-3 py-1.5 border-l border-[var(--border)]/60">[누 계]</td>
+                        <td className="px-3 py-1.5">[누 계]</td>
                         <td className={cellR}>{num(cumDebit)}</td>
                         <td className={cellR}>{num(cumCredit)}</td>
                         <td className={cellR} />
@@ -388,7 +388,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                 })}
                 <tr className="bg-[var(--bg-surface)] border-t-2 border-[var(--border)] font-bold text-[var(--text)]">
                   <td className="px-3 py-2" />
-                  <td className="px-3 py-2 border-l border-[var(--border)]/60">[합계]</td>
+                  <td className="px-3 py-2">[합계]</td>
                   <td className={cellR}>{num(totals.debit)}</td>
                   <td className={cellR}>{num(totals.credit)}</td>
                   <td className={`${cellR} ${totals.ending > 0 ? pal.tintText : totals.ending < 0 ? "text-red-500" : ""}`}>{Math.round(totals.ending).toLocaleString()}</td>
@@ -754,10 +754,10 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                 <thead>
                   <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
                     <th className="px-2 py-2 text-left font-semibold min-w-[150px]">계정과목</th>
-                    <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50 min-w-[110px]">거래처·통장/카드</th>
-                    <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50">적요</th>
-                    <th className="px-2 py-2 text-right font-semibold border-l border-[var(--border)]/50 w-[110px]">차변</th>
-                    <th className="px-2 py-2 text-right font-semibold border-l border-[var(--border)]/50 w-[110px]">대변</th>
+                    <th className="px-2 py-2 text-left font-semibold min-w-[110px]">거래처·통장/카드</th>
+                    <th className="px-2 py-2 text-left font-semibold">적요</th>
+                    <th className="px-2 py-2 text-right font-semibold w-[110px]">차변</th>
+                    <th className="px-2 py-2 text-right font-semibold w-[110px]">대변</th>
                     <th className="w-7" />
                   </tr>
                 </thead>
@@ -789,7 +789,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                             </CellDropdown>
                           )}
                         </td>
-                        <td className="p-0 relative border-l border-[var(--border)]/30">
+                        <td className="p-0 relative">
                           <div className="flex items-center">
                             <input value={picker?.kind === "pt" && picker.key === l.key ? picker.q : (l.asset?.name || l.partner?.name || "")}
                               disabled={locked}
@@ -851,15 +851,15 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                             </CellDropdown>
                           )}
                         </td>
-                        <td className="p-0 border-l border-[var(--border)]/30">
+                        <td className="p-0">
                           <input value={l.memo} disabled={locked} onChange={(e) => setLine(l.key, { memo: e.target.value })} placeholder="적요" className={IN} />
                         </td>
-                        <td className="p-0 border-l border-[var(--border)]/30">
+                        <td className="p-0">
                           <input inputMode="numeric" value={l.debit} disabled={locked}
                             onChange={(e) => setLine(l.key, { debit: comma(e.target.value), credit: numOnly(e.target.value) !== 0 ? "" : l.credit })}
                             placeholder="0" className={`${IN} text-right mono-number`} />
                         </td>
-                        <td className="p-0 border-l border-[var(--border)]/30">
+                        <td className="p-0">
                           <input inputMode="numeric" value={l.credit} disabled={locked}
                             onChange={(e) => setLine(l.key, { credit: comma(e.target.value), debit: numOnly(e.target.value) !== 0 ? "" : l.debit })}
                             placeholder="0" className={`${IN} text-right mono-number`} />

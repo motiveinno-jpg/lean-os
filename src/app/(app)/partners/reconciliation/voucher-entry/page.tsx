@@ -346,7 +346,7 @@ export default function VoucherEntryPage() {
     }).slice(0, 200);
   };
 
-  const TD = "px-2 py-1 border-l border-[var(--border)]/40 whitespace-nowrap";
+  const TD = "px-2 py-1 whitespace-nowrap";
   const IN = "w-full bg-transparent text-xs text-[var(--text)] focus:outline-none focus:bg-[var(--primary)]/5 px-1 py-1";
 
   // 계정과목 자동완성 셀 (상단·하단 편집 공용)
@@ -528,12 +528,12 @@ export default function VoucherEntryPage() {
             <thead>
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
                 <th className="px-2 py-2 w-9 text-center font-semibold">No</th>
-                <th className="px-2 py-2 w-[68px] text-left font-semibold border-l border-[var(--border)]/50">구분</th>
-                <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50">계정과목</th>
-                <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50">거래처</th>
-                <th className="px-2 py-2 text-left font-semibold border-l border-[var(--border)]/50">적요</th>
-                <th className="px-2 py-2 w-[110px] text-right font-semibold border-l border-[var(--border)]/50">차변</th>
-                <th className="px-2 py-2 w-[110px] text-right font-semibold border-l border-[var(--border)]/50">대변</th>
+                <th className="px-2 py-2 w-[68px] text-left font-semibold">구분</th>
+                <th className="px-2 py-2 text-left font-semibold">계정과목</th>
+                <th className="px-2 py-2 text-left font-semibold">거래처</th>
+                <th className="px-2 py-2 text-left font-semibold">적요</th>
+                <th className="px-2 py-2 w-[110px] text-right font-semibold">차변</th>
+                <th className="px-2 py-2 w-[110px] text-right font-semibold">대변</th>
                 <th className="px-2 py-2 w-8" />
               </tr>
             </thead>
@@ -625,15 +625,15 @@ export default function VoucherEntryPage() {
                     onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => `s:${x.id}`)) : new Set())} />
                 </th>
                 <th className="px-2 py-2.5 w-9 text-center font-semibold">No</th>
-                <th className="px-2 py-2.5 w-[76px] text-left font-semibold border-l border-[var(--border)]/50">구분</th>
-                <th className="px-2 py-2.5 w-[72px] text-left font-semibold border-l border-[var(--border)]/50">계정코드</th>
-                <th className="px-2 py-2.5 text-left font-semibold border-l border-[var(--border)]/50">계정명</th>
-                <th className="px-2 py-2.5 w-[100px] text-left font-semibold border-l border-[var(--border)]/50">거래처코드</th>
-                <th className="px-2 py-2.5 text-left font-semibold border-l border-[var(--border)]/50">거래처명</th>
-                <th className="px-2 py-2.5 w-[110px] text-right font-semibold border-l border-[var(--border)]/50">차변</th>
-                <th className="px-2 py-2.5 w-[110px] text-right font-semibold border-l border-[var(--border)]/50">대변</th>
-                <th className="px-2 py-2.5 w-[64px] text-center font-semibold border-l border-[var(--border)]/50">적요코드</th>
-                <th className="px-2 py-2.5 text-left font-semibold border-l border-[var(--border)]/50">적요</th>
+                <th className="px-2 py-2.5 w-[76px] text-left font-semibold">구분</th>
+                <th className="px-2 py-2.5 w-[72px] text-left font-semibold">계정코드</th>
+                <th className="px-2 py-2.5 text-left font-semibold">계정명</th>
+                <th className="px-2 py-2.5 w-[100px] text-left font-semibold">거래처코드</th>
+                <th className="px-2 py-2.5 text-left font-semibold">거래처명</th>
+                <th className="px-2 py-2.5 w-[110px] text-right font-semibold">차변</th>
+                <th className="px-2 py-2.5 w-[110px] text-right font-semibold">대변</th>
+                <th className="px-2 py-2.5 w-[64px] text-center font-semibold">적요코드</th>
+                <th className="px-2 py-2.5 text-left font-semibold">적요</th>
               </tr>
             </thead>
             <tbody>
