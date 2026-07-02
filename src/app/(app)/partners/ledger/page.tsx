@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
+import { exportPartnerLedgersXlsx } from "./export";
 import {
   type LedgerRow, won, AR_AP, palette,
   PartnerLedgerSheet, PartnerDetailModal,
@@ -49,6 +50,11 @@ export default function PartnerLedgerPage() {
   const [sortBy, setSortBy] = useState<"outstanding" | "name" | "code">("outstanding"); // 기본: 잔액 큰 순 (관리 우선순위)
   const [selLedger, setSelLedger] = useState<string | null>(null); // 좌측 목록 선택 (partner_id, null 거래처는 "none")
   const [detail, setDetail] = useState<{ partnerId: string | null; type: string; focus: "all" | "prior" } | null>(null);
+  // 일괄 엑셀 내보내기 — 목록 체크 선택(키=partner_id ?? "none"), 거래처마다 시트 분리
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
+  useEffect(() => { setCheckedIds(new Set()); }, [ledgerType, periodStart, periodEnd]);
+  const toggleChecked = (key: string) => setCheckedIds((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
   const setLedgerType = (t: ArApType) => {
     setLedgerTypeRaw(t);
@@ -286,10 +292,40 @@ export default function PartnerLedgerPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-3 items-start">
           {/* ── 좌: 거래처 목록 ── */}
           <div className="glass-card overflow-hidden">
-            <div className="px-3 py-2.5 border-b border-[var(--border)] flex items-center justify-between" style={{ background: `color-mix(in srgb, ${pal.main} 7%, var(--bg-surface))` }}>
-              <span className="text-xs font-bold text-[var(--text)]">{pal.label} 목록</span>
+            <div className="px-3 py-2.5 border-b border-[var(--border)] flex items-center justify-between gap-2" style={{ background: `color-mix(in srgb, ${pal.main} 7%, var(--bg-surface))` }}>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none" title="전체 선택/해제 — 선택한 거래처를 엑셀 한 파일(거래처별 시트)로 내보냅니다">
+                <input type="checkbox"
+                  checked={shown.length > 0 && shown.every((r) => checkedIds.has(r.partner_id ?? "none"))}
+                  onChange={(e) => setCheckedIds(e.target.checked ? new Set(shown.map((r) => r.partner_id ?? "none")) : new Set())} />
+                <span className="text-xs font-bold text-[var(--text)]">{pal.label} 목록</span>
+              </label>
               <span className="caption">{shown.length}곳</span>
             </div>
+            {checkedIds.size > 0 && (
+              <div className="px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]/60 flex items-center justify-between gap-2">
+                <span className="text-[11px] text-[var(--text-muted)]">{checkedIds.size}곳 선택</span>
+                <button
+                  disabled={exporting}
+                  onClick={async () => {
+                    if (exporting || !companyId) return;
+                    setExporting(true);
+                    try {
+                      const targets = shown.filter((r) => checkedIds.has(r.partner_id ?? "none"))
+                        .map((r) => ({ partnerId: r.partner_id, type: r.type, name: nameOf(r.partner_id) }));
+                      await exportPartnerLedgersXlsx(companyId, targets, periodStart, periodEnd, pal.label);
+                      toast(`${targets.length}곳 원장을 엑셀로 내보냈습니다 (거래처별 시트)`, "success");
+                    } catch (e: any) {
+                      toast(e?.message || "엑셀 내보내기 실패", "error");
+                    } finally {
+                      setExporting(false);
+                    }
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                  style={{ background: pal.main }}>
+                  {exporting ? "내보내는 중…" : "📊 엑셀 내보내기"}
+                </button>
+              </div>
+            )}
             <div className="overflow-y-auto max-h-[560px]">
               {shown.length === 0 ? (
                 <div className="p-8 text-center text-xs text-[var(--text-muted)]">{sq ? "검색 결과가 없습니다." : `${periodLabel} ${pal.label} 거래가 없습니다. 상단 “홈택스 거래처 연결”을 먼저 실행해 보세요.`}</div>
@@ -298,15 +334,21 @@ export default function PartnerLedgerPage() {
                 const active = key === selKey;
                 const out = ledgerOut(r);
                 return (
-                  <button key={`${key}-${r.type}`} onClick={() => setSelLedger(key)}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 border-b border-[var(--border)]/40 text-left transition border-l-2 ${active ? "" : "hover:bg-[var(--bg-surface)] border-l-transparent"}`}
+                  <div key={`${key}-${r.type}`}
+                    className={`flex items-stretch border-b border-[var(--border)]/40 transition border-l-2 ${active ? "" : "hover:bg-[var(--bg-surface)] border-l-transparent"}`}
                     style={active ? { background: `color-mix(in srgb, ${pal.main} 8%, transparent)`, borderLeftColor: pal.main } : undefined}>
-                    <span className="min-w-0">
-                      <span className="block text-[10px] text-[var(--text-dim)] mono-number">{r.partner_id && partnerCodeMap[r.partner_id] ? String(partnerCodeMap[r.partner_id]).padStart(4, "0") : "—"}</span>
-                      <span className={`block text-xs truncate ${active ? "font-bold" : "text-[var(--text)]"}`} style={active ? { color: pal.main } : undefined}>{nameOf(r.partner_id)}</span>
-                    </span>
-                    <span className={`shrink-0 text-xs mono-number ${out > 0 ? pal.tintText : out < 0 ? "text-red-500" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</span>
-                  </button>
+                    <label className="flex items-center pl-2.5 pr-1 cursor-pointer" title="일괄 엑셀 내보내기 선택">
+                      <input type="checkbox" checked={checkedIds.has(key)} onChange={() => toggleChecked(key)} />
+                    </label>
+                    <button onClick={() => setSelLedger(key)}
+                      className="flex-1 min-w-0 flex items-center justify-between gap-2 pl-1 pr-3 py-2 text-left">
+                      <span className="min-w-0">
+                        <span className="block text-[10px] text-[var(--text-dim)] mono-number">{r.partner_id && partnerCodeMap[r.partner_id] ? String(partnerCodeMap[r.partner_id]).padStart(4, "0") : "—"}</span>
+                        <span className={`block text-xs truncate ${active ? "font-bold" : "text-[var(--text)]"}`} style={active ? { color: pal.main } : undefined}>{nameOf(r.partner_id)}</span>
+                      </span>
+                      <span className={`shrink-0 text-xs mono-number ${out > 0 ? pal.tintText : out < 0 ? "text-red-500" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</span>
+                    </button>
+                  </div>
                 );
               })}
             </div>
