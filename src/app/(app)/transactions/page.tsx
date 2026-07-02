@@ -1182,14 +1182,12 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
       {/* Tabs — visibleTabs 길이가 1 이하면 탭 UI 자체 숨김 (단일 view) */}
       {visibleTabs.length > 1 && (
-        <div className="flex items-center gap-1 mb-4 border-b border-[var(--border)] overflow-x-auto scrollbar-hide">
+        <div className="tab-bar mb-4">
           {(([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][])
             .filter(([t]) => visibleTabs.includes(t))
           ).map(([t, label]) => (
             <button key={t} onClick={() => { setTab(t); if (t === 'inbox') setFilterStatus('unmapped'); else if (t === 'all') setFilterStatus('all'); }}
-              className={`px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold transition border-b-2 -mb-px whitespace-nowrap ${
-                tab === t ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
-              }`}>
+              className={`tab-item ${tab === t ? 'tab-item-active' : ''}`}>
               {label}
             </button>
           ))}

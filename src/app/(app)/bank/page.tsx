@@ -436,17 +436,13 @@ export default function BankPage() {
       </div>
 
       {/* Tabs — 시안 underline */}
-      <div className="flex gap-2 mb-6 border-b border-[var(--border)] overflow-x-auto">
+      <div className="tab-bar mb-6">
         {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`px-6 py-3 text-sm font-semibold transition border-b-2 -mb-px whitespace-nowrap ${
-              tab === t.key
-                ? "border-[var(--primary)] text-[var(--primary)]"
-                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`tab-item ${tab === t.key ? "tab-item-active" : ""}`}
           >
             {t.label}
           </button>

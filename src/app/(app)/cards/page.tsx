@@ -521,7 +521,7 @@ export default function CardsPage() {
       </div>
 
       {/* Tabs (시안 pill bar) */}
-      <div className="flex gap-1 mb-6 bg-[var(--bg-surface)] rounded-xl p-1 w-fit border border-[var(--border)]">
+      <div className="seg-bar mb-6">
         {([
           { k: "cards", l: "카드" },
           { k: "transactions", l: "거래내역" },
@@ -531,11 +531,7 @@ export default function CardsPage() {
             key={t.k}
             type="button"
             onClick={() => setTab(t.k)}
-            className={`px-6 py-2.5 rounded-lg font-semibold text-sm transition ${
-              tab === t.k
-                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md"
-                : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`seg-item ${tab === t.k ? "seg-item-active" : ""}`}
           >
             {t.l}
           </button>
