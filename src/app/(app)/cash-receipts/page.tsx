@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { MonthField } from "@/components/month-field";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,11 +28,6 @@ type Tab = "income" | "expense" | "register";
 const SYNC_STORAGE_KEY = "cashreceipt-active-job-id";
 const TERMINAL = new Set(["completed", "failed", "cancelled"]);
 
-function thisMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
 const INITIAL_FORM = {
   type: "expense" as "income" | "expense",
   amount: "",
@@ -59,8 +53,7 @@ export default function CashReceiptsPage() {
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
 
   // ─── 홈택스 sync (현금영수증 매출) ───
-  const [syncFromMonth, setSyncFromMonth] = useState(thisMonth);
-  const [syncToMonth, setSyncToMonth] = useState(thisMonth);
+  // 동기화 기간 = 헤더 조회기간(startDate~endDate) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
   const [syncStarting, setSyncStarting] = useState(false);
   const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -294,17 +287,12 @@ export default function CashReceiptsPage() {
 
   const startSync = async () => {
     if (!companyId || syncStarting || activeJobId) return;
-    if (syncFromMonth > syncToMonth) {
-      toast("시작 월이 종료 월보다 이전이어야 합니다", "error");
+    if (startDate > endDate) {
+      toast("시작일이 종료일보다 이전이어야 합니다", "error");
       return;
     }
     setSyncStarting(true);
     try {
-      const startDate = `${syncFromMonth}-01`;
-      const [ey, em] = syncToMonth.split("-").map(Number);
-      const lastDay = new Date(ey, em, 0).getDate();
-      const endDate = `${syncToMonth}-${String(lastDay).padStart(2, "0")}`;
-
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast("세션이 만료되었습니다. 다시 로그인하세요.", "error");
@@ -423,28 +411,29 @@ export default function CashReceiptsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* 홈택스 sync (현금영수증 매출) */}
-          <MonthField
-            value={syncFromMonth}
-            onChange={(e) => setSyncFromMonth(e.target.value)}
-            disabled={syncStarting || !!activeJobId}
-            className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
-            aria-label="동기화 시작 월"
+          {/* 조회기간 — 목록·요약·홈택스 동기화 공통 기준 (기준 하나로 통일) */}
+          <span className="text-[11px] font-semibold text-[var(--text-muted)]">조회기간</span>
+          <DateField
+            value={startDate}
+            max={endDate || undefined}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+            aria-label="조회 시작일"
           />
           <span className="text-[var(--text-dim)] text-xs">~</span>
-          <MonthField
-            value={syncToMonth}
-            onChange={(e) => setSyncToMonth(e.target.value)}
-            disabled={syncStarting || !!activeJobId}
-            className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
-            aria-label="동기화 종료 월"
+          <DateField
+            value={endDate}
+            min={startDate || undefined}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]"
+            aria-label="조회 종료일"
           />
           <button
             onClick={startSync}
             disabled={syncStarting || !!activeJobId}
             aria-busy={syncStarting || !!activeJobId}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
-            title="홈택스에서 현금영수증 매출(발행) 내역 가져오기. 매입 내역은 CODEF API 미지원."
+            title="조회기간 범위로 홈택스에서 현금영수증 매출(발행) 내역 가져오기. 매입 내역은 CODEF API 미지원."
           >
             <svg className={`w-3.5 h-3.5 ${(syncStarting || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -508,21 +497,6 @@ export default function CashReceiptsPage() {
           </div>
         </div>
       )}
-
-      {/* Date filter */}
-      <div className="flex items-center gap-2 text-xs">
-        <DateField
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
-        />
-        <span className="text-[var(--text-dim)]">~</span>
-        <DateField
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
-        />
-      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-[var(--bg-surface)] p-1 rounded-xl w-fit">

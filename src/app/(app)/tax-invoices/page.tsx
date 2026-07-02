@@ -605,8 +605,7 @@ export default function TaxInvoicesPage() {
   const [modifyAmount, setModifyAmount] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ done: number; total: number; label: string } | null>(null);
-  const [syncFromMonth, setSyncFromMonth] = useState(getCurrentMonth());
-  const [syncToMonth, setSyncToMonth] = useState(getCurrentMonth());
+  // 동기화 기간 = 상단 조회기간(viewFromMonth~viewToMonth) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
   // Incremental sync 토글 — ON 이면 last_hometax_sync_at - 30일 ~ today 자동 사용 (picker 무시).
   const [incrementalMode, setIncrementalMode] = useState(false);
   // Background sync 토글 — ON 이면 hometax-sync-async 호출 (백그라운드).
@@ -1510,25 +1509,15 @@ export default function TaxInvoicesPage() {
             <input type="checkbox" checked={backgroundMode} onChange={(e) => setBackgroundMode(e.target.checked)} disabled={syncing || !!activeJobId} />
             백그라운드
           </label>
-          <MonthField
-            value={syncFromMonth}
-            onChange={(e) => setSyncFromMonth(e.target.value)}
-            disabled={syncing || !!activeJobId || incrementalMode}
-            className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
-            aria-label="동기화 시작 월"
-          />
-          <span className="text-xs text-[var(--text-muted)]">~</span>
-          <MonthField
-            value={syncToMonth}
-            onChange={(e) => setSyncToMonth(e.target.value)}
-            disabled={syncing || !!activeJobId || incrementalMode}
-            className="px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)] disabled:opacity-50"
-            aria-label="동기화 종료 월"
-          />
+          <span
+            className={`px-2 py-1 text-[11px] rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] ${incrementalMode ? "opacity-50" : ""}`}
+            title="동기화 기간은 상단 '조회기간'과 동일합니다 — 기간을 바꾸려면 위의 조회기간을 수정하세요.">
+            조회기간 <b className="text-[var(--text)] mono-number">{viewFromMonth} ~ {viewToMonth}</b> 기준
+          </span>
           <button
             onClick={() => hometaxCd.run(async () => {
-              // Incremental — last_sync_at - 30일 ~ today
-              let from = syncFromMonth, to = syncToMonth;
+              // Incremental — last_sync_at - 30일 ~ today. 기본은 상단 조회기간과 동일(기준 통일).
+              let from = viewFromMonth, to = viewToMonth;
               if (incrementalMode) {
                 if (!lastHometaxSyncAt) {
                   toast('마지막 동기화 기록이 없습니다. 먼저 일반 동기화 한 번 진행하세요.', 'info');
@@ -1548,7 +1537,7 @@ export default function TaxInvoicesPage() {
             })}
             disabled={syncing || !!activeJobId || !isHometaxConnected || hometaxCd.disabled}
             className={`flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${hometaxCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={hometaxCd.disabled ? `30분 쿨타임 — ${hometaxCd.label}` : !isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : "선택한 시작~종료 월 범위로 동기화"}
+            title={hometaxCd.disabled ? `30분 쿨타임 — ${hometaxCd.label}` : !isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : "상단 조회기간 범위로 동기화"}
           >
             <svg className={`w-3.5 h-3.5 ${(syncing || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
