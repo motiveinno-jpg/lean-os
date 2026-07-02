@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
+import { STANDARD_ACCOUNTS } from "@/lib/standard-accounts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -46,6 +47,23 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
     } catch (e: any) { toast("추가 실패: " + (e?.message || (e?.code === "23505" ? "이미 있는 코드입니다" : "")), "error"); }
     finally { setBusy(false); }
   };
+  // 표준 계정과목 일괄 채우기 — 이미 있는 코드는 건너뛰고 없는 것만 추가 (unique(company_id, code))
+  const fillStandard = async () => {
+    setBusy(true);
+    try {
+      const existing = new Set((accounts as Acct[]).map((a) => a.code));
+      const missing = STANDARD_ACCOUNTS.filter((s) => !existing.has(s.code));
+      if (missing.length === 0) { toast("이미 모든 표준 계정이 등록되어 있습니다", "info"); return; }
+      const { error } = await db.from("chart_of_accounts").upsert(
+        missing.map((s) => ({ company_id: companyId, code: s.code, name: s.name, account_type: s.type, is_system: false })),
+        { onConflict: "company_id,code", ignoreDuplicates: true },
+      );
+      if (error) throw error;
+      toast(`표준 계정 ${missing.length}개를 추가했습니다`, "success"); refresh();
+    } catch (e: any) { toast("채우기 실패: " + (e?.message || ""), "error"); }
+    finally { setBusy(false); }
+  };
+
   const remove = async (a: Acct) => {
     if (a.is_system) return;
     if (!confirm(`'${a.code} ${a.name}' 계정과목을 삭제할까요?`)) return;
@@ -59,9 +77,12 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
         <h2 className="text-base font-bold text-[var(--text)]">계정과목 관리</h2>
-        <button onClick={() => setNewAcct({ code: "", name: "", type: "asset" })} className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 계정과목 추가</button>
+        <div className="flex items-center gap-2">
+          <button onClick={fillStandard} disabled={busy} className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50">{busy ? "추가 중…" : "표준 계정과목 채우기"}</button>
+          <button onClick={() => setNewAcct({ code: "", name: "", type: "asset" })} className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 계정과목 추가</button>
+        </div>
       </div>
-      <p className="text-xs text-[var(--text-muted)] mb-4">회사 회계의 계정과목 마스터입니다. 기본 계정은 읽기전용, 회사 자체 계정만 추가·삭제할 수 있습니다. (거래매칭 직접입력·전표 처리에서 사용)</p>
+      <p className="text-xs text-[var(--text-muted)] mb-4">회사 회계의 계정과목 마스터입니다. 기본 계정은 읽기전용, 회사 자체 계정만 추가·삭제할 수 있습니다. “표준 계정과목 채우기”로 일반기업회계 기준 ~90개 계정을 한 번에 등록할 수 있습니다. (거래매칭 직접입력·전표 처리에서 사용)</p>
 
       {newAcct && (
         <div className="flex flex-wrap items-center gap-1.5 mb-4 bg-[var(--bg-surface)] rounded-lg p-2.5">
@@ -97,7 +118,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
             </div>
           </div>
         ))}
-        {(accounts as Acct[]).length === 0 && <div className="text-xs text-[var(--text-dim)] py-6 text-center">계정과목이 없습니다. “+ 계정과목 추가”로 만들어 보세요.</div>}
+        {(accounts as Acct[]).length === 0 && <div className="text-xs text-[var(--text-dim)] py-6 text-center">계정과목이 없습니다. <b>“표준 계정과목 채우기”</b>로 기본 계정을 불러오거나 직접 추가해 보세요.</div>}
       </div>
     </div>
   );
