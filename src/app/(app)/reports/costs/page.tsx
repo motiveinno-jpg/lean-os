@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { getMonthlyBudgetOverview, getCostBreakdown, type MonthlyBudget, type CostBreakdown } from "@/lib/cash-budget";
+import { getMonthlyBudgetOverview, getCostBreakdown, getCostCategoryDetail, type MonthlyBudget, type CostBreakdown } from "@/lib/cash-budget";
+import { CellDetail } from "../flow/_components/CellDetail";
 import CostsChart from "./costs-chart";
 
 /* ------------------------------------------------------------------ */
@@ -28,6 +30,30 @@ function monthLabel(m: string): string {
 
 const YEAR_NOW = new Date().getFullYear();
 
+// 산출 기준 설명 — 팝업 상단 note (집계 함수와 동일 소스 명시)
+const FIXED_NOTE = "고정비 = 정기결제(활성) + 고정비 등록 항목 + 통장 거래 중 '고정비' 체크(전표처리·매핑에서 체크)된 지출의 합입니다. 같은 지출을 정기결제로도 등록하면 중복될 수 있으니 한 가지 방식만 사용하세요.";
+const VARIABLE_NOTE = "변동비 = 법인카드 사용액 + 일회성 지출(결제 대기)의 합입니다.";
+
+// 세부내역(카테고리) 행 클릭 → 산출 내역 팝업. getCostCategoryDetail 로 개별 레코드 조회 후 CellDetail 재사용.
+function CategoryDetailModal({ companyId, year, kind, category, label, onClose }: {
+  companyId: string; year: number; kind: "fixed" | "variable"; category: string; label: string; onClose: () => void;
+}) {
+  const { data } = useQuery({
+    queryKey: ["cost-category-detail", companyId, year, kind, category],
+    queryFn: () => getCostCategoryDetail(companyId, year, kind, category),
+  });
+  return (
+    <CellDetail
+      companyId={companyId} year={year} month={0} rowKey="__category"
+      title={`${label} — ${kind === "fixed" ? "고정비" : "변동비"}`}
+      subtitle={`${year}년 · 산출 내역`}
+      clientItems={data ?? []}
+      note={kind === "variable" ? VARIABLE_NOTE : category === "bank_fixed" ? FIXED_NOTE : `표의 '올해 누계'는 아래 월액 합계 × 경과월입니다. ${FIXED_NOTE}`}
+      onClose={onClose}
+    />
+  );
+}
+
 export default function CostsPage() {
   const { role } = useUser();
   const blocked = role === "partner";
@@ -38,6 +64,9 @@ export default function CostsPage() {
   const [breakdown, setBreakdown] = useState<CostBreakdown | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // 금액 클릭 → 산출 내역 팝업 (월별 셀 = budget-detail 재사용 / 카테고리 행 = getCostCategoryDetail)
+  const [monthDetail, setMonthDetail] = useState<{ month: string; rowKey: "fixedCosts" | "variableCosts"; title: string } | null>(null);
+  const [catDetail, setCatDetail] = useState<{ kind: "fixed" | "variable"; category: string; label: string } | null>(null);
 
   useEffect(() => {
     if (blocked) return;
@@ -164,8 +193,14 @@ export default function CostsPage() {
                   return (
                     <tr key={r.month} style={{ borderTop: "1px solid var(--border)" }}>
                       <td style={{ padding: "11px 16px", color: "var(--text)" }}>{monthLabel(r.month)}</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", color: "#f97316", fontWeight: 600 }}>{fmtKrw(r.fixedCosts)}</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", color: "#8b5cf6", fontWeight: 600 }}>{fmtKrw(r.variableCosts)}</td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", color: "#f97316", fontWeight: 600, cursor: "pointer" }}
+                        title="클릭하면 이 달 고정비 산출 내역을 봅니다"
+                        onClick={() => setMonthDetail({ month: r.month, rowKey: "fixedCosts", title: `${monthLabel(r.month)} 고정비` })}
+                        className="hover:underline">{fmtKrw(r.fixedCosts)}</td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", color: "#8b5cf6", fontWeight: 600, cursor: "pointer" }}
+                        title="클릭하면 이 달 변동비 산출 내역을 봅니다"
+                        onClick={() => setMonthDetail({ month: r.month, rowKey: "variableCosts", title: `${monthLabel(r.month)} 변동비` })}
+                        className="hover:underline">{fmtKrw(r.variableCosts)}</td>
                       <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--text)", fontWeight: 700 }}>{fmtKrw(sum)}</td>
                       <td style={{ padding: "11px 16px" }}>
                         {sum > 0 ? (
@@ -217,7 +252,10 @@ export default function CostsPage() {
                     </tr></thead>
                     <tbody>
                       {breakdown.fixed.map((r) => (
-                        <tr key={r.category} style={{ borderTop: "1px solid var(--border)" }}>
+                        <tr key={r.category} style={{ borderTop: "1px solid var(--border)", cursor: "pointer" }}
+                          title="클릭하면 이 항목의 산출 내역을 봅니다"
+                          className="hover:bg-[var(--bg-surface)]/60"
+                          onClick={() => setCatDetail({ kind: "fixed", category: r.category, label: r.label })}>
                           <td style={{ padding: "10px 16px", color: "var(--text)" }}>{r.label}</td>
                           <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--text-muted)" }}>{fmtKrw(r.monthly)}</td>
                           <td style={{ padding: "10px 16px", textAlign: "right", color: "#f97316", fontWeight: 600 }}>{fmtKrw(r.amount)}</td>
@@ -253,7 +291,10 @@ export default function CostsPage() {
                     </tr></thead>
                     <tbody>
                       {breakdown.variable.map((r) => (
-                        <tr key={r.category} style={{ borderTop: "1px solid var(--border)" }}>
+                        <tr key={r.category} style={{ borderTop: "1px solid var(--border)", cursor: "pointer" }}
+                          title="클릭하면 이 항목의 산출 내역을 봅니다"
+                          className="hover:bg-[var(--bg-surface)]/60"
+                          onClick={() => setCatDetail({ kind: "variable", category: r.category, label: r.label })}>
                           <td style={{ padding: "10px 16px", color: "var(--text)" }}>{r.label}</td>
                           <td style={{ padding: "10px 16px", textAlign: "right", color: "#8b5cf6", fontWeight: 600 }}>{fmtKrw(r.amount)}</td>
                           <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--text-dim)" }}>{breakdown.variableTotal > 0 ? `${Math.round(r.amount / breakdown.variableTotal * 100)}%` : "-"}</td>
@@ -286,12 +327,36 @@ export default function CostsPage() {
           >
             <strong style={{ color: "var(--text-muted)" }}>참고</strong>
             <br />
-            - 고정비는 등록된 고정비 항목과 정기결제(임대료·급여·4대보험·구독 등)를 합산합니다.
+            - 고정비는 등록된 고정비 항목·정기결제(임대료·급여·4대보험·구독 등)에 <strong style={{ color: "var(--text-muted)" }}>통장 거래에서 &lsquo;고정비&rsquo;로 체크한 지출</strong>을 더해 합산합니다.
             <br />
             - 변동비는 법인카드 사용액과 일회성 지출(결제 대기 항목)을 합산합니다.
             <br />
+            - 금액을 클릭하면 어떤 내역으로 산출됐는지 팝업으로 확인할 수 있습니다.
+            <br />
             - 고정비 비중이 높을수록 매출이 줄어도 줄이기 어려운 비용 구조입니다.
           </div>
+
+          {/* 산출 내역 팝업 — 월별 셀(경영흐름 드릴다운과 동일 로직) */}
+          {monthDetail && companyId && (
+            <CellDetail
+              companyId={companyId}
+              year={year}
+              month={parseInt(monthDetail.month.split("-")[1], 10)}
+              rowKey={monthDetail.rowKey}
+              title={monthDetail.title}
+              clientItems={null}
+              note={monthDetail.rowKey === "fixedCosts" ? FIXED_NOTE : VARIABLE_NOTE}
+              onClose={() => setMonthDetail(null)}
+            />
+          )}
+          {/* 산출 내역 팝업 — 세부내역 카테고리 행 */}
+          {catDetail && companyId && (
+            <CategoryDetailModal
+              companyId={companyId} year={year}
+              kind={catDetail.kind} category={catDetail.category} label={catDetail.label}
+              onClose={() => setCatDetail(null)}
+            />
+          )}
         </>
       )}
     </div>

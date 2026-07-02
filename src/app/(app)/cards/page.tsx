@@ -150,6 +150,7 @@ export default function CardsPage() {
   const [postCard, setPostCard] = useState<any | null>(null);
   const [postAccountId, setPostAccountId] = useState<string>("");
   const [postRemember, setPostRemember] = useState(true);
+  const [postFixed, setPostFixed] = useState(false); // 고정비로 표시 (is_fixed_cost)
   const [posting, setPosting] = useState(false);
   // 카드명 인라인 편집(corporate_cards.card_name UPDATE)
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
@@ -199,7 +200,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id, is_fixed_cost")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
         .limit(500);
@@ -240,6 +241,7 @@ export default function CardsPage() {
     setPostCard(tx);
     setPostAccountId(mappingByCategory[tx.category] || "");
     setPostRemember(true);
+    setPostFixed(!!tx.is_fixed_cost); // 이전에 고정비로 체크했던 거래는 체크된 상태로 열림
   };
   const doPostVoucher = async () => {
     if (!postCard || !postAccountId || posting) return;
@@ -247,6 +249,10 @@ export default function CardsPage() {
     try {
       const { error } = await db.rpc("post_card_voucher", { p_card_tx_id: postCard.id, p_account_id: postAccountId, p_remember: postRemember });
       if (error) throw new Error(error.message);
+      // 고정비 표시 저장 — 카드 자동이체(정기결제) 인사이트·재발 패턴 학습에 사용 (실패해도 전표는 유지)
+      if (!!postCard.is_fixed_cost !== postFixed) {
+        try { await db.from("card_transactions").update({ is_fixed_cost: postFixed }).eq("id", postCard.id); } catch { /* best-effort */ }
+      }
       toast("전표가 생성되었습니다", "success");
       setPostCard(null); setPostAccountId("");
       queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] });
@@ -286,7 +292,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-recent-tx", companyId, filterCardId],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id, is_fixed_cost")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
         .limit(300);
@@ -850,6 +856,10 @@ export default function CardsPage() {
               <label className="flex items-center gap-2 text-xs text-[var(--text)]">
                 <input type="checkbox" checked={postRemember} onChange={(e) => setPostRemember(e.target.checked)} />
                 이 분류({postCard.category || "미분류"})의 기본 계정으로 기억 (다음부터 자동 제안)
+              </label>
+              <label className="flex items-center gap-2 text-xs text-[var(--text)] cursor-pointer" title="매월 반복되는 지출이면 체크 — 카드 자동이체(정기결제) 내역으로 분류되고 다음 전표처리 때 체크가 유지됩니다">
+                <input type="checkbox" checked={postFixed} onChange={(e) => setPostFixed(e.target.checked)} className="accent-orange-500" />
+                고정비로 표시 <span className="text-[var(--text-dim)]">— 매월 반복되는 지출이면 체크</span>
               </label>
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 전표가 생성됩니다. 카드 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
             </div>

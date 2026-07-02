@@ -86,9 +86,11 @@ export default function BankPage() {
   };
 
   // 통장 거래 인라인 매핑 (미매핑 배지에서 바로 처리 — 거래매칭 페이지 불필요)
+  //   고정비 체크: is_fixed_cost 저장 + 거래처 규칙 학습(learnRuleFromMapping) → 같은 거래처는 다음부터 자동 체크.
+  const [mapFixed, setMapFixed] = useState(false);
   const mapMut = useMutation({
-    mutationFn: async ({ id, category }: { id: string; category: string }) => {
-      await mapBankTransaction(id, { category: category || null, classification: category || null, mappedBy: userId || "" });
+    mutationFn: async ({ id, category, isFixedCost }: { id: string; category: string; isFixedCost: boolean }) => {
+      await mapBankTransaction(id, { category: category || null, classification: category || null, isFixedCost, mappedBy: userId || "" });
     },
     onSuccess: () => {
       toast("매핑 완료", "success");
@@ -209,7 +211,7 @@ export default function BankPage() {
     queryFn: async () => {
       // accountNo 는 client-side 필터 (raw_data->>accountNo PostgREST eq 불안정 — transactions 페이지와 동일 패턴)
       let q = db.from("bank_transactions")
-        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id")
+        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, is_fixed_cost")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
         .limit(selectedAccountNo || hasTxRange ? 2000 : 50);
@@ -236,21 +238,27 @@ export default function BankPage() {
   // 일괄 전표처리 — 선택된 미처리 통장거래를 계정 1개로 순차 post_bank_voucher(방향 자동 분기).
   const [showBulkPost, setShowBulkPost] = useState(false);
   const [bulkAccountId, setBulkAccountId] = useState<string>("");
+  const [bulkFixed, setBulkFixed] = useState(false); // 고정비로 표시 — 전표처리와 함께 is_fixed_cost 저장
   const [bulkPosting, setBulkPosting] = useState(false);
   const doBulkPostBank = async () => {
     if (!bulkAccountId || bulkPosting) { if (!bulkAccountId) toast("계정과목을 선택하세요", "error"); return; }
     setBulkPosting(true);
     let ok = 0, fail = 0, skip = 0;
+    const okIds: string[] = [];
     try {
       const ids = Array.from(selectedTxIds);
       for (const id of ids) {
         const tx = (recentTx as any[]).find((t) => t.id === id);
         if (!tx || tx.journal_entry_id) { skip++; continue; } // 이미 처리된 건 skip
         const { error } = await db.rpc("post_bank_voucher", { p_bank_tx_id: id, p_account_id: bulkAccountId, p_remember: false });
-        if (error) fail++; else ok++;
+        if (error) fail++; else { ok++; okIds.push(id); }
       }
-      toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
-      setShowBulkPost(false); setBulkAccountId(""); setSelectedTxIds(new Set());
+      // 고정비 체크 시 처리된 거래를 일괄 마킹 → 경영흐름·고정비 리포트에 고정비로 집계 (실패해도 전표는 유지)
+      if (bulkFixed && okIds.length > 0) {
+        try { await db.from("bank_transactions").update({ is_fixed_cost: true }).in("id", okIds); } catch { /* best-effort */ }
+      }
+      toast(`${ok}건 전표처리 완료${bulkFixed && ok > 0 ? " · 고정비 표시" : ""}${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
+      setShowBulkPost(false); setBulkAccountId(""); setBulkFixed(false); setSelectedTxIds(new Set());
       queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
     } finally { setBulkPosting(false); }
   };
@@ -550,7 +558,7 @@ export default function BankPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
+                onClick={() => { setBulkAccountId(""); setBulkFixed(false); setShowBulkPost(true); }}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:brightness-110 transition"
               >
                 전표처리({selectedTxIds.size})
@@ -645,7 +653,7 @@ export default function BankPage() {
                       <td className="px-6 py-4 relative">
                         <button
                           type="button"
-                          onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); }}
+                          onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); setMapFixed(!!tx.is_fixed_cost); }}
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${m.bg} ${m.text} cursor-pointer hover:ring-1 hover:ring-current`}
                           title="클릭해서 바로 매핑/무시 처리"
                         >{m.label}</button>
@@ -660,8 +668,12 @@ export default function BankPage() {
                                 <option value="">(분류 없음)</option>
                                 {BANK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                               </select>
+                              <label className="flex items-center gap-1.5 mb-2 text-[11px] text-[var(--text)] cursor-pointer" title="매월 반복되는 지출이면 체크 — 경영흐름·고정비 리포트에 고정비로 집계되고, 같은 거래처는 다음부터 자동 체크됩니다">
+                                <input type="checkbox" checked={mapFixed} onChange={(e) => setMapFixed(e.target.checked)} className="accent-orange-500" />
+                                고정비로 표시 <span className="text-[var(--text-dim)]">(매월 반복 지출)</span>
+                              </label>
                               <div className="flex gap-1.5">
-                                <button type="button" onClick={() => mapMut.mutate({ id: tx.id, category: mapCat })} disabled={mapMut.isPending}
+                                <button type="button" onClick={() => mapMut.mutate({ id: tx.id, category: mapCat, isFixedCost: mapFixed })} disabled={mapMut.isPending}
                                   className="flex-1 px-2 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white disabled:opacity-50 hover:brightness-110">매핑 완료</button>
                                 <button type="button" onClick={() => ignoreMut.mutate(tx.id)} disabled={ignoreMut.isPending}
                                   className="px-2 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">무시</button>
@@ -699,6 +711,10 @@ export default function BankPage() {
                   ))}
                 </select>
               </div>
+              <label className="flex items-center gap-2 text-xs text-[var(--text)] cursor-pointer">
+                <input type="checkbox" checked={bulkFixed} onChange={(e) => setBulkFixed(e.target.checked)} className="accent-orange-500" />
+                고정비로 표시 <span className="text-[var(--text-dim)]">— 매월 반복 지출이면 체크 (경영흐름·고정비 리포트에 고정비로 집계)</span>
+              </label>
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">출금은 차) 선택 계정 / 대) 보통예금, 입금은 차) 보통예금 / 대) 선택 계정으로 방향이 자동 결정됩니다. 통장 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">

@@ -13,10 +13,10 @@ import { getBudgetCellDetail, RECORD_BACKED_KEYS, type BudgetDetailItem } from "
 const won = (n: number) => `${n < 0 ? "-" : ""}${Math.round(Math.abs(n)).toLocaleString("ko-KR")}`;
 
 export function CellDetail({
-  companyId, year, month, rowKey, title, clientItems, note, showTotal = true, onClose,
+  companyId, year, month, rowKey, title, clientItems, note, subtitle, showTotal = true, onClose,
 }: {
   companyId: string; year: number; month: number; rowKey: string; title: string;
-  clientItems: BudgetDetailItem[] | null; note?: string; showTotal?: boolean; onClose: () => void;
+  clientItems: BudgetDetailItem[] | null; note?: string; subtitle?: string; showTotal?: boolean; onClose: () => void;
 }) {
   const isRecord = RECORD_BACKED_KEYS.has(rowKey);
   const { data, isLoading } = useQuery({
@@ -42,7 +42,7 @@ export function CellDetail({
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <div>
             <div className="text-sm font-bold text-[var(--text)]">{title}</div>
-            <div className="text-[11px] text-[var(--text-dim)]">{year}년 {month}월 · 산출 내역</div>
+            <div className="text-[11px] text-[var(--text-dim)]">{subtitle ?? `${year}년 ${month}월 · 산출 내역`}</div>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg leading-none">×</button>
         </div>

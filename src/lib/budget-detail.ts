@@ -62,10 +62,14 @@ export async function getBudgetCellDetail(
   }
 
   if (rowKey === "fixedCosts") {
-    // getMonthlyBudgetOverview 와 동일: recurring_payments(active) + fixed_costs(기간필터)
-    const [recRes, fcRes] = await Promise.all([
+    // getMonthlyBudgetOverview 와 동일: recurring_payments(active) + fixed_costs(기간필터) + 통장 고정비 체크 거래(당월)
+    const [recRes, fcRes, btRes] = await Promise.all([
       db.from("recurring_payments").select("*").eq("company_id", companyId).eq("is_active", true),
       db.from("fixed_costs").select("*").eq("company_id", companyId).eq("is_recurring", true),
+      db.from("bank_transactions").select("counterparty, description, transaction_date, amount")
+        .eq("company_id", companyId).eq("type", "expense").eq("is_fixed_cost", true)
+        .gte("transaction_date", start).lt("transaction_date", next)
+        .order("transaction_date", { ascending: true }),
     ]);
     const items: BudgetDetailItem[] = (recRes.data ?? []).map((r: any) => ({
       label: pick(r, ["name", "memo", "description", "category"], "정기지출"),
@@ -78,6 +82,14 @@ export async function getBudgetCellDetail(
       if (fc.start_date && fc.start_date > `${year}-${mm}-${String(lastDay).padStart(2, "0")}`) continue;
       if (fc.end_date && fc.end_date < `${year}-${mm}-01`) continue;
       items.push({ label: pick(fc, ["name", "memo", "description", "category"], "고정비"), sub: fc.category ?? undefined, amount: Number(fc.amount || 0) });
+    }
+    // 통장 거래 중 '고정비' 체크(전표처리/매핑) — 당월 실적
+    for (const t of (btRes.data ?? [])) {
+      items.push({
+        label: pick(t, ["counterparty", "description"], "통장 지출"),
+        sub: `${t.transaction_date ?? ""} · 통장 고정비 체크`,
+        amount: Math.abs(Number(t.amount || 0)),
+      });
     }
     return items;
   }

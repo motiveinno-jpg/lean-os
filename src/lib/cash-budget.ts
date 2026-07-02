@@ -428,6 +428,16 @@ export async function getMonthlyBudgetOverview(
       .lte('transaction_date', endDate),
   ]);
 
+  // 통장 거래 중 '고정비' 체크(is_fixed_cost — 전표처리/매핑에서 체크)된 지출 — 고정비 실적으로 합산.
+  //   ※ 같은 지출을 정기결제(recurring_payments)로도 등록하면 중복 집계될 수 있음 — 한 가지 방식만 사용 권장.
+  const bankFixedRes = await db.from('bank_transactions')
+    .select('amount, transaction_date')
+    .eq('company_id', companyId)
+    .eq('type', 'expense')
+    .eq('is_fixed_cost', true)
+    .gte('transaction_date', startDate)
+    .lte('transaction_date', endDate);
+
   const snapshots = bankAccountsRes.data || [];
   const recurring = recurringRes.data || [];
   const fixedCosts = fixedCostsRes.data || [];
@@ -435,6 +445,7 @@ export async function getMonthlyBudgetOverview(
   const payments = paymentsRes.data || [];
   const ownerInjections = ownerInjectionsRes.data || [];
   const cardTxns = cardTransactionsRes.data || [];
+  const bankFixedTxns = bankFixedRes.data || [];
 
   // Build per-month budget
   let cumulativeNet = 0;
@@ -481,7 +492,12 @@ export async function getMonthlyBudgetOverview(
       })
       .reduce((sum: number, fc: any) => sum + Number(fc.amount || 0), 0);
 
-    const totalFixed = recurringTotal + fixedCostTotal;
+    // 통장 고정비 체크 거래 (당월 실적)
+    const bankFixedMonth = bankFixedTxns
+      .filter((t: any) => t.transaction_date?.startsWith(monthPrefix))
+      .reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount || 0)), 0);
+
+    const totalFixed = recurringTotal + fixedCostTotal + bankFixedMonth;
 
     // ── Variable Costs ──
     const monthPayments = payments.filter(
@@ -583,7 +599,7 @@ export async function getCostBreakdown(
   const startDate = `${year}-01-01`;
   const endDate = `${year}-12-31`;
 
-  const [recurringRes, salaryTotal, cardRes] = await Promise.all([
+  const [recurringRes, salaryTotal, cardRes, bankFixedRes] = await Promise.all([
     db.from('recurring_payments')
       .select('amount, category, is_active')
       .eq('company_id', companyId)
@@ -592,6 +608,14 @@ export async function getCostBreakdown(
     db.from('card_transactions')
       .select('amount, category, transaction_date')
       .eq('company_id', companyId)
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate),
+    // 통장 '고정비' 체크 거래 (전표처리/매핑에서 체크) — YTD 실적
+    db.from('bank_transactions')
+      .select('amount, transaction_date')
+      .eq('company_id', companyId)
+      .eq('type', 'expense')
+      .eq('is_fixed_cost', true)
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate),
   ]);
@@ -622,8 +646,13 @@ export async function getCostBreakdown(
   const monthsElapsed = year < _now.getFullYear() ? 12 : year > _now.getFullYear() ? 0 : _now.getMonth() + 1;
   const fixed: CostCategoryRow[] = FIXED_COST_CATEGORIES
     .map((f) => ({ category: f.value, label: f.label, monthly: fixedMonthly[f.value] || 0, amount: (fixedMonthly[f.value] || 0) * monthsElapsed }))
-    .filter((r) => r.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
+    .filter((r) => r.amount > 0);
+  // 통장 고정비 체크 거래 — YTD 실적 그대로 (월 평균 = 누계 ÷ 경과월)
+  const bankFixedTotal = (bankFixedRes.data || []).reduce((s: number, t: any) => s + Math.abs(Number(t.amount || 0)), 0);
+  if (bankFixedTotal > 0) {
+    fixed.push({ category: 'bank_fixed', label: '통장 고정비(체크 거래)', amount: bankFixedTotal, monthly: Math.round(bankFixedTotal / Math.max(1, monthsElapsed)) });
+  }
+  fixed.sort((a, b) => b.amount - a.amount);
 
   const variable: CostCategoryRow[] = VARIABLE_COST_CATEGORIES
     .map((v) => ({ category: v.value, label: v.label, amount: variableYear[v.value] || 0, monthly: Math.round((variableYear[v.value] || 0) / 12) }))
@@ -637,6 +666,81 @@ export async function getCostBreakdown(
     fixedTotal: fixed.reduce((s, r) => s + r.amount, 0),
     variableTotal: variable.reduce((s, r) => s + r.amount, 0),
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Cost Category Detail — 고정비/변동비 세부내역 카테고리 행 클릭 시 산출 내역
+//   getCostBreakdown 과 동일한 소스·매핑으로 개별 레코드를 나열해 표 값과 정합 유지.
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface CostDetailItem {
+  label: string;
+  sub?: string;
+  amount: number;
+}
+
+export async function getCostCategoryDetail(
+  companyId: string,
+  year: number,
+  kind: 'fixed' | 'variable',
+  category: string,
+): Promise<CostDetailItem[]> {
+  const startDate = `${year}-01-01`;
+  const endDate = `${year}-12-31`;
+
+  if (kind === 'variable') {
+    // 변동비 = 카드 실지출 (연 범위, 카테고리 매핑 동일)
+    const { data } = await db.from('card_transactions')
+      .select('merchant_name, category, transaction_date, amount')
+      .eq('company_id', companyId)
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate)
+      .order('transaction_date', { ascending: false })
+      .limit(2000);
+    return (data || [])
+      .filter((t: any) => mapVariableCategory(t.category) === category)
+      .map((t: any) => ({ label: t.merchant_name || t.category || '카드', sub: t.transaction_date ?? undefined, amount: Number(t.amount || 0) }));
+  }
+
+  if (category === 'bank_fixed') {
+    // 통장 '고정비' 체크 거래 — YTD 개별 내역
+    const { data } = await db.from('bank_transactions')
+      .select('counterparty, description, transaction_date, amount')
+      .eq('company_id', companyId)
+      .eq('type', 'expense')
+      .eq('is_fixed_cost', true)
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate)
+      .order('transaction_date', { ascending: false })
+      .limit(2000);
+    return (data || []).map((t: any) => ({
+      label: t.counterparty || t.description || '통장 지출',
+      sub: t.transaction_date ?? undefined,
+      amount: Math.abs(Number(t.amount || 0)),
+    }));
+  }
+
+  // 고정비 카테고리 — recurring_payments(월액) (+salary 는 직원 급여 합산)
+  const items: CostDetailItem[] = [];
+  const { data: recs } = await db.from('recurring_payments')
+    .select('name, amount, category, day_of_month')
+    .eq('company_id', companyId)
+    .eq('is_active', true);
+  for (const rp of (recs || [])) {
+    if (mapRecurringCategory(rp.category) !== category) continue;
+    items.push({ label: rp.name || '정기지출', sub: rp.day_of_month ? `매월 ${rp.day_of_month}일 · 월액` : '월액', amount: Number(rp.amount || 0) });
+  }
+  if (category === 'salary') {
+    const { data: emps } = await db.from('employees')
+      .select('name, salary, status')
+      .eq('company_id', companyId)
+      .in('status', ['active', 'joined']);
+    for (const e of (emps || [])) {
+      if (Number(e.salary || 0) <= 0) continue;
+      items.push({ label: `${e.name} 급여`, sub: '월액 (직원 등록 급여)', amount: Number(e.salary) });
+    }
+  }
+  return items;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
