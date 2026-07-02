@@ -369,7 +369,7 @@ export default function BankPage() {
             type="button"
             onClick={() => bankCd.run(handleSyncBank)}
             disabled={syncing || !companyId || bankCd.disabled}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-50 ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-indigo-500/30 transition disabled:opacity-50 ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
             title={bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "통장 거래 기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
           >
             {syncing ? (
@@ -470,7 +470,7 @@ export default function BankPage() {
                 type="button"
                 onClick={handleSyncBank}
                 disabled={syncing}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-xs shadow hover:shadow-lg transition disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold text-xs shadow hover:shadow-lg transition disabled:opacity-50"
               >
                 {syncing ? "연동 중..." : "🏦 통장 연동하기"}
               </button>

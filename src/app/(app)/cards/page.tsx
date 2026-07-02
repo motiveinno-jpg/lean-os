@@ -486,7 +486,7 @@ export default function CardsPage() {
               cardCd.run(handleSyncCards);
             }}
             disabled={syncing || !companyId || cardCd.disabled}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-indigo-500/30 transition disabled:opacity-50 ${cardCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-indigo-500/30 transition disabled:opacity-50 ${cardCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
             title={cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
           >
             {syncing ? (
