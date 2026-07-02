@@ -401,14 +401,15 @@ export default function CardsPage() {
     setSyncing(true);
     try {
       const { syncCodefData } = await import("@/lib/data-sync");
-      const result = await syncCodefData(companyId, "card", cardTxFrom || undefined, cardTxTo || undefined);
+      // CODEF 는 YYYYMMDD 형식만 받음 — 대시 포함(YYYY-MM-DD) 그대로 보내면 서버의 slice(0,6) 청구월 계산이 깨짐.
+      const result = await syncCodefData(companyId, "card", cardTxFrom ? cardTxFrom.replace(/-/g, "") : undefined, cardTxTo ? cardTxTo.replace(/-/g, "") : undefined);
       if (!result.success && result.status !== "partial") {
         toast(result.error || "카드 연동 실패", "error");
         return;
       }
       try { localStorage.setItem(`codef-connected-${companyId}`, "1"); } catch { /* ignore */ }
       // 승인내역(실시간) — 별도 호출 (billing 과 묶으면 Edge 150s 초과 HTTP 546). 청구 마감 전 결제 즉시 반영.
-      const approvalRes = await syncCodefData(companyId, "card_approval", cardTxFrom || undefined, cardTxTo || undefined).catch(() => null);
+      const approvalRes = await syncCodefData(companyId, "card_approval", cardTxFrom ? cardTxFrom.replace(/-/g, "") : undefined, cardTxTo ? cardTxTo.replace(/-/g, "") : undefined).catch(() => null);
       const synced = (result.cardSynced ?? 0) + ((approvalRes as any)?.cardSynced ?? 0);
       // 카드 페이지 모든 카드 관련 쿼리 invalidate
       queryClient.invalidateQueries({ queryKey: ["cards-page-corporate"] });

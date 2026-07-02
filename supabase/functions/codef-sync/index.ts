@@ -1981,6 +1981,8 @@ serve(async (req) => {
         if (floorYmd > start) start = floorYmd;
       }
     } catch (_e) { /* floor 조회 실패 시 기존 동작 유지 */ }
+    // 마감일이 오늘 이후로 잘못 설정되면 start > end 가 되어 CODEF 조회가 통째로 빈다(잔액만 갱신·거래 0건) — end 로 clamp.
+    if (start > end) start = end;
 
     const results: Record<string, any> = {};
 

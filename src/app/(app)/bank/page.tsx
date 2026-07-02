@@ -11,6 +11,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { SiyanPageHeader } from "@/components/siyan";
+import { DateField } from "@/components/date-field";
 import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
@@ -48,6 +49,9 @@ export default function BankPage() {
   // 통장 카드 클릭 시 거래내역 필터 — accountNo + 표시 이름 동시 보관.
   const [selectedAccountNo, setSelectedAccountNo] = useState<string>("");
   const [selectedAccountLabel, setSelectedAccountLabel] = useState<string>("");
+  // 통장 거래 기간 — 연동 시 CODEF sync 범위 + 거래내역 표 필터에 공통 적용 (카드 페이지와 동일 패턴)
+  const [bankTxFrom, setBankTxFrom] = useState<string>("");
+  const [bankTxTo, setBankTxTo] = useState<string>("");
   // 거래내역 표 — 헤더 더블클릭 정렬 + 행 체크박스 다중선택 (UI 전용, DB 변경 없음)
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -102,12 +106,15 @@ export default function BankPage() {
   });
 
   // 통장 연동(CODEF 은행 sync + 잔액 재계산) — /transactions 의 동일 흐름 재사용.
+  //   기간 필수 — 미설정이면 서버 기본(최근 3개월)에 의존해 원하는 기간이 누락될 수 있음 (카드 연동과 동일 정책).
+  //   CODEF 는 YYYYMMDD 형식만 받으므로 대시 제거 후 전달.
   const handleSyncBank = async () => {
     if (!companyId) return;
+    if (!bankTxFrom || !bankTxTo) { toast("통장 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요", "error"); return; }
     setSyncing(true);
     try {
       const { syncCodefData, syncBankBalances } = await import("@/lib/data-sync");
-      const result = await syncCodefData(companyId, "bank");
+      const result = await syncCodefData(companyId, "bank", bankTxFrom.replace(/-/g, ""), bankTxTo.replace(/-/g, ""));
       if (!result.success && result.status !== "partial") {
         toast(result.error || "통장 연동 실패", "error");
         return;
@@ -192,21 +199,24 @@ export default function BankPage() {
     enabled: !!companyId,
   });
 
-  // 시안 거래내역 표 — 최근 50건 read-only (탭 클릭 시에만). selectedAccountNo 있으면 그 계좌만.
+  // 시안 거래내역 표 — 기간 미설정 시 최근 50건, 기간 설정 시 그 기간 전체(상한 2000) read-only.
+  //   selectedAccountNo 있으면 그 계좌만.
+  const hasTxRange = !!(bankTxFrom || bankTxTo);
   const { data: recentTx = [] } = useQuery({
-    queryKey: ["bank-page-recent-tx", companyId, selectedAccountNo],
+    queryKey: ["bank-page-recent-tx", companyId, selectedAccountNo, bankTxFrom, bankTxTo],
     queryFn: async () => {
       // accountNo 는 client-side 필터 (raw_data->>accountNo PostgREST eq 불안정 — transactions 페이지와 동일 패턴)
-      const q = db.from("bank_transactions")
+      let q = db.from("bank_transactions")
         .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
-        .limit(selectedAccountNo ? 2000 : 50);
+        .limit(selectedAccountNo || hasTxRange ? 2000 : 50);
+      if (bankTxFrom) q = q.gte("transaction_date", bankTxFrom);
+      if (bankTxTo) q = q.lte("transaction_date", bankTxTo);
       const { data } = await q;
       const rows = (data || []) as any[];
-      return selectedAccountNo
-        ? rows.filter((r) => r.raw_data?.accountNo === selectedAccountNo).slice(0, 50)
-        : rows;
+      const filtered = selectedAccountNo ? rows.filter((r) => r.raw_data?.accountNo === selectedAccountNo) : rows;
+      return hasTxRange ? filtered : filtered.slice(0, 50);
     },
     enabled: !!companyId && tab === "transactions",
   });
@@ -269,8 +279,8 @@ export default function BankPage() {
     });
   }, [recentTx, sortKey, sortDir]);
 
-  // 탭·계좌 필터 변경 시 선택 초기화 (다른 목록의 선택이 남지 않게)
-  useEffect(() => { setSelectedTxIds(new Set()); }, [tab, selectedAccountNo]);
+  // 탭·계좌·기간 필터 변경 시 선택 초기화 (다른 목록의 선택이 남지 않게)
+  useEffect(() => { setSelectedTxIds(new Set()); }, [tab, selectedAccountNo, bankTxFrom, bankTxTo]);
 
   const toggleTx = (id: string) => {
     setSelectedTxIds((prev) => {
@@ -350,7 +360,7 @@ export default function BankPage() {
             onClick={handleSyncBank}
             disabled={syncing || !companyId}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-50"
-            title="CODEF 은행 연동으로 최근 거래·잔액을 불러옵니다"
+            title="통장 거래 기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"
           >
             {syncing ? (
               <>
@@ -399,6 +409,18 @@ export default function BankPage() {
           value={mappingRate != null ? `${mappingRate}%` : "—"}
           sub={flow && flow.total > 0 ? `${flow.mapped}/${flow.total}건` : "거래 없음"}
         />
+      </div>
+
+      {/* 기간설정 — 카드 페이지와 통일 위치(제목 헤더 아래). 통장 연동 sync 범위 + 거래내역 표 필터 공통 적용 */}
+      <div className="no-print flex items-center gap-2 mb-5 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+        <span className="text-xs font-semibold text-[var(--text-muted)]">통장 거래 기간</span>
+        <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="시작일"
+          className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+        <span className="text-[var(--text-dim)] text-xs">~</span>
+        <DateField value={bankTxTo} min={bankTxFrom || undefined} onChange={(e) => setBankTxTo(e.target.value)} title="종료일"
+          className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+        {(bankTxFrom || bankTxTo) && <button onClick={() => { setBankTxFrom(""); setBankTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
+        <span className="text-[10px] text-[var(--text-dim)] ml-auto hidden sm:block">통장 연동 시 이 기간의 거래를 불러오고, 거래내역 표에도 적용됩니다</span>
       </div>
 
       {/* Tabs — 시안 underline */}
@@ -579,7 +601,7 @@ export default function BankPage() {
               </thead>
               <tbody>
                 {sortedTx.length === 0 ? (
-                  <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">최근 거래내역이 없습니다</td></tr>
+                  <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">{hasTxRange ? "이 기간에 거래내역이 없습니다 — 상단에서 기간을 설정하고 '통장 연동'을 누르면 그 기간의 거래를 불러옵니다" : "최근 거래내역이 없습니다"}</td></tr>
                 ) : sortedTx.map((tx) => {
                   const isIncome = tx.type === "income";
                   const m = MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped;
