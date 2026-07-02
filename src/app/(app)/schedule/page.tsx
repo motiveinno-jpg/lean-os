@@ -41,7 +41,7 @@ export default function SchedulePage() {
   }, []);
 
   return (
-    <div className="space-y-4 mx-auto">
+    <div className="space-y-6 mx-auto">
       <div className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold">일정</h1>
@@ -184,9 +184,9 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <button onClick={prevMonth} className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] rounded-lg hover:bg-[var(--bg)]">‹</button>
           <div className="text-base font-bold min-w-[110px] text-center">
@@ -637,29 +637,29 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bg-[var(--bg-card)] rounded-xl p-3 border border-[var(--border)]">
-          <div className="text-[10px] text-[var(--text-dim)] font-semibold uppercase">할 일</div>
-          <div className="text-base font-black mt-0.5">{undoneCount}건</div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">할 일</div>
+          <div className="text-2xl font-black mono-number mt-1.5">{undoneCount}건</div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl p-3 border border-[var(--border)]">
-          <div className="text-[10px] text-[var(--text-dim)] font-semibold uppercase">오늘 마감</div>
-          <div className="text-base font-black mt-0.5 text-amber-500">
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">오늘 마감</div>
+          <div className="text-2xl font-black mono-number mt-1.5 text-amber-500">
             {todos.filter((t) => !t.done && t.due_date === today).length}건
           </div>
         </div>
-        <div className="bg-[var(--bg-card)] rounded-xl p-3 border border-[var(--border)]">
-          <div className="text-[10px] text-[var(--text-dim)] font-semibold uppercase">지연</div>
-          <div className="text-base font-black mt-0.5 text-red-400">
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">지연</div>
+          <div className="text-2xl font-black mono-number mt-1.5 text-red-400">
             {todos.filter((t) => !t.done && t.due_date && t.due_date < today).length}건
           </div>
         </div>
       </div>
 
       {/* Add form */}
-      <div className="glass-card p-4">
+      <div className="glass-card p-5">
         <div className="flex gap-2 flex-wrap items-end">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-[10px] text-[var(--text-muted)] mb-1">새 할 일</label>

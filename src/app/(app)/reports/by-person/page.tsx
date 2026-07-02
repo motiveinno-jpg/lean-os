@@ -206,15 +206,17 @@ export default function ByPersonPage() {
       )}
 
       {!isLoading && !error && rows && rows.length === 0 && (
-        <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-dim)", fontSize: 13 }}>
-          {year}년 집계할 급여 데이터가 없습니다.
+        <div className="py-16 text-center">
+          <div className="text-4xl mb-3">👥</div>
+          <div className="text-sm font-semibold text-[var(--text)]">{year}년 집계할 급여 데이터가 없습니다.</div>
+          <div className="text-xs text-[var(--text-dim)] mt-1.5">직원 등록 후 급여(기본급여 또는 명세서)가 있으면 자동 집계됩니다.</div>
         </div>
       )}
 
       {!isLoading && !error && rows && rows.length > 0 && (
         <>
           {/* 스탯 3카드 — 대시보드 글래스카드 (2026-06-10) */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 20 }}>
+          <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 24 }}>
             {[
               { label: `${year}년 급여 합계`, big: `₩${fmtKrw(totals.pay)}`, color: "#f97316", hint: "명세서/기본급여 추정" },
               { label: "인원 수", big: `${rows.length}명`, color: "var(--primary)", hint: "급여 집계 인원" },
@@ -234,7 +236,7 @@ export default function ByPersonPage() {
           />
 
           {/* 인원별 급여 — 아바타 랭크 바 리스트 (2026-06-10 리디자인) */}
-          <div className="glass-card overflow-hidden" style={{ marginTop: 20 }}>
+          <div className="glass-card overflow-hidden" style={{ marginTop: 24 }}>
             <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", fontSize: 14, fontWeight: 700, color: "var(--text)" }}>인원별 급여 명단</div>
             {(() => {
               const ranked = [...rows].sort((a, b) => b.payroll - a.payroll);
@@ -271,6 +273,7 @@ export default function ByPersonPage() {
 
           {/* 월추이 표 (인원 x 월, 카드+급여 합) */}
           <div style={{ marginTop: 24 }}>
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-0.5">Monthly</div>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>월별 급여 추이</h3>
             <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--border)" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>

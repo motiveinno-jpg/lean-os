@@ -1047,7 +1047,7 @@ export default function TaxInvoicesPage() {
     <div className="" data-print-area>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
-      <div className="page-sticky-header flex items-center justify-between mb-4">
+      <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">세금계산서</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -1206,14 +1206,14 @@ export default function TaxInvoicesPage() {
           </button>
         </div>
       </div>
-      <p className="-mt-2 mb-2 text-[10px] text-[var(--text-muted)]">
+      <p className="-mt-4 mb-6 text-[10px] text-[var(--text-muted)]">
         ※ 이 버튼은 홈택스에 <b>이미 발행된</b> 세금계산서를 가져오는 조회 동작입니다. 새 세금계산서 발행은 매출 탭에서 "발행" 버튼 또는 매출 스케줄 자동 발행으로 진행됩니다.
       </p>
 
       {/* 동기화 결과 패널 — 월별 응답 수 vs 저장 수 비교, 누락 월에 재시도 버튼 */}
       {syncResultDetail && syncResultDetail.length > 0 && (
-        <div className="glass-card p-4 mb-4 no-print">
-          <div className="flex items-center justify-between mb-2">
+        <div className="glass-card p-5 mb-6 no-print">
+          <div className="flex items-center justify-between mb-3">
             <div className="text-xs font-bold text-[var(--text)]">
               동기화 결과
               {(() => {
@@ -1276,7 +1276,7 @@ export default function TaxInvoicesPage() {
 
       {/* Duplicate Invoice Warning Banner */}
       {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).length > 0 && (
-        <div className="no-print mb-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl px-4 py-3">
+        <div className="no-print mb-6 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl px-5 py-4">
           <div className="flex items-start gap-3">
             <svg className="w-5 h-5 text-[var(--warning)] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -1359,7 +1359,7 @@ export default function TaxInvoicesPage() {
 
       {/* Summary Cards — 정제·강화(2026-07-02): 풀채도 그라데이션 → 흰 카드+절제된 색 아이콘 칩.
           색코딩(매출 에메랄드·매입 앰버·미연결 레드·부가세 인디고)은 아이콘/강조값에만 남겨 알록달록함 제거. */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4" data-print-area>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" data-print-area>
         <div className="glass-card p-5">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -1435,7 +1435,7 @@ export default function TaxInvoicesPage() {
         const must: string[] = [`예상 부가세 ${vatEstimate >= 0 ? "납부" : "환급"}액 ${fmt(Math.abs(vatEstimate))}`];
         if (unmatched > 0) must.push(`미매칭 ${unmatched}건 회수·매칭 확인`);
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 no-print">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 no-print">
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
               <div className="flex items-start gap-3">
                 <span className="p-2 rounded-lg bg-amber-500/15 text-amber-500 shrink-0 text-base leading-none">⚠️</span>
@@ -1833,14 +1833,20 @@ export default function TaxInvoicesPage() {
               불러오는 중...
             </div>
           ) : currentList.length === 0 ? (
-            <div className="p-16 text-center">
-              <div className="text-4xl mb-4">🧾</div>
-              <div className="text-sm font-medium text-[var(--text)]">
+            <div className="py-16 px-6 text-center">
+              <div className="text-5xl mb-4">🧾</div>
+              <div className="text-base font-semibold text-[var(--text)]">
                 세금계산서가 등록되면 3-Way 매칭이 시작됩니다
               </div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">
+              <div className="text-xs text-[var(--text-muted)] mt-1.5">
                 홈택스 엑셀을 업로드하거나 직접 등록할 수 있습니다
               </div>
+              <button
+                onClick={() => setShowForm(true)}
+                className="no-print mt-5 px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
+              >
+                + 세금계산서 등록
+              </button>
             </div>
           ) : (
             <div>
@@ -2064,10 +2070,10 @@ export default function TaxInvoicesPage() {
           {queueLoading ? (
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : queueItems.length === 0 ? (
-            <div className="glass-card p-16 text-center">
-              <div className="text-4xl mb-4">⚡</div>
-              <div className="text-lg font-bold mb-2">대기 중인 자동발행 없음</div>
-              <div className="text-sm text-[var(--text-muted)]">프로젝트의 매출 스케줄이 확정되면 여기에 표시됩니다</div>
+            <div className="glass-card py-16 px-6 text-center">
+              <div className="text-5xl mb-4">⚡</div>
+              <div className="text-base font-semibold mb-1.5">대기 중인 자동발행 없음</div>
+              <div className="text-xs text-[var(--text-muted)]">프로젝트의 매출 스케줄이 확정되면 여기에 표시됩니다</div>
             </div>
           ) : (
             <div className="glass-card overflow-hidden">
@@ -2238,7 +2244,11 @@ export default function TaxInvoicesPage() {
               <span className="text-sm font-bold">동기화 이력</span>
             </div>
             {syncLogs.length === 0 ? (
-              <div className="p-12 text-center text-sm text-[var(--text-muted)]">아직 동기화 이력이 없습니다</div>
+              <div className="py-14 px-6 text-center">
+                <div className="text-4xl mb-3">🔄</div>
+                <div className="text-sm font-semibold text-[var(--text)]">아직 동기화 이력이 없습니다</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">상단의 홈택스에서 가져오기 버튼으로 첫 동기화를 실행하세요</div>
+              </div>
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
                 <thead>
@@ -2365,9 +2375,10 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
 
       <div className="glass-card overflow-hidden">
         {periodSummary.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="text-4xl mb-4">📊</div>
-            <div className="text-sm text-[var(--text-muted)]">{currentYear}년 세금계산서 데이터가 없습니다</div>
+          <div className="py-16 px-6 text-center">
+            <div className="text-5xl mb-4">📊</div>
+            <div className="text-base font-semibold text-[var(--text)]">{currentYear}년 세금계산서 데이터가 없습니다</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1.5">세금계산서가 쌓이면 기간별 집계가 자동으로 생성됩니다</div>
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">

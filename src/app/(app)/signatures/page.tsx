@@ -291,7 +291,7 @@ export default function SignaturesDashboardPage() {
   if (error) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <header className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">전자서명 대시보드</h1>
@@ -370,33 +370,33 @@ export default function SignaturesDashboardPage() {
       )}
 
       {/* 상태 카운트 카드 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <button
           onClick={() => setStatusFilter("all")}
-          className={`p-3 rounded-xl text-left transition ${
+          className={`p-4 rounded-xl text-left transition ${
             statusFilter === "all"
               ? "bg-gradient-to-br from-[var(--brand)] to-[var(--brand-to)] text-white shadow-md"
-              : "glass-card hover:-translate-y-0.5"
+              : "glass-card card-hover"
           }`}
         >
-          <div className={`text-[10px] ${statusFilter === "all" ? "text-white/80" : "text-[var(--text-muted)]"}`}>전체</div>
-          <div className={`text-xl font-bold ${statusFilter === "all" ? "text-white" : "text-[var(--text)]"}`}>{counts.all || 0}</div>
+          <div className={`text-[11px] font-semibold uppercase tracking-wider ${statusFilter === "all" ? "text-white/80" : "text-[var(--text-dim)]"}`}>전체</div>
+          <div className={`text-2xl font-black mono-number mt-0.5 ${statusFilter === "all" ? "text-white" : "text-[var(--text)]"}`}>{counts.all || 0}</div>
         </button>
         {SIGNATURE_STATUS.map((s) => (
           <button
             key={s.value}
             onClick={() => setStatusFilter(s.value)}
-            className={`p-3 rounded-xl text-left transition ${
+            className={`p-4 rounded-xl text-left transition ${
               statusFilter === s.value
                 ? `${s.bg} ${s.text} ring-2 ring-current/30`
-                : "glass-card hover:-translate-y-0.5"
+                : "glass-card card-hover"
             }`}
           >
-            <div className={`text-[10px] flex items-center gap-1 ${s.text}`}>
+            <div className={`text-[11px] font-semibold flex items-center gap-1.5 ${s.text}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
               {s.label}
             </div>
-            <div className="text-xl font-bold text-[var(--text)]">{counts[s.value] || 0}</div>
+            <div className="text-2xl font-black mono-number mt-0.5 text-[var(--text)]">{counts[s.value] || 0}</div>
           </button>
         ))}
       </div>
@@ -459,11 +459,11 @@ export default function SignaturesDashboardPage() {
         {isLoading ? (
           <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : filtered.length === 0 ? (
-          <div className="glass-card p-12 text-center">
-            <div className="text-4xl mb-3">✍️</div>
-            <div className="text-sm font-medium text-[var(--text)]">문서에 서명을 요청해보세요</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
-            <button onClick={() => setShowInviteModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 서명 요청</button>
+          <div className="glass-card py-16 px-6 text-center">
+            <div className="text-5xl mb-4">✍️</div>
+            <div className="text-base font-bold text-[var(--text)]">문서에 서명을 요청해보세요</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1.5">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
+            <button onClick={() => setShowInviteModal(true)} className="mt-5 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 서명 요청</button>
           </div>
         ) : (
           filtered.slice((page - 1) * pageSize, page * pageSize).map((r: any) => {
@@ -471,7 +471,7 @@ export default function SignaturesDashboardPage() {
             const expired = r.expires_at && new Date(r.expires_at) < new Date();
             const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
             return (
-              <div key={r.id} className="group glass-card p-4 flex items-start gap-3">
+              <div key={r.id} className="group glass-card p-5 flex items-start gap-4">
                 <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} className="mt-1.5 accent-[var(--primary)] shrink-0" aria-label="선택" />
                 <span className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-[var(--brand)] to-[var(--brand-to)] text-white shadow">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>

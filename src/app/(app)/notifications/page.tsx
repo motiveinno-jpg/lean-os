@@ -139,10 +139,13 @@ export default function NotificationsPage() {
 
   return (
     <div className="">
-      <div className="page-sticky-header flex items-center justify-between mb-4">
+      <div className="page-sticky-header flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">알림</h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">{rows.length}건 · 안읽음 {unread}건</p>
+          <p className="text-xs text-[var(--text-dim)] mt-1">
+            전체 <span className="mono-number font-semibold text-[var(--text-muted)]">{rows.length}</span>건 · 안읽음{" "}
+            <span className={`mono-number font-semibold ${unread > 0 ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>{unread}</span>건
+          </p>
         </div>
         {unread > 0 && (
           <button onClick={markAllRead} className="btn-secondary">
@@ -155,9 +158,9 @@ export default function NotificationsPage() {
         <div className="text-center py-12 text-sm text-[var(--text-dim)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
         <div className="text-center py-16 glass-card">
-          <div className="text-3xl mb-2">🔔</div>
-          <div className="text-sm text-[var(--text)]">알림이 없습니다</div>
-          <div className="text-[11px] text-[var(--text-dim)] mt-1">새 알림이 도착하면 여기에 표시됩니다.</div>
+          <div className="text-4xl mb-3">🔔</div>
+          <div className="text-sm font-semibold text-[var(--text)]">알림이 없습니다</div>
+          <div className="text-[11px] text-[var(--text-dim)] mt-1.5">새 알림이 도착하면 여기에 표시됩니다.</div>
         </div>
       ) : (
         <div className="space-y-2">

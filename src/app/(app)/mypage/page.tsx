@@ -165,14 +165,14 @@ export default function MyPage() {
     : null;
 
   return (
-    <div className="">
-      <div className="page-sticky-header mb-6">
+    <div className="space-y-6">
+      <div className="page-sticky-header">
         <h1 className="text-2xl font-extrabold mb-1">마이페이지</h1>
         <p className="text-sm text-[var(--text-muted)]">내 정보 및 연차 현황</p>
       </div>
 
       {/* 기본 정보 */}
-      <div className="glass-card p-6 mb-4">
+      <div className="glass-card p-6">
         <h2 className="section-title">기본 정보</h2>
         {/* 프로필 사진 — 업로드하면 전 화면 아바타가 이 사진으로. 제거 시 이니셜로 복귀. */}
         <div className="flex items-center gap-4 mb-5 pb-5 border-b border-[var(--border)]">
@@ -216,7 +216,7 @@ export default function MyPage() {
 
       {/* 직원 정보 */}
       {employee && (
-        <div className="glass-card p-6 mb-4">
+        <div className="glass-card p-6">
           <h2 className="section-title">인사 정보</h2>
           <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
             <div>
@@ -252,28 +252,29 @@ export default function MyPage() {
       )}
 
       {/* 연차 현황 */}
-      <div className="glass-card p-6 mb-4">
+      <div className="glass-card p-6">
         <h2 className="section-title">{currentYear}년 연차 현황</h2>
         {leaveBalance ? (
           <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-center border border-[var(--border)]">
-              <div className="text-2xl font-extrabold text-[var(--primary)]">{leaveBalance.total_days}일</div>
-              <div className="text-xs text-[var(--text-dim)] mt-1">총 연차</div>
+            <div className="bg-[var(--bg-surface)] rounded-xl p-5 text-center border border-[var(--border)]">
+              <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">총 연차</div>
+              <div className="text-2xl font-black mono-number text-[var(--primary)]">{leaveBalance.total_days}일</div>
             </div>
-            <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-center border border-[var(--border)]">
-              <div className="text-2xl font-extrabold text-orange-400">{leaveBalance.used_days}일</div>
-              <div className="text-xs text-[var(--text-dim)] mt-1">사용</div>
+            <div className="bg-[var(--bg-surface)] rounded-xl p-5 text-center border border-[var(--border)]">
+              <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">사용</div>
+              <div className="text-2xl font-black mono-number text-orange-400">{leaveBalance.used_days}일</div>
             </div>
-            <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-center border border-[var(--border)]">
-              <div className={`text-2xl font-extrabold ${remaining !== null && remaining <= 3 ? "text-red-400" : "text-green-400"}`}>
+            <div className="bg-[var(--bg-surface)] rounded-xl p-5 text-center border border-[var(--border)]">
+              <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">잔여</div>
+              <div className={`text-2xl font-black mono-number ${remaining !== null && remaining <= 3 ? "text-red-400" : "text-green-400"}`}>
                 {remaining ?? 0}일
               </div>
-              <div className="text-xs text-[var(--text-dim)] mt-1">잔여</div>
             </div>
           </div>
         ) : (
-          <div className="text-center py-6 text-sm text-[var(--text-muted)]">
-            연차 정보가 설정되지 않았습니다.
+          <div className="text-center py-12">
+            <div className="text-3xl mb-3">🌴</div>
+            <div className="text-sm font-semibold text-[var(--text-muted)]">연차 정보가 설정되지 않았습니다.</div>
             <div className="text-xs text-[var(--text-dim)] mt-1">인력관리 &gt; 휴가 탭에서 연차를 초기화해주세요.</div>
           </div>
         )}
@@ -303,7 +304,7 @@ export default function MyPage() {
       </div>
 
       {/* 회원 탈퇴 */}
-      <div className="glass-card p-6 mb-4 border border-red-500/30">
+      <div className="glass-card p-6 border border-red-500/30">
         <h2 className="text-sm font-bold mb-2 text-red-400">회원 탈퇴</h2>
         <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
           탈퇴하면 <b>로그인 계정이 영구 삭제</b>되고 이름·이메일 등 개인정보가 파기됩니다. <b>되돌릴 수 없습니다.</b>

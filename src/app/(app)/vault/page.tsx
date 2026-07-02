@@ -478,7 +478,7 @@ export default function VaultPage() {
 
       {/* ── Renewal & Duplicate Alerts ── */}
       {showAlerts && (visibleAlerts.length > 0 || duplicateGroups.length > 0) && (
-        <div className="mb-5 space-y-2">
+        <div className="mb-6 space-y-3">
           {visibleAlerts.length > 0 && (
             <div className={`rounded-xl border p-4 ${
               visibleAlerts.some((a) => a.level === "critical")
@@ -613,7 +613,7 @@ export default function VaultPage() {
 
       {/* 미사용 구독 경고 */}
       {tab === "accounts" && unusedAccounts.length > 0 && (
-        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 mb-4">
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 mb-6">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <span className="text-base">💤</span>
@@ -635,15 +635,15 @@ export default function VaultPage() {
       )}
 
       {/* Summary Cards — 자산 관리 스코프(자산·자동탐지)만. 구독은 '구독' 메뉴, 문서는 '파일보관함'으로 이동(2026-05-22)했으므로 제외해 혼란 방지. */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="glass-card p-4">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">자산 가치</div>
-          <div className="text-xl font-black">{fmtW(stats.totalAssetValue)}원</div>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">자산 가치</div>
+          <div className="text-2xl font-black mono-number">{fmtW(stats.totalAssetValue)}원</div>
           <div className="text-xs text-[var(--text-muted)] mt-1">{vault?.assets?.length || 0}건</div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1">자동 탐지</div>
-          <div className={`text-xl font-black ${stats.pendingDiscoveryCount > 0 ? "text-purple-400" : ""}`}>
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">자동 탐지</div>
+          <div className={`text-2xl font-black mono-number ${stats.pendingDiscoveryCount > 0 ? "text-purple-400" : ""}`}>
             {stats.pendingDiscoveryCount}건
           </div>
           <div className="text-xs text-[var(--text-muted)] mt-1">검토 대기</div>
@@ -651,7 +651,7 @@ export default function VaultPage() {
       </div>
 
       {/* Tabs */}
-      <div className="tab-bar mb-4">
+      <div className="tab-bar mb-6">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -884,11 +884,11 @@ export default function VaultPage() {
       {tab === "accounts" && (
         <div className="glass-card overflow-x-auto">
           {!vault?.accounts?.length ? (
-            <div className="p-16 text-center">
-              <div className="text-4xl mb-4">🔐</div>
-              <div className="text-sm font-medium text-[var(--text)]">구독 서비스와 공용 계정을 등록하세요</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">SaaS 구독, 서비스 계정을 등록하여 비용을 관리하세요</div>
-              <button onClick={() => { setTab("accounts"); setShowForm(true); }} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 계정 추가</button>
+            <div className="py-16 px-6 text-center">
+              <div className="text-5xl mb-4">🔐</div>
+              <div className="text-base font-bold text-[var(--text)]">구독 서비스와 공용 계정을 등록하세요</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5">SaaS 구독, 서비스 계정을 등록하여 비용을 관리하세요</div>
+              <button onClick={() => { setTab("accounts"); setShowForm(true); }} className="mt-5 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 계정 추가</button>
             </div>
           ) : (
             <table className="w-full text-sm min-w-[700px]">
@@ -1023,28 +1023,29 @@ export default function VaultPage() {
             const acquire = active.reduce((s, a) => s + Number(a.value || 0), 0);
             const book = active.reduce((s, a) => s + computeBookValue(a.value, a.purchase_date, a.useful_life_months).book, 0);
             return (
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="glass-card p-4">
-                  <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">총 취득가</div>
-                  <div className="text-xl font-extrabold mt-1">{fmtW(acquire)}</div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                <div className="glass-card p-5">
+                  <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">총 취득가</div>
+                  <div className="text-2xl font-black mono-number mt-1">{fmtW(acquire)}</div>
                 </div>
-                <div className="glass-card p-4">
-                  <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">총 장부가 (감가 후)</div>
-                  <div className="text-xl font-extrabold mt-1 text-[var(--primary)]">{fmtW(book)}</div>
+                <div className="glass-card p-5">
+                  <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">총 장부가 (감가 후)</div>
+                  <div className="text-2xl font-black mono-number mt-1 text-[var(--primary)]">{fmtW(book)}</div>
                 </div>
-                <div className="glass-card p-4">
-                  <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">누적 감가상각</div>
-                  <div className="text-xl font-extrabold mt-1 text-amber-500">{fmtW(acquire - book)}</div>
+                <div className="glass-card p-5">
+                  <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">누적 감가상각</div>
+                  <div className="text-2xl font-black mono-number mt-1 text-amber-500">{fmtW(acquire - book)}</div>
                 </div>
               </div>
             );
           })()}
           <div className="glass-card overflow-x-auto">
           {!vault?.assets?.length ? (
-            <div className="p-16 text-center">
-              <div className="text-4xl mb-4">📦</div>
-              <div className="text-lg font-bold mb-2">자산이 없습니다</div>
-              <div className="text-sm text-[var(--text-muted)]">유형/무형 자산을 등록하세요</div>
+            <div className="py-16 px-6 text-center">
+              <div className="text-5xl mb-4">📦</div>
+              <div className="text-base font-bold mb-1.5">자산이 없습니다</div>
+              <div className="text-xs text-[var(--text-muted)]">유형/무형 자산을 등록하면 감가상각 장부가를 자동으로 계산해 드립니다</div>
+              <button onClick={() => { setShowForm(true); setEditingId(null); setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); }} className="mt-5 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 자산 추가</button>
             </div>
           ) : (
             <table className="w-full text-sm min-w-[760px]">
@@ -1110,10 +1111,10 @@ export default function VaultPage() {
       {tab === "docs" && (
         <div className="glass-card overflow-x-auto">
           {!vault?.docs?.length ? (
-            <div className="p-16 text-center">
-              <div className="text-4xl mb-4">📄</div>
-              <div className="text-lg font-bold mb-2">보관 문서가 없습니다</div>
-              <div className="text-sm text-[var(--text-muted)]">중요 문서를 안전하게 보관하세요</div>
+            <div className="py-16 px-6 text-center">
+              <div className="text-5xl mb-4">📄</div>
+              <div className="text-base font-bold mb-1.5">보관 문서가 없습니다</div>
+              <div className="text-xs text-[var(--text-muted)]">중요 문서를 안전하게 보관하세요</div>
             </div>
           ) : (
             <table className="w-full text-sm min-w-[600px]">
@@ -1167,17 +1168,17 @@ export default function VaultPage() {
       {/* ═══ Discovery Tab ═══ */}
       {tab === "discovery" && (
         <>
-        <div className="mb-3 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/5 p-3 text-[11px] text-[var(--text-muted)]">
+        <div className="mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/5 p-4 text-[11px] text-[var(--text-muted)]">
           반복 결제 패턴(카드·자동이체)에서 미등록 구독을 자동으로 찾습니다. 수락하면{" "}
           <Link href="/subscriptions" className="text-[var(--primary)] font-semibold hover:underline">구독 목록</Link>
           에 추가됩니다.
         </div>
         <div className="glass-card overflow-hidden">
           {!vault?.pendingDiscoveries?.length && !(vault as any)?.discovery?.length ? (
-            <div className="p-16 text-center">
-              <div className="text-4xl mb-4">🔍</div>
-              <div className="text-lg font-bold mb-2">탐지된 패턴이 없습니다</div>
-              <div className="text-sm text-[var(--text-muted)] mb-4">
+            <div className="py-16 px-6 text-center">
+              <div className="text-5xl mb-4">🔍</div>
+              <div className="text-base font-bold mb-1.5">탐지된 패턴이 없습니다</div>
+              <div className="text-xs text-[var(--text-muted)] mb-5">
                 거래내역에서 반복 결제 패턴을 자동으로 찾아드립니다
               </div>
               <button

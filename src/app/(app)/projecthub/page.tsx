@@ -284,9 +284,10 @@ export default function ProjectHubPage() {
   if (!tabAllowed) return <AccessDenied detail="프로젝트 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
+          <div className="eyebrow">Project Hub</div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">견적 → 계약 → 진행 → 손익까지 프로젝트별 라이프사이클·수익성을 관리합니다</p>
         </div>
@@ -303,18 +304,19 @@ export default function ProjectHubPage() {
       </div>
 
       {/* 유형 선택 — 먼저 유형을 고르면 아래 대시보드·요약·목록이 그 유형 기준으로 표시 */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {PROJECT_TYPE_ORDER.map((t) => {
           const c = PROJECT_TYPES[t];
           const active = typeFilter === t;
           return (
             <button key={t} onClick={() => setTypeFilter(t)}
-              className={`glass-card px-4 py-3 text-left transition ${active ? "ring-2 ring-[var(--primary)] !border-[var(--primary)]" : "opacity-75 hover:opacity-100 hover:bg-[var(--bg-surface)]/60"}`}>
+              className={`glass-card card-hover px-5 py-4 text-left transition ${active ? "ring-2 ring-[var(--primary)] !border-[var(--primary)]" : "opacity-75 hover:opacity-100 hover:bg-[var(--bg-surface)]/60"}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold text-[var(--text-muted)]">{c.icon} {c.label} <span className="font-normal text-[var(--text-dim)]">{typeSummary[t].count}건</span></div>
                 {active && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold whitespace-nowrap">보는 중</span>}
               </div>
-              <div className="text-lg font-bold mono-number mt-0.5 text-[var(--text)]">
+              <div className="text-lg font-bold mono-number mt-1 text-[var(--text)]">
                 {t === "margin" ? (
                   <span title="마진(매출−직접원가) 합계">마진합 {won(typeSummary.margin.marginSum)}</span>
                 ) : t === "goal" ? (
@@ -326,8 +328,9 @@ export default function ProjectHubPage() {
             </button>
           );
         })}
+        </div>
+        <p className="text-[11px] text-[var(--text-dim)] mt-2">{PROJECT_TYPES[typeFilter].desc}</p>
       </div>
-      <p className="text-[11px] text-[var(--text-dim)] -mt-1">{PROJECT_TYPES[typeFilter].desc}</p>
 
       {/* 성과 대시보드 — 목표형(KPI·체크인) 전용 집계라 목표형 탭에서만 표시 */}
       {showDashboard && typeFilter === "goal" && companyId && (
@@ -375,37 +378,37 @@ export default function ProjectHubPage() {
       )}
 
       {/* 요약 카드 — 활성 유형 기준 */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="glass-card px-4 py-3">
-          <div className="text-xs text-[var(--text-muted)]">{PROJECT_TYPES[typeFilter].icon} {PROJECT_TYPES[typeFilter].label} 프로젝트</div>
-          <div className="text-2xl font-bold mono-number mt-0.5 text-[var(--text)]">{summary.total}</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{PROJECT_TYPES[typeFilter].icon} {PROJECT_TYPES[typeFilter].label} 프로젝트</div>
+          <div className="text-2xl font-black mono-number mt-1 text-[var(--text)]">{summary.total}</div>
         </div>
-        <div className="glass-card px-4 py-3">
-          <div className="text-xs text-[var(--text-muted)]">진행중</div>
-          <div className="text-2xl font-bold mono-number mt-0.5 text-amber-500">{summary.inProgress}</div>
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">진행중</div>
+          <div className="text-2xl font-black mono-number mt-1 text-amber-500">{summary.inProgress}</div>
         </div>
         {typeFilter === "margin" ? (<>
-          <div className="glass-card px-4 py-3">
-            <div className="text-xs text-[var(--text-muted)]">총 계약금액 <span className="text-[10px] text-[var(--text-dim)]">(VAT별도)</span></div>
-            <div className="text-xl font-bold mono-number mt-0.5 text-[var(--text)]">{won(summary.totalContract)}</div>
+          <div className="glass-card p-5">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">총 계약금액 <span className="text-[10px] font-normal normal-case">(VAT별도)</span></div>
+            <div className="text-xl font-black mono-number mt-1 text-[var(--text)]">{won(summary.totalContract)}</div>
             <div className="text-[10px] text-[var(--text-dim)] mt-0.5">VAT포함 {won(summary.totalContractWithVat)}</div>
           </div>
-          <div className="glass-card px-4 py-3">
-            <div className="text-xs text-[var(--text-muted)]">평균 직접원가율</div>
-            <div className="text-xl font-bold mono-number mt-0.5 text-[var(--text)]" title="전표에 프로젝트를 태그한 직접원가 기준 (판관비 제외)">
+          <div className="glass-card p-5">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">평균 직접원가율</div>
+            <div className="text-2xl font-black mono-number mt-1 text-[var(--text)]" title="전표에 프로젝트를 태그한 직접원가 기준 (판관비 제외)">
               {summary.avgRatio == null ? <span className="text-[var(--text-dim)]">—</span> : `${Math.round(summary.avgRatio * 100)}%`}
             </div>
           </div>
         </>) : (<>
-          <div className="glass-card px-4 py-3">
-            <div className="text-xs text-[var(--text-muted)]">{typeFilter === "goal" ? "평균 달성률" : "평균 진행률"}</div>
-            <div className="text-xl font-bold mono-number mt-0.5 text-[var(--text)]">
+          <div className="glass-card p-5">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{typeFilter === "goal" ? "평균 달성률" : "평균 진행률"}</div>
+            <div className="text-2xl font-black mono-number mt-1 text-[var(--text)]">
               {(() => { const v = typeFilter === "goal" ? typeSummary.goal.avgGoal : typeSummary.delivery.avgDelivery; return v == null ? <span className="text-[var(--text-dim)]">—</span> : `${v}%`; })()}
             </div>
           </div>
-          <div className="glass-card px-4 py-3">
-            <div className="text-xs text-[var(--text-muted)]">{typeFilter === "delivery" ? "지연·위험" : "위험"}</div>
-            <div className="text-2xl font-bold mono-number mt-0.5 text-red-500">{rows.filter(isRisk).length}</div>
+          <div className="glass-card p-5">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{typeFilter === "delivery" ? "지연·위험" : "위험"}</div>
+            <div className="text-2xl font-black mono-number mt-1 text-red-500">{rows.filter(isRisk).length}</div>
           </div>
         </>)}
       </div>
@@ -437,7 +440,16 @@ export default function ProjectHubPage() {
               {isLoading ? (
                 <tr><td colSpan={typeFilter === "margin" ? 12 : 7} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={typeFilter === "margin" ? 12 : 7} className="p-10 text-center text-[var(--text-muted)]">{PROJECT_TYPES[typeFilter].label} 프로젝트가 없습니다. ‘+ 프로젝트 생성’으로 추가하세요.</td></tr>
+                <tr>
+                  <td colSpan={typeFilter === "margin" ? 12 : 7}>
+                    <div className="py-14 flex flex-col items-center justify-center text-center gap-2">
+                      <div className="text-4xl">{PROJECT_TYPES[typeFilter].icon}</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">{PROJECT_TYPES[typeFilter].label} 프로젝트가 없습니다.</div>
+                      <div className="text-xs text-[var(--text-muted)]">‘+ 프로젝트 생성’으로 추가하세요.</div>
+                      <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 프로젝트 생성</button>
+                    </div>
+                  </td>
+                </tr>
               ) : rows.map((d) => {
                 const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
                 const sc = STAGE_COLOR[stage];

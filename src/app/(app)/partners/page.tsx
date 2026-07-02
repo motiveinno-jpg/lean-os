@@ -676,10 +676,10 @@ export default function PartnersPage() {
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Header */}
-      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
+      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="min-w-0">
-          <h1 className="text-2xl font-extrabold">거래처 관리</h1>
-          <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">Partners / CRM</p>
+          <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">Partners / CRM</p>
+          <h1 className="text-2xl font-extrabold mt-0.5">거래처 관리</h1>
         </div>
         <div className="flex gap-2 flex-shrink-0 overflow-x-auto">
           <Link href="/partners/ledger"
@@ -728,17 +728,18 @@ export default function PartnersPage() {
           return cards.map((s) => (
             <div key={s.label} className="glass-card p-5">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{s.label}</p>
+                <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{s.label}</p>
                 <IconTile tone={s.tone} size={34}><TileIcon name={s.icon} className="w-4 h-4 text-white" /></IconTile>
               </div>
-              <p className="text-2xl font-bold text-[var(--text)] mono-number">{s.value}</p>
+              <p className="text-2xl font-black text-[var(--text)] mono-number">{s.value}</p>
             </div>
           ));
         })()}
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
+      <div className="space-y-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3">
         <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
           className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
           {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -758,7 +759,7 @@ export default function PartnersPage() {
       </div>
 
       {/* 정렬 + 고급 필터 바 — 산업/지역/거래규모 */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-[var(--text-dim)]">필터:</span>
         <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
           className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
@@ -786,7 +787,7 @@ export default function PartnersPage() {
 
       {/* Tag Filter Chips */}
       {allTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-[var(--text-dim)]">태그:</span>
           {allTags.map((tag) => (
             <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
@@ -806,6 +807,7 @@ export default function PartnersPage() {
           )}
         </div>
       )}
+      </div>
 
       {/* Table */}
       <div className="glass-card overflow-hidden">
@@ -814,11 +816,11 @@ export default function PartnersPage() {
             <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>
           </div>
         ) : partners.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="text-4xl mb-4">🏢</div>
-            <div className="text-sm font-medium text-[var(--text)]">거래처를 추가하면 프로젝트, 세금계산서에서 바로 연결됩니다</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">매출처, 매입처, 협력사를 한곳에서 관리하세요</div>
-            <button onClick={() => setShowModal(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 거래처 추가</button>
+          <div className="py-16 px-6 text-center">
+            <div className="text-5xl mb-4">🏢</div>
+            <div className="text-sm font-semibold text-[var(--text)]">거래처를 추가하면 프로젝트, 세금계산서에서 바로 연결됩니다</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1.5">매출처, 매입처, 협력사를 한곳에서 관리하세요</div>
+            <button onClick={() => setShowModal(true)} className="mt-5 btn-primary">+ 거래처 추가</button>
           </div>
         ) : (
           <>
@@ -1174,7 +1176,11 @@ export default function PartnersPage() {
               {detailTab === "timeline" && (
                 <div>
                   {timeline.length === 0 ? (
-                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">활동 내역이 없습니다</div>
+                    <div className="py-14 text-center">
+                      <div className="text-4xl mb-3">🕐</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">활동 내역이 없습니다</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트·결제·소통 기록이 생기면 시간순으로 표시됩니다</div>
+                    </div>
                   ) : (
                     <div className="relative pl-8">
                       <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-[var(--border)]" />
@@ -1212,7 +1218,11 @@ export default function PartnersPage() {
               {detailTab === "deals" && (
                 <div>
                   {partnerDeals.length === 0 ? (
-                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">연결된 프로젝트가 없습니다</div>
+                    <div className="py-14 text-center">
+                      <div className="text-4xl mb-3">📋</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">연결된 프로젝트가 없습니다</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트에서 이 거래처를 지정하면 여기에 표시됩니다</div>
+                    </div>
                   ) : (
                     <>
                       <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4 flex gap-6">
@@ -1263,7 +1273,11 @@ export default function PartnersPage() {
               {detailTab === "payments" && (
                 <div>
                   {partnerPayments.length === 0 ? (
-                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">결제 이력이 없습니다</div>
+                    <div className="py-14 text-center">
+                      <div className="text-4xl mb-3">💰</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">결제 이력이 없습니다</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트 수금 일정이 생기면 여기에 표시됩니다</div>
+                    </div>
                   ) : (
                     <table className="w-full">
                       <thead>
@@ -1299,7 +1313,11 @@ export default function PartnersPage() {
               {detailTab === "docs" && (
                 <div>
                   {partnerDocs.length === 0 ? (
-                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">연결된 문서가 없습니다</div>
+                    <div className="py-14 text-center">
+                      <div className="text-4xl mb-3">📄</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">연결된 문서가 없습니다</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">견적·계약 문서가 프로젝트에 연결되면 표시됩니다</div>
+                    </div>
                   ) : (
                     <table className="w-full">
                       <thead>
@@ -1388,7 +1406,11 @@ export default function PartnersPage() {
                   )}
 
                   {partnerComms.length === 0 ? (
-                    <div className="p-12 text-center text-sm text-[var(--text-muted)]">커뮤니케이션 기록이 없습니다</div>
+                    <div className="py-14 text-center">
+                      <div className="text-4xl mb-3">💬</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">커뮤니케이션 기록이 없습니다</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">전화·이메일·미팅 내용을 기록해 관계 이력을 남겨보세요</div>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {partnerComms.map((c: any) => {

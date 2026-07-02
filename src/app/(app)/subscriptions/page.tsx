@@ -168,21 +168,21 @@ export default function SubscriptionsPage() {
       </div>
 
       {/* 요약 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="glass-card p-4">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">월 총 구독비</div>
-          <div className="text-xl font-extrabold mt-1 text-[var(--primary)]">{fmtW(totalMonthly)}</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">월 총 구독비</div>
+          <div className="text-2xl font-black mono-number mt-1 text-[var(--primary)]">{fmtW(totalMonthly)}</div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">연 환산</div>
-          <div className="text-xl font-extrabold mt-1">{fmtW(totalMonthly * 12)}</div>
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">연 환산</div>
+          <div className="text-2xl font-black mono-number mt-1">{fmtW(totalMonthly * 12)}</div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">외부 구독</div>
-          <div className="text-xl font-extrabold mt-1">{activeAccounts.length}개</div>
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">외부 구독</div>
+          <div className="text-2xl font-black mono-number mt-1">{activeAccounts.length}개</div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">카테고리</div>
+        <div className="glass-card p-5">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">카테고리</div>
           <div className="text-xs mt-1.5 space-y-0.5">
             {Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => (
               <div key={k} className="flex justify-between gap-2">
@@ -196,7 +196,7 @@ export default function SubscriptionsPage() {
 
       {/* 등록/수정 폼 */}
       {showForm && canEdit && (
-        <div className="glass-card p-6 mb-4">
+        <div className="glass-card p-6 mb-6">
           <h3 className="section-title">{editingId ? "구독 수정" : "구독 추가"}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
@@ -324,7 +324,13 @@ export default function SubscriptionsPage() {
               );
             })}
             {activeAccounts.length === 0 && !ovPlan && (
-              <tr><td colSpan={7} className="p-16 text-center text-sm text-[var(--text-muted)]">등록된 구독이 없습니다. + 구독 추가로 Claude·ChatGPT 등을 등록하세요.</td></tr>
+              <tr>
+                <td colSpan={7} className="py-16 text-center">
+                  <div className="text-3xl mb-3">📦</div>
+                  <div className="text-sm font-semibold text-[var(--text-muted)]">등록된 구독이 없습니다.</div>
+                  <div className="text-xs text-[var(--text-dim)] mt-1">+ 구독 추가로 Claude·ChatGPT 등을 등록하세요.</div>
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

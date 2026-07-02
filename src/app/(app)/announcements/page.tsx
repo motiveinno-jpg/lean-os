@@ -173,7 +173,7 @@ export default function AnnouncementsPage() {
               />
               상단 고정
             </label>
-            <div className="flex gap-2">
+            <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
               <button
                 onClick={resetForm}
                 className="btn-secondary"
@@ -195,12 +195,13 @@ export default function AnnouncementsPage() {
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
-        <div className="glass-card p-16 text-center">
+        <div className="glass-card py-16 text-center">
           <div className="text-4xl mb-3">📢</div>
-          <div className="text-sm text-[var(--text-muted)]">등록된 공지가 없습니다</div>
+          <div className="text-sm font-semibold text-[var(--text)]">등록된 공지가 없습니다</div>
+          <div className="text-[11px] text-[var(--text-dim)] mt-1.5">서비스 공지·업데이트 소식이 등록되면 여기에 표시됩니다.</div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {[...pinnedRows, ...normalRows].map((a) => {
             const cat = CATEGORY_META[a.category] || CATEGORY_META.notice;
             const expanded = expandedId === a.id;

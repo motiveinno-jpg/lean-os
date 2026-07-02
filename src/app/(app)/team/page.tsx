@@ -75,8 +75,14 @@ export default function TeamPage() {
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
-        <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">
-          {search ? "검색 결과가 없습니다" : "등록된 구성원이 없습니다"}
+        <div className="glass-card py-16 text-center">
+          <div className="text-4xl mb-3">👥</div>
+          <div className="text-sm font-semibold text-[var(--text)]">
+            {search ? "검색 결과가 없습니다" : "등록된 구성원이 없습니다"}
+          </div>
+          <div className="text-[11px] text-[var(--text-dim)] mt-1.5">
+            {search ? "다른 키워드로 검색해보세요." : "구성원이 등록되면 여기에 표시됩니다."}
+          </div>
         </div>
       ) : (
         <div className="space-y-6">
@@ -85,11 +91,11 @@ export default function TeamPage() {
               <h3 className="text-xs font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-3">
                 {dept} <span className="text-[var(--text-muted)] font-normal">· {list.length}명</span>
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {list.map((e) => (
                   <div
                     key={e.id}
-                    className="glass-card p-4 hover:border-[var(--primary)]/30 transition"
+                    className="glass-card p-5 hover:border-[var(--primary)]/30 transition"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-bold flex items-center justify-center shrink-0">

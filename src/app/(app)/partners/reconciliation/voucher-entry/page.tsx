@@ -477,10 +477,11 @@ export default function VoucherEntryPage() {
   const sourceBadge = (s: string) => (s !== "manual" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-500 font-semibold align-middle">AI</span> : null);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">전표입력</h1>
+          <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">Journal Voucher</p>
+          <h1 className="text-2xl font-extrabold text-[var(--text)] mt-0.5">전표입력</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">상단에서 분개 입력 → 저장하면 하단 전표목록에 바로 쌓입니다 · 차변·대변이 일치해야 저장됩니다</p>
         </div>
         <div className="flex items-center gap-2">

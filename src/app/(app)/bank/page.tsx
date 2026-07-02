@@ -424,7 +424,7 @@ export default function BankPage() {
       </div>
 
       {/* 기간설정 — 카드 페이지와 통일 위치(제목 헤더 아래). 통장 연동 sync 범위 + 거래내역 표 필터 공통 적용 */}
-      <div className="no-print flex items-center gap-2 mb-5 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+      <div className="no-print flex items-center gap-2 mb-6 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
         <span className="text-xs font-semibold text-[var(--text-muted)]">통장 거래 기간</span>
         <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="시작일"
           className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
@@ -460,12 +460,12 @@ export default function BankPage() {
 
       {/* 통장 — portfolio 카드(이름·잔액·이번달 증감). 2026-05-29 카드 크기 축소(p-4·3열). */}
       {tab === "accounts" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {accounts.length === 0 ? (
-            <div className="sm:col-span-2 lg:col-span-3 glass-card p-10 text-center">
-              <div className="text-3xl mb-2">🏦</div>
-              <p className="text-sm font-medium text-[var(--text)] mb-1">통장이 아직 연동되지 않았습니다</p>
-              <p className="text-xs text-[var(--text-muted)] mb-3">CODEF 은행 연동으로 통장과 거래내역을 자동으로 불러옵니다</p>
+            <div className="sm:col-span-2 lg:col-span-3 glass-card py-14 px-6 text-center">
+              <div className="text-4xl mb-3">🏦</div>
+              <p className="text-sm font-semibold text-[var(--text)] mb-1">통장이 아직 연동되지 않았습니다</p>
+              <p className="text-xs text-[var(--text-muted)] mb-4">CODEF 은행 연동으로 통장과 거래내역을 자동으로 불러옵니다</p>
               <button
                 type="button"
                 onClick={handleSyncBank}
@@ -487,7 +487,7 @@ export default function BankPage() {
                 tabIndex={0}
                 onClick={() => { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); setTab("transactions"); }}
                 onKeyDown={(e) => { if (e.key === "Enter") { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); setTab("transactions"); } }}
-                className="glass-card p-4 hover:shadow-lg transition-all cursor-pointer group"
+                className="glass-card card-hover p-5 transition-all cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-2 gap-2">
                   <h3 className="text-sm font-semibold text-[var(--text)] truncate flex-1 min-w-0">{name}</h3>
@@ -609,7 +609,13 @@ export default function BankPage() {
               </thead>
               <tbody>
                 {sortedTx.length === 0 ? (
-                  <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">{hasTxRange ? "이 기간에 거래내역이 없습니다 — 상단에서 기간을 설정하고 '통장 연동'을 누르면 그 기간의 거래를 불러옵니다" : "최근 거래내역이 없습니다"}</td></tr>
+                  <tr>
+                    <td colSpan={8} className="px-6 py-16 text-center">
+                      <div className="text-4xl mb-3">📄</div>
+                      <p className="text-sm font-semibold text-[var(--text)] mb-1">{hasTxRange ? "이 기간에 거래내역이 없습니다" : "최근 거래내역이 없습니다"}</p>
+                      <p className="text-xs text-[var(--text-muted)]">상단에서 기간을 설정하고 &lsquo;통장 연동&rsquo;을 누르면 그 기간의 거래를 불러옵니다</p>
+                    </td>
+                  </tr>
                 ) : sortedTx.map((tx) => {
                   const isIncome = tx.type === "income";
                   const m = MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped;

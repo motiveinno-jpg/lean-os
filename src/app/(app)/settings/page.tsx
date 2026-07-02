@@ -398,9 +398,10 @@ export default function SettingsPage() {
             )}
 
             {bankAccounts.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-2xl mb-2">🏦</div>
-                <div className="text-sm text-[var(--text-muted)]">등록된 통장이 없습니다</div>
+              <div className="text-center py-12">
+                <div className="text-3xl mb-3">🏦</div>
+                <div className="text-sm font-semibold text-[var(--text-muted)]">등록된 통장이 없습니다</div>
+                <div className="text-xs text-[var(--text-dim)] mt-1">우측 상단 &quot;+ 통장 추가&quot;로 첫 계좌를 등록하세요.</div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -512,8 +513,10 @@ export default function SettingsPage() {
             )}
 
             {routingRules.length === 0 ? (
-              <div className="text-center py-6 text-sm text-[var(--text-muted)]">
-                라우팅 규칙이 없습니다. 기본 통장으로 지급됩니다.
+              <div className="text-center py-12">
+                <div className="text-3xl mb-3">🧭</div>
+                <div className="text-sm font-semibold text-[var(--text-muted)]">라우팅 규칙이 없습니다. 기본 통장으로 지급됩니다.</div>
+                <div className="text-xs text-[var(--text-dim)] mt-1">우측 상단 &quot;+ 규칙 추가&quot;로 비용 유형별 지급 통장을 지정할 수 있습니다.</div>
               </div>
             ) : (
               <div className="space-y-2">

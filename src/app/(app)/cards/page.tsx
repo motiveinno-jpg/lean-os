@@ -509,7 +509,7 @@ export default function CardsPage() {
       />
 
       {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용 */}
-      <div className="no-print flex items-center gap-2 mb-5 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+      <div className="no-print flex items-center gap-2 mb-6 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
         <span className="text-xs font-semibold text-[var(--text-muted)]">카드 거래 기간</span>
         <DateField value={cardTxFrom} max={cardTxTo || undefined} onChange={(e) => setCardTxFrom(e.target.value)} title="시작일"
           className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
@@ -541,13 +541,13 @@ export default function CardsPage() {
       {/* ========== 카드 탭 ========== */}
       {tab === "cards" && (
         cards.length === 0 ? (
-          <div className="glass-card p-12 text-center">
+          <div className="glass-card py-16 px-6 text-center">
             <div className="text-4xl mb-3">💳</div>
-            <p className="text-sm font-medium text-[var(--text)] mb-1">등록된 카드가 없습니다</p>
+            <p className="text-sm font-semibold text-[var(--text)] mb-1">등록된 카드가 없습니다</p>
             <p className="text-xs text-[var(--text-muted)]">/transactions 카드 탭에서 등록하거나 CODEF 카드 동기화로 자동 등록할 수 있습니다</p>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* 큰 카드 + 사용현황 패널 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
@@ -612,7 +612,11 @@ export default function CardsPage() {
                 </div>
                 <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
                   {cardTx.length === 0 ? (
-                    <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">{(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다" : "이 카드의 거래내역이 없습니다"}</div>
+                    <div className="glass-card py-14 px-6 text-center">
+                      <div className="text-4xl mb-3">🧾</div>
+                      <p className="text-sm font-semibold text-[var(--text)] mb-1">{(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다" : "이 카드의 거래내역이 없습니다"}</p>
+                      <p className="text-xs text-[var(--text-muted)]">기간을 조정하거나 상단의 카드 연동으로 거래를 불러오세요</p>
+                    </div>
                   ) : cardTx.map((tx: any) => (
                     <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -730,7 +734,13 @@ export default function CardsPage() {
                 </thead>
                 <tbody>
                   {sortedTx.length === 0 ? (
-                    <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-[var(--text-muted)]">최근 카드 거래가 없습니다</td></tr>
+                    <tr>
+                      <td colSpan={6} className="px-6 py-16 text-center">
+                        <div className="text-4xl mb-3">💳</div>
+                        <p className="text-sm font-semibold text-[var(--text)] mb-1">최근 카드 거래가 없습니다</p>
+                        <p className="text-xs text-[var(--text-muted)]">상단의 카드 연동으로 거래를 불러올 수 있습니다</p>
+                      </td>
+                    </tr>
                   ) : sortedTx.map((tx: any) => {
                     const checked = selectedTxIds.has(tx.id);
                     const posted = !!tx.journal_entry_id;
@@ -1016,8 +1026,8 @@ function MiniCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (!isEditing && e.key === "Enter") onClick(); }}
-      className={`glass-card p-4 transition-all group ${
-        isEditing ? "cursor-default" : "cursor-pointer"
+      className={`glass-card p-5 transition-all group ${
+        isEditing ? "cursor-default" : "cursor-pointer card-hover"
       } ${
         selected ? "ring-2 ring-[var(--primary)] shadow-lg" : "hover:shadow-md"
       }`}

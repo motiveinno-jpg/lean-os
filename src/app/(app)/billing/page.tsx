@@ -344,10 +344,10 @@ export default function BillingPage() {
                     const danger = !unlimited && pct >= 80;
                     const barColor = danger ? "bg-red-500" : pct >= 60 ? "bg-yellow-500" : "bg-blue-500";
                     return (
-                      <div key={it.label} className="bg-[var(--bg-surface)] rounded-xl p-3">
-                        <div className="flex items-center gap-1.5 mb-1"><span className="text-sm">{it.icon}</span><span className="text-xs text-[var(--text-muted)]">{it.label}</span></div>
+                      <div key={it.label} className="bg-[var(--bg-surface)] rounded-xl p-4">
+                        <div className="flex items-center gap-1.5 mb-1.5"><span className="text-sm">{it.icon}</span><span className="text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">{it.label}</span></div>
                         <div className="flex items-baseline gap-1">
-                          <span className={`text-lg font-extrabold ${danger ? "text-red-500" : "text-[var(--text)]"}`}>{it.used.toLocaleString()}</span>
+                          <span className={`text-xl font-black mono-number ${danger ? "text-red-500" : "text-[var(--text)]"}`}>{it.used.toLocaleString()}</span>
                           <span className="text-xs text-[var(--text-dim)]">/ {unlimited ? "무제한" : it.limit.toLocaleString()}</span>
                         </div>
                         {!unlimited && (
@@ -503,10 +503,10 @@ export default function BillingPage() {
                 </button>
               </div>
             ) : (
-              <div className="text-center py-8">
+              <div className="text-center py-12">
                 <div className="text-4xl mb-3">💳</div>
-                <p className="text-sm text-[var(--text-muted)] mb-4">등록된 결제 수단이 없습니다</p>
-                <p className="text-xs text-[var(--text-muted)]">유료 플랜 결제 시 Stripe를 통해 카드가 등록됩니다</p>
+                <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">등록된 결제 수단이 없습니다</p>
+                <p className="text-xs text-[var(--text-dim)]">유료 플랜 결제 시 Stripe를 통해 카드가 등록됩니다</p>
               </div>
             )}
           </div>
@@ -531,9 +531,10 @@ export default function BillingPage() {
             <h3 className="font-bold text-[var(--text)]">청구서 내역</h3>
           </div>
           {(invoices || []).length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-14">
               <div className="text-4xl mb-3">🧾</div>
-              <p className="text-sm text-[var(--text-muted)]">청구서 내역이 없습니다</p>
+              <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">청구서 내역이 없습니다</p>
+              <p className="text-xs text-[var(--text-dim)]">유료 플랜을 시작하면 청구서가 이곳에 표시됩니다</p>
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]">
@@ -629,13 +630,13 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-[var(--bg-surface)] text-center">
-                    <div className="text-2xl font-extrabold text-[var(--primary)]">{referral.referred_count || 0}</div>
-                    <div className="text-xs text-[var(--text-muted)]">추천 가입</div>
+                  <div className="p-5 rounded-xl bg-[var(--bg-surface)] text-center">
+                    <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">추천 가입</div>
+                    <div className="text-2xl font-black mono-number text-[var(--primary)]">{referral.referred_count || 0}</div>
                   </div>
-                  <div className="p-4 rounded-xl bg-[var(--bg-surface)] text-center">
-                    <div className="text-2xl font-extrabold text-[var(--primary)]">₩{((referral.credit_earned || 0)).toLocaleString()}</div>
-                    <div className="text-xs text-[var(--text-muted)]">적립 크레딧</div>
+                  <div className="p-5 rounded-xl bg-[var(--bg-surface)] text-center">
+                    <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">적립 크레딧</div>
+                    <div className="text-2xl font-black mono-number text-[var(--primary)]">₩{((referral.credit_earned || 0)).toLocaleString()}</div>
                   </div>
                 </div>
               </div>

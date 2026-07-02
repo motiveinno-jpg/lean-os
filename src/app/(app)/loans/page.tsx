@@ -345,18 +345,18 @@ export default function LoansPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         {statCards.map((c) => (
           <div
             key={c.label}
-            className={`p-4 ${
+            className={`p-5 ${
               (c as { highlight?: boolean }).highlight
                 ? "rounded-2xl border bg-[var(--warning)]/5 border-[var(--warning)]/30"
                 : "glass-card"
             }`}
           >
-            <div className="text-[11px] text-[var(--text-dim)] mb-1">{c.label}</div>
-            <div className={`text-xl font-bold mono-number ${(c as { highlight?: boolean }).highlight ? "text-[var(--warning)]" : ""}`}>
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">{c.label}</div>
+            <div className={`text-2xl font-black mono-number ${(c as { highlight?: boolean }).highlight ? "text-[var(--warning)]" : ""}`}>
               {c.value}
             </div>
             {c.sub && <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{c.sub}</div>}
@@ -365,7 +365,7 @@ export default function LoansPage() {
       </div>
 
       {/* Tabs */}
-      <div className="seg-bar mb-4 max-w-full overflow-x-auto">
+      <div className="seg-bar mb-6 max-w-full overflow-x-auto">
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
@@ -378,9 +378,9 @@ export default function LoansPage() {
       {tab === "list" && (<>
         <div className="glass-card overflow-hidden">
           {loans.length === 0 ? (
-            <div className="p-16 text-center">
+            <div className="py-16 px-6 text-center">
               <div className="text-4xl mb-4">🏦</div>
-              <div className="text-sm font-medium text-[var(--text)]">대출 정보를 등록하면 상환 일정이 자동 관리됩니다</div>
+              <div className="text-sm font-semibold text-[var(--text)]">대출 정보를 등록하면 상환 일정이 자동 관리됩니다</div>
               <div className="text-xs text-[var(--text-muted)] mt-1">이자, 원금 상환 스케줄을 한눈에 확인하세요</div>
               <button onClick={() => setTab("register")} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 대출 등록</button>
             </div>
@@ -449,7 +449,7 @@ export default function LoansPage() {
 
         {/* 상환 현황 Visualization */}
         {loans.length > 0 && (
-          <div className="mt-4 space-y-4">
+          <div className="mt-6 space-y-6">
             {/* Portfolio Summary */}
             <div className="glass-card p-5">
               <h3 className="text-sm font-bold mb-3">상환 현황</h3>
@@ -532,7 +532,7 @@ export default function LoansPage() {
 
             {/* Repayment Schedule Projection */}
             {repaymentSchedule.length > 0 && (
-              <div className="glass-card p-5 mt-4">
+              <div className="glass-card p-5">
                 <h3 className="text-sm font-bold mb-3">상환 스케줄 (향후 6개월 예상)</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[500px]">
@@ -642,9 +642,10 @@ export default function LoansPage() {
           {/* Payments table */}
           <div className="glass-card overflow-hidden">
             {allPayments.length === 0 ? (
-              <div className="p-16 text-center">
+              <div className="py-16 px-6 text-center">
                 <div className="text-4xl mb-4">📋</div>
-                <div className="text-sm text-[var(--text-muted)]">상환 이력이 없습니다</div>
+                <div className="text-sm font-semibold text-[var(--text)]">상환 이력이 없습니다</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">상단의 &lsquo;+ 상환 기록&rsquo; 버튼으로 납부 내역을 추가하세요</div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -719,11 +720,12 @@ export default function LoansPage() {
 
           <div className="glass-card overflow-hidden">
             {matchCandidates.length === 0 ? (
-              <div className="p-16 text-center">
+              <div className="py-16 px-6 text-center">
                 <div className="text-4xl mb-4">🔍</div>
-                <div className="text-sm text-[var(--text-muted)]">
+                <div className="text-sm font-semibold text-[var(--text)]">
                   {matchLoading ? "은행 거래를 분석하고 있습니다..." : "\"자동 매칭 실행\" 버튼을 눌러 시작하세요"}
                 </div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">은행 거래내역에서 대출 상환 건을 자동으로 찾아 제안합니다</div>
               </div>
             ) : (
               <div className="divide-y divide-[var(--border)]/50">

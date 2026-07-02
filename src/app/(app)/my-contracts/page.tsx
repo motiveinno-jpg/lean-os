@@ -103,7 +103,7 @@ export default function MyContractsPage() {
         </button>
       </div>
 
-      <div className="seg-bar mb-4">
+      <div className="seg-bar mb-6">
         {[
           { key: "pending" as const, label: "대기 중", count: counts.pending },
           { key: "completed" as const, label: "완료", count: counts.completed },
@@ -127,18 +127,19 @@ export default function MyContractsPage() {
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
-        <div className="glass-card p-16 text-center">
-          <div className="text-4xl mb-3">✍️</div>
-          <div className="text-sm text-[var(--text-muted)]">
+        <div className="glass-card py-16 px-6 text-center">
+          <div className="text-4xl mb-4">✍️</div>
+          <div className="text-sm font-bold">
             {filter === "pending"
               ? "대기 중인 서명 요청이 없습니다"
               : filter === "completed"
               ? "완료된 서명이 없습니다"
               : "받은 계약서가 없습니다"}
           </div>
+          <div className="text-xs text-[var(--text-muted)] mt-1.5">회사에서 계약서를 발송하면 이곳에 표시됩니다.</div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filtered.map((p) => {
             const st = STATUS_INFO[p.status] || STATUS_INFO.draft;
             const items = p.hr_contract_package_items || [];

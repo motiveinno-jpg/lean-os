@@ -98,7 +98,7 @@ export default function AttendancePage() {
   });
 
   if (!companyId) {
-    return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
+    return <div className="py-16 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   }
 
   // 결석 = 재직 직원 − (출근 + 지각 + 휴가). 음수면 0 클램프 (가짜 아닌 단순 derive).
@@ -141,7 +141,7 @@ export default function AttendancePage() {
       )}
 
       {/* 상위 섹션 탭 — 근무현황 / 휴가 / 연장근무 (신청·승인 통합) */}
-      <div className="tab-bar mb-4">
+      <div className="tab-bar mb-6">
         {([["work", "🗓 근무 현황"], ["leave", "🏖 휴가"], ["overtime", "🌙 연장근무"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setSection(k)}
             className={`tab-item ${section === k ? "tab-item-active" : ""}`}>

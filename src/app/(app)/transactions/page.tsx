@@ -1182,7 +1182,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
       {/* Tabs — visibleTabs 길이가 1 이하면 탭 UI 자체 숨김 (단일 view) */}
       {visibleTabs.length > 1 && (
-        <div className="tab-bar mb-4">
+        <div className="tab-bar mb-6">
           {(([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][])
             .filter(([t]) => visibleTabs.includes(t))
           ).map(([t, label]) => (
@@ -1324,7 +1324,11 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               }} className="text-xs text-[var(--primary)] font-semibold">새로고침</button>
             </div>
             {manualEntries.length === 0 ? (
-              <p className="text-center py-6 text-sm text-[var(--text-muted)]">수기 입력된 거래가 없습니다. 위에서 거래를 등록하세요.</p>
+              <div className="py-12 text-center">
+                <div className="text-4xl mb-3">✍️</div>
+                <p className="text-sm font-semibold text-[var(--text)] mb-1">수기 입력된 거래가 없습니다</p>
+                <p className="text-xs text-[var(--text-muted)]">위에서 거래를 등록하세요.</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -1425,7 +1429,12 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           )}
 
           {rules.length === 0 ? (
-            <div className="text-center py-10 text-sm text-[var(--text-muted)]">분류 규칙이 없습니다. 규칙을 추가하면 거래가 자동으로 분류됩니다.</div>
+            <div className="glass-card py-14 px-6 text-center">
+              <div className="text-4xl mb-3">📐</div>
+              <p className="text-sm font-semibold text-[var(--text)] mb-1">분류 규칙이 없습니다</p>
+              <p className="text-xs text-[var(--text-muted)] mb-4">규칙을 추가하면 거래가 자동으로 분류됩니다.</p>
+              <button onClick={() => setShowRuleForm(!showRuleForm)} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold hover:opacity-90">+ 규칙 추가</button>
+            </div>
           ) : (
             <div className="space-y-2">
               {rules.map((r: any) => (
@@ -1463,7 +1472,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
           {/* 메인 카드 2열 — 다가오는 자동이체 + 이번달 큰 지출 TOP5 (엑셀 다운로드) */}
           {companyId && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               <UpcomingAutoTransfersCard companyId={companyId} />
               <AutoTransferHistoryCard companyId={companyId} />
               <TopExpensesThisMonth companyId={companyId} />
@@ -1546,9 +1555,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             {isLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : filteredBankTx.length === 0 ? (
-              <div className="p-16 text-center">
+              <div className="py-16 px-6 text-center">
                 <div className="text-4xl mb-4">{tab === 'inbox' ? '✅' : '🏦'}</div>
-                <div className="text-sm font-medium text-[var(--text)]">{tab === 'inbox' ? '처리할 거래가 없습니다' : searchQuery ? '검색 결과가 없습니다' : '은행 거래내역을 연결하면 자동 분류가 시작됩니다'}</div>
+                <div className="text-sm font-semibold text-[var(--text)]">{tab === 'inbox' ? '처리할 거래가 없습니다' : searchQuery ? '검색 결과가 없습니다' : '은행 거래내역을 연결하면 자동 분류가 시작됩니다'}</div>
                 <div className="text-xs text-[var(--text-muted)] mt-1">
                   {tab === 'inbox' ? '모든 거래가 분류되었습니다.' : searchQuery ? '다른 키워드로 검색해보세요.' : 'CSV를 업로드하거나 n8n 자동 수집을 설정하세요'}
                 </div>
@@ -1655,7 +1664,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           </div>
 
           {/* ═══ 하단: 월별 추이 + 카테고리 분포 차트 ═══ */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             <div className="md:col-span-2">
               {monthlyData.length > 0 && <MonthlyChart data={monthlyData} />}
             </div>
@@ -1773,7 +1782,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     끝번호가 없는 묶음 거래 {unidentifiedCount.toLocaleString()}건이 포함됨 · 거래 클릭 → 매핑에서 정확한 카드를 지정할 수 있습니다.
                   </div>
                 )}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {codefCards.map((c: any) => {
                     const unid = isUnidentified(c.card_name);
                     const displayName = c.alias || c.card_name;
@@ -1876,7 +1885,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             {cardTxLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : displayCardTx.length === 0 ? (
-              <div className="p-16 text-center">
+              <div className="py-16 px-6 text-center">
                 <div className="text-4xl mb-4">💳</div>
                 <div className="text-lg font-bold mb-2">카드 거래내역이 없습니다</div>
                 <div className="text-sm text-[var(--text-muted)]">카드를 등록하고 CSV를 업로드하세요.</div>

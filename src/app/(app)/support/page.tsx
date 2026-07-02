@@ -99,16 +99,17 @@ export default function SupportPage() {
 
   return (
     <div>
-      <div className="page-sticky-header mb-5">
+      <div className="page-sticky-header mb-6">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">고객센터</h1>
         <p className="text-[13px] text-[var(--text-dim)] mt-1.5">
           서비스 이용 중 궁금한 점이나 문제를 남겨주세요. 운영팀이 확인 후 답변드립니다.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-5 items-start">
         {/* 문의 작성 */}
         <div className="glass-card p-5 sm:p-6">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">CONTACT</div>
           <div className="text-sm font-bold text-[var(--text)] mb-4">문의하기</div>
           <div className="space-y-3.5">
             <div>
@@ -162,6 +163,7 @@ export default function SupportPage() {
 
         {/* 내 문의 내역 */}
         <div className="glass-card p-5 sm:p-6">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">HISTORY</div>
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-bold text-[var(--text)]">내 문의 내역</div>
             <div className="text-[11px] text-[var(--text-muted)]">
@@ -172,10 +174,10 @@ export default function SupportPage() {
           {isLoading ? (
             <div className="text-sm text-[var(--text-muted)] py-8 text-center">불러오는 중…</div>
           ) : tickets.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-3xl mb-2">💬</div>
-              <div className="text-sm text-[var(--text-muted)]">아직 등록한 문의가 없습니다.</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-1">왼쪽에서 첫 문의를 남겨보세요.</div>
+            <div className="text-center py-14">
+              <div className="text-4xl mb-3">💬</div>
+              <div className="text-sm font-semibold text-[var(--text)]">아직 등록한 문의가 없습니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-1.5">왼쪽에서 첫 문의를 남겨보세요.</div>
             </div>
           ) : (
             <div className="space-y-2.5">

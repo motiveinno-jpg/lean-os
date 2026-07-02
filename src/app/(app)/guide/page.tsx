@@ -612,7 +612,7 @@ function WorkflowGuides() {
         주요 업무 흐름을 단계별로 안내합니다. 클릭하여 상세 과정을 확인하세요.
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {WORKFLOWS.map((wf) => {
           const isOpen = expandedId === wf.id;
           return (
@@ -993,7 +993,7 @@ export default function GuidePage() {
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '10px',
+            gap: '12px',
           }}
         >
           {filteredFeatures.map((feature) => (
@@ -1015,7 +1015,7 @@ export default function GuidePage() {
             }}
           >
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔍</div>
-            <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: '0 0 4px' }}>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', margin: '0 0 4px' }}>
               검색 결과가 없습니다
             </p>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>

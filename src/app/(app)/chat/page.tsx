@@ -221,7 +221,11 @@ function GuestChatView({ token }: { token: string }) {
         )}
         <div className={`flex-1 overflow-y-auto bg-[var(--bg-card)] ${guestRtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] p-5`}>
           {messages.length === 0 ? (
-            <div className="text-center py-20 text-sm text-[var(--text-muted)]">첫 메시지를 보내세요</div>
+            <div className="text-center py-20">
+              <div className="text-4xl mb-3">💬</div>
+              <div className="text-sm font-semibold text-[var(--text)]">첫 메시지를 보내세요</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-1.5">아래 입력창에서 대화를 시작할 수 있습니다.</div>
+            </div>
           ) : (
             messages.map((msg: any) => (
               <ChatBubble
@@ -441,9 +445,9 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
         ) : (
           <div className="flex-1 flex items-center justify-center text-center p-8">
             <div>
-              <div className="text-5xl mb-3">💬</div>
+              <div className="text-5xl mb-4">💬</div>
               <div className="text-sm font-semibold text-[var(--text)]">채널을 선택하세요</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">왼쪽에서 대화를 선택하거나 새 채널을 만드세요</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5">왼쪽에서 대화를 선택하거나 새 채널을 만드세요</div>
             </div>
           </div>
         )}
@@ -452,7 +456,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       {/* ── 생성 모달 (프로젝트/팀/DM 통합) ── */}
       {creating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCreating(null)}>
-          <div className="glass-card w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <h3 className="text-base font-bold text-[var(--text)]">새로 만들기</h3>
               <button onClick={() => setCreating(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-lg">×</button>

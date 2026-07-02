@@ -170,22 +170,22 @@ export default function ApprovalsPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <div className="glass-card p-4">
-          <div className="text-xs text-[var(--text-dim)]">대기 중</div>
-          <div className="text-lg font-bold text-yellow-500 mt-1">{stats?.pending ?? 0}건</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">대기 중</div>
+          <div className="text-2xl font-black mono-number text-yellow-500 mt-1.5 truncate">{stats?.pending ?? 0}건</div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-xs text-[var(--text-dim)]">승인 완료</div>
-          <div className="text-lg font-bold text-green-500 mt-1">{stats?.approved ?? 0}건</div>
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 완료</div>
+          <div className="text-2xl font-black mono-number text-green-500 mt-1.5 truncate">{stats?.approved ?? 0}건</div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-xs text-[var(--text-dim)]">반려</div>
-          <div className="text-lg font-bold text-red-500 mt-1">{stats?.rejected ?? 0}건</div>
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">반려</div>
+          <div className="text-2xl font-black mono-number text-red-500 mt-1.5 truncate">{stats?.rejected ?? 0}건</div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-xs text-[var(--text-dim)]">전체 요청</div>
-          <div className="text-lg font-bold mt-1">{stats?.total ?? 0}건</div>
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">전체 요청</div>
+          <div className="text-2xl font-black mono-number mt-1.5 truncate">{stats?.total ?? 0}건</div>
         </div>
       </div>
 
@@ -445,9 +445,10 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   return (
     <div>
       {pendingApprovals.length === 0 ? (
-        <div className="text-center py-16 glass-card">
-          <div className="text-3xl mb-3">&#10003;</div>
-          <div className="text-[var(--text-muted)] text-sm">처리할 결재가 없습니다</div>
+        <div className="text-center py-16 px-6 glass-card">
+          <div className="text-5xl mb-4">✅</div>
+          <div className="text-base font-bold mb-1.5">처리할 결재가 없습니다</div>
+          <div className="text-sm text-[var(--text-muted)]">새 결재 요청이 배정되면 이곳에 표시됩니다</div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -591,8 +592,10 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   return (
     <div>
       {requests.length === 0 ? (
-        <div className="text-center py-16 glass-card">
-          <div className="text-[var(--text-muted)] text-sm">제출한 결재 요청이 없습니다</div>
+        <div className="text-center py-16 px-6 glass-card">
+          <div className="text-5xl mb-4">📝</div>
+          <div className="text-base font-bold mb-1.5">제출한 결재 요청이 없습니다</div>
+          <div className="text-sm text-[var(--text-muted)]">"새 요청" 탭에서 결재를 요청할 수 있습니다</div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -735,8 +738,10 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
           <tbody>
             {allRequests.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">
-                  결재 요청이 없습니다
+                <td colSpan={7} className="px-4 py-14 text-center">
+                  <div className="text-4xl mb-3">🗂️</div>
+                  <div className="text-sm font-bold mb-1">결재 요청이 없습니다</div>
+                  <div className="text-xs text-[var(--text-muted)]">필터 조건을 바꾸거나 새 요청을 기다려 보세요</div>
                 </td>
               </tr>
             ) : (
@@ -1769,9 +1774,11 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
 
       {/* Policy List */}
       {policies.length === 0 && !showForm ? (
-        <div className="text-center py-16 glass-card">
-          <div className="text-[var(--text-muted)] text-sm mb-2">등록된 결재 정책이 없습니다</div>
-          <div className="text-xs text-[var(--text-dim)]">정책을 추가하면 결재 요청 시 자동으로 적용됩니다</div>
+        <div className="text-center py-16 px-6 glass-card">
+          <div className="text-5xl mb-4">🧭</div>
+          <div className="text-base font-bold mb-1.5">등록된 결재 정책이 없습니다</div>
+          <div className="text-sm text-[var(--text-muted)] mb-5">정책을 추가하면 결재 요청 시 자동으로 적용됩니다</div>
+          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary">+ 정책 추가</button>
         </div>
       ) : (
         <div className="space-y-3">

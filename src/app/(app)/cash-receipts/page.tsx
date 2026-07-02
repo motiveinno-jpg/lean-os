@@ -401,7 +401,7 @@ export default function CashReceiptsPage() {
   };
 
   return (
-    <div className="space-y-4 mx-auto">
+    <div className="space-y-6 mx-auto">
       {/* Header */}
       <div className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -460,8 +460,8 @@ export default function CashReceiptsPage() {
 
       {/* Summary cards */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="glass-card p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="glass-card p-5">
             <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매출 발행</div>
             <div className="text-2xl font-black mono-number text-[var(--text)] mt-1">
               {summary.incomeCount}건
@@ -470,7 +470,7 @@ export default function CashReceiptsPage() {
               ₩{summary.incomeTotal.toLocaleString()}
             </div>
           </div>
-          <div className="glass-card p-4">
+          <div className="glass-card p-5">
             <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입 수취</div>
             <div className="text-2xl font-black mono-number text-[var(--text)] mt-1">
               {summary.expenseCount}건
@@ -479,14 +479,14 @@ export default function CashReceiptsPage() {
               ₩{summary.expenseTotal.toLocaleString()}
             </div>
           </div>
-          <div className="glass-card p-4">
+          <div className="glass-card p-5">
             <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입세액 공제</div>
             <div className="text-2xl font-black mono-number text-[var(--primary)] mt-1">
               ₩{summary.expenseTax.toLocaleString()}
             </div>
             <div className="text-xs text-[var(--text-muted)]">부가세 신고 시 공제</div>
           </div>
-          <div className="glass-card p-4">
+          <div className="glass-card p-5">
             <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">합계</div>
             <div className="text-2xl font-black mono-number text-[var(--text)] mt-1">
               {summary.incomeCount + summary.expenseCount}건
@@ -712,9 +712,9 @@ export default function CashReceiptsPage() {
 
       {/* List tabs */}
       {tab !== "register" && (
-        <>
+        <div className="space-y-3">
         {receipts.length > 0 && (
-          <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <SortToolbar
               options={[
                 { key: "issue_date", label: "발행일" },
@@ -731,7 +731,7 @@ export default function CashReceiptsPage() {
         )}
         {/* 선택 액션바 */}
         {selectedReceipts.length > 0 && (
-          <div className="sticky top-0 z-20 mb-2 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+          <div className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
             <span className="text-sm font-semibold text-[var(--text)]"><b className="text-[var(--primary)]">{selectedReceipts.length}건</b> 선택됨</span>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
@@ -751,14 +751,14 @@ export default function CashReceiptsPage() {
               불러오는 중...
             </div>
           ) : receipts.length === 0 ? (
-            <div className="p-16 text-center">
-              <div className="text-4xl mb-4">🧾</div>
-              <div className="text-sm font-medium text-[var(--text)]">
+            <div className="py-16 px-6 text-center">
+              <div className="text-5xl mb-4">🧾</div>
+              <div className="text-base font-semibold text-[var(--text)]">
                 {tab === "income"
                   ? "매출 현금영수증이 없습니다"
                   : "매입 현금영수증이 없습니다"}
               </div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">
+              <div className="text-xs text-[var(--text-muted)] mt-1.5">
                 {tab === "income"
                   ? "상단의 '홈택스 매출 가져오기' 로 동기화하세요"
                   : "매입은 CODEF 미지원 — 등록 탭에서 직접 등록하거나 홈택스 엑셀을 업로드하세요"}
@@ -904,7 +904,7 @@ export default function CashReceiptsPage() {
             </div>
           )}
         </div>
-        </>
+        </div>
       )}
 
       {/* 일괄 전표처리 모달 — 선택된 미처리 현금영수증을 계정 1개로 일괄 생성 */}

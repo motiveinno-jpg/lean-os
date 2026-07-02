@@ -148,7 +148,7 @@ export default function CostsPage() {
       {!isLoading && !error && rows && (
         <>
           {/* Summary cards — 그라데이션 + 아이콘칩 (2026-06-30 손익계산서 카드와 일관) */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 20 }}>
+          <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 24 }}>
             {[
               { label: `${year}년 고정비`, value: totals.fixed, color: "#f97316", hint: "임대료·급여·4대보험 등", icon: "M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6" },
               { label: `${year}년 변동비`, value: totals.variable, color: "#8b5cf6", hint: "카드·일회성 지출 등", icon: "M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" },
@@ -175,7 +175,7 @@ export default function CostsPage() {
           />
 
           {/* Monthly table */}
-          <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--border)", marginTop: 20 }}>
+          <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--border)", marginTop: 24 }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
               <thead>
                 <tr style={{ background: "var(--bg-surface)" }}>
@@ -239,8 +239,10 @@ export default function CostsPage() {
                   고정비 세부내역 ({year}년)
                 </div>
                 {breakdown.fixed.length === 0 ? (
-                  <div style={{ padding: 20, fontSize: 13, color: "var(--text-dim)", textAlign: "center" }}>
-                    등록된 고정비가 없습니다. 결제 → 정기결제 등록에서 임차료·급여·4대보험 등을 추가하세요.
+                  <div className="py-12 px-5 text-center">
+                    <div className="text-3xl mb-2">🏢</div>
+                    <div className="text-[13px] font-semibold text-[var(--text)]">등록된 고정비가 없습니다.</div>
+                    <div className="text-xs text-[var(--text-dim)] mt-1.5">결제 → 정기결제 등록에서 임차료·급여·4대보험 등을 추가하세요.</div>
                   </div>
                 ) : (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -279,8 +281,10 @@ export default function CostsPage() {
                   변동비 세부내역 ({year}년)
                 </div>
                 {breakdown.variable.length === 0 ? (
-                  <div style={{ padding: 20, fontSize: 13, color: "var(--text-dim)", textAlign: "center" }}>
-                    집계된 변동비가 없습니다. (카드 사용액·일회성 지출)
+                  <div className="py-12 px-5 text-center">
+                    <div className="text-3xl mb-2">💳</div>
+                    <div className="text-[13px] font-semibold text-[var(--text)]">집계된 변동비가 없습니다.</div>
+                    <div className="text-xs text-[var(--text-dim)] mt-1.5">카드 사용액·일회성 지출이 쌓이면 여기에 집계됩니다.</div>
                   </div>
                 ) : (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

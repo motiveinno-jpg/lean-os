@@ -847,7 +847,8 @@ export default function BalanceSheetPage() {
       </div>
 
       {/* Asset vs Liability Composition Bar */}
-      <div style={{ marginTop: 28 }}>
+      <div className="mt-8">
+        <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">Composition</div>
         <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
           자산/부채 구성
         </h2>
@@ -1007,7 +1008,8 @@ export default function BalanceSheetPage() {
 
       {/* Monthly Trend Chart */}
       {trend.length > 0 && (
-        <div style={{ marginTop: 28 }}>
+        <div className="mt-8">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">Trend</div>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
             월별 추이 (최근 6개월)
           </h2>
@@ -1059,7 +1061,8 @@ export default function BalanceSheetPage() {
       )}
 
       {/* Financial Ratios */}
-      <div style={{ marginTop: 28 }}>
+      <div className="mt-8">
+        <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">Ratios</div>
         <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
           재무 비율 분석
         </h2>
@@ -1151,9 +1154,9 @@ function DetailModalView({ modal, isCompareMode, onClose }: {
     <div onClick={onClose}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()}
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 640, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 640, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{modal.title}</div>
             <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{modal.rows.length}건 · 컬럼 헤더 클릭 시 정렬</div>
@@ -1187,7 +1190,11 @@ function DetailModalView({ modal, isCompareMode, onClose }: {
         {/* 표 */}
         <div style={{ overflow: 'auto', flex: 1 }}>
           {sortedRows.length === 0 ? (
-            <div style={{ padding: 28, textAlign: 'center', fontSize: 13, color: 'var(--text-dim)' }}>세부 항목이 없습니다.</div>
+            <div className="py-12 text-center">
+              <div className="text-3xl mb-2">🗂️</div>
+              <div className="text-[13px] font-semibold text-[var(--text)]">세부 항목이 없습니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-1">해당 항목에 집계된 내역이 아직 없어요</div>
+            </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 1 }}>

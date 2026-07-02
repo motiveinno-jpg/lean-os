@@ -106,8 +106,9 @@ export default function ReportsHubPage() {
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1100 }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
+      <div className="mb-6">
+        <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1.5">Reports</div>
+        <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: "var(--text)", margin: 0 }}>
           회계 분석
         </h1>
         <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 6 }}>
@@ -130,8 +131,8 @@ export default function ReportsHubPage() {
             className="group"
             style={{
               display: "block",
-              padding: "20px 22px",
-              borderRadius: 14,
+              padding: "22px 24px",
+              borderRadius: 16,
               border: "1px solid var(--border)",
               background: "var(--bg-card)",
               textDecoration: "none",

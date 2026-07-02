@@ -123,7 +123,11 @@ function Inner() {
             {invLoading ? (
               <div className="p-8 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
             ) : invoices.length === 0 ? (
-              <div className="p-8 text-center text-xs text-[var(--text-muted)]">미매칭 세금계산서 없음 ✅</div>
+              <div className="py-14 px-4 text-center">
+                <div className="text-3xl mb-2">✅</div>
+                <div className="text-xs font-semibold text-[var(--text)]">미매칭 세금계산서 없음</div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-1">모든 세금계산서가 매칭 완료된 상태입니다</div>
+              </div>
             ) : (
               <ul className="divide-y divide-[var(--border)]/50">
                 {invoices.map((inv) => (
@@ -165,14 +169,18 @@ function Inner() {
           </div>
           <div className="max-h-[70vh] overflow-y-auto">
             {!selectedInvoice ? (
-              <div className="p-12 text-center text-xs text-[var(--text-muted)]">
-                좌측 미매칭 세금계산서를 클릭해 매칭 후보를 확인하세요
+              <div className="py-16 px-4 text-center">
+                <div className="text-3xl mb-2">👈</div>
+                <div className="text-xs font-semibold text-[var(--text)]">좌측 미매칭 세금계산서를 클릭해 매칭 후보를 확인하세요</div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-1">거래처명·대표자명·금액±10% 기준으로 자동 추천됩니다</div>
               </div>
             ) : candLoading ? (
               <div className="p-8 text-center text-xs text-[var(--text-muted)]">후보 분석 중...</div>
             ) : candidates.length === 0 ? (
-              <div className="p-8 text-center text-xs text-[var(--text-muted)]">
-                매칭 후보 없음 — 거래처명·대표자명·금액±10% 모두 미충족
+              <div className="py-14 px-4 text-center">
+                <div className="text-3xl mb-2">🔍</div>
+                <div className="text-xs font-semibold text-[var(--text)]">매칭 후보 없음</div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-1">거래처명·대표자명·금액±10% 모두 미충족</div>
               </div>
             ) : (
               <ul className="divide-y divide-[var(--border)]/50">
@@ -228,7 +236,11 @@ function Inner() {
             {matchedLoading ? (
               <div className="p-8 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
             ) : matched.length === 0 ? (
-              <div className="p-8 text-center text-xs text-[var(--text-muted)]">매칭된 항목 없음</div>
+              <div className="py-14 px-4 text-center">
+                <div className="text-3xl mb-2">🧾</div>
+                <div className="text-xs font-semibold text-[var(--text)]">매칭된 항목 없음</div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-1">가운데 후보를 클릭해 매칭을 확정하면 여기에 쌓입니다</div>
+              </div>
             ) : (
               <ul className="divide-y divide-[var(--border)]/50">
                 {matched.map((m) => {

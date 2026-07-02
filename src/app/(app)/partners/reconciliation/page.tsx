@@ -513,7 +513,8 @@ export default function ReconciliationPage() {
     <div className="space-y-6">
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">거래 매칭</h1>
+          <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">Reconciliation</p>
+          <h1 className="text-2xl font-extrabold text-[var(--text)] mt-0.5">거래 매칭</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">입금·계산서 자동 매칭 — 확정한 매칭만 거래처 원장 잔액에 반영됩니다</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -586,13 +587,13 @@ export default function ReconciliationPage() {
       </div>
 
       {tab === "queue" && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {qLoading ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : queue.length === 0 ? (
-            <div className="p-12 text-center glass-card">
-              <div className="text-3xl mb-2">✅</div>
-              <div className="text-sm text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 확인 대기 중인 매칭이 없습니다</div>
+            <div className="py-14 px-6 text-center glass-card">
+              <div className="text-4xl mb-3">✅</div>
+              <div className="text-sm font-semibold text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 확인 대기 중인 매칭이 없습니다</div>
               {queueRaw.length > queue.length && (
                 <div className="text-[12px] text-[var(--primary)] mt-1.5 font-semibold">이 기간 밖에 미확정 제안 {queueRaw.length - queue.length}건이 있습니다 — 상단에서 기간을 넓혀 보세요.</div>
               )}
@@ -696,7 +697,7 @@ export default function ReconciliationPage() {
       )}
 
       {tab === "manual" && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-[var(--text-muted)]">
               규칙·AI 가 못 잡은 입출금을 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.
@@ -706,7 +707,11 @@ export default function ReconciliationPage() {
               className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-44" />
           </div>
           {openTx.length === 0 ? (
-            <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다. 상단에서 기간을 조정해 보세요.</div>
+            <div className="py-14 px-6 text-center glass-card">
+              <div className="text-4xl mb-3">🔗</div>
+              <div className="text-sm font-semibold text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다. 상단에서 기간을 조정해 보세요.</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5">규칙·AI가 못 잡은 입출금이 있으면 여기서 직접 연결할 수 있습니다</div>
+            </div>
           ) : (
             <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[600px]">
@@ -891,10 +896,14 @@ export default function ReconciliationPage() {
       )}
 
       {tab === "confirmed" && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <p className="text-xs text-[var(--text-muted)]">확정된 매칭 내역입니다. 잘못 확정한 건은 “확정 취소”로 되돌리면 미수금과 <b>분개 전표가 함께 원복</b>되고 거래 정리로 돌아갑니다.</p>
           {confirmed.length === 0 ? (
-            <div className="p-12 text-center glass-card text-sm text-[var(--text-muted)]">확정된 매칭이 없습니다.</div>
+            <div className="py-14 px-6 text-center glass-card">
+              <div className="text-4xl mb-3">📂</div>
+              <div className="text-sm font-semibold text-[var(--text)]">확정된 매칭이 없습니다.</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5">거래 정리 탭에서 매칭을 확정하면 여기에 내역이 쌓입니다</div>
+            </div>
           ) : (
             <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[600px]">

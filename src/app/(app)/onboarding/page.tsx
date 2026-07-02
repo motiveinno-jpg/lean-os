@@ -550,7 +550,7 @@ export default function OnboardingPage() {
 
         {/* Step content */}
         <div className="glass-card overflow-hidden">
-          <div className="p-6 min-h-[380px] sm:min-h-[360px]">
+          <div className="p-6 sm:p-8 min-h-[380px] sm:min-h-[360px]">
             {step === 1 && (
               <Step1Company data={company} onChange={setCompany} isCompleted={status.companyInfo} />
             )}
@@ -570,7 +570,7 @@ export default function OnboardingPage() {
 
           {/* Footer */}
           <div
-            className="px-6 py-4 flex items-center justify-between"
+            className="px-6 sm:px-8 py-4 flex items-center justify-between"
             style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}
           >
             <div>

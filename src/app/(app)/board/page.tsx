@@ -634,7 +634,7 @@ export default function BoardPage() {
 
   return (
     <div className="">
-      <div className="page-sticky-header flex items-center justify-between mb-4 gap-3 flex-wrap">
+      <div className="page-sticky-header flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-extrabold">게시판</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -658,7 +658,7 @@ export default function BoardPage() {
       </div>
 
       {/* 플렉스식 필터 + 검색 바 */}
-      <div className="flex flex-wrap items-center gap-2 mb-5">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         <div className="seg-bar flex-wrap">
           {(
             [
@@ -689,10 +689,13 @@ export default function BoardPage() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto" onClick={resetForm}>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 my-8 w-full max-w-2xl space-y-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-          <h3 className="text-base font-bold">
-            {editing ? "글 수정" : "새 글 작성"}
-          </h3>
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 sm:p-6 my-8 w-full max-w-2xl space-y-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+            <h3 className="text-base font-bold">
+              {editing ? "글 수정" : "새 글 작성"}
+            </h3>
+            <button onClick={resetForm} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-lg" aria-label="닫기">×</button>
+          </div>
           <input
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -823,10 +826,10 @@ export default function BoardPage() {
             />
           </div>
 
-          <div className="flex gap-2 pt-1">
+          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
             <button
               onClick={resetForm}
-              className="px-4 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-xl text-sm hover:text-[var(--text)]"
+              className="btn-secondary"
             >
               취소
             </button>
@@ -858,16 +861,32 @@ export default function BoardPage() {
           불러오는 중...
         </div>
       ) : filteredPosts.length === 0 ? (
-        <div className="glass-card p-16 text-center">
+        <div className="glass-card py-16 text-center">
           <div className="text-4xl mb-3">📝</div>
-          <div className="text-sm text-[var(--text-muted)]">
+          <div className="text-sm font-semibold text-[var(--text)]">
             {posts.length === 0
               ? "등록된 글이 없습니다. 첫 글을 작성해보세요."
               : "조건에 맞는 글이 없습니다."}
           </div>
+          <div className="text-[11px] text-[var(--text-dim)] mt-1.5">
+            {posts.length === 0
+              ? "글쓰기 버튼으로 공지·일정·투표·첨부를 공유할 수 있습니다."
+              : "필터나 검색어를 바꿔서 다시 시도해보세요."}
+          </div>
+          {posts.length === 0 && !showForm && (
+            <button
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+              className="btn-primary mt-5"
+            >
+              + 글쓰기
+            </button>
+          )}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {filteredPosts.map((p) => {
             const open = openId === p.id;
             const isMine = mine(p.author_id);
@@ -1262,8 +1281,8 @@ export default function BoardPage() {
                           );
                         })}
                         {rootComments.length === 0 && (
-                          <div className="text-xs text-[var(--text-dim)]">
-                            첫 댓글을 남겨보세요.
+                          <div className="text-center py-4 text-xs text-[var(--text-dim)]">
+                            💬 <span className="font-medium">첫 댓글을 남겨보세요.</span>
                           </div>
                         )}
                       </div>

@@ -41,10 +41,10 @@ export default function HrTemplatesPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <header className="page-sticky-header">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">양식 관리 (인사)</h1>
-        <p className="text-sm text-[var(--text-muted)]">표준근로계약서 등 인사 양식을 관리하세요.</p>
+        <p className="text-sm text-[var(--text-muted)] mt-1">표준근로계약서 등 인사 양식을 관리하세요.</p>
       </header>
 
       {companyId && userId ? (
@@ -60,7 +60,7 @@ export default function HrTemplatesPage() {
           <HrFormManager companyId={companyId} />
         </>
       ) : (
-        <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>
+        <div className="py-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       )}
     </div>
   );

@@ -172,10 +172,11 @@ export default function PartnerLedgerPage() {
   const selRow = shown.find((r) => (r.partner_id ?? "none") === selKey) || null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">거래처 원장</h1>
+          <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">AR / AP Ledger</p>
+          <h1 className="text-2xl font-extrabold text-[var(--text)] mt-0.5">거래처 원장</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">매출처·매입처 잔액을 거래처별로 관리합니다</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -263,15 +264,15 @@ export default function PartnerLedgerPage() {
       </div>
 
       {/* ── 요약 카드 (선택 탭 기준) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-stretch">
-        <div className="glass-card px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-2" style={{ borderTop: `3px solid ${pal.main}` }}>
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-stretch">
+        <div className="glass-card px-5 py-5 flex flex-wrap items-center gap-x-8 gap-y-2" style={{ borderTop: `3px solid ${pal.main}` }}>
           <div>
-            <div className="text-xs text-[var(--text-muted)]">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</div>
-            <div className="text-2xl font-bold mono-number mt-0.5" style={{ color: pal.main }}>{won(total)}</div>
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</div>
+            <div className="text-2xl font-black mono-number mt-0.5" style={{ color: pal.main }}>{won(total)}</div>
           </div>
           <div>
-            <div className="text-xs text-[var(--text-muted)]">{pal.label}</div>
-            <div className="text-2xl font-bold mono-number mt-0.5 text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></div>
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{pal.label}</div>
+            <div className="text-2xl font-black mono-number mt-0.5 text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></div>
           </div>
           <div className="text-[11px] text-[var(--text-dim)] leading-relaxed ml-auto hidden md:block">
             잔액 = 전기이월 + 당기 잔액<br />확정된 매칭(거래 매칭)만 정산으로 반영
@@ -289,7 +290,7 @@ export default function PartnerLedgerPage() {
       {lLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-3 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-4 items-start">
           {/* ── 좌: 거래처 목록 ── */}
           <div className="glass-card overflow-hidden">
             <div className="px-3 py-2.5 border-b border-[var(--border)] flex items-center justify-between gap-2" style={{ background: `color-mix(in srgb, ${pal.main} 7%, var(--bg-surface))` }}>
@@ -328,7 +329,10 @@ export default function PartnerLedgerPage() {
             )}
             <div className="overflow-y-auto max-h-[560px]">
               {shown.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[var(--text-muted)]">{sq ? "검색 결과가 없습니다." : `${periodLabel} ${pal.label} 거래가 없습니다. 상단 “홈택스 거래처 연결”을 먼저 실행해 보세요.`}</div>
+                <div className="py-12 px-4 text-center">
+                  <div className="text-3xl mb-3">{sq ? "🔍" : "📒"}</div>
+                  <div className="text-xs font-semibold text-[var(--text)]">{sq ? "검색 결과가 없습니다." : `${periodLabel} ${pal.label} 거래가 없습니다. 상단 “홈택스 거래처 연결”을 먼저 실행해 보세요.`}</div>
+                </div>
               ) : shown.map((r, idx) => {
                 const key = r.partner_id ?? "none";
                 const active = key === selKey;
@@ -369,7 +373,11 @@ export default function PartnerLedgerPage() {
               onOpenDetail={() => setDetail({ partnerId: selRow.partner_id, type: selRow.type, focus: "all" })}
             />
           ) : (
-            <div className="glass-card p-12 text-center text-sm text-[var(--text-muted)]">좌측에서 거래처를 선택하세요.</div>
+            <div className="glass-card py-16 px-6 text-center">
+              <div className="text-4xl mb-3">👈</div>
+              <div className="text-sm font-semibold text-[var(--text)]">좌측에서 거래처를 선택하세요.</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">선택한 거래처의 일자별 원장(차변·대변·잔액)이 표시됩니다</div>
+            </div>
           )}
         </div>
       )}

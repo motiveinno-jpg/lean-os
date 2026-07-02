@@ -167,23 +167,23 @@ export default function EmployeesPage() {
 
       {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김 */}
       {!isEmployee && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-          <div className="glass-card p-4">
-            <div className="text-xs text-[var(--text-dim)]">재직 인원</div>
-            <div className="text-lg font-bold mt-1">{activeCount}명</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="glass-card p-5">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">재직 인원</div>
+            <div className="text-2xl font-black mono-number mt-1.5">{activeCount}명</div>
           </div>
-          <div className="glass-card p-4">
-            <div className="text-xs text-[var(--text-dim)]">연 인건비</div>
-            <div className="text-lg font-bold mono-number text-[var(--danger)] mt-1">₩{(totalSalary * 12).toLocaleString()}</div>
+          <div className="glass-card p-5">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">연 인건비</div>
+            <div className="text-2xl font-black mono-number text-[var(--danger)] mt-1.5">₩{(totalSalary * 12).toLocaleString()}</div>
             <div className="text-[10px] text-[var(--text-dim)] mono-number mt-0.5">월 ₩{totalSalary.toLocaleString()}</div>
           </div>
-          <div className="glass-card p-4">
-            <div className="text-xs text-[var(--text-dim)]">퇴직충당금</div>
-            <div className="text-lg font-bold mono-number text-[var(--warning)] mt-1">₩{totalRetirement.toLocaleString()}</div>
+          <div className="glass-card p-5">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">퇴직충당금</div>
+            <div className="text-2xl font-black mono-number text-[var(--warning)] mt-1.5">₩{totalRetirement.toLocaleString()}</div>
           </div>
-          <div className="glass-card p-4">
-            <div className="text-xs text-[var(--text-dim)]">미결 경비</div>
-            <div className="text-lg font-bold text-[var(--warning)] mt-1">
+          <div className="glass-card p-5">
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">미결 경비</div>
+            <div className="text-2xl font-black mono-number text-[var(--warning)] mt-1.5">
               {expenses.filter((e: any) => e.status === "pending").length}건
             </div>
           </div>

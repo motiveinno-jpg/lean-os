@@ -446,7 +446,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   return (
     <div className="">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
+      <div className="flex items-center gap-3 mb-3">
         <button onClick={onBack} className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">
           &larr; 문서 목록
         </button>
@@ -1792,7 +1792,7 @@ function DocumentsPageInner() {
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-extrabold">파일 보관함</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">회사 문서·계약서·증빙 파일 보관</p>
@@ -2855,7 +2855,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     <div className="flex flex-col md:flex-row gap-4 md:gap-6">
       {/* Left: Folder Tree */}
       <div className="w-full md:w-[240px] shrink-0">
-        <div className="glass-card p-4">
+        <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[var(--text)]">폴더</span>
             <button
@@ -2904,8 +2904,10 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
           </div>
 
           {folders.length === 0 && (
-            <div className="text-[10px] text-[var(--text-dim)] text-center py-4">
-              폴더가 없습니다
+            <div className="text-center py-8 px-2">
+              <div className="text-2xl mb-2">🗂️</div>
+              <div className="text-xs font-bold text-[var(--text-muted)]">폴더가 없습니다</div>
+              <div className="text-[10px] text-[var(--text-dim)] mt-1">+ 새 폴더로 파일을 분류해 보관하세요</div>
             </div>
           )}
         </div>
@@ -2946,7 +2948,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         />
 
         {/* File list */}
-        <div className="glass-card p-4">
+        <div className="glass-card p-5">
           <FileList
             files={filteredFiles.map((f: any) => ({
               id: f.id,

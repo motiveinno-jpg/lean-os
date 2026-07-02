@@ -719,7 +719,7 @@ export default function ProjectHubDetailPage() {
   const stepReached = (sigRequests as any[]).length > 0 ? 2 : contractDocsShown.length > 0 ? 1 : quoteDocsShown.length > 0 ? 0 : -1;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="page-sticky-header flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -776,7 +776,7 @@ export default function ProjectHubDetailPage() {
       {tab === "overview" && projectType === "margin" && (
         <div className="space-y-4">
           <p className="text-[11px] text-[var(--text-dim)]">금액·마진은 <b className="text-[var(--text-muted)]">매출/매입 관리</b> 입력값(약정) 기준입니다{hasChildren ? <> · 이 프로젝트 + 세부 프로젝트(캠페인) {(children as any[]).length}개 <b className="text-[var(--text-muted)]">합산(롤업)</b></> : null}. 실제 전표 기준 진행단계·실적·비용은 아래에 함께 표시됩니다.</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Metric label="매출" value={won(planRevenue)} hint={subSalesSum > 0 ? `자체 계약 ${won(ownContract)} + 매출형 ${won(subSalesSum)}` : undefined} />
             <Metric label="총 비용" value={won(planCost)} hint="매입형 ‘매출/매입 관리’ 합계" />
             <Metric label="마진금액" value={won(planMargin)} accent={planMargin < 0 ? "danger" : "primary"} />
@@ -805,7 +805,7 @@ export default function ProjectHubDetailPage() {
       {/* 견적서 */}
       {/* 방향별 파이프라인 스텝 인디케이터 (수주/발주 탭 상단) */}
       {pipelineDir && (
-        <div className="glass-card p-4">
+        <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-[var(--text)]">{pipelineDir === "sales" ? "📤 수주(매출) 파이프라인" : "📥 발주(매입) 파이프라인"}</h3>
             <span className="text-[11px] text-[var(--text-dim)]">{pipelineDir === "sales" ? "고객 견적 발송 → 승인 → 계약 생성 → 서명 → 정산" : "협력사 견적 등록 → 발주 계약 → 서명 → 검수 → 정산"}</span>
@@ -905,7 +905,7 @@ export default function ProjectHubDetailPage() {
             </div>
           )}
           {approvals.filter((a) => a.stage === "견적" || a.stage === "estimate").length > 0 && (
-            <div className="glass-card p-4">
+            <div className="glass-card p-5">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2">견적 승인 흐름</div>
               {approvals.filter((a) => a.stage === "견적" || a.stage === "estimate").map((a) => (
                 <ApprovalRow key={a.id} a={a} />
@@ -969,7 +969,7 @@ export default function ProjectHubDetailPage() {
                 </div>
               )}
               {approvals.length > 0 && (
-                <div className="glass-card p-4">
+                <div className="glass-card p-5">
                   <div className="text-xs font-bold text-[var(--text-muted)] mb-2">단계별 승인</div>
                   {approvals.map((a) => <ApprovalRow key={a.id} a={a} />)}
                 </div>
@@ -1174,7 +1174,7 @@ export default function ProjectHubDetailPage() {
       {/* 진행 단계 + 실적(전표 기준)·비용 구성 — 개요 탭 하단 (수익형만) */}
       {tab === "overview" && projectType === "margin" && (
         <div className="space-y-4">
-          <div className="glass-card p-4">
+          <div className="glass-card p-5">
             <div className="text-xs font-bold text-[var(--text-muted)] mb-3">진행 단계 <span className="font-normal text-[var(--text-dim)]">— 단계를 클릭해 변경하세요</span></div>
             <div className="flex items-center gap-1.5 flex-wrap">
               {STAGE_ORDER.map((st) => {
@@ -1191,7 +1191,7 @@ export default function ProjectHubDetailPage() {
             </div>
           </div>
           <p className="text-[11px] text-[var(--text-dim)]">아래는 <b className="text-[var(--text-muted)]">실제 태그된 전표·계산서</b> 기준(실적)입니다. 매출/매입 관리 입력값 기준 마진은 ‘개요’ 탭에서 확인하세요.</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Metric label="계약금액(매출)" value={won(contract)} />
             <Metric label="총 비용(실적)" value={won(totalCost)} hint="태그된 전표·계산서 합계" />
             <Metric label="마진금액(실적)" value={won(margin)} accent={margin < 0 ? "danger" : "primary"} />
@@ -1221,7 +1221,7 @@ export default function ProjectHubDetailPage() {
               ))}
             </div>
           </div>
-          <div className="glass-card p-4 text-[11px] text-[var(--text-muted)] space-y-1 leading-relaxed">
+          <div className="glass-card p-5 text-[11px] text-[var(--text-muted)] space-y-1 leading-relaxed">
             <p>· <b className="text-[var(--text)]">비용</b> = 이 프로젝트에 태그된 세금계산서(매입)·현금영수증·카드사용·수동 전표 합계. 마진 = 계약금액 − 비용.</p>
             <p>· 각 내역 화면에서 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳(예: 카드+전표)에 중복 태그하지 마세요</b> — 비용이 이중 계상됩니다.</p>
           </div>
@@ -1337,7 +1337,7 @@ function MarginRollup({ contract, marginRow, totalCost }: { contract: number; ma
         <span className="text-xs font-bold text-[var(--text-muted)]">마진 롤업 <span className="font-normal text-[var(--text-dim)]">— 세부 프로젝트 포함(약정) · 전표(실적) 병기</span></span>
       </div>
       <div className="p-4 space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Metric label="총계약금액(주매출)" value={won(contract)} />
           <Metric label="Σ 매출형 세부" value={won(subSales)} accent="primary" />
           <Metric label="Σ 매입형 세부" value={won(subPurchase)} accent="danger" />
@@ -1358,9 +1358,9 @@ function Metric({ label, value, hint, accent }: { label: string; value: string; 
     : accent === "primary" ? "text-[var(--primary)]"
     : "text-[var(--text)]";
   return (
-    <div className="glass-card px-3 py-2.5">
-      <div className="text-[11px] text-[var(--text-muted)]">{label}</div>
-      <div className={`text-base font-bold mono-number mt-0.5 ${color}`} title={hint}>{value}</div>
+    <div className="glass-card p-5">
+      <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{label}</div>
+      <div className={`text-xl font-black mono-number mt-1 ${color}`} title={hint}>{value}</div>
     </div>
   );
 }
@@ -1389,7 +1389,13 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 function Empty({ text }: { text: string }) {
-  return <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">{text}</div>;
+  return (
+    <div className="glass-card py-14 px-6 flex flex-col items-center justify-center text-center gap-2">
+      <div className="text-4xl">📂</div>
+      <div className="text-sm font-semibold text-[var(--text)]">{text}</div>
+      <div className="text-xs text-[var(--text-dim)]">추가하면 이 목록에 바로 나타납니다.</div>
+    </div>
+  );
 }
 
 // 실행형 개요 — 태스크 진행률 요약(완료/전체·지연) + 기본 정보. 상세 칸반은 '태스크' 탭.
@@ -1410,14 +1416,14 @@ function DeliveryOverview({ deal, dealId, partner, manager, stage }: { deal: any
   const budget = Number(deal.contract_total || 0);
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Metric label="진행률" value={total > 0 ? `${pct}%` : "—"} accent={pct >= 100 ? "primary" : undefined} />
         <Metric label="완료 / 전체" value={`${done} / ${total}`} />
         <Metric label="지연" value={String(delayed)} accent={delayed > 0 ? "danger" : undefined} />
         <Metric label="예산" value={budget > 0 ? won(budget) : "—"} />
       </div>
       {total > 0 && (
-        <div className="glass-card p-4 space-y-2">
+        <div className="glass-card p-5 space-y-2">
           <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-[var(--text-muted)]">태스크 진행률</span>
             <span className="mono-number text-[var(--text)]">{done} / {total}</span>

@@ -301,26 +301,26 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   return (
     <>
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <div className="glass-card p-4 overflow-hidden">
-          <div className="text-xs text-[var(--text-dim)]">승인 대기</div>
-          <div className="text-lg font-bold text-yellow-400 mt-1 truncate">{stats?.pendingCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 대기</div>
+          <div className="text-2xl font-black mono-number text-yellow-400 mt-1.5 truncate">{stats?.pendingCount ?? 0}건</div>
+          <div className="text-xs text-[var(--text-dim)] mono-number mt-1 truncate">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="glass-card p-4 overflow-hidden">
-          <div className="text-xs text-[var(--text-dim)]">승인 완료</div>
-          <div className="text-lg font-bold text-blue-400 mt-1 truncate">{stats?.approvedCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</div>
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 완료</div>
+          <div className="text-2xl font-black mono-number text-blue-400 mt-1.5 truncate">{stats?.approvedCount ?? 0}건</div>
+          <div className="text-xs text-[var(--text-dim)] mono-number mt-1 truncate">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="glass-card p-4 overflow-hidden">
-          <div className="text-xs text-[var(--text-dim)]">실행 완료</div>
-          <div className="text-lg font-bold text-green-400 mt-1 truncate">{stats?.executedCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">₩{(stats?.executedAmount ?? 0).toLocaleString()}</div>
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">실행 완료</div>
+          <div className="text-2xl font-black mono-number text-green-400 mt-1.5 truncate">{stats?.executedCount ?? 0}건</div>
+          <div className="text-xs text-[var(--text-dim)] mono-number mt-1 truncate">₩{(stats?.executedAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="glass-card p-4 overflow-hidden">
-          <div className="text-xs text-[var(--text-dim)]">통장 총 잔고</div>
-          <div className="text-lg font-bold mt-1 truncate">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
-          <div className="text-xs text-[var(--text-dim)] mt-0.5 truncate">{bankAccounts.length}개 통장</div>
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">통장 총 잔고</div>
+          <div className="text-2xl font-black mono-number mt-1.5 truncate">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
+          <div className="text-xs text-[var(--text-dim)] mt-1 truncate">{bankAccounts.length}개 통장</div>
         </div>
       </div>
 
@@ -409,10 +409,11 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       {/* Queue */}
       <div className="glass-card overflow-hidden">
         {filtered.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="text-4xl mb-4">💳</div>
+          <div className="py-16 px-6 text-center">
+            <div className="text-5xl mb-4">💳</div>
             <div className="text-lg font-bold mb-2">결제 큐가 비어있습니다</div>
-            <div className="text-sm text-[var(--text-muted)]">프로젝트 비용 스케줄에서 자동 생성되거나 수동으로 등록하세요</div>
+            <div className="text-sm text-[var(--text-muted)] mb-5">프로젝트 비용 스케줄에서 자동 생성되거나 수동으로 등록하세요</div>
+            <button onClick={() => setShowForm(true)} className="btn-secondary">+ 수동 결제 등록</button>
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
@@ -758,10 +759,10 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
       {/* Batch history */}
       <div className="glass-card overflow-hidden">
         {batches.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="text-3xl mb-3">💰</div>
-            <div className="text-sm font-bold mb-1">급여 배치 없음</div>
-            <div className="text-xs text-[var(--text-muted)]">"이번 달 급여 배치 생성" 버튼으로 시작하세요</div>
+          <div className="py-14 px-6 text-center">
+            <div className="text-5xl mb-4">💰</div>
+            <div className="text-base font-bold mb-1.5">급여 배치 없음</div>
+            <div className="text-sm text-[var(--text-muted)]">"이번 달 급여 배치 생성" 버튼으로 시작하세요</div>
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
@@ -887,10 +888,10 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 
       <div className="glass-card overflow-hidden">
         {batches.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="text-3xl mb-3">🏢</div>
-            <div className="text-sm font-bold mb-1">고정비 배치 없음</div>
-            <div className="text-xs text-[var(--text-muted)]">반복결제를 먼저 설정하고 배치를 생성하세요</div>
+          <div className="py-14 px-6 text-center">
+            <div className="text-5xl mb-4">🏢</div>
+            <div className="text-base font-bold mb-1.5">고정비 배치 없음</div>
+            <div className="text-sm text-[var(--text-muted)]">반복결제를 먼저 설정하고 배치를 생성하세요</div>
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
@@ -1484,10 +1485,11 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       {/* List */}
       <div className="glass-card overflow-hidden">
         {recurring.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="text-3xl mb-3">🔄</div>
-            <div className="text-sm font-bold mb-1">반복결제가 없습니다</div>
-            <div className="text-xs text-[var(--text-muted)]">임대료, 보험, 구독 등 매월 고정 지출을 등록하세요</div>
+          <div className="py-14 px-6 text-center">
+            <div className="text-5xl mb-4">🔄</div>
+            <div className="text-base font-bold mb-1.5">반복결제가 없습니다</div>
+            <div className="text-sm text-[var(--text-muted)] mb-5">임대료, 보험, 구독 등 매월 고정 지출을 등록하세요</div>
+            <button onClick={() => setShowForm(true)} className="btn-secondary">+ 반복결제 추가</button>
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
@@ -1671,9 +1673,9 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
   return (
     <div className="mb-6 space-y-3">
       {/* Pipeline visualization */}
-      <div className="glass-card p-4">
+      <div className="glass-card p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-bold text-[var(--text)]">자동화 진행 현황</span>
+          <span className="eyebrow">자동화 진행 현황</span>
           <span className="caption">설정 &rarr; 지출결의 &rarr; 승인 &rarr; 결제 &rarr; 세금계산서</span>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto">
@@ -1965,25 +1967,25 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
   return (
     <>
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="glass-card p-4">
-          <div className="text-xs text-[var(--text-dim)]">승인 대기</div>
-          <div className="text-lg font-bold text-yellow-400 mt-1">{pendingCount}건</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 대기</div>
+          <div className="text-2xl font-black mono-number text-yellow-400 mt-1.5 truncate">{pendingCount}건</div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-xs text-[var(--text-dim)]">승인 완료 (미지급)</div>
-          <div className="text-lg font-bold text-blue-400 mt-1">₩{approvedTotal.toLocaleString()}</div>
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 완료 (미지급)</div>
+          <div className="text-2xl font-black mono-number text-blue-400 mt-1.5 truncate">₩{approvedTotal.toLocaleString()}</div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-xs text-[var(--text-dim)]">이번달 지출</div>
-          <div className="text-lg font-bold text-green-400 mt-1">
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">이번달 지출</div>
+          <div className="text-2xl font-black mono-number text-green-400 mt-1.5 truncate">
             ₩{expenses.filter((e: any) => e.status === 'paid' && e.created_at?.startsWith(new Date().toISOString().slice(0, 7)))
               .reduce((s: number, e: any) => s + Number(e.amount || 0), 0).toLocaleString()}
           </div>
         </div>
-        <div className="glass-card p-4">
-          <div className="text-xs text-[var(--text-dim)]">전체</div>
-          <div className="text-lg font-bold mt-1">{expenses.length}건</div>
+        <div className="glass-card p-5 overflow-hidden">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">전체</div>
+          <div className="text-2xl font-black mono-number mt-1.5 truncate">{expenses.length}건</div>
         </div>
       </div>
 
@@ -2192,10 +2194,11 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
       {/* List */}
       <div className="glass-card overflow-hidden">
         {expenses.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="text-4xl mb-4">📄</div>
+          <div className="py-16 px-6 text-center">
+            <div className="text-5xl mb-4">📄</div>
             <div className="text-lg font-bold mb-2">지출결의서/품의서가 없습니다</div>
-            <div className="text-sm text-[var(--text-muted)]">프로젝트 외 지출이나 구매가 필요할 때 작성하세요</div>
+            <div className="text-sm text-[var(--text-muted)] mb-5">프로젝트 외 지출이나 구매가 필요할 때 작성하세요</div>
+            <button onClick={() => setShowForm(true)} className="btn-secondary">+ 지출결의/품의 작성</button>
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">

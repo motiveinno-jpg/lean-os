@@ -50,9 +50,10 @@ export default function QuotesPage() {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="page-sticky-header flex items-center justify-between gap-3 mb-2">
+    <div className="space-y-6">
+      <div className="page-sticky-header flex items-center justify-between gap-3">
         <div>
+          <div className="eyebrow">Project Hub</div>
           <h1 className="text-2xl font-extrabold">견적서</h1>
           <p className="text-xs text-[var(--text-dim)] mt-1">프로젝트와 연동된 견적서를 한곳에서 작성·관리합니다. 작성 시 기존 프로젝트를 고르거나 새 프로젝트를 만들 수 있습니다.</p>
         </div>
@@ -64,10 +65,11 @@ export default function QuotesPage() {
         {isLoading ? (
           <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : quotes.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="text-4xl mb-3">🧾</div>
-            <div className="text-sm font-medium text-[var(--text)]">아직 견적서가 없습니다</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">“+ 견적서 작성”으로 첫 견적서를 만들어 보세요.</div>
+          <div className="py-16 px-6 flex flex-col items-center justify-center text-center gap-2">
+            <div className="text-4xl mb-1">🧾</div>
+            <div className="text-sm font-semibold text-[var(--text)]">아직 견적서가 없습니다</div>
+            <div className="text-xs text-[var(--text-muted)]">“+ 견적서 작성”으로 첫 견적서를 만들어 보세요.</div>
+            <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 견적서 작성</button>
           </div>
         ) : (
           <div className="overflow-auto max-h-[640px]">
