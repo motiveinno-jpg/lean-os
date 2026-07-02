@@ -31,7 +31,7 @@ export default function ProjectHubPage() {
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(true); // 성과 대시보드 기본 열림(클릭 시 닫기)
+  const [showDashboard, setShowDashboard] = useState(true); // 성과 대시보드 — 목표형 탭 선택 시 기본 열림(토글 가능)
   const [editDeal, setEditDeal] = useState<any | null>(null);
   const [delDeal, setDelDeal] = useState<any | null>(null);
 
@@ -291,7 +291,7 @@ export default function ProjectHubPage() {
           <p className="text-xs text-[var(--text-dim)] mt-1">견적 → 계약 → 진행 → 손익까지 프로젝트별 라이프사이클·수익성을 관리합니다</p>
         </div>
         <div className="flex items-center gap-2">
-          {isManager && (
+          {isManager && typeFilter === "goal" && (
             <button onClick={() => setShowDashboard((v) => !v)} className={`px-4 py-2 text-xs font-semibold rounded-lg border transition ${showDashboard ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
               🎯 성과 대시보드
             </button>
@@ -302,7 +302,35 @@ export default function ProjectHubPage() {
         </div>
       </div>
 
-      {showDashboard && companyId && (
+      {/* 유형 선택 — 먼저 유형을 고르면 아래 대시보드·요약·목록이 그 유형 기준으로 표시 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {PROJECT_TYPE_ORDER.map((t) => {
+          const c = PROJECT_TYPES[t];
+          const active = typeFilter === t;
+          return (
+            <button key={t} onClick={() => setTypeFilter(t)}
+              className={`glass-card px-4 py-3 text-left transition ${active ? "ring-2 ring-[var(--primary)] !border-[var(--primary)]" : "opacity-75 hover:opacity-100 hover:bg-[var(--bg-surface)]/60"}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-semibold text-[var(--text-muted)]">{c.icon} {c.label} <span className="font-normal text-[var(--text-dim)]">{typeSummary[t].count}건</span></div>
+                {active && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold whitespace-nowrap">보는 중</span>}
+              </div>
+              <div className="text-lg font-bold mono-number mt-0.5 text-[var(--text)]">
+                {t === "margin" ? (
+                  <span title="마진(매출−직접원가) 합계">마진합 {won(typeSummary.margin.marginSum)}</span>
+                ) : t === "goal" ? (
+                  <>평균 달성률 {typeSummary.goal.avgGoal == null ? <span className="text-[var(--text-dim)]">—</span> : `${typeSummary.goal.avgGoal}%`}</>
+                ) : (
+                  <>평균 진행률 {typeSummary.delivery.avgDelivery == null ? <span className="text-[var(--text-dim)]">—</span> : `${typeSummary.delivery.avgDelivery}%`}</>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-[var(--text-dim)] -mt-1">{PROJECT_TYPES[typeFilter].desc}</p>
+
+      {/* 성과 대시보드 — 목표형(KPI·체크인) 전용 집계라 목표형 탭에서만 표시 */}
+      {showDashboard && typeFilter === "goal" && companyId && (
         <PerformanceDashboard companyId={companyId} onClose={() => setShowDashboard(false)} />
       )}
 
@@ -381,37 +409,6 @@ export default function ProjectHubPage() {
           </div>
         </>)}
       </div>
-
-      {/* 유형별 요약 구획 */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="glass-card px-4 py-3">
-          <div className="text-xs text-[var(--text-muted)]">{PROJECT_TYPES.margin.icon} {PROJECT_TYPES.margin.label} <span className="text-[var(--text-dim)]">{typeSummary.margin.count}건</span></div>
-          <div className="text-lg font-bold mono-number mt-0.5 text-[var(--text)]" title="마진(매출−직접원가) 합계">마진합 {won(typeSummary.margin.marginSum)}</div>
-        </div>
-        <div className="glass-card px-4 py-3">
-          <div className="text-xs text-[var(--text-muted)]">{PROJECT_TYPES.goal.icon} {PROJECT_TYPES.goal.label} <span className="text-[var(--text-dim)]">{typeSummary.goal.count}건</span></div>
-          <div className="text-lg font-bold mono-number mt-0.5 text-[var(--text)]">평균 달성률 {typeSummary.goal.avgGoal == null ? <span className="text-[var(--text-dim)]">—</span> : `${typeSummary.goal.avgGoal}%`}</div>
-        </div>
-        <div className="glass-card px-4 py-3">
-          <div className="text-xs text-[var(--text-muted)]">{PROJECT_TYPES.delivery.icon} {PROJECT_TYPES.delivery.label} <span className="text-[var(--text-dim)]">{typeSummary.delivery.count}건</span></div>
-          <div className="text-lg font-bold mono-number mt-0.5 text-[var(--text)]">평균 진행률 {typeSummary.delivery.avgDelivery == null ? <span className="text-[var(--text-dim)]">—</span> : `${typeSummary.delivery.avgDelivery}%`}</div>
-        </div>
-      </div>
-
-      {/* 유형 탭 — 리스트 분리(수익형/목표형/실행형). 유형별 전용 컬럼 */}
-      <div className="flex items-center gap-1 border-b border-[var(--border)] overflow-x-auto">
-        {PROJECT_TYPE_ORDER.map((t) => {
-          const c = PROJECT_TYPES[t];
-          const active = typeFilter === t;
-          return (
-            <button key={t} onClick={() => setTypeFilter(t)}
-              className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap ${active ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-              {c.icon} {c.label} <span className="text-[var(--text-dim)] font-normal ml-0.5">{typeSummary[t].count}</span>
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-[11px] text-[var(--text-dim)] -mt-1">{PROJECT_TYPES[typeFilter].desc}</p>
 
       {/* 목록 그리드 */}
       <div className="glass-card overflow-hidden">
