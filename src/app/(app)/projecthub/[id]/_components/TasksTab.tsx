@@ -268,6 +268,8 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const isEdit = !!task;
+  // 저장된 태스크는 보기 모드로 열림 — '수정' 버튼을 눌러야 편집 가능. 새 태스크는 바로 편집.
+  const [editing, setEditing] = useState(!task);
 
   // ── 라벨 — 회사 공용 사전(task_labels)에서 선택. 태스크엔 {text,color} 스냅샷 저장(사전 삭제돼도 유지) ──
   const [labels, setLabels] = useState<TaskLabel[]>(Array.isArray(task?.labels) ? task.labels.filter((l: any) => l && l.text) : []);
@@ -403,11 +405,65 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   const LB = "block text-xs text-[var(--text-muted)] mb-1";
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-          <div className="text-sm font-bold text-[var(--text)]">{isEdit ? "태스크 수정" : "+ 태스크 추가"}</div>
+          <div className="text-sm font-bold text-[var(--text)]">{!isEdit ? "+ 태스크 추가" : editing ? "태스크 수정" : "태스크"}</div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
+
+        {/* ── 보기 모드 — 저장된 태스크 클릭 시 기본. 넓은 설명 영역으로 가독성 우선 ── */}
+        {isEdit && !editing && (
+          <>
+            <div className="p-5 space-y-4">
+              {labels.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {labels.map((l, i) => <LabelChip key={i} l={l} />)}
+                </div>
+              )}
+              <h3 className="text-lg font-bold text-[var(--text)] break-words leading-snug">{title || "(제목 없음)"}</h3>
+              <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap text-xs text-[var(--text-muted)]">
+                <span>담당 <b className="text-[var(--text)]">{assignees.length === 0 ? "미지정" : assignees.map((id) => users.find((u) => u.id === id)?.name || "구성원").join(", ")}</b></span>
+                <span>상태 <b className={COLUMNS.find((c) => c.key === status)?.color || "text-[var(--text)]"}>{COLUMNS.find((c) => c.key === status)?.label || status}</b></span>
+                {(start || due) && <span className="mono-number">기간 <b className="text-[var(--text)]">{start || "?"} ~ {due || "?"}</b></span>}
+              </div>
+              <div>
+                <div className="text-xs text-[var(--text-muted)] mb-1">설명</div>
+                <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-4 py-3 text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap break-words min-h-[96px] max-h-[45vh] overflow-y-auto">
+                  {desc.trim() ? desc : <span className="text-[var(--text-dim)]">설명이 없습니다.</span>}
+                </div>
+              </div>
+              {atts.length > 0 && (
+                <div>
+                  <div className="text-xs text-[var(--text-muted)] mb-1">첨부 {atts.length}개 <span className="text-[var(--text-dim)]">— 이미지는 클릭해 크게 보기, 파일명 클릭 시 다운로드</span></div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {atts.map((a) => (
+                      <div key={a.id} className="rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--bg-surface)]">
+                        {isImageAtt(a) && urls[a.path] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <button type="button" onClick={() => setLightbox(urls[a.path])} className="block w-full"><img src={urls[a.path]} alt={a.name} className="w-full h-20 object-cover cursor-zoom-in" /></button>
+                        ) : (
+                          <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`} className="w-full h-20 flex items-center justify-center text-2xl hover:bg-[var(--bg-card)] transition">📄</button>
+                        )}
+                        <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`}
+                          className="block w-full px-1.5 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline truncate text-left">{a.name}</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2">
+              <button onClick={remove} disabled={saving} className="px-3 py-1.5 text-xs text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-lg">삭제</button>
+              <div className="flex gap-2">
+                <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">닫기</button>
+                <button onClick={() => setEditing(true)} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">✏️ 수정</button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── 편집 모드 — 새 태스크 또는 '수정' 클릭 후 ── */}
+        {(!isEdit || editing) && (<>
         <div className="p-5 space-y-3" onPaste={onPaste}>
           <div>
             <label className={LB}>태스크명 *</label>
@@ -459,7 +515,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
               <label className={LB}>설명 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
               <button type="button" onClick={() => setDescBig((v) => !v)} className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)]">{descBig ? "▲ 작게" : "▼ 크게"}</button>
             </div>
-            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} onDoubleClick={() => setDescBig(true)} rows={descBig ? 9 : 2} title="더블클릭하거나 '크게'를 누르면 넓어집니다" className={IN} />
+            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} onDoubleClick={() => setDescBig(true)} rows={descBig ? 16 : 5} title="더블클릭하거나 '크게'를 누르면 넓어집니다" className={`${IN} leading-relaxed`} />
           </div>
           <div>
             <div className="flex items-center justify-between">
@@ -545,6 +601,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
             </button>
           </div>
         </div>
+        </>)}
         {lightbox && (
           <div className="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
             <button type="button" onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl leading-none">✕</button>
