@@ -43,8 +43,8 @@ export const AR_AP = {
 export const palette = (type: string) => (type === "sales" ? AR_AP.sales : AR_AP.purchase);
 
 // ── 위하고식 그리드 공통 셀 클래스 ──
-export const GRID_TH = "px-3 py-2 font-semibold whitespace-nowrap";
-export const GRID_TD = "px-3 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis";
+export const GRID_TH = "px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide whitespace-nowrap";
+export const GRID_TD = "px-3 py-2.5 whitespace-nowrap overflow-hidden text-ellipsis";
 
 export const MATCH_LABEL: Record<string, string> = {
   one_to_one: "1:1 정확", aggregate: "합산입금", partial: "부분입금", withholding: "원천징수", manual: "수동", adjustment: "차액 마감",
@@ -268,7 +268,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   void openingFromRpc; // RPC 이월값은 참고용 — 시트는 자체 합산(원장 행과 1원 단위 일치 보장)
 
   const num = (n: number) => (n ? Math.round(n).toLocaleString() : "");
-  const cellR = "px-3 py-1.5 text-right mono-number";
+  const cellR = "px-3 py-2.5 text-right mono-number";
 
   const downloadCsv = () => {
     const rows: string[][] = [["일자", "적요", "차변", "대변", "잔액"]];
@@ -317,11 +317,11 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
         <table className="w-full min-w-[640px] text-xs border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
-              <th className="px-3 py-2 text-left font-semibold w-[92px]">일자</th>
-              <th className="px-3 py-2 text-left font-semibold">적요</th>
-              <th className="px-3 py-2 text-right font-semibold w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
-              <th className="px-3 py-2 text-right font-semibold w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
-              <th className="px-3 py-2 text-right font-semibold w-[130px]">잔액</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left w-[92px]">일자</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left">적요</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[130px]">잔액</th>
             </tr>
           </thead>
           <tbody>
@@ -753,11 +753,11 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
               <table className="w-full text-xs border-collapse" style={{ minWidth: 560 }}>
                 <thead>
                   <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
-                    <th className="px-2 py-2 text-left font-semibold min-w-[150px]">계정과목</th>
-                    <th className="px-2 py-2 text-left font-semibold min-w-[110px]">거래처·통장/카드</th>
-                    <th className="px-2 py-2 text-left font-semibold">적요</th>
-                    <th className="px-2 py-2 text-right font-semibold w-[110px]">차변</th>
-                    <th className="px-2 py-2 text-right font-semibold w-[110px]">대변</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left min-w-[150px]">계정과목</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left min-w-[110px]">거래처·통장/카드</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left">적요</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[110px]">차변</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[110px]">대변</th>
                     <th className="w-7" />
                   </tr>
                 </thead>

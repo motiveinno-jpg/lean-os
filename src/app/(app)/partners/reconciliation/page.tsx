@@ -630,7 +630,7 @@ export default function ReconciliationPage() {
                 <div className="overflow-auto max-h-[600px]">
                   <table ref={queueTableRef} className="w-full min-w-[1020px] text-xs border-collapse" style={{ tableLayout: "fixed" }}>
                     <thead className="sticky top-0 z-10">
-                      <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+                      <tr className="bg-[var(--bg-surface)]/50 border-b border-[var(--border)]">
                         <th className="px-2 py-2 text-center" style={{ width: queueW.sel }}>
                           <input type="checkbox" checked={selected.size === queue.length && queue.length > 0}
                             onChange={(e) => setSelected(e.target.checked ? new Set(queue.map((m) => m.id)) : new Set())}
@@ -712,7 +712,7 @@ export default function ReconciliationPage() {
               <div className="overflow-auto max-h-[600px]">
                 <table className="w-full min-w-[680px] text-xs border-collapse">
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+                    <tr className="bg-[var(--bg-surface)]/50 border-b border-[var(--border)]">
                       <th className={`${GRID_TH} text-left w-[92px]`}>거래일자</th>
                       <th className={`${GRID_TH} text-center w-[52px]`}>구분</th>
                       <th className={`${GRID_TH} text-left`}>거래처(입금자)</th>
@@ -900,7 +900,7 @@ export default function ReconciliationPage() {
               <div className="overflow-auto max-h-[600px]">
                 <table className="w-full min-w-[1020px] text-xs border-collapse">
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+                    <tr className="bg-[var(--bg-surface)]/50 border-b border-[var(--border)]">
                       <th className={`${GRID_TH} text-left w-[88px]`}>거래일자</th>
                       <th className={`${GRID_TH} text-center w-[64px]`}>구분</th>
                       <th className={`${GRID_TH} text-left`}>입금자/사유</th>

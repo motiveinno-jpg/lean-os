@@ -526,14 +526,14 @@ export default function VoucherEntryPage() {
         <div className="overflow-visible">
           <table className="w-full text-xs border-collapse table-fixed">
             <thead>
-              <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
-                <th className="px-2 py-2 w-9 text-center font-semibold">No</th>
-                <th className="px-2 py-2 w-[68px] text-left font-semibold">구분</th>
-                <th className="px-2 py-2 text-left font-semibold">계정과목</th>
-                <th className="px-2 py-2 text-left font-semibold">거래처</th>
-                <th className="px-2 py-2 text-left font-semibold">적요</th>
-                <th className="px-2 py-2 w-[110px] text-right font-semibold">차변</th>
-                <th className="px-2 py-2 w-[110px] text-right font-semibold">대변</th>
+              <tr className="bg-[var(--bg-surface)]/50 border-b border-[var(--border)]">
+                <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">No</th>
+                <th className="px-2 py-2 w-[68px] text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">구분</th>
+                <th className="px-2 py-2 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">계정과목</th>
+                <th className="px-2 py-2 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">거래처</th>
+                <th className="px-2 py-2 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">적요</th>
+                <th className="px-2 py-2 w-[110px] text-right text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">차변</th>
+                <th className="px-2 py-2 w-[110px] text-right text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">대변</th>
                 <th className="px-2 py-2 w-8" />
               </tr>
             </thead>
@@ -618,22 +618,22 @@ export default function VoucherEntryPage() {
         <div className="overflow-visible">
           <table className="w-full text-xs border-collapse table-fixed">
             <thead>
-              <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+              <tr className="bg-[var(--bg-surface)]/50 border-b border-[var(--border)]">
                 <th className="px-2 py-2.5 w-8 text-center font-semibold">
                   <input type="checkbox"
                     checked={entries.length > 0 && selected.size >= entries.length}
                     onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => `s:${x.id}`)) : new Set())} />
                 </th>
                 <th className="px-2 py-2.5 w-9 text-center font-semibold">No</th>
-                <th className="px-2 py-2.5 w-[76px] text-left font-semibold">구분</th>
-                <th className="px-2 py-2.5 w-[72px] text-left font-semibold">계정코드</th>
-                <th className="px-2 py-2.5 text-left font-semibold">계정명</th>
-                <th className="px-2 py-2.5 w-[100px] text-left font-semibold">거래처코드</th>
-                <th className="px-2 py-2.5 text-left font-semibold">거래처명</th>
-                <th className="px-2 py-2.5 w-[110px] text-right font-semibold">차변</th>
-                <th className="px-2 py-2.5 w-[110px] text-right font-semibold">대변</th>
+                <th className="px-2 py-2.5 w-[76px] text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">구분</th>
+                <th className="px-2 py-2.5 w-[72px] text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">계정코드</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">계정명</th>
+                <th className="px-2 py-2.5 w-[100px] text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">거래처코드</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">거래처명</th>
+                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">차변</th>
+                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">대변</th>
                 <th className="px-2 py-2.5 w-[64px] text-center font-semibold">적요코드</th>
-                <th className="px-2 py-2.5 text-left font-semibold">적요</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">적요</th>
               </tr>
             </thead>
             <tbody>
