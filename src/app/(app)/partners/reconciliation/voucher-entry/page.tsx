@@ -25,8 +25,16 @@ import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown"
 const db = supabase as any;
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
 const todayKst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-const num = (s: string | number) => Number(String(s).replace(/[^0-9]/g, "")) || 0;
-const comma = (s: string) => { const n = num(s); return n ? n.toLocaleString("ko-KR") : ""; };
+// 음수 허용(맨 앞 '-'만) — 수정분개용. 저장 시 음수 차변→대변/음수 대변→차변 정규화(DB check debit·credit>=0).
+const num = (s: string | number) => { const n = Number(String(s).replace(/[^0-9-]/g, "").replace(/(?!^)-/g, "")); return Number.isFinite(n) ? n : 0; };
+const comma = (s: string) => {
+  const neg = String(s).trim().startsWith("-");
+  const n = Math.abs(num(s));
+  if (!n) return neg ? "-" : ""; // '-'만 입력한 중간 상태 유지
+  return (neg ? "-" : "") + n.toLocaleString("ko-KR");
+};
+// 정규화 — 음수 차변은 대변으로, 음수 대변은 차변으로 (합계·저장 공통)
+const normDC = (l: { debit: string; credit: string }) => { let d = num(l.debit), c = num(l.credit); if (d < 0) { c += -d; d = 0; } if (c < 0) { d += -c; c = 0; } return { d, c }; };
 
 type Acct = { id: string; code: string; name: string };
 type Pt = { id: string; name: string; business_number: string | null };
@@ -128,9 +136,9 @@ export default function VoucherEntryPage() {
   });
 
   // ── 상단 입력 파생값 (출금/입금은 자동 현금 라인 포함해 균형 계산) ──
-  const pendFilled = pend.filter((l) => num(l.debit) > 0 || num(l.credit) > 0);
-  const pendDebit = pendFilled.reduce((s, l) => s + num(l.debit), 0);
-  const pendCredit = pendFilled.reduce((s, l) => s + num(l.credit), 0);
+  const pendFilled = pend.filter((l) => num(l.debit) !== 0 || num(l.credit) !== 0);
+  const pendDebit = pendFilled.reduce((s, l) => s + normDC(l).d, 0);
+  const pendCredit = pendFilled.reduce((s, l) => s + normDC(l).c, 0);
   const autoAmt = vtype === "cash_out" ? pendDebit : vtype === "cash_in" ? pendCredit : 0;
   const pendTotalD = pendDebit + (vtype === "cash_in" ? autoAmt : 0);
   const pendTotalC = pendCredit + (vtype === "cash_out" ? autoAmt : 0);
@@ -141,8 +149,8 @@ export default function VoucherEntryPage() {
 
   // 하단 편집 버퍼 파생값
   const editStat = (b: { lines: PLine[] }) => {
-    const fl = b.lines.filter((l) => num(l.debit) > 0 || num(l.credit) > 0);
-    const d = fl.reduce((s, l) => s + num(l.debit), 0), c = fl.reduce((s, l) => s + num(l.credit), 0);
+    const fl = b.lines.filter((l) => num(l.debit) !== 0 || num(l.credit) !== 0);
+    const d = fl.reduce((s, l) => s + normDC(l).d, 0), c = fl.reduce((s, l) => s + normDC(l).c, 0);
     return { d, c, ok: fl.length >= 2 && d > 0 && d === c && !fl.some((l) => !l.account) };
   };
   const editIds = Object.keys(edits);
@@ -186,7 +194,7 @@ export default function VoucherEntryPage() {
   // 금액 입력 — 한 행 한쪽만. 대체 행은 입력하는 쪽으로 구분 자동 전환.
   const amountPatch = (l: PLine, side: "debit" | "credit", v: string): Partial<PLine> => {
     const p: Partial<PLine> = { [side]: comma(v) } as Partial<PLine>;
-    if (num(v) > 0) {
+    if (num(v) !== 0) {
       (p as any)[side === "debit" ? "credit" : "debit"] = "";
       if (l.gubun === "3" || l.gubun === "4") p.gubun = side === "debit" ? "3" : "4";
     }
@@ -211,8 +219,8 @@ export default function VoucherEntryPage() {
     try { localStorage.setItem(MEMO_KEY, JSON.stringify(next)); } catch { /* noop */ }
   };
 
-  const linePayload = (ls: PLine[]) => ls.filter((l) => num(l.debit) > 0 || num(l.credit) > 0)
-    .map((l) => ({ account_id: l.account!.id, debit: num(l.debit), credit: num(l.credit), memo: l.memo, partner_id: l.partner?.id ?? "" }));
+  const linePayload = (ls: PLine[]) => ls.filter((l) => num(l.debit) !== 0 || num(l.credit) !== 0)
+    .map((l) => { const { d, c } = normDC(l); return { account_id: l.account!.id, debit: d, credit: c, memo: l.memo, partner_id: l.partner?.id ?? "" }; });
   const errMsg = (m: string) =>
     m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간입니다 — 저장/수정/삭제 불가"
       : m.includes("UNBALANCED") ? "차변·대변 합계가 일치하지 않습니다"

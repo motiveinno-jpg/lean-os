@@ -533,8 +533,14 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   }, []);
   const startDrag = (e: React.MouseEvent) => { dragRef.current = { sx: e.clientX, sy: e.clientY, ox: drag.x, oy: drag.y }; };
 
-  const numOnly = (s: string | number) => Number(String(s).replace(/[^0-9]/g, "")) || 0;
-  const comma = (s: string) => { const n = numOnly(s); return n ? n.toLocaleString("ko-KR") : ""; };
+  // 음수 허용(맨 앞 '-'만) — 수정분개용. 저장 시 음수 차변→대변/음수 대변→차변 정규화(DB check debit·credit>=0).
+  const numOnly = (s: string | number) => { const n = Number(String(s).replace(/[^0-9-]/g, "").replace(/(?!^)-/g, "")); return Number.isFinite(n) ? n : 0; };
+  const comma = (s: string) => {
+    const neg = String(s).trim().startsWith("-");
+    const n = Math.abs(numOnly(s));
+    if (!n) return neg ? "-" : ""; // '-'만 입력한 중간 상태 유지
+    return (neg ? "-" : "") + n.toLocaleString("ko-KR");
+  };
 
   const { data: accounts = [] } = useQuery<any[]>({
     queryKey: ["voucher-accounts", companyId],
@@ -627,9 +633,11 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   const addLine = () => setLines((ls) => [...ls, { key: keyRef.current++, account: null, partner: null, memo: "", debit: "", credit: "" }]);
   const removeLine = (key: number) => setLines((ls) => (ls.length <= 2 ? ls : ls.filter((l) => l.key !== key)));
 
-  const filled = lines.filter((l) => numOnly(l.debit) > 0 || numOnly(l.credit) > 0);
-  const totalD = filled.reduce((s, l) => s + numOnly(l.debit), 0);
-  const totalC = filled.reduce((s, l) => s + numOnly(l.credit), 0);
+  const filled = lines.filter((l) => numOnly(l.debit) !== 0 || numOnly(l.credit) !== 0);
+  // 합계는 정규화 기준(음수 차변=대변 취급) — 저장값·차대일치 표시와 동일
+  const norm = (l: ELine) => { let d = numOnly(l.debit), c = numOnly(l.credit); if (d < 0) { c += -d; d = 0; } if (c < 0) { d += -c; c = 0; } return { d, c }; };
+  const totalD = filled.reduce((s, l) => s + norm(l).d, 0);
+  const totalC = filled.reduce((s, l) => s + norm(l).c, 0);
   const diff = totalD - totalC;
   const missingAcct = filled.some((l) => !l.account);
   const canSave = !busy && !locked && filled.length >= 2 && totalD > 0 && diff === 0 && !missingAcct;
@@ -641,7 +649,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     if (!canSave) return;
     setBusy(true);
     try {
-      const payload = filled.map((l) => ({ account_id: l.account!.id, debit: numOnly(l.debit), credit: numOnly(l.credit), memo: l.memo, partner_id: l.partner?.id ?? "", bank_account_id: l.asset?.kind === "bank" ? l.asset.id : "", card_id: l.asset?.kind === "card" ? l.asset.id : "" }));
+      const payload = filled.map((l) => { const { d, c } = norm(l); return { account_id: l.account!.id, debit: d, credit: c, memo: l.memo, partner_id: l.partner?.id ?? "", bank_account_id: l.asset?.kind === "bank" ? l.asset.id : "", card_id: l.asset?.kind === "card" ? l.asset.id : "" }; });
       const res = isNew
         ? await db.rpc("save_manual_voucher", { p_entry_date: entryDate, p_voucher_type: "transfer", p_description: headerDesc(), p_lines: payload })
         : await db.rpc("update_manual_voucher", { p_entry_id: entryId, p_entry_date: entryDate, p_description: headerDesc(), p_lines: payload });
@@ -848,12 +856,12 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                         </td>
                         <td className="p-0 border-l border-[var(--border)]/30">
                           <input inputMode="numeric" value={l.debit} disabled={locked}
-                            onChange={(e) => setLine(l.key, { debit: comma(e.target.value), credit: numOnly(e.target.value) > 0 ? "" : l.credit })}
+                            onChange={(e) => setLine(l.key, { debit: comma(e.target.value), credit: numOnly(e.target.value) !== 0 ? "" : l.credit })}
                             placeholder="0" className={`${IN} text-right mono-number`} />
                         </td>
                         <td className="p-0 border-l border-[var(--border)]/30">
                           <input inputMode="numeric" value={l.credit} disabled={locked}
-                            onChange={(e) => setLine(l.key, { credit: comma(e.target.value), debit: numOnly(e.target.value) > 0 ? "" : l.debit })}
+                            onChange={(e) => setLine(l.key, { credit: comma(e.target.value), debit: numOnly(e.target.value) !== 0 ? "" : l.debit })}
                             placeholder="0" className={`${IN} text-right mono-number`} />
                         </td>
                         <td className="text-center">
