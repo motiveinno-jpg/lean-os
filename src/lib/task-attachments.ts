@@ -34,6 +34,12 @@ export async function taskAttachmentUrl(path: string): Promise<string | null> {
   return data?.signedUrl ?? null;
 }
 
+// 다운로드용 임시 서명 URL — Content-Disposition: attachment (원본 파일명 유지)
+export async function taskAttachmentDownloadUrl(path: string, name: string): Promise<string | null> {
+  const { data } = await db.storage.from(BUCKET).createSignedUrl(path, 60 * 10, { download: name || true });
+  return data?.signedUrl ?? null;
+}
+
 export async function removeTaskAttachment(path: string): Promise<void> {
   try { await db.storage.from(BUCKET).remove([path]); } catch { /* best-effort */ }
 }

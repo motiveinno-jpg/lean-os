@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
-import { uploadTaskAttachment, taskAttachmentUrl, removeTaskAttachment, isImageAtt, type TaskAttachment } from "@/lib/task-attachments";
+import { uploadTaskAttachment, taskAttachmentUrl, taskAttachmentDownloadUrl, removeTaskAttachment, isImageAtt, type TaskAttachment } from "@/lib/task-attachments";
 
 const db = supabase as any;
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -25,6 +25,15 @@ const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
 ];
 
 const isDelayed = (t: any) => t.due_date && t.status !== "done" && String(t.due_date).slice(0, 10) < todayStr();
+
+// ── 태스크 라벨 (색상+텍스트 자유 태그) — project_tasks.labels jsonb ──
+interface TaskLabel { text: string; color: string }
+const LABEL_COLORS = ["#ef4444", "#f97316", "#f59e0b", "#22c55e", "#0ea5e9", "#6366f1", "#a855f7", "#64748b"];
+const taskLabels = (t: any): TaskLabel[] => (Array.isArray(t?.labels) ? t.labels : []).filter((l: any) => l && l.text);
+const LabelChip = ({ l }: { l: TaskLabel }) => (
+  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold leading-none"
+    style={{ backgroundColor: `${l.color}24`, color: l.color }}>{l.text}</span>
+);
 
 export function TasksTab({ dealId, companyId, users }: { dealId: string; companyId: string; users: any[] }) {
   const { user } = useUser();
@@ -40,7 +49,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
     queryKey: ["project-tasks", dealId],
     queryFn: async () => {
       const { data } = await db.from("project_tasks")
-        .select("id, title, description, status, assignee_id, start_date, due_date, progress, position, attachments")
+        .select("id, title, description, status, assignee_id, start_date, due_date, progress, position, attachments, labels")
         .eq("deal_id", dealId).is("archived_at", null)
         .order("position", { ascending: true }).order("created_at", { ascending: true });
       return (data || []) as any[];
@@ -121,6 +130,11 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
                     onDragStart={() => setDragId(t.id)} onDragEnd={() => { setDragId(null); setDragOver(null); }}
                     onClick={() => openEdit(t)}
                     className={`rounded-lg border bg-[var(--bg-card)] p-2.5 cursor-grab active:cursor-grabbing hover:border-[var(--primary)]/40 transition ${dragId === t.id ? "opacity-50" : ""} ${isDelayed(t) ? "border-red-500/40" : "border-[var(--border)]"}`}>
+                    {taskLabels(t).length > 0 && (
+                      <div className="flex items-center gap-1 mb-1 flex-wrap">
+                        {taskLabels(t).map((l, i) => <LabelChip key={i} l={l} />)}
+                      </div>
+                    )}
                     <div className="text-sm font-medium text-[var(--text)] break-words">{t.title}</div>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       {t.assignee_id && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{userName[t.assignee_id] || "담당"}</span>}
@@ -243,6 +257,18 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   const [saving, setSaving] = useState(false);
   const isEdit = !!task;
 
+  // ── 라벨 (색상+텍스트) ──
+  const [labels, setLabels] = useState<TaskLabel[]>(Array.isArray(task?.labels) ? task.labels.filter((l: any) => l && l.text) : []);
+  const [labelText, setLabelText] = useState("");
+  const [labelColor, setLabelColor] = useState(LABEL_COLORS[4]);
+  const addLabel = () => {
+    const text = labelText.trim();
+    if (!text) return;
+    if (labels.some((l) => l.text === text)) { setLabelText(""); return; }
+    setLabels((p) => [...p, { text, color: labelColor }]);
+    setLabelText("");
+  };
+
   // ── 첨부(이미지·파일) + 클립보드 붙여넣기 ──
   const [atts, setAtts] = useState<TaskAttachment[]>(Array.isArray(task?.attachments) ? task.attachments : []);
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -285,6 +311,15 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
     if (imgs.length) { e.preventDefault(); addFiles(imgs); }
   };
   const removeAtt = (a: TaskAttachment) => { setAtts((p) => p.filter((x) => x.id !== a.id)); removeTaskAttachment(a.path); };
+  const downloadAtt = async (a: TaskAttachment) => {
+    try {
+      const url = await taskAttachmentDownloadUrl(a.path, a.name);
+      if (!url) throw new Error("다운로드 URL 생성 실패");
+      const link = document.createElement("a");
+      link.href = url; link.download = a.name; link.rel = "noopener";
+      document.body.appendChild(link); link.click(); link.remove();
+    } catch (e: any) { toast(e?.message || "다운로드 실패", "error"); }
+  };
 
   const save = async () => {
     if (!title.trim()) { toast("태스크명을 입력하세요", "error"); return; }
@@ -293,7 +328,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
       const payload: any = {
         title: title.trim(), description: desc.trim() || null, status,
         assignee_id: assignee || null, start_date: start || null, due_date: due || null,
-        attachments: atts,
+        attachments: atts, labels,
         updated_at: new Date().toISOString(),
       };
       if (isEdit) {
@@ -369,6 +404,34 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
             <textarea value={desc} onChange={(e) => setDesc(e.target.value)} onDoubleClick={() => setDescBig(true)} rows={descBig ? 9 : 2} title="더블클릭하거나 '크게'를 누르면 넓어집니다" className={IN} />
           </div>
           <div>
+            <label className={LB}>라벨 <span className="font-normal text-[var(--text-dim)]">(색상+텍스트 · 자유 태그)</span></label>
+            {labels.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                {labels.map((l, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full font-semibold leading-none"
+                    style={{ backgroundColor: `${l.color}24`, color: l.color }}>
+                    {l.text}
+                    <button type="button" onClick={() => setLabels((p) => p.filter((_, j) => j !== i))} className="hover:opacity-70 leading-none" aria-label="라벨 삭제">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <input value={labelText} onChange={(e) => setLabelText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLabel(); } }}
+                placeholder="라벨 텍스트" className={`${IN} flex-1 min-w-0`} />
+              <div className="flex items-center gap-1 shrink-0">
+                {LABEL_COLORS.map((c) => (
+                  <button key={c} type="button" onClick={() => setLabelColor(c)} aria-label={`라벨 색상 ${c}`}
+                    className={`w-[18px] h-[18px] rounded-full transition ${labelColor === c ? "ring-2 ring-offset-1 ring-[var(--primary)] ring-offset-[var(--bg-card)]" : "opacity-60 hover:opacity-100"}`}
+                    style={{ backgroundColor: c }} />
+                ))}
+              </div>
+              <button type="button" onClick={addLabel} disabled={!labelText.trim()}
+                className="shrink-0 px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40">추가</button>
+            </div>
+          </div>
+          <div>
             <label className={LB}>첨부 <span className="font-normal text-[var(--text-dim)]">(이미지·파일 · Ctrl+V 붙여넣기)</span></label>
             <div className="flex items-center gap-2 mb-2">
               <button type="button" onClick={() => fileRef.current?.click()} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">파일 선택</button>
@@ -384,9 +447,10 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
                       // eslint-disable-next-line @next/next/no-img-element
                       <button type="button" onClick={() => setLightbox(urls[a.path])} className="block w-full"><img src={urls[a.path]} alt={a.name} className="w-full h-16 object-cover cursor-zoom-in" /></button>
                     ) : (
-                      <div className="h-16 flex items-center justify-center text-2xl">📄</div>
+                      <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`} className="w-full h-16 flex items-center justify-center text-2xl hover:bg-[var(--bg-card)] transition">📄</button>
                     )}
-                    <div className="px-1.5 py-1 text-[10px] text-[var(--text-muted)] truncate" title={a.name}>{a.name}</div>
+                    <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`}
+                      className="block w-full px-1.5 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline truncate text-left">{a.name}</button>
                   </div>
                 ))}
               </div>
