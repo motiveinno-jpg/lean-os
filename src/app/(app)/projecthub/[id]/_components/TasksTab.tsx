@@ -250,6 +250,101 @@ function GanttChart({ tasks, userName, onTaskClick }: { tasks: any[]; userName: 
   );
 }
 
+// ── 태스크 댓글 — 설명에 대한 답글 스레드. task_comments(parent_id 자기참조)로 답글의 답글 무한 중첩 ──
+function TaskComments({ taskId, companyId, userId, users }: { taskId: string; companyId: string; userId: string | null; users: any[] }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: comments = [] } = useQuery({
+    queryKey: ["task-comments", taskId],
+    queryFn: async () => {
+      const { data } = await db.from("task_comments")
+        .select("id, parent_id, body, created_by, created_at")
+        .eq("task_id", taskId).order("created_at", { ascending: true });
+      return (data || []) as any[];
+    },
+    enabled: !!taskId,
+  });
+  const [text, setText] = useState("");
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const nameOf = (id: string | null) => users.find((u) => u.id === id)?.name || "구성원";
+  const fmtAt = (ts: string) => String(ts).slice(0, 16).replace("T", " ");
+
+  const add = async (parentId: string | null, body: string) => {
+    const t = body.trim();
+    if (!t || busy) return;
+    setBusy(true);
+    try {
+      const { error } = await db.from("task_comments").insert({ company_id: companyId, task_id: taskId, parent_id: parentId, body: t, created_by: userId });
+      if (error) throw new Error(error.message);
+      setText(""); setReplyText(""); setReplyTo(null);
+      qc.invalidateQueries({ queryKey: ["task-comments", taskId] });
+    } catch (e: any) { toast(e?.message || "댓글 등록 실패", "error"); } finally { setBusy(false); }
+  };
+  const del = async (c: any) => {
+    if (!confirm("이 댓글을 삭제할까요? 아래 달린 답글도 함께 삭제됩니다.")) return;
+    try {
+      const { error } = await db.from("task_comments").delete().eq("id", c.id);
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["task-comments", taskId] });
+    } catch (e: any) { toast(e?.message || "삭제 실패", "error"); }
+  };
+
+  // parent_id → 자식 목록 (created_at asc 유지)
+  const children = useMemo(() => {
+    const m: Record<string, any[]> = {};
+    for (const c of comments as any[]) (m[c.parent_id || "root"] ||= []).push(c);
+    return m;
+  }, [comments]);
+
+  // 재귀 렌더 — depth 만큼 들여쓰기 + 세로 가이드라인. (컴포넌트가 아닌 함수라 입력 포커스 안전)
+  const renderNode = (c: any, depth: number): React.ReactNode => (
+    <div key={c.id} className={depth > 0 ? "ml-3 pl-3 border-l-2 border-[var(--border)]" : ""}>
+      <div className="py-1.5">
+        <div className="flex items-center gap-2 text-[11px] text-[var(--text-dim)]">
+          <b className="text-[var(--text-muted)]">{nameOf(c.created_by)}</b>
+          <span className="mono-number">{fmtAt(c.created_at)}</span>
+          <button type="button" onClick={() => { setReplyTo(replyTo === c.id ? null : c.id); setReplyText(""); }}
+            className="font-semibold hover:text-[var(--primary)]">{replyTo === c.id ? "답글 취소" : "답글"}</button>
+          {c.created_by === userId && <button type="button" onClick={() => del(c)} className="hover:text-[var(--danger)]">삭제</button>}
+        </div>
+        <div className="text-sm text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed mt-0.5">{c.body}</div>
+        {replyTo === c.id && (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <input value={replyText} onChange={(e) => setReplyText(e.target.value)} autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(c.id, replyText); } }}
+              placeholder={`${nameOf(c.created_by)}님에게 답글 (Enter로 등록)`}
+              className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] focus:outline-none focus:border-[var(--primary)]" />
+            <button type="button" onClick={() => add(c.id, replyText)} disabled={!replyText.trim() || busy}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white disabled:opacity-40 hover:opacity-90">등록</button>
+          </div>
+        )}
+      </div>
+      {(children[c.id] || []).map((ch) => renderNode(ch, depth + 1))}
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="text-xs text-[var(--text-muted)] mb-1">💬 댓글{comments.length > 0 ? ` ${comments.length}` : ""} <span className="font-normal text-[var(--text-dim)]">— 답글에 계속 답글을 달 수 있습니다</span></div>
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/40 px-4 py-1.5 max-h-[38vh] overflow-y-auto">
+        {(children["root"] || []).length === 0 ? (
+          <div className="py-3 text-xs text-[var(--text-dim)]">아직 댓글이 없습니다. 아래에 첫 댓글을 남겨보세요.</div>
+        ) : (children["root"] || []).map((c) => renderNode(c, 0))}
+      </div>
+      <div className="flex items-center gap-1.5 mt-2">
+        <input value={text} onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(null, text); } }}
+          placeholder="댓글 입력 (Enter로 등록)"
+          className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]" />
+        <button type="button" onClick={() => add(null, text)} disabled={!text.trim() || busy}
+          className="px-4 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white disabled:opacity-40 hover:opacity-90">등록</button>
+      </div>
+    </div>
+  );
+}
+
 function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, onClose, onSaved }: {
   dealId: string; companyId: string; users: any[]; task: any | null; userId: string | null; existingCount: number; onClose: () => void; onSaved: () => void;
 }) {
@@ -432,6 +527,8 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
                   {desc.trim() ? desc : <span className="text-[var(--text-dim)]">설명이 없습니다.</span>}
                 </div>
               </div>
+              {/* 설명에 대한 댓글·답글 스레드 (무한 중첩) */}
+              <TaskComments taskId={task.id} companyId={companyId} userId={userId} users={users} />
               {atts.length > 0 && (
                 <div>
                   <div className="text-xs text-[var(--text-muted)] mb-1">첨부 {atts.length}개 <span className="text-[var(--text-dim)]">— 이미지는 클릭해 크게 보기, 파일명 클릭 시 다운로드</span></div>
