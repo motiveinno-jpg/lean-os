@@ -60,6 +60,8 @@ interface PnlData {
   salesRevenue: MonthlyRow;
   purchaseCost: MonthlyRow;
   totalSalary: MonthlyRow;
+  uncategorizedCount: number;   // 분류 안 돼 판관비에서 빠진 출금 건수
+  uncategorizedAmount: number;  // 그 합계 금액
 }
 
 /* ------------------------------------------------------------------ */
@@ -212,6 +214,9 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
   const NON_EXPENSE_CAT = ["이체", "송금", "대출", "상환", "카드대금", "카드이용대금", "세금", "부가세", "인출", "충당", "보증금", "예치", "예금"];
   const isNonExpenseCat = (c: string) => NON_EXPENSE_CAT.some((k) => c.includes(k));
 
+  // 미분류 출금 규모 — 판관비에서 빠진 금액(경고 배너용). 자금이동(이체/카드대금 등)은 원래 비용 아님이라 제외.
+  let uncategorizedCount = 0;
+  let uncategorizedAmount = 0;
   for (const tx of transactions as any[]) {
     const month = toMonth(tx.transaction_date);
     if (!allMonths.includes(month)) continue;
@@ -222,7 +227,8 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     //   비용에서 제외해 허수 과대계상 차단(99% 미분류 출금이 손익을 −4억 허수로 만들던 문제).
     if (tx.type === "expense" || tx.type === "출금") {
       const userCat = (tx.category && String(tx.category).trim()) || "";
-      if (!userCat || isNonExpenseCat(userCat)) continue;
+      if (isNonExpenseCat(userCat)) continue;      // 자금이동 = 비용 아님(경고 대상도 아님)
+      if (!userCat) { uncategorizedCount++; uncategorizedAmount += amt; continue; } // 미분류 = 판관비 누락
       ensureOpex(userCat)[month] += amt;
     }
   }
@@ -272,6 +278,8 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     salesRevenue,
     purchaseCost,
     totalSalary,
+    uncategorizedCount,
+    uncategorizedAmount,
   };
 }
 
@@ -676,6 +684,19 @@ export default function PnlPage() {
           </button>
         </div>
       </div>
+
+      {/* 미분류 출금 경고 — 판관비 과소계상(영업이익 과대) 오해 방지 */}
+      {data.uncategorizedCount > 0 && (
+        <div className="flex items-start gap-2 rounded-xl px-4 py-3 mb-4 text-sm"
+          style={{ background: "color-mix(in srgb, #f59e0b 10%, transparent)", border: "1px solid color-mix(in srgb, #f59e0b 35%, transparent)" }}>
+          <span className="text-base leading-none mt-0.5">⚠️</span>
+          <div className="text-[var(--text)] leading-relaxed">
+            분류되지 않은 통장 출금 <b>{data.uncategorizedCount.toLocaleString()}건</b>(약 <b>₩{Math.round(data.uncategorizedAmount).toLocaleString()}</b>)이
+            판매관리비에 <b>반영되지 않았습니다</b> — 실제보다 영업이익이 크게 보일 수 있습니다.
+            <span className="text-[var(--text-muted)]"> 통장 거래내역 또는 거래 매칭에서 계정을 분류하면 손익에 자동 반영됩니다.</span>
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards — 대시보드 글래스카드 스타일 (2026-06-10 리디자인) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 24 }}>
