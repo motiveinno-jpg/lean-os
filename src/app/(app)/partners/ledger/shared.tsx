@@ -663,7 +663,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
           : m.includes("NEED_TWO_LINES") ? "차변·대변을 2줄 이상 입력하세요"
           : m.includes("INVALID_ACCOUNT") ? "계정과목이 올바르지 않습니다"
           : m.includes("FORBIDDEN") ? "권한이 없습니다"
-          : m.includes("INVALID_SUB_DEAL") ? "세부 프로젝트가 선택한 프로젝트에 속하지 않습니다"
+          : m.includes("INVALID_SUB_DEAL") ? "매출·매입 항목이 선택한 프로젝트에 속하지 않습니다"
           : m.includes("INVALID_DEAL") ? "프로젝트가 올바르지 않습니다"
           : m.includes("does not exist") ? "전표 DB가 아직 적용되지 않았습니다"
           : m || (isNew ? "전표 입력 실패" : "수정 실패"),
@@ -721,9 +721,9 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
               </select>
               {dealId && subDeals.length > 0 && (
                 <select value={subDealId ?? ""} onMouseDown={(e) => e.stopPropagation()} onChange={(e) => setSubDealId(e.target.value || null)} disabled={locked}
-                  title="세부 프로젝트에 귀속(세부 실적원가로 집계)"
+                  title="매출·매입 항목에 귀속(항목별 실적원가로 집계)"
                   className="bg-[var(--bg-surface)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] text-[var(--text)] max-w-[150px] disabled:opacity-60">
-                  <option value="">세부 미지정</option>
+                  <option value="">항목 미지정</option>
                   {subDeals.map((s) => <option key={s.id} value={s.id}>{s.type === "sales" ? "[매출] " : s.type === "purchase" ? "[매입] " : ""}{s.name}</option>)}
                 </select>
               )}

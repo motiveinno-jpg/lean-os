@@ -982,7 +982,7 @@ export default function ProjectHubDetailPage() {
       {/* 매출/매입 관리 — 파이프라인 탭(방향별) 하단 */}
       {pipelineDir && companyId && (
         <div>
-          <div className="text-xs font-bold text-[var(--text-muted)] mb-2 mt-1">{pipelineDir === "sales" ? "매출 세부 관리" : "매입 세부 관리"}</div>
+          <div className="text-xs font-bold text-[var(--text-muted)] mb-2 mt-1">{pipelineDir === "sales" ? "매출 항목 관리" : "매입 항목 관리"}</div>
           <SubDealsTab dealId={dealId} companyId={companyId} direction={pipelineDir} />
         </div>
       )}
@@ -1249,13 +1249,13 @@ export default function ProjectHubDetailPage() {
             </select>
             {formKind === "quote" && (
               <>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">세부 프로젝트 연결 <span className="font-normal text-[var(--text-dim)]">(선택 — 매출/매입 견적을 세부에 부착)</span></label>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">매출·매입 항목 연결 <span className="font-normal text-[var(--text-dim)]">(선택 — 견적을 특정 항목에 부착)</span></label>
                 <select
                   value={quoteSubDealId}
                   onChange={(e) => setQuoteSubDealId(e.target.value)}
                   className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                 >
-                  <option value="">프로젝트 전체 (세부 미지정)</option>
+                  <option value="">프로젝트 전체 (항목 미지정)</option>
                   {subDealOpts.map((s) => <option key={s.id} value={s.id}>{s.type === "sales" ? "[매출]" : s.type === "purchase" ? "[매입]" : ""} {s.name}</option>)}
                 </select>
               </>

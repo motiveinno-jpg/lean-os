@@ -1,8 +1,9 @@
 "use client";
 
-// 세부 프로젝트(sub_deals) 탭 — 한 프로젝트(deal) 아래 세부 거래처·금액·매출/매입 타입 관리.
+// 매출·매입 항목(sub_deals) 탭 — 한 프로젝트(deal) 아래 거래 항목별 거래처·금액·매출/매입 타입 관리.
+//   ※ '세부 프로젝트(캠페인)'(자식 deals)와는 별개 개념 — 여긴 금액 항목만. UI 명칭도 '항목'으로 구분.
 //   RLS: parent_deal_id → deals.company_id 경유 기존 정책 재사용(신규 정책 없음).
-//   약정 마진 롤업은 부모 페이지(v_project_margin)에서 표기. 여기선 세부 CRUD + 세부별 약정/실적.
+//   약정 마진 롤업은 부모 페이지(v_project_margin)에서 표기. 여기선 항목 CRUD + 항목별 약정/실적.
 
 import { useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
@@ -97,7 +98,7 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
         start_date: form.start_date || null,
         end_date: form.end_date || null,
       };
-      if (!payload.name) throw new Error("세부 프로젝트명을 입력하세요");
+      if (!payload.name) throw new Error("항목명을 입력하세요");
       if (editId) {
         const { error } = await db.from("sub_deals").update(payload).eq("id", editId);
         if (error) throw new Error(error.message);
@@ -110,7 +111,7 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
       qc.invalidateQueries({ queryKey: ["sub-deals", dealId] });
       qc.invalidateQueries({ queryKey: ["project-margin", dealId] });
       setShowForm(false);
-      toast(editId ? "세부 프로젝트를 수정했습니다" : "세부 프로젝트를 추가했습니다", "success");
+      toast(editId ? "항목을 수정했습니다" : "항목을 추가했습니다", "success");
     },
     onError: (e: any) => toast(e?.message || "저장 실패", "error"),
   });
@@ -122,7 +123,7 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sub-deals", dealId] });
       qc.invalidateQueries({ queryKey: ["project-margin", dealId] });
-      toast("세부 프로젝트를 삭제했습니다", "info");
+      toast("항목을 삭제했습니다", "info");
     },
     onError: (e: any) => toast(e?.message || "삭제 실패", "error"),
   });
@@ -135,20 +136,20 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-xs text-[var(--text-muted)]">세부 프로젝트별 거래처·금액·매출/매입을 관리합니다. <span className="text-[var(--text-dim)]">매출형 합 {won(salesSum)} · 매입형 합 {won(purchaseSum)}</span></p>
-        <button onClick={openCreate} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 세부 추가</button>
+        <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 매출·매입 항목(거래처·금액)을 관리합니다. 세부 프로젝트(캠페인)와는 별개입니다. <span className="text-[var(--text-dim)]">매출 합 {won(salesSum)} · 매입 합 {won(purchaseSum)}</span></p>
+        <button onClick={openCreate} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 항목 추가</button>
       </div>
 
       {isLoading ? (
         <div className="glass-card p-8 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>
       ) : shown.length === 0 ? (
-        <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">{direction === "sales" ? "매출" : direction === "purchase" ? "매입" : "매출/매입"} 세부가 없습니다. “+ 세부 추가”로 등록하세요.</div>
+        <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">{direction === "sales" ? "매출" : direction === "purchase" ? "매입" : "매출/매입"} 항목이 없습니다. “+ 항목 추가”로 등록하세요.</div>
       ) : (
         <div className="glass-card overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
-                <th className="px-3 py-2.5 text-left text-[12px] font-bold border-b border-[var(--border)]">세부 프로젝트명</th>
+                <th className="px-3 py-2.5 text-left text-[12px] font-bold border-b border-[var(--border)]">항목명</th>
                 <th className="px-3 py-2.5 text-center text-[12px] font-bold border-b border-[var(--border)]">구분</th>
                 <th className="px-3 py-2.5 text-left text-[12px] font-bold border-b border-[var(--border)]">거래처</th>
                 <th className="px-3 py-2.5 text-right text-[12px] font-bold border-b border-[var(--border)]">금액</th>
@@ -167,12 +168,12 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
                   </td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text)]">{partnerName(s.partner_id)}</td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{s.contract_amount != null ? Number(s.contract_amount).toLocaleString("ko-KR") : "—"}</td>
-                  <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text-muted)]" title="전표에서 이 세부로 귀속한 비용계정 실적">{actualCost(s.id) ? Number(actualCost(s.id)).toLocaleString("ko-KR") : "—"}</td>
+                  <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text-muted)]" title="전표에서 이 항목으로 귀속한 비용계정 실적">{actualCost(s.id) ? Number(actualCost(s.id)).toLocaleString("ko-KR") : "—"}</td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center text-[11px] text-[var(--text-muted)] whitespace-nowrap">{s.start_date || s.end_date ? `${fmtDate(s.start_date)}~${fmtDate(s.end_date)}` : "—"}</td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center"><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{STATUS_LABEL[s.status || ""] || "—"}</span></td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
                     <button onClick={() => openEdit(s)} className="px-2 py-1 text-[11px] font-semibold rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">수정</button>
-                    <button onClick={() => { if (confirm(`'${s.name}' 세부 프로젝트를 삭제할까요?\n연결된 문서는 프로젝트에 남고 링크만 해제됩니다.`)) delMut.mutate(s.id); }} className="ml-1 px-2 py-1 text-[11px] font-semibold rounded bg-red-500/10 text-red-500 hover:bg-red-500/20">삭제</button>
+                    <button onClick={() => { if (confirm(`'${s.name}' 항목을 삭제할까요?\n연결된 문서는 프로젝트에 남고 링크만 해제됩니다.`)) delMut.mutate(s.id); }} className="ml-1 px-2 py-1 text-[11px] font-semibold rounded bg-red-500/10 text-red-500 hover:bg-red-500/20">삭제</button>
                   </td>
                 </tr>
               ))}
@@ -186,12 +187,12 @@ export function SubDealsTab({ dealId, companyId, direction }: { dealId: string; 
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowForm(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-[var(--text)]">{editId ? "세부 프로젝트 수정" : "세부 프로젝트 추가"}</h3>
+              <h3 className="text-base font-bold text-[var(--text)]">{editId ? "매출·매입 항목 수정" : "매출·매입 항목 추가"}</h3>
               <button onClick={() => setShowForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">세부 프로젝트명 *</label>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">항목명 *</label>
                 <input autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="예: 외주 디자인 / 자재 납품"
                   className="w-full h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
               </div>
