@@ -634,31 +634,8 @@ export default function BoardPage() {
 
   return (
     <div className="">
-      <div className="page-sticky-header flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-extrabold">게시판</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            회사 구성원 누구나 글·댓글·일정·투표·첨부를 쓸 수 있습니다.{" "}
-            {canPin && (
-              <span className="text-emerald-500">· 관리자: 상단 고정 가능</span>
-            )}
-          </p>
-        </div>
-        {!showForm && (
-          <button
-            onClick={() => {
-              resetForm();
-              setShowForm(true);
-            }}
-            className="btn-primary"
-          >
-            + 글쓰기
-          </button>
-        )}
-      </div>
-
-      {/* 플렉스식 필터 + 검색 바 */}
-      <div className="flex flex-wrap items-center gap-2 mb-6">
+      {/* 컴팩트 툴바 — 좌: 필터, 우: 검색 + 글쓰기 */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <div className="seg-bar flex-wrap">
           {(
             [
@@ -679,12 +656,25 @@ export default function BoardPage() {
             </button>
           ))}
         </div>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="제목·내용 검색"
-          className="ml-auto w-full sm:w-56 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-        />
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="제목·내용 검색"
+            className="w-40 sm:w-56 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+          />
+          {!showForm && (
+            <button
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+              className="btn-primary"
+            >
+              + 글쓰기
+            </button>
+          )}
+        </div>
       </div>
 
       {showForm && (

@@ -720,42 +720,38 @@ export default function ProjectHubDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            {deal.parent_deal_id ? (
-              <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]" title="상위 프로젝트의 세부 프로젝트 목록으로">← {parentDeal?.name || "상위 프로젝트"}</Link>
-            ) : (
-              <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
-            )}
-            {deal.parent_deal_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">세부 프로젝트</span>}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
-          </div>
-          {editingName ? (
-            <input
-              value={nameInput} autoFocus
-              onChange={(e) => setNameInput(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
-              className="text-2xl font-extrabold bg-transparent border-b-2 border-[var(--primary)] text-[var(--text)] focus:outline-none mt-1 w-full max-w-md"
-            />
-          ) : (
-            <h1 onClick={() => { setNameInput(deal.name || ""); setEditingName(true); }}
-              className="text-2xl font-extrabold text-[var(--text)] mt-1 truncate cursor-text hover:opacity-80 inline-flex items-center gap-1.5"
-              title="클릭하여 프로젝트명 수정">
-              {deal.name || "(이름 없음)"}
-              <svg className="w-3.5 h-3.5 text-[var(--text-dim)] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </h1>
-          )}
-          <p className="text-xs text-[var(--text-dim)] mt-1">{partner?.name || "거래처 미지정"}{manager?.name ? ` · 담당 ${manager.name}` : ""}</p>
-        </div>
+      <div className="page-sticky-header flex flex-wrap items-center gap-2">
+        {deal.parent_deal_id ? (
+          <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]" title="상위 프로젝트의 세부 프로젝트 목록으로">← {parentDeal?.name || "상위 프로젝트"}</Link>
+        ) : (
+          <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
+        )}
+        {deal.parent_deal_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">세부 프로젝트</span>}
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
+        {editingName ? (
+          <input
+            value={nameInput} autoFocus
+            onChange={(e) => setNameInput(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
+            className="text-lg font-bold bg-transparent border-b-2 border-[var(--primary)] text-[var(--text)] focus:outline-none w-full max-w-md"
+          />
+        ) : (
+          <h1 onClick={() => { setNameInput(deal.name || ""); setEditingName(true); }}
+            className="text-lg font-bold text-[var(--text)] truncate cursor-text hover:opacity-80 inline-flex items-center gap-1.5 min-w-0"
+            title="클릭하여 프로젝트명 수정">
+            {deal.name || "(이름 없음)"}
+            <svg className="w-3.5 h-3.5 text-[var(--text-dim)] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </h1>
+        )}
+        <span className="text-xs text-[var(--text-dim)]">{partner?.name || "거래처 미지정"}{manager?.name ? ` · 담당 ${manager.name}` : ""}</span>
       </div>
 
       {/* 탭 — 유형별 노출 탭(typeCfg.tabs). 세부 프로젝트(캠페인) 화면에서는 '세부 프로젝트'(2단계 제한)·'프로젝트 운영' 숨김 */}
-      <div className="tab-bar overflow-x-auto">
+      <div className="seg-bar overflow-x-auto max-w-full">
         {typeCfg.tabs.filter((k) => !(deal.parent_deal_id && (k === "subprojects" || k === "pnl"))).map((k) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`tab-item ${tab === k ? "tab-item-active" : ""}`}>
+            className={`seg-item whitespace-nowrap ${tab === k ? "seg-item-active" : ""}`}>
             {TAB_LABEL[k]}
             {k === "subprojects" && hasChildren && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{(children as any[]).length}</span>}
           </button>
@@ -772,11 +768,11 @@ export default function ProjectHubDetailPage() {
         <DeliveryOverview deal={deal} dealId={dealId} partner={partner} manager={manager} stage={stage} />
       )}
 
-      {/* 개요 — 수익형(margin, 현행) */}
+      {/* 개요 — 수익형(margin, 현행) : 좌 2/3 본문(약정·실적·비용) + 우 1/3 요약 위젯(기본 정보·안내) */}
       {tab === "overview" && projectType === "margin" && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <p className="text-[11px] text-[var(--text-dim)]">금액·마진은 <b className="text-[var(--text-muted)]">매출/매입 관리</b> 입력값(약정) 기준입니다{hasChildren ? <> · 이 프로젝트 + 세부 프로젝트(캠페인) {(children as any[]).length}개 <b className="text-[var(--text-muted)]">합산(롤업)</b></> : null}. 실제 전표 기준 진행단계·실적·비용은 아래에 함께 표시됩니다.</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Metric label="매출" value={won(planRevenue)} hint={subSalesSum > 0 ? `자체 계약 ${won(ownContract)} + 매출형 ${won(subSalesSum)}` : undefined} />
             <Metric label="총 비용" value={won(planCost)} hint="매입형 ‘매출/매입 관리’ 합계" />
             <Metric label="마진금액" value={won(planMargin)} accent={planMargin < 0 ? "danger" : "primary"} />
@@ -785,16 +781,80 @@ export default function ProjectHubDetailPage() {
           {hasInclusiveSub && (
             <p className="text-[11px] text-[var(--text-dim)]">※ VAT <b className="text-[var(--text-muted)]">포함</b>으로 입력한 매출/매입 항목은 <b className="text-[var(--text-muted)]">공급가액(VAT 제외)</b>으로 환산해 표시·계산됩니다. 입력한 총액은 ‘매출/매입 관리’ 탭에서 확인하세요.</p>
           )}
-          <MarginRollup contract={ownContract} marginRow={marginRow} totalCost={totalCost} />
-          <div className="glass-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-            <Info label="거래처" value={partner?.name || "—"} />
-            <Info label="담당자" value={manager?.name || "—"} />
-            <Info label="분류" value={deal.classification || "—"} />
-            <Info label="단계" value={STAGE_LABEL[stage]} />
-            <Info label="시작일" value={fmtDate(deal.start_date)} />
-            <Info label="종료일" value={fmtDate(deal.end_date)} />
-            <Info label="상태" value={deal.status || "—"} />
-            <Info label="다음 액션" value={deal.next_action_text || "—"} />
+          <div className="grid gap-5 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-5">
+              <MarginRollup contract={ownContract} marginRow={marginRow} totalCost={totalCost} />
+              <div className="glass-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold">진행 단계</h3>
+                  <span className="text-[11px] text-[var(--text-dim)]">단계를 클릭해 변경하세요</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {STAGE_ORDER.map((st) => {
+                    const active = st === stage;
+                    const passed = STAGE_ORDER.indexOf(st) < STAGE_ORDER.indexOf(stage);
+                    const c = STAGE_COLOR[st];
+                    return (
+                      <button key={st} onClick={() => !stageMut.isPending && stageMut.mutate(st)} disabled={stageMut.isPending}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-60 ${active ? `${c.bg} ${c.text} ring-2 ring-[var(--primary)]/40` : passed ? "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]" : "bg-[var(--bg)] text-[var(--text-dim)] border border-[var(--border)] hover:border-[var(--primary)]"}`}>
+                        {STAGE_LABEL[st]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="text-[11px] text-[var(--text-dim)]">아래는 <b className="text-[var(--text-muted)]">실제 태그된 전표·계산서</b> 기준(실적)입니다. 매출/매입 관리 입력값 기준 마진은 위 약정 카드에서 확인하세요.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Metric label="계약금액(매출)" value={won(contract)} />
+                <Metric label="총 비용(실적)" value={won(totalCost)} hint="태그된 전표·계산서 합계" />
+                <Metric label="마진금액(실적)" value={won(margin)} accent={margin < 0 ? "danger" : "primary"} />
+                <Metric label="마진률(실적)" value={marginRatePct} accent={marginRate != null && marginRate < 0 ? "danger" : "primary"} />
+              </div>
+              <div className="glass-card overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--text-muted)]">비용 구성 (프로젝트에 태그된 비용처리 내역)</span>
+                  <span className="text-sm font-bold mono-number text-[var(--text)]">{won(totalCost)}</span>
+                </div>
+                <div className="divide-y divide-[var(--border)]/40">
+                  {COST_SOURCES.map((s) => (
+                    <details key={s.key} className="group">
+                      <summary className="px-4 py-3 flex items-center gap-2 cursor-pointer hover:bg-[var(--bg-surface)]/50 list-none">
+                        <span className="text-[var(--text-dim)] text-[10px] group-open:rotate-90 transition-transform">▶</span>
+                        <span className="text-sm text-[var(--text)] flex-1">{s.label}</span>
+                        <span className="text-[11px] text-[var(--text-dim)]">{s.count}건</span>
+                        <span className="text-sm font-bold mono-number text-[var(--text)] w-32 text-right">{won(s.total)}</span>
+                      </summary>
+                      <div className="px-4 pb-3 pl-9 space-y-0.5">
+                        {s.count === 0 ? (
+                          <div className="text-[11px] text-[var(--text-dim)]">태그된 {s.label} 없음 — 각 내역 화면에서 이 프로젝트로 지정하세요.</div>
+                        ) : s.items.slice(0, 80).map((it: any) => <CostItemRow key={it.id} kind={s.key} it={it} />)}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="glass-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold">기본 정보</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-y-3 text-sm">
+                  <Info label="거래처" value={partner?.name || "—"} />
+                  <Info label="담당자" value={manager?.name || "—"} />
+                  <Info label="분류" value={deal.classification || "—"} />
+                  <Info label="단계" value={STAGE_LABEL[stage]} />
+                  <Info label="시작일" value={fmtDate(deal.start_date)} />
+                  <Info label="종료일" value={fmtDate(deal.end_date)} />
+                  <Info label="상태" value={deal.status || "—"} />
+                  <Info label="다음 액션" value={deal.next_action_text || "—"} />
+                </div>
+              </div>
+              <div className="glass-card p-5 text-[11px] text-[var(--text-muted)] space-y-1 leading-relaxed">
+                <p>· <b className="text-[var(--text)]">비용</b> = 이 프로젝트에 태그된 세금계산서(매입)·현금영수증·카드사용·수동 전표 합계. 마진 = 계약금액 − 비용.</p>
+                <p>· 각 내역 화면에서 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳(예: 카드+전표)에 중복 태그하지 마세요</b> — 비용이 이중 계상됩니다.</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -806,7 +866,7 @@ export default function ProjectHubDetailPage() {
       {/* 방향별 파이프라인 스텝 인디케이터 (수주/발주 탭 상단) */}
       {pipelineDir && (
         <div className="glass-card p-5">
-          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-[var(--text)]">{pipelineDir === "sales" ? "📤 수주(매출) 파이프라인" : "📥 발주(매입) 파이프라인"}</h3>
             <span className="text-[11px] text-[var(--text-dim)]">{pipelineDir === "sales" ? "고객 견적 발송 → 승인 → 계약 생성 → 서명 → 정산" : "협력사 견적 등록 → 발주 계약 → 서명 → 검수 → 정산"}</span>
           </div>
@@ -1171,63 +1231,6 @@ export default function ProjectHubDetailPage() {
         <MondayBoard companyId={companyId} users={companyUsers as any} />
       )}
 
-      {/* 진행 단계 + 실적(전표 기준)·비용 구성 — 개요 탭 하단 (수익형만) */}
-      {tab === "overview" && projectType === "margin" && (
-        <div className="space-y-4">
-          <div className="glass-card p-5">
-            <div className="text-xs font-bold text-[var(--text-muted)] mb-3">진행 단계 <span className="font-normal text-[var(--text-dim)]">— 단계를 클릭해 변경하세요</span></div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {STAGE_ORDER.map((st) => {
-                const active = st === stage;
-                const passed = STAGE_ORDER.indexOf(st) < STAGE_ORDER.indexOf(stage);
-                const c = STAGE_COLOR[st];
-                return (
-                  <button key={st} onClick={() => !stageMut.isPending && stageMut.mutate(st)} disabled={stageMut.isPending}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-60 ${active ? `${c.bg} ${c.text} ring-2 ring-[var(--primary)]/40` : passed ? "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]" : "bg-[var(--bg)] text-[var(--text-dim)] border border-[var(--border)] hover:border-[var(--primary)]"}`}>
-                    {STAGE_LABEL[st]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <p className="text-[11px] text-[var(--text-dim)]">아래는 <b className="text-[var(--text-muted)]">실제 태그된 전표·계산서</b> 기준(실적)입니다. 매출/매입 관리 입력값 기준 마진은 ‘개요’ 탭에서 확인하세요.</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Metric label="계약금액(매출)" value={won(contract)} />
-            <Metric label="총 비용(실적)" value={won(totalCost)} hint="태그된 전표·계산서 합계" />
-            <Metric label="마진금액(실적)" value={won(margin)} accent={margin < 0 ? "danger" : "primary"} />
-            <Metric label="마진률(실적)" value={marginRatePct} accent={marginRate != null && marginRate < 0 ? "danger" : "primary"} />
-          </div>
-          <MarginRollup contract={ownContract} marginRow={marginRow} totalCost={totalCost} />
-          <div className="glass-card overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
-              <span className="text-xs font-bold text-[var(--text-muted)]">비용 구성 (프로젝트에 태그된 비용처리 내역)</span>
-              <span className="text-sm font-bold mono-number text-[var(--text)]">{won(totalCost)}</span>
-            </div>
-            <div className="divide-y divide-[var(--border)]/40">
-              {COST_SOURCES.map((s) => (
-                <details key={s.key} className="group">
-                  <summary className="px-4 py-3 flex items-center gap-2 cursor-pointer hover:bg-[var(--bg-surface)]/50 list-none">
-                    <span className="text-[var(--text-dim)] text-[10px] group-open:rotate-90 transition-transform">▶</span>
-                    <span className="text-sm text-[var(--text)] flex-1">{s.label}</span>
-                    <span className="text-[11px] text-[var(--text-dim)]">{s.count}건</span>
-                    <span className="text-sm font-bold mono-number text-[var(--text)] w-32 text-right">{won(s.total)}</span>
-                  </summary>
-                  <div className="px-4 pb-3 pl-9 space-y-0.5">
-                    {s.count === 0 ? (
-                      <div className="text-[11px] text-[var(--text-dim)]">태그된 {s.label} 없음 — 각 내역 화면에서 이 프로젝트로 지정하세요.</div>
-                    ) : s.items.slice(0, 80).map((it: any) => <CostItemRow key={it.id} kind={s.key} it={it} />)}
-                  </div>
-                </details>
-              ))}
-            </div>
-          </div>
-          <div className="glass-card p-5 text-[11px] text-[var(--text-muted)] space-y-1 leading-relaxed">
-            <p>· <b className="text-[var(--text)]">비용</b> = 이 프로젝트에 태그된 세금계산서(매입)·현금영수증·카드사용·수동 전표 합계. 마진 = 계약금액 − 비용.</p>
-            <p>· 각 내역 화면에서 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳(예: 카드+전표)에 중복 태그하지 마세요</b> — 비용이 이중 계상됩니다.</p>
-          </div>
-        </div>
-      )}
-
       {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
       {showQuoteForm && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQuoteForm(false)}>
@@ -1415,33 +1418,44 @@ function DeliveryOverview({ deal, dealId, partner, manager, stage }: { deal: any
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const budget = Number(deal.contract_total || 0);
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Metric label="진행률" value={total > 0 ? `${pct}%` : "—"} accent={pct >= 100 ? "primary" : undefined} />
         <Metric label="완료 / 전체" value={`${done} / ${total}`} />
         <Metric label="지연" value={String(delayed)} accent={delayed > 0 ? "danger" : undefined} />
         <Metric label="예산" value={budget > 0 ? won(budget) : "—"} />
       </div>
-      {total > 0 && (
-        <div className="glass-card p-5 space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-[var(--text-muted)]">태스크 진행률</span>
-            <span className="mono-number text-[var(--text)]">{done} / {total}</span>
-          </div>
-          <div className="h-3 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-            <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%` }} />
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-5">
+          {total > 0 && (
+            <div className="glass-card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold">태스크 진행률</h3>
+                <span className="text-xs mono-number text-[var(--text)]">{done} / {total}</span>
+              </div>
+              <div className="h-3 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          )}
+          <p className="text-[11px] text-[var(--text-dim)]">※ 태스크 추가·칸반·간트는 <b className="text-[var(--text-muted)]">태스크</b> 탭에서, 비용은 <b className="text-[var(--text-muted)]">비용</b> 탭에서 관리합니다.</p>
+        </div>
+        <div className="space-y-5">
+          <div className="glass-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold">기본 정보</h3>
+            </div>
+            <div className="grid grid-cols-1 gap-y-3 text-sm">
+              <Info label="거래처" value={partner?.name || "—"} />
+              <Info label="담당자" value={manager?.name || "—"} />
+              <Info label="단계" value={STAGE_LABEL[stage]} />
+              <Info label="시작일" value={fmtDate(deal.start_date)} />
+              <Info label="종료일" value={fmtDate(deal.end_date)} />
+              <Info label="상태" value={deal.status || "—"} />
+            </div>
           </div>
         </div>
-      )}
-      <div className="glass-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-        <Info label="거래처" value={partner?.name || "—"} />
-        <Info label="담당자" value={manager?.name || "—"} />
-        <Info label="단계" value={STAGE_LABEL[stage]} />
-        <Info label="시작일" value={fmtDate(deal.start_date)} />
-        <Info label="종료일" value={fmtDate(deal.end_date)} />
-        <Info label="상태" value={deal.status || "—"} />
       </div>
-      <p className="text-[11px] text-[var(--text-dim)]">※ 태스크 추가·칸반·간트는 <b className="text-[var(--text-muted)]">태스크</b> 탭에서, 비용은 <b className="text-[var(--text-muted)]">비용</b> 탭에서 관리합니다.</p>
     </div>
   );
 }

@@ -13,9 +13,8 @@ import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export"
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
-import { Avatar } from "@/components/avatar";
-import { DashboardSiyanHero } from "@/components/dashboard-siyan-hero";
-import { DashboardBottomCards } from "@/components/dashboard-bottom-cards";
+import { DashboardSiyanHero, DashboardCostDonut } from "@/components/dashboard-siyan-hero";
+import { DashboardBottomCards, DashboardRevenueTrendCard } from "@/components/dashboard-bottom-cards";
 import { QuickApprovalCard } from "@/components/quick-approval-card";
 import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
@@ -501,9 +500,11 @@ export default function DashboardPage() {
         <GettingStartedChecklist companyId={companyId} initialDealCount={dealCount ?? 0} />
       )}
 
-      {/* ═══ 시안 메인 — 재무 요약 히어로 + 하단 3카드. owner/admin 기본 노출(뷰 토글과 무관). ═══ */}
+      {/* ═══ 시안 메인 (라운드6.5 레퍼런스 골격) — KPI 4카드 행 → 본문 2/3+1/3 그리드 → 하단 풀폭.
+           owner/admin 기본 노출(뷰 토글과 무관). ═══ */}
       {(role === "owner" || role === "admin") && companyId && (
-        <>
+        <div className="space-y-5 mb-6">
+          {/* (1) KPI 4카드 행 — 잔고·매출·운영비·미수금 + kpi-callout */}
           <DashboardSiyanHero
             balance={cashPulse?.currentBalance ?? null}
             monthRevenue={dashboard.growth.monthRevenue}
@@ -514,17 +515,25 @@ export default function DashboardPage() {
             arOver30={dashboard.sixPack.arOver30}
             pendingApprovals={dashboard.sixPack.pendingApprovals}
             netCashflow={dashboard.sixPack.netCashflow}
-            costBreakdown={costBreakdown}
           />
-          <DashboardBottomCards companyId={companyId} />
-        </>
-      )}
 
-      {/* 2026-05-28 관리자 — 내 출퇴근 + 전자결재 (2열) 유지(사장님 명시 요청). owner 는 hide. */}
-      {role === "admin" && companyId && userId && (
-        <div className="mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <MyAttendanceCard companyId={companyId} userId={userId} />
-          <QuickApprovalCard companyId={companyId} userId={userId} />
+          {/* (2) 본문 그리드 — 좌 2/3: 큰 차트 + 분석 카드 / 우 1/3: 일정·할일·빠른 결재 스택 */}
+          <div className="grid gap-5 lg:grid-cols-3 items-start">
+            <div className="lg:col-span-2 space-y-5">
+              <DashboardRevenueTrendCard companyId={companyId} />
+              <DashboardCostDonut costBreakdown={costBreakdown} />
+            </div>
+            <div className="space-y-5">
+              {/* 2026-05-28 관리자 — 내 출퇴근 유지(사장님 명시 요청). owner 는 hide. */}
+              {role === "admin" && userId && <MyAttendanceCard companyId={companyId} userId={userId} />}
+              <UpcomingScheduleCard companyId={companyId} windowDays={30} />
+              {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
+              {userId && <QuickApprovalCard companyId={companyId} userId={userId} />}
+            </div>
+          </div>
+
+          {/* (3) 하단 풀폭 — 카드/자산 요약 행 */}
+          <DashboardBottomCards companyId={companyId} />
         </div>
       )}
 
@@ -651,10 +660,9 @@ export default function DashboardPage() {
       {/* ═══ ② 프로젝트 경영 종합 — 분기 KPI·단계분포·TOP 거래처/담당자·추이 (사장님 요청 뷰 유지) ═══ */}
       <OwnerDashboardSection />
 
-      {/* ═══ ③ 월결산 + 내 할일 — 월결산 위젯 재마운트 (마운트가 끊겨 있었음) ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start mt-4">
+      {/* ═══ ③ 월결산 — 내 할일 위젯은 우측 보조 스택(상시 노출)으로 이동해 중복 마운트 제거 ═══ */}
+      <div className="mt-4">
         <ClosingChecklistWidget companyId={companyId} userId={userId} />
-        {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
       </div>
 
       </>)}
@@ -849,8 +857,8 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 
   return (
-    <div className="mb-5">
-      {/* 제목은 박스 밖(eyebrow) — 옆 '월 마감 체크리스트'와 동일 정렬 */}
+    <div>
+      {/* 제목은 박스 밖(eyebrow) — 스택 간격은 부모 space-y 가 담당 */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="dot-primary" />
@@ -2675,7 +2683,7 @@ function EmployeeProjectsWidget() {
   const router = useRouter();
 
   return (
-    <div className="mb-4">
+    <div>
       <div className="flex items-center gap-2 mb-3">
         <div className="dot-primary" />
         <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">내 프로젝트</h2>
@@ -2727,7 +2735,8 @@ function EmployeeProjectsWidget() {
 // Employee Dashboard — 출퇴근/프로젝트/휴가/급여/공지
 // ═══════════════════════════════════════════
 
-function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail }: {
+function EmployeeDashboard({ companyId, userId, userEmail }: {
+  // userName/companyName 은 라운드6.5 인사말 히어로 제거로 미사용 — 호출부 호환 위해 타입만 유지
   userName: string; companyId: string | null; companyName: string; userId: string | null; userEmail: string;
 }) {
   const { toast } = useToast();
@@ -2833,17 +2842,6 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
     if (ws != null && we != null && we > ws) return Math.max(60, (we - ws) - Number(workSettings?.lunch_minutes || 0));
     return 480;
   })();
-
-  // 내 프로필 사진(없으면 이니셜)
-  const { data: myAvatar } = useQuery({
-    queryKey: ["my-avatar", userId],
-    queryFn: async () => {
-      const { data } = await db.from("users").select("avatar_url").eq("id", userId!).maybeSingle();
-      return (data?.avatar_url as string | null) ?? null;
-    },
-    enabled: !!userId,
-    staleTime: 60_000,
-  });
 
   // 휴가 잔여
   const { data: leaveBalance } = useQuery({
@@ -3002,29 +3000,11 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
   const isCheckedOut = !!todayAttendance?.check_out;
 
   return (
-    <div className="">
-      {/* Welcome hero — 흰 카드 (TeamHub 라운드, 2026-07-03 그라데이션 제거) */}
-      <div className="mb-4">
-        <div className="glass-card p-5 md:p-6">
-          <div className="flex items-center gap-3.5">
-            <div className="rounded-full ring-2 ring-[var(--primary)]/25 shrink-0"><Avatar name={userName || "E"} src={myAvatar} size={48} /></div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-semibold text-[var(--text-muted)]">
-                {(() => { const h = new Date().getHours(); return h < 12 ? "좋은 아침이에요" : h < 18 ? "좋은 오후예요" : "오늘도 수고하셨어요"; })()}
-              </div>
-              <h1 className="text-xl md:text-2xl font-extrabold truncate leading-tight text-[var(--text)]">{userName}님 👋</h1>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{companyName} · {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</p>
-            </div>
-            <span className="ml-auto self-start shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-bold text-[var(--text)]">
-              <span className={`w-1.5 h-1.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
-              {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ─ 오늘 할 일 — 출퇴근·결재·서명·휴가 통합 단일 카드 ─ */}
-      <div className="mb-4 glass-card p-5 md:p-6">
+    <div className="space-y-5">
+      {/* 인사말 히어로 제거(라운드6.5) — 고정 헤더바가 인사·프로필을 대체. 근무 상태 칩은 아래 카드에 동일 표시 */}
+      <div className="grid gap-5 lg:grid-cols-3 items-start">
+      {/* ─ 주 콘텐츠 (좌 2/3) — 오늘 할 일: 출퇴근·결재·서명·휴가 통합 단일 카드 ─ */}
+      <div className="lg:col-span-2 glass-card p-5 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-base">✅</span>
@@ -3210,23 +3190,17 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
       </div>
 
+      {/* ─ 보조 위젯 스택 (우 1/3) — 할일·전자결재·급여·알림 ─ */}
+      <div className="space-y-5">
       {/* R6: 내 할일 — 직원 대시보드엔 그동안 미노출(직원 "어디에서 확인???")
-          → 오늘 할 일 카드 바로 아래에 노출해 발견성 확보 */}
-      {userId && (
-        <div className="mb-4">
-          <MyTodosWidget userId={userId} companyId={companyId} />
-        </div>
-      )}
+          → 보조 위젯 스택에 노출해 발견성 확보 */}
+      {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
 
       {/* 전자결재 — QuickApprovalCard 컴포넌트로 단일 소스 통합(글자/이모지 정렬 일관) */}
-      {companyId && userId && (
-        <div className="mb-4">
-          <QuickApprovalCard companyId={companyId} userId={userId} />
-        </div>
-      )}
+      {companyId && userId && <QuickApprovalCard companyId={companyId} userId={userId} />}
 
       {/* 이번 달 급여 */}
-      <div className="mb-4 glass-card p-4 md:p-5">
+      <div className="glass-card p-4 md:p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#6366f1]/15 text-sm">💰</span>
@@ -3264,7 +3238,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
 
       {/* 공지/알림 */}
       {notifications.length > 0 && (
-        <div className="mb-4">
+        <div>
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
             <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">알림</h2>
@@ -3284,12 +3258,14 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
           </div>
         </div>
       )}
+      </div>
+      </div>
 
-      {/* 핸드오프 B-2: 내 프로젝트 (본인 담당/참여만, SECURITY DEFINER RPC) */}
+      {/* 핸드오프 B-2: 내 프로젝트 (본인 담당/참여만, SECURITY DEFINER RPC) — 하단 풀폭 */}
       <EmployeeProjectsWidget />
 
       {/* 빠른 이동 */}
-      <div className="mb-4">
+      <div>
         <div className="flex items-center gap-2 mb-3">
           <div className="w-2 h-2 rounded-full bg-[var(--text-dim)]" />
           <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">빠른 이동</h2>
@@ -3319,7 +3295,8 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
 // Partner Dashboard — 동적 카운트 + 최근 활동
 // ═══════════════════════════════════════════
 
-function PartnerDashboard({ userName, companyId, companyName, userId }: {
+function PartnerDashboard({ companyId, userId }: {
+  // userName/companyName 은 라운드6.5 인사말 헤더 제거로 미사용 — 호출부 호환 위해 타입만 유지
   userName: string; companyId: string | null; companyName: string; userId: string | null;
 }) {
   const db = supabase as any;
@@ -3435,18 +3412,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
 
   return (
     <div className="">
-      {/* Welcome header */}
-      <div className="mb-5 md:mb-6">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-white font-bold text-sm">
-            {(userName || "P").charAt(0)}
-          </div>
-          <div className="page-sticky-header">
-            <h1 className="text-xl md:text-2xl font-extrabold">{userName}님</h1>
-            <p className="text-xs text-[var(--text-muted)]">{companyName || "파트너"} 협업 포털</p>
-          </div>
-        </div>
-      </div>
+      {/* 인사말 헤더 제거(라운드6.5) — 고정 헤더바가 타이틀·프로필을 대체 */}
 
       {/* 즉시 해야 할 일 알림 */}
       {hasTodo && (

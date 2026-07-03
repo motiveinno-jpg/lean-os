@@ -129,27 +129,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
 
   return (
     <div className="glass-card overflow-hidden shadow-2xl">
-      {/* Header — 흰 카드 + 인디고 아바타 + 상태배지 (라운드6: 그라데이션 제거) */}
-      <div className="relative px-6 py-5 border-b border-[var(--border)]">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shrink-0 shadow-lg bg-[var(--primary)]">
-              {emp.name?.charAt(0)}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-lg font-extrabold text-[var(--text)] truncate">{emp.name}</span>
-                {["active", "joined"].includes(emp.status)
-                  ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--success)]/12 text-[var(--success)]">재직</span>
-                  : <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--text-dim)]/15 text-[var(--text-dim)]">퇴직</span>}
-              </div>
-              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                {emp.department && <span className="px-2 py-0.5 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">{emp.department}</span>}
-                {emp.position && <span className="px-2 py-0.5 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">{emp.position}</span>}
-                {emp.employee_number && <span className="px-2 py-0.5 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-dim)] mono-number">#{emp.employee_number}</span>}
-              </div>
-            </div>
-          </div>
+      {/* 상단 액션 바 — 라운드6.5: 인물 정보는 좌측 프로필 카드로 이동, 액션만 유지 */}
+      <div className="px-6 py-3 border-b border-[var(--border)]">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-bold text-[var(--text)]">구성원 상세</h3>
           <div className="flex items-center gap-2 shrink-0">
             {!isEditing && detailTab === "info" && (
               <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3 py-1.5 text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 rounded-lg transition">
@@ -168,26 +151,59 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
         </div>
       </div>
 
-      {/* Detail Tabs — 언더라인 스타일 (공용 .tab-bar 수렴) */}
-      <div className="tab-bar px-4 bg-[var(--bg-card)]">
-        {[
-          { key: "info", label: "정보" },
-          { key: "contracts", label: "계약서" },
-          { key: "certificates", label: "증명서" },
-          { key: "leave", label: "휴가" },
-          { key: "docs", label: "입사서류" },
-          { key: "notes", label: "노트" },
-          { key: "history", label: "발령" },
-          ...(canManageAccess ? [{ key: "access", label: "탭 권한" }] : []),
-        ].map((t) => (
-          <button key={t.key} onClick={() => setDetailTab(t.key as any)}
-            className={`tab-item ${detailTab === t.key ? "tab-item-active" : ""}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* 본문 — 레퍼런스 Employee Details: 좌 1/3 프로필 카드 + 우 2/3 콘텐츠 */}
+      <div className="grid gap-5 lg:grid-cols-3 p-6 bg-[var(--bg-surface)]/30 max-h-[74vh] overflow-y-auto">
+        {/* 좌 — 프로필 카드 */}
+        <div className="lg:col-span-1">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 text-center">
+            <div className="w-20 h-20 mx-auto rounded-3xl flex items-center justify-center text-white font-extrabold text-2xl shadow-lg bg-[var(--primary)]">
+              {emp.name?.charAt(0)}
+            </div>
+            <div className="mt-3 text-lg font-extrabold text-[var(--text)]">{emp.name}</div>
+            <div className="text-xs text-[var(--text-muted)] mt-0.5">{[emp.position, emp.department].filter(Boolean).join(" · ") || "직책 미지정"}</div>
+            <div className="mt-2">
+              {["active", "joined"].includes(emp.status)
+                ? <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--success)]/12 text-[var(--success)]">재직</span>
+                : <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--text-dim)]/15 text-[var(--text-dim)]">퇴직</span>}
+            </div>
+            <div className="mt-4 pt-2 border-t border-[var(--border)] text-left">
+              {([
+                ["사번", emp.employee_number ? `#${emp.employee_number}` : null],
+                ["고용형태", emp.employment_type === "regular" ? "정규직" : emp.employment_type === "contract" ? "계약직" : emp.employment_type === "parttime" ? "파트타임" : emp.employment_type === "intern" ? "인턴" : emp.employment_type || null],
+                ["입사일", emp.hire_date || null],
+                ["근속기간", emp.hire_date ? (() => { const d = new Date(emp.hire_date); const now = new Date(); const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth(); const y = Math.floor(months / 12); const m = months % 12; return y > 0 ? `${y}년 ${m}개월` : `${m}개월`; })() : null],
+                ["4대보험", emp.is_4_insurance ? "가입" : "미가입"],
+                ["이메일", emp.email || null],
+                ["전화번호", emp.phone || null],
+              ] as [string, string | null][]).map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between gap-2 py-2 border-b border-[var(--border)]/50 last:border-0">
+                  <span className="text-[11px] text-[var(--text-dim)] shrink-0">{label}</span>
+                  <span className="text-[12px] font-semibold text-[var(--text)] text-right truncate">{value || "—"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-      <div className="p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto">
+        {/* 우 — 탭 콘텐츠 (근태·연차/문서·계약 등 기존 탭 데이터, 필형 seg-bar 수렴) */}
+        <div className="lg:col-span-2 min-w-0">
+        <div className="seg-bar flex-wrap mb-4">
+          {[
+            { key: "info", label: "정보" },
+            { key: "contracts", label: "계약서" },
+            { key: "certificates", label: "증명서" },
+            { key: "leave", label: "휴가" },
+            { key: "docs", label: "입사서류" },
+            { key: "notes", label: "노트" },
+            { key: "history", label: "발령" },
+            ...(canManageAccess ? [{ key: "access", label: "탭 권한" }] : []),
+          ].map((t) => (
+            <button key={t.key} onClick={() => setDetailTab(t.key as any)}
+              className={`seg-item ${detailTab === t.key ? "seg-item-active" : ""}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
         {/* Info Tab — Flex-style sections */}
         {detailTab === "info" && (
           <div className="space-y-5">
@@ -578,6 +594,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Termination Modal */}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
@@ -102,19 +101,8 @@ export default function CostsPage() {
 
   return (
     <div>
-      <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
-        ← 분석 허브
-      </Link>
-      {/* 표준 .page-sticky-header(z-30·blur·앱 상단바 안 가림). 2026-06-10 */}
-      <div className="page-sticky-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-        <div>
-          <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
-            고정비 · 변동비
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 6 }}>
-            매달 꼭 나가는 돈(고정비)과 그때그때 바뀌는 돈(변동비)을 분리해 봅니다.
-          </p>
-        </div>
+      {/* 툴바 — 연도 필터. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
+      <div className="page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}

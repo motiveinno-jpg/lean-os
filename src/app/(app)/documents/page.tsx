@@ -1020,7 +1020,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       <ShareStatusPanel documentId={id} />
 
       {/* Tabs */}
-      <div className="tab-bar mb-6">
+      <div className="seg-bar mb-6">
         {(
           [
             { key: "content" as const, label: "내용" },
@@ -1029,7 +1029,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           ] as const
         ).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`tab-item ${tab === t.key ? "tab-item-active" : ""}`}>
+            className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
             {t.label}
           </button>
         ))}
@@ -1792,12 +1792,6 @@ function DocumentsPageInner() {
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold">파일 보관함</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">회사 문서·계약서·증빙 파일 보관</p>
-        </div>
-      </div>
 
       {/* Doc Form */}
       {showDocForm && (

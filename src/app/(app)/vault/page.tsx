@@ -447,13 +447,18 @@ export default function VaultPage() {
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* Header */}
-      <div className="page-sticky-header flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold">자산 관리</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            회사 유형/무형 자산 대장 — 감가상각 장부가 + 자동 탐지 (구독은 구독 메뉴에서)
-          </p>
+      {/* Toolbar — tabs + actions */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+        <div className="seg-bar">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => { setTab(t.key); setShowForm(false); setEditingId(null); }}
+              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}
+            >
+              {t.label} ({t.count})
+            </button>
+          ))}
         </div>
         <div className="flex gap-2">
           {tab === "discovery" && (
@@ -660,19 +665,6 @@ export default function VaultPage() {
           </div>
           <div className="text-xs text-[var(--text-muted)]">검토 대기</div>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="tab-bar mb-6">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => { setTab(t.key); setShowForm(false); setEditingId(null); }}
-            className={`tab-item ${tab === t.key ? "tab-item-active" : ""}`}
-          >
-            {t.label} ({t.count})
-          </button>
-        ))}
       </div>
 
       {/* ── Account Form ── */}

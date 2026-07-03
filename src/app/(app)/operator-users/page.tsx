@@ -112,45 +112,40 @@ export default function OperatorUsersPage() {
 
   return (
     <div data-theme="light" className="bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
+      {/* 툴바 — 탭(좌) + 검색(우) */}
       <div className="page-sticky-header mb-6">
-        <h1 className="text-2xl font-extrabold">유저 계정 관리</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
-          이메일 또는 계정 ID 로 회원을 조회해 상세 정보·에러 이력 확인 (수정은 관리자 키 필요)
-        </p>
-      </div>
-
-      {/* 탭 */}
-      <div className="tab-bar mb-5">
-        {[
-          { k: "view" as const, label: "🔍 회원 조회" },
-          { k: "edit" as const, label: "✏️ 계정 수정" },
-        ].map((t) => (
-          <button
-            key={t.k}
-            onClick={() => setTab(t.k)}
-            className={`tab-item ${tab === t.k ? "tab-item-active" : ""}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* 검색 */}
-      <div className="flex gap-2 mb-6">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") doLookup(); }}
-          placeholder="user@example.com 또는 계정 UUID"
-          className="flex-1 px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-        />
-        <button
-          onClick={() => doLookup()}
-          disabled={searching || !query.trim()}
-          className="btn-primary px-5"
-        >
-          {searching ? "조회 중..." : "조회"}
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="seg-bar">
+            {[
+              { k: "view" as const, label: "🔍 회원 조회" },
+              { k: "edit" as const, label: "✏️ 계정 수정" },
+            ].map((t) => (
+              <button
+                key={t.k}
+                onClick={() => setTab(t.k)}
+                className={`seg-item ${tab === t.k ? "seg-item-active" : ""}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 flex-1 sm:flex-none sm:min-w-[340px]">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") doLookup(); }}
+              placeholder="user@example.com 또는 계정 UUID"
+              className="flex-1 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            />
+            <button
+              onClick={() => doLookup()}
+              disabled={searching || !query.trim()}
+              className="btn-primary px-5"
+            >
+              {searching ? "조회 중..." : "조회"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 후보 목록 */}
@@ -185,7 +180,9 @@ export default function OperatorUsersPage() {
           {tab === "view" && (
             <>
               <div className="glass-card p-5">
-                <div className="text-xs font-bold text-[var(--text-muted)] uppercase mb-3">📋 계정 정보</div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold">📋 계정 정보</h3>
+                </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <Info label="이름" value={u.name || "-"} />
                   <Info label="이메일" value={u.email || "-"} />
@@ -207,8 +204,8 @@ export default function OperatorUsersPage() {
 
               {/* 에러 발생 이력 */}
               <div className="glass-card p-5">
-                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                  <div className="text-xs font-bold text-[var(--text-muted)] uppercase">⚠️ 에러 발생 이력</div>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <h3 className="text-sm font-bold">⚠️ 에러 발생 이력</h3>
                   {errors?.stats && (
                     <div className="text-[11px] text-[var(--text-dim)]">
                       총 <span className="text-[var(--text)] font-semibold">{errors.stats.total}</span>건 ·
@@ -275,7 +272,9 @@ export default function OperatorUsersPage() {
           {/* 계정 수정 탭 */}
           {tab === "edit" && (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5">
-              <div className="text-xs font-bold text-[var(--primary)] uppercase mb-3">✏️ 정보 수정</div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-[var(--primary)]">✏️ 정보 수정</h3>
+              </div>
               <div className="space-y-3">
                 <Field label="이름">
                   <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })}

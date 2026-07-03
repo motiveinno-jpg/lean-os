@@ -173,40 +173,16 @@ export default function PartnerLedgerPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── 히어로 카드: 타이틀·액션 + 세그먼트·기간·검색·정렬 툴바 + KPI ── */}
-      <div className="glass-card p-6">
-        <div className="relative flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold text-[var(--primary)] uppercase tracking-[0.15em]">AR / AP Ledger</p>
-            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text)] mt-1">거래처 원장</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1">매출처·매입처 잔액을 거래처별로 관리합니다</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
-            <Link href="/partners" className="btn-secondary text-xs">← 거래처</Link>
-            <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
-              className="btn-secondary text-xs"
-              title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
-              {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
-            <Link href="/partners/reconciliation"
-              className="btn-primary text-xs"
-              title="입금·계산서 자동 매칭 (확인 큐 / 수동 매칭 / 확정 내역)">
-              ⚙️ 거래 매칭 →
-            </Link>
-          </div>
-        </div>
-
-        {/* 툴바: 세그먼트 탭(매출처=파랑 / 매입처=주황 — 색+라벨+방향 아이콘 3중 신호) + 회계기간 + 검색 + 정렬 */}
-        <div className="relative mt-5 flex items-center gap-2 flex-wrap">
-          <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1 gap-1">
+      {/* ── 툴바: 세그먼트 탭·회계기간·검색·정렬 (좌) + 액션 (우) — 타이틀은 공통 헤더바가 담당 ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="seg-bar w-fit">
             {(["sales", "purchase"] as const).map((t) => {
               const p = AR_AP[t];
-              const active = ledgerType === t;
               return (
                 <button key={t} onClick={() => setLedgerType(t)}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1.5 ${active ? "text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
-                  style={active ? { background: p.main } : undefined}>
-                  <span className="text-base leading-none">{p.arrow}</span>
-                  {p.label}
+                  className={`seg-item ${ledgerType === t ? "seg-item-active" : ""}`}>
+                  <span className="text-base leading-none">{p.arrow}</span> {p.label}
                 </button>
               );
             })}
@@ -255,40 +231,48 @@ export default function PartnerLedgerPage() {
               </span>
             )}
           </div>
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
-            <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
-              className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36 focus:border-[var(--primary)]/60 focus:outline-none transition" />
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "outstanding" | "name" | "code")}
-              className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
-              <option value="outstanding">잔액 큰 순</option>
-              <option value="code">코드순</option>
-              <option value="name">거래처명 순</option>
-            </select>
-          </div>
+          <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
+            className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36 focus:border-[var(--primary)]/60 focus:outline-none transition" />
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "outstanding" | "name" | "code")}
+            className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
+            <option value="outstanding">잔액 큰 순</option>
+            <option value="code">코드순</option>
+            <option value="name">거래처명 순</option>
+          </select>
         </div>
-
-        {/* KPI: 총 미수금/미지급 + 거래처 수 + 반대편 미니 카드(클릭 전환) */}
-        <div className="relative mt-5 pt-5 border-t border-[var(--border)]/60 flex flex-wrap items-end gap-x-10 gap-y-4">
-          <div>
-            <div className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-[0.15em]">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</div>
-            <div className="text-3xl font-black mono-number tracking-tight mt-1" style={{ color: pal.main }}>{won(total)}</div>
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-[0.15em]">{pal.label}</div>
-            <div className="text-3xl font-black mono-number tracking-tight mt-1 text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></div>
-          </div>
-          {/* 반대편 미니 요약 — 클릭하면 탭 전환 */}
-          <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
-            className="text-left px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/60 hover:bg-[var(--bg-surface)] transition min-w-[170px]"
-            title="클릭하여 전환">
-            <div className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-[0.15em] flex items-center gap-1">{other.arrow} {other.label}</div>
-            <div className={`text-base font-bold mono-number mt-1 ${other.tintText}`}>{won(otherTotal)}</div>
-          </button>
-          <div className="text-[11px] text-[var(--text-dim)] leading-relaxed ml-auto hidden md:block text-right">
-            잔액 = 전기이월 + 당기 잔액<br />확정된 매칭(거래 매칭)만 정산으로 반영
-          </div>
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <Link href="/partners" className="btn-secondary text-xs">← 거래처</Link>
+          <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
+            className="btn-secondary text-xs"
+            title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
+            {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
+          <Link href="/partners/reconciliation"
+            className="btn-primary text-xs"
+            title="입금·계산서 자동 매칭 (확인 큐 / 수동 매칭 / 확정 내역)">
+            ⚙️ 거래 매칭 →
+          </Link>
         </div>
       </div>
+
+      {/* KPI 행: 총 미수금/미지급 + 거래처 수 + 반대편 미니 카드(클릭 전환) */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</span>
+          <span className="text-[26px] leading-8 font-extrabold mono-number tracking-tight" style={{ color: pal.main }}>{won(total)}</span>
+        </div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">{pal.label}</span>
+          <span className="text-[26px] leading-8 font-extrabold mono-number tracking-tight text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></span>
+        </div>
+        {/* 반대편 미니 요약 — 클릭하면 탭 전환 */}
+        <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
+          className="glass-card p-5 flex flex-col gap-3 text-left hover:bg-[var(--bg-surface)]/60 transition col-span-2 lg:col-span-1"
+          title="클릭하여 전환">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1">{other.arrow} {other.label}</span>
+          <span className={`text-[26px] leading-8 font-extrabold mono-number tracking-tight ${other.tintText}`}>{won(otherTotal)}</span>
+        </button>
+      </div>
+      <p className="text-[11px] text-[var(--text-dim)]">잔액 = 전기이월 + 당기 잔액 · 확정된 매칭(거래 매칭)만 정산으로 반영</p>
 
       {lLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>

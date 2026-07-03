@@ -43,12 +43,9 @@ export default function FeedbackPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">고객 피드백</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">기능 요청, 버그 제보, UX 개선</p>
-        </div>
-        <div className="flex gap-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-extrabold text-[var(--text)]">고객 피드백</h1>
+        <div className="flex flex-wrap gap-2 text-xs">
           {Object.entries(FB_STATUS).map(([key, val]) => {
             const count = feedback.filter((f: any) => f.status === key).length;
             return count > 0 ? (

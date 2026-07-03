@@ -117,23 +117,16 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="">
-      <div className="page-sticky-header flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-extrabold">공지사항</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            OwnerView 서비스 공지·업데이트 안내
-            {canWrite && <span className="ml-2 text-[11px] text-emerald-500">· 운영자 권한</span>}
-          </p>
-        </div>
-        {canWrite && !showForm && (
+      {canWrite && !showForm && (
+        <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2 mb-6">
           <button
             onClick={() => { resetForm(); setShowForm(true); }}
             className="btn-primary"
           >
             + 공지 작성
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 작성/수정 폼 (운영자만) */}
       {canWrite && showForm && (

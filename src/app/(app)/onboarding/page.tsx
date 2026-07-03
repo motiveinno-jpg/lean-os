@@ -462,22 +462,6 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-8" onKeyDown={handleKeyDown}>
       <div className="w-full">
-        {/* Header */}
-        <div className="page-sticky-header mb-6 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-bold mb-3">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" />
-            </svg>
-            초기 설정
-          </div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">
-            OwnerView에 오신 것을 환영합니다
-          </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1.5">
-            5단계 설정을 완료하면 대시보드를 바로 사용할 수 있습니다
-          </p>
-        </div>
-
         {/* Progress bar */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">

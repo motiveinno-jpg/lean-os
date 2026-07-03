@@ -1,9 +1,9 @@
 "use client";
 
-// 대시보드 하단 3카드 — 2026-06-09 Stitch 시안 정렬 + 다크/라이트 적응.
-//   Cards / Assets / Sales Performance. 표면(카드/행/텍스트/보더)은 테마 토큰 → 다크모드 자동 적응.
-//   강조색(아이콘·총액·라인차트 그린/블루/레드)만 사진색 고정.
-//   카드(이번 달 카드별 사용액) · 자산(계좌별 잔액) · 매출(2026 월별 라인차트). 실데이터·쿼리 무변경.
+// 대시보드 하단 카드 — 2026-06-09 Stitch 시안 정렬 + 다크/라이트 적응.
+//   라운드6.5 골격 정렬: 매출 추이는 DashboardRevenueTrendCard(본문 2/3 큰 차트 카드)로 분리,
+//   DashboardBottomCards 는 카드/자산 2카드 하단 풀폭 행만 담당. 실데이터·쿼리 무변경.
+//   표면(카드/행/텍스트/보더)은 테마 토큰 → 다크모드 자동 적응.
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 const A = { blue: "var(--info)", green: "var(--success)", red: "var(--danger)" };
 
 // 매출 월별 영역 라인차트 (사진 Sales Performance) — 인라인 SVG, 새 의존성 없음.
-function RevenueSparkline({ series }: { series: number[] }) {
+function RevenueSparkline({ series, height = 92 }: { series: number[]; height?: number }) {
   const W = 280, H = 92, pad = 4;
   const max = Math.max(...series, 1);
   const n = series.length;
@@ -26,7 +26,7 @@ function RevenueSparkline({ series }: { series: number[] }) {
   const line = series.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
   const area = `${line} L${x(n - 1).toFixed(1)} ${H - pad} L${x(0).toFixed(1)} ${H - pad} Z`;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 92, transform: "translateZ(0)", contain: "paint" }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height, transform: "translateZ(0)", contain: "paint" }} preserveAspectRatio="none">
       <defs>
         <linearGradient id="rev-grad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.24" />
@@ -40,6 +40,82 @@ function RevenueSparkline({ series }: { series: number[] }) {
   );
 }
 
+// ── 공용 행/헤더 (카드·자산·매출 공통) ──
+const ListRow = ({ name, amount }: { name: string; amount: number }) => (
+  <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
+    <span className="text-[13px] truncate mr-2 text-[var(--text-muted)]">{name}</span>
+    <span className="text-[13px] font-semibold tabular-nums shrink-0 text-[var(--text)]">{fmtW(amount)}</span>
+  </div>
+);
+const Header = ({ title, icon, color }: { title: string; icon: React.ReactNode; color: string }) => (
+  <div className="flex items-center gap-2.5 mb-4">
+    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${color}1F`, color }}>{icon}</div>
+    <h3 className="text-sm font-bold text-[var(--text)]">{title}</h3>
+  </div>
+);
+const TotalRow = ({ label, amount, color }: { label: string; amount: number; color?: string }) => (
+  <div className="flex justify-between items-center mt-4 pt-4 border-t border-[var(--border)]">
+    <span className="text-[13px] font-medium text-[var(--text-muted)]">{label}</span>
+    <span className="text-[16px] font-bold tabular-nums text-[var(--text)]" style={color ? { color } : undefined}>{fmtW(amount)}</span>
+  </div>
+);
+const MoreLink = ({ href, label }: { href: string; label: string }) => (
+  <Link href={href} className="mt-3 w-full text-[12px] font-semibold p-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-[var(--primary)]"
+    style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)" }}>
+    {label}
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+  </Link>
+);
+
+const cardCls = "glass-card p-5 flex flex-col";
+
+// ── 매출 추이 — 본문 2/3 컬럼의 큰 차트 카드 (레퍼런스 Team Performance 자리) ──
+export function DashboardRevenueTrendCard({ companyId }: { companyId: string }) {
+  // 매출 — 올해 월별(type='sales'). 누적 total + 월별 시계열.
+  //   2026-06-11: 연도 하드코딩 제거(매년 자동) + 공급가액 기준(손익계산서·히어로와 동일, 부가세 제외) + void 제외.
+  const year = new Date().getFullYear();
+  const { data: rev } = useQuery({
+    queryKey: ["dash-revenue", companyId, year],
+    queryFn: async () => {
+      const { data } = await db.from("tax_invoices").select("supply_amount, issue_date")
+        .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
+        .gte("issue_date", `${year}-01-01`).lt("issue_date", `${year + 1}-01-01`);
+      const monthly = new Array(12).fill(0);
+      (data || []).forEach((t: any) => {
+        const m = new Date(t.issue_date).getMonth();
+        if (m >= 0 && m < 12) monthly[m] += Number(t.supply_amount || 0);
+      });
+      const upto = new Date().getMonth() + 1;
+      const series = monthly.slice(0, Math.max(upto, 1));
+      return { total: monthly.reduce((s: number, v: number) => s + v, 0), series };
+    },
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const revenue = rev?.total ?? 0;
+  const revSeries = rev?.series ?? [];
+
+  return (
+    <div className={cardCls}>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold text-[var(--text)]">매출 추이</h3>
+        <Link href="/reports/pnl" className="text-[12px] font-semibold text-[var(--primary)]">손익 상세 보기 →</Link>
+      </div>
+      <div className="flex-1 flex flex-col justify-center">
+        {revSeries.length > 1 && revenue > 0 ? (
+          <RevenueSparkline series={revSeries} height={180} />
+        ) : (
+          <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
+            <span className="text-[13px] text-[var(--text-muted)]">{year}년 누적 매출</span>
+            <span className="text-[13px] font-semibold tabular-nums shrink-0 text-[var(--text)]">{fmtW(revenue)}</span>
+          </div>
+        )}
+      </div>
+      <TotalRow label={`${year} 누적 (공급가액)`} amount={revenue} />
+    </div>
+  );
+}
+
+// ── 하단 풀폭 행 — 카드 / 자산 ──
 export function DashboardBottomCards({ companyId }: { companyId: string }) {
   // 카드 — 이번 달 카드별 사용액
   const { data: cards } = useQuery({
@@ -71,59 +147,8 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
     enabled: !!companyId, staleTime: 60_000,
   });
 
-  // 매출 — 올해 월별(type='sales'). 누적 total + 월별 시계열.
-  //   2026-06-11: 연도 하드코딩 제거(매년 자동) + 공급가액 기준(손익계산서·히어로와 동일, 부가세 제외) + void 제외.
-  const year = new Date().getFullYear();
-  const { data: rev } = useQuery({
-    queryKey: ["dash-revenue", companyId, year],
-    queryFn: async () => {
-      const { data } = await db.from("tax_invoices").select("supply_amount, issue_date")
-        .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
-        .gte("issue_date", `${year}-01-01`).lt("issue_date", `${year + 1}-01-01`);
-      const monthly = new Array(12).fill(0);
-      (data || []).forEach((t: any) => {
-        const m = new Date(t.issue_date).getMonth();
-        if (m >= 0 && m < 12) monthly[m] += Number(t.supply_amount || 0);
-      });
-      const upto = new Date().getMonth() + 1;
-      const series = monthly.slice(0, Math.max(upto, 1));
-      return { total: monthly.reduce((s: number, v: number) => s + v, 0), series };
-    },
-    enabled: !!companyId, staleTime: 60_000,
-  });
-  const revenue = rev?.total ?? 0;
-  const revSeries = rev?.series ?? [];
-
-  const ListRow = ({ name, amount }: { name: string; amount: number }) => (
-    <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
-      <span className="text-[13px] truncate mr-2 text-[var(--text-muted)]">{name}</span>
-      <span className="text-[13px] font-semibold tabular-nums shrink-0 text-[var(--text)]">{fmtW(amount)}</span>
-    </div>
-  );
-  const Header = ({ title, icon, color }: { title: string; icon: React.ReactNode; color: string }) => (
-    <div className="flex items-center gap-2.5 mb-4">
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${color}1F`, color }}>{icon}</div>
-      <h3 className="text-[16px] font-bold text-[var(--text)]">{title}</h3>
-    </div>
-  );
-  const TotalRow = ({ label, amount, color }: { label: string; amount: number; color?: string }) => (
-    <div className="flex justify-between items-center mt-4 pt-4 border-t border-[var(--border)]">
-      <span className="text-[13px] font-medium text-[var(--text-muted)]">{label}</span>
-      <span className="text-[16px] font-bold tabular-nums text-[var(--text)]" style={color ? { color } : undefined}>{fmtW(amount)}</span>
-    </div>
-  );
-  const MoreLink = ({ href, label }: { href: string; label: string }) => (
-    <Link href={href} className="mt-3 w-full text-[12px] font-semibold p-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-[var(--primary)]"
-      style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)" }}>
-      {label}
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-    </Link>
-  );
-
-  const cardCls = "glass-card p-5 flex flex-col";
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
       {/* 카드 */}
       <div className={cardCls}>
         <Header title="카드" color={A.red}
@@ -146,24 +171,6 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
         </div>
         <TotalRow label="총 자산" amount={assets?.total ?? 0} color={A.green} />
         <MoreLink href="/bank" label={`${assets?.count ?? 0}개 전체보기`} />
-      </div>
-
-      {/* 매출 (Sales Performance) */}
-      <div className={cardCls}>
-        <Header title="매출 추이" color={A.green}
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
-        <div className="flex-1 flex flex-col justify-center">
-          {revSeries.length > 1 && revenue > 0 ? (
-            <RevenueSparkline series={revSeries} />
-          ) : (
-            <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
-              <span className="text-[13px] text-[var(--text-muted)]">{year}년 누적 매출</span>
-              <span className="text-[13px] font-semibold tabular-nums shrink-0 text-[var(--text)]">{fmtW(revenue)}</span>
-            </div>
-          )}
-        </div>
-        <TotalRow label={`${year} 누적 (공급가액)`} amount={revenue} />
-        <MoreLink href="/reports/pnl" label="손익 상세 보기" />
       </div>
     </div>
   );

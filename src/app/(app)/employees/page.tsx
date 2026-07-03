@@ -157,16 +157,27 @@ export default function EmployeesPage() {
   return (
     <div className="print-area" id="employees-print-area">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="page-sticky-header flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold">{isEmployee ? "근태 / 급여" : "인사관리"}</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">{isEmployee ? "출퇴근 + 휴가 + 경비 + 증명서" : "직원관리 · 급여 · 계약서 · 경비 · 휴가 · 증명서"}</p>
+      {/* Tabs — 라운드6.5: 타이틀 제거 → 필형 seg-bar 컴팩트 툴바 행 */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+        <div className="seg-bar">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`seg-item ${effectiveTab === t.key ? "seg-item-active" : ""}`}
+            >
+              {t.label}
+              {t.count !== undefined && t.count > 0 && (
+                <span className="ml-1.5 badge badge-primary">{t.count}</span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김 */}
       {!isEmployee && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="glass-card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-muted)]">재직 인원</span>
@@ -208,22 +219,6 @@ export default function EmployeesPage() {
           </div>
         </div>
       )}
-
-      {/* Tabs — horizontally scrollable on mobile */}
-      <div className="tab-bar mb-6">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`tab-item ${effectiveTab === t.key ? "tab-item-active" : ""}`}
-          >
-            {t.label}
-            {t.count !== undefined && t.count > 0 && (
-              <span className="ml-1.5 badge badge-primary">{t.count}</span>
-            )}
-          </button>
-        ))}
-      </div>
 
       {/* Tab Content — S-1: effectiveTab 으로 직원 비허용 탭 컴포넌트 미마운트 */}
       {/* 플렉스 스타일(2026-06-12): 디렉토리(카드 그리드+프로필 슬라이드) 기본, 추가/수정은 관리 모드 */}

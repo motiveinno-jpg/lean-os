@@ -80,12 +80,12 @@ export default function PlatformIncidentsPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-baseline gap-2">
           <h1 className="text-2xl font-extrabold text-[var(--text)]">사고 기록</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
+          <span className="text-sm text-[var(--text-muted)]">
             운영 사고 타임라인 · {items.length}건 (해결 {items.filter((i) => i.resolved_at).length})
-          </p>
+          </span>
         </div>
         <button
           onClick={() => setEditing({ severity: "medium", occurred_at: new Date().toISOString() })}

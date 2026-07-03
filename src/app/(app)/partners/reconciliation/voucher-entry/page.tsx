@@ -478,39 +478,34 @@ export default function VoucherEntryPage() {
 
   return (
     <div className="space-y-6">
-      {/* ══ 히어로 카드 — 모던 장부 콘솔 ══ */}
-      <div className="glass-card p-6">
-        <div className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--primary)]">Journal Voucher</p>
-            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text)] mt-1">전표입력</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1.5">상단에서 분개 입력 → 저장하면 하단 전표목록에 바로 쌓입니다 · 차변·대변이 일치해야 저장됩니다</p>
+      {/* ══ 툴바 — 일자·구분 (좌) + 액션 (우), 타이틀은 공통 헤더바가 담당 ══ */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 pl-2.5 pr-1 py-0.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <span className="text-[11px] font-semibold text-[var(--text-dim)]">일자</span>
+            <DateField value={entryDate}
+              onChange={(e) => { if (!e.target.value) return; setEntryDate(e.target.value); setEdits({}); setSelected(new Set()); }}
+              className="px-1.5 py-1.5 rounded-lg bg-transparent text-xs font-semibold text-[var(--text)]" />
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Link href="/partners/reconciliation" className="btn-secondary text-xs">← 거래 매칭</Link>
-            <div className="flex items-center gap-1.5 pl-2.5 pr-1 py-0.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-              <span className="text-[11px] font-semibold text-[var(--text-dim)]">일자</span>
-              <DateField value={entryDate}
-                onChange={(e) => { if (!e.target.value) return; setEntryDate(e.target.value); setEdits({}); setSelected(new Set()); }}
-                className="px-1.5 py-1.5 rounded-lg bg-transparent text-xs font-semibold text-[var(--text)]" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-[var(--text-dim)]">구분</span>
+            <div className="seg-bar">
+              {VTYPES.map((t) => (
+                <button key={t.id} onClick={() => changeVtype(t.id)} title={t.desc}
+                  className={`seg-item ${vtype === t.id ? "seg-item-active" : ""}`}>
+                  {t.label}
+                </button>
+              ))}
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-[var(--text-dim)]">구분</span>
-              <div className="seg-bar">
-                {VTYPES.map((t) => (
-                  <button key={t.id} onClick={() => changeVtype(t.id)} title={t.desc}
-                    className={`seg-item ${vtype === t.id ? "seg-item-active" : ""}`}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); }} disabled={busy}
-              className="btn-secondary text-xs">새 전표</button>
-            <button onClick={save} disabled={!canSave}
-              className="btn-primary text-xs disabled:opacity-40">
-              {busy ? "저장 중..." : "저장"}</button>
           </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Link href="/partners/reconciliation" className="btn-secondary text-xs">← 거래 매칭</Link>
+          <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); }} disabled={busy}
+            className="btn-secondary text-xs">새 전표</button>
+          <button onClick={save} disabled={!canSave}
+            className="btn-primary text-xs disabled:opacity-40">
+            {busy ? "저장 중..." : "저장"}</button>
         </div>
       </div>
 

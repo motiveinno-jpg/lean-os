@@ -162,15 +162,26 @@ export default function ApprovalsPage() {
 
   return (
     <div className="">
-      <div className="page-sticky-header flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold">결재 관리</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">다단계 결재 워크플로우 + 승인/반려 + 정책 관리</p>
+      {/* Toolbar — tab navigation */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+        <div className="seg-bar">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}
+            >
+              {t.label}
+              {t.count !== undefined && t.count > 0 && (
+                <span className="ml-1.5 badge badge-primary">{t.count}</span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">대기 중</span>
@@ -207,22 +218,6 @@ export default function ApprovalsPage() {
           </div>
           <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)] truncate">{stats?.total ?? 0}건</span>
         </div>
-      </div>
-
-      {/* Tab navigation */}
-      <div className="tab-bar mb-6">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`tab-item ${tab === t.key ? "tab-item-active" : ""}`}
-          >
-            {t.label}
-            {t.count !== undefined && t.count > 0 && (
-              <span className="ml-1.5 badge badge-primary">{t.count}</span>
-            )}
-          </button>
-        ))}
       </div>
 
       {/* Tab content */}

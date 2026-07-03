@@ -69,6 +69,11 @@ export function CashPulseHeader({ companyId, userId }: { companyId: string; user
 
   return (
     <div className="glass-card p-5 sm:p-6 space-y-5">
+      {/* 카드 헤더 행 — 타이틀 + 우측 범위 라벨 */}
+      <div className="flex items-center justify-between">
+        <h3 className="m-0 text-sm font-bold text-[var(--text)]">미래 현금 예측</h3>
+        <span className="text-[10px] text-[var(--text-dim)]">오늘 → D+90</span>
+      </div>
       {/* 상단: 현재 잔액 + 런웨이 / 펄스 */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

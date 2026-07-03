@@ -146,63 +146,57 @@ export default function ErrorLogsPage() {
 
   return (
     <div data-theme="light" className="bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
-      <div className="page-sticky-header flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-extrabold flex items-center gap-2">
-            에러 모니터링
-            <span className="inline-flex items-center gap-1 text-[11px] font-normal text-emerald-500">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> 실시간
-            </span>
-          </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            서비스 내 발생 에러 — 미해결 <span className="text-red-400 font-semibold">{unresolvedCount}</span>건
-            {liveCount > 0 && <span className="ml-2 text-emerald-500">· 세션 중 신규 {liveCount}건 수신</span>}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="btn-secondary !text-xs"
-          >
-            {isFetching ? "갱신 중..." : "🔄 새로고침"}
-          </button>
-          <button
-            onClick={() => { if (confirm("해결 처리된 로그를 모두 삭제할까요?")) clearResolved.mutate(); }}
-            className="btn-danger !text-xs"
-          >
-            해결됨 비우기
-          </button>
-        </div>
-      </div>
-
-      {/* 필터 */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="seg-bar">
-          {[
-            { k: "unresolved" as const, label: "미해결" },
-            { k: "all" as const, label: "전체" },
-            { k: "resolved" as const, label: "해결됨" },
-          ].map((f) => (
-            <button
-              key={f.k}
-              onClick={() => setFilter(f.k)}
-              className={`seg-item ${filter === f.k ? "seg-item-active" : ""}`}
+      {/* 툴바 — 필터(좌) + 액션(우) */}
+      <div className="page-sticky-header mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="seg-bar">
+              {[
+                { k: "unresolved" as const, label: "미해결" },
+                { k: "all" as const, label: "전체" },
+                { k: "resolved" as const, label: "해결됨" },
+              ].map((f) => (
+                <button
+                  key={f.k}
+                  onClick={() => setFilter(f.k)}
+                  className={`seg-item ${filter === f.k ? "seg-item-active" : ""}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-2 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs"
             >
-              {f.label}
+              <option value="all">전체 유형</option>
+              {Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).map(([t, c]) => (
+                <option key={t} value={t}>{explainError(t).title} ({c})</option>
+              ))}
+            </select>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              실시간 · 미해결 <span className="text-red-400 font-semibold">{unresolvedCount}</span>건
+              {liveCount > 0 && <span className="text-emerald-500">· 세션 중 신규 {liveCount}건 수신</span>}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="btn-secondary !text-xs"
+            >
+              {isFetching ? "갱신 중..." : "🔄 새로고침"}
             </button>
-          ))}
+            <button
+              onClick={() => { if (confirm("해결 처리된 로그를 모두 삭제할까요?")) clearResolved.mutate(); }}
+              className="btn-danger !text-xs"
+            >
+              해결됨 비우기
+            </button>
+          </div>
         </div>
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-2 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs"
-        >
-          <option value="all">전체 유형</option>
-          {Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).map(([t, c]) => (
-            <option key={t} value={t}>{explainError(t).title} ({c})</option>
-          ))}
-        </select>
       </div>
 
       {isLoading ? (

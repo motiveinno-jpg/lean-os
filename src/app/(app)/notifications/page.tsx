@@ -139,14 +139,11 @@ export default function NotificationsPage() {
 
   return (
     <div className="">
-      <div className="page-sticky-header flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">알림</h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">
-            전체 <span className="mono-number font-semibold text-[var(--text-muted)]">{rows.length}</span>건 · 안읽음{" "}
-            <span className={`mono-number font-semibold ${unread > 0 ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>{unread}</span>건
-          </p>
-        </div>
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+        <p className="text-xs text-[var(--text-dim)]">
+          전체 <span className="mono-number font-semibold text-[var(--text-muted)]">{rows.length}</span>건 · 안읽음{" "}
+          <span className={`mono-number font-semibold ${unread > 0 ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>{unread}</span>건
+        </p>
         {unread > 0 && (
           <button onClick={markAllRead} className="btn-secondary">
             모두 읽음 표시

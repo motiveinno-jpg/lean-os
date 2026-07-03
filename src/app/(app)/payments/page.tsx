@@ -82,10 +82,18 @@ export default function PaymentsPage() {
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="page-sticky-header flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold break-keep">결제 관리</h1>
-          <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1 break-keep">결제 큐 + 급여/고정비 배치 + 반복결제</p>
+      {/* 컴팩트 툴바 — 탭(좌). 타이틀은 상단 고정 헤더바가 담당 */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+        <div className="seg-bar">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`seg-item ${tab === t.key ? 'seg-item-active' : ''}`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -93,19 +101,6 @@ export default function PaymentsPage() {
       {companyId && (
         <SmartSetupBanner companyId={companyId} invalidate={invalidate} onRegistered={() => setTab('recurring')} />
       )}
-
-      {/* Tab navigation */}
-      <div className="tab-bar mb-6">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`tab-item ${tab === t.key ? 'tab-item-active' : ''}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
 
       {tab === 'queue' && companyId && userId && (
         <PaymentQueueTab companyId={companyId} userId={userId} filter={filter} setFilter={setFilter}

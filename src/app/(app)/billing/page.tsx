@@ -262,56 +262,71 @@ export default function BillingPage() {
   return (
     <div className="mx-auto">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* Header */}
+
+      {/* 툴바 — 탭(좌) + 액션(우) */}
       <div className="page-sticky-header mb-6">
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">구독 & 결제</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">요금제 관리, 결제 수단, 청구서 확인</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="seg-bar overflow-x-auto">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`seg-item inline-flex items-center gap-1.5 ${tab === t.key ? "seg-item-active" : ""}`}
+              >
+                <span>{t.icon}</span> {t.label}
+              </button>
+            ))}
+          </div>
+          {hasStripeSubscription && (
+            <button
+              onClick={handleOpenPortal}
+              disabled={isPaymentLoading}
+              className="btn-secondary"
+            >
+              {isPaymentLoading ? "로딩 중..." : "구독 관리"}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Current plan summary */}
-      <div className="glass-card p-6 mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      {/* KPI 행 — 현재 플랜 · 월 결제 금액 · 다음 결제 · 사용량 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">현재 플랜</span>
           <div>
-            <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-1">현재 플랜</div>
-            <div className="text-2xl font-extrabold text-[var(--text)]">{currentPlan?.name || "Free"}</div>
-            <div className="text-sm text-[var(--text-muted)] mt-1">
+            <div className="text-[26px] leading-8 font-extrabold text-[var(--text)]">{currentPlan?.name || "Free"}</div>
+            <div className="text-xs text-[var(--text-dim)] mt-1">
               {subscription?.seat_count || 1}명 · {subscription?.billing_cycle === "annual" ? "연간" : "월간"} 결제
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-1">월 결제 금액</div>
-            <div className="text-3xl font-extrabold mono-number text-[var(--primary)]">
+        </div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">월 결제 금액</span>
+          <div>
+            <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">
               {fmtW((currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * (subscription?.seat_count || 1))}
             </div>
-            {subscription?.current_period_end && (
-              <div className="text-xs text-[var(--text-dim)] mt-1">
-                다음 결제: {new Date(subscription.current_period_end).toLocaleDateString("ko-KR")}
-              </div>
-            )}
+            <div className="text-xs text-[var(--text-dim)] mt-1">VAT 별도</div>
           </div>
         </div>
-        {hasStripeSubscription && (
-          <button
-            onClick={handleOpenPortal}
-            disabled={isPaymentLoading}
-            className="btn-secondary mt-4"
-          >
-            {isPaymentLoading ? "로딩 중..." : "구독 관리"}
-          </button>
-        )}
-      </div>
-
-      {/* Tabs */}
-      <div className="seg-bar mb-6 overflow-x-auto">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`seg-item inline-flex items-center gap-1.5 ${tab === t.key ? "seg-item-active" : ""}`}
-          >
-            <span>{t.icon}</span> {t.label}
-          </button>
-        ))}
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">다음 결제</span>
+          <div>
+            <div className="text-xl leading-8 font-extrabold mono-number text-[var(--text)]">
+              {subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString("ko-KR") : "—"}
+            </div>
+            <div className="text-xs text-[var(--text-dim)] mt-1">{hasStripeSubscription ? "자동 결제 예정" : "결제 수단 미등록"}</div>
+          </div>
+        </div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">활성 직원</span>
+          <div>
+            <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">
+              {usage ? `${usage.employees.toLocaleString()}명` : "—"}
+            </div>
+            <div className="text-xs text-[var(--text-dim)] mt-1">이번 달 전자서명 {usage?.signatures ?? 0}건</div>
+          </div>
+        </div>
       </div>
 
       {/* Plan Tab */}
@@ -334,7 +349,7 @@ export default function BillingPage() {
             return (
               <div className="glass-card p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-[var(--text)]">이번 달 사용량</h3>
+                  <h3 className="text-sm font-bold text-[var(--text)]">이번 달 사용량</h3>
                   <span className="text-xs text-[var(--text-muted)]">{new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long" })}</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -484,7 +499,9 @@ export default function BillingPage() {
       {tab === "payment" && (
         <div className="space-y-4">
           <div className="glass-card p-6">
-            <h3 className="font-bold text-[var(--text)] mb-4">결제 수단</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-[var(--text)]">결제 수단</h3>
+            </div>
             {hasStripeSubscription ? (
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)]">
                 <div className="flex items-center gap-3">
@@ -512,7 +529,9 @@ export default function BillingPage() {
           </div>
 
           <div className="glass-card p-6">
-            <h3 className="font-bold text-[var(--text)] mb-3">결제 안내</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-[var(--text)]">결제 안내</h3>
+            </div>
             <div className="space-y-2 text-sm text-[var(--text-muted)]">
               <div className="flex items-start gap-2"><span>•</span> Stripe를 통해 안전하게 결제됩니다 (PCI DSS Level 1)</div>
               <div className="flex items-start gap-2"><span>•</span> 월간 결제: 매월 동일일에 자동 결제</div>
@@ -528,7 +547,7 @@ export default function BillingPage() {
       {tab === "invoices" && (
         <div className="glass-card overflow-hidden">
           <div className="p-4 border-b border-[var(--border)]">
-            <h3 className="font-bold text-[var(--text)]">청구서 내역</h3>
+            <h3 className="text-sm font-bold text-[var(--text)]">청구서 내역</h3>
           </div>
           {(invoices || []).length === 0 ? (
             <div className="text-center py-14">
@@ -606,7 +625,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
       {tab === "referral" && (
         <div className="space-y-6">
           <div className="glass-card p-6">
-            <h3 className="font-bold text-[var(--text)] mb-1">추천인 프로그램</h3>
+            <h3 className="text-sm font-bold text-[var(--text)] mb-1">추천인 프로그램</h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">친구가 가입하면 양쪽 모두 ₩10,000 크레딧!</p>
 
             {referral ? (
@@ -652,7 +671,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
           </div>
 
           <div className="glass-card p-6">
-            <h3 className="font-bold text-[var(--text)] mb-1">피드백</h3>
+            <h3 className="text-sm font-bold text-[var(--text)] mb-1">피드백</h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">OwnerView를 더 좋게 만들어 주세요</p>
 
             {fbSent ? (

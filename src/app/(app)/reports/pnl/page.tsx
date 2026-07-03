@@ -596,44 +596,17 @@ export default function PnlPage() {
   return (
     <div id="pnl-printable">
       <style>{PRINT_CSS}</style>
-      <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
-        ← 분석 허브
-      </Link>
-      {/* Header — 표준 .page-sticky-header(z-30·blur·앱 상단바 안 가림). 2026-06-10 커스텀 sticky(z-10 짤림) 교체 */}
-      <div
-        className="page-sticky-header no-print-sticky"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 24,
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <div>
-          <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
-            손익계산서 (P&L)
-          </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: "var(--text-dim)",
-              margin: "4px 0 0",
-            }}
-          >
-            {formatMonthLabel(months[0])} ~ {formatMonthLabel(months[months.length - 1])} 월별 손익 현황 (단위: 원)
-          </p>
+      {/* 툴바 — 기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
+      <div className="page-sticky-header no-print-sticky mb-6 flex flex-wrap items-center justify-between gap-2">
+        {/* 조회 기간 — 월 범위. 다른 페이지 달력과 동일한 단일 컨트롤 스타일(h-9·rounded-lg). 2026-06-30 테두리 중첩 제거 */}
+        <div className="inline-flex items-center gap-1.5">
+          <MonthField value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)} title="시작 월"
+            className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
+          <span className="text-[var(--text-dim)] text-xs">~</span>
+          <MonthField value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)} title="종료 월"
+            className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {/* 조회 기간 — 월 범위. 다른 페이지 달력과 동일한 단일 컨트롤 스타일(h-9·rounded-lg). 2026-06-30 테두리 중첩 제거 */}
-          <div className="inline-flex items-center gap-1.5">
-            <MonthField value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)} title="시작 월"
-              className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
-            <span className="text-[var(--text-dim)] text-xs">~</span>
-            <MonthField value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)} title="종료 월"
-              className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
-          </div>
           <button
             type="button"
             onClick={() => setIsCompareMode((v) => !v)}

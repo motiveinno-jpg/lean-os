@@ -99,13 +99,6 @@ export default function SupportPage() {
 
   return (
     <div>
-      <div className="page-sticky-header mb-6">
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">고객센터</h1>
-        <p className="text-[13px] text-[var(--text-dim)] mt-1.5">
-          서비스 이용 중 궁금한 점이나 문제를 남겨주세요. 운영팀이 확인 후 답변드립니다.
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-5 items-start">
         {/* 문의 작성 */}
         <div className="glass-card p-5 sm:p-6">

@@ -511,36 +511,36 @@ export default function ReconciliationPage() {
 
   return (
     <div className="space-y-6">
-      {/* 히어로 밴드 — 타이틀 + 기간 · 매칭 액션 */}
-      <div className="glass-card p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold text-[var(--primary)] uppercase tracking-[0.15em]">Reconciliation</p>
-            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text)] mt-1">거래 매칭</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1">입금·계산서 자동 매칭 — 확정한 매칭만 거래처 원장 잔액에 반영됩니다</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap lg:justify-end shrink-0">
-            <Link href="/partners/ledger" className="btn-secondary text-xs">← 거래처 원장</Link>
-            <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
-              className="btn-secondary text-xs"
-              title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
-              {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
-            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-1.5">
-              <DateField value={engStart} max={engEnd} onChange={(e) => setEngStart(e.target.value)}
-                className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
-              <span className="caption">~</span>
-              <DateField value={engEnd} min={engStart} max={dStr(0)} onChange={(e) => setEngEnd(e.target.value)}
-                className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
-            </span>
-            <button onClick={() => !engineMut.isPending && engineMut.mutate()} disabled={engineMut.isPending || !engStart || !engEnd || engStart > engEnd}
-              className="btn-primary text-xs disabled:opacity-50"
-              title="선택 기간(최대 6개월)의 미정산 입금과 세금계산서를 규칙으로 매칭. 여러 기간 반복해도 기존 매칭은 유지·누적됩니다.">
-              {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
-            <button onClick={() => matchCd.run(() => { if (!aiMut.isPending) aiMut.mutate(); })} disabled={aiMut.isPending || matchCd.disabled}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white shadow-sm hover:opacity-90 disabled:opacity-50 transition ${matchCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-              title={matchCd.disabled ? `30분 쿨타임 — ${matchCd.label}` : "규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다."}>
-              {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : matchCd.disabled ? `⏳ ${matchCd.label}` : "✨ AI 전체 매칭"}</button>
-          </div>
+      {/* 툴바 — 탭 (좌) + 기간·매칭 액션 (우), 타이틀은 공통 헤더바가 담당 */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="seg-bar w-fit">
+          {([["queue", `거래 정리${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["confirmed", `정리 내역${confirmed.length ? ` (${confirmed.length})` : ""}`]] as const).map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)}
+              className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>
+              {label}</button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/partners/ledger" className="btn-secondary text-xs">← 거래처 원장</Link>
+          <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
+            className="btn-secondary text-xs"
+            title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
+            {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-1.5">
+            <DateField value={engStart} max={engEnd} onChange={(e) => setEngStart(e.target.value)}
+              className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
+            <span className="caption">~</span>
+            <DateField value={engEnd} min={engStart} max={dStr(0)} onChange={(e) => setEngEnd(e.target.value)}
+              className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
+          </span>
+          <button onClick={() => !engineMut.isPending && engineMut.mutate()} disabled={engineMut.isPending || !engStart || !engEnd || engStart > engEnd}
+            className="btn-primary text-xs disabled:opacity-50"
+            title="선택 기간(최대 6개월)의 미정산 입금과 세금계산서를 규칙으로 매칭. 여러 기간 반복해도 기존 매칭은 유지·누적됩니다.">
+            {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
+          <button onClick={() => matchCd.run(() => { if (!aiMut.isPending) aiMut.mutate(); })} disabled={aiMut.isPending || matchCd.disabled}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white shadow-sm hover:opacity-90 disabled:opacity-50 transition ${matchCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+            title={matchCd.disabled ? `30분 쿨타임 — ${matchCd.label}` : "규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다."}>
+            {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : matchCd.disabled ? `⏳ ${matchCd.label}` : "✨ AI 전체 매칭"}</button>
         </div>
       </div>
 
@@ -613,14 +613,6 @@ export default function ReconciliationPage() {
           </div>
         </div>
       )}
-
-      <div className="seg-bar w-fit">
-        {([["queue", `거래 정리${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["confirmed", `정리 내역${confirmed.length ? ` (${confirmed.length})` : ""}`]] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k)}
-            className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>
-            {label}</button>
-        ))}
-      </div>
 
       {tab === "queue" && (
         <div className="space-y-3">
@@ -820,13 +812,15 @@ export default function ReconciliationPage() {
               <div className="text-sm font-bold text-[var(--text)]">거래 연결</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{matchTx.counterparty || "—"} · {matchTx.transaction_date} · 잔여 {won(txRemaining(matchTx))}</div>
             </div>
-            <div className="px-5 pt-3 flex gap-1.5">
-              {([["invoice", "세금계산서"], ["cash", "현금영수증"], ["card", "카드사용"], ["voucher", "직접입력"]] as const).map(([k, label]) => (
-                <button key={k} onClick={() => setMatchDocType(k)}
-                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-full border transition ${matchDocType === k ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-                  {label}
-                </button>
-              ))}
+            <div className="px-5 pt-3">
+              <div className="seg-bar w-fit flex-wrap">
+                {([["invoice", "세금계산서"], ["cash", "현금영수증"], ["card", "카드사용"], ["voucher", "직접입력"]] as const).map(([k, label]) => (
+                  <button key={k} onClick={() => setMatchDocType(k)}
+                    className={`seg-item ${matchDocType === k ? "seg-item-active" : ""}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="px-5 py-3 border-b border-[var(--border)]">
               <input value={invSearch} onChange={(e) => setInvSearch(e.target.value)} placeholder={matchDocType === "voucher" ? "계정과목명 또는 코드로 검색" : "거래처명 또는 금액으로 검색"}

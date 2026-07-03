@@ -85,26 +85,22 @@ export default function PlatformSupportPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">고객센터 문의</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">고객사 문의 접수·답변 (답변 시 사용자에게 알림 발송)</p>
-        </div>
-        <div className="flex gap-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-extrabold text-[var(--text)]">고객센터 문의</h1>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           {openCount > 0 && <span className="px-2.5 py-1 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">미답변 {openCount}</span>}
+          <div className="seg-bar">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`seg-item ${filter === f.key ? "seg-item-active" : ""}`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-
-      <div className="seg-bar">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`seg-item ${filter === f.key ? "seg-item-active" : ""}`}
-          >
-            {f.label}
-          </button>
-        ))}
       </div>
 
       <div className="glass-card overflow-hidden">

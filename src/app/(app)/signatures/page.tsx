@@ -292,10 +292,21 @@ export default function SignaturesDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <header className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">전자서명 대시보드</h1>
-          <p className="text-sm text-[var(--text-muted)]">서명 요청 발송, 추적, 리마인더를 한곳에서 관리하세요.</p>
+      {/* 툴바 — 탭 토글(서명 요청 / 양식 관리) + 액션 */}
+      <header className="page-sticky-header flex flex-wrap items-center justify-between gap-2">
+        <div className="seg-bar">
+          <button
+            onClick={() => setSubTab("requests")}
+            className={`seg-item ${subTab === "requests" ? "seg-item-active" : ""}`}
+          >
+            서명 요청
+          </button>
+          <button
+            onClick={() => setSubTab("templates")}
+            className={`seg-item ${subTab === "templates" ? "seg-item-active" : ""}`}
+          >
+            양식 관리
+          </button>
         </div>
         {subTab === "requests" && (
           <div className="flex items-center gap-2">
@@ -315,22 +326,6 @@ export default function SignaturesDashboardPage() {
           </div>
         )}
       </header>
-
-      {/* 상단 탭 토글 — 서명 요청 / 양식 관리 */}
-      <div className="tab-bar">
-        <button
-          onClick={() => setSubTab("requests")}
-          className={`tab-item ${subTab === "requests" ? "tab-item-active" : ""}`}
-        >
-          서명 요청
-        </button>
-        <button
-          onClick={() => setSubTab("templates")}
-          className={`tab-item ${subTab === "templates" ? "tab-item-active" : ""}`}
-        >
-          양식 관리
-        </button>
-      </div>
 
       {subTab === "templates" && companyId && userId && (
         <div className="space-y-6">

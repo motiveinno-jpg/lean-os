@@ -109,14 +109,22 @@ export default function AttendancePage() {
 
   return (
     <div>
-      <div className="page-sticky-header mb-6">
-        <h1 className="text-2xl font-extrabold">근태 관리</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">{`출퇴근 기록 · 월별 근무시간 · 휴가 사용 현황${isManager ? ` · 재직 ${activeEmp.toLocaleString()}명` : ""}`}</p>
+      {/* 상위 섹션 탭 — 근무현황 / 휴가 / 연장근무 (라운드6.5: 타이틀 제거 → 필형 seg-bar 툴바) */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+        <div className="seg-bar">
+          {([["work", "🗓 근무 현황"], ["leave", "🏖 휴가"], ["overtime", "🌙 연장근무"]] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setSection(k)}
+              className={`seg-item ${section === k ? "seg-item-active" : ""}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        {isManager && <span className="text-xs text-[var(--text-muted)]">재직 {activeEmp.toLocaleString()}명</span>}
       </div>
 
       {/* KPI 4 (출석/지각/결석/휴가) — 관리자 노출. 실데이터 + derive(결석). */}
       {isManager && section === "work" && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="glass-card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-muted)]">출석</span>
@@ -172,16 +180,6 @@ export default function AttendancePage() {
           <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500 text-white whitespace-nowrap">휴가 승인하기 →</span>
         </button>
       )}
-
-      {/* 상위 섹션 탭 — 근무현황 / 휴가 / 연장근무 (신청·승인 통합) */}
-      <div className="tab-bar mb-6">
-        {([["work", "🗓 근무 현황"], ["leave", "🏖 휴가"], ["overtime", "🌙 연장근무"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setSection(k)}
-            className={`tab-item ${section === k ? "tab-item-active" : ""}`}>
-            {l}
-          </button>
-        ))}
-      </div>
 
       {section === "work" && (
         <>

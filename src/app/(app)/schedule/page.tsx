@@ -42,24 +42,19 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-6 mx-auto">
-      <div className="page-sticky-header flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold">일정</h1>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">캘린더 + 투두 — 회사 공유 일정과 개인 할 일 관리</p>
+      {/* Tabs — 라운드6.5: 타이틀 제거, 필형 탭만 스티키 툴바로 */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2">
+        <div className="seg-bar">
+          {([["calendar", "📅 캘린더"], ["todo", "✓ 할 일"]] as [Tab, string][]).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={`seg-item ${tab === k ? "seg-item-active" : ""}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="seg-bar">
-        {([["calendar", "📅 캘린더"], ["todo", "✓ 할 일"]] as [Tab, string][]).map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setTab(k)}
-            className={`seg-item ${tab === k ? "seg-item-active" : ""}`}
-          >
-            {label}
-          </button>
-        ))}
       </div>
 
       {tab === "calendar" && companyId && userId && (

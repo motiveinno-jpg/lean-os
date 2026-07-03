@@ -57,13 +57,8 @@ export default function TeamPage() {
 
   return (
     <div>
-      <div className="page-sticky-header mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold">구성원</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            팀에 어떤 동료가 있는지 확인하세요. 총 {employees.length}명
-          </p>
-        </div>
+      <div className="page-sticky-header mb-6 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-[var(--text-muted)]">총 {employees.length}명</span>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}

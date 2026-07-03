@@ -91,9 +91,8 @@ export default function PlatformOverview() {
   return (
     <div className="max-w-6xl space-y-6">
       {/* Header */}
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">플랫폼 개요</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">OwnerView SaaS 운영 현황</p>
       </div>
 
       {/* KPI Row 1 */}
@@ -115,7 +114,7 @@ export default function PlatformOverview() {
       </div>
 
       {/* Revenue Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="glass-card p-5 flex flex-col gap-3">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR (월간 반복 매출)</span>
           <div className="flex items-end gap-2">
@@ -142,7 +141,7 @@ export default function PlatformOverview() {
       </div>
 
       {/* OP-A: 운영 신호 (24h 에러 + 사고) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">최근 24시간 에러</span>
@@ -170,7 +169,7 @@ export default function PlatformOverview() {
       {/* Recent signups */}
       <div className="glass-card p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-[var(--text)]">최근 가입</h3>
+          <h3 className="text-sm font-bold text-[var(--text)]">최근 가입</h3>
           <Link href="/platform/customers" className="text-xs text-[var(--primary)] hover:underline">전체 보기</Link>
         </div>
         <div className="space-y-2">

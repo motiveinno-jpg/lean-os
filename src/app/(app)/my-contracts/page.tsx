@@ -83,12 +83,26 @@ export default function MyContractsPage() {
 
   return (
     <div>
-      <div className="page-sticky-header mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold">내 서명 요청</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            받은 계약서를 OwnerView 안에서 바로 서명하세요.
-          </p>
+      <div className="page-sticky-header mb-6 flex flex-wrap items-center justify-between gap-2">
+        <div className="seg-bar">
+          {[
+            { key: "pending" as const, label: "대기 중", count: counts.pending },
+            { key: "completed" as const, label: "완료", count: counts.completed },
+            { key: "all" as const, label: "전체", count: counts.all },
+          ].map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`seg-item ${filter === f.key ? "seg-item-active" : ""}`}
+            >
+              {f.label}
+              {f.count > 0 && (
+                <span className="ml-1 badge badge-muted">
+                  {f.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
         <button
           onClick={() => refetch()}
@@ -101,27 +115,6 @@ export default function MyContractsPage() {
           </svg>
           {isFetching ? '갱신 중...' : '새로고침'}
         </button>
-      </div>
-
-      <div className="seg-bar mb-6">
-        {[
-          { key: "pending" as const, label: "대기 중", count: counts.pending },
-          { key: "completed" as const, label: "완료", count: counts.completed },
-          { key: "all" as const, label: "전체", count: counts.all },
-        ].map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`seg-item ${filter === f.key ? "seg-item-active" : ""}`}
-          >
-            {f.label}
-            {f.count > 0 && (
-              <span className="ml-1 badge badge-muted">
-                {f.count}
-              </span>
-            )}
-          </button>
-        ))}
       </div>
 
       {isLoading ? (

@@ -41,34 +41,31 @@ export default function CustomersPage() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">고객사 관리</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">전체 가입 고객사 현황</p>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="회사명 검색..."
-          className="field-input max-w-sm"
-        />
-        <div className="seg-bar">
-          {[
-            { key: "all", label: "전체" },
-            { key: "paid", label: "유료" },
-            { key: "free", label: "무료" },
-          ].map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setStatusFilter(f.key)}
-              className={`seg-item ${statusFilter === f.key ? "seg-item-active" : ""}`}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="회사명 검색..."
+            className="field-input max-w-sm"
+          />
+          <div className="seg-bar">
+            {[
+              { key: "all", label: "전체" },
+              { key: "paid", label: "유료" },
+              { key: "free", label: "무료" },
+            ].map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setStatusFilter(f.key)}
+                className={`seg-item ${statusFilter === f.key ? "seg-item-active" : ""}`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

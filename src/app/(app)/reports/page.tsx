@@ -107,28 +107,7 @@ export default function ReportsHubPage() {
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6 px-7 py-6">
-      {/* Hero band */}
-      <div className="glass-card p-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--primary)]">
-              Analytics
-            </div>
-            <h1 className="m-0 text-2xl font-extrabold tracking-tight text-[var(--text)]">분석</h1>
-            <p className="mt-1.5 text-sm text-[var(--text-muted)]">
-              재무제표와 비용 구조를 한 곳에서. 보고 싶은 분석을 선택하세요.
-            </p>
-          </div>
-          <div className="hidden items-center gap-2 rounded-full bg-[var(--bg-surface)] px-3.5 py-1.5 sm:flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
-              리포트 {visibleCards.length}종
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Report launcher grid */}
+      {/* Report launcher grid — 페이지 타이틀은 공통 헤더바(브레드크럼)가 표시 */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {visibleCards.map((c) => (
           <Link

@@ -51,12 +51,7 @@ export default function QuotesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="page-sticky-header flex items-center justify-between gap-3">
-        <div>
-          <div className="eyebrow">Project Hub</div>
-          <h1 className="text-2xl font-extrabold">견적서</h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">프로젝트와 연동된 견적서를 한곳에서 작성·관리합니다. 작성 시 기존 프로젝트를 고르거나 새 프로젝트를 만들 수 있습니다.</p>
-        </div>
+      <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2">
         <button onClick={() => setShowCreate(true)}
           className="btn-primary shrink-0">+ 견적서 작성</button>
       </div>

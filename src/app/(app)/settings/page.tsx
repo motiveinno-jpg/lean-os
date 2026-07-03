@@ -183,12 +183,9 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="page-sticky-header">
-        <h1 className="text-2xl font-extrabold mb-1">설정</h1>
-      </div>
 
-      {/* Main Tab Bar — seg-bar 필형 · 아이콘 + 라벨 */}
-      <div className="mb-6 -mx-6 px-6">
+      {/* Main Tab Bar — seg-bar 필형 · 아이콘 + 라벨 (컴팩트 툴바 행) */}
+      <div className="page-sticky-header mb-6">
         <div
           className="seg-bar flex w-full overflow-x-auto scrollbar-hide"
           style={{ WebkitOverflowScrolling: "touch" }}
@@ -227,7 +224,9 @@ export default function SettingsPage() {
         <>
           {/* Cash Snapshot */}
           <div className="glass-card p-6">
-            <h2 className="section-title">현금 현황</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold">현금 현황</h3>
+            </div>
             <div className="space-y-4">
               {/* 연동 통장 합산 (자동, read-only) */}
               <div className="p-4 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20">
@@ -302,7 +301,7 @@ export default function SettingsPage() {
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-bold">법인 통장 관리</h2>
+                <h3 className="text-sm font-bold">법인 통장 관리</h3>
                 <p className="text-xs text-[var(--text-dim)] mt-0.5">
                   총 잔고: ₩{totalBankBalance.toLocaleString()}
                 </p>
@@ -453,7 +452,7 @@ export default function SettingsPage() {
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-bold">비용 라우팅 규칙</h2>
+                <h3 className="text-sm font-bold">비용 라우팅 규칙</h3>
                 <p className="text-xs text-[var(--text-dim)] mt-0.5">비용 유형별 지급 통장 자동 매칭</p>
               </div>
               <button

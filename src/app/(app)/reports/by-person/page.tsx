@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
@@ -171,19 +170,8 @@ export default function ByPersonPage() {
 
   return (
     <div>
-      <Link href="/dashboard" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
-        ← 대시보드
-      </Link>
-      {/* 표준 .page-sticky-header(z-30·blur·앱 상단바 안 가림). 2026-06-10 */}
-      <div className="page-sticky-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-        <div>
-          <h1 className="text-2xl font-extrabold" style={{ color: "var(--text)", margin: 0 }}>
-            인원별 급여
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text-dim)", marginTop: 6 }}>
-            직원별 급여(명세서 기준, 없으면 기본급여 추정)를 봅니다.
-          </p>
-        </div>
+      {/* 툴바 — 연도 필터. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
+      <div className="page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
@@ -271,11 +259,13 @@ export default function ByPersonPage() {
             </div>
           </div>
 
-          {/* 월추이 표 (인원 x 월, 카드+급여 합) */}
+          {/* 월추이 표 (인원 x 월, 카드+급여 합) — 섹션 제목을 카드 안 헤더로 흡수 (2026-07-03 라운드6.5) */}
           <div style={{ marginTop: 24 }}>
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-0.5">Monthly</div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>월별 급여 추이</h3>
-            <div className="glass-card" style={{ overflowX: "auto" }}>
+            <div className="glass-card overflow-hidden">
+              <div className="flex items-center justify-between" style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
+                <h3 className="m-0 text-sm font-bold text-[var(--text)]">월별 급여 추이</h3>
+              </div>
+              <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -302,6 +292,7 @@ export default function ByPersonPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
 

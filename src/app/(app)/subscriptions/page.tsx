@@ -153,22 +153,17 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="">
-      <div className="page-sticky-header flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-extrabold">구독 관리</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            회사가 쓰는 모든 외부 프로그램·AI 구독을 한 곳에. OwnerView 요금제도 포함.
-          </p>
-        </div>
-        {canEdit && (
+      {/* 컴팩트 툴바 — 액션(우). 타이틀은 상단 고정 헤더바가 담당 */}
+      {canEdit && (
+        <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2 mb-6">
           <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary">
             + 구독 추가
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 요약 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="glass-card p-5">
           <div className="text-[13px] font-semibold text-[var(--text-muted)]">월 총 구독비</div>
           <div className="text-[26px] leading-8 font-extrabold mono-number mt-2 text-[var(--primary)]">{fmtW(totalMonthly)}</div>

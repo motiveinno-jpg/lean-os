@@ -286,7 +286,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
   return (
     <div className="space-y-6">
       {/* 통계 3개 (시안) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <BankStat tone="brand" icon="wallet" label="전체 잔액" value={won(totalBalance)} sub={`${accounts.length}개 계좌`} valueTone="text-[var(--text)]" />
         <BankStat tone="success" icon="trendingUp" label="기간 수입" value={`+${won(flow?.income ?? 0)}`} sub="이 기간" valueTone="text-[var(--success)]" />
         <BankStat tone="danger" icon="trendingDown" label="기간 지출" value={`-${won(flow?.expense ?? 0)}`} sub="이 기간" valueTone="text-[var(--danger)]" />
@@ -295,7 +295,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
       {/* 컨트롤 — 기간/새로고침/다운로드 + 검색/정렬 */}
       <div className="glass-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-base font-bold text-[var(--text)]">내 계좌 <span className="text-xs font-normal text-[var(--text-dim)]">{accounts.length}개</span></div>
+          <h3 className="text-sm font-bold text-[var(--text)]">내 계좌 <span className="text-xs font-normal text-[var(--text-dim)]">{accounts.length}개</span></h3>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 bg-[var(--bg-surface)] rounded-xl px-1 py-1 border border-[var(--border)]">
               <button onClick={() => shiftMonths(-1)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="이전 달">◀</button>

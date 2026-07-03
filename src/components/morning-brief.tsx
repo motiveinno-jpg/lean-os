@@ -27,13 +27,7 @@ interface MorningBriefProps {
 }
 
 // ── 문구 헬퍼 ─────────────────────────────────────────
-
-function greetingForHour(hour: number): string {
-  if (hour < 5) return "늦은 밤이네요";
-  if (hour < 12) return "좋은 아침입니다";
-  if (hour < 18) return "오후 브리핑입니다";
-  return "저녁 브리핑입니다";
-}
+// (라운드6.5: 인사말은 고정 헤더바가 대체 — greetingForHour/인사 h2 제거, 브리핑 본문만 유지)
 
 function formatKrwWords(n: number): string {
   if (!Number.isFinite(n) || n === 0) return "0원";
@@ -74,7 +68,6 @@ function hl(text: string, tone: HlTone = "primary") {
 // ── 본문 ────────────────────────────────────────────
 
 export function MorningBrief({
-  userName,
   companyName,
   cashPulse,
   dashboard,
@@ -82,7 +75,6 @@ export function MorningBrief({
   yesterdayTx,
 }: MorningBriefProps) {
   const now = new Date();
-  const greeting = greetingForHour(now.getHours());
   const today = formatTodayKorean(now);
   // KAIROS H2 fix: 모바일에서 카드가 80%+ 차지하던 문제 해결
   // 기본은 축약(line1, line2, line4만), 펼치면 전체
@@ -92,10 +84,7 @@ export function MorningBrief({
   if (!hasData || !cashPulse) {
     return (
       <section className="mb-4 glass-card p-4 sm:p-5">
-        <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-1 sm:mb-2">{today}</p>
-        <h2 className="text-base sm:text-lg font-bold text-[var(--text)] leading-snug mb-2 break-keep">
-          {greeting}, {userName || "대표"}님.
-        </h2>
+        <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-2">{today}</p>
         <p className="text-xs sm:text-sm text-[var(--text-muted)] leading-relaxed break-keep">
           아직 {companyName || "회사"} 데이터가 충분하지 않습니다.
           거래내역을 동기화하거나 엑셀 파일을 올리시면, 내일 아침부터
@@ -224,12 +213,9 @@ export function MorningBrief({
 
   return (
     <section className="mb-6 glass-card p-4 sm:p-6 md:p-8">
-      <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-1 sm:mb-2">
+      <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-2">
         {today} · {companyName}
       </p>
-      <h2 className="text-sm sm:text-base font-bold text-[var(--text)] leading-snug mb-2 break-keep">
-        {greeting}, {userName || "대표"}님.
-      </h2>
 
       <div className="space-y-1.5 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.6] sm:leading-[1.85] tracking-[-0.01em] break-keep">
         <p>{line1}</p>

@@ -402,39 +402,29 @@ export default function CashReceiptsPage() {
 
   return (
     <div className="space-y-6 mx-auto">
-      {/* ─── 히어로 밴드 ─── */}
-      <div className="glass-card p-6">
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--primary)]">
-              Cash Receipts
-            </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text)] mt-1">현금영수증</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1">
-              매출/매입 현금영수증 관리 · 부가세 공제 자동 반영
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* 조회기간 — 목록·요약·홈택스 동기화 공통 기준 (기준 하나로 통일) */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)]">조회기간</span>
-              <DateField
-                value={startDate}
-                max={endDate || undefined}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-2 py-1 text-xs bg-transparent border-0 rounded-lg text-[var(--text)] focus:outline-none"
-                aria-label="조회 시작일"
-              />
-              <span className="text-[var(--text-dim)] text-xs">~</span>
-              <DateField
-                value={endDate}
-                min={startDate || undefined}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-2 py-1 text-xs bg-transparent border-0 rounded-lg text-[var(--text)] focus:outline-none"
-                aria-label="조회 종료일"
-              />
-            </div>
-            <button
+      {/* ─── 툴바 — 조회기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) ─── */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* 조회기간 — 목록·요약·홈택스 동기화 공통 기준 (기준 하나로 통일) */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <span className="text-[11px] font-semibold text-[var(--text-muted)]">조회기간</span>
+          <DateField
+            value={startDate}
+            max={endDate || undefined}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="px-2 py-1 text-xs bg-transparent border-0 rounded-lg text-[var(--text)] focus:outline-none"
+            aria-label="조회 시작일"
+          />
+          <span className="text-[var(--text-dim)] text-xs">~</span>
+          <DateField
+            value={endDate}
+            min={startDate || undefined}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="px-2 py-1 text-xs bg-transparent border-0 rounded-lg text-[var(--text)] focus:outline-none"
+            aria-label="조회 종료일"
+          />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
               onClick={startSync}
               disabled={syncStarting || !!activeJobId}
               aria-busy={syncStarting || !!activeJobId}
@@ -464,13 +454,12 @@ export default function CashReceiptsPage() {
                 disabled={uploading}
               />
             </label>
-          </div>
         </div>
       </div>
 
       {/* ─── KPI 스탯 ─── */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="glass-card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-muted)]">매출 발행</span>

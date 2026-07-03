@@ -636,14 +636,30 @@ export default function BalanceSheetPage() {
   return (
     <div id="bs-printable">
       <style>{PRINT_CSS}</style>
-      <Link href="/reports" className="no-print" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-muted)", textDecoration: "none", marginBottom: 14 }}>
-        ← 분석 허브
-      </Link>
-      {/* Header — 표준 .page-sticky-header 유틸(z-30·blur). 2026-06-25 툴바 리디자인 */}
-      <div className="page-sticky-header flex items-start justify-between gap-3 flex-wrap mb-5">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)] tracking-tight m-0">재무상태표</h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">Balance Sheet · 기준일 {cutoffInput || today} 시점 자산·부채·자본</p>
+      {/* 툴바 — 기준일·채권채무 필터(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
+      <div className="page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
+        <div className="no-print flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-[var(--text-dim)]">기준일</label>
+            <DateField value={cutoffInput || today} max={today} onChange={(e) => setCutoffInput(e.target.value)}
+              className="h-8 px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
+            {cutoffInput && cutoffInput !== today && (
+              <button onClick={() => setCutoffInput('')} className="text-[11px] text-[var(--primary)] font-semibold hover:underline" title="오늘로 초기화">↺ 오늘</button>
+            )}
+          </div>
+          <div className="h-5 w-px bg-[var(--border)] hidden sm:block" />
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-xs font-semibold text-[var(--text-dim)]">채권·채무</label>
+            <div className="seg-bar">
+              {[3, 6, 12].map((m) => (
+                <button key={m} type="button" onClick={() => setArApMonths(m)}
+                  className={`seg-item ${arApMonths === m ? "seg-item-active" : ""}`}>
+                  {m}개월
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] text-[var(--text-dim)]">이내 미매칭 세금계산서만 집계</span>
+          </div>
         </div>
         <div className="no-print flex items-center gap-1.5 flex-wrap">
           <button onClick={() => setIsCompareMode((v) => !v)} aria-label="전월 비교"
@@ -661,31 +677,6 @@ export default function BalanceSheetPage() {
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" /></svg>
             인쇄
           </button>
-        </div>
-      </div>
-
-      {/* 컨트롤 바 — 기준일 + 채권·채무 집계 기간 */}
-      <div className="no-print flex items-center gap-x-5 gap-y-2.5 flex-wrap mb-5 px-3.5 py-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-[var(--text-dim)]">기준일</label>
-          <DateField value={cutoffInput || today} max={today} onChange={(e) => setCutoffInput(e.target.value)}
-            className="h-8 px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
-          {cutoffInput && cutoffInput !== today && (
-            <button onClick={() => setCutoffInput('')} className="text-[11px] text-[var(--primary)] font-semibold hover:underline" title="오늘로 초기화">↺ 오늘</button>
-          )}
-        </div>
-        <div className="h-5 w-px bg-[var(--border)] hidden sm:block" />
-        <div className="flex items-center gap-2 flex-wrap">
-          <label className="text-xs font-semibold text-[var(--text-dim)]">채권·채무</label>
-          <div className="inline-flex gap-0.5 p-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
-            {[3, 6, 12].map((m) => (
-              <button key={m} type="button" onClick={() => setArApMonths(m)}
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition ${arApMonths === m ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-                {m}개월
-              </button>
-            ))}
-          </div>
-          <span className="text-[11px] text-[var(--text-dim)]">이내 미매칭 세금계산서만 집계</span>
         </div>
       </div>
 
@@ -843,12 +834,11 @@ export default function BalanceSheetPage() {
         )}
       </div>
 
-      {/* Asset vs Liability Composition Bar */}
-      <div className="mt-8">
-        <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">Composition</div>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
-          자산/부채 구성
-        </h2>
+      {/* Asset vs Liability Composition Bar — 섹션 제목을 카드 안 헤더로 흡수 (2026-07-03 라운드6.5) */}
+      <div className="glass-card mt-8 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="m-0 text-sm font-bold text-[var(--text)]">자산/부채 구성</h3>
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {/* Assets bar */}
           <div>
@@ -1003,14 +993,13 @@ export default function BalanceSheetPage() {
         </div>
       </details>
 
-      {/* Monthly Trend Chart */}
+      {/* Monthly Trend Chart — 섹션 제목을 카드 안 헤더로 흡수 (2026-07-03 라운드6.5) */}
       {trend.length > 0 && (
         <div className="mt-8">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">Trend</div>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
-            월별 추이 (최근 6개월)
-          </h2>
           <div style={{ padding: "20px", borderRadius: 12, background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="m-0 text-sm font-bold text-[var(--text)]">월별 추이 (최근 6개월)</h3>
+            </div>
             {(() => {
               const maxVal = Math.max(...trend.map(p => Math.max(p.totalAssets, p.totalLiabilities + Math.max(p.totalEquity, 0))), 1);
               return (

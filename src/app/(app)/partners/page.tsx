@@ -675,13 +675,8 @@ export default function PartnersPage() {
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* Header */}
-      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">Partners / CRM</p>
-          <h1 className="text-2xl font-extrabold mt-0.5">거래처 관리</h1>
-        </div>
-        <div className="flex gap-2 flex-shrink-0 overflow-x-auto">
+      {/* 툴바 — 액션 버튼 (타이틀은 공통 헤더바가 담당) */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2 mb-6">
           <Link href="/partners/ledger"
             className="btn-secondary whitespace-nowrap"
             title="거래처별 미수금/미지급금 원장 (채권·채무 대사)">
@@ -710,7 +705,6 @@ export default function PartnersPage() {
             className="btn-primary whitespace-nowrap">
             + 새 거래처
           </button>
-        </div>
       </div>
 
       {/* KPI 카드 4 (거래처) — TeamHub 패턴 */}
@@ -1117,20 +1111,22 @@ export default function PartnersPage() {
             </div>
 
             {/* Tabs */}
-            <div className="tab-bar px-4">
-              {([
-                { key: "info" as const, label: "기본정보" },
-                { key: "timeline" as const, label: `타임라인 (${timeline.length})` },
-                { key: "deals" as const, label: `프로젝트 (${partnerDeals.length})` },
-                { key: "payments" as const, label: `결제 (${partnerPayments.length})` },
-                { key: "docs" as const, label: `문서 (${partnerDocs.length})` },
-                { key: "comms" as const, label: `커뮤니케이션 (${partnerComms.length})` },
-              ]).map((tab) => (
-                <button key={tab.key} onClick={() => setDetailTab(tab.key)}
-                  className={`tab-item ${detailTab === tab.key ? "tab-item-active" : ""}`}>
-                  {tab.label}
-                </button>
-              ))}
+            <div className="px-4 pt-3">
+              <div className="seg-bar w-fit flex-wrap">
+                {([
+                  { key: "info" as const, label: "기본정보" },
+                  { key: "timeline" as const, label: `타임라인 (${timeline.length})` },
+                  { key: "deals" as const, label: `프로젝트 (${partnerDeals.length})` },
+                  { key: "payments" as const, label: `결제 (${partnerPayments.length})` },
+                  { key: "docs" as const, label: `문서 (${partnerDocs.length})` },
+                  { key: "comms" as const, label: `커뮤니케이션 (${partnerComms.length})` },
+                ]).map((tab) => (
+                  <button key={tab.key} onClick={() => setDetailTab(tab.key)}
+                    className={`seg-item ${detailTab === tab.key ? "seg-item-active" : ""}`}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Tab Content */}

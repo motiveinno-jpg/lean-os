@@ -45,13 +45,12 @@ export default function RevenuePage() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">수익 관리</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">결제 내역, MRR, 인보이스</p>
       </div>
 
       {/* Revenue KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass-card p-5 flex flex-col gap-3">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR</span>
           <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">{fmtW(mrr)}</span>
@@ -72,8 +71,8 @@ export default function RevenuePage() {
 
       {/* Invoice list */}
       <div className="glass-card overflow-hidden">
-        <div className="p-5 border-b border-[var(--border)]">
-          <h3 className="font-bold text-[var(--text)]">전체 결제 내역</h3>
+        <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
+          <h3 className="text-sm font-bold text-[var(--text)]">전체 결제 내역</h3>
         </div>
         {invoices.length === 0 ? (
           <div className="text-center py-16 text-sm text-[var(--text-dim)]">결제 내역이 없습니다</div>

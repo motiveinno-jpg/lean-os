@@ -165,12 +165,9 @@ export default function MyPage() {
     : null;
 
   return (
-    <div className="space-y-6">
-      <div className="page-sticky-header">
-        <h1 className="text-2xl font-extrabold mb-1">마이페이지</h1>
-        <p className="text-sm text-[var(--text-muted)]">내 정보 및 연차 현황</p>
-      </div>
-
+    <div className="grid gap-5 lg:grid-cols-3 items-start">
+      {/* 좌 1/3 — 프로필 카드 */}
+      <div className="space-y-5">
       {/* 기본 정보 */}
       <div className="glass-card p-6">
         <h2 className="section-title">기본 정보</h2>
@@ -213,7 +210,10 @@ export default function MyPage() {
           </div>
         </div>
       </div>
+      </div>
 
+      {/* 우 2/3 — 인사·연차·계정 카드 */}
+      <div className="lg:col-span-2 space-y-5">
       {/* 직원 정보 */}
       {employee && (
         <div className="glass-card p-6">
@@ -326,6 +326,7 @@ export default function MyPage() {
           </button>
         </div>
         {withdrawErr && <p className="text-xs text-[var(--danger)] mt-2">{withdrawErr}</p>}
+      </div>
       </div>
     </div>
   );

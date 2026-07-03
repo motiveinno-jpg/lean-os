@@ -170,7 +170,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* 히어로 */}
       <div className="glass-card p-5 flex flex-wrap items-center gap-6">
         <RadialGauge pct={overallPct} label="종합 달성률" />
@@ -196,10 +196,13 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
         </div>
       </div>
 
+      {/* 본문 — 좌 2/3(스코어카드·추세) + 우 1/3 보조 위젯(분해·부서별·체크인) */}
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-5">
       {/* ① KPI 스코어카드 */}
       <section>
         <h3 className="text-sm font-bold text-[var(--text)] mb-2">KPI 현황</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {rows.map(({ k, actual, pct }) => {
             const sp = sparkOf(k);
             return (
@@ -225,7 +228,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
 
       {/* ② 추세 */}
       <section className="glass-card p-4">
-        <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center justify-between gap-2 mb-4">
           <h3 className="text-sm font-bold text-[var(--text)]">누적 실적 vs 목표 페이스</h3>
           <select value={selKpi?.id || ""} onChange={(e) => setTrendKpiId(e.target.value)} className="px-2.5 py-1 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]">
             {kpiList.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
@@ -244,12 +247,14 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
           />
         ) : null}
       </section>
+        </div>
 
+        <div className="space-y-5">
       {/* ③ 분해 */}
       <section className="glass-card p-4">
-        <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
           <h3 className="text-sm font-bold text-[var(--text)]">매출 분해</h3>
-          <div className="seg-bar">
+          <div className="seg-bar flex-wrap max-w-full">
             {([["channel", "채널(거래처)"], ["campaign", "세부프로젝트"], ["manager", "담당자"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setBreakdown(k)} className={`seg-item ${breakdown === k ? "seg-item-active" : ""}`}>{l}</button>
             ))}
@@ -261,14 +266,14 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
       {/* 부서별 기여 (수동 KPI) — 매출 분해(tax_invoices)와 별개 소스(entries) */}
       {selKpi && selKpi.source === "manual" && (
         <section className="glass-card p-4">
-          <h3 className="text-sm font-bold text-[var(--text)] mb-1">부서별 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label} · 수동 KPI 실적 입력 기준</span></h3>
+          <h3 className="text-sm font-bold text-[var(--text)] mb-4">부서별 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label} · 수동 KPI 실적 입력 기준</span></h3>
           <BarList items={deptContribution || []} unit={selKpi.unit} emptyText="부서별 실적 입력이 없습니다. ‘성과’ 탭 실적 입력에서 부서를 지정하면 표시됩니다." />
         </section>
       )}
 
       {/* ④ 성과 체크인 추이 */}
       <section className="glass-card p-4">
-        <h3 className="text-sm font-bold text-[var(--text)] mb-3">성과 체크인 추이</h3>
+        <h3 className="text-sm font-bold text-[var(--text)] mb-4">성과 체크인 추이</h3>
         <StatusTimeline points={checkinPoints} />
         {latestUpdate && (latestUpdate.did || latestUpdate.issues || latestUpdate.next_plan) && (
           <div className="mt-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)] pt-2 space-y-0.5">
@@ -279,6 +284,8 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
           </div>
         )}
       </section>
+        </div>
+      </div>
     </div>
   );
 }

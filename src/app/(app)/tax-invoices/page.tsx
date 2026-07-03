@@ -1046,15 +1046,8 @@ export default function TaxInvoicesPage() {
   return (
     <div className="" data-print-area>
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* Header */}
-      <div className="page-sticky-header flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">세금계산서</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            매출/매입 세금계산서 관리 및 3-Way 매칭
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      {/* 툴바 — 액션 버튼 (타이틀은 공통 헤더바가 담당) */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2 mb-6">
           <button
             onClick={() => window.print()}
             className="no-print btn-secondary cursor-pointer"
@@ -1072,7 +1065,6 @@ export default function TaxInvoicesPage() {
           >
             + 세금계산서 등록
           </button>
-        </div>
       </div>
 
       {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치 */}
@@ -2350,7 +2342,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
 
   return (
     <div>
-      <div className="flex gap-2 mb-4">
+      <div className="seg-bar w-fit mb-4">
         {([
           { key: "monthly", label: "월별" },
           { key: "quarterly", label: "분기별" },
@@ -2359,9 +2351,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
           <button
             key={p.key}
             onClick={() => setPeriodType(p.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              periodType === p.key ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)]"
-            }`}
+            className={`seg-item ${periodType === p.key ? "seg-item-active" : ""}`}
           >
             {p.label}
           </button>

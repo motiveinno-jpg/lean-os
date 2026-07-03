@@ -118,28 +118,9 @@ export function GoalHero({ deal }: { deal: any }) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* 종합 — 달성률 + 신호등 */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="glass-card px-3 py-2.5">
-          <div className="text-[11px] text-[var(--text-muted)]">종합 달성률 <span className="text-[var(--text-dim)]">(KPI 평균)</span></div>
-          <div className={`text-base font-bold mono-number mt-0.5 ${overallPct == null ? "text-[var(--text-dim)]" : overallPct >= 100 ? "text-[var(--primary)]" : overallPct < 40 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
-            {overallPct == null ? "—" : `${overallPct}%`}
-          </div>
-        </div>
-        <div className="glass-card px-3 py-2.5">
-          <div className="text-[11px] text-[var(--text-muted)]">종합 상태 <span className="text-[var(--text-dim)]">(최신 체크인)</span></div>
-          <div className={`text-base font-bold mt-0.5 flex items-center gap-1.5 ${sm.text}`}>
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${sm.dot}`} />
-            {sm.label}
-          </div>
-        </div>
-        <div className="glass-card px-3 py-2.5">
-          <div className="text-[11px] text-[var(--text-muted)]">KPI 수</div>
-          <div className="text-base font-bold mono-number mt-0.5 text-[var(--text)]">{(kpis as Kpi[]).length}개</div>
-        </div>
-      </div>
-
+    <div className="grid gap-5 lg:grid-cols-3">
+      {/* 좌 2/3 — 페이스 경고 + KPI 패널 */}
+      <div className="lg:col-span-2 space-y-4 lg:order-1">
       {/* 페이스 경고 (대표 KPI) */}
       {worstPace && (
         <div className={`glass-card p-4 flex items-start gap-3 ${worstPace.tone === "danger" ? "border border-red-500/30" : worstPace.tone === "warn" ? "border border-amber-500/30" : ""}`}>
@@ -188,6 +169,28 @@ export function GoalHero({ deal }: { deal: any }) {
       {hasAuto && (
         <p className="text-[11px] text-[var(--text-dim)]">※ ‘매출 자동’ KPI는 <b className="text-[var(--text-muted)]">매출 세금계산서(공급가액, 무효 제외)</b>를 자동 집계합니다.</p>
       )}
+      </div>
+
+      {/* 우 1/3 — 종합 요약 위젯(달성률·신호등·KPI 수) */}
+      <div className="space-y-4 lg:order-2">
+        <div className="glass-card px-4 py-3">
+          <div className="text-[11px] text-[var(--text-muted)]">종합 달성률 <span className="text-[var(--text-dim)]">(KPI 평균)</span></div>
+          <div className={`text-base font-bold mono-number mt-0.5 ${overallPct == null ? "text-[var(--text-dim)]" : overallPct >= 100 ? "text-[var(--primary)]" : overallPct < 40 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
+            {overallPct == null ? "—" : `${overallPct}%`}
+          </div>
+        </div>
+        <div className="glass-card px-4 py-3">
+          <div className="text-[11px] text-[var(--text-muted)]">종합 상태 <span className="text-[var(--text-dim)]">(최신 체크인)</span></div>
+          <div className={`text-base font-bold mt-0.5 flex items-center gap-1.5 ${sm.text}`}>
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${sm.dot}`} />
+            {sm.label}
+          </div>
+        </div>
+        <div className="glass-card px-4 py-3">
+          <div className="text-[11px] text-[var(--text-muted)]">KPI 수</div>
+          <div className="text-base font-bold mono-number mt-0.5 text-[var(--text)]">{(kpis as Kpi[]).length}개</div>
+        </div>
+      </div>
     </div>
   );
 }

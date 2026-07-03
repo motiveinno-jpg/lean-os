@@ -96,18 +96,17 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
           <option value="">팀 전체</option>
           {depts.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
-        <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-0.5">
+        <div className="seg-bar">
           {([["active", "재직"], ["all", "전체"], ["left", "퇴사"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setStatusF(k)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition ${statusF === k ? "text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
-              style={statusF === k ? { background: FLEX.violet } : undefined}>{l}</button>
+              className={`seg-item ${statusF === k ? "seg-item-active" : ""}`}>{l}</button>
           ))}
         </div>
         <span className="text-[11px] text-[var(--text-dim)]">{shown.length}명</span>
-        <div className="ml-auto inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-0.5">
+        <div className="ml-auto seg-bar">
           {([["card", "카드"], ["list", "리스트"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setView(k)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition ${view === k ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>{l}</button>
+              className={`seg-item ${view === k ? "seg-item-active" : ""}`}>{l}</button>
           ))}
         </div>
       </div>

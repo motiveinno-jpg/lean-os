@@ -326,11 +326,15 @@ export default function LoansPage() {
 
       <QueryErrorBanner error={mainError} onRetry={refetch} />
 
-      {/* Header */}
-      <div className="page-sticky-header flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-extrabold">대출 관리</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">대출 현황, 상환 이력, 잔금 추적</p>
+      {/* 컴팩트 툴바 — 탭(좌) + 인쇄(우). 타이틀은 상단 고정 헤더바가 담당 */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+        <div className="seg-bar max-w-full overflow-x-auto">
+          {TABS.map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
+              {t.label}
+            </button>
+          ))}
         </div>
         <button
           onClick={() => window.print()}
@@ -345,7 +349,7 @@ export default function LoansPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {statCards.map((c) => (
           <div
             key={c.label}
@@ -363,16 +367,6 @@ export default function LoansPage() {
               {c.sub && <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{c.sub}</div>}
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="seg-bar mb-6 max-w-full overflow-x-auto">
-        {TABS.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
-            {t.label}
-          </button>
         ))}
       </div>
 

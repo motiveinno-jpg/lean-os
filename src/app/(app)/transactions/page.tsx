@@ -922,11 +922,20 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-extrabold">거래내역</h1>
-          <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">은행 거래 자동 수집 + 프로젝트/분류 매핑</p>
-        </div>
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+        {/* 탭 — 좌측 (visibleTabs 길이가 1 이하면 탭 UI 자체 숨김, 단일 view) */}
+        {visibleTabs.length > 1 ? (
+          <div className="seg-bar">
+            {(([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][])
+              .filter(([t]) => visibleTabs.includes(t))
+            ).map(([t, label]) => (
+              <button key={t} onClick={() => { setTab(t); if (t === 'inbox') setFilterStatus('unmapped'); else if (t === 'all') setFilterStatus('all'); }}
+                className={`seg-item ${tab === t ? 'seg-item-active' : ''}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : <div />}
         <div className="flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
           {!(visibleTabs.length === 1 && visibleTabs[0] === 'cards') && (
@@ -1177,20 +1186,6 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               {(bankDateFrom || bankDateTo) && <button onClick={() => { setBankDateFrom(''); setBankDateTo(''); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
             </>
           )}
-        </div>
-      )}
-
-      {/* Tabs — visibleTabs 길이가 1 이하면 탭 UI 자체 숨김 (단일 view) */}
-      {visibleTabs.length > 1 && (
-        <div className="tab-bar mb-6">
-          {(([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][])
-            .filter(([t]) => visibleTabs.includes(t))
-          ).map(([t, label]) => (
-            <button key={t} onClick={() => { setTab(t); if (t === 'inbox') setFilterStatus('unmapped'); else if (t === 'all') setFilterStatus('all'); }}
-              className={`tab-item ${tab === t ? 'tab-item-active' : ''}`}>
-              {label}
-            </button>
-          ))}
         </div>
       )}
 

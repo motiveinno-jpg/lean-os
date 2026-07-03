@@ -331,7 +331,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   return (
     <div className="glass-card p-5 space-y-4 border-2 border-[var(--primary)]/20">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-extrabold text-[var(--text)]">🎯 성과 대시보드 <span className="text-xs font-normal text-[var(--text-dim)]">목표형 {goalDeals.length}건</span></h2>
+        <h3 className="text-sm font-bold text-[var(--text)]">🎯 성과 대시보드 <span className="text-xs font-normal text-[var(--text-dim)]">목표형 {goalDeals.length}건</span></h3>
         <button onClick={onClose} className="btn-ghost text-xs">닫기 ✕</button>
       </div>
 

@@ -285,22 +285,15 @@ export default function ProjectHubPage() {
 
   return (
     <div className="space-y-6">
-      <div className="page-sticky-header flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="eyebrow">Project Hub</div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">프로젝트</h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">견적 → 계약 → 진행 → 손익까지 프로젝트별 라이프사이클·수익성을 관리합니다</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isManager && typeFilter === "goal" && (
-            <button onClick={() => setShowDashboard((v) => !v)} className={showDashboard ? "btn-primary" : "btn-secondary"}>
-              🎯 성과 대시보드
-            </button>
-          )}
-          <button onClick={() => setShowCreate(true)} className="btn-primary">
-            + 프로젝트 생성
+      <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2">
+        {isManager && typeFilter === "goal" && (
+          <button onClick={() => setShowDashboard((v) => !v)} className={showDashboard ? "btn-primary" : "btn-secondary"}>
+            🎯 성과 대시보드
           </button>
-        </div>
+        )}
+        <button onClick={() => setShowCreate(true)} className="btn-primary">
+          + 프로젝트 생성
+        </button>
       </div>
 
       {/* 유형 선택 — 먼저 유형을 고르면 아래 대시보드·요약·목록이 그 유형 기준으로 표시 */}
@@ -378,7 +371,7 @@ export default function ProjectHubPage() {
       )}
 
       {/* 요약 카드 — 활성 유형 기준 (KPI 카드 패턴) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">{PROJECT_TYPES[typeFilter].icon} {PROJECT_TYPES[typeFilter].label} 프로젝트</span>

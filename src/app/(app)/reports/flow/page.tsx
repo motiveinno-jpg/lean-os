@@ -308,55 +308,33 @@ export default function BusinessFlowPage() {
 
   return (
     <div className="space-y-6">
-      {/* ═══ 히어로 밴드 — 경영 콕핏 ═══ */}
-      <div className="glass-card p-6">
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div className="min-w-[240px]">
-            <Link
-              href="/reports"
-              className="no-print mb-3 inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-muted)] no-underline transition-colors hover:text-[var(--text)]"
-            >
-              ← 분석 허브
-            </Link>
-            <div className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--primary)]">
-              Business Flow
-            </div>
-            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[var(--text)]">
-              경영 흐름
-            </h1>
-            <p className="mt-1.5 text-sm text-[var(--text-muted)]">
-              영업 → 매출 → 수금 → 비용 → 손익 → 세금 → 결산. 회사 돈의 흐름을 한 줄로 봅니다.
-            </p>
-          </div>
-
-          <div className="flex flex-col items-stretch gap-2.5 sm:items-end">
-            <div className="no-print flex flex-wrap items-center justify-end gap-2">
-              <MonthField
-                value={month}
-                onChange={(e) => e.target.value && setMonth(e.target.value)}
-                style={{
-                  padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border)",
-                  background: "var(--bg-surface)", color: "var(--text)", fontSize: 13,
-                }}
-              />
-              <button
-                onClick={saveFlowSettings}
-                className="btn-secondary text-[11px]"
-                title="현재 뷰·렌즈·기간을 기본값으로 저장"
-              >
-                {savedFlow ? "✓ 저장됨" : "⭐ 기본값 저장"}
-              </button>
-            </div>
-            {/* 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) / 월별표 */}
-            <div className="seg-bar no-print">
-              {([{ k: "month", l: "이번달 흐름" }, { k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }] as const).map((t) => (
-                <button key={t.k} onClick={() => setFlowView(t.k)}
-                  className={`seg-item ${flowView === t.k ? "seg-item-active" : ""}`}>
-                  {t.l}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* ═══ 툴바 — 뷰 전환(좌) + 기간·기본값 저장(우). 타이틀은 공통 헤더바가 표시 ═══ */}
+      <div className="no-print flex flex-wrap items-center justify-between gap-2">
+        {/* 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) / 월별표 */}
+        <div className="seg-bar">
+          {([{ k: "month", l: "이번달 흐름" }, { k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }] as const).map((t) => (
+            <button key={t.k} onClick={() => setFlowView(t.k)}
+              className={`seg-item ${flowView === t.k ? "seg-item-active" : ""}`}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <MonthField
+            value={month}
+            onChange={(e) => e.target.value && setMonth(e.target.value)}
+            style={{
+              padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border)",
+              background: "var(--bg-surface)", color: "var(--text)", fontSize: 13,
+            }}
+          />
+          <button
+            onClick={saveFlowSettings}
+            className="btn-secondary text-[11px]"
+            title="현재 뷰·렌즈·기간을 기본값으로 저장"
+          >
+            {savedFlow ? "✓ 저장됨" : "⭐ 기본값 저장"}
+          </button>
         </div>
       </div>
 

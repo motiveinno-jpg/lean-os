@@ -755,29 +755,6 @@ export default function GuidePage() {
           padding: '32px 16px 64px',
         }}
       >
-        {/* ── Header ── */}
-        <div style={{ marginBottom: '28px' }}>
-          <h1
-            style={{
-              fontSize: '22px',
-              fontWeight: 800,
-              color: 'var(--text)',
-              margin: '0 0 4px',
-            }}
-          >
-            사용 가이드
-          </h1>
-          <p
-            style={{
-              fontSize: '14px',
-              color: 'var(--text-muted)',
-              margin: 0,
-            }}
-          >
-            OwnerView의 모든 기능을 확인하고 빠르게 시작하세요. 총 {FEATURES.length}개 기능을 제공합니다.
-          </p>
-        </div>
-
         {/* ── Onboarding Reset ── */}
         <div
           style={{

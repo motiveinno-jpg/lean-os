@@ -14,7 +14,6 @@ import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
-import { SiyanPageHeader } from "@/components/siyan";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
 import { SortToolbar } from "@/components/sort-toolbar";
@@ -399,8 +398,6 @@ export default function CardsPage() {
     });
   };
 
-  const welcomeName = user?.email?.split("@")[0] || "사용자";
-
   // CODEF 카드 동기화 — /bank 의 handleSyncBank 와 동일 패턴(card 인자).
   const handleSyncCards = async () => {
     if (!companyId || syncing) return;
@@ -474,41 +471,53 @@ export default function CardsPage() {
 
   return (
     <div>
-      <SiyanPageHeader
-        title="카드 관리"
-        subtitle={`안녕하세요, ${welcomeName}님 — 모든 카드를 한곳에서 관리하세요`}
-        gradient="from-indigo-600 to-purple-600"
-        actions={
-          <button
-            type="button"
-            onClick={() => {
-              if (!cardTxFrom || !cardTxTo) { toast("카드 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요 — 기간 없이 연동하면 새 거래 없이 쿨타임만 시작됩니다", "error"); return; }
-              cardCd.run(handleSyncCards);
-            }}
-            disabled={syncing || !companyId || cardCd.disabled}
-            className={`btn-primary ${cardCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
-          >
-            {syncing ? (
-              <>
-                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                연동 중...
-              </>
-            ) : cardCd.disabled ? (
-              <>⏳ {cardCd.label}</>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                카드 연동
-              </>
-            )}
-          </button>
-        }
-      />
+      {/* 컴팩트 툴바 — 탭(좌) + 카드 연동(우). 타이틀은 상단 고정 헤더바가 담당 */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+        <div className="seg-bar">
+          {([
+            { k: "cards", l: "카드" },
+            { k: "transactions", l: "거래내역" },
+            { k: "analysis", l: "분석" },
+          ] as { k: Tab; l: string }[]).map((t) => (
+            <button
+              key={t.k}
+              type="button"
+              onClick={() => setTab(t.k)}
+              className={`seg-item ${tab === t.k ? "seg-item-active" : ""}`}
+            >
+              {t.l}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (!cardTxFrom || !cardTxTo) { toast("카드 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요 — 기간 없이 연동하면 새 거래 없이 쿨타임만 시작됩니다", "error"); return; }
+            cardCd.run(handleSyncCards);
+          }}
+          disabled={syncing || !companyId || cardCd.disabled}
+          className={`btn-primary ${cardCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+          title={cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
+        >
+          {syncing ? (
+            <>
+              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              연동 중...
+            </>
+          ) : cardCd.disabled ? (
+            <>⏳ {cardCd.label}</>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              카드 연동
+            </>
+          )}
+        </button>
+      </div>
 
-      {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용 */}
+      {/* 기간설정 — 제일 상단(툴바 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용 */}
       <div className="no-print flex items-center gap-2 mb-6 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
         <span className="text-xs font-semibold text-[var(--text-muted)]">카드 거래 기간</span>
         <DateField value={cardTxFrom} max={cardTxTo || undefined} onChange={(e) => setCardTxFrom(e.target.value)} title="시작일"
@@ -518,24 +527,6 @@ export default function CardsPage() {
           className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
         {(cardTxFrom || cardTxTo) && <button onClick={() => { setCardTxFrom(""); setCardTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
         <span className="text-[10px] text-[var(--text-dim)] ml-auto hidden sm:block">카드를 선택하면 해당 카드 거래에 적용됩니다</span>
-      </div>
-
-      {/* Tabs (시안 pill bar) */}
-      <div className="seg-bar mb-6">
-        {([
-          { k: "cards", l: "카드" },
-          { k: "transactions", l: "거래내역" },
-          { k: "analysis", l: "분석" },
-        ] as { k: Tab; l: string }[]).map((t) => (
-          <button
-            key={t.k}
-            type="button"
-            onClick={() => setTab(t.k)}
-            className={`seg-item ${tab === t.k ? "seg-item-active" : ""}`}
-          >
-            {t.l}
-          </button>
-        ))}
       </div>
 
       {/* ========== 카드 탭 ========== */}
@@ -788,7 +779,7 @@ export default function CardsPage() {
       {tab === "analysis" && (
         <div className="space-y-6">
           {/* Stat 4 — 가짜 trend 없음 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Stat tone="danger" label="총 사용액" value={fmtW(totalUsage)} sub="이번 달" icon="🛒" />
             {hasLimits ? (
               <Stat

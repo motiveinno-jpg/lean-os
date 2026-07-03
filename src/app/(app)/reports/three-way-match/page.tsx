@@ -6,7 +6,6 @@
 //   기존 /tax-invoices·/matching 의 3-way 매칭 UI 는 본 페이지로 일원화.
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
@@ -93,13 +92,8 @@ function Inner() {
 
   return (
     <div className="mx-auto">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between mb-5 page-sticky-header">
-        <div>
-          <Link href="/reports" className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)]">← 분석 허브</Link>
-          <h1 className="text-2xl font-extrabold mt-1">🔗 3-Way 매칭</h1>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">세금계산서 ↔ 거래처 ↔ 입출금 자동 추천 (거래처명·대표자명·금액±10%)</p>
-        </div>
+      {/* 툴바 — 유형 필터 탭. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
+      <div className="page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
         <div className="seg-bar">
           {(["all", "sales", "purchase"] as const).map((t) => (
             <button
