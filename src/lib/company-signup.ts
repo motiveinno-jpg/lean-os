@@ -5,6 +5,7 @@
 
 import { supabase } from "./supabase";
 import { createTrialingSubscription } from "./billing";
+import { verifyBusinessNumber } from "./business-verification";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -23,6 +24,22 @@ export async function checkBusinessNumberRegistered(bizNo: string): Promise<{ re
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "사업자번호 확인 실패");
   return res.json();
+}
+
+// 국세청 상태 기준 가입 가능 판정 — 정상(계속사업자)만 회사 개설 허용 (2026-07-03 사장님 지시).
+//   차단: 미등록(국세청에 없는 번호) · 폐업자 · 휴업자 · checksum 불일치.
+//   통과: 계속사업자, 그리고 '확인불가'(국세청 API 장애) — 장애로 가입 자체를 막지 않기 위함.
+//   auth 가입 폼과 /company-setup(소셜) 양쪽에서 동일하게 사용 — 중복 구현 금지.
+export async function assertBizNoActive(bizNo: string): Promise<{ ok: boolean; error?: string }> {
+  const v = await verifyBusinessNumber(bizNoDigits(bizNo)).catch(() => null);
+  if (!v) return { ok: true }; // 조회 호출 자체가 실패(네트워크) — 장애는 통과
+  if (!v.valid) return { ok: false, error: "유효하지 않은 사업자등록번호입니다. 번호를 다시 확인해주세요." };
+  switch (v.status) {
+    case "미등록": return { ok: false, error: "국세청에 등록되지 않은 사업자등록번호입니다. 번호를 다시 확인해주세요." };
+    case "폐업자": return { ok: false, error: "폐업 처리된 사업자번호로는 가입할 수 없습니다." };
+    case "휴업자": return { ok: false, error: "휴업 상태의 사업자번호입니다. 정상 영업 중인 사업자만 가입할 수 있습니다." };
+    default: return { ok: true }; // 계속사업자 · 확인불가(API 장애)
+  }
 }
 
 // 합류 요청 생성 (로그인 세션 필요 — 쿠키 인증)

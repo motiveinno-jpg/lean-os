@@ -4,8 +4,8 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { RollingBrandText } from "@/components/brand-logo";
-import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, provisionCompanyForUser, createCompanyWithOwner } from "@/lib/company-signup";
-import { verifyBusinessNumber } from "@/lib/business-verification";
+import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, provisionCompanyForUser, createCompanyWithOwner, assertBizNoActive } from "@/lib/company-signup";
+
 import Link from "next/link";
 
 // Supabase 영어 에러 → 한글 변환
@@ -112,11 +112,11 @@ export default function AuthPage() {
         setJoinPrompt(dup.companyNameMasked || "등록된 회사");
         return;
       }
-      // ② 국세청 실체 검증 (거래처 검증과 동일 EF 재사용) — 폐업만 차단, API 장애(확인불가)는 통과
-      const v = await verifyBusinessNumber(bizNoDigits(bizNo)).catch(() => null);
-      if (v && v.status === "폐업자") {
+      // ② 국세청 실체 검증 — 정상(계속사업자)만 가입 허용. 미등록·폐업·휴업 차단, API 장애만 통과.
+      const gate = await assertBizNoActive(bizNo);
+      if (!gate.ok) {
         setLoading(false);
-        return setError("폐업 처리된 사업자번호입니다. 번호를 다시 확인해주세요.");
+        return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
       }
     } catch (err: any) {
       setLoading(false);

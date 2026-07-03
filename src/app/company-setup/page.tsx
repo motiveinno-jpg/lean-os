@@ -8,8 +8,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, createCompanyWithOwner } from "@/lib/company-signup";
-import { verifyBusinessNumber } from "@/lib/business-verification";
+import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, createCompanyWithOwner, assertBizNoActive } from "@/lib/company-signup";
 
 export default function CompanySetupPage() {
   const router = useRouter();
@@ -49,10 +48,10 @@ export default function CompanySetupPage() {
         setJoinPrompt(dup.companyNameMasked || "등록된 회사");
         return;
       }
-      // ② 국세청 실체 검증 — 폐업만 차단, API 장애(확인불가)는 통과
-      const v = await verifyBusinessNumber(bizNoDigits(bizNo)).catch(() => null);
-      if (v && v.status === "폐업자") {
-        return setError("폐업 처리된 사업자번호입니다. 번호를 다시 확인해주세요.");
+      // ② 국세청 실체 검증 — 정상(계속사업자)만 가입 허용. 미등록·폐업·휴업 차단, API 장애만 통과.
+      const gate = await assertBizNoActive(bizNo);
+      if (!gate.ok) {
+        return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
       }
       // ③ 회사 개설 (+owner 연결, 14일 트라이얼) — 유니크 충돌 시 합류 전환
       const displayName = authUser.user_metadata?.display_name || authUser.user_metadata?.name || authUser.email?.split("@")[0] || "사용자";

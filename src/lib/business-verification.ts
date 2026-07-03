@@ -2,7 +2,8 @@ import { supabase } from './supabase';
 
 export async function verifyBusinessNumber(bizNo: string): Promise<{
   valid: boolean;
-  status: '계속사업자' | '휴업자' | '폐업자' | '확인불가';
+  // 미등록: 국세청 API가 정상 응답했지만 등록되지 않은 번호 (확인불가=API 장애와 구분 — 가입 차단 판정용)
+  status: '계속사업자' | '휴업자' | '폐업자' | '미등록' | '확인불가';
   taxType?: string;
   raw?: any;
 }> {
@@ -37,9 +38,10 @@ export async function verifyBusinessNumber(bizNo: string): Promise<{
       '03': '폐업자',
     };
 
+    // b_stt_cd 가 없으면 = API 는 정상 응답했으나 국세청에 없는 번호 (tax_type: "국세청에 등록되지 않은…")
     return {
       valid: true,
-      status: statusMap[result.b_stt_cd] || '확인불가',
+      status: statusMap[result.b_stt_cd] || '미등록',
       taxType: result.tax_type,
       raw: result,
     };
