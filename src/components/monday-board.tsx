@@ -167,9 +167,14 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const listColumns = columns.filter((c) => c.in_list);
   const personColIds = useMemo(() => listColumns.filter((c) => c.type === "person").map((c) => c.id), [listColumns]);
 
+  // 보드 숨김(__board_hidden) — 2026-07-03: 보드 '삭제'는 뷰에서만 제거하는 플래그.
+  //   (이전 archived_at 소프트삭제는 프로젝트 탭에서도 사라져 "프로젝트 삭제됨" 인시던트)
+  const visibleDeals = useMemo(() => deals.filter((d) => !(d.column_values as any)?.__board_hidden), [deals]);
+  const hiddenCount = deals.length - visibleDeals.length;
+
   // 검색·담당자 필터 (클라이언트, 표시만)
   const filteredDeals = useMemo(() => {
-    let arr = deals;
+    let arr = visibleDeals;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       arr = arr.filter((d) => (d.name || "").toLowerCase().includes(q));
@@ -178,7 +183,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
       arr = arr.filter((d) => personColIds.some((cid) => d.column_values?.[cid] === personFilter));
     }
     return arr;
-  }, [deals, search, personFilter, personColIds]);
+  }, [visibleDeals, search, personFilter, personColIds]);
 
   const dealsByGroup = useMemo(() => {
     const m = new Map<string | null, Deal[]>();
@@ -278,14 +283,30 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     setSelected(new Set());
     refetchAll();
   };
-  // 선택 항목 삭제 — 프로젝트 목록과 동일 정책: 소프트삭제(archived_at). 재무 연동 데이터 보존.
+  // 선택 항목 삭제 — 워크플로우 보드에서만 숨김(2026-07-03 정책 변경).
+  //   보드 항목 = deals(프로젝트) 자체라서 이전 archived_at 소프트삭제는 프로젝트 탭·태스크까지
+  //   같이 사라지는 인시던트가 됐음. 보드는 렌즈일 뿐 → column_values.__board_hidden 플래그만.
   const deleteSelected = async () => {
     const ids = [...selected];
     if (!ids.length) return;
-    if (!confirm(`${ids.length}개 항목을 삭제(보관)할까요?\n보드/목록에서 사라지며, 연결된 재무 데이터는 보존됩니다.`)) return;
-    const { error } = await db.from("deals").update({ archived_at: new Date().toISOString() }).in("id", ids);
-    if (error) { alert("삭제 실패: " + error.message); return; }
+    if (!confirm(`${ids.length}개 항목을 워크플로우 보드에서 제거할까요?\n프로젝트·태스크·재무 데이터는 그대로 유지되며, 프로젝트 탭에서 계속 볼 수 있습니다.`)) return;
+    for (const id of ids) {
+      const d = deals.find((x) => x.id === id);
+      const next = { ...((d?.column_values as any) || {}), __board_hidden: true };
+      const { error } = await db.from("deals").update({ column_values: next }).eq("id", id);
+      if (error) { alert("제거 실패: " + error.message); return; }
+    }
     setSelected(new Set());
+    refetchAll();
+  };
+  // 숨긴 항목 전체 복원 — 보드로 되돌리기
+  const unhideAll = async () => {
+    const hidden = deals.filter((d) => (d.column_values as any)?.__board_hidden);
+    for (const d of hidden) {
+      const next = { ...(d.column_values as any) };
+      delete next.__board_hidden;
+      await db.from("deals").update({ column_values: next }).eq("id", d.id);
+    }
     refetchAll();
   };
 
@@ -362,6 +383,15 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
           />
         </div>
         <PersonFilterButton users={users} value={personFilter} onChange={setPersonFilter} />
+        {hiddenCount > 0 && (
+          <button
+            onClick={() => { if (confirm(`보드에서 숨긴 ${hiddenCount}개 항목을 다시 표시할까요?`)) unhideAll(); }}
+            className="ml-auto h-8 px-3 rounded text-[12px] font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition"
+            title="워크플로우 보드에서 제거했던 항목 복원"
+          >
+            숨긴 항목 {hiddenCount}개 복원
+          </button>
+        )}
       </div>
 
       <div className="space-y-7">
