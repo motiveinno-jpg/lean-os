@@ -232,13 +232,13 @@ export async function createSubscription(
   };
 }
 
-// ── 3-B. 신규 가입용 Trialing 구독 생성 (30일 무료) ──
-// 런칭 블로커: 4,000개사 정부사업 배포 시 모든 신규 가입자는 starter 플랜으로 30일 체험 시작.
+// ── 3-B. 신규 가입용 Trialing 구독 생성 (14일 무료) ──
+// 런칭 블로커: 4,000개사 정부사업 배포 시 모든 신규 가입자는 starter 플랜으로 14일 체험 시작.
 // 실패해도 가입 플로우는 계속 진행 (best-effort).
 export async function createTrialingSubscription(
   companyId: string,
   planSlug: PlanSlug = 'starter',
-  trialDays: number = 30,
+  trialDays: number = 14,
 ): Promise<void> {
   const { data: plan, error: planErr } = await db
     .from('subscription_plans')

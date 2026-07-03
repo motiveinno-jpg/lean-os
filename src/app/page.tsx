@@ -19,7 +19,7 @@ const COMPETITORS = [
 ];
 
 const PLANS = [
-  { name: "30일 무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 30일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["30일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
+  { name: "14일 무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 14일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
   { name: "기본요금제", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀을 위한 올인원", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자계약 · 전자결재 무제한", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "우선 지원"] },
   { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["기본요금제 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "감사 로그 · 보안 검토", "SLA 보장"] },
 ];
@@ -1514,10 +1514,10 @@ export default function LandingPage() {
         <div className="lp-container">
           <div className={`text-center mb-6 ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-blue-100 text-blue-700 border border-blue-200">
-              30일 무료체험 · 카드 등록 없이 시작
+              14일 무료체험 · 카드 등록 없이 시작
             </div>
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">심플한 3단계 요금제</h2>
-            <p className="text-gray-500 text-lg">30일 무료로 전 기능을 써보고, 필요할 때 월 55,000원 정액으로 전환하세요</p>
+            <p className="text-gray-500 text-lg">14일 무료로 전 기능을 써보고, 필요할 때 월 55,000원 정액으로 전환하세요</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12 max-w-5xl mx-auto">

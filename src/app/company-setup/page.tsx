@@ -2,7 +2,7 @@
 
 // 회사 설정 단계 — 카카오/구글 소셜 가입 등 사업자번호 없이 계정만 생긴 사용자의 필수 관문.
 //   이메일 가입과 동일한 규칙: 사업자번호 필수 → 형식/중복/국세청 3중 검증 →
-//   미등록이면 회사 개설(+30일 트라이얼), 기등록이면 합류 요청(승인제)으로 전환.
+//   미등록이면 회사 개설(+14일 트라이얼), 기등록이면 합류 요청(승인제)으로 전환.
 //   public.users 가 이미 있으면(기존 회원) 대시보드로 통과.
 
 import { useEffect, useState } from "react";
@@ -54,7 +54,7 @@ export default function CompanySetupPage() {
       if (v && v.status === "폐업자") {
         return setError("폐업 처리된 사업자번호입니다. 번호를 다시 확인해주세요.");
       }
-      // ③ 회사 개설 (+owner 연결, 30일 트라이얼) — 유니크 충돌 시 합류 전환
+      // ③ 회사 개설 (+owner 연결, 14일 트라이얼) — 유니크 충돌 시 합류 전환
       const displayName = authUser.user_metadata?.display_name || authUser.user_metadata?.name || authUser.email?.split("@")[0] || "사용자";
       const r = await createCompanyWithOwner(authUser.id, authUser.email || "", companyName.trim(), displayName, bizNoDigits(bizNo));
       if (r.ok) { router.push("/dashboard"); return; }
@@ -136,7 +136,7 @@ export default function CompanySetupPage() {
 
             <button type="submit" disabled={loading || !!joinPrompt}
               className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 shadow-sm">
-              {loading ? "확인 중..." : "회사 개설하고 시작하기 (30일 무료)"}
+              {loading ? "확인 중..." : "회사 개설하고 시작하기 (14일 무료)"}
             </button>
           </form>
 

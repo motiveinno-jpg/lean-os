@@ -91,9 +91,9 @@ async function autoSetupUser(authUser: { id: string; email?: string; user_metada
     monthly_fixed_cost: 0,
   });
 
-  // 폴백 경로에서도 30일 트라이얼 구독 생성
+  // 폴백 경로에서도 14일 트라이얼 구독 생성
   try {
-    await createTrialingSubscription(company.id, 'starter', 30);
+    await createTrialingSubscription(company.id, 'starter', 14);
   } catch (e) {
     console.warn('autoSetupUser subscription error:', e);
   }

@@ -39,7 +39,7 @@ export async function submitJoinRequest(bizNo: string, name?: string): Promise<{
 
 export type ProvisionResult = "exists" | "created" | "join_pending" | "needs_company_setup" | "error";
 
-// 회사 개설 + owner 연결 + 초기 데이터(스냅샷·30일 트라이얼) — 단일 진입점.
+// 회사 개설 + owner 연결 + 초기 데이터(스냅샷·14일 트라이얼) — 단일 진입점.
 //   companies.business_number 유니크 충돌(동시 가입 레이스)은 duplicate 로 반환 → 호출부가 합류 요청으로 전환.
 export async function createCompanyWithOwner(
   authId: string, email: string, companyName: string, displayName: string, bizDigits: string,
@@ -67,7 +67,7 @@ export async function createCompanyWithOwner(
   }
 
   await db.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });
-  await createTrialingSubscription(companyId, "starter", 30);
+  await createTrialingSubscription(companyId, "starter", 14);
   return { ok: true };
 }
 
