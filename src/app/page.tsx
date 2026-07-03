@@ -19,9 +19,9 @@ const COMPETITORS = [
 ];
 
 const PLANS = [
-  { name: "14일 무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 14일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "직원 3명 / 프로젝트 3개", "전자서명 월 3건", "AI 분석 월 5회", "생존 대시보드", "팀 채팅"] },
-  { name: "기본요금제", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀을 위한 올인원", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "4대 엔진 전체", "전자서명 무제한", "AI 분석 무제한", "거래처 / 파트너 무제한", "세무 리포트", "우선 지원"] },
-  { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["기본요금제 전체 +", "SSO / SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장", "온프레미스 옵션"] },
+  { name: "30일 무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 30일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["30일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
+  { name: "기본요금제", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀을 위한 올인원", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자계약 · 전자결재 무제한", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "우선 지원"] },
+  { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["기본요금제 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "감사 로그 · 보안 검토", "SLA 보장"] },
 ];
 
 const FAQS = [
@@ -29,38 +29,39 @@ const FAQS = [
   { q: "각 기능이 전문 솔루션 수준인가요?", a: "OwnerView의 각 기능은 해당 분야 전문 솔루션과 동등한 품질을 제공합니다. 차이점은 모든 기능이 유기적으로 연결된다는 것입니다." },
   { q: "무료→유료 전환 시 데이터 유지되나요?", a: "물론입니다. 모든 데이터는 100% 유지되며 추가 설정 없이 즉시 확장 기능을 사용할 수 있습니다." },
   { q: "파트너사도 함께 사용할 수 있나요?", a: "네. 링크 하나로 초대 가능하며 별도 요금 없이 프로젝트 확인, 서류 검토, 채팅에 참여할 수 있습니다." },
+  { q: "직원은 어떻게 합류하나요?", a: "관리자가 이메일로 초대하거나, 직원이 회사 사업자등록번호로 가입 후 합류 요청을 보내면 관리자 승인 한 번으로 연결됩니다. 카카오/구글 계정으로도 가입할 수 있습니다." },
   { q: "보안은 안전한가요?", a: "역할기반 접근제어(RBAC), 감사로그, SOC2 인증 인프라(Supabase)를 사용하며, 모든 통신은 TLS로 암호화됩니다." },
   { q: "도입 비용이나 세팅비가 있나요?", a: "없습니다. 가입 즉시 사용 가능하며, Enterprise 플랜의 경우 무료 온보딩 지원을 제공합니다." },
 ];
 
 const FEATURES = [
   {
-    tab: "결제 승인",
+    tab: "전자결재",
     sim: "payment",
     replaces: "플*스 + 시*티",
-    title: "요청 → 대표 원클릭 승인 → 자동 이체",
-    desc: "경비, 급여, 고정비 — 모든 결제가 하나의 큐에서 관리됩니다. 다단계 승인 정책, 금액별 자동승인, 배치 일괄 처리까지.",
+    title: "요청 → 결재선 자동 배정 → 원클릭 승인",
+    desc: "경비, 지출, 휴가 — 모든 요청이 하나의 결재함에서 관리됩니다. 다단계 결재선, 금액별 자동승인, 우리 회사만의 결재 양식 빌더까지.",
   },
   {
     tab: "프로젝트 파이프라인",
     sim: "pipeline",
     replaces: "먼*이",
     title: "견적 → 계약 → 세금계산서 → 입금 자동 추적",
-    desc: "프로젝트의 전체 라이프사이클이 자동으로 연결됩니다. 칸반/테이블 멀티뷰, 마일스톤, 매출 스케줄, 휴면 프로젝트 자동 감지.",
+    desc: "프로젝트의 전체 라이프사이클이 자동으로 연결됩니다. 견적 승인 시 계약 원클릭 생성, 협력사 견적 수취, 칸반/테이블 멀티뷰, 휴면 프로젝트 자동 감지.",
   },
   {
     tab: "전자계약",
     sim: "contract",
     replaces: "모두*인",
     title: "문서 작성 → 서명 요청 → 완료까지 원스톱",
-    desc: "프로젝트 승인 시 계약서가 자동 생성되고 서명 요청이 발송됩니다. Draft→Review→Approved→Locked 라이프사이클, 리비전 관리.",
+    desc: "프로젝트 승인 시 계약서가 자동 생성되고 서명 요청이 발송됩니다. 회사 양식 PDF 그대로 재현(양식 오버레이), 직인 자동 생성, 조직 일괄 발송, 완료 계약서 일괄 PDF.",
   },
   {
     tab: "HR & 급여",
     sim: "payroll",
     replaces: "플*스",
-    title: "4대보험/원천세 자동 계산 → 일괄 이체",
-    desc: "국민연금 4.5%/건보 3.545%*/고용 0.9%/소득세 간이세액표 자동 적용. 급여명세서 생성→대표 승인→전 직원 일괄 이체.",
+    title: "4대보험/원천세 자동 계산 → 명세서 자동 발송",
+    desc: "국민연금 4.5%/건보 3.545%*/고용 0.9%/소득세 간이세액표 자동 적용. 급여명세서 생성→대표 승인→전 직원 이메일 자동 발송. 근태·연차·연장근무 자동 퇴근까지.",
   },
   {
     tab: "팀 & 파트너 채팅",
@@ -144,7 +145,7 @@ const ENGINES = [
     icon: "🛡️",
     tagline: "\"우리 회사, 지금 속도면 몇 개월?\" — AI가 매일 답합니다",
     headline: "흩어진 통장을 하나로. 위험은 대표가 묻기 전에 알립니다.",
-    desc: "은행 잔고, 카드 내역, 매출, 미수금 — 한 화면에서 관리. 현금 소진 시점 예측, 생존 개월 수 자동 계산. 현금이 바닥나기 전에 먼저 경고합니다.",
+    desc: "은행 통장·법인카드를 실계좌로 연동하면 잔고와 거래내역이 하루 2회 자동 동기화됩니다. 현금 소진 시점 예측, 생존 개월 수 자동 계산. 현금이 바닥나기 전에 먼저 경고합니다.",
     replaces: "CFO 1명",
     replacesCost: "연 6,000만원",
     color: "#3B82F6",
@@ -153,17 +154,17 @@ const ENGINES = [
       { label: "생존 개월", value: "4.6개월", sub: "+0.8" },
       { label: "리스크 감지", value: "3건", sub: "실시간" },
     ],
-    apis: ["은행 거래내역 연동", "홈택스 연동 (예정)", "재무 자동분석", "AI 리스크 감지"],
+    apis: ["은행·카드 실계좌 연동", "세금계산서·현금영수증 관리", "재무 자동분석", "AI 거래 분류"],
     steps: [
-      { step: "거래 등록", detail: "통장·카드 거래내역 수동 입력 또는 엑셀 업로드" },
+      { step: "계좌 연동", detail: "은행 통장·법인카드 연결 → 잔고·거래내역 자동 동기화" },
       { step: "AI 분류", detail: "수입/지출 자동 분류 + 고정비 패턴 감지" },
       { step: "선제 알림", detail: "현금 소진 시점 예측 + 위험 신호 대표 알림" },
     ],
     features: [
       { icon: "📊", name: "6-Pack 생존지표", desc: "현금·매출·고정비·미수금·생존기간·마진율" },
-      { icon: "🔮", name: "생존 개월 계산", desc: "현금 잔고 ÷ 월 고정비 = 생존 기간" },
+      { icon: "🔮", name: "경영 흐름 콕핏", desc: "과거 실적부터 90일 현금 예측까지 한 화면" },
       { icon: "⚠️", name: "미수금 자동 경고", desc: "30일 초과 미수금 즉시 알림" },
-      { icon: "📈", name: "월별 재무 리포트", desc: "대표용 자동 생성 + 이메일 발송" },
+      { icon: "📈", name: "재무제표 자동 생성", desc: "손익계산서·재무상태표·비용 분석 리포트" },
     ],
   },
   {
@@ -171,9 +172,9 @@ const ENGINES = [
     name: "원클릭 파이프라인",
     eng: "Auto Pipeline",
     icon: "⚡",
-    tagline: "견적서 하나 보내면 — 계약·서명·세금계산서·입금확인까지 전자동",
+    tagline: "견적서 하나 보내면 — 계약·서명·매출·입금확인까지 한 흐름으로",
     headline: "대표는 승인 버튼만. 나머지는 엔진이 알아서.",
-    desc: "프로젝트가 성사되면? 견적서→계약서 자동생성→서명 요청 발송→세금계산서 자동발행→입금 3-Way 매칭. 수작업 12단계가 원클릭 1단계로.",
+    desc: "프로젝트가 성사되면? 견적서→계약서 원클릭 생성→서명 요청 발송→매출 등록·세금계산서 연결→입금 매칭. 수작업 12단계가 원클릭 1단계로.",
     replaces: "영업관리자 + 경리",
     replacesCost: "연 8,000만원",
     color: "#8B5CF6",
@@ -182,11 +183,11 @@ const ENGINES = [
       { label: "자동화율", value: "94%", sub: "수동→자동" },
       { label: "평균 수금", value: "D+7", sub: "-12일 단축" },
     ],
-    apis: ["전자서명 엔진", "세금계산서 관리", "이메일/알림", "3-Way 매칭"],
+    apis: ["전자서명 엔진", "세금계산서 관리", "이메일/알림", "입금 자동 매칭"],
     steps: [
       { step: "견적→계약", detail: "견적 승인 즉시 계약서 자동 생성 + 서명 요청" },
-      { step: "서명→발행", detail: "서명 완료 시 세금계산서 자동 발행 + 매출 등록" },
-      { step: "입금→매칭", detail: "입금 확인 → 3-Way 자동 매칭 + 프로젝트 상태 갱신" },
+      { step: "서명→매출", detail: "서명 완료 시 매출 등록 + 세금계산서 연결" },
+      { step: "입금→매칭", detail: "입금 확인 → 송장·거래 자동 매칭 + 프로젝트 상태 갱신" },
     ],
     features: [
       { icon: "📋", name: "칸반 파이프라인", desc: "드래그앤드롭 프로젝트 관리 + 테이블 뷰" },
@@ -202,7 +203,7 @@ const ENGINES = [
     icon: "🤖",
     tagline: "급여·4대보험·경비·근태·서류 — 사람 대신 AI가 24시간",
     headline: "매월 25일, 대표는 '승인' 한 번. 나머지는 전부 자동.",
-    desc: "국민연금 4.5%, 건보 3.545%, 고용 0.9%, 소득세 간이세액표 — 전부 자동 산출. 급여명세서 생성, 일괄이체, 명세서 발송까지. 경비 영수증도 AI가 자동 분류·정산.",
+    desc: "국민연금 4.5%, 건보 3.545%, 고용 0.9%, 소득세 간이세액표 — 전부 자동 산출. 급여명세서 생성부터 전 직원 이메일 발송까지. 경비 영수증도 OCR로 자동 인식·분류.",
     replaces: "회계 + 인사 담당자",
     replacesCost: "연 4,500만원",
     color: "#10B981",
@@ -215,11 +216,11 @@ const ENGINES = [
     steps: [
       { step: "직원 등록", detail: "4대보험·원천세 요율 자동 매칭" },
       { step: "배치 생성", detail: "매월 20일 전 직원 급여 자동 산출 → 대표 알림" },
-      { step: "일괄 이체", detail: "대표 승인 → 전 직원 이체 + 명세서 자동 발송" },
+      { step: "명세서 발송", detail: "대표 승인 → 전 직원 급여명세서 이메일 자동 발송" },
     ],
     features: [
-      { icon: "⏰", name: "자동 근태관리", desc: "출퇴근 기록·연차·휴가 자동 처리" },
-      { icon: "🧾", name: "경비 AI 정산", desc: "영수증 → 자동 분류 → 승인 → 정산" },
+      { icon: "⏰", name: "자동 근태관리", desc: "출퇴근·연차·연장근무 신청·자동 퇴근 처리" },
+      { icon: "🧾", name: "경비 OCR 정산", desc: "영수증 촬영 → 자동 인식 → 승인 → 정산" },
       { icon: "📝", name: "근로계약서 자동", desc: "입사 시 계약서 자동생성 + 전자서명" },
       { icon: "📂", name: "서류 자동관리", desc: "생성·분류·저장·백업·버전관리 올인원" },
     ],
@@ -240,7 +241,7 @@ const ENGINES = [
       { label: "이력 추적", value: "360°", sub: "전체 뷰" },
       { label: "휴면 감지", value: "AI", sub: "자동 알림" },
     ],
-    apis: ["사업자 정보 조회", "거래 이력 추적", "파트너 포털", "관계 분석"],
+    apis: ["사업자 정보 조회", "거래 이력 추적", "파트너 포털", "채권·채무 원장"],
     steps: [
       { step: "자동 등록", detail: "견적·계약·채팅 발생 → 거래처 자동 등록 + 이력 축적" },
       { step: "AI 분석", detail: "거래 패턴 분석 → 휴면·위험 거래처 자동 감지" },
@@ -250,7 +251,7 @@ const ENGINES = [
       { icon: "🔄", name: "360° 뷰", desc: "프로젝트·계약·매출·커뮤니케이션 통합 뷰" },
       { icon: "🔗", name: "파트너 포털", desc: "링크 하나로 초대, 서류 확인·채팅 참여" },
       { icon: "🏢", name: "사업자 자동조회", desc: "사업자등록번호로 기업정보 자동 입력" },
-      { icon: "🎯", name: "관계 스코어링", desc: "AI가 거래 건강도 자동 분석·점수화" },
+      { icon: "📒", name: "거래처 원장", desc: "미수금·미지급금 잔액 자동 대사(채권·채무)" },
     ],
   },
 ];
@@ -335,7 +336,7 @@ function PipelineSim() {
           <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
             <span className="text-[10px]">{activeStage === 0 ? "📋" : activeStage === 1 ? "✍️" : activeStage === 2 ? "🧾" : "💰"}</span>
           </div>
-          <span className="text-xs font-bold">{stages[activeStage]} {activeStage < 3 ? "자동 생성" : "확인"}</span>
+          <span className="text-xs font-bold">{stages[activeStage]} {activeStage < 2 ? "자동 생성" : activeStage === 2 ? "연결" : "확인"}</span>
         </div>
         <div className="flex items-center justify-between text-[10px] text-slate-400">
           <span>금액: ₩35,000,000</span>
@@ -478,7 +479,7 @@ function PayrollSim() {
       )}
       {showApprove && (
         <div className="mt-3 py-2.5 bg-emerald-500/20 rounded-xl text-center text-xs font-bold text-emerald-300 animate-pulse">
-          대표 승인 완료 → 일괄 이체 진행 중
+          대표 승인 완료 → 명세서 일괄 발송 중
         </div>
       )}
     </div>
@@ -543,7 +544,7 @@ function ChatSim() {
     { from: "채대표", role: "대표", msg: "확인했습니다. 승인합니다.", time: "14:05", show: step >= 5 },
     { from: "시스템", role: "AI", msg: "✅ 견적 승인 → 계약서 자동 생성 중...", time: "14:05", show: step >= 7, isAction: true },
     { from: "파트너", role: "외부", msg: "계약서 서명 완료했습니다", time: "14:30", show: step >= 9, isPartner: true },
-    { from: "시스템", role: "AI", msg: "🧾 세금계산서 자동 발행 + 입금 스케줄 등록", time: "14:30", show: step >= 11, isAction: true },
+    { from: "시스템", role: "AI", msg: "🧾 매출 등록 + 입금 스케줄 자동 추적 시작", time: "14:30", show: step >= 11, isAction: true },
   ];
 
   return (
@@ -820,6 +821,7 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
             <a href="#features" className="lp-nav-link">주요기능</a>
             <a href="#engines" className="lp-nav-link">엔진</a>
+            <a href="#featuremap" className="lp-nav-link">기능 맵</a>
             <a href="#compare" className="lp-nav-link">비교</a>
             <a href="#pricing" className="lp-nav-link">가격</a>
             <a href="#partner" className="lp-nav-link">제휴문의</a>
@@ -914,7 +916,7 @@ export default function LandingPage() {
           {/* 신뢰 카운터 */}
           <div className={`flex items-center justify-center gap-8 mb-10 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.45s" }}>
             <div className="text-center">
-              <div className="text-2xl md:text-3xl font-black text-white">9<span className="text-blue-400">+</span></div>
+              <div className="text-2xl md:text-3xl font-black text-white">30<span className="text-blue-400">+</span></div>
               <div className="text-[11px] text-slate-500 mt-0.5">통합 기능</div>
             </div>
             <div className="w-px h-8 bg-white/10" />
@@ -1254,6 +1256,95 @@ export default function LandingPage() {
       </section>
 
 
+      {/* ── FEATURE MAP — 실제 제품 기능 전체 (2026-07 최신화) ── */}
+      <section className="py-20 px-6 bg-[#0B1120]" id="featuremap">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5 border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
+              지금 바로 쓸 수 있는 기능들
+            </div>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
+              오너뷰 <span className="text-blue-400">기능 맵</span>
+            </h2>
+            <p className="text-slate-400 text-lg">약속이 아니라, 오늘 로그인하면 전부 있는 기능입니다</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              {
+                group: "파이낸스",
+                icon: "💰",
+                color: "#3B82F6",
+                items: [
+                  "경영 흐름 콕핏 — 과거 실적 + 90일 현금 예측",
+                  "은행·카드 실계좌 자동 동기화",
+                  "거래 매칭 + AI 분개전표 자동기장",
+                  "거래처 원장 (미수·미지급 채권/채무)",
+                  "세금계산서 · 현금영수증 관리",
+                  "손익계산서 · 재무상태표 · 비용 분석",
+                ],
+              },
+              {
+                group: "워크스페이스",
+                icon: "⚡",
+                color: "#8B5CF6",
+                items: [
+                  "프로젝트 파이프라인 — 견적→계약 원클릭",
+                  "태스크 · 간트 · 성과 체크인",
+                  "전자계약 — 양식 오버레이 · 직인 · 일괄 발송",
+                  "전자결재 — 커스텀 양식 빌더 · 다단계 결재선",
+                  "일정 / 할 일 · 게시판",
+                  "팀 메신저 (채널 · DM · 플로팅)",
+                ],
+              },
+              {
+                group: "인사관리",
+                icon: "👥",
+                color: "#10B981",
+                items: [
+                  "구성원 관리 · 근로계약 전자서명",
+                  "근태 — 출퇴근 · 연차 · 휴가 신청",
+                  "연장근무 신청 · 자동 퇴근 처리",
+                  "급여명세서 자동 생성 · 이메일 발송",
+                  "경비 청구 — 영수증 OCR 자동 인식",
+                  "탭별 접근 권한 (RBAC)",
+                ],
+              },
+              {
+                group: "편의 · 연동",
+                icon: "🔗",
+                color: "#F59E0B",
+                items: [
+                  "커스텀 대시보드 위젯 + 아침 브리핑",
+                  "카카오 알림톡 · Slack · 텔레그램 알림",
+                  "사업자번호 가입 · 팀 합류 승인",
+                  "파트너 포털 · 외부 견적 승인 링크",
+                  "엑셀 업로드 AI 자동 세팅",
+                  "글로벌 검색 (⌘K) · 다크 모드",
+                ],
+              },
+            ].map((g) => (
+              <div key={g.group} className="bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-3xl overflow-hidden hover:border-white/15 transition">
+                <div className="h-1" style={{ background: g.color }} />
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ background: `${g.color}15` }}>{g.icon}</div>
+                    <h3 className="text-lg font-extrabold text-white">{g.group}</h3>
+                  </div>
+                  <ul className="space-y-2.5">
+                    {g.items.map((it) => (
+                      <li key={it} className="flex items-start gap-2 text-[13px] text-slate-300 leading-snug">
+                        <span className="mt-0.5 shrink-0" style={{ color: g.color }}>✓</span>
+                        {it}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── COMPETITOR COMPARISON (witty half-logos) ── */}
       <section className="py-20 px-6 bg-[#111827]" id="compare" ref={compRef.ref}>
         <div className="lp-container">
@@ -1391,7 +1482,7 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
-              { step: "01", title: "가입 3초", desc: "이메일 하나, 카드 등록 없이", icon: "👤", color: "#3B82F6" },
+              { step: "01", title: "간편 가입", desc: "카카오/구글 3초, 사업자번호로 회사 개설", icon: "👤", color: "#3B82F6" },
               { step: "02", title: "기존 파일 업로드", desc: "엑셀/CSV 드래그&드롭", icon: "📤", color: "#8B5CF6" },
               { step: "03", title: "AI가 70~80% 세팅", desc: "직원/거래처/거래 자동 인식", icon: "🤖", color: "#10B981" },
               { step: "04", title: "바로 경영 시작", desc: "대시보드에서 전체 현황 파악", icon: "🚀", color: "#F59E0B" },
@@ -1423,10 +1514,10 @@ export default function LandingPage() {
         <div className="lp-container">
           <div className={`text-center mb-6 ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-blue-100 text-blue-700 border border-blue-200">
-              14일 무료체험 · 카드 등록 없이 시작
+              30일 무료체험 · 카드 등록 없이 시작
             </div>
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">심플한 3단계 요금제</h2>
-            <p className="text-gray-500 text-lg">14일 무료로 전 기능을 써보고, 필요할 때 월 55,000원 정액으로 전환하세요</p>
+            <p className="text-gray-500 text-lg">30일 무료로 전 기능을 써보고, 필요할 때 월 55,000원 정액으로 전환하세요</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12 max-w-5xl mx-auto">
