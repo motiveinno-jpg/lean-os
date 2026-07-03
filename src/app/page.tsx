@@ -19,9 +19,10 @@ const COMPETITORS = [
 ];
 
 const PLANS = [
-  { name: "14일 무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 14일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
-  { name: "기본요금제", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀을 위한 올인원", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자계약 · 전자결재 무제한", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "우선 지원"] },
-  { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["기본요금제 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "감사 로그 · 보안 검토", "SLA 보장"] },
+  { name: "무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 14일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
+  { name: "프로", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀의 표준", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자계약 · 전자결재 무제한", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏"] },
+  { name: "울트라", regularPrice: null, betaPrice: "88,000", unit: "원/월", period: "VAT 별도 · 데이터 헤비유저", desc: "동기화·자동화 최대치", perSeat: null, hl: false, discount: null, features: ["프로 전체 +", "은행·카드 동기화 무제한", "연결 계좌·카드 수 제한 없음", "신기능 우선 제공", "우선 지원"] },
+  { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 보장"] },
 ];
 
 const FAQS = [
@@ -68,14 +69,14 @@ const FEATURES = [
     sim: "chat",
     replaces: "채*톡",
     title: "프로젝트별 채널 + 파트너 실시간 소통 + 액션카드",
-    desc: "채팅 안에서 견적서 확인, 서명 요청, 승인까지. 프로젝트/팀/DM 채널, 멘션, 리액션. 외부 파트너도 초대 한 번으로 합류.",
+    desc: "프로젝트·팀·DM 채널과 파일 공유, 멘션. 외부 파트너도 초대 한 번으로 합류, 플로팅 메신저로 어느 화면에서든 대화.",
   },
   {
     tab: "고객 DB",
     sim: "crm",
     replaces: "리*버",
     title: "한번이라도 견적 나간 업체, 자동으로 고객 DB",
-    desc: "거래처별 프로젝트 이력, 계약서, 매출, 커뮤니케이션 기록 자동 축적. 휴면 고객 AI 감지, 리마인더 자동 발송. 리멤버 수준의 CRM.",
+    desc: "거래처별 프로젝트 이력, 계약서, 매출, 커뮤니케이션 기록 자동 축적. 휴면 거래처 자동 감지와 담당자 알림까지.",
   },
   {
     tab: "서류 자동관리",
@@ -191,7 +192,7 @@ const ENGINES = [
     ],
     features: [
       { icon: "📋", name: "칸반 파이프라인", desc: "드래그앤드롭 프로젝트 관리 + 테이블 뷰" },
-      { icon: "💬", name: "프로젝트별 전용 채팅", desc: "채팅 안에서 승인·서명·확인까지" },
+      { icon: "💬", name: "프로젝트별 전용 채팅", desc: "프로젝트마다 전용 채널 자동 연결" },
       { icon: "😴", name: "휴면 프로젝트 AI 감지", desc: "2주 미움직임 → 자동 리마인더" },
       { icon: "💰", name: "매출 스케줄 추적", desc: "선금/잔금 자동 분리 + 입금 추적" },
     ],
@@ -232,23 +233,23 @@ const ENGINES = [
     icon: "🏢",
     tagline: "한번이라도 거래한 업체 — 자동으로 회사의 가장 큰 자산이 됩니다",
     headline: "담당자가 퇴사해도, 고객 관계는 회사에 남습니다.",
-    desc: "견적 1건만 보내도 거래처 자동 등록. 거래 이력, 계약서, 채팅, 매출 — 모든 상호작용이 자산으로 축적. 휴면 고객은 AI가 감지하고 리마인더를 자동 발송.",
+    desc: "견적 1건만 보내도 거래처 자동 등록. 거래 이력, 계약서, 채팅, 매출 — 모든 상호작용이 자산으로 축적. 휴면 거래처는 자동 감지해 담당자에게 알립니다.",
     replaces: "CRM + 명함관리 구독",
     replacesCost: "연 200만원+",
     color: "#F59E0B",
     metrics: [
       { label: "거래처", value: "47개", sub: "자동 등록" },
-      { label: "이력 추적", value: "360°", sub: "전체 뷰" },
+      { label: "이력 추적", value: "자동", sub: "견적·계약·매출" },
       { label: "휴면 감지", value: "AI", sub: "자동 알림" },
     ],
     apis: ["사업자 정보 조회", "거래 이력 추적", "파트너 포털", "채권·채무 원장"],
     steps: [
       { step: "자동 등록", detail: "견적·계약·채팅 발생 → 거래처 자동 등록 + 이력 축적" },
-      { step: "AI 분석", detail: "거래 패턴 분석 → 휴면·위험 거래처 자동 감지" },
-      { step: "관계 유지", detail: "리마인더 자동 발송 + 파트너 포털로 관계 강화" },
+      { step: "AI 분석", detail: "거래 이력 분석 → 휴면 거래처 자동 감지·표시" },
+      { step: "관계 유지", detail: "휴면 거래처 담당자 리마인더 알림 + 파트너 포털" },
     ],
     features: [
-      { icon: "🔄", name: "360° 뷰", desc: "프로젝트·계약·매출·커뮤니케이션 통합 뷰" },
+      { icon: "📋", name: "거래 이력 자동 축적", desc: "프로젝트·계약·매출·문서가 거래처에 자동 연결" },
       { icon: "🔗", name: "파트너 포털", desc: "링크 하나로 초대, 서류 확인·채팅 참여" },
       { icon: "🏢", name: "사업자 자동조회", desc: "사업자등록번호로 기업정보 자동 입력" },
       { icon: "📒", name: "거래처 원장", desc: "미수금·미지급금 잔액 자동 대사(채권·채무)" },
@@ -790,7 +791,7 @@ export default function LandingPage() {
   const reflectTotal = teamSize <= 50 ? 55000 : null;
   const savings = competitorTotal - (reflectTotal ?? 55000);
   const savingsPercent = Math.round((savings / competitorTotal) * 100);
-  const reflectPlan = teamSize <= 50 ? "기본요금제" : "엔터프라이즈";
+  const reflectPlan = teamSize <= 50 ? "프로" : "엔터프라이즈";
 
   const heroRef = useInView();
   const featRef = useInView();
@@ -1246,7 +1247,7 @@ export default function LandingPage() {
               </div>
               <div className="w-px h-12 bg-white/10 hidden sm:block" />
               <div className="text-center sm:text-left">
-                <div className="text-sm text-slate-500 mb-2">OwnerView 기본요금제</div>
+                <div className="text-sm text-slate-500 mb-2">OwnerView 프로 요금제</div>
                 <div className="text-2xl font-bold text-white">월 <span className="text-blue-400">55,000원</span> 정액</div>
                 <div className="text-sm text-emerald-400 font-semibold mt-1">인원 무제한 · VAT 별도</div>
               </div>
@@ -1516,11 +1517,11 @@ export default function LandingPage() {
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-blue-100 text-blue-700 border border-blue-200">
               14일 무료체험 · 카드 등록 없이 시작
             </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">심플한 3단계 요금제</h2>
-            <p className="text-gray-500 text-lg">14일 무료로 전 기능을 써보고, 필요할 때 월 55,000원 정액으로 전환하세요</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">심플한 4단계 요금제</h2>
+            <p className="text-gray-500 text-lg">14일 무료로 전 기능을 써보고, 필요할 때 정액 요금제로 전환하세요</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 max-w-6xl mx-auto">
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
