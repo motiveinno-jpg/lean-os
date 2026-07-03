@@ -5,12 +5,14 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Sidebar } from "@/components/sidebar";
-import { GlobalSearch } from "@/components/global-search";
+import { GlobalSearch, openGlobalSearch } from "@/components/global-search";
+import { Avatar } from "@/components/avatar";
+import { getRouteCrumb } from "@/lib/route-labels";
 import { FloatingMessenger } from "@/components/floating-messenger";
 import { MenuGuide } from "@/components/menu-guide";
 // NotificationCenter import 제거 — 알림은 사이드바 페이지(/notifications)로 통합됨
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
-import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
+import { OwnerViewIcon } from "@/components/brand-logo";
 import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
 import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
@@ -179,8 +181,32 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 function AppContent({ children }: { children: React.ReactNode }) {
   const { collapsed, setMobileOpen } = useSidebar();
   const { role, user } = useUser();
+  const pathname = usePathname();
   const isLimitedRole = role === "partner" || role === "employee";
   const [mutationError, setMutationError] = useState<string | null>(null);
+
+  // 라운드6.5 TeamHub 헤더바 — 브레드크럼 + 알림 벨 배지
+  const crumb = getRouteCrumb(pathname);
+  const roleLabel = role === "owner" ? "대표" : role === "admin" ? "관리자" : role === "partner" ? "파트너" : "직원";
+  const [bellUnread, setBellUnread] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    async function loadBell() {
+      if (!user) return;
+      try {
+        const { count } = await (supabase as any)
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false);
+        if (alive) setBellUnread(count ?? 0);
+      } catch {}
+    }
+    loadBell();
+    const iv = setInterval(loadBell, 60000);
+    window.addEventListener("sidebar-refresh-badges", loadBell);
+    return () => { alive = false; clearInterval(iv); window.removeEventListener("sidebar-refresh-badges", loadBell); };
+  }, [user, pathname]);
 
   // P0-D: 모바일 햄버거 first-time hint — 첫 진입 한 번만 펄스 + 작은 툴팁.
   //   localStorage 키 'hint:hamburger' 가 비어있을 때만 활성, 클릭하면 dismiss.
@@ -266,14 +292,14 @@ function AppContent({ children }: { children: React.ReactNode }) {
       {/* 2026-07-03 TeamHub 라운드 — 배경 레이어(점 패턴+오로라 orbs) 제거.
           body 가 플랫 소프트 틴트(--bg)를 직접 칠해 흰 카드가 떠 보이는 캔버스가 됨. */}
       <Sidebar />
-      {/* Top header bar (mobile: hamburger + notification, desktop: notification only) */}
-      <div
-        className={`fixed top-0 right-0 z-30 h-12 flex items-center justify-between px-3 transition-[left] duration-200 ${
+      {/* 라운드6.5 TeamHub 헤더바 — 좌: 브레드크럼+타이틀 / 우: 검색 필·알림 벨·도움말·프로필 칩 */}
+      <header
+        className={`fixed top-0 right-0 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b border-[var(--border)]/60 bg-[var(--bg)]/85 backdrop-blur-md transition-[left] duration-200 ${
           collapsed ? "md:left-[68px]" : "md:left-60"
         } left-0`}
       >
         {/* Left: Mobile hamburger — hide for limited roles on mobile (they use bottom nav) */}
-        <div className={`${isLimitedRole ? "hidden" : "md:hidden"} relative`}>
+        <div className={`${isLimitedRole ? "hidden" : "md:hidden"} relative shrink-0`}>
           <button
             onClick={() => { dismissHint(); setMobileOpen(true); }}
             className={`p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition ${hamburgerHint ? "ring-2 ring-[var(--primary)] animate-pulse" : ""}`}
@@ -295,20 +321,92 @@ function AppContent({ children }: { children: React.ReactNode }) {
         </div>
         {/* Logo for limited roles on mobile — U1: 클릭 → /dashboard */}
         {isLimitedRole && (
-          <Link href="/dashboard" className="md:hidden flex items-center gap-2 hover:opacity-80 transition" aria-label="대시보드로 이동">
+          <Link href="/dashboard" className="md:hidden flex items-center gap-2 hover:opacity-80 transition shrink-0" aria-label="대시보드로 이동">
             <OwnerViewIcon size={24} />
-            <span className="text-sm font-bold text-[var(--text)]"><RollingBrandText /></span>
           </Link>
         )}
-        <div className="hidden md:block" />
 
-        {/* 우측: 이 메뉴 도움말 '?' 토글 (알림은 사이드바 '홈 > 알림'으로 이동) */}
+        {/* 브레드크럼 + 페이지 타이틀 (레퍼런스: Dashboard › Employees 스타일) */}
+        <div className="flex-1 min-w-0">
+          {crumb ? (
+            <>
+              {crumb.group && (
+                <div className="hidden md:block text-[11px] leading-4 text-[var(--text-dim)] truncate">
+                  {crumb.group} <span className="mx-0.5">›</span> {crumb.title}
+                </div>
+              )}
+              <div className="text-[15px] md:text-base font-bold text-[var(--text)] leading-5 truncate">{crumb.title}</div>
+            </>
+          ) : (
+            <div className="text-[15px] md:text-base font-bold text-[var(--text)] truncate">
+              {user?.companies?.name || ""}
+            </div>
+          )}
+        </div>
+
+        {/* 검색 필 — 데스크톱은 pill, 모바일은 아이콘 */}
+        <button
+          onClick={() => openGlobalSearch()}
+          className="hidden md:flex items-center gap-2 w-56 lg:w-72 px-3.5 py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text-dim)] hover:border-[var(--primary)] hover:text-[var(--text-muted)] transition shrink-0"
+          aria-label="검색"
+        >
+          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+          </svg>
+          <span className="flex-1 text-left">무엇이든 검색</span>
+          <kbd className="text-[9px] bg-[var(--bg-surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">⌘K</kbd>
+        </button>
+        <button
+          onClick={() => openGlobalSearch()}
+          className="md:hidden p-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] shrink-0"
+          aria-label="검색"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+          </svg>
+        </button>
+
+        {/* 알림 벨 */}
+        <Link
+          href="/notifications"
+          className="relative p-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition shrink-0"
+          aria-label="알림"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
+          {bellUnread > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
+              {bellUnread > 99 ? "99+" : bellUnread}
+            </span>
+          )}
+        </Link>
+
+        {/* 이 메뉴 도움말 '?' 토글 */}
         <MenuGuide />
-      </div>
+
+        {/* 프로필 칩 — 아바타 + 이름/역할 (레퍼런스 우상단), 클릭 → 마이페이지 */}
+        <Link
+          href="/mypage"
+          className="flex items-center gap-2 md:pl-2 md:pr-3 md:py-1.5 rounded-full md:bg-[var(--bg-card)] md:border md:border-[var(--border)] hover:opacity-85 transition shrink-0"
+          aria-label="마이페이지"
+        >
+          <Avatar name={user?.name || user?.email} src={user?.avatar_url} size={30} />
+          <span className="hidden md:block min-w-0 text-left">
+            <span className="block text-xs font-bold text-[var(--text)] leading-4 truncate max-w-[110px]">
+              {user?.name || user?.email?.split("@")[0] || ""}
+            </span>
+            <span className="block text-[10px] text-[var(--text-dim)] leading-3">{roleLabel}</span>
+          </span>
+        </Link>
+      </header>
 
       {/* Main content */}
       <main
-        className={`flex-1 min-w-0 transition-[margin] duration-200 pt-14 md:pt-14 ${
+        className={`flex-1 min-w-0 transition-[margin] duration-200 pt-[80px] md:pt-[88px] ${
           collapsed ? "md:ml-[68px]" : "md:ml-60"
         } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pb-6" : role === "owner" ? "p-6 pb-20 md:pb-6" : "p-6"}`}
       >

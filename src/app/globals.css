@@ -402,8 +402,8 @@ input, textarea, [contenteditable="true"] {
    각 페이지의 첫 헤더 div/header 에 className="page-sticky-header" 추가하면 동작. */
 .page-sticky-header {
   position: sticky;
-  top: 0;
-  z-index: 30;
+  top: 4rem; /* 라운드6.5 — 고정 헤더바(h-16) 아래에 붙도록 */
+  z-index: 20;
   margin-left: -1rem;
   margin-right: -1rem;
   padding-left: 1rem;

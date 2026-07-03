@@ -568,6 +568,22 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* 라운드6.5 프로모 카드 (레퍼런스 하단 카드) — 요금제로 연결. 대표/관리자 + 펼침 상태만 */}
+      {!collapsed && (role === "owner" || role === "admin") && (
+        <div className="mx-3 mb-1 p-3.5 rounded-2xl bg-[var(--primary-light)]">
+          <div className="w-8 h-8 mb-2 rounded-xl bg-[var(--primary)] flex items-center justify-center">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l1.9 5.6L20 10l-6.1 1.4L12 17l-1.9-5.6L4 10l6.1-1.4L12 3z"/>
+            </svg>
+          </div>
+          <div className="text-xs font-bold text-[var(--text)] mb-0.5">오너뷰와 함께 성장하세요</div>
+          <p className="text-[10px] leading-4 text-[var(--text-muted)] mb-2.5">재무·인사·계약을 한 화면에서. 요금제와 사용량을 확인해보세요.</p>
+          <Link href="/billing" className="block w-full py-1.5 rounded-lg bg-[var(--primary)] text-white text-[11px] font-bold text-center hover:bg-[var(--primary-hover)] transition">
+            요금제 관리
+          </Link>
+        </div>
+      )}
+
       {/* Collapse Toggle (desktop only) */}
       <div className="px-3 py-1 hidden md:block">
         <button
