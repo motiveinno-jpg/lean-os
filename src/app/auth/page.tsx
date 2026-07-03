@@ -4,7 +4,8 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { RollingBrandText } from "@/components/brand-logo";
-import { createTrialingSubscription } from "@/lib/billing";
+import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, provisionCompanyForUser, createCompanyWithOwner } from "@/lib/company-signup";
+import { verifyBusinessNumber } from "@/lib/business-verification";
 import Link from "next/link";
 
 // Supabase 영어 에러 → 한글 변환
@@ -37,6 +38,9 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [bizNo, setBizNo] = useState(""); // 사업자번호 — 1사업자=1회사 원칙의 키
+  // 사업자번호가 이미 등록된 회사와 일치할 때 — 합류 요청 전환 안내 (마스킹된 회사명)
+  const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -66,46 +70,24 @@ export default function AuthPage() {
       return setError(translateAuthError(loginErr.message));
     }
 
-    // Safety net: 로그인 성공했지만 public.users가 없는 경우 자동 생성
+    // Safety net: 로그인 성공했지만 public.users가 없는 경우 — 회사 개설 또는 합류 요청 (company-signup 공용)
     if (loginData.user) {
-      await ensureUserRecord(loginData.user);
+      const result = await provisionCompanyForUser(loginData.user);
+      if (result === "join_pending") {
+        setLoading(false);
+        router.push("/join-pending");
+        return;
+      }
+      if (result === "needs_company_setup") {
+        // 소셜(OAuth)·구버전 가입 등 사업자번호 없는 계정 — 회사 설정 단계 필수
+        setLoading(false);
+        router.push("/company-setup");
+        return;
+      }
     }
 
     setLoading(false);
     router.push(getRedirectPath());
-  }
-
-  async function ensureUserRecord(user: { id: string; email?: string; user_metadata?: Record<string, string> }) {
-    const { data: existingUser } = await supabase
-      .from("users")
-      .select("id")
-      .eq("auth_id", user.id)
-      .maybeSingle();
-
-    if (existingUser) return; // 이미 존재
-
-    const companyName = user.user_metadata?.company_name || user.email?.split("@")[0] || "내 회사";
-    const displayName = user.user_metadata?.display_name || user.email?.split("@")[0] || "사용자";
-    const companyId = crypto.randomUUID();
-
-    const { error: compErr } = await supabase.from("companies").insert({ id: companyId, name: companyName });
-    if (compErr) return;
-
-    const { error: userErr } = await supabase.from("users").insert({
-      id: user.id,
-      auth_id: user.id,
-      company_id: companyId,
-      email: user.email || "",
-      name: displayName,
-      role: "owner",
-    });
-    if (userErr) {
-      await supabase.from("companies").delete().eq("id", companyId);
-      return;
-    }
-
-    await supabase.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });
-    await createTrialingSubscription(companyId, "starter", 30);
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -117,18 +99,45 @@ export default function AuthPage() {
     if (!/[0-9]/.test(password)) return setError("비밀번호에 숫자를 포함해주세요.");
     if (!/[^A-Za-z0-9]/.test(password)) return setError("비밀번호에 특수기호를 포함해주세요.");
     if (!companyName.trim()) return setError("회사명을 입력해주세요.");
+    if (!isValidBizNo(bizNo)) return setError("사업자번호 10자리를 입력해주세요.");
     setError("");
+    setJoinPrompt(null);
     setLoading(true);
 
+    try {
+      // ① 기등록 회사 확인 — 1 사업자번호 = 1 회사. 이미 있으면 합류 요청으로 전환 안내.
+      const dup = await checkBusinessNumberRegistered(bizNo);
+      if (dup.registered) {
+        setLoading(false);
+        setJoinPrompt(dup.companyNameMasked || "등록된 회사");
+        return;
+      }
+      // ② 국세청 실체 검증 (거래처 검증과 동일 EF 재사용) — 폐업만 차단, API 장애(확인불가)는 통과
+      const v = await verifyBusinessNumber(bizNoDigits(bizNo)).catch(() => null);
+      if (v && v.status === "폐업자") {
+        setLoading(false);
+        return setError("폐업 처리된 사업자번호입니다. 번호를 다시 확인해주세요.");
+      }
+    } catch (err: any) {
+      setLoading(false);
+      return setError(err?.message || "사업자번호 확인 중 오류가 발생했습니다.");
+    }
+
+    await doSignup(false);
+  }
+
+  // join=true: 기존 회사 합류 요청 경로 (회사 생성 안 함 — 계정만 만들고 요청 전송)
+  async function doSignup(join: boolean) {
+    setLoading(true);
+    const digits = bizNoDigits(bizNo);
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: "https://www.owner-view.com/auth/verify",
-        data: {
-          company_name: companyName.trim(),
-          display_name: email.split("@")[0],
-        },
+        data: join
+          ? { display_name: email.split("@")[0], join_business_number: digits }
+          : { company_name: companyName.trim(), display_name: email.split("@")[0], business_number: digits },
       },
     });
 
@@ -151,54 +160,35 @@ export default function AuthPage() {
       return;
     }
 
-    // 이메일 인증이 필요한 경우 (세션이 없음)
+    // 이메일 인증이 필요한 경우 (세션 없음) — 인증 후 첫 로그인 때 provisionCompanyForUser 가
+    //   metadata(business_number / join_business_number)로 회사 개설·합류 요청을 이어서 처리
     if (!authData.session) {
       setEmailSent(true);
       return;
     }
 
-    // 이메일 인증 없이 바로 세션이 생긴 경우 (Supabase 설정에 따라)
-    const created = await createCompanyAndUser(authData.user.id, email, companyName.trim());
+    // 세션 즉시 생성 케이스
+    if (join) {
+      const r = await submitJoinRequest(digits);
+      if (!r.ok) return setError(r.error || "합류 요청 전송에 실패했습니다.");
+      router.push("/join-pending");
+      return;
+    }
+    const created = await createCompanyAndUser(authData.user.id, email, companyName.trim(), digits);
     if (created) router.push(getRedirectPath());
   }
 
-  async function createCompanyAndUser(authId: string, userEmail: string, name: string): Promise<boolean> {
-    const { data: company, error: compErr } = await supabase
-      .from("companies")
-      .insert({ name })
-      .select()
-      .single();
-    if (compErr) {
-      setError("회사 정보 생성에 실패했습니다. 다시 시도해주세요.");
-      return false;
+  // 회사 개설(+owner·스냅샷·30일 트라이얼) — company-signup 공용 함수 사용 (company-setup 페이지와 단일 구현)
+  async function createCompanyAndUser(authId: string, userEmail: string, name: string, bizDigits: string): Promise<boolean> {
+    const r = await createCompanyWithOwner(authId, userEmail, name, userEmail.split("@")[0], bizDigits);
+    if (r.ok) return true;
+    if (r.duplicate) {
+      // 유니크 충돌(동시 가입 레이스) — 그 사이 같은 사업자번호 회사가 생김 → 합류 요청으로 전환
+      const jr = await submitJoinRequest(bizDigits);
+      if (jr.ok) { router.push("/join-pending"); return false; }
     }
-
-    const { error: userErr } = await supabase.from("users").insert({
-      id: authId,
-      auth_id: authId,
-      company_id: company.id,
-      email: userEmail,
-      name: userEmail.split("@")[0],
-      role: "owner",
-    });
-    if (userErr) {
-      // C3 Fix: 사용자 생성 실패 시 고아 회사 정리
-      await supabase.from("companies").delete().eq("id", company.id);
-      setError("계정 설정에 실패했습니다. 다시 시도해주세요.");
-      return false;
-    }
-
-    const { error: snapErr } = await supabase.from("cash_snapshot").insert({
-      company_id: company.id,
-      current_balance: 0,
-      monthly_fixed_cost: 0,
-    });
-    if (snapErr) console.error("cash_snapshot 생성 실패:", snapErr.message);
-
-    // 런칭 블로커: 신규 가입자 자동 starter 플랜 30일 trialing 구독
-    await createTrialingSubscription(company.id, "starter", 30);
-
-    return true;
+    setError("회사 정보 생성에 실패했습니다. 다시 시도해주세요.");
+    return false;
   }
 
   async function handleResendEmail() {
@@ -439,6 +429,7 @@ export default function AuthPage() {
 
           <form onSubmit={mode === "login" ? handleLogin : handleSignup}>
             {mode === "signup" && (
+              <>
               <div className="mb-4">
                 <label htmlFor="company-name" className="field-label">회사명</label>
                 <input
@@ -453,6 +444,41 @@ export default function AuthPage() {
                   required
                 />
               </div>
+              <div className="mb-4">
+                <label htmlFor="biz-no" className="field-label">사업자등록번호</label>
+                <input
+                  id="biz-no"
+                  type="text"
+                  inputMode="numeric"
+                  value={bizNo}
+                  onChange={(e) => { setBizNo(formatBizNo(bizNoDigits(e.target.value))); setJoinPrompt(null); }}
+                  placeholder="123-45-67890"
+                  maxLength={12}
+                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] mono-number focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                  required
+                />
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">회사마다 하나의 오너뷰 공간이 만들어집니다. 이미 등록된 회사라면 합류 요청으로 이어집니다.</p>
+              </div>
+              {joinPrompt && (
+                <div className="mb-4 p-4 rounded-xl bg-blue-50 border border-blue-200">
+                  <p className="text-sm font-semibold text-blue-900 mb-1">이미 오너뷰에 등록된 회사입니다 — <b>{joinPrompt}</b></p>
+                  <p className="text-xs text-blue-800 leading-relaxed mb-3">
+                    회사를 새로 만들 수 없습니다. 계정을 만든 뒤 이 회사의 대표/관리자에게 <b>합류 요청</b>을 보내고, 승인되면 회사 페이지를 함께 사용합니다.
+                    (초대 링크를 받았다면 그 링크로 가입하는 것이 가장 빠릅니다)
+                  </p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => doSignup(true)} disabled={loading}
+                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition disabled:opacity-50">
+                      {loading ? "처리 중..." : "가입하고 합류 요청 보내기"}
+                    </button>
+                    <button type="button" onClick={() => { setJoinPrompt(null); setBizNo(""); }}
+                      className="px-3 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-lg font-semibold text-xs transition hover:bg-blue-50">
+                      번호 다시 입력
+                    </button>
+                  </div>
+                </div>
+              )}
+              </>
             )}
             <div className="mb-4">
               <label htmlFor="auth-email" className="field-label">이메일</label>

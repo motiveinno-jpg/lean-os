@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/dashboard", "/platform/", "/api/", "/auth/reset", "/invite", "/sign", "/share"],
+        disallow: ["/dashboard", "/platform/", "/api/", "/auth/reset", "/invite", "/sign", "/share", "/company-setup", "/join-pending"],
       },
     ],
     sitemap: "https://www.owner-view.com/sitemap.xml",

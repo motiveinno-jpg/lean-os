@@ -55,6 +55,41 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     enabled: !!companyId,
   });
 
+  // 합류 요청 — 가입 시 우리 사업자번호를 입력한 무소속 사용자의 승인 대기 목록 (RLS: owner/admin 만 조회됨)
+  const { data: joinRequests = [] } = useQuery({
+    queryKey: ["company-join-requests", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data } = await (supabase as any).from("company_join_requests")
+        .select("id, requester_email, requester_name, message, created_at, expires_at")
+        .eq("company_id", companyId).eq("status", "pending")
+        .order("created_at", { ascending: true });
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+  const [joinRole, setJoinRole] = useState<Record<string, "employee" | "admin">>({});
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const resolveJoin = async (id: string, action: "approve" | "reject") => {
+    if (resolvingId) return;
+    if (action === "reject" && !confirm("이 합류 요청을 거절할까요?")) return;
+    setResolvingId(id);
+    try {
+      const res = await fetch("/api/join-request/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: id, action, role: joinRole[id] || "employee" }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.error || "처리 실패");
+      toast(action === "approve" ? "합류를 승인했습니다 — 멤버로 추가됨" : "합류 요청을 거절했습니다", action === "approve" ? "success" : "info");
+      queryClient.invalidateQueries({ queryKey: ["company-join-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+    } catch (e: any) {
+      toast(e?.message || "처리 실패", "error");
+    } finally { setResolvingId(null); }
+  };
+
   const inviteMut = useMutation({
     mutationFn: async () => {
       if (!companyId || !user) throw new Error("인증 필요");
@@ -200,6 +235,36 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
         <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
         <span><strong>멤버</strong>: 오너뷰 계정이 있는 사용자 (로그인 가능) · <strong>직원</strong>: HR 관리 대상 (계정 없이도 급여·근태 관리 가능, 인력관리 페이지에서 등록)</span>
       </div>
+
+      {/* 합류 요청 — 가입 시 우리 회사 사업자번호를 입력한 사용자의 승인 대기 (승인 시 멤버로 연결) */}
+      {joinRequests.length > 0 && (
+        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/30 mb-4">
+          <div className="text-xs font-bold text-amber-600 mb-2">📨 합류 요청 {joinRequests.length}건 — 승인하면 우리 회사 멤버로 연결됩니다</div>
+          <div className="space-y-2">
+            {joinRequests.map((r: any) => (
+              <div key={r.id} className="flex items-center gap-2 flex-wrap p-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-[var(--text)] truncate">{r.requester_name || r.requester_email}</div>
+                  <div className="text-[11px] text-[var(--text-dim)] truncate">{r.requester_email} · 요청 {String(r.created_at).slice(0, 10)}{r.message ? ` · "${r.message}"` : ""}</div>
+                </div>
+                <select value={joinRole[r.id] || "employee"} onChange={(e) => setJoinRole((m) => ({ ...m, [r.id]: e.target.value as "employee" | "admin" }))}
+                  className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">
+                  <option value="employee">직원</option>
+                  <option value="admin">관리자</option>
+                </select>
+                <button onClick={() => resolveJoin(r.id, "approve")} disabled={resolvingId === r.id}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                  {resolvingId === r.id ? "처리 중..." : "승인"}
+                </button>
+                <button onClick={() => resolveJoin(r.id, "reject")} disabled={resolvingId === r.id}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50">
+                  거절
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Invite Form */}
       {showInviteForm && (

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { createTrialingSubscription } from "@/lib/billing";
+import { provisionCompanyForUser } from "@/lib/company-signup";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -51,64 +51,31 @@ export default function VerifyEmailPage() {
       setState("email_confirmed_need_login");
     }
 
+    // 회사 개설 또는 합류 요청 — company-signup 공용 로직 (metadata 기반 분기).
+    //   합류 경로(join_business_number)면 회사를 만들지 않고 요청만 생성 → /join-pending 이동.
+    //   true 반환 = 여기서 라우팅까지 완료(호출부는 종료).
     async function setupCompany(user: {
       id: string;
       email?: string;
       user_metadata?: Record<string, string>;
-    }) {
+    }): Promise<boolean> {
       try {
-        const { data: existingUser } = await supabase
-          .from("users")
-          .select("id")
-          .eq("auth_id", user.id)
-          .maybeSingle();
-
-        if (existingUser) return;
-
-        const companyName =
-          user.user_metadata?.company_name ||
-          user.email?.split("@")[0] ||
-          "내 회사";
-        const displayName =
-          user.user_metadata?.display_name ||
-          user.email?.split("@")[0] ||
-          "사용자";
-        const userEmail = user.email || "";
-
-        const companyId = crypto.randomUUID();
-
-        const { error: compErr } = await supabase
-          .from("companies")
-          .insert({ id: companyId, name: companyName });
-
-        if (compErr) {
-          console.warn("회사 생성 실패:", compErr.message);
-          return;
+        const result = await provisionCompanyForUser(user);
+        if (result === "join_pending") {
+          completed = true;
+          router.push("/join-pending");
+          return true;
         }
-
-        const { error: userErr } = await supabase.from("users").insert({
-          id: user.id,
-          auth_id: user.id,
-          company_id: companyId,
-          email: userEmail,
-          name: displayName,
-          role: "owner",
-        });
-        if (userErr) {
-          await supabase.from("companies").delete().eq("id", companyId);
-          return;
+        if (result === "needs_company_setup") {
+          // 카카오/구글 OAuth 등 사업자번호 없는 계정 — 회사 설정 단계(개설/합류 선택) 필수
+          completed = true;
+          router.push("/company-setup");
+          return true;
         }
-
-        await supabase.from("cash_snapshot").insert({
-          company_id: companyId,
-          current_balance: 0,
-          monthly_fixed_cost: 0,
-        });
-
-        await createTrialingSubscription(companyId, "starter", 30);
       } catch (err) {
         console.error("setupCompany error:", err);
       }
+      return false;
     }
 
     async function handleVerification() {
@@ -127,7 +94,7 @@ export default function VerifyEmailPage() {
             data: { session },
           } = await supabase.auth.getSession();
           if (session?.user) {
-            await setupCompany(session.user);
+            if (await setupCompany(session.user)) return;
             markSuccess();
             return;
           }
@@ -144,7 +111,7 @@ export default function VerifyEmailPage() {
             data: { session: existingSession },
           } = await supabase.auth.getSession();
           if (existingSession?.user) {
-            await setupCompany(existingSession.user);
+            if (await setupCompany(existingSession.user)) return;
             markSuccess();
             return;
           }
@@ -154,7 +121,7 @@ export default function VerifyEmailPage() {
         }
 
         if (data.session?.user) {
-          await setupCompany(data.session.user);
+          if (await setupCompany(data.session.user)) return;
           markSuccess();
           return;
         }
@@ -165,7 +132,7 @@ export default function VerifyEmailPage() {
         } = await supabase.auth.getSession();
 
         if (retrySession?.user) {
-          await setupCompany(retrySession.user);
+          if (await setupCompany(retrySession.user)) return;
           markSuccess();
         } else {
           markError("인증 처리에 실패했습니다. 다시 시도해주세요.");
@@ -367,13 +334,14 @@ export default function VerifyEmailPage() {
                     return;
                   }
                   if (loginData.user) {
-                    const { data: existingUser } = await supabase
-                      .from("users")
-                      .select("id")
-                      .eq("auth_id", loginData.user.id)
-                      .maybeSingle();
-                    if (!existingUser) {
-                      router.push("/dashboard");
+                    // 회사 개설 또는 합류 요청 (metadata 기반) — 합류 경로면 대기 화면, 사업자번호 없으면 회사 설정으로
+                    const result = await provisionCompanyForUser(loginData.user);
+                    if (result === "join_pending") {
+                      router.push("/join-pending");
+                      return;
+                    }
+                    if (result === "needs_company_setup") {
+                      router.push("/company-setup");
                       return;
                     }
                   }

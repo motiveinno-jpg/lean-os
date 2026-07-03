@@ -33,6 +33,8 @@ const ENTITY_HREF: Record<string, (id: string) => string> = {
   //   → 서명된 계약서 직접 보기. 기존엔 entity_type 매칭 실패 → TYPE_HREF 폴백의 '/sign?id=' 로 빠져
   //   "유효하지 않은 링크"(2026-05-28 수정). bell dropdown 의 getEntityRoute 매핑과 일치.
   signature: (id) => `/contracts/signed/${id}`,
+  // 회사 합류 요청 알림 → 설정 general 탭(팀 관리 패널에 승인 UI) (2026-07-03)
+  company_join_request: () => `/settings?tab=general`,
   hr_contract_package: () => `/my-contracts`,
   leave_request: () => `/attendance?section=leave&focus=pending`,
   // 연장근무 신청/승인/반려 알림 → 근태관리 연장근무 화면 (결재관리 대신 바로 연결)
@@ -66,6 +68,7 @@ const TYPE_HREF: Record<string, (id: string | null) => string> = {
   contract_expiry: (id) => id ? `/documents?id=${id}` : `/documents`,
   approval: () => `/approvals`,
   chat: () => `/chat`,
+  company_join_request: () => `/settings?tab=general`,
   // STEP 4 (PR-F): 견적 승인 결정 알림 (entity_type=null 인 경우의 보조 fallback).
   //   type='approval' + entity_type='quote_approval' 이면 ENTITY_HREF 우선이라
   //   여기 안 옴 — 안전망용.
