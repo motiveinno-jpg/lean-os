@@ -29,6 +29,7 @@ import {
   type ApprovalStageConfig,
 } from "@/lib/approval-workflow";
 import { CurrencyInput } from "@/components/currency-input";
+import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
@@ -37,21 +38,88 @@ const db = supabase as any;
 
 type Tab = "my-approvals" | "my-requests" | "all" | "new-request" | "policies" | "forms";
 
-// ── Status config ──
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  pending: { label: "대기", bg: "bg-yellow-500/10", text: "text-yellow-500" },
-  approved: { label: "승인", bg: "bg-green-500/10", text: "text-green-500" },
-  rejected: { label: "반려", bg: "bg-red-500/10", text: "text-red-500" },
-  cancelled: { label: "취소", bg: "bg-gray-500/10", text: "text-gray-400" },
-  skipped: { label: "건너뜀", bg: "bg-gray-500/10", text: "text-gray-400" },
+// ── 2026-07-03 결재관리 리디자인 — 유형·상태·진행 프리미티브 ──
+
+// 상태: 점 + 라벨 pill (대기는 은은한 펄스)
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; pulse?: boolean }> = {
+  pending: { label: "대기", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]", dot: "bg-[var(--warning)]", pulse: true },
+  approved: { label: "승인", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]", dot: "bg-[var(--success)]" },
+  rejected: { label: "반려", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]", dot: "bg-[var(--danger)]" },
+  cancelled: { label: "취소", bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-dim)]", dot: "bg-[var(--text-dim)]" },
+  skipped: { label: "건너뜀", bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-dim)]", dot: "bg-[var(--text-dim)]" },
 };
 
 function StatusBadge({ status }: { status: string }) {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${config.bg} ${config.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold leading-none ${config.bg} ${config.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${config.dot} ${config.pulse ? "animate-pulse" : ""}`} />
       {config.label}
     </span>
+  );
+}
+
+// 유형별 아이콘·컬러 아이덴티티 — 리스트를 훑을 때 유형이 한눈에 구분되게.
+const TYPE_META: Record<string, { icon: string; bg: string; text: string }> = {
+  expense: { icon: "wallet", bg: "bg-violet-500/12", text: "text-violet-500" },
+  expense_report: { icon: "wallet", bg: "bg-violet-500/12", text: "text-violet-500" },
+  card_expense: { icon: "card", bg: "bg-fuchsia-500/12", text: "text-fuchsia-500" },
+  payment: { icon: "banknote", bg: "bg-sky-500/12", text: "text-sky-500" },
+  leave: { icon: "sun", bg: "bg-emerald-500/12", text: "text-emerald-500" },
+  overtime: { icon: "clock", bg: "bg-amber-500/12", text: "text-amber-500" },
+  purchase: { icon: "cart", bg: "bg-orange-500/12", text: "text-orange-500" },
+  equipment: { icon: "monitor", bg: "bg-cyan-600/12", text: "text-cyan-600" },
+  contract: { icon: "pen", bg: "bg-[var(--primary)]/12", text: "text-[var(--primary)]" },
+  travel: { icon: "plane", bg: "bg-blue-500/12", text: "text-blue-500" },
+  approval_doc: { icon: "doc", bg: "bg-rose-500/12", text: "text-rose-500" },
+};
+const TYPE_FALLBACK = { icon: "doc", bg: "bg-[var(--primary)]/12", text: "text-[var(--primary)]" };
+const typeMeta = (t: string) => TYPE_META[t] || TYPE_FALLBACK;
+
+function TypeIcon({ name, className = "w-4 h-4" }: { name: string; className?: string }) {
+  const p = { className, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (name) {
+    case "wallet": return <svg {...p}><path d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-2"/><path d="M16 12h5v4h-5a2 2 0 010-4z"/></svg>;
+    case "card": return <svg {...p}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+    case "banknote": return <svg {...p}><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>;
+    case "sun": return <svg {...p}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>;
+    case "clock": return <svg {...p}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>;
+    case "cart": return <svg {...p}><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>;
+    case "monitor": return <svg {...p}><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>;
+    case "pen": return <svg {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
+    case "plane": return <svg {...p}><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>;
+    default: return <svg {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>;
+  }
+}
+
+// 유형 칩 — 아이콘 + 라벨 틴트 pill
+function TypeChip({ type, label }: { type: string; label: string }) {
+  const m = typeMeta(type);
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold leading-none ${m.bg} ${m.text}`}>
+      <TypeIcon name={m.icon} className="w-3 h-3" />
+      {label}
+    </span>
+  );
+}
+
+// 결재선 진행 — 세그먼트 바 (완료=채움, 현재=펄스, 반려=빨강)
+function StageProgress({ current, total, status }: { current: number; total: number; status: string }) {
+  const segs = Array.from({ length: Math.max(1, total) });
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 flex-1 max-w-[160px]">
+        {segs.map((_, i) => {
+          const n = i + 1;
+          let cls = "bg-[var(--border)]";
+          if (status === "approved" || n < current) cls = "bg-[var(--success)]";
+          else if (status === "rejected" && n === current) cls = "bg-[var(--danger)]";
+          else if (n === current && status === "pending") cls = "bg-[var(--primary)] animate-pulse";
+          return <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${cls}`} />;
+        })}
+      </div>
+      <span className="text-[10px] font-bold text-[var(--text-dim)] mono-number shrink-0">{Math.min(current, total)}/{total}</span>
+    </div>
   );
 }
 
@@ -151,73 +219,66 @@ export default function ApprovalsPage() {
 
   // 연장근무 결재는 근태관리로 이관 — approvals 에서 제거(2026-07-01)
 
-  const TABS: { key: Tab; label: string; count?: number }[] = [
-    { key: "my-approvals", label: "내 결재함", count: myPendingCount },
-    { key: "my-requests", label: "내 요청" },
-    ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황" }] : []),
-    { key: "new-request", label: "새 요청" },
-    ...(isAdmin ? [{ key: "forms" as Tab, label: "양식 관리" }] : []),
-    ...(isAdmin ? [{ key: "policies" as Tab, label: "정책 관리" }] : []),
+  const TABS: { key: Tab; label: string; icon: string; count?: number }[] = [
+    { key: "my-approvals", label: "내 결재함", icon: "inbox", count: myPendingCount },
+    { key: "my-requests", label: "내 요청", icon: "send" },
+    ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황", icon: "chart" }] : []),
+    { key: "new-request", label: "새 요청", icon: "plus" },
+    ...(isAdmin ? [{ key: "forms" as Tab, label: "양식 관리", icon: "layout" }] : []),
+    ...(isAdmin ? [{ key: "policies" as Tab, label: "정책 관리", icon: "route" }] : []),
   ];
+  const tabIcon = (name: string) => {
+    const p = { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+    switch (name) {
+      case "inbox": return <svg {...p}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>;
+      case "send": return <svg {...p}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
+      case "chart": return <svg {...p}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>;
+      case "plus": return <svg {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+      case "layout": return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>;
+      default: return <svg {...p}><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>;
+    }
+  };
 
   return (
-    <div className="">
-      {/* Toolbar — tab navigation */}
-      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+    <div className="space-y-6">
+      {/* Toolbar — icon tab navigation */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2">
         <div className="seg-bar">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}
+              className={`seg-item inline-flex items-center gap-1.5 ${tab === t.key ? "seg-item-active" : ""}`}
             >
+              {tabIcon(t.icon)}
               {t.label}
               {t.count !== undefined && t.count > 0 && (
-                <span className="ml-1.5 badge badge-primary">{t.count}</span>
+                <span className={`min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold ${tab === t.key ? "bg-white/25 text-white" : "bg-[var(--danger)] text-white"}`}>{t.count}</span>
               )}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">대기 중</span>
-            <span className="kpi-icon warning">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" /></svg>
-            </span>
+      {/* Summary stats — 클릭 시 해당 뷰로 (전체 현황은 admin 전용이라 KPI 자체는 통계만) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "대기 중", value: stats?.pending ?? 0, tone: "warning", valueCls: "text-[var(--warning)]", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" /></svg> },
+          { label: "승인 완료", value: stats?.approved ?? 0, tone: "success", valueCls: "text-[var(--success)]", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+          { label: "반려", value: stats?.rejected ?? 0, tone: "danger", valueCls: "text-[var(--danger)]", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+          { label: "전체 요청", value: stats?.total ?? 0, tone: "", valueCls: "text-[var(--text)]", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.008v.008H3.75V6.75zm0 5.25h.008v.008H3.75V12zm0 5.25h.008v.008H3.75v-.008z" /></svg> },
+        ].map((k) => (
+          <div key={k.label} className="glass-card card-hover p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">{k.label}</span>
+              <span className={`kpi-icon ${k.tone}`}>{k.icon}</span>
+            </div>
+            <div className="flex items-end gap-1">
+              <span className={`text-[26px] leading-8 font-extrabold mono-number truncate ${k.valueCls}`}>{k.value}</span>
+              <span className="text-xs font-semibold text-[var(--text-dim)] mb-1">건</span>
+            </div>
           </div>
-          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)] truncate">{stats?.pending ?? 0}건</span>
-        </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">승인 완료</span>
-            <span className="kpi-icon success">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </span>
-          </div>
-          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)] truncate">{stats?.approved ?? 0}건</span>
-        </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">반려</span>
-            <span className="kpi-icon danger">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </span>
-          </div>
-          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--danger)] truncate">{stats?.rejected ?? 0}건</span>
-        </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">전체 요청</span>
-            <span className="kpi-icon">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.008v.008H3.75V6.75zm0 5.25h.008v.008H3.75V12zm0 5.25h.008v.008H3.75v-.008z" /></svg>
-            </span>
-          </div>
-          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)] truncate">{stats?.total ?? 0}건</span>
-        </div>
+        ))}
       </div>
 
       {/* Tab content */}
@@ -460,96 +521,129 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   return (
     <div>
       {pendingApprovals.length === 0 ? (
-        <div className="text-center py-16 px-6 glass-card">
-          <div className="text-5xl mb-4">✅</div>
-          <div className="text-base font-bold mb-1.5">처리할 결재가 없습니다</div>
+        <div className="text-center py-20 px-6 glass-card">
+          <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--success-dim)] text-[var(--success)] flex items-center justify-center">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="text-base font-bold mb-1.5">모두 처리했어요</div>
           <div className="text-sm text-[var(--text-muted)]">새 결재 요청이 배정되면 이곳에 표시됩니다</div>
         </div>
       ) : (
         <div className="space-y-3">
-          {pendingApprovals.map((item: any) => (
-            <div key={item.stepId} className="glass-card overflow-hidden">
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div
-                    className="flex-1 min-w-0 cursor-pointer"
-                    onClick={() => setExpandedRequestId(expandedRequestId === item.requestId ? null : item.requestId)}
-                  >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[var(--primary)]/10 text-[var(--primary)]">
-                        {REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType}
+          {pendingApprovals.map((item: any) => {
+            const m = typeMeta(item.requestType);
+            const open = expandedRequestId === item.requestId;
+            return (
+              <div key={item.stepId} className="glass-card card-hover overflow-hidden animate-slide-in">
+                <div className="p-5">
+                  <div className="flex items-start gap-4">
+                    {/* 요청자 아바타 + 유형 미니 아이콘 오버레이 */}
+                    <div className="relative shrink-0 hidden sm:block">
+                      <Avatar name={item.requesterName} size={42} />
+                      <span className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-md flex items-center justify-center ring-2 ring-[var(--bg-card)] ${m.bg} ${m.text}`}>
+                        <TypeIcon name={m.icon} className="w-3 h-3" />
                       </span>
-                      <span className="text-[11px] text-[var(--text-dim)]">
-                        {item.currentStage}/{item.totalStages}단계 - {item.stageName}
-                      </span>
-                      <svg className={`w-3.5 h-3.5 text-[var(--text-dim)] transition-transform ${expandedRequestId === item.requestId ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path d="M19 9l-7 7-7-7" />
-                      </svg>
                     </div>
-                    <div className="font-semibold text-sm truncate">{item.title}</div>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
-                      <span>요청자: {item.requesterName || "알 수 없음"}</span>
-                      {item.amount > 0 && <span className="font-semibold text-[var(--text)]">{formatAmount(item.amount)}</span>}
-                      <span>{formatDate(item.createdAt)}</span>
-                    </div>
-                    {item.description && (
-                      <div className="mt-2 px-3 py-2 bg-[var(--bg-surface)] rounded-lg text-xs text-[var(--text-muted)] whitespace-pre-wrap">{item.description}</div>
-                    )}
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title })}
-                      className="btn-primary"
-                    >
-                      승인
-                    </button>
-                    <button
-                      onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title })}
-                      className="btn-danger"
-                    >
-                      반려
-                    </button>
-                  </div>
-                </div>
-              </div>
 
-              {/* D-7: 워크플로우 활동 타임라인 */}
-              {expandedRequestId === item.requestId && (
-                <div className="border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]">
-                  <ActivityTimeline requestId={item.requestId} />
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => setExpandedRequestId(open ? null : item.requestId)}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <TypeChip type={item.requestType} label={REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType} />
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold leading-none bg-[var(--primary)]/10 text-[var(--primary)]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse" />
+                          내 차례 · {item.stageName}
+                        </span>
+                        <span className="text-[11px] text-[var(--text-dim)]">{item.requesterName || "알 수 없음"} · {formatDate(item.createdAt)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[15px] leading-6 truncate">{item.title}</span>
+                        <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                      {item.description && (
+                        <div className="mt-1 text-xs text-[var(--text-muted)] line-clamp-2 whitespace-pre-wrap">{item.description}</div>
+                      )}
+                      <div className="mt-3">
+                        <StageProgress current={item.currentStage} total={item.totalStages} status="pending" />
+                      </div>
+                    </div>
+
+                    {/* 금액 + 액션 */}
+                    <div className="flex flex-col items-end gap-3 shrink-0">
+                      {item.amount > 0 && (
+                        <div className="text-right">
+                          <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">금액</div>
+                          <div className="text-lg font-extrabold mono-number leading-6">{formatAmount(item.amount)}</div>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title })}
+                          className="btn-danger"
+                        >
+                          반려
+                        </button>
+                        <button
+                          onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title })}
+                          className="btn-primary"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+                          승인
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* D-7: 워크플로우 활동 타임라인 */}
+                {open && (
+                  <div className="border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60">
+                    <ActivityTimeline requestId={item.requestId} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Approve/Reject Modal */}
       {actionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setActionModal(null)}>
-          <div className="glass-card p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setActionModal(null)}>
+          <div className="glass-card p-6 w-full max-w-md shadow-xl animate-count-up" onClick={(e) => e.stopPropagation()}>
+            <div className={`w-12 h-12 mb-4 rounded-2xl flex items-center justify-center ${actionModal.action === "approve" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--danger-dim)] text-[var(--danger)]"}`}>
+              {actionModal.action === "approve" ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              )}
+            </div>
             <h3 className="text-lg font-bold mb-1">
-              {actionModal.action === "approve" ? "결재 승인" : "결재 반려"}
+              {actionModal.action === "approve" ? "이 결재를 승인할까요?" : "이 결재를 반려할까요?"}
             </h3>
-            <p className="text-sm text-[var(--text-muted)] mb-4 truncate">{actionModal.title}</p>
+            <p className="text-sm text-[var(--text-muted)] mb-5 truncate">{actionModal.title}</p>
 
-            <div className="mb-4">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
+            <div className="mb-5">
+              <label className="field-label">
                 {actionModal.action === "approve" ? "코멘트 (선택)" : "반려 사유 (필수)"}
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
+                autoFocus
                 placeholder={actionModal.action === "approve" ? "승인 의견을 입력하세요..." : "반려 사유를 입력하세요..."}
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
               />
             </div>
 
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2">
               <button
                 onClick={() => { setActionModal(null); setComment(""); }}
-                className="px-4 py-2 text-[var(--text-muted)] text-sm hover:text-[var(--text)] transition"
+                className="btn-secondary flex-1"
               >
                 취소
               </button>
@@ -557,17 +651,17 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                 <button
                   onClick={() => approveMut.mutate({ stepId: actionModal.stepId, comment: comment || undefined })}
                   disabled={approveMut.isPending}
-                  className="btn-primary"
+                  className="btn-primary flex-1"
                 >
-                  {approveMut.isPending ? "처리 중..." : "승인"}
+                  {approveMut.isPending ? "처리 중..." : "승인하기"}
                 </button>
               ) : (
                 <button
                   onClick={() => comment.trim() && rejectMut.mutate({ stepId: actionModal.stepId, comment })}
                   disabled={!comment.trim() || rejectMut.isPending}
-                  className="btn-danger"
+                  className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[var(--danger)] hover:opacity-90 disabled:opacity-50 transition"
                 >
-                  {rejectMut.isPending ? "처리 중..." : "반려"}
+                  {rejectMut.isPending ? "처리 중..." : "반려하기"}
                 </button>
               )}
             </div>
@@ -607,59 +701,74 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   return (
     <div>
       {requests.length === 0 ? (
-        <div className="text-center py-16 px-6 glass-card">
-          <div className="text-5xl mb-4">📝</div>
+        <div className="text-center py-20 px-6 glass-card">
+          <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
           <div className="text-base font-bold mb-1.5">제출한 결재 요청이 없습니다</div>
-          <div className="text-sm text-[var(--text-muted)]">"새 요청" 탭에서 결재를 요청할 수 있습니다</div>
+          <div className="text-sm text-[var(--text-muted)]">&ldquo;새 요청&rdquo; 탭에서 결재를 요청할 수 있습니다</div>
         </div>
       ) : (
         <div className="space-y-3">
-          {requests.map((req: any) => (
-            <div key={req.id} className="glass-card overflow-hidden">
-              <div
-                className="p-5 cursor-pointer hover:bg-[var(--bg-surface)] transition"
-                onClick={() => setExpandedId(expandedId === req.id ? null : req.id)}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <StatusBadge status={req.status} />
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)]">
-                        {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}
-                      </span>
+          {requests.map((req: any) => {
+            const m = typeMeta(req.request_type);
+            const open = expandedId === req.id;
+            return (
+              <div key={req.id} className="glass-card card-hover overflow-hidden animate-slide-in">
+                <div
+                  className="p-5 cursor-pointer"
+                  onClick={() => setExpandedId(open ? null : req.id)}
+                >
+                  <div className="flex items-start gap-4">
+                    <span className={`hidden sm:flex w-10 h-10 rounded-xl items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                      <TypeIcon name={m.icon} className="w-5 h-5" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <StatusBadge status={req.status} />
+                        <TypeChip type={req.request_type} label={REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} />
+                        <span className="text-[11px] text-[var(--text-dim)]">{formatDate(req.created_at)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[15px] leading-6 truncate">{req.title}</span>
+                        <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                      <div className="mt-3">
+                        <StageProgress current={req.current_stage} total={req.total_stages} status={req.status} />
+                      </div>
                     </div>
-                    <div className="font-semibold text-sm truncate">{req.title}</div>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
-                      {req.amount > 0 && <span className="font-semibold text-[var(--text)]">{formatAmount(req.amount)}</span>}
-                      <span>{formatDate(req.created_at)}</span>
-                      <span>{req.current_stage}/{req.total_stages}단계</span>
+                    <div className="flex flex-col items-end gap-3 shrink-0">
+                      {req.amount > 0 && (
+                        <div className="text-right">
+                          <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">금액</div>
+                          <div className="text-lg font-extrabold mono-number leading-6">{formatAmount(req.amount)}</div>
+                        </div>
+                      )}
+                      {req.status === "rejected" && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); resubmitMut.mutate(req.id); }}
+                          disabled={resubmitMut.isPending}
+                          className="btn-primary"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                          재제출
+                        </button>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {req.status === "rejected" && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); resubmitMut.mutate(req.id); }}
-                        disabled={resubmitMut.isPending}
-                        className="px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
-                      >
-                        재제출
-                      </button>
-                    )}
-                    <svg className={`w-4 h-4 text-[var(--text-muted)] transition-transform ${expandedId === req.id ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path d="M19 9l-7 7-7-7" />
-                    </svg>
                   </div>
                 </div>
-              </div>
 
-              {/* Expanded: Timeline */}
-              {expandedId === req.id && (
-                <div className="border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]">
-                  <ApprovalTimelineView requestId={req.id} currentStage={req.current_stage} totalStages={req.total_stages} requestStatus={req.status} />
-                </div>
-              )}
-            </div>
-          ))}
+                {/* Expanded: Timeline */}
+                {open && (
+                  <div className="border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60">
+                    <ApprovalTimelineView requestId={req.id} currentStage={req.current_stage} totalStages={req.total_stages} requestStatus={req.status} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -712,37 +821,38 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
 
   return (
     <div>
-      {/* Filters */}
-      <div className="flex gap-3 mb-4">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-        >
+      {/* Filters — 상태는 필 칩, 유형은 pill select */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="seg-bar">
           {statusOptions.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <button
+              key={o.value}
+              onClick={() => setStatusFilter(o.value)}
+              className={`seg-item ${statusFilter === o.value ? "seg-item-active" : ""}`}
+            >
+              {o.label}
+            </button>
           ))}
-        </select>
+        </div>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+          className="px-3.5 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-xs font-semibold focus:outline-none focus:border-[var(--primary)]"
         >
           {typeOptions.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
         <div className="flex-1" />
-        <div className="text-xs text-[var(--text-muted)] self-center">{allRequests.length}건</div>
+        <div className="text-xs font-semibold text-[var(--text-dim)] self-center mono-number">{allRequests.length}건</div>
       </div>
 
       {/* Table */}
       <div className="glass-card overflow-x-auto">
-        <table className="w-full text-left min-w-[640px]">
+        <table className="w-full text-left min-w-[720px]">
           <thead>
             <tr className="border-b border-[var(--border)]">
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">유형</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right">금액</th>
@@ -753,34 +863,49 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
           <tbody>
             {allRequests.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-14 text-center">
-                  <div className="text-4xl mb-3">🗂️</div>
+                <td colSpan={6} className="px-4 py-16 text-center">
+                  <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+                  </div>
                   <div className="text-sm font-bold mb-1">결재 요청이 없습니다</div>
                   <div className="text-xs text-[var(--text-muted)]">필터 조건을 바꾸거나 새 요청을 기다려 보세요</div>
                 </td>
               </tr>
             ) : (
-              allRequests.map((req: any) => (
-                <tr
-                  key={req.id}
-                  className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)] cursor-pointer transition"
-                  onClick={() => setExpandedId(expandedId === req.id ? null : req.id)}
-                >
-                  <td className="px-4 py-3"><StatusBadge status={req.status} /></td>
-                  <td className="px-4 py-3 text-xs text-[var(--text-muted)]">
-                    {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium truncate max-w-[200px]">{req.title}</td>
-                  <td className="px-4 py-3 text-xs text-[var(--text-muted)]">
-                    {requesterNames.get(req.requester_id) || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium text-right">{formatAmount(req.amount)}</td>
-                  <td className="px-4 py-3 text-xs text-[var(--text-muted)]">
-                    {req.current_stage}/{req.total_stages}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{formatDate(req.created_at)}</td>
-                </tr>
-              ))
+              allRequests.map((req: any) => {
+                const m = typeMeta(req.request_type);
+                return (
+                  <tr
+                    key={req.id}
+                    className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition"
+                    onClick={() => setExpandedId(expandedId === req.id ? null : req.id)}
+                  >
+                    <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                          <TypeIcon name={m.icon} className="w-4 h-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold truncate max-w-[240px]">{req.title}</div>
+                          <div className="text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <Avatar name={requesterNames.get(req.requester_id) || "?"} size={24} />
+                        <span className="text-xs text-[var(--text-muted)] truncate max-w-[100px]">{requesterNames.get(req.requester_id) || "-"}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-sm font-bold mono-number text-right">{formatAmount(req.amount)}</td>
+                    <td className="px-4 py-3.5 w-[140px]">
+                      <StageProgress current={req.current_stage} total={req.total_stages} status={req.status} />
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(req.created_at)}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -1095,31 +1220,83 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           <h3 className="text-sm font-bold mb-5">새 결재 요청</h3>
 
           <div className="space-y-4">
-            {/* Request Type */}
+            {/* Request Type — 아이콘 칩 피커 */}
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">요청 유형 *</label>
-              <select
-                value={form.requestType}
-                onChange={(e) => setForm({ ...form, requestType: e.target.value as RequestType })}
-                className="field-input"
-              >
-                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-                {/* 관리자가 만든 커스텀 양식 — 내장 유형/기본 제외 */}
+              <label className="field-label">요청 유형 *</label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
+                  const m = typeMeta(k);
+                  const on = form.requestType === k;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setForm({ ...form, requestType: k as RequestType })}
+                      className={`inline-flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                        on
+                          ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)] shadow-sm"
+                          : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--text)]"
+                      }`}
+                    >
+                      <span className={`w-6 h-6 rounded-lg flex items-center justify-center ${m.bg} ${m.text}`}>
+                        <TypeIcon name={m.icon} className="w-3.5 h-3.5" />
+                      </span>
+                      {v}
+                    </button>
+                  );
+                })}
+                {/* 관리자가 만든 커스텀 정책 유형 — 내장 유형/기본 제외 */}
                 {(policies as ApprovalPolicy[])
                   .filter((p) => p.is_active && p.document_type !== "default" && !(p.document_type in REQUEST_TYPE_LABELS))
-                  .map((p) => (
-                    <option key={p.document_type} value={p.document_type}>{p.label || p.name}</option>
-                  ))}
-                {(customForms as ApprovalForm[]).length > 0 && (
-                  <optgroup label="회사 결재 양식">
-                    {(customForms as ApprovalForm[]).map((f) => (
-                      <option key={f.id} value={`form:${f.id}`}>{f.name}{f.category ? ` · ${f.category}` : ""}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
+                  .map((p) => {
+                    const on = form.requestType === p.document_type;
+                    return (
+                      <button
+                        key={p.document_type}
+                        type="button"
+                        onClick={() => setForm({ ...form, requestType: p.document_type as RequestType })}
+                        className={`inline-flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                          on
+                            ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)] shadow-sm"
+                            : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--text)]"
+                        }`}
+                      >
+                        <span className={`w-6 h-6 rounded-lg flex items-center justify-center ${TYPE_FALLBACK.bg} ${TYPE_FALLBACK.text}`}>
+                          <TypeIcon name="doc" className="w-3.5 h-3.5" />
+                        </span>
+                        {p.label || p.name}
+                      </button>
+                    );
+                  })}
+              </div>
+              {(customForms as ApprovalForm[]).length > 0 && (
+                <div className="mt-3">
+                  <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-1.5">회사 결재 양식</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(customForms as ApprovalForm[]).map((f) => {
+                      const on = form.requestType === `form:${f.id}`;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setForm({ ...form, requestType: `form:${f.id}` as RequestType })}
+                          className={`inline-flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                            on
+                              ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)] shadow-sm"
+                              : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--text)]"
+                          }`}
+                        >
+                          <span className="w-6 h-6 rounded-lg flex items-center justify-center bg-[var(--primary)]/12 text-[var(--primary)]">
+                            <TypeIcon name="layout" className="w-3.5 h-3.5" />
+                          </span>
+                          {f.name}
+                          {f.category && <span className="text-[10px] font-semibold text-[var(--text-dim)]">{f.category}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── Leave-specific fields ── */}
@@ -1319,17 +1496,33 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               </>
             )}
 
-            {/* Approver Selection */}
+            {/* Approver Selection — 아바타 칩 결재선 */}
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">승인자 지정 (선택)</label>
+              <label className="field-label">승인자 지정 (선택)</label>
               <div className="space-y-2">
-                {selectedApprovers.map((a, idx) => (
-                  <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl">
-                    <span className="text-xs font-bold text-[var(--primary)] w-16">{idx + 1}차 승인</span>
-                    <span className="text-sm flex-1">{a.name}</span>
-                    <button onClick={() => setSelectedApprovers(prev => prev.filter((_, i) => i !== idx))} className="text-xs text-red-400 hover:text-red-300">삭제</button>
+                {selectedApprovers.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {selectedApprovers.map((a, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5">
+                        <div className="inline-flex items-center gap-2 pl-1.5 pr-2 py-1.5 rounded-full bg-[var(--primary)]/8 border border-[var(--primary)]/25">
+                          <Avatar name={a.name} size={22} />
+                          <span className="text-xs font-bold text-[var(--text)]">{a.name}</span>
+                          <span className="text-[10px] font-bold text-[var(--primary)]">{idx + 1}차</span>
+                          <button
+                            onClick={() => setSelectedApprovers(prev => prev.filter((_, i) => i !== idx))}
+                            className="w-4 h-4 rounded-full flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition"
+                            aria-label="승인자 삭제"
+                          >
+                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                          </button>
+                        </div>
+                        {idx < selectedApprovers.length - 1 && (
+                          <svg className="w-3.5 h-3.5 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
                 {selectedApprovers.length < 3 && companyUsers.length > 0 && (
                   <select
                     value=""
@@ -1353,22 +1546,30 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               </div>
             </div>
 
-            {/* File upload (shared) */}
+            {/* File upload — 드롭존 스타일 */}
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">첨부파일</label>
-              <input
-                type="file"
-                multiple
-                onChange={(e) => setFiles(Array.from(e.target.files || []))}
-                className="w-full text-sm text-[var(--text-muted)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--primary)]/10 file:text-[var(--primary)] hover:file:bg-[var(--primary)]/20 cursor-pointer"
-              />
+              <label className="field-label">첨부파일</label>
+              <label className="flex flex-col items-center justify-center gap-1.5 px-4 py-6 rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--bg)]/50 hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/4 transition cursor-pointer">
+                <svg className="w-6 h-6 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span className="text-xs font-semibold text-[var(--text-muted)]">클릭해서 파일 첨부</span>
+                <span className="text-[10px] text-[var(--text-dim)]">여러 개 선택 가능</span>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                  className="hidden"
+                />
+              </label>
               {files.length > 0 && (
-                <div className="mt-2 space-y-1">
+                <div className="mt-2 space-y-1.5">
                   {files.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                      <span>&#128206;</span>
-                      <span className="truncate flex-1">{f.name} ({(f.size / 1024).toFixed(1)}KB)</span>
-                      <button type="button" onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-300 font-bold px-1">✕</button>
+                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)] text-xs">
+                      <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                      </span>
+                      <span className="truncate flex-1 font-medium text-[var(--text)]">{f.name}</span>
+                      <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{(f.size / 1024).toFixed(1)}KB</span>
+                      <button type="button" onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
                     </div>
                   ))}
                 </div>
@@ -1424,42 +1625,57 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         {/* Auto-generated document preview (leave) */}
         {isLeave && leaveForm.startDate && (
           <div className="glass-card p-5">
-            <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3 uppercase tracking-wider">문서 미리보기</h4>
-            <pre className="text-xs text-[var(--text)] whitespace-pre-wrap leading-relaxed bg-[var(--bg)] rounded-xl p-3 border border-[var(--border)]">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-6 h-6 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
+                <TypeIcon name="doc" className="w-3.5 h-3.5" />
+              </span>
+              <h4 className="text-sm font-bold">문서 미리보기</h4>
+            </div>
+            <pre className="text-xs text-[var(--text)] whitespace-pre-wrap leading-relaxed bg-[var(--bg-surface)] rounded-xl p-3.5">
               {leaveDescription}
             </pre>
           </div>
         )}
 
-        {/* Policy Preview */}
+        {/* Policy Preview — 결재선 스텝퍼 */}
         <div className="glass-card p-5 sticky top-4">
-          <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3 uppercase tracking-wider">결재 흐름 미리보기</h4>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-6 h-6 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>
+            </span>
+            <h4 className="text-sm font-bold">이 요청의 결재선</h4>
+          </div>
 
           {matchedPolicy ? (
             <div>
-              <div className="text-sm font-semibold mb-1">{matchedPolicy.name}</div>
-              {matchedPolicy.auto_approve_below > 0 && (
-                <div className="text-[11px] text-[var(--text-muted)] mb-3">
-                  {formatAmount(matchedPolicy.auto_approve_below)} 미만 자동 승인
-                </div>
-              )}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xs font-semibold text-[var(--text-muted)]">{matchedPolicy.name}</span>
+                {matchedPolicy.auto_approve_below > 0 && (
+                  <span className="badge badge-muted">{formatAmount(matchedPolicy.auto_approve_below)} 미만 자동승인</span>
+                )}
+              </div>
               <div className="space-y-0">
+                {/* 시작: 나 */}
+                <div className="relative pl-8 pb-4">
+                  <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />
+                  <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full bg-[var(--primary)] text-white flex items-center justify-center">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  </div>
+                  <div className="text-xs font-bold pt-1">요청 제출</div>
+                  <div className="text-[11px] text-[var(--text-dim)]">나</div>
+                </div>
                 {(matchedPolicy.stages as ApprovalStageConfig[]).map((stage, idx) => (
-                  <div key={idx} className="relative pl-6 pb-4">
-                    {/* Connector line */}
+                  <div key={idx} className="relative pl-8 pb-4 last:pb-0">
                     {idx < (matchedPolicy.stages as ApprovalStageConfig[]).length - 1 && (
-                      <div className="absolute left-[9px] top-5 bottom-0 w-px bg-[var(--border)]" />
+                      <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />
                     )}
-                    {/* Circle */}
-                    <div className="absolute left-0 top-0.5 w-[18px] h-[18px] rounded-full border-2 border-[var(--border)] bg-[var(--bg-card)] flex items-center justify-center text-[10px] font-bold text-[var(--text-muted)]">
+                    <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full border-2 border-[var(--primary)]/40 bg-[var(--primary)]/8 flex items-center justify-center text-[11px] font-extrabold text-[var(--primary)]">
                       {stage.stage}
                     </div>
-                    <div>
-                      <div className="text-xs font-semibold">{stage.name}</div>
-                      <div className="text-[11px] text-[var(--text-muted)]">
-                        승인자: {stage.approver_role}
-                        {(stage.required_count ?? 1) > 1 && ` (${stage.required_count}명)`}
-                      </div>
+                    <div className="text-xs font-bold pt-1">{stage.name}</div>
+                    <div className="text-[11px] text-[var(--text-dim)]">
+                      {(stage as any).approver_name || stage.approver_role}
+                      {(stage.required_count ?? 1) > 1 && ` · ${stage.required_count}명 승인 필요`}
                     </div>
                   </div>
                 ))}
@@ -1467,23 +1683,18 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
               {/* Auto-approve indicator */}
               {matchedPolicy.auto_approve_below > 0 && effectiveAmount > 0 && effectiveAmount < matchedPolicy.auto_approve_below && (
-                <div className="mt-2 px-3 py-2 bg-green-500/10 rounded-lg text-xs text-green-500 font-semibold">
-                  자동 승인 대상 (금액 기준 충족)
-                </div>
+                <div className="kpi-callout success mt-3">이 금액은 <b>자동 승인</b> 대상이에요</div>
               )}
             </div>
           ) : (
             <div className="text-xs text-[var(--text-muted)]">
-              <p className="mb-2">매칭되는 결재 정책이 없습니다.</p>
-              <p>기본 정책(최종 승인 1단계)이 적용됩니다.</p>
-              <div className="mt-3 relative pl-6">
-                <div className="absolute left-0 top-0.5 w-[18px] h-[18px] rounded-full border-2 border-[var(--border)] bg-[var(--bg-card)] flex items-center justify-center text-[10px] font-bold text-[var(--text-muted)]">
+              <div className="kpi-callout mb-4">매칭 정책이 없어 <b>기본 결재선(1단계)</b>이 적용돼요</div>
+              <div className="relative pl-8">
+                <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full border-2 border-[var(--primary)]/40 bg-[var(--primary)]/8 flex items-center justify-center text-[11px] font-extrabold text-[var(--primary)]">
                   1
                 </div>
-                <div>
-                  <div className="text-xs font-semibold text-[var(--text)]">최종 승인</div>
-                  <div className="text-[11px]">승인자: CEO</div>
-                </div>
+                <div className="text-xs font-bold pt-1 text-[var(--text)]">최종 승인</div>
+                <div className="text-[11px] text-[var(--text-dim)]">승인자: CEO</div>
               </div>
             </div>
           )}
@@ -1787,67 +1998,77 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         </div>
       )}
 
-      {/* Policy List */}
+      {/* Policy List — 결재선 플로우 카드 */}
       {policies.length === 0 && !showForm ? (
-        <div className="text-center py-16 px-6 glass-card">
-          <div className="text-5xl mb-4">🧭</div>
+        <div className="text-center py-20 px-6 glass-card">
+          <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>
+          </div>
           <div className="text-base font-bold mb-1.5">등록된 결재 정책이 없습니다</div>
           <div className="text-sm text-[var(--text-muted)] mb-5">정책을 추가하면 결재 요청 시 자동으로 적용됩니다</div>
           <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary">+ 정책 추가</button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {policies.map((policy: ApprovalPolicy) => (
-            <div key={policy.id} className="glass-card p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-sm">{policy.name}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${policy.is_active ? "bg-green-500/10 text-green-500" : "bg-gray-500/10 text-gray-400"}`}>
-                      {policy.is_active ? "활성" : "비활성"}
-                    </span>
+        <div className="grid gap-4 md:grid-cols-2">
+          {policies.map((policy: ApprovalPolicy) => {
+            const m = typeMeta(policy.document_type);
+            const stages = policy.stages as ApprovalStageConfig[];
+            return (
+              <div key={policy.id} className="glass-card card-hover p-5 group">
+                <div className="flex items-start gap-3 mb-4">
+                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                    <TypeIcon name={m.icon} className="w-5 h-5" />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm truncate">{policy.name}</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${policy.is_active ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>
+                        <span className={`w-1 h-1 rounded-full ${policy.is_active ? "bg-[var(--success)]" : "bg-[var(--text-dim)]"}`} />
+                        {policy.is_active ? "활성" : "비활성"}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                      {REQUEST_TYPE_LABELS[policy.document_type as RequestType] || policy.document_type} · {stages.length}단계
+                      {policy.auto_approve_below > 0 && ` · ${formatAmount(policy.auto_approve_below)} 미만 자동승인`}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-[var(--text-muted)] mt-1">
-                    <span>유형: {REQUEST_TYPE_LABELS[policy.document_type as RequestType] || policy.document_type}</span>
-                    <span>{(policy.stages as ApprovalStageConfig[]).length}단계</span>
-                    {policy.auto_approve_below > 0 && (
-                      <span>자동승인: {formatAmount(policy.auto_approve_below)} 미만</span>
-                    )}
-                  </div>
-                  {/* Stage flow preview */}
-                  <div className="flex items-center gap-1 mt-2">
-                    {(policy.stages as ApprovalStageConfig[]).map((stage, idx) => (
-                      <div key={idx} className="flex items-center gap-1">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)]">
-                          {stage.name}
-                        </span>
-                        {idx < (policy.stages as ApprovalStageConfig[]).length - 1 && (
-                          <svg className="w-3 h-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                            <path d="M9 5l7 7-7 7" />
-                          </svg>
-                        )}
-                      </div>
-                    ))}
+                  <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => startEdit(policy)}
+                      className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition"
+                      title="수정"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    </button>
+                    <button
+                      onClick={() => { if (confirm("이 정책을 삭제하시겠습니까?")) deleteMut.mutate(policy.id); }}
+                      disabled={deleteMut.isPending}
+                      className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition disabled:opacity-50"
+                      title="삭제"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => startEdit(policy)}
-                    className="px-3 py-1.5 text-xs text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded-lg font-semibold transition"
-                  >
-                    수정
-                  </button>
-                  <button
-                    onClick={() => { if (confirm("이 정책을 삭제하시겠습니까?")) deleteMut.mutate(policy.id); }}
-                    disabled={deleteMut.isPending}
-                    className="px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 rounded-lg font-semibold transition disabled:opacity-50"
-                  >
-                    삭제
-                  </button>
+                {/* Stage flow — 번호 서클 + 화살표 */}
+                <div className="flex items-center gap-1.5 flex-wrap px-3 py-2.5 rounded-xl bg-[var(--bg-surface)]/70">
+                  {stages.map((stage, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full bg-[var(--bg-card)] border border-[var(--border)]">
+                        <span className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-[9px] font-extrabold">{stage.stage}</span>
+                        <span className="text-[11px] font-semibold text-[var(--text)]">{stage.name}</span>
+                      </span>
+                      {idx < stages.length - 1 && (
+                        <svg className="w-3 h-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 5l7 7-7 7" />
+                        </svg>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -1889,49 +2110,42 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
 
   return (
     <div>
-      <div className="text-xs font-semibold text-[var(--text-muted)] mb-3">결재 타임라인</div>
+      <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4">결재 타임라인</div>
 
-      {/* Horizontal stage indicator */}
-      <div className="flex items-center gap-0 mb-4 overflow-x-auto pb-1">
+      {/* Horizontal stage stepper */}
+      <div className="flex items-center gap-0 mb-5 overflow-x-auto pb-1">
         {stages.map(([stageNum, steps], idx) => {
           const allApproved = steps.every((s) => s.status === "approved");
           const anyRejected = steps.some((s) => s.status === "rejected");
           const isCurrent = stageNum === currentStage && requestStatus === "pending";
 
-          let circleClass = "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)]";
-          let lineClass = "bg-[var(--border)]";
-
-          if (allApproved) {
-            circleClass = "border-green-500 bg-green-500 text-white";
-            lineClass = "bg-green-500";
-          } else if (anyRejected) {
-            circleClass = "border-red-500 bg-red-500 text-white";
-          } else if (isCurrent) {
-            circleClass = "border-[var(--primary)] bg-[var(--primary)] text-white";
-          }
+          let circleClass = "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-dim)]";
+          if (allApproved) circleClass = "border-[var(--success)] bg-[var(--success)] text-white shadow-sm";
+          else if (anyRejected) circleClass = "border-[var(--danger)] bg-[var(--danger)] text-white shadow-sm";
+          else if (isCurrent) circleClass = "border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm ring-4 ring-[var(--primary)]/15";
 
           return (
             <div key={stageNum} className="flex items-center">
-              <div className="flex flex-col items-center min-w-[80px]">
-                <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-bold ${circleClass}`}>
+              <div className="flex flex-col items-center min-w-[84px]">
+                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[11px] font-extrabold transition ${circleClass}`}>
                   {allApproved ? (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 13l4 4L19 7" />
                     </svg>
                   ) : anyRejected ? (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   ) : (
                     stageNum
                   )}
                 </div>
-                <div className={`text-[10px] mt-1 font-semibold whitespace-nowrap ${isCurrent ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>
+                <div className={`text-[10px] mt-1.5 font-bold whitespace-nowrap ${isCurrent ? "text-[var(--primary)]" : allApproved ? "text-[var(--success)]" : "text-[var(--text-muted)]"}`}>
                   {steps[0]?.stage_name || `${stageNum}단계`}
                 </div>
               </div>
               {idx < stages.length - 1 && (
-                <div className={`h-[2px] w-8 ${allApproved ? lineClass : "bg-[var(--border)]"} -mt-4`} />
+                <div className={`h-[3px] w-10 rounded-full -mt-5 ${allApproved ? "bg-[var(--success)]" : "bg-[var(--border)]"}`} />
               )}
             </div>
           );
@@ -1939,18 +2153,21 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
       </div>
 
       {/* Detailed steps */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {timeline.map((step) => (
           <div key={step.id} className="flex items-start gap-3 text-xs">
-            <StatusBadge status={step.status} />
+            <Avatar name={step.approver_name || "담당자"} size={26} />
             <div className="flex-1 min-w-0">
-              <span className="font-semibold">{step.approver_name || "담당자"}</span>
-              <span className="text-[var(--text-muted)] ml-1">({step.stage_name})</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold">{step.approver_name || "담당자"}</span>
+                <span className="text-[var(--text-dim)]">{step.stage_name}</span>
+                <StatusBadge status={step.status} />
+              </div>
               {step.comment && (
-                <div className="text-[var(--text-muted)] mt-0.5 italic">&ldquo;{step.comment}&rdquo;</div>
+                <div className="mt-1.5 inline-block px-3 py-2 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-pre-wrap">{step.comment}</div>
               )}
             </div>
-            <div className="text-[var(--text-dim)] shrink-0">
+            <div className="text-[var(--text-dim)] shrink-0 mono-number">
               {step.decided_at ? formatDateTime(step.decided_at) : "대기 중"}
             </div>
           </div>
@@ -1976,47 +2193,46 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
     return <div className="text-xs text-[var(--text-muted)] py-2">활동 이력이 없습니다</div>;
   }
 
-  const ACTION_LABELS: Record<string, string> = {
-    pending: "결재 대기",
-    approved: "승인",
-    rejected: "반려",
-    skipped: "건너뜀",
-  };
-
-  const DOT_COLORS: Record<string, string> = {
-    approved: "bg-green-500",
-    rejected: "bg-red-500",
-    pending: "bg-yellow-500",
-    skipped: "bg-gray-400",
+  // 상태별 아이콘 서클 (체크/엑스/시계)
+  const stepVisual = (status: string) => {
+    if (status === "approved") return { cls: "bg-[var(--success-dim)] text-[var(--success)]", icon: <path d="M5 13l4 4L19 7" /> };
+    if (status === "rejected") return { cls: "bg-[var(--danger-dim)] text-[var(--danger)]", icon: <path d="M6 18L18 6M6 6l12 12" /> };
+    if (status === "pending") return { cls: "bg-[var(--warning-dim)] text-[var(--warning)]", icon: <><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15.5 14" /></> };
+    return { cls: "bg-[var(--bg-surface)] text-[var(--text-dim)]", icon: <path d="M5 12h14" /> };
   };
 
   return (
     <div>
-      <div className="text-xs font-semibold text-[var(--text-muted)] mb-3">활동 타임라인</div>
+      <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4">활동 타임라인</div>
       <div className="space-y-0">
-        {steps.map((step, i) => (
-          <div key={step.id} className="flex gap-3">
-            {/* Vertical line + dot */}
-            <div className="flex flex-col items-center">
-              <div className={`w-2.5 h-2.5 rounded-full mt-1 ${DOT_COLORS[step.status] || "bg-gray-400"}`} />
-              {i < steps.length - 1 && <div className="w-px flex-1 bg-[var(--border)]" />}
-            </div>
-            {/* Content */}
-            <div className="pb-4 flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold text-[var(--text)]">{step.approver_name || "담당자"}</span>
-                <StatusBadge status={step.status} />
-                <span className="caption">({step.stage_name})</span>
+        {steps.map((step, i) => {
+          const v = stepVisual(step.status);
+          return (
+            <div key={step.id} className="flex gap-3">
+              {/* Vertical line + icon circle */}
+              <div className="flex flex-col items-center">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${v.cls}`}>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">{v.icon}</svg>
+                </div>
+                {i < steps.length - 1 && <div className="w-px flex-1 bg-[var(--border)] my-0.5" />}
               </div>
-              <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
-                {step.decided_at ? formatDateTime(step.decided_at) : step.created_at ? `${formatDateTime(step.created_at)} 배정` : "대기 중"}
+              {/* Content */}
+              <div className="pb-4 flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-[var(--text)]">{step.approver_name || "담당자"}</span>
+                  <StatusBadge status={step.status} />
+                  <span className="caption">{step.stage_name}</span>
+                </div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-0.5 mono-number">
+                  {step.decided_at ? formatDateTime(step.decided_at) : step.created_at ? `${formatDateTime(step.created_at)} 배정` : "대기 중"}
+                </div>
+                {step.comment && (
+                  <div className="mt-1.5 inline-block px-3 py-2 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-xs text-[var(--text-muted)] whitespace-pre-wrap">{step.comment}</div>
+                )}
               </div>
-              {step.comment && (
-                <div className="text-xs text-[var(--text-muted)] mt-1 italic">&ldquo;{step.comment}&rdquo;</div>
-              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

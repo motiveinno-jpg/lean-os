@@ -84,28 +84,49 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
   return (
     <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+      <div className="flex items-center justify-between mb-5 gap-2 flex-wrap">
         <div>
-          <h2 className="text-base font-bold text-[var(--text)]">결재 양식 관리</h2>
+          <h2 className="text-sm font-bold text-[var(--text)]">결재 양식 관리</h2>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">회사에서 쓰는 결재 양식(필드·내용·결재선)을 만들어 새 요청에서 선택합니다.</p>
         </div>
         <button onClick={openNew} className="btn-primary">+ 새 양식 추가</button>
       </div>
 
       {(forms as ApprovalForm[]).length === 0 ? (
-        <div className="text-xs text-[var(--text-dim)] px-1 py-6 text-center">등록된 결재 양식이 없습니다. “+ 새 양식 추가”로 만들어 보세요.</div>
+        <div className="text-center py-14">
+          <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          </div>
+          <div className="text-sm font-bold mb-1">등록된 결재 양식이 없습니다</div>
+          <div className="text-xs text-[var(--text-muted)]">&ldquo;+ 새 양식 추가&rdquo;로 우리 회사만의 결재 양식을 만들어 보세요</div>
+        </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="grid gap-3 sm:grid-cols-2">
           {(forms as ApprovalForm[]).map((f) => (
-            <div key={f.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-[var(--text)] truncate">{f.name}
-                  {f.category && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]">{f.category}</span>}
+            <div key={f.id} className="group rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 hover:border-[var(--primary)]/40 hover:shadow-md transition">
+              <div className="flex items-start gap-3">
+                <span className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-bold text-[var(--text)] truncate">{f.name}</span>
+                    {f.category && <span className="badge badge-primary">{f.category}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="badge badge-muted">입력 필드 {f.fields?.length || 0}</span>
+                    <span className="badge badge-muted">결재 {f.stages?.length || 0}단계</span>
+                  </div>
                 </div>
-                <div className="text-[10px] text-[var(--text-dim)]">필드 {f.fields?.length || 0} · 결재 {f.stages?.length || 0}단계</div>
+                <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => openEdit(f)} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition" title="편집">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  </button>
+                  <button onClick={() => remove(f)} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition" title="삭제">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                  </button>
+                </div>
               </div>
-              <button onClick={() => openEdit(f)} className="text-xs px-2 py-1 rounded text-[var(--text)] font-medium hover:bg-[var(--bg-card)]">편집</button>
-              <button onClick={() => remove(f)} className="text-xs px-2 py-1 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
             </div>
           ))}
         </div>
@@ -113,9 +134,14 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
       {/* 빌더 모달 */}
       {editing && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditing(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="text-sm font-bold text-[var(--text)] mb-3">{editing.id ? "양식 편집" : "새 결재 양식"}</div>
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className="w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              </span>
+              <div className="text-sm font-bold text-[var(--text)]">{editing.id ? "양식 편집" : "새 결재 양식"}</div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div>
