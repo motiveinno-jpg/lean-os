@@ -52,11 +52,14 @@ export default function BillingPage() {
       if (!companyId) return null;
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
       const iso = monthStart.toISOString();
-      const [emp, deals, sigs, partners] = await Promise.all([
+      const [emp, deals, sigs, partners, codef] = await Promise.all([
         db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId).in("status", ["active", "joined"]),
         db.from("deals").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("signature_requests").select("id", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", iso),
         db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),
+        // CODEF 동기화 크레딧 — codef_usage 원장(units=과금 추정 건수)의 이번 달 합계.
+        //   테이블 미생성(마이그 미적용) 시 error 로 떨어지고 0으로 폴백 — 화면은 항상 정상.
+        db.from("codef_usage").select("units").eq("company_id", companyId).gte("created_at", iso).limit(2000),
       ]);
       // ai_usage_logs 테이블 미존재(AI 사용량 미추적) — 쿼리 제거(404 방지). 추적 도입 시 복원.
       return {
@@ -65,6 +68,7 @@ export default function BillingPage() {
         signatures: sigs.count || 0,
         aiCalls: 0,
         partners: partners.count || 0,
+        codefUnits: ((codef.data as { units: number }[] | null) || []).reduce((s, r) => s + (r.units || 0), 0),
       };
     },
     enabled: !!companyId,
@@ -340,11 +344,14 @@ export default function BillingPage() {
               enterprise: { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
             };
             const lim = limits[currentSlug] || limits.free;
+            // CODEF 동기화 크레딧 한도 — 플랜의 monthly_credits (null=무제한/미시행 → 측정만 표시)
+            const codefLimit = subscription?.subscription_plans?.monthly_credits ?? 9999;
             const items: { label: string; used: number; limit: number; icon: string }[] = [
               { label: "활성 직원", used: usage.employees, limit: lim.employees, icon: "👥" },
               { label: "AI 분석 (이번 달)", used: usage.aiCalls, limit: lim.aiCalls, icon: "🤖" },
               { label: "전자서명 (이번 달)", used: usage.signatures, limit: lim.signatures, icon: "✍️" },
               { label: "거래처", used: usage.partners, limit: lim.partners, icon: "🏢" },
+              { label: "동기화 크레딧 (이번 달)", used: usage.codefUnits, limit: codefLimit, icon: "🔄" },
             ];
             return (
               <div className="glass-card p-6 mb-6">
@@ -352,7 +359,7 @@ export default function BillingPage() {
                   <h3 className="text-sm font-bold text-[var(--text)]">이번 달 사용량</h3>
                   <span className="text-xs text-[var(--text-muted)]">{new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long" })}</span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   {items.map((it) => {
                     const unlimited = it.limit >= 9999;
                     const pct = unlimited ? 0 : Math.min(100, Math.round((it.used / Math.max(1, it.limit)) * 100));

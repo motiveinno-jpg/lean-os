@@ -64,6 +64,54 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
 // 일부 월(예: 1월처럼 거래량 많거나 CODEF 부하시)은 60초 부족, 70초로 늘림.
 const CODEF_REQUEST_TIMEOUT_MS = 70_000;
 
+// ── 2026-07-03 CODEF 사용량 계측 (phase 1: 측정만, 차단 없음) ──────────────
+//   codefRequest 를 지나는 모든 호출을 "요청(invocation) 단위"로 수집해 codef_usage 원장에 적재.
+//   - units(과금 추정) = 상품 API(/v1/kr/*) 성공(CF-00000) 호출 수 — CODEF 는 상품 조회 성공 건당 과금
+//   - 관리 API(/v1/account/*)는 무과금 → total_calls 에만 포함
+//   - cron 은 회사별 자가호출(fan-out) 구조라 invocation 단위 수집으로 회사 귀속이 자동으로 맞음
+//   AsyncLocalStorage 미지원 런타임이면 계측만 조용히 비활성(동기화 기능 무영향 — fail-open).
+type MeterCall = { path: string; code: string };
+type MeterStore = { calls: MeterCall[]; companyId: string | null; action: string };
+let usageALS: any = null;
+try {
+  const hooks = await import("node:async_hooks");
+  usageALS = new hooks.AsyncLocalStorage();
+} catch (_) {
+  usageALS = null;
+  console.error("[METER] AsyncLocalStorage unavailable — usage metering disabled");
+}
+function meterPush(path: string, code: string) {
+  try {
+    const s = usageALS?.getStore?.() as MeterStore | undefined;
+    if (s) s.calls.push({ path, code });
+  } catch (_) { /* 계측은 절대 동기화를 깨지 않는다 */ }
+}
+async function flushCodefUsage(store: MeterStore) {
+  try {
+    if (!store.calls.length) return;
+    const units = store.calls.filter((c) => c.code === "CF-00000" && c.path.startsWith("/v1/kr/")).length;
+    const byPath: Record<string, number> = {};
+    for (const c of store.calls) {
+      const k = `${c.path}:${c.code}`;
+      byPath[k] = (byPath[k] || 0) + 1;
+    }
+    const sb = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    await sb.from("codef_usage").insert({
+      company_id: store.companyId,
+      action: store.action || "unknown",
+      units,
+      total_calls: store.calls.length,
+      meta: { byPath },
+    });
+  } catch (e: any) {
+    // 테이블 미생성/일시 장애 시에도 동기화 응답은 정상 — 로그만
+    console.error("[METER] codef_usage insert failed:", e?.message);
+  }
+}
+
 async function codefRequest(token: string, path: string, body: Record<string, any>): Promise<any> {
   const sanitizedBody = { ...body };
   if (sanitizedBody.accountList) {
@@ -95,8 +143,10 @@ async function codefRequest(token: string, path: string, body: Record<string, an
       // 60초 cap 초과 — CODEF 게이트웨이 응답 없음. 우리 측 가짜 응답으로 매핑해서
       // 호출자가 정상 흐름으로 처리 (errors 배열에 push, status='error').
       console.error(`[CODEF] AbortError: ${path} > ${CODEF_REQUEST_TIMEOUT_MS}ms`);
+      meterPush(path, "CF-TIMEOUT");
       return { result: { code: "CF-TIMEOUT", message: `CODEF 게이트웨이 응답 시간 초과 (${CODEF_REQUEST_TIMEOUT_MS / 1000}초). 잠시 후 다시 시도하세요.` } };
     }
+    meterPush(path, "FETCH_ERROR");
     throw err;
   }
   clearTimeout(tid);
@@ -104,6 +154,7 @@ async function codefRequest(token: string, path: string, body: Record<string, an
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
     console.error(`[CODEF] HTTP ${res.status}: ${errText}`);
+    meterPush(path, `HTTP_${res.status}`);
     throw new Error(`CODEF API error: ${res.status}`);
   }
   const text = await res.text();
@@ -115,6 +166,7 @@ async function codefRequest(token: string, path: string, body: Record<string, an
     parsed = JSON.parse(text);
   }
   console.log(`[CODEF] Response:`, JSON.stringify({ code: parsed.result?.code, message: parsed.result?.message, extraMessage: parsed.result?.extraMessage }));
+  meterPush(path, parsed.result?.code || "UNKNOWN");
   return parsed;
 }
 
@@ -1223,6 +1275,12 @@ async function syncHometaxCashReceipts(
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // 계측 스토어 — 이 invocation 의 CODEF 호출을 ALS 로 수집, 응답 후 원장 적재
+  const meterStore: MeterStore = { calls: [], companyId: null, action: "" };
+  const runWithMeter = usageALS
+    ? (fn: () => Promise<Response>) => usageALS.run(meterStore, fn)
+    : (fn: () => Promise<Response>) => fn();
+  return await runWithMeter(async () => {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -1234,6 +1292,8 @@ serve(async (req) => {
 
     const body = await req.json();
     const { companyId, action = "sync", syncType = "all", startDate, endDate, connectedId } = body;
+    meterStore.companyId = companyId || null;
+    meterStore.action = action;
 
     // 인증 분기:
     //   1) HOMETAX_CRON_SECRET 헤더 매칭 → cron 호출 (cron-tick/job-step만 허용, user 검사 skip)
@@ -2047,5 +2107,9 @@ serve(async (req) => {
 
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message || "Internal error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } finally {
+    // 사용량 원장 적재 — 실패해도 응답에 영향 없음 (내부 try/catch)
+    await flushCodefUsage(meterStore);
   }
+  });
 });
