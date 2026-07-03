@@ -11,6 +11,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/dashboard", "/platform/", "/api/", "/auth/reset", "/invite", "/sign", "/share"],
       },
     ],
+    sitemap: "https://www.owner-view.com/sitemap.xml",
     host: "https://www.owner-view.com",
   };
 }
