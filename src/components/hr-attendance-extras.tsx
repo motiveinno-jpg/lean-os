@@ -277,14 +277,14 @@ export function EditRequestInbox({ companyId, reviewerId }: { companyId: string;
                   <button
                     onClick={() => reviewMut.mutate({ requestId: r.id, decision: "approved", applyChanges: true })}
                     disabled={reviewMut.isPending}
-                    className="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-[10px] font-semibold disabled:opacity-40"
+                    className="px-2.5 py-1 bg-[var(--success)] hover:brightness-110 text-white rounded text-[10px] font-semibold disabled:opacity-40"
                   >
                     승인+적용
                   </button>
                   <button
                     onClick={() => reviewMut.mutate({ requestId: r.id, decision: "rejected", applyChanges: false })}
                     disabled={reviewMut.isPending}
-                    className="px-2.5 py-1 bg-red-600/80 hover:bg-red-700 text-white rounded text-[10px] font-semibold disabled:opacity-40"
+                    className="px-2.5 py-1 bg-[var(--danger)] hover:brightness-110 text-white rounded text-[10px] font-semibold disabled:opacity-40"
                   >
                     반려
                   </button>
@@ -328,7 +328,7 @@ export function MonthlyRecomputeButton({ companyId, from, to }: { companyId: str
     <button
       onClick={() => mut.mutate()}
       disabled={mut.isPending}
-      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold disabled:opacity-40"
+      className="px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold disabled:opacity-40"
       title="해당 기간 attendance_records 의 가산수당 분(分) 컬럼을 회사 정책·휴일 기반으로 재산정합니다."
     >
       {mut.isPending ? "재계산 중…" : "가산수당 재계산"}

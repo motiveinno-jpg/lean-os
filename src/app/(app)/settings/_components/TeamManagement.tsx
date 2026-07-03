@@ -181,7 +181,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--bg-surface)] rounded-lg p-0.5 mb-4">
+      <div className="seg-bar flex w-full mb-4">
         {([
           { key: "members" as const, label: "멤버" },
           { key: "employees" as const, label: "직원 초대" },
@@ -190,9 +190,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition ${
-              tab === t.key ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"
-            }`}
+            className={`seg-item flex-1 ${tab === t.key ? "seg-item-active" : ""}`}
           >
             {t.label}
           </button>
@@ -215,7 +213,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label>
+              <label className="field-label">이메일 *</label>
               <input
                 type="email"
                 value={inviteEmail}
@@ -225,7 +223,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
               />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">이름</label>
+              <label className="field-label">이름</label>
               <input
                 value={inviteName}
                 onChange={(e) => setInviteName(e.target.value)}
@@ -235,7 +233,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">역할</label>
+            <label className="field-label">역할</label>
             <div className="flex gap-2">
               {([
                 { value: "employee" as const, label: "직원", color: "#059669" },
@@ -261,11 +259,11 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
             <button
               onClick={() => inviteEmail && inviteMut.mutate()}
               disabled={!inviteEmail || inviteMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+              className="btn-primary"
             >
               {inviteMut.isPending ? "전송 중..." : "초대 전송"}
             </button>
-            <button onClick={() => setShowInviteForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">
+            <button onClick={() => setShowInviteForm(false)} className="btn-ghost">
               취소
             </button>
           </div>
@@ -310,9 +308,9 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
                   <div className="text-sm font-medium flex items-center gap-2">
                     {inv.name || inv.email}
                     {roleBadge(inv.role || "employee")}
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${
-                      inv.status === "pending" ? "bg-amber-500/10 text-amber-400" :
-                      inv.status === "accepted" ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                      inv.status === "pending" ? "bg-[var(--warning-dim)] text-[var(--warning)]" :
+                      inv.status === "accepted" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
                     }`}>
                       {inv.status === "pending" ? "대기중" : inv.status === "accepted" ? "수락됨" : "취소됨"}
                     </span>
@@ -367,9 +365,9 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
                   <div className="text-sm font-medium flex items-center gap-2">
                     {inv.name || inv.email}
                     {roleBadge("partner")}
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${
-                      inv.status === "pending" ? "bg-amber-500/10 text-amber-400" :
-                      inv.status === "accepted" ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                      inv.status === "pending" ? "bg-[var(--warning-dim)] text-[var(--warning)]" :
+                      inv.status === "accepted" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
                     }`}>
                       {inv.status === "pending" ? "대기중" : inv.status === "accepted" ? "수락됨" : "취소됨"}
                     </span>

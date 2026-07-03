@@ -1057,7 +1057,7 @@ export default function TaxInvoicesPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.print()}
-            className="no-print px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--text-muted)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-medium transition flex items-center gap-1.5 cursor-pointer"
+            className="no-print btn-secondary cursor-pointer"
             title="현재 페이지 인쇄"
             aria-label="인쇄"
           >
@@ -1068,7 +1068,7 @@ export default function TaxInvoicesPage() {
           </button>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="no-print px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition hover:shadow-lg hover:shadow-indigo-500/25"
+            className="no-print btn-primary"
           >
             + 세금계산서 등록
           </button>
@@ -1124,8 +1124,7 @@ export default function TaxInvoicesPage() {
           </div>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] })}
-            className="ml-auto self-center px-7 py-2.5 rounded-md text-sm font-bold text-white transition hover:brightness-110"
-            style={{ background: "var(--primary)" }}
+            className="ml-auto self-center btn-primary"
             title="현재 조건으로 다시 조회합니다"
           >
             조회하기
@@ -1357,69 +1356,68 @@ export default function TaxInvoicesPage() {
         </div>
       )}
 
-      {/* Summary Cards — 정제·강화(2026-07-02): 풀채도 그라데이션 → 흰 카드+절제된 색 아이콘 칩.
-          색코딩(매출 에메랄드·매입 앰버·미연결 레드·부가세 인디고)은 아이콘/강조값에만 남겨 알록달록함 제거. */}
+      {/* Summary Cards — TeamHub KPI 카드 패턴: [라벨 + kpi-icon] / [큰 값] / [실데이터 보조행] */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" data-print-area>
-        <div className="glass-card p-5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-[11px] text-[var(--text-dim)] mb-1.5 uppercase tracking-wider font-medium">이번 달 매출</div>
-              <div className="text-2xl font-black mono-number text-[var(--text)]">{fmt(totalSales)}</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">
-                {salesInvoices.length}건
-                {salesInvoices.length > 0 && (
-                  <span className="ml-1 text-[var(--text-dim)]">
-                    (공급가 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
-                  </span>
-                )}
-              </div>
-            </div>
-            <span className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0 text-base leading-none">📈</span>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번 달 매출</span>
+            <span className="kpi-icon success text-base leading-none">📈</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmt(totalSales)}</span>
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">
+            {salesInvoices.length}건
+            {salesInvoices.length > 0 && (
+              <span className="ml-1 text-[var(--text-dim)]">
+                (공급가 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
+              </span>
+            )}
           </div>
         </div>
-        <div className="glass-card p-5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-[11px] text-[var(--text-dim)] mb-1.5 uppercase tracking-wider font-medium">이번 달 매입</div>
-              <div className="text-2xl font-black mono-number text-[var(--text)]">{fmt(totalPurchase)}</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">
-                {purchaseInvoices.length}건
-                {purchaseInvoices.length > 0 && (
-                  <span className="ml-1 text-[var(--text-dim)]">
-                    (공급가 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
-                  </span>
-                )}
-              </div>
-            </div>
-            <span className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 shrink-0 text-base leading-none">📉</span>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번 달 매입</span>
+            <span className="kpi-icon warning text-base leading-none">📉</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmt(totalPurchase)}</span>
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">
+            {purchaseInvoices.length}건
+            {purchaseInvoices.length > 0 && (
+              <span className="ml-1 text-[var(--text-dim)]">
+                (공급가 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0))})
+              </span>
+            )}
           </div>
         </div>
-        <div className="glass-card p-5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-[11px] text-[var(--text-dim)] mb-1.5 uppercase tracking-wider font-medium">딜 미연결 건수</div>
-              <div className={`text-2xl font-black mono-number ${unmatched > 0 ? "text-red-500" : "text-[var(--text)]"}`}>{unmatched}건</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">
-                {unmatched > 0 ? `전체 ${invoices.length}건 중 딜 자동연결 안 됨` : "모든 계산서 딜 연결 완료"}
-              </div>
-            </div>
-            <span className={`w-9 h-9 flex items-center justify-center rounded-xl shrink-0 text-base leading-none ${unmatched > 0 ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-500"}`}>🔗</span>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">딜 미연결 건수</span>
+            <span className={`kpi-icon text-base leading-none ${unmatched > 0 ? "danger" : "success"}`}>🔗</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className={`text-[26px] leading-8 font-extrabold mono-number ${unmatched > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{unmatched}건</span>
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">
+            {unmatched > 0 ? `전체 ${invoices.length}건 중 딜 자동연결 안 됨` : "모든 계산서 딜 연결 완료"}
           </div>
         </div>
-        <div className="glass-card p-5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-[11px] text-[var(--text-dim)] mb-1.5 uppercase tracking-wider font-medium">예상 부가세 납부액</div>
-              <div className="text-2xl font-black mono-number text-[var(--text)]">{fmt(Math.abs(vatEstimate))}</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">
-                {vatEstimate >= 0 ? "납부 예정" : "환급 예정"}
-                <span className="text-[var(--text-dim)] ml-1">
-                  (매출세액 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))}
-                  {" - "}매입세액 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))})
-                </span>
-              </div>
-            </div>
-            <span className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--primary-light)] text-[var(--primary)] shrink-0 text-base leading-none">🧾</span>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">예상 부가세 납부액</span>
+            <span className="kpi-icon text-base leading-none">🧾</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmt(Math.abs(vatEstimate))}</span>
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">
+            {vatEstimate >= 0 ? "납부 예정" : "환급 예정"}
+            <span className="text-[var(--text-dim)] ml-1">
+              (매출세액 {fmt(salesInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))}
+              {" - "}매입세액 {fmt(purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0))})
+            </span>
           </div>
         </div>
       </div>
@@ -1705,34 +1703,32 @@ export default function TaxInvoicesPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {[
-          { key: "sales" as const, label: "매출", count: salesInvoices.length },
-          { key: "purchase" as const, label: "매입", count: purchaseInvoices.length },
-          { key: "queue" as const, label: "자동발행" },
-          // "3-Way 매칭" 탭은 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21)
-          { key: "summary" as const, label: "기간별 집계" },
-          { key: "vat" as const, label: "VAT 미리보기" },
-          { key: "sync" as const, label: "홈택스 동기화" },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key as any)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
-              tab === t.key
-                ? "bg-[var(--primary)] text-white shadow-sm"
-                : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)]"
-            }`}
-          >
-            {t.label}
-            {"count" in t && t.count !== undefined && (
-              <span className="text-xs opacity-70 ml-1">({t.count})</span>
-            )}
-          </button>
-        ))}
+        <div className="seg-bar flex-wrap">
+          {[
+            { key: "sales" as const, label: "매출", count: salesInvoices.length },
+            { key: "purchase" as const, label: "매입", count: purchaseInvoices.length },
+            { key: "queue" as const, label: "자동발행" },
+            // "3-Way 매칭" 탭은 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21)
+            { key: "summary" as const, label: "기간별 집계" },
+            { key: "vat" as const, label: "VAT 미리보기" },
+            { key: "sync" as const, label: "홈택스 동기화" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key as any)}
+              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}
+            >
+              {t.label}
+              {"count" in t && t.count !== undefined && (
+                <span className="text-xs opacity-70 ml-1">({t.count})</span>
+              )}
+            </button>
+          ))}
+        </div>
 
         <div className="ml-auto flex gap-2">
           {/* Excel import */}
-          <label className="px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg text-sm font-medium border border-green-500/20 transition flex items-center gap-2 cursor-pointer">
+          <label className="btn-secondary cursor-pointer">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
               <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1750,7 +1746,7 @@ export default function TaxInvoicesPage() {
                 const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
                 exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
               }}
-              className="px-4 py-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg text-sm font-medium border border-green-500/20 transition flex items-center gap-2"
+              className="btn-secondary"
               title="현재 목록을 엑셀로 내보내기"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -1851,8 +1847,7 @@ export default function TaxInvoicesPage() {
           ) : (
             <div>
               {/* 홈택스식 결과 요약 바 — 총 N건 · 공급가액/세액/합계 합산 */}
-              <div className="px-4 py-2.5 border-b border-[var(--border)] flex flex-wrap items-center gap-x-5 gap-y-1 text-xs"
-                style={{ background: "color-mix(in srgb, var(--primary) 6%, var(--bg-surface))" }}>
+              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
                 <span className="font-bold text-[var(--text)]">총 {currentList.length}건</span>
                 <span className="text-[var(--text-muted)]">공급가액 <b className="text-[var(--text)] mono-number">{currentList.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0).toLocaleString("ko")}원</b></span>
                 <span className="text-[var(--text-muted)]">세액 <b className="text-[var(--text)] mono-number">{currentList.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0).toLocaleString("ko")}원</b></span>
@@ -1863,7 +1858,7 @@ export default function TaxInvoicesPage() {
               <div className="overflow-auto max-h-[600px]">
                 <table className="w-full text-xs border-collapse" style={{ minWidth: 980 }}>
                   <thead className="sticky top-0 z-10">
-                    <tr className="text-[var(--text-muted)] border-b border-[var(--border)]" style={{ background: "color-mix(in srgb, var(--primary) 8%, var(--bg-surface))" }}>
+                    <tr className="text-xs text-[var(--text-dim)] bg-[var(--bg-card)] border-b border-[var(--border)]">
                       <th className="px-2 py-2.5 w-8 text-center border-l border-[var(--border)]/50 first:border-l-0">
                         {selectableInList.length > 0 && (
                           <input type="checkbox" checked={selectedRows.length === selectableInList.length && selectableInList.length > 0} onChange={toggleSelectAll}
@@ -1949,7 +1944,7 @@ export default function TaxInvoicesPage() {
                   </tbody>
                   {/* 홈택스식 합계 행 */}
                   <tfoot>
-                    <tr className="font-bold text-[var(--text)] border-t-2 border-[var(--border)]" style={{ background: "color-mix(in srgb, var(--primary) 6%, var(--bg-surface))" }}>
+                    <tr className="font-bold text-[var(--text)] border-t-2 border-[var(--border)] bg-[var(--bg-surface)]">
                       <td className="px-2 py-2.5" />
                       <td colSpan={4} className="px-3 py-2.5 border-l border-[var(--border)]/40">합계 ({currentList.length}건)</td>
                       <td className="px-3 py-2.5 text-right mono-number border-l border-[var(--border)]/40">{currentList.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0).toLocaleString("ko")}</td>
@@ -2147,7 +2142,7 @@ export default function TaxInvoicesPage() {
         <div className="space-y-4">
           {/* 미연결 상태 — 등록 가이드 */}
           {!isHometaxConnected && (
-            <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/30 rounded-2xl p-5">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-5">
               <div className="flex items-start gap-3">
                 <div className="text-2xl">💡</div>
                 <div className="flex-1">
@@ -2181,7 +2176,7 @@ export default function TaxInvoicesPage() {
 
           {/* 연결됨 + 첫 동기화 전 — 시작 안내 */}
           {isHometaxConnected && syncLogs.length === 0 && (
-            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-2xl p-5">
+            <div className="bg-emerald-500/10 border border-green-500/30 rounded-2xl p-5">
               <div className="flex items-start gap-3">
                 <div className="text-2xl">✅</div>
                 <div className="flex-1">

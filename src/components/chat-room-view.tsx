@@ -63,7 +63,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
         <>
           {/* Filter + Layout Toolbar */}
           <div className="sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)] px-4 py-2.5 flex items-center justify-between gap-2">
-            <div className="flex gap-1">
+            <div className="seg-bar">
               {[
                 { key: "all", label: `전체 (${files.length})` },
                 { key: "image", label: `이미지 (${imgs.length})` },
@@ -73,11 +73,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
                 <button
                   key={t.key}
                   onClick={() => setFilter(t.key as any)}
-                  className={`px-3 py-2 rounded-md text-[11px] font-medium min-h-[44px] transition ${
-                    filter === t.key
-                      ? "bg-[var(--primary)] text-white"
-                      : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"
-                  }`}
+                  className={`seg-item ${filter === t.key ? "seg-item-active" : ""}`}
                 >
                   {t.label}
                 </button>
@@ -825,7 +821,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
         </div>
       )}
 
-      <div className="flex gap-1 rounded-xl p-1 mb-3 shrink-0 bg-[var(--bg-surface)]">
+      <div className="seg-bar flex w-full mb-3 shrink-0">
         {([
           { key: "chat" as const, label: `채팅 (${messages.length})` },
           { key: "participants" as const, label: `참가자 (${participants.length})` },
@@ -833,9 +829,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
           { key: "events" as const, label: `이벤트 (${events.length})` },
         ]).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-              tab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}>
+            className={`seg-item flex-1 ${tab === t.key ? "seg-item-active" : ""}`}>
             {t.label}
           </button>
         ))}
@@ -946,7 +940,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
           <div className="px-5 py-3 border-b border-[var(--border)]">
             <button
               onClick={() => { setShowInvite(true); setInviteLink(""); setLinkCopied(false); setExtContact(""); }}
-              className="w-full py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
+              className="btn-primary w-full"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -1017,18 +1011,18 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                 </div>
 
                 {/* 탭 */}
-                <div className="flex gap-1 mx-6 mt-4 bg-[var(--bg-surface)] rounded-xl p-1">
-                  {([
-                    { key: "internal" as const, label: "내부 멤버" },
-                    { key: "external" as const, label: "외부 초대" },
-                  ]).map((t) => (
-                    <button key={t.key} onClick={() => setInviteTab(t.key)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                        inviteTab === t.key ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-                      }`}>
-                      {t.label}
-                    </button>
-                  ))}
+                <div className="mx-6 mt-4">
+                  <div className="seg-bar flex w-full">
+                    {([
+                      { key: "internal" as const, label: "내부 멤버" },
+                      { key: "external" as const, label: "외부 초대" },
+                    ]).map((t) => (
+                      <button key={t.key} onClick={() => setInviteTab(t.key)}
+                        className={`seg-item flex-1 ${inviteTab === t.key ? "seg-item-active" : ""}`}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="px-6 py-4">

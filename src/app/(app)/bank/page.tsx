@@ -28,9 +28,9 @@ const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 type Tab = "overview" | "accounts" | "transactions";
 
 const MAPPING_META: Record<string, { label: string; bg: string; text: string }> = {
-  unmapped: { label: "미매핑", bg: "bg-amber-500/10", text: "text-amber-500" },
-  auto_mapped: { label: "자동", bg: "bg-blue-500/10", text: "text-blue-500" },
-  manual_mapped: { label: "수동", bg: "bg-emerald-500/10", text: "text-emerald-500" },
+  unmapped: { label: "미매핑", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },
+  auto_mapped: { label: "자동", bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]" },
+  manual_mapped: { label: "수동", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
   ignored: { label: "무시", bg: "bg-[var(--text-muted)]/10", text: "text-[var(--text-muted)]" },
 };
 
@@ -324,7 +324,7 @@ export default function BankPage() {
   const welcomeName = user?.email?.split("@")[0] || "사용자";
 
   const Stat = ({ tone, icon, label, value, delta, sub, invertDeltaColor }: {
-    tone: string;
+    tone: string; // kpi-icon 변형: "" | "success" | "warning" | "danger" | "info"
     icon: React.ReactNode;
     label: string;
     value: string;
@@ -332,22 +332,21 @@ export default function BankPage() {
     sub?: string;
     invertDeltaColor?: boolean;
   }) => (
-    <div className="glass-card p-6 group hover:shadow-xl transition-all">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br ${tone} group-hover:scale-105 transition-transform`}>
-          {icon}
-        </div>
+    <div className="glass-card p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
+        <span className={`kpi-icon ${tone}`}>{icon}</span>
+      </div>
+      <div className="flex items-end gap-2">
+        <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{value}</span>
         {delta != null ? (
-          <span className={`text-sm font-semibold inline-flex items-center gap-1 ${(invertDeltaColor ? delta < 0 : delta >= 0) ? "text-emerald-500" : "text-red-500"}`}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={delta >= 0 ? "M7 17l9-9m0 0H9m7 0v7" : "M17 7l-9 9m0 0h7m-7 0V9"} /></svg>
-            {Math.abs(delta).toFixed(1)}%
+          <span className={`delta-chip ${(invertDeltaColor ? delta < 0 : delta >= 0) ? "delta-up" : "delta-down"} mb-1`}>
+            {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(1)}%
           </span>
         ) : sub ? (
-          <span className="text-[11px] text-[var(--text-dim)]">{sub}</span>
+          <span className="text-[11px] text-[var(--text-dim)] mb-1.5">{sub}</span>
         ) : null}
       </div>
-      <p className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1 font-medium">{label}</p>
-      <p className="text-2xl font-bold text-[var(--text)] mono-number">{value}</p>
     </div>
   );
 
@@ -369,7 +368,7 @@ export default function BankPage() {
             type="button"
             onClick={() => bankCd.run(handleSyncBank)}
             disabled={syncing || !companyId || bankCd.disabled}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-indigo-500/30 transition disabled:opacity-50 ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+            className={`btn-primary ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
             title={bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "통장 거래 기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
           >
             {syncing ? (
@@ -393,30 +392,30 @@ export default function BankPage() {
       {/* 시안 stat 4 그라데이션 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Stat
-          tone="from-blue-500 to-blue-600"
-          icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          tone=""
+          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
           label="총 자산"
           value={fmtW(totalBalance)}
           sub={`${accounts.length}개 계좌`}
         />
         <Stat
-          tone="from-emerald-500 to-emerald-600"
-          icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>}
+          tone="success"
+          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>}
           label="이번 달 수익"
           value={`+${fmtW(income)}`}
           delta={incomeDelta}
         />
         <Stat
-          tone="from-orange-500 to-orange-600"
-          icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" /></svg>}
+          tone="danger"
+          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" /></svg>}
           label="이번 달 지출"
           value={`-${fmtW(expense)}`}
           delta={expenseDelta}
           invertDeltaColor
         />
         <Stat
-          tone="from-purple-500 to-purple-600"
-          icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
+          tone="info"
+          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
           label="분류 완료율"
           value={mappingRate != null ? `${mappingRate}%` : "—"}
           sub={flow && flow.total > 0 ? `${flow.mapped}/${flow.total}건` : "거래 없음"}
@@ -470,7 +469,7 @@ export default function BankPage() {
                 type="button"
                 onClick={handleSyncBank}
                 disabled={syncing}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold text-xs shadow hover:shadow-lg transition disabled:opacity-50"
+                className="btn-primary"
               >
                 {syncing ? "연동 중..." : "🏦 통장 연동하기"}
               </button>
@@ -504,20 +503,20 @@ export default function BankPage() {
                     </button>
                     {Math.round(change) !== 0 && (
                       change >= 0 ? (
-                        <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9-9m0 0H9m7 0v7" /></svg>
+                        <svg className="w-4 h-4 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9-9m0 0H9m7 0v7" /></svg>
                       ) : (
-                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 7l-9 9m0 0h7m-7 0V9" /></svg>
+                        <svg className="w-4 h-4 text-[var(--danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 7l-9 9m0 0h7m-7 0V9" /></svg>
                       )
                     )}
                   </div>
                 </div>
                 <p className="text-lg font-bold text-[var(--text)] mb-1.5 mono-number">{fmtW(bal)}</p>
                 {Math.round(change) !== 0 ? (
-                  <div className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${change >= 0 ? "bg-emerald-500/15 text-emerald-600" : "bg-red-500/15 text-red-600"}`}>
+                  <div className={`delta-chip ${change >= 0 ? "delta-up" : "delta-down"}`}>
                     {change >= 0 ? "+" : "-"}{fmtW(Math.abs(change))}
                   </div>
                 ) : (
-                  <div className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                  <div className="delta-chip delta-flat">
                     변화 없음
                   </div>
                 )}
@@ -598,13 +597,13 @@ export default function BankPage() {
                       className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
                     />
                   </th>
-                  <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">예금주명{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th className="text-left px-6 py-4 font-semibold select-none">거래내용</th>
-                  <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th className="text-right px-6 py-4 font-semibold select-none">잔액</th>
-                  <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("type")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">상태{sortKey === "type" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">예금주명{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th className="text-left px-6 py-3.5 font-semibold select-none">거래내용</th>
+                  <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th className="text-right px-6 py-3.5 font-semibold select-none">잔액</th>
+                  <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("type")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">상태{sortKey === "type" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                 </tr>
               </thead>
               <tbody>
@@ -635,31 +634,31 @@ export default function BankPage() {
                           className="h-4 w-4 cursor-pointer accent-[var(--primary)] disabled:opacity-40 disabled:cursor-not-allowed"
                         />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isIncome ? "bg-emerald-500/15" : "bg-red-500/15"}`}>
-                            <svg className={`w-5 h-5 ${isIncome ? "text-emerald-500" : "text-red-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isIncome ? "bg-[var(--success-dim)]" : "bg-[var(--danger-dim)]"}`}>
+                            <svg className={`w-5 h-5 ${isIncome ? "text-[var(--success)]" : "text-[var(--danger)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? "M7 17l9-9m0 0H9m7 0v7" : "M17 7l-9 9m0 0h7m-7 0V9"} />
                             </svg>
                           </div>
                           <span className="font-medium text-[var(--text)] truncate">{tx.counterparty || "—"}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-[var(--text-muted)] max-w-[240px]"><span className="block truncate" title={tx.description || undefined}>{tx.description || "—"}</span></td>
-                      <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{tx.classification || tx.category || "—"}</td>
-                      <td className={`px-6 py-4 font-semibold mono-number ${isIncome ? "text-emerald-500" : "text-red-500"}`}>
+                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] max-w-[240px]"><span className="block truncate" title={tx.description || undefined}>{tx.description || "—"}</span></td>
+                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{tx.classification || tx.category || "—"}</td>
+                      <td className={`px-6 py-3.5 font-semibold mono-number ${isIncome ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                         {isIncome ? "+" : "-"}{fmtW(Math.abs(Number(tx.amount || 0)))}
                       </td>
-                      <td className="px-6 py-4 text-sm text-[var(--text-muted)] mono-number text-right whitespace-nowrap">{tx.balance_after != null ? fmtW(Number(tx.balance_after)) : "—"}</td>
-                      <td className="px-6 py-4 text-sm text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
-                      <td className="px-6 py-4 relative">
+                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] mono-number text-right whitespace-nowrap">{tx.balance_after != null ? fmtW(Number(tx.balance_after)) : "—"}</td>
+                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
+                      <td className="px-6 py-3.5 relative">
                         <button
                           type="button"
                           onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); setMapFixed(!!tx.is_fixed_cost); }}
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${m.bg} ${m.text} cursor-pointer hover:ring-1 hover:ring-current`}
                           title="클릭해서 바로 매핑/무시 처리"
                         >{m.label}</button>
-                        {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500">전표처리됨</span>}
+                        {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">전표처리됨</span>}
                         {mapOpenId === tx.id && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setMapOpenId(null)} />

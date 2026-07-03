@@ -479,7 +479,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
           <div className="glass-card overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-[var(--bg-surface)]/50 text-[var(--text-dim)]">
+                <tr className="text-xs text-[var(--text-dim)]">
                   <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-left border-b border-[var(--border)]">KPI</th>
                   <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-right border-b border-[var(--border)] w-[130px]">목표</th>
                   <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-right border-b border-[var(--border)] w-[130px]">실적</th>
@@ -565,7 +565,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
             <div className="glass-card overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="bg-[var(--bg-surface)]/50 text-[var(--text-dim)]">
+                  <tr className="text-xs text-[var(--text-dim)]">
                     <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-left border-b border-[var(--border)] w-[110px]">날짜</th>
                     <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-left border-b border-[var(--border)]">KPI</th>
                     <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-left border-b border-[var(--border)] w-[110px]">부서</th>

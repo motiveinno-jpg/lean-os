@@ -78,7 +78,7 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
   const netPath = buildSmooth(netPoints);
 
   return (
-    <div className="mb-7 rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-surface)]/40 p-5 shadow-sm">
+    <div className="glass-card mb-7 p-5">
       <div className="mb-4">
         <h3 className="text-sm font-bold text-[var(--text)]">월별 매출 vs 비용 추이</h3>
         <p className="text-[10px] text-[var(--text-dim)] mt-0.5">매출/비용 막대 + 당기순이익 곡선</p>
@@ -90,8 +90,8 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
             <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.55" />
           </linearGradient>
           <linearGradient id="pnlExpGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f97316" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#f97316" stopOpacity="0.55" />
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.40" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.20" />
           </linearGradient>
         </defs>
         {gridVals.map((v, i) => {
@@ -117,10 +117,10 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
           );
         })}
 
-        <path d={netPath} fill="none" stroke="#10b981" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={netPath} fill="none" stroke="var(--success)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
         {months.map((_, i) => {
           const { cx } = groupAt(i);
-          return <circle key={i} cx={cx} cy={toY(net[i])} r={4.5} fill="#10b981" stroke="var(--bg-card)" strokeWidth={2} />;
+          return <circle key={i} cx={cx} cy={toY(net[i])} r={4.5} fill="var(--success)" stroke="var(--bg-card)" strokeWidth={2} />;
         })}
 
         {months.map((m, i) => {
@@ -132,11 +132,11 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)]">
           <span className="dot-primary" />매출
         </span>
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-orange-500/30 bg-orange-500/10 text-orange-500">
-          <span className="w-2 h-2 rounded-full bg-orange-500" />총 비용
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--primary)]/20 bg-[var(--primary)]/5 text-[var(--text-muted)]">
+          <span className="w-2 h-2 rounded-full" style={{ background: "color-mix(in srgb, var(--primary) 35%, transparent)" }} />총 비용
         </span>
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />당기순이익
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--success)]/30 bg-[var(--success-dim)] text-[var(--success)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--success)]" />당기순이익
         </span>
       </div>
     </div>

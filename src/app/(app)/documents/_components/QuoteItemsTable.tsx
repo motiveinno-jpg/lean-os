@@ -129,7 +129,7 @@ export function QuoteItemsTable({
       <div className="overflow-x-auto border border-[var(--border)] rounded-lg" onKeyDown={onTableKeyDown}>
         <table className="w-full text-xs border-collapse">
           <thead>
-            <tr className="bg-[var(--bg-surface)] text-[var(--text-dim)] border-b border-[var(--border)]">
+            <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="px-2 py-2 w-8 text-center">#</th>
               {cols.map((c) => (
                 <th key={c.key} className={`px-3 py-2 font-medium whitespace-nowrap ${c.type === "text" ? "text-left" : "text-right"} ${colWidth(c)}`}>{c.label}</th>
@@ -211,7 +211,7 @@ export function QuoteItemsTable({
             </span>
             <span className="text-sm text-[var(--text-muted)]">합계 <b className="mono-number text-[var(--primary)]">{fmt(grand)}</b></span>
             {hasCost && (
-              <span className="text-[var(--text-dim)]">이익 <b className={`mono-number ${profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>{fmt(profit)}</b> <span className="text-[10px]">({Math.round(profitRate * 100)}%)</span></span>
+              <span className="text-[var(--text-dim)]">이익 <b className={`mono-number ${profit >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{fmt(profit)}</b> <span className="text-[10px]">({Math.round(profitRate * 100)}%)</span></span>
             )}
           </div>
         );

@@ -108,8 +108,8 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
           <div className="text-xs font-semibold text-[var(--text)]">인증서를 어떻게 등록하시겠습니까?</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button onClick={() => { setCertSource("auto"); }}
-              className="p-4 rounded-xl border-2 border-dashed border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 hover:border-purple-500/50 transition text-left">
-              <div className="text-sm font-bold text-purple-400 mb-1">자동 탐색</div>
+              className="p-4 rounded-xl border-2 border-dashed border-[var(--primary)]/30 bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 hover:border-[var(--primary)]/50 transition text-left">
+              <div className="text-sm font-bold text-[var(--primary)] mb-1">자동 탐색</div>
               <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
                 PC나 USB에서 인증서 폴더를 선택하면<br/>자동으로 인증서를 찾아줍니다
               </div>
@@ -156,7 +156,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
           </div>
 
           <button onClick={scanForCerts} disabled={scanning}
-            className="w-full py-3 rounded-xl text-xs font-bold border transition bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 disabled:opacity-50">
+            className="w-full py-3 rounded-xl text-xs font-bold border transition bg-[var(--primary-light)] border-[var(--primary)]/30 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50">
             {scanning ? "폴더를 탐색하고 있습니다..." : "폴더 선택하여 인증서 찾기"}
           </button>
 
@@ -172,9 +172,9 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
               <div className="text-[10px] font-semibold text-green-400">{foundCerts.length}개의 인증서를 발견했습니다</div>
               {foundCerts.map((cert, idx) => (
                 <button key={idx} onClick={() => setSelectedCert(idx)}
-                  className={`w-full p-3 rounded-xl border text-left transition ${selectedCert === idx ? "bg-purple-500/10 border-purple-500/40" : "bg-[var(--bg-surface)] border-[var(--border)] hover:border-[var(--primary)]"}`}>
+                  className={`w-full p-3 rounded-xl border text-left transition ${selectedCert === idx ? "bg-[var(--primary-light)] border-[var(--primary)]/40" : "bg-[var(--bg-surface)] border-[var(--border)] hover:border-[var(--primary)]"}`}>
                   <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition ${selectedCert === idx ? "border-purple-400 bg-purple-400" : "border-[var(--border)]"}`}>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition ${selectedCert === idx ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--border)]"}`}>
                       {selectedCert === idx && <span className="text-white text-[8px]">V</span>}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -187,7 +187,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
                 </button>
               ))}
               <button onClick={applyFoundCert} disabled={selectedCert === null || certUploading}
-                className="w-full py-2.5 rounded-xl text-xs font-semibold border transition bg-purple-600 border-purple-500 text-white hover:bg-purple-700 disabled:opacity-50">
+                className="w-full py-2.5 rounded-xl text-xs font-semibold border transition bg-[var(--primary)] border-[var(--primary)] text-white hover:bg-[var(--primary-hover)] disabled:opacity-50">
                 {certUploading ? "업로드 중..." : "선택한 인증서 등록"}
               </button>
             </div>
@@ -206,7 +206,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
             <div className="flex-1">
               <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">인증서 파일 (.der)</div>
               <div className="flex items-center gap-2">
-                <input ref={certDerRef} type="file" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
+                <input ref={certDerRef} type="file" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--primary-light)] file:text-[var(--primary)] hover:file:bg-[var(--primary)]/20 w-full" />
                 {certFileStatus.der && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">등록됨</span>}
               </div>
             </div>
@@ -215,13 +215,13 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
             <div className="flex-1">
               <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">개인키 파일 (.key)</div>
               <div className="flex items-center gap-2">
-                <input ref={certKeyRef} type="file" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 w-full" />
+                <input ref={certKeyRef} type="file" className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--primary-light)] file:text-[var(--primary)] hover:file:bg-[var(--primary)]/20 w-full" />
                 {certFileStatus.key && <span className="text-green-400 text-[10px] font-semibold whitespace-nowrap">등록됨</span>}
               </div>
             </div>
           </div>
           <button onClick={onUpload} disabled={certUploading}
-            className="w-full py-2.5 rounded-xl text-xs font-semibold border transition bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 disabled:opacity-50">
+            className="w-full py-2.5 rounded-xl text-xs font-semibold border transition bg-[var(--primary-light)] border-[var(--primary)]/30 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50">
             {certUploading ? "업로드 중..." : "인증서 업로드"}
           </button>
         </div>
@@ -538,7 +538,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       {/* 공동인증서 파일 업로드 — 위치 자동 탐색 */}
       <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-lg">📜</div>
+          <span className="kpi-icon text-lg">📜</span>
           <div>
             <div className="text-sm font-bold">공동인증서 (NPKI)</div>
             <div className="text-[11px] text-[var(--text-dim)]">홈택스, 은행 자동화에 필요한 공동인증서 파일</div>
@@ -559,7 +559,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-lg">🏦</div>
+            <span className="kpi-icon info text-lg">🏦</span>
             <div>
               <div className="text-sm font-bold">은행 계좌</div>
               <div className="text-[11px] text-[var(--text-dim)]">거래내역 자동 수집 + 홈택스 세금계산서</div>
@@ -587,11 +587,11 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
                 <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">로그인 방식</div>
                 <div className="flex gap-2 mb-2">
                   <button onClick={() => { const arr = [...banks]; (arr[i] as any).login_method = "certificate"; setBanks(arr); }}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${bankLoginMethod === "certificate" ? "bg-purple-500/10 border-purple-500/50 text-purple-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${bankLoginMethod === "certificate" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
                     📜 공동인증서
                   </button>
                   <button onClick={() => { const arr = [...banks]; (arr[i] as any).login_method = "id_pw"; setBanks(arr); }}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${bankLoginMethod === "id_pw" ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${bankLoginMethod === "id_pw" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
                     🔑 아이디/비밀번호
                   </button>
                 </div>
@@ -629,7 +629,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       {/* 홈택스 (레거시 — 신규 등록은 위의 "금융기관 연결" 섹션에서 "홈택스" 선택) */}
       <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-lg">🏛️</div>
+          <span className="kpi-icon success text-lg">🏛️</span>
           <div>
             <div className="text-sm font-bold">홈택스 (레거시 입력)</div>
             <div className="text-[11px] text-[var(--text-dim)]">세금계산서 자동 조회 · 인증서 또는 ID/PW 선택</div>
@@ -642,11 +642,11 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
           <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-2">로그인 방식</div>
           <div className="flex gap-2">
             <button onClick={() => setHometaxMethod("certificate")}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-semibold border transition ${hometaxMethod === "certificate" ? "bg-green-500/10 border-green-500/50 text-green-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+              className={`flex-1 py-2.5 rounded-lg text-xs font-semibold border transition ${hometaxMethod === "certificate" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
               📜 공동인증서
             </button>
             <button onClick={() => setHometaxMethod("id_pw")}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-semibold border transition ${hometaxMethod === "id_pw" ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+              className={`flex-1 py-2.5 rounded-lg text-xs font-semibold border transition ${hometaxMethod === "id_pw" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
               🔑 아이디/비밀번호
             </button>
           </div>
@@ -679,7 +679,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg">💳</div>
+            <span className="kpi-icon danger text-lg">💳</span>
             <div>
               <div className="text-sm font-bold">법인카드</div>
               <div className="text-[11px] text-[var(--text-dim)]">카드 이용내역 자동 수집</div>
@@ -707,11 +707,11 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
                 <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-1">로그인 방식</div>
                 <div className="flex gap-2 mb-2">
                   <button onClick={() => { const arr = [...cards]; (arr[i] as any).login_method = "certificate"; setCards(arr); }}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${cardLoginMethod === "certificate" ? "bg-purple-500/10 border-purple-500/50 text-purple-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${cardLoginMethod === "certificate" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
                     📜 공동인증서
                   </button>
                   <button onClick={() => { const arr = [...cards]; (arr[i] as any).login_method = "id_pw"; setCards(arr); }}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${cardLoginMethod === "id_pw" ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${cardLoginMethod === "id_pw" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
                     🔑 아이디/비밀번호
                   </button>
                 </div>
@@ -763,7 +763,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
 
       {/* 저장 */}
       <button onClick={saveAll} disabled={saving}
-        className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+        className="btn-primary w-full">
         {saving ? "저장 중..." : saved ? "저장 완료" : "설정 저장"}
       </button>
 

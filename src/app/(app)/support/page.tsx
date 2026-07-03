@@ -34,8 +34,8 @@ const CATEGORIES: { key: string; label: string }[] = [
 const catLabel = (k: string) => CATEGORIES.find((c) => c.key === k)?.label || "기타";
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  open: { label: "접수됨", color: "#f59e0b" },
-  answered: { label: "답변 완료", color: "#10b981" },
+  open: { label: "접수됨", color: "var(--warning)" },
+  answered: { label: "답변 완료", color: "var(--success)" },
   closed: { label: "종료", color: "var(--text-dim)" },
 };
 
@@ -151,7 +151,7 @@ export default function SupportPage() {
               type="button"
               disabled={!canSubmit}
               onClick={() => submitMut.mutate()}
-              className="w-full px-4 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white text-sm font-semibold transition active:scale-[0.99]"
+              className="btn-primary w-full active:scale-[0.99]"
             >
               {submitMut.isPending ? "접수 중…" : "문의 접수"}
             </button>

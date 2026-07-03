@@ -638,7 +638,7 @@ export default function PnlPage() {
             type="button"
             onClick={() => setIsCompareMode((v) => !v)}
             aria-label="전기 비교"
-            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition ${isCompareMode ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]"}`}
+            className={isCompareMode ? "btn-primary text-xs" : "btn-secondary text-xs"}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
             전기 비교
@@ -647,7 +647,7 @@ export default function PnlPage() {
             onClick={() => setRefreshKey(k => k + 1)}
             aria-label="새로고침"
             title="DB 에서 최신 데이터 다시 불러오기"
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)] hover:brightness-110 transition"
+            className="btn-primary text-xs"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
               <polyline points="23 4 23 10 17 10" />
@@ -659,7 +659,7 @@ export default function PnlPage() {
           <button
             onClick={handleExportCsv}
             aria-label="CSV 다운로드"
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
+            className="btn-secondary text-xs"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
@@ -671,7 +671,7 @@ export default function PnlPage() {
           <button
             onClick={() => window.print()}
             aria-label="인쇄"
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
+            className="btn-secondary text-xs"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="6 9 6 2 18 2 18 9" />
@@ -685,10 +685,9 @@ export default function PnlPage() {
 
       {/* 미분류 출금 경고 — 판관비 과소계상(영업이익 과대) 오해 방지 */}
       {data.uncategorizedCount > 0 && (
-        <div className="flex items-start gap-2 rounded-xl px-4 py-3 mb-4 text-sm"
-          style={{ background: "color-mix(in srgb, #f59e0b 10%, transparent)", border: "1px solid color-mix(in srgb, #f59e0b 35%, transparent)" }}>
+        <div className="kpi-callout warning mb-4 flex items-start gap-2 text-sm">
           <span className="text-base leading-none mt-0.5">⚠️</span>
-          <div className="text-[var(--text)] leading-relaxed">
+          <div className="leading-relaxed">
             분류되지 않은 통장 출금 <b>{data.uncategorizedCount.toLocaleString()}건</b>(약 <b>₩{Math.round(data.uncategorizedAmount).toLocaleString()}</b>)이
             판매관리비에 <b>반영되지 않았습니다</b> — 실제보다 영업이익이 크게 보일 수 있습니다.
             <span className="text-[var(--text-muted)]"> 통장 거래내역 또는 거래 매칭에서 계정을 분류하면 손익에 자동 반영됩니다.</span>
@@ -727,23 +726,20 @@ export default function PnlPage() {
           const d = card.value - card.prev;
           const pct = card.prev !== 0 ? Math.round((d / Math.abs(card.prev)) * 100) : 0;
           return (
-            <div key={card.label} className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-5 shadow-[var(--shadow-sm)]" style={{ background: `linear-gradient(135deg, ${card.color}14, transparent 62%)` }}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{card.label}</span>
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/70" style={{ color: card.color }}>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" /></svg>
+            <div key={card.label} className="glass-card p-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-semibold text-[var(--text-muted)]">{card.label}</span>
+                <span className={`kpi-icon ${card.value < 0 ? "danger" : card.label === "총 매출" ? "" : "success"}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" /></svg>
                 </span>
               </div>
-              <div className="mono-number font-extrabold leading-none tracking-tight" style={{ fontSize: 23, color: card.color }}>
-                {card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}
+              <div className="flex items-end gap-2 flex-wrap">
+                <span className={`text-[26px] leading-8 font-extrabold mono-number ${card.value < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
+                  {card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}
+                </span>
               </div>
               {isCompareMode && card.prev !== 0 && (
-                <div style={{
-                  marginTop: 6,
-                  fontSize: 11,
-                  color: d === 0 ? "var(--text-dim)" : d > 0 ? "#10b981" : "#ef4444",
-                  fontWeight: 500,
-                }}>
+                <div className={`delta-chip self-start ${d > 0 ? "delta-up" : d < 0 ? "delta-down" : "delta-flat"}`}>
                   전기 대비 {d > 0 ? "+" : ""}{pct}% {d > 0 ? "\u25B2" : d < 0 ? "\u25BC" : ""}
                 </div>
               )}
@@ -764,8 +760,7 @@ export default function PnlPage() {
           <thead>
             <tr
               style={{
-                borderBottom: "2px solid var(--border)",
-                background: "var(--bg-surface)",
+                borderBottom: "1px solid var(--border)",
               }}
             >
               <th
@@ -777,7 +772,7 @@ export default function PnlPage() {
                   color: "var(--text-dim)",
                   position: "sticky",
                   left: 0,
-                  background: "var(--bg-surface)",
+                  background: "var(--bg-card)",
                   zIndex: 3,
                   whiteSpace: "nowrap",
                 }}
@@ -790,11 +785,11 @@ export default function PnlPage() {
                   textAlign: "right",
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "var(--text)",
+                  color: "var(--text-dim)",
                   whiteSpace: "nowrap",
                   position: "sticky",
                   right: isCompareMode ? 120 : 0,
-                  background: "var(--bg-surface)",
+                  background: "var(--bg-card)",
                   zIndex: 3,
                 }}
               >
@@ -811,7 +806,7 @@ export default function PnlPage() {
                     whiteSpace: "nowrap",
                     position: "sticky",
                     right: 0,
-                    background: "var(--bg-surface)",
+                    background: "var(--bg-card)",
                     zIndex: 3,
                   }}
                 >
@@ -910,9 +905,9 @@ export default function PnlPage() {
       </div>
 
       {/* 정확도 안내 배너 — 미분류 비용 제외 한계 */}
-      <div className="mt-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-sky-500/10 border border-sky-500/25">
-        <svg className="w-4 h-4 mt-0.5 shrink-0 text-sky-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
-        <p className="text-[11.5px] leading-relaxed text-sky-700 dark:text-sky-300">
+      <div className="kpi-callout mt-4 flex items-start gap-2.5">
+        <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
+        <p className="text-[11.5px] leading-relaxed">
           <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 카테고리가 분류된 출금만</b> 반영됩니다 — 미분류 출금은 자금이동(이체·카드대금 등)과 섞여 허수를 만들기에 제외돼, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다. <Link href="/transactions" className="underline font-semibold">거래내역</Link>에서 비용을 분류할수록 정확해집니다.
         </p>
       </div>

@@ -9,7 +9,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { friendlyError } from "@/lib/friendly-error";
-import { SiyanStatCard } from "@/components/siyan";
 import {
   getSalaryHistory, addSalaryRecord, getActiveContracts,
   // Attendance & Leave
@@ -168,23 +167,43 @@ export default function EmployeesPage() {
       {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김 */}
       {!isEmployee && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">재직 인원</div>
-            <div className="text-2xl font-black mono-number mt-1.5">{activeCount}명</div>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">재직 인원</span>
+              <span className="kpi-icon">👥</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{activeCount}명</span>
+            </div>
           </div>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">연 인건비</div>
-            <div className="text-2xl font-black mono-number text-[var(--danger)] mt-1.5">₩{(totalSalary * 12).toLocaleString()}</div>
-            <div className="text-[10px] text-[var(--text-dim)] mono-number mt-0.5">월 ₩{totalSalary.toLocaleString()}</div>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">연 인건비</span>
+              <span className="kpi-icon danger">💸</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">₩{(totalSalary * 12).toLocaleString()}</span>
+            </div>
+            <div className="kpi-callout">월 <b>₩{totalSalary.toLocaleString()}</b></div>
           </div>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">퇴직충당금</div>
-            <div className="text-2xl font-black mono-number text-[var(--warning)] mt-1.5">₩{totalRetirement.toLocaleString()}</div>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">퇴직충당금</span>
+              <span className="kpi-icon warning">🏦</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">₩{totalRetirement.toLocaleString()}</span>
+            </div>
           </div>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">미결 경비</div>
-            <div className="text-2xl font-black mono-number text-[var(--warning)] mt-1.5">
-              {expenses.filter((e: any) => e.status === "pending").length}건
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">미결 경비</span>
+              <span className="kpi-icon warning">🧾</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">
+                {expenses.filter((e: any) => e.status === "pending").length}건
+              </span>
             </div>
           </div>
         </div>
@@ -1521,7 +1540,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             onClick={() => setAllowanceExpanded((v) => !v)}
             className="w-full p-4 flex items-center gap-2.5 hover:bg-[var(--bg-surface)] transition text-left"
           >
-            <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center text-white text-base shadow shrink-0">💰</span>
+            <span className="kpi-icon success shrink-0">💰</span>
             <div className="min-w-0">
               <div className="text-sm font-semibold text-[var(--text)]">
                 직원 수당 명세 <span className="font-normal text-[var(--text-muted)]">· 이번 달</span>
@@ -1548,12 +1567,44 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       {/* 2026-05-21 사장님 요청: 직원 근태관리에서 수당 카드 (ExtraPaySummaryCard / MyAllowanceCard) 제거.
           관리자 영역 (EditRequestInbox, MonthlyRecomputeButton, AllowanceAdminTab) 은 그대로 유지. */}
 
-      {/* Stats cards — 시안 그라데이션 톤 (값/계산 무변경) */}
+      {/* Stats cards — 라운드6 KPI 카드 (값/계산 무변경) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <SiyanStatCard tone="green" label="출근률" value={`${attendanceRate}%`} icon={<span>✓</span>} />
-        <SiyanStatCard tone="amber" label="지각률" value={`${lateRate}%`} icon={<span>⏰</span>} />
-        <SiyanStatCard tone="blue" label="평균근무시간" value={`${avgHours}h`} icon={<span>⚡</span>} />
-        <SiyanStatCard tone="indigo" label="이번 달 기록" value={`${totalRecords}건`} icon={<span>📋</span>} />
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">출근률</span>
+            <span className="kpi-icon success">✓</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{attendanceRate}%</span>
+          </div>
+        </div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">지각률</span>
+            <span className="kpi-icon warning">⏰</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{lateRate}%</span>
+          </div>
+        </div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">평균근무시간</span>
+            <span className="kpi-icon info">⚡</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{avgHours}h</span>
+          </div>
+        </div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번 달 기록</span>
+            <span className="kpi-icon">📋</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{totalRecords}건</span>
+          </div>
+        </div>
       </div>
 
       {/* 관리자 분기 — 지각 식별 요약 (오늘 지각자 + 이번 달 누적 Top 5) */}
@@ -1561,7 +1612,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6">
           <div className="glass-card p-4">
             <div className="flex items-center gap-2.5 mb-3">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white text-base shadow shrink-0">⏰</span>
+              <span className="kpi-icon warning shrink-0">⏰</span>
               <span className="text-sm font-semibold text-[var(--text)]">오늘 지각자</span>
               {lateAdminSummary.todayList.length > 0 && (
                 <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500 font-semibold">{lateAdminSummary.todayList.length}명</span>
@@ -1603,7 +1654,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             return (
               <div className="glass-card p-4">
                 <div className="flex items-center gap-2.5 mb-3">
-                  <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-base shadow shrink-0">📋</span>
+                  <span className="kpi-icon info shrink-0">📋</span>
                   <span className="text-sm font-semibold text-[var(--text)]">오늘 출퇴근 현황</span>
                   <span className="ml-auto text-[10px] text-[var(--text-dim)]">{kstToday} · 총원 {total}명</span>
                 </div>
@@ -1660,7 +1711,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   : "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
               }`}
             >
-              <span className={`w-9 h-9 rounded-lg flex items-center justify-center text-white shadow shrink-0 bg-gradient-to-br ${w.level === "danger" ? "from-red-500 to-rose-500" : "from-yellow-500 to-orange-500"}`}>
+              <span className={`kpi-icon shrink-0 ${w.level === "danger" ? "danger" : "warning"}`}>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
@@ -1681,16 +1732,16 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
           />
-          <div className="flex gap-1 bg-[var(--bg-surface)] rounded-full p-1 border border-[var(--border)]">
+          <div className="seg-bar">
             <button
               onClick={() => setViewMode("calendar")}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === "calendar" ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
+              className={`seg-item ${viewMode === "calendar" ? "seg-item-active" : ""}`}
             >
               캘린더
             </button>
             <button
               onClick={() => setViewMode("table")}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${viewMode === "table" ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
+              className={`seg-item ${viewMode === "table" ? "seg-item-active" : ""}`}
             >
               테이블
             </button>

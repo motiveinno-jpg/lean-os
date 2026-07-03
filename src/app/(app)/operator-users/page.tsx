@@ -147,7 +147,7 @@ export default function OperatorUsersPage() {
         <button
           onClick={() => doLookup()}
           disabled={searching || !query.trim()}
-          className="px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition"
+          className="btn-primary px-5"
         >
           {searching ? "조회 중..." : "조회"}
         </button>
@@ -305,7 +305,7 @@ export default function OperatorUsersPage() {
                 <button
                   onClick={doSave}
                   disabled={saving || !dirty || !adminKey.trim()}
-                  className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 hover:bg-[var(--primary-hover)] transition"
+                  className="btn-primary w-full"
                 >
                   {saving ? "저장 중..." : dirty ? "변경사항 저장" : "변경된 항목 없음"}
                 </button>

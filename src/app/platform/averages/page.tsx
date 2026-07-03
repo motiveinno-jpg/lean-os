@@ -65,20 +65,20 @@ export default function PlatformAveragesPage() {
   const sampleSize = rows[0]?.sample_size ?? 0;
 
   return (
-    <div className="max-w-5xl">
-      <div className="mb-6 flex items-end justify-between gap-4">
+    <div className="max-w-5xl space-y-6">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-white">재무 평균</h1>
-          <p className="text-sm text-[#64748b] mt-1">
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">재무 평균</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
             전체 회사 월별 재무 지표 — 평균·중앙값·1·3사분위·표준편차
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-[#64748b]">월</label>
+          <label className="text-xs text-[var(--text-dim)]">월</label>
           <select
             value={effectiveMonth}
             onChange={(e) => setMonth(e.target.value)}
-            className="px-3 py-2 bg-[#111827] border border-[#1e293b] rounded-lg text-sm text-white focus:outline-none focus:border-cyan-500"
+            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]"
           >
             {months.length === 0 && <option value="">데이터 없음</option>}
             {months.map((m) => (
@@ -92,25 +92,25 @@ export default function PlatformAveragesPage() {
 
       {/* 표본 안내 */}
       {sampleSize > 0 && sampleSize < 10 && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-300 mb-4">
-          ⚠ 표본 {sampleSize}개 — 평균/중앙값의 통계적 의미는 제한적입니다. 회사가 늘어날수록 신뢰도가 올라갑니다.
+        <div className="kpi-callout warning">
+          ⚠ 표본 <b>{sampleSize}개</b> — 평균/중앙값의 통계적 의미는 제한적입니다. 회사가 늘어날수록 신뢰도가 올라갑니다.
         </div>
       )}
 
-      {isLoading && <div className="text-sm text-[#64748b]">불러오는 중…</div>}
+      {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-400">
+        <div className="rounded-xl bg-[var(--danger-dim)] p-4 text-sm text-[var(--danger)]">
           {(error as any)?.message || "조회 실패"}
         </div>
       )}
 
       {!isLoading && rows.length === 0 && (
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-8 text-center text-sm text-[#64748b]">
+        <div className="glass-card p-8 text-center text-sm text-[var(--text-dim)]">
           이 달에는 집계 가능한 monthly_financials 데이터가 없습니다.
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {rows.map((r) => {
           const avg = Number(r.avg_value || 0);
           const median = Number(r.median_value || 0);
@@ -120,65 +120,65 @@ export default function PlatformAveragesPage() {
           const max = Number(r.max_value || 0);
           const pct = (v: number) => Math.min(100, Math.max(0, (Math.abs(v) / globalMax) * 100));
           return (
-            <div key={r.metric} className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
+            <div key={r.metric} className="glass-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <div className="text-white font-bold text-sm">{r.label}</div>
-                  <div className="text-[11px] text-[#64748b]">표본 {r.sample_size}</div>
+                  <div className="text-[var(--text)] font-bold text-sm">{r.label}</div>
+                  <div className="text-[11px] text-[var(--text-dim)]">표본 {r.sample_size}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-[#64748b]">평균</div>
-                  <div className="text-lg font-extrabold text-cyan-300">{fmtW(avg)}</div>
+                  <div className="text-xs text-[var(--text-dim)]">평균</div>
+                  <div className="text-lg font-extrabold mono-number text-[var(--primary)]">{fmtW(avg)}</div>
                 </div>
               </div>
 
               {/* 박스 플롯 스타일 — min, p25, median, p75, max */}
-              <div className="relative h-7 bg-[#0b0f1a] rounded-lg overflow-hidden">
+              <div className="relative h-7 bg-[var(--bg-surface)] rounded-lg overflow-hidden">
                 {/* 전체 min~max 가로선 */}
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 h-px bg-[#334155]"
+                  className="absolute top-1/2 -translate-y-1/2 h-px bg-[var(--border-light)]"
                   style={{ left: `${pct(min)}%`, width: `${pct(max) - pct(min)}%` }}
                 />
                 {/* 사분위 박스 */}
                 <div
-                  className="absolute top-1 bottom-1 bg-cyan-600/30 border border-cyan-500/50 rounded"
+                  className="absolute top-1 bottom-1 bg-[var(--primary)]/25 border border-[var(--primary)]/50 rounded"
                   style={{ left: `${pct(p25)}%`, width: `${Math.max(0.5, pct(p75) - pct(p25))}%` }}
                   title={`P25 ${fmtW(p25)} ~ P75 ${fmtW(p75)}`}
                 />
                 {/* 중앙값 마커 */}
                 <div
-                  className="absolute top-0.5 bottom-0.5 w-0.5 bg-cyan-200"
+                  className="absolute top-0.5 bottom-0.5 w-0.5 bg-[var(--primary)]"
                   style={{ left: `${pct(median)}%` }}
                   title={`중앙값 ${fmtW(median)}`}
                 />
                 {/* 평균 마커 (다이아) */}
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-amber-300 rotate-45 -ml-1"
+                  className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-[var(--warning)] rotate-45 -ml-1"
                   style={{ left: `${pct(avg)}%` }}
                   title={`평균 ${fmtW(avg)}`}
                 />
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3 text-[11px]">
-                <div className="bg-[#0b0f1a] rounded-lg px-2.5 py-1.5">
-                  <div className="text-[#64748b]">최소</div>
-                  <div className="text-white font-semibold">{fmtW(min)}</div>
+                <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5">
+                  <div className="text-[var(--text-dim)]">최소</div>
+                  <div className="text-[var(--text)] font-semibold mono-number">{fmtW(min)}</div>
                 </div>
-                <div className="bg-[#0b0f1a] rounded-lg px-2.5 py-1.5">
-                  <div className="text-[#64748b]">P25</div>
-                  <div className="text-white font-semibold">{fmtW(p25)}</div>
+                <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5">
+                  <div className="text-[var(--text-dim)]">P25</div>
+                  <div className="text-[var(--text)] font-semibold mono-number">{fmtW(p25)}</div>
                 </div>
-                <div className="bg-[#0b0f1a] rounded-lg px-2.5 py-1.5">
-                  <div className="text-cyan-300">중앙</div>
-                  <div className="text-cyan-200 font-semibold">{fmtW(median)}</div>
+                <div className="bg-[var(--primary-light)] rounded-lg px-2.5 py-1.5">
+                  <div className="text-[var(--primary)]">중앙</div>
+                  <div className="text-[var(--primary)] font-semibold mono-number">{fmtW(median)}</div>
                 </div>
-                <div className="bg-[#0b0f1a] rounded-lg px-2.5 py-1.5">
-                  <div className="text-[#64748b]">P75</div>
-                  <div className="text-white font-semibold">{fmtW(p75)}</div>
+                <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5">
+                  <div className="text-[var(--text-dim)]">P75</div>
+                  <div className="text-[var(--text)] font-semibold mono-number">{fmtW(p75)}</div>
                 </div>
-                <div className="bg-[#0b0f1a] rounded-lg px-2.5 py-1.5">
-                  <div className="text-[#64748b]">최대</div>
-                  <div className="text-white font-semibold">{fmtW(max)}</div>
+                <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5">
+                  <div className="text-[var(--text-dim)]">최대</div>
+                  <div className="text-[var(--text)] font-semibold mono-number">{fmtW(max)}</div>
                 </div>
               </div>
             </div>
@@ -187,9 +187,9 @@ export default function PlatformAveragesPage() {
       </div>
 
       {rows.length > 0 && (
-        <div className="mt-6 bg-cyan-600/5 border border-cyan-600/20 rounded-2xl p-4 text-xs text-[#94a3b8]">
-          <span className="text-cyan-400 font-bold">OP-C</span> · 막대 안 <span className="text-amber-300">◆</span> 평균, <span className="text-cyan-200">│</span> 중앙값, 박스는 P25~P75.
-          업계별 분리는 <span className="text-cyan-400">/platform/industry</span> (PR-D) 에서.
+        <div className="kpi-callout">
+          <b>OP-C</b> · 막대 안 <span className="text-[var(--warning)]">◆</span> 평균, <span className="text-[var(--primary)]">│</span> 중앙값, 박스는 P25~P75.
+          업계별 분리는 <span className="text-[var(--primary)]">/platform/industry</span> (PR-D) 에서.
         </div>
       )}
     </div>

@@ -290,11 +290,11 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   const allSelected = selectableInView.length > 0 && selectableInView.every((q: any) => selectedIds.has(q.id));
   const selectedSum = filtered.filter((q: any) => selectedIds.has(q.id)).reduce((s: number, q: any) => s + Number(q.amount || 0), 0);
   const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
-    pending: { label: "승인대기", bg: "bg-yellow-500/10", text: "text-yellow-400" },
-    approved: { label: "승인완료", bg: "bg-blue-500/10", text: "text-blue-400" },
-    executed: { label: "실행완료", bg: "bg-green-500/10", text: "text-green-400" },
-    completed: { label: "실행완료", bg: "bg-green-500/10", text: "text-green-400" },
-    rejected: { label: "거부", bg: "bg-red-500/10", text: "text-red-400" },
+    pending: { label: "승인대기", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },
+    approved: { label: "승인완료", bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]" },
+    executed: { label: "실행완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
+    completed: { label: "실행완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
+    rejected: { label: "거부", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
     refunded: { label: "환불완료", bg: "bg-orange-500/10", text: "text-orange-400" },
   };
 
@@ -303,23 +303,23 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 대기</div>
-          <div className="text-2xl font-black mono-number text-yellow-400 mt-1.5 truncate">{stats?.pendingCount ?? 0}건</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">승인 대기</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)] mt-2 truncate">{stats?.pendingCount ?? 0}건</div>
           <div className="text-xs text-[var(--text-dim)] mono-number mt-1 truncate">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</div>
         </div>
         <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 완료</div>
-          <div className="text-2xl font-black mono-number text-blue-400 mt-1.5 truncate">{stats?.approvedCount ?? 0}건</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">승인 완료</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--info)] mt-2 truncate">{stats?.approvedCount ?? 0}건</div>
           <div className="text-xs text-[var(--text-dim)] mono-number mt-1 truncate">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</div>
         </div>
         <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">실행 완료</div>
-          <div className="text-2xl font-black mono-number text-green-400 mt-1.5 truncate">{stats?.executedCount ?? 0}건</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">실행 완료</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)] mt-2 truncate">{stats?.executedCount ?? 0}건</div>
           <div className="text-xs text-[var(--text-dim)] mono-number mt-1 truncate">₩{(stats?.executedAmount ?? 0).toLocaleString()}</div>
         </div>
         <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">통장 총 잔고</div>
-          <div className="text-2xl font-black mono-number mt-1.5 truncate">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">통장 총 잔고</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)] mt-2 truncate">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
           <div className="text-xs text-[var(--text-dim)] mt-1 truncate">{bankAccounts.length}개 통장</div>
         </div>
       </div>
@@ -1969,23 +1969,23 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 대기</div>
-          <div className="text-2xl font-black mono-number text-yellow-400 mt-1.5 truncate">{pendingCount}건</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">승인 대기</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)] mt-2 truncate">{pendingCount}건</div>
         </div>
         <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 완료 (미지급)</div>
-          <div className="text-2xl font-black mono-number text-blue-400 mt-1.5 truncate">₩{approvedTotal.toLocaleString()}</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">승인 완료 (미지급)</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--info)] mt-2 truncate">₩{approvedTotal.toLocaleString()}</div>
         </div>
         <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">이번달 지출</div>
-          <div className="text-2xl font-black mono-number text-green-400 mt-1.5 truncate">
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">이번달 지출</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)] mt-2 truncate">
             ₩{expenses.filter((e: any) => e.status === 'paid' && e.created_at?.startsWith(new Date().toISOString().slice(0, 7)))
               .reduce((s: number, e: any) => s + Number(e.amount || 0), 0).toLocaleString()}
           </div>
         </div>
         <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">전체</div>
-          <div className="text-2xl font-black mono-number mt-1.5 truncate">{expenses.length}건</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">전체</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)] mt-2 truncate">{expenses.length}건</div>
         </div>
       </div>
 

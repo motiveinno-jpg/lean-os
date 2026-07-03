@@ -163,13 +163,13 @@ export default function ErrorLogsPage() {
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition disabled:opacity-50"
+            className="btn-secondary !text-xs"
           >
             {isFetching ? "갱신 중..." : "🔄 새로고침"}
           </button>
           <button
             onClick={() => { if (confirm("해결 처리된 로그를 모두 삭제할까요?")) clearResolved.mutate(); }}
-            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-muted)] hover:text-red-400 transition"
+            className="btn-danger !text-xs"
           >
             해결됨 비우기
           </button>
@@ -177,22 +177,22 @@ export default function ErrorLogsPage() {
       </div>
 
       {/* 필터 */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {[
-          { k: "unresolved" as const, label: "미해결" },
-          { k: "all" as const, label: "전체" },
-          { k: "resolved" as const, label: "해결됨" },
-        ].map((f) => (
-          <button
-            key={f.k}
-            onClick={() => setFilter(f.k)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              filter === f.k ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)]"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="seg-bar">
+          {[
+            { k: "unresolved" as const, label: "미해결" },
+            { k: "all" as const, label: "전체" },
+            { k: "resolved" as const, label: "해결됨" },
+          ].map((f) => (
+            <button
+              key={f.k}
+              onClick={() => setFilter(f.k)}
+              className={`seg-item ${filter === f.k ? "seg-item-active" : ""}`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}

@@ -4,7 +4,7 @@
 //   "대표가 아침에 열어서 3분 안에: 처리할 것 처리하고, 회사 상태 확인하고, 닫는다" 컨셉.
 //   ① 오늘의 결재 액션 센터 — 7종 결재 통합(approval-center) + 즉시 승인 + 비결재 액션 칩
 //   ② 현금 펄스 / 이번 달 목표 / 리스크 3열
-//   전부 기존 lib·데이터 재사용(가짜 metric 0). 디자인: 다크 네이비 패널 + 토큰 표면.
+//   전부 기존 lib·데이터 재사용(가짜 metric 0). 디자인: 흰 라운드 카드(TeamHub 라운드) + 토큰 표면.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -77,7 +77,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   });
 
   const score = cashPulse?.pulseScore ?? 0;
-  const scoreColor = score >= 60 ? "#22C55E" : score >= 40 ? "#F59E0B" : "#EF4444";
+  const scoreColor = score >= 60 ? "var(--success)" : score >= 40 ? "var(--warning)" : "var(--danger)";
   const balance = cashPulse?.currentBalance ?? sixPack.cashBalance;
   const f30 = cashPulse?.forecast30d ?? 0;
   const f90 = cashPulse?.forecast90d ?? 0;
@@ -94,42 +94,38 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   return (
     <div className="space-y-4 mb-5">
       {/* ═══ ① 오늘의 액션 센터 ═══ */}
-      <div className="rounded-2xl overflow-hidden border border-[var(--border)]" style={{ boxShadow: "var(--shadow-sm)" }}>
-        {/* 다크 네이비 헤더 (시안 히어로와 동일 언어) */}
-        <div className="px-5 py-4 text-white flex flex-wrap items-center gap-3"
-          style={{ background: "linear-gradient(135deg, #101E36 0%, #1A2A47 60%, #243450 100%)" }}>
+      <div className="glass-card overflow-hidden">
+        {/* 흰 카드 헤더 (TeamHub 라운드) */}
+        <div className="px-5 py-4 flex flex-wrap items-center gap-3 border-b border-[var(--border)]">
           <div>
-            <div className="text-[15px] font-bold">오늘 처리할 일</div>
-            <div className="text-[11px] text-white/50 mt-0.5">결재 · 입금 확인 · 미수금 — 여기서 바로 끝내세요</div>
+            <div className="text-[15px] font-bold text-[var(--text)]">오늘 처리할 일</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">결재 · 입금 확인 · 미수금 — 여기서 바로 끝내세요</div>
           </div>
-          <span className="text-2xl font-black mono-number ml-1" style={{ color: totalTodo > 0 ? "#FDCB6E" : "#4FD89B" }}>{totalTodo}</span>
+          <span className="text-2xl font-black mono-number ml-1" style={{ color: totalTodo > 0 ? "var(--warning)" : "var(--success)" }}>{totalTodo}</span>
           <div className="ml-auto flex items-center gap-1.5 flex-wrap">
             {queueCount > 0 && (
-              <Link href="/partners/reconciliation" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition hover:brightness-110"
-                style={{ background: "rgba(108,92,231,0.35)", color: "#C9C2FF" }}>
+              <Link href="/partners/reconciliation" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20">
                 매칭 확인 {queueCount}건 →
               </Link>
             )}
             {sixPack.arOver30 > 0 && (
-              <Link href="/partners/ledger" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition hover:brightness-110"
-                style={{ background: "rgba(239,68,68,0.3)", color: "#FFB4B4" }}>
+              <Link href="/partners/ledger" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20">
                 미수금 30일+ {fmtW(sixPack.arOver30)} →
               </Link>
             )}
             {riskTotal > 0 && (
-              <Link href="/projects" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition hover:brightness-110"
-                style={{ background: "rgba(245,158,11,0.28)", color: "#FFE3A8" }}>
+              <Link href="/projects" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition bg-[var(--warning)]/10 text-[var(--warning)] hover:bg-[var(--warning)]/20">
                 위험 프로젝트 {riskTotal} →
               </Link>
             )}
-            <Link href="/approvals" className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white/12 text-white border border-white/15 hover:bg-white/20 transition">
+            <Link href="/approvals" className="btn-secondary rounded-lg text-[11px] font-bold">
               결재함 열기
             </Link>
           </div>
         </div>
 
         {/* 결재 리스트 */}
-        <div className="bg-[var(--bg-card)]">
+        <div>
           {topActions.length === 0 ? (
             <div className="px-5 py-6 flex items-center gap-3">
               <span className="text-2xl">🎉</span>
@@ -204,10 +200,10 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
             </div>
             <div className="min-w-0 flex-1 space-y-1.5">
               {[
-                { l: "통장 잔고", v: won(balance), c: balance <= 0 ? "#EF4444" : "var(--text)" },
-                { l: "D+30 전망", v: won(f30), c: f30 < 0 ? "#EF4444" : "var(--text-muted)" },
-                { l: "D+90 전망", v: won(f90), c: f90 < 0 ? "#EF4444" : "var(--text-muted)" },
-                { l: "런웨이", v: runway > 0 ? `${runway.toFixed(1)}개월` : "—", c: runway > 0 && runway < 3 ? "#EF4444" : "var(--text-muted)" },
+                { l: "통장 잔고", v: won(balance), c: balance <= 0 ? "var(--danger)" : "var(--text)" },
+                { l: "D+30 전망", v: won(f30), c: f30 < 0 ? "var(--danger)" : "var(--text-muted)" },
+                { l: "D+90 전망", v: won(f90), c: f90 < 0 ? "var(--danger)" : "var(--text-muted)" },
+                { l: "런웨이", v: runway > 0 ? `${runway.toFixed(1)}개월` : "—", c: runway > 0 && runway < 3 ? "var(--danger)" : "var(--text-muted)" },
               ].map((r) => (
                 <div key={r.l} className="flex items-center justify-between text-[11px]">
                   <span className="text-[var(--text-dim)]">{r.l}</span>
@@ -235,12 +231,12 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
                 <span className="font-bold mono-number text-[var(--text)]">
                   ₩{fmtW(g.cur)}
                   {g.tgt > 0 && <span className="text-[var(--text-dim)] font-semibold"> / {fmtW(g.tgt)}</span>}
-                  {g.pct !== null && <span className="ml-1.5" style={{ color: g.pct >= 100 ? "#22C55E" : "var(--primary)" }}>{g.pct}%</span>}
+                  {g.pct !== null && <span className="ml-1.5" style={{ color: g.pct >= 100 ? "var(--success)" : "var(--primary)" }}>{g.pct}%</span>}
                 </span>
               </div>
               <div className="h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
                 <div className="h-full rounded-full transition-all"
-                  style={{ width: `${Math.min(100, g.pct ?? 0)}%`, background: (g.pct ?? 0) >= 100 ? "#22C55E" : "var(--primary)" }} />
+                  style={{ width: `${Math.min(100, g.pct ?? 0)}%`, background: (g.pct ?? 0) >= 100 ? "var(--success)" : "var(--primary)" }} />
               </div>
               {g.tgt === 0 && <div className="text-[9px] text-[var(--text-dim)] mt-0.5">목표 미설정 — 설정에서 등록</div>}
             </div>

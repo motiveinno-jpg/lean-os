@@ -180,7 +180,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 매출·매입 항목(거래처·금액)을 관리합니다. 세부 프로젝트(캠페인)와는 별개입니다. <span className="text-[var(--text-dim)]">매출 합 {won(salesSum)} · 매입 합 {won(purchaseSum)}</span></p>
-        <button onClick={openCreate} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 항목 추가</button>
+        <button onClick={openCreate} className="btn-primary text-xs hover:opacity-90">+ 항목 추가</button>
       </div>
 
       {isLoading ? (
@@ -191,7 +191,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
         <div className="glass-card overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-[var(--bg-surface)]/50 text-[var(--text-dim)]">
+              <tr className="text-xs text-[var(--text-dim)]">
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold tracking-wide border-b border-[var(--border)]">항목명</th>
                 <th className="px-3 py-2.5 text-center text-[11px] font-semibold tracking-wide border-b border-[var(--border)]">구분</th>
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold tracking-wide border-b border-[var(--border)]">거래처</th>

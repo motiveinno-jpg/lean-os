@@ -44,55 +44,55 @@ export default function RevenuePage() {
   const pendingAmount = pendingInvoices.reduce((s: number, i: any) => s + (i.total_amount || 0), 0);
 
   return (
-    <div className="max-w-6xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-extrabold text-white">수익 관리</h1>
-        <p className="text-sm text-[#64748b] mt-1">결제 내역, MRR, 인보이스</p>
+    <div className="max-w-6xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-extrabold text-[var(--text)]">수익 관리</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">결제 내역, MRR, 인보이스</p>
       </div>
 
       {/* Revenue KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
-          <div className="text-xs text-[#64748b] mb-1">MRR</div>
-          <div className="text-2xl font-extrabold text-cyan-300">{fmtW(mrr)}</div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR</span>
+          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">{fmtW(mrr)}</span>
         </div>
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
-          <div className="text-xs text-[#64748b] mb-1">ARR</div>
-          <div className="text-2xl font-extrabold text-white">{fmtW(mrr * 12)}</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">ARR</span>
+          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmtW(mrr * 12)}</span>
         </div>
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
-          <div className="text-xs text-[#64748b] mb-1">누적 매출</div>
-          <div className="text-2xl font-extrabold text-emerald-400">{fmtW(totalRevenue)}</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">누적 매출</span>
+          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)]">{fmtW(totalRevenue)}</span>
         </div>
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
-          <div className="text-xs text-[#64748b] mb-1">미수금</div>
-          <div className="text-2xl font-extrabold text-amber-400">{fmtW(pendingAmount)}</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">미수금</span>
+          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)]">{fmtW(pendingAmount)}</span>
         </div>
       </div>
 
       {/* Invoice list */}
-      <div className="bg-[#111827] rounded-2xl border border-[#1e293b] overflow-hidden">
-        <div className="p-5 border-b border-[#1e293b]">
-          <h3 className="font-bold text-white">전체 결제 내역</h3>
+      <div className="glass-card overflow-hidden">
+        <div className="p-5 border-b border-[var(--border)]">
+          <h3 className="font-bold text-[var(--text)]">전체 결제 내역</h3>
         </div>
         {invoices.length === 0 ? (
-          <div className="text-center py-16 text-sm text-[#64748b]">결제 내역이 없습니다</div>
+          <div className="text-center py-16 text-sm text-[var(--text-dim)]">결제 내역이 없습니다</div>
         ) : (
-          <div className="divide-y divide-[#1e293b]">
+          <div className="divide-y divide-[var(--border)]">
             {invoices.map((inv: any) => (
-              <div key={inv.id} className="flex items-center justify-between p-4 hover:bg-[#1e293b]/50 transition">
+              <div key={inv.id} className="flex items-center justify-between p-4 hover:bg-[var(--bg-surface)]/60 transition">
                 <div className="flex items-center gap-3">
                   <div className={`w-2.5 h-2.5 rounded-full ${
-                    inv.status === "paid" ? "bg-emerald-500" : inv.status === "failed" ? "bg-red-500" : "bg-yellow-500"
+                    inv.status === "paid" ? "bg-[var(--success)]" : inv.status === "failed" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"
                   }`} />
                   <div>
-                    <div className="font-semibold text-sm text-white">{inv.companies?.name}</div>
-                    <div className="text-xs text-[#64748b]">{inv.invoice_number} · {inv.description || "구독 결제"}</div>
+                    <div className="font-semibold text-sm text-[var(--text)]">{inv.companies?.name}</div>
+                    <div className="text-xs text-[var(--text-dim)]">{inv.invoice_number} · {inv.description || "구독 결제"}</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-sm text-white">₩{(inv.total_amount || 0).toLocaleString()}</div>
-                  <div className="text-xs text-[#64748b]">{new Date(inv.created_at).toLocaleDateString("ko-KR")}</div>
+                  <div className="font-bold text-sm mono-number text-[var(--text)]">₩{(inv.total_amount || 0).toLocaleString()}</div>
+                  <div className="text-xs text-[var(--text-dim)]">{new Date(inv.created_at).toLocaleDateString("ko-KR")}</div>
                 </div>
               </div>
             ))}

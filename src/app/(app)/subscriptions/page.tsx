@@ -39,9 +39,9 @@ const CATEGORIES = [
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label]));
 
 const STATUS_TONE: Record<string, { label: string; cls: string }> = {
-  active: { label: "활성", cls: "bg-green-500/10 text-green-500" },
-  paused: { label: "일시중지", cls: "bg-yellow-500/10 text-yellow-500" },
-  cancelled: { label: "해지", cls: "bg-red-500/10 text-red-400" },
+  active: { label: "활성", cls: "bg-[var(--success-dim)] text-[var(--success)]" },
+  paused: { label: "일시중지", cls: "bg-[var(--warning-dim)] text-[var(--warning)]" },
+  cancelled: { label: "해지", cls: "bg-[var(--danger-dim)] text-[var(--danger)]" },
 };
 
 export default function SubscriptionsPage() {
@@ -170,19 +170,19 @@ export default function SubscriptionsPage() {
       {/* 요약 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">월 총 구독비</div>
-          <div className="text-2xl font-black mono-number mt-1 text-[var(--primary)]">{fmtW(totalMonthly)}</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">월 총 구독비</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number mt-2 text-[var(--primary)]">{fmtW(totalMonthly)}</div>
         </div>
         <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">연 환산</div>
-          <div className="text-2xl font-black mono-number mt-1">{fmtW(totalMonthly * 12)}</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">연 환산</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number mt-2 text-[var(--text)]">{fmtW(totalMonthly * 12)}</div>
         </div>
         <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">외부 구독</div>
-          <div className="text-2xl font-black mono-number mt-1">{activeAccounts.length}개</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">외부 구독</div>
+          <div className="text-[26px] leading-8 font-extrabold mono-number mt-2 text-[var(--text)]">{activeAccounts.length}개</div>
         </div>
         <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">카테고리</div>
+          <div className="text-[13px] font-semibold text-[var(--text-muted)]">카테고리</div>
           <div className="text-xs mt-1.5 space-y-0.5">
             {Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => (
               <div key={k} className="flex justify-between gap-2">

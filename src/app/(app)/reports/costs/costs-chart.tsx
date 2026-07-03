@@ -44,7 +44,7 @@ export default function CostsChart({ months, fixed, variable }: CostsChartProps)
   const gridVals = Array.from({ length: GRID_COUNT }, (_, i) => (yMax * (i + 1)) / (GRID_COUNT + 1));
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-surface)]/40 p-5 shadow-sm">
+    <div className="glass-card p-5">
       <div className="mb-4">
         <h3 className="text-sm font-bold text-[var(--text)]">월별 고정비 vs 변동비</h3>
         <p className="text-[10px] text-[var(--text-dim)] mt-0.5">아래쪽 = 고정비, 위쪽 = 변동비 (쌓아 올린 총비용)</p>
@@ -52,12 +52,12 @@ export default function CostsChart({ months, fixed, variable }: CostsChartProps)
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", height: 200, width: "auto", maxWidth: "100%", margin: "0 auto" }}>
         <defs>
           <linearGradient id="costFixedGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f97316" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#f97316" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="var(--warning)" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="var(--warning)" stopOpacity="0.6" />
           </linearGradient>
           <linearGradient id="costVarGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="var(--info)" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="var(--info)" stopOpacity="0.6" />
           </linearGradient>
         </defs>
 
@@ -93,11 +93,11 @@ export default function CostsChart({ months, fixed, variable }: CostsChartProps)
         })}
       </svg>
       <div className="flex flex-wrap gap-2 justify-center mt-3">
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-orange-500/30 bg-orange-500/10 text-orange-500">
-          <span className="w-2 h-2 rounded-full bg-orange-500" />고정비
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--warning)]/30 bg-[var(--warning-dim)] text-[var(--warning)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--warning)]" />고정비
         </span>
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-violet-500/30 bg-violet-500/10 text-violet-500">
-          <span className="w-2 h-2 rounded-full bg-violet-500" />변동비
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--info)]/30 bg-[var(--info-dim)] text-[var(--info)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--info)]" />변동비
         </span>
       </div>
     </div>

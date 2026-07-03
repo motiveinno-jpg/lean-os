@@ -304,7 +304,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse min-w-[420px]">
           <thead>
-            <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] text-[12px]">
+            <tr className="text-xs text-[var(--text-dim)]">
               <th className="px-3 py-2 text-left border-b border-[var(--border)]">{title.replace("별", "")}</th>
               <th className="px-3 py-2 text-center border-b border-[var(--border)] w-[60px]">건수</th>
               <th className="px-3 py-2 text-right border-b border-[var(--border)] w-[140px]">매출</th>
@@ -332,13 +332,13 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     <div className="glass-card p-5 space-y-4 border-2 border-[var(--primary)]/20">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-extrabold text-[var(--text)]">🎯 성과 대시보드 <span className="text-xs font-normal text-[var(--text-dim)]">목표형 {goalDeals.length}건</span></h2>
-        <button onClick={onClose} className="px-3 py-1.5 text-xs rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">닫기 ✕</button>
+        <button onClick={onClose} className="btn-ghost text-xs">닫기 ✕</button>
       </div>
 
-      <div className="flex gap-1.5 flex-wrap">
+      <div className="seg-bar flex-wrap max-w-full">
         {VIEWS.map((v) => (
           <button key={v.key} onClick={() => setView(v.key)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition ${view === v.key ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+            className={`seg-item ${view === v.key ? "seg-item-active" : ""}`}>
             {v.label}
           </button>
         ))}
@@ -350,7 +350,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse min-w-[820px]">
             <thead>
-              <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] text-[12px]">
+              <tr className="text-xs text-[var(--text-dim)]">
                 <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">프로젝트</th>
                 <th className="px-3 py-2.5 text-left border-b border-[var(--border)] w-[110px]">담당</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[60px]">상태</th>
@@ -396,7 +396,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse min-w-[640px]">
             <thead>
-              <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] text-[12px]">
+              <tr className="text-xs text-[var(--text-dim)]">
                 <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">구성원</th>
                 <th className="px-3 py-2.5 text-left border-b border-[var(--border)] w-[100px]">팀</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">담당 프로젝트</th>
@@ -430,7 +430,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse min-w-[480px]">
             <thead>
-              <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] text-[12px]">
+              <tr className="text-xs text-[var(--text-dim)]">
                 <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">팀</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[100px]">인원</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[140px]">평균 달성률</th>
@@ -454,7 +454,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           <div className="text-[11px] text-[var(--text-dim)] mb-2">실적 입력 시 지정한 부서 기준 집계. 합계는 KPI 단위가 섞일 수 있어 참고용(건수·참여 인원 우선).</div>
           <table className="w-full text-sm border-collapse min-w-[480px]">
             <thead>
-              <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] text-[12px]">
+              <tr className="text-xs text-[var(--text-dim)]">
                 <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">부서</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">입력 건수</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">참여 인원</th>
@@ -487,7 +487,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           {rateStats.perDeal.length === 0 ? (
             <div className="p-8 text-center text-sm text-[var(--text-muted)]">체크인 주기가 설정된 목표형 프로젝트가 없습니다. (성과 탭 ⓪에서 주기·멤버를 설정하세요)</div>
           ) : rateStats.perDeal.map(({ deal: d, assigned, missing }) => (
-            <div key={d.id} className="glass-card p-3 flex items-center justify-between gap-3">
+            <div key={d.id} className="rounded-xl bg-[var(--bg-surface)] p-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium text-[var(--text)] truncate">{d.name}</div>
                 <div className="text-xs text-[var(--text-muted)] mt-0.5">
@@ -496,7 +496,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
                 </div>
               </div>
               <button onClick={() => sendReminders(d, missing)} disabled={missing.length === 0 || sending === d.id}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40 whitespace-nowrap">
+                className="btn-primary text-xs whitespace-nowrap hover:opacity-90">
                 {sending === d.id ? "발송 중..." : missing.length === 0 ? "전원 제출" : `리마인더 ${missing.length}`}
               </button>
             </div>

@@ -348,7 +348,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
         <button
           onClick={() => addItem(firstGroupId)}
           className="px-4 h-8 rounded text-[13px] font-semibold text-white transition hover:brightness-110"
-          style={{ background: MONDAY.primary }}
+          style={{ background: "var(--primary)" }}
         >
           새 항목
         </button>
@@ -415,7 +415,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                             checked={allChecked}
                             onChange={(e) => toggleSelectGroup(rows, e.target.checked)}
                             className="w-[15px] h-[15px] rounded cursor-pointer align-middle"
-                            style={{ accentColor: MONDAY.primary }}
+                            style={{ accentColor: "var(--primary)" }}
                           />
                         </th>
                         <th className="text-left px-3 border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] min-w-[260px]" style={{ height: ROW_H, position: "sticky", left: STRIP_W + 36, zIndex: 6 }}>
@@ -453,7 +453,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                               checked={selected.has(d.id)}
                               onChange={() => toggleSelect(d.id)}
                               className="w-[15px] h-[15px] rounded cursor-pointer align-middle"
-                              style={{ accentColor: MONDAY.primary }}
+                              style={{ accentColor: "var(--primary)" }}
                             />
                           </td>
                           <td className="border border-[var(--border)] px-3 bg-[var(--bg-card)] group-hover/row:bg-[var(--bg-surface)]" style={{ height: ROW_H, position: "sticky", left: STRIP_W + 36, zIndex: 5 }}>
@@ -473,14 +473,14 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                                         <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
                                         {n === 0 && <path d="M12 8v6M9 11h6" />}
                                       </svg>
-                                      {n > 0 && <span className="text-[10px] font-bold" style={{ color: MONDAY.primary }}>{n}</span>}
+                                      {n > 0 && <span className="text-[10px] font-bold" style={{ color: "var(--primary)" }}>{n}</span>}
                                     </button>
                                   );
                                 })()}
                                 <button
                                   onClick={() => setOpenDealId(d.id)}
                                   className="opacity-0 group-hover/row:opacity-100 transition inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border shrink-0"
-                                  style={{ color: MONDAY.primary, borderColor: MONDAY.primary, background: "transparent" }}
+                                  style={{ color: "var(--primary)", borderColor: "var(--primary)", background: "transparent" }}
                                 >
                                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M9 18l6-6-6-6" /></svg>
                                   열기
@@ -587,7 +587,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
       {/* ── 플로팅 선택바 (먼데이 하단 블루바) ── */}
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center rounded-lg overflow-hidden shadow-xl border border-[var(--border)] bg-[var(--bg-card)]">
-          <div className="flex items-center justify-center w-12 self-stretch text-white text-lg font-bold" style={{ background: MONDAY.primary }}>
+          <div className="flex items-center justify-center w-12 self-stretch text-white text-lg font-bold" style={{ background: "var(--primary)" }}>
             {selected.size}
           </div>
           <div className="px-4 py-2.5 text-[13px] font-semibold text-[var(--text)]">개 항목 선택됨</div>
@@ -725,12 +725,12 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
             placeholder="업데이트 작성... (Ctrl+Enter 등록)"
             rows={3}
             className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] resize-none focus:outline-none"
-            style={{ borderColor: body.trim() ? MONDAY.primary : undefined }}
+            style={{ borderColor: body.trim() ? "var(--primary)" : undefined }}
           />
           <div className="flex justify-end mt-2">
             <button onClick={submit} disabled={!body.trim() || busy}
               className="px-4 h-8 rounded text-[13px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
-              style={{ background: MONDAY.primary }}>
+              style={{ background: "var(--primary)" }}>
               {busy ? "등록 중..." : "등록"}
             </button>
           </div>
@@ -956,7 +956,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
           onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
           placeholder="업체명"
           className="flex-1 min-w-0 bg-transparent text-2xl font-bold text-[var(--text)] focus:outline-none focus:border-b-2 pb-1"
-          style={{ borderColor: MONDAY.primary }}
+          style={{ borderColor: "var(--primary)" }}
         />
         {onOpenUpdates && (
           <button
@@ -969,7 +969,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
             </svg>
             업데이트
             {updatesCount > 0 && (
-              <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: MONDAY.primary }}>
+              <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: "var(--primary)" }}>
                 {updatesCount}
               </span>
             )}
@@ -1026,7 +1026,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
                               <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
                               {n === 0 && <path d="M12 8v6M9 11h6" />}
                             </svg>
-                            {n > 0 && <span className="text-[10px] font-bold" style={{ color: MONDAY.primary }}>{n}</span>}
+                            {n > 0 && <span className="text-[10px] font-bold" style={{ color: "var(--primary)" }}>{n}</span>}
                           </button>
                         );
                       })()}
@@ -1064,7 +1064,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
                   return (
                     <td key={c.id} className="px-2 py-2 text-center align-middle">
                       <div className="text-[12px] font-bold mono-number text-[var(--text)]">{sum ? sum.toLocaleString("ko-KR") : "—"}</div>
-                      {bound && sum > 0 && <div className="text-[9px] font-semibold" style={{ color: MONDAY.primary }}>→ 프로젝트 계약금액 반영</div>}
+                      {bound && sum > 0 && <div className="text-[9px] font-semibold" style={{ color: "var(--primary)" }}>→ 프로젝트 계약금액 반영</div>}
                     </td>
                   );
                 })}
@@ -1135,7 +1135,7 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
             className="text-[12px] font-semibold text-[var(--danger)] hover:underline">컬럼 삭제</button>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">취소</button>
-            <button onClick={save} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: MONDAY.primary }}>저장</button>
+            <button onClick={save} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "var(--primary)" }}>저장</button>
           </div>
         </div>
       </div>
@@ -1395,7 +1395,7 @@ function EditableText({ value, onSave, className = "", placeholder = "", center 
         onBlur={() => { setEditing(false); onSave(v); }}
         onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); onSave(v); } if (e.key === "Escape") { setEditing(false); setV(value); } }}
         className={`bg-[var(--bg-card)] border rounded px-1.5 py-0.5 w-full focus:outline-none ${center ? "text-center" : ""} ${className}`}
-        style={{ borderColor: MONDAY.primary, ...style }} />
+        style={{ borderColor: "var(--primary)", ...style }} />
     );
   }
   return (

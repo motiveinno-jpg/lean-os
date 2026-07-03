@@ -175,9 +175,9 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       </div>
 
       <div>
-        <label className="block text-xs text-[var(--text-muted)] mb-1.5">회계 마감일 (이 날짜까지 결산 완료)</label>
+        <label className="field-label">회계 마감일 (이 날짜까지 결산 완료)</label>
         <DateField value={closingDate} onChange={(e) => setClosingDate(e.target.value)}
-          className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+          className="field-input" />
         <p className="text-[10px] text-[var(--text-dim)] mt-1">비워두면 마감일 없음 — 이 경우 최대 <b>2년 전</b>까지만 수집합니다.</p>
       </div>
 
@@ -268,9 +268,9 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       </div>
 
       <div>
-        <label className="block text-xs text-[var(--text-muted)] mb-1.5">메모 (선택)</label>
+        <label className="field-label">메모 (선택)</label>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="예: 2025년 재무제표 기준 마감"
-          className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+          className="field-input" />
       </div>
 
       <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-muted)]">
@@ -278,7 +278,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       </div>
 
       <button onClick={() => companyId && saveMut.mutate()} disabled={!companyId || saveMut.isPending}
-        className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+        className="btn-primary w-full">
         {saveMut.isPending ? "저장 중..." : "저장"}
       </button>
     </div>

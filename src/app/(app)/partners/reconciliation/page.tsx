@@ -512,7 +512,7 @@ export default function ReconciliationPage() {
   return (
     <div className="space-y-6">
       {/* 히어로 밴드 — 타이틀 + 기간 · 매칭 액션 */}
-      <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-6">
+      <div className="glass-card p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-bold text-[var(--primary)] uppercase tracking-[0.15em]">Reconciliation</p>
@@ -520,12 +520,12 @@ export default function ReconciliationPage() {
             <p className="text-sm text-[var(--text-muted)] mt-1">입금·계산서 자동 매칭 — 확정한 매칭만 거래처 원장 잔액에 반영됩니다</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap lg:justify-end shrink-0">
-            <Link href="/partners/ledger" className="px-3.5 py-2 text-xs font-semibold rounded-full bg-[var(--bg-surface)]/80 border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">← 거래처 원장</Link>
+            <Link href="/partners/ledger" className="btn-secondary text-xs">← 거래처 원장</Link>
             <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
-              className="px-3.5 py-2 text-xs font-semibold rounded-full bg-[var(--bg-surface)]/80 border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50 transition"
+              className="btn-secondary text-xs"
               title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
               {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
-            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-surface)]/80 border border-[var(--border)] px-3 py-1.5">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-1.5">
               <DateField value={engStart} max={engEnd} onChange={(e) => setEngStart(e.target.value)}
                 className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
               <span className="caption">~</span>
@@ -533,11 +533,11 @@ export default function ReconciliationPage() {
                 className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
             </span>
             <button onClick={() => !engineMut.isPending && engineMut.mutate()} disabled={engineMut.isPending || !engStart || !engEnd || engStart > engEnd}
-              className="px-4 py-2 text-xs font-semibold rounded-full bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/25 hover:opacity-90 disabled:opacity-50 transition"
+              className="btn-primary text-xs disabled:opacity-50"
               title="선택 기간(최대 6개월)의 미정산 입금과 세금계산서를 규칙으로 매칭. 여러 기간 반복해도 기존 매칭은 유지·누적됩니다.">
               {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
             <button onClick={() => matchCd.run(() => { if (!aiMut.isPending) aiMut.mutate(); })} disabled={aiMut.isPending || matchCd.disabled}
-              className={`px-4 py-2 text-xs font-semibold rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white shadow-lg shadow-purple-500/25 hover:opacity-90 disabled:opacity-50 transition ${matchCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+              className={`px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white shadow-sm hover:opacity-90 disabled:opacity-50 transition ${matchCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
               title={matchCd.disabled ? `30분 쿨타임 — ${matchCd.label}` : "규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다."}>
               {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : matchCd.disabled ? `⏳ ${matchCd.label}` : "✨ AI 전체 매칭"}</button>
           </div>
@@ -552,7 +552,7 @@ export default function ReconciliationPage() {
         const totalCnt = doneCnt + waitCnt;
         const pct = totalCnt > 0 ? Math.round((doneCnt / totalCnt) * 100) : 100;
         return (
-          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 px-6 py-5">
+          <div className="glass-card px-6 py-5">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
               <div className="flex items-baseline gap-2 shrink-0">
                 <span className="text-3xl font-black mono-number text-[var(--text)] leading-none">{pct}%</span>
@@ -560,7 +560,7 @@ export default function ReconciliationPage() {
               </div>
               <div className="flex-1 min-w-[160px]">
                 <div className="h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                  <div className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] via-indigo-400 to-emerald-400 transition-all duration-700 ease-out" style={{ width: `${Math.max(pct, 2)}%` }} />
+                  <div className="h-full rounded-full bg-[var(--primary)] transition-all duration-700 ease-out" style={{ width: `${Math.max(pct, 2)}%` }} />
                 </div>
                 <div className="mt-1.5 text-[10px] text-[var(--text-dim)] mono-number">확정 {doneCnt}건 / 전체 {totalCnt}건 (이 기간 대기 기준)</div>
               </div>
@@ -595,7 +595,7 @@ export default function ReconciliationPage() {
               return (
                 <>
                   <div className="h-3 rounded-full bg-[var(--bg-surface)] overflow-hidden mb-2">
-                    <div className="h-full rounded-full bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 transition-all duration-700 ease-out relative" style={{ width: `${Math.max(pct, 3)}%` }}>
+                    <div className="h-full rounded-full bg-purple-500 transition-all duration-700 ease-out relative" style={{ width: `${Math.max(pct, 3)}%` }}>
                       <span className="absolute inset-0 bg-white/25 animate-pulse" />
                     </div>
                   </div>
@@ -614,10 +614,10 @@ export default function ReconciliationPage() {
         </div>
       )}
 
-      <div className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-1 w-fit">
+      <div className="seg-bar w-fit">
         {([["queue", `거래 정리${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["confirmed", `정리 내역${confirmed.length ? ` (${confirmed.length})` : ""}`]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition ${tab === k ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]/60"}`}>
+            className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>
             {label}</button>
         ))}
       </div>
@@ -627,7 +627,7 @@ export default function ReconciliationPage() {
           {qLoading ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : queue.length === 0 ? (
-            <div className="py-14 px-6 text-center rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70">
+            <div className="py-14 px-6 text-center glass-card">
               <div className="text-4xl mb-3">✅</div>
               <div className="text-sm font-semibold text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 확인 대기 중인 매칭이 없습니다</div>
               {queueRaw.length > queue.length && (
@@ -640,7 +640,7 @@ export default function ReconciliationPage() {
             </div>
           ) : (
             <>
-              <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="glass-card p-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[11px]">
                   <button onClick={() => setSelected(new Set(queue.map((m) => m.id)))} className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] font-semibold transition">전체 선택</button>
                   {selected.size > 0 && <button onClick={() => setSelected(new Set())} className="px-2.5 py-1.5 rounded-full text-[var(--text-dim)] hover:text-[var(--text)] transition">해제</button>}
@@ -663,11 +663,11 @@ export default function ReconciliationPage() {
               </div>
               <p className="text-[11px] text-[var(--text-dim)] px-1">확정하면 정산(미수금·미지급 차감)과 <b className="text-[var(--text-muted)]">분개 전표가 함께 장부에 자동 기록</b>됩니다 · 정리 내역에서 되돌리면 정산·전표 둘 다 원복</p>
               {/* 위하고식 그리드: 통장거래 | 세금계산서 | 정산액(+자동분개) | 유형 | 신뢰도 | 처리 */}
-              <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 overflow-hidden">
+              <div className="glass-card overflow-hidden">
                 <div className="overflow-auto max-h-[600px]">
                   <table ref={queueTableRef} className="w-full min-w-[1020px] text-xs border-collapse" style={{ tableLayout: "fixed" }}>
                     <thead className="sticky top-0 z-10">
-                      <tr className="bg-[var(--bg-surface)]/80 backdrop-blur border-b border-[var(--border)]">
+                      <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                         <th className="px-2 py-2 text-center" style={{ width: queueW.sel }}>
                           <input type="checkbox" checked={selected.size === queue.length && queue.length > 0}
                             onChange={(e) => setSelected(e.target.checked ? new Set(queue.map((m) => m.id)) : new Set())}
@@ -745,7 +745,7 @@ export default function ReconciliationPage() {
 
       {tab === "manual" && (
         <div className="space-y-3">
-          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-[var(--text-muted)] min-w-0">
               규칙·AI 가 못 잡은 입출금을 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.
               <span className="ml-2 text-[var(--text-dim)] mono-number">기간 {engStart} ~ {engEnd} (상단에서 변경) · {openTx.filter(manualTxMatch).length}건</span>
@@ -754,17 +754,17 @@ export default function ReconciliationPage() {
               className="px-3.5 py-2 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-52 outline-none focus:border-[var(--primary)] transition" />
           </div>
           {openTx.length === 0 ? (
-            <div className="py-14 px-6 text-center rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70">
+            <div className="py-14 px-6 text-center glass-card">
               <div className="text-4xl mb-3">🔗</div>
               <div className="text-sm font-semibold text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다. 상단에서 기간을 조정해 보세요.</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">규칙·AI가 못 잡은 입출금이 있으면 여기서 직접 연결할 수 있습니다</div>
             </div>
           ) : (
-            <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 overflow-hidden">
+            <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[600px]">
                 <table className="w-full min-w-[680px] text-xs border-collapse">
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-[var(--bg-surface)]/80 backdrop-blur border-b border-[var(--border)]">
+                    <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                       <th className={`${GRID_TH} uppercase text-left w-[92px]`}>거래일자</th>
                       <th className={`${GRID_TH} uppercase text-center w-[52px]`}>구분</th>
                       <th className={`${GRID_TH} uppercase text-left`}>거래처(입금자)</th>
@@ -944,21 +944,21 @@ export default function ReconciliationPage() {
 
       {tab === "confirmed" && (
         <div className="space-y-3">
-          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-4">
+          <div className="glass-card p-4">
             <p className="text-xs text-[var(--text-muted)]">확정된 매칭 내역입니다. 잘못 확정한 건은 “확정 취소”로 되돌리면 미수금과 <b>분개 전표가 함께 원복</b>되고 거래 정리로 돌아갑니다.</p>
           </div>
           {confirmed.length === 0 ? (
-            <div className="py-14 px-6 text-center rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70">
+            <div className="py-14 px-6 text-center glass-card">
               <div className="text-4xl mb-3">📂</div>
               <div className="text-sm font-semibold text-[var(--text)]">확정된 매칭이 없습니다.</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">거래 정리 탭에서 매칭을 확정하면 여기에 내역이 쌓입니다</div>
             </div>
           ) : (
-            <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 overflow-hidden">
+            <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[600px]">
                 <table className="w-full min-w-[1020px] text-xs border-collapse">
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-[var(--bg-surface)]/80 backdrop-blur border-b border-[var(--border)]">
+                    <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                       <th className={`${GRID_TH} uppercase text-left w-[88px]`}>거래일자</th>
                       <th className={`${GRID_TH} uppercase text-center w-[64px]`}>구분</th>
                       <th className={`${GRID_TH} uppercase text-left`}>입금자/사유</th>

@@ -91,10 +91,7 @@ export function MorningBrief({
   // 데이터 없음 — 온보딩 톤
   if (!hasData || !cashPulse) {
     return (
-      <section
-        className="mb-4 rounded-2xl border bg-[var(--bg-card)] p-4 sm:p-5"
-        style={{ borderColor: "var(--border)" }}
-      >
+      <section className="mb-4 glass-card p-4 sm:p-5">
         <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-1 sm:mb-2">{today}</p>
         <h2 className="text-base sm:text-lg font-bold text-[var(--text)] leading-snug mb-2 break-keep">
           {greeting}, {userName || "대표"}님.
@@ -226,10 +223,7 @@ export function MorningBrief({
   const hasExtra = Boolean(line3 || progressLine || hasTx);
 
   return (
-    <section
-      className="mb-6 rounded-2xl border bg-[var(--bg-card)] p-4 sm:p-6 md:p-8"
-      style={{ borderColor: "var(--border)" }}
-    >
+    <section className="mb-6 glass-card p-4 sm:p-6 md:p-8">
       <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-1 sm:mb-2">
         {today} · {companyName}
       </p>

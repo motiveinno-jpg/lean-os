@@ -403,7 +403,7 @@ export default function CashReceiptsPage() {
   return (
     <div className="space-y-6 mx-auto">
       {/* ─── 히어로 밴드 ─── */}
-      <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-6">
+      <div className="glass-card p-6">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div className="min-w-0">
             <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--primary)]">
@@ -416,7 +416,7 @@ export default function CashReceiptsPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* 조회기간 — 목록·요약·홈택스 동기화 공통 기준 (기준 하나로 통일) */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)]/70 border border-[var(--border)]/70">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
               <span className="text-[11px] font-semibold text-[var(--text-muted)]">조회기간</span>
               <DateField
                 value={startDate}
@@ -438,7 +438,7 @@ export default function CashReceiptsPage() {
               onClick={startSync}
               disabled={syncStarting || !!activeJobId}
               aria-busy={syncStarting || !!activeJobId}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--primary)] text-white hover:brightness-110 text-xs font-semibold shadow-sm shadow-[var(--primary)]/25 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary text-xs disabled:cursor-not-allowed"
               title="조회기간 범위로 홈택스에서 현금영수증 매출(발행) 내역 가져오기. 매입 내역은 CODEF API 미지원."
             >
               <svg className={`w-3.5 h-3.5 ${(syncStarting || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -451,7 +451,7 @@ export default function CashReceiptsPage() {
                     : "홈택스 매출 가져오기"}
               </span>
             </button>
-            <label className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-semibold text-[var(--text)] cursor-pointer hover:border-[var(--primary)]/50 hover:text-[var(--primary)] transition">
+            <label className="btn-secondary text-xs inline-flex items-center gap-1.5 cursor-pointer">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
@@ -471,65 +471,65 @@ export default function CashReceiptsPage() {
       {/* ─── KPI 스탯 ─── */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-5">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">매출 발행</span>
+              <span className="kpi-icon success">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </span>
-              <span className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매출 발행</span>
             </div>
-            <div className="text-2xl font-black mono-number text-[var(--text)] mt-3">
-              {summary.incomeCount}건
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{summary.incomeCount}건</span>
             </div>
-            <div className="text-xs text-[var(--text-muted)] mono-number mt-0.5">
+            <div className="text-xs text-[var(--text-muted)] mono-number">
               ₩{summary.incomeTotal.toLocaleString()}
             </div>
           </div>
-          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-5">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">매입 수취</span>
+              <span className="kpi-icon info">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4m0 0l6-6m-6 6l6 6" />
                 </svg>
               </span>
-              <span className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입 수취</span>
             </div>
-            <div className="text-2xl font-black mono-number text-[var(--text)] mt-3">
-              {summary.expenseCount}건
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{summary.expenseCount}건</span>
             </div>
-            <div className="text-xs text-[var(--text-muted)] mono-number mt-0.5">
+            <div className="text-xs text-[var(--text-muted)] mono-number">
               ₩{summary.expenseTotal.toLocaleString()}
             </div>
           </div>
-          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-5">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">매입세액 공제</span>
+              <span className="kpi-icon">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </span>
-              <span className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">매입세액 공제</span>
             </div>
-            <div className="text-2xl font-black mono-number text-[var(--primary)] mt-3">
-              ₩{summary.expenseTax.toLocaleString()}
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">₩{summary.expenseTax.toLocaleString()}</span>
             </div>
-            <div className="text-xs text-[var(--text-muted)] mt-0.5">부가세 신고 시 공제</div>
+            <div className="text-xs text-[var(--text-muted)]">부가세 신고 시 공제</div>
           </div>
-          <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-5">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]/60 flex items-center justify-center shrink-0">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">합계</span>
+              <span className="kpi-icon">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </span>
-              <span className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">합계</span>
             </div>
-            <div className="text-2xl font-black mono-number text-[var(--text)] mt-3">
-              {summary.incomeCount + summary.expenseCount}건
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{summary.incomeCount + summary.expenseCount}건</span>
             </div>
-            <div className="text-xs text-[var(--text-muted)] mono-number mt-0.5">
+            <div className="text-xs text-[var(--text-muted)] mono-number">
               ₩{(summary.incomeTotal + summary.expenseTotal).toLocaleString()}
             </div>
           </div>
@@ -540,15 +540,15 @@ export default function CashReceiptsPage() {
 
       {/* 선택 액션바 */}
       {tab !== "register" && selectedReceipts.length > 0 && (
-        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 backdrop-blur border border-[var(--primary)]/30">
+        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--primary)]/30 shadow-sm">
           <span className="text-sm font-semibold text-[var(--text)]"><b className="text-[var(--primary)]">{selectedReceipts.length}건</b> 선택됨</span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:brightness-110 transition">
+              className="btn-primary text-xs">
               전표처리({selectedReceipts.length})
             </button>
             <button type="button" onClick={() => setSelectedIds(new Set())}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition">
+              className="btn-secondary text-xs">
               선택 해제
             </button>
           </div>
@@ -556,8 +556,8 @@ export default function CashReceiptsPage() {
       )}
 
       {/* ─── 세그먼트 탭 + 리스트/등록 패널 ─── */}
-      <div className="rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--border)]/60 flex items-center justify-between gap-3 flex-wrap">
+      <div className="glass-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3 flex-wrap">
           <div className="seg-bar w-fit">
             {/* A3: '등록' 탭은 직원 요청으로 메뉴 제거. 백엔드 코드/엔드포인트는
                 보존 (CODEF 자동 sync BLOCKED 해제 시 즉시 재노출 가능). */}
@@ -966,9 +966,9 @@ export default function CashReceiptsPage() {
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 각 건 전표가 생성됩니다. 현금영수증 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <button onClick={() => setShowBulkPost(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={() => setShowBulkPost(false)} className="btn-ghost text-xs">취소</button>
               <button onClick={doBulkPost} disabled={bulkPosting || !bulkAccountId}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                className="btn-primary text-xs">
                 {bulkPosting ? "처리 중..." : `${selectedReceipts.length}건 전표 생성`}
               </button>
             </div>

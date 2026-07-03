@@ -13,8 +13,8 @@ import { supabase } from "@/lib/supabase";
 const db = supabase as any;
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 
-// 사진 강조 팔레트(고정 발색)
-const A = { blue: "#2F7DE1", green: "#1FAE6B", red: "#E0524F" };
+// 강조 팔레트 — CSS 토큰(라이트/다크 자동 대응)
+const A = { blue: "var(--info)", green: "var(--success)", red: "var(--danger)" };
 
 // 매출 월별 영역 라인차트 (사진 Sales Performance) — 인라인 SVG, 새 의존성 없음.
 function RevenueSparkline({ series }: { series: number[] }) {
@@ -29,13 +29,13 @@ function RevenueSparkline({ series }: { series: number[] }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 92, transform: "translateZ(0)", contain: "paint" }} preserveAspectRatio="none">
       <defs>
         <linearGradient id="rev-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={A.green} stopOpacity="0.24" />
-          <stop offset="100%" stopColor={A.green} stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.24" />
+          <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={area} fill="url(#rev-grad)" />
-      <path d={line} fill="none" stroke={A.green} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={x(n - 1)} cy={y(series[n - 1])} r="3" fill={A.green} />
+      <path d={line} fill="none" stroke="var(--primary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={x(n - 1)} cy={y(series[n - 1])} r="3" fill="var(--primary)" />
     </svg>
   );
 }
@@ -113,20 +113,19 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
     </div>
   );
   const MoreLink = ({ href, label }: { href: string; label: string }) => (
-    <Link href={href} className="mt-3 w-full text-[12px] font-semibold p-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
-      style={{ color: A.blue, background: "rgba(47,125,225,0.08)" }}>
+    <Link href={href} className="mt-3 w-full text-[12px] font-semibold p-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-[var(--primary)]"
+      style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)" }}>
       {label}
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
     </Link>
   );
 
-  const cardCls = "rounded-2xl p-5 flex flex-col bg-[var(--bg-card)] border border-[var(--border)]";
-  const cardShadow = { boxShadow: "var(--shadow-sm)" } as const;
+  const cardCls = "glass-card p-5 flex flex-col";
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
       {/* 카드 */}
-      <div className={cardCls} style={cardShadow}>
+      <div className={cardCls}>
         <Header title="카드" color={A.red}
           icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>} />
         <div className="space-y-2.5 flex-1">
@@ -138,7 +137,7 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
       </div>
 
       {/* 자산 */}
-      <div className={cardCls} style={cardShadow}>
+      <div className={cardCls}>
         <Header title="자산" color={A.green}
           icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
         <div className="space-y-2.5 flex-1">
@@ -150,7 +149,7 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
       </div>
 
       {/* 매출 (Sales Performance) */}
-      <div className={cardCls} style={cardShadow}>
+      <div className={cardCls}>
         <Header title="매출 추이" color={A.green}
           icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
         <div className="flex-1 flex flex-col justify-center">

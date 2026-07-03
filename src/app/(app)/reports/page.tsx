@@ -108,7 +108,7 @@ export default function ReportsHubPage() {
   return (
     <div className="mx-auto max-w-[1100px] space-y-6 px-7 py-6">
       {/* Hero band */}
-      <div className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 p-6 backdrop-blur">
+      <div className="glass-card p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--primary)]">
@@ -119,7 +119,7 @@ export default function ReportsHubPage() {
               재무제표와 비용 구조를 한 곳에서. 보고 싶은 분석을 선택하세요.
             </p>
           </div>
-          <div className="hidden items-center gap-2 rounded-full border border-[var(--border)]/70 bg-[var(--bg-surface)]/60 px-3.5 py-1.5 sm:flex">
+          <div className="hidden items-center gap-2 rounded-full bg-[var(--bg-surface)] px-3.5 py-1.5 sm:flex">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />
             <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
               리포트 {visibleCards.length}종
@@ -145,7 +145,7 @@ export default function ReportsHubPage() {
             <div
               className="flex h-11 w-11 items-center justify-center rounded-xl"
               style={{
-                background: `linear-gradient(135deg, color-mix(in srgb, ${c.accent} 18%, transparent), color-mix(in srgb, ${c.accent} 7%, transparent))`,
+                background: `color-mix(in srgb, ${c.accent} 12%, transparent)`,
                 color: c.accent,
               }}
             >

@@ -212,7 +212,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         onToggle={(v) => setPrefs((p) => ({ ...p, email: { ...p.email, enabled: v } }))}
       >
         <div className="mb-4">
-          <label className="block text-xs text-[var(--text-muted)] mb-1.5">수신 이메일 주소</label>
+          <label className="field-label">수신 이메일 주소</label>
           <input
             type="email"
             value={prefs.email.address}
@@ -280,7 +280,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         onToggle={(v) => setPrefs((p) => ({ ...p, telegram: { ...p.telegram, enabled: v } }))}
       >
         <div className="mb-4">
-          <label className="block text-xs text-[var(--text-muted)] mb-1.5">Telegram Chat ID</label>
+          <label className="field-label">Telegram Chat ID</label>
           <div className="flex gap-2">
             <input
               type="text"
@@ -357,14 +357,14 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       <div className="sticky bottom-0 -mx-6 px-6 py-4 bg-[var(--bg)]/95 backdrop-blur border-t border-[var(--border)] flex justify-end gap-2">
         <button
           onClick={() => setPrefs(DEFAULT_NOTIF_PREFS)}
-          className="px-4 py-2 rounded-lg text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition"
+          className="btn-ghost"
         >
           기본값으로
         </button>
         <button
           onClick={save}
           disabled={saving}
-          className="px-5 py-2 rounded-lg text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition disabled:opacity-50"
+          className="btn-primary px-5"
         >
           {saving ? "저장중..." : "저장"}
         </button>
@@ -472,7 +472,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
             💰 자금일보 카카오 알림톡
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 font-semibold">신규</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">신규</span>
           </h3>
           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">매일 정해진 시간에 전일 자금 요약을 카톡으로 발송 (Solapi 검수 통과 후 활성화).</p>
         </div>
@@ -502,7 +502,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
 
           {/* 수신 번호 */}
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">수신 번호 (카톡 등록된 휴대폰 번호)</label>
+            <label className="field-label">수신 번호 (카톡 등록된 휴대폰 번호)</label>
             <div className="flex gap-2 mb-2">
               <input
                 type="tel"
@@ -541,14 +541,14 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
             <button
               onClick={save}
               disabled={saving}
-              className="flex-1 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+              className="btn-primary flex-1"
             >
               {saving ? "저장중..." : "설정 저장"}
             </button>
             <button
               onClick={testSend}
               disabled={testing || phones.length === 0}
-              className="flex-1 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] rounded-lg text-xs font-semibold hover:bg-[var(--bg)] disabled:opacity-50"
+              className="btn-secondary flex-1"
             >
               {testing ? "발송중..." : "테스트 발송 (어제 데이터)"}
             </button>
@@ -647,7 +647,7 @@ function SlackNotifyCard({ companyId }: { companyId: string | null }) {
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
             💬 Slack 알림 연동
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-400/15 text-yellow-700 dark:text-yellow-400 font-semibold">신규</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">신규</span>
           </h3>
           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">결제 요청/결재 대기/큰 거래 발생 시 슬랙 채널에 자동 알림.</p>
         </div>
@@ -655,7 +655,7 @@ function SlackNotifyCard({ companyId }: { companyId: string | null }) {
 
       <div className="space-y-3 mt-4">
         <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1.5">Slack Incoming Webhook URL</label>
+          <label className="field-label">Slack Incoming Webhook URL</label>
           <input
             type="url"
             value={webhookUrl}
@@ -686,7 +686,7 @@ function SlackNotifyCard({ companyId }: { companyId: string | null }) {
 
         {notifyLargeTx && (
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">큰 거래 기준 금액 (원)</label>
+            <label className="field-label">큰 거래 기준 금액 (원)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -700,10 +700,10 @@ function SlackNotifyCard({ companyId }: { companyId: string | null }) {
         )}
 
         <div className="flex gap-2 pt-1">
-          <button onClick={save} disabled={saving} className="flex-1 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-50">
+          <button onClick={save} disabled={saving} className="btn-primary flex-1">
             {saving ? "저장중..." : "설정 저장"}
           </button>
-          <button onClick={testSend} disabled={testing || !webhookUrl} className="flex-1 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] rounded-lg text-xs font-semibold hover:bg-[var(--bg)] disabled:opacity-50">
+          <button onClick={testSend} disabled={testing || !webhookUrl} className="btn-secondary flex-1">
             {testing ? "발송중..." : "테스트 발송"}
           </button>
         </div>

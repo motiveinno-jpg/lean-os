@@ -9,11 +9,11 @@ import { supabase } from "@/lib/supabase";
 const db = supabase as any;
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  trialing: { bg: "bg-blue-500/20", text: "text-blue-400", label: "체험중" },
-  active: { bg: "bg-emerald-500/20", text: "text-emerald-400", label: "활성" },
-  past_due: { bg: "bg-yellow-500/20", text: "text-yellow-400", label: "미납" },
-  canceled: { bg: "bg-red-500/20", text: "text-red-400", label: "해지" },
-  paused: { bg: "bg-gray-500/20", text: "text-gray-400", label: "일시중지" },
+  trialing: { bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]", label: "체험중" },
+  active: { bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]", label: "활성" },
+  past_due: { bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]", label: "미납" },
+  canceled: { bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]", label: "해지" },
+  paused: { bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-muted)]", label: "일시중지" },
 };
 
 export default function CustomersPage() {
@@ -40,22 +40,22 @@ export default function CustomersPage() {
   });
 
   return (
-    <div className="max-w-6xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-extrabold text-white">고객사 관리</h1>
-        <p className="text-sm text-[#64748b] mt-1">전체 가입 고객사 현황</p>
+    <div className="max-w-6xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-extrabold text-[var(--text)]">고객사 관리</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">전체 가입 고객사 현황</p>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="회사명 검색..."
-          className="w-full max-w-sm px-4 py-2.5 bg-[#111827] border border-[#1e293b] rounded-xl text-sm text-white placeholder-[#64748b] focus:outline-none focus:border-cyan-500"
+          className="field-input max-w-sm"
         />
-        <div className="flex gap-1">
+        <div className="seg-bar">
           {[
             { key: "all", label: "전체" },
             { key: "paid", label: "유료" },
@@ -64,9 +64,7 @@ export default function CustomersPage() {
             <button
               key={f.key}
               onClick={() => setStatusFilter(f.key)}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                statusFilter === f.key ? "bg-cyan-600 text-white" : "bg-[#1e293b] text-[#94a3b8] hover:text-white"
-              }`}
+              className={`seg-item ${statusFilter === f.key ? "seg-item-active" : ""}`}
             >
               {f.label}
             </button>
@@ -74,23 +72,23 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      <div className="text-xs text-[#64748b] mb-3">{filtered.length}개 고객사</div>
+      <div className="text-xs text-[var(--text-dim)]">{filtered.length}개 고객사</div>
 
       {/* Table */}
-      <div className="bg-[#111827] rounded-2xl border border-[#1e293b] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#1e293b]">
-                <th className="text-left px-5 py-3.5 font-semibold text-[#64748b]">회사</th>
-                <th className="text-left px-5 py-3.5 font-semibold text-[#64748b]">플랜</th>
-                <th className="text-left px-5 py-3.5 font-semibold text-[#64748b]">상태</th>
-                <th className="text-center px-5 py-3.5 font-semibold text-[#64748b]">좌석</th>
-                <th className="text-left px-5 py-3.5 font-semibold text-[#64748b]">가입일</th>
-                <th className="px-5 py-3.5"></th>
+              <tr className="table-head-row">
+                <th className="th-cell text-left">회사</th>
+                <th className="th-cell text-left">플랜</th>
+                <th className="th-cell text-left">상태</th>
+                <th className="th-cell text-center">좌석</th>
+                <th className="th-cell text-left">가입일</th>
+                <th className="th-cell"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1e293b]">
+            <tbody>
               {filtered.map((c: any) => {
                 const sub = c.subscriptions?.[0];
                 const plan = sub?.subscription_plans;
@@ -99,35 +97,35 @@ export default function CustomersPage() {
                   <tr
                     key={c.id}
                     onClick={() => router.push(`/platform/companies/${c.id}`)}
-                    className="hover:bg-[#1e293b]/50 transition cursor-pointer"
+                    className="border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition cursor-pointer"
                   >
                     <td className="px-5 py-3.5">
-                      <div className="font-semibold text-white">{c.name}</div>
+                      <div className="font-semibold text-[var(--text)]">{c.name}</div>
                       {c.industry ? (
-                        <div className="text-xs text-[#64748b]">{c.industry}</div>
+                        <div className="text-xs text-[var(--text-dim)]">{c.industry}</div>
                       ) : (
-                        <div className="text-xs text-amber-400/70">업종 미분류</div>
+                        <div className="text-xs text-[var(--warning)]">업종 미분류</div>
                       )}
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                        plan?.slug === "business" || plan?.slug === "pro" ? "bg-purple-500/20 text-purple-400" :
-                        plan?.slug === "starter" ? "bg-blue-500/20 text-blue-400" :
-                        "bg-[#1e293b] text-[#64748b]"
+                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                        plan?.slug === "business" || plan?.slug === "pro" ? "bg-[var(--primary-light)] text-[var(--primary)]" :
+                        plan?.slug === "starter" ? "bg-[var(--info-dim)] text-[var(--info)]" :
+                        "bg-[var(--bg-surface)] text-[var(--text-muted)]"
                       }`}>
                         {plan?.name || c.current_plan || "Free"}
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${st.bg} ${st.text}`}>{st.label}</span>
+                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${st.bg} ${st.text}`}>{st.label}</span>
                     </td>
-                    <td className="px-5 py-3.5 text-center text-[#94a3b8]">{sub?.seat_count || 1}명</td>
-                    <td className="px-5 py-3.5 text-[#94a3b8]">{new Date(c.created_at).toLocaleDateString("ko-KR")}</td>
+                    <td className="px-5 py-3.5 text-center text-[var(--text-muted)]">{sub?.seat_count || 1}명</td>
+                    <td className="px-5 py-3.5 text-[var(--text-muted)]">{new Date(c.created_at).toLocaleDateString("ko-KR")}</td>
                     <td className="px-5 py-3.5 text-right">
                       <Link
                         href={`/platform/companies/${c.id}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="text-xs text-cyan-400 hover:underline"
+                        className="text-xs text-[var(--primary)] hover:underline"
                       >
                         상세 →
                       </Link>
@@ -139,7 +137,7 @@ export default function CustomersPage() {
           </table>
         </div>
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-sm text-[#64748b]">검색 결과가 없습니다</div>
+          <div className="text-center py-12 text-sm text-[var(--text-dim)]">검색 결과가 없습니다</div>
         )}
       </div>
     </div>

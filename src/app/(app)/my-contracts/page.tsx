@@ -172,14 +172,14 @@ export default function MyContractsPage() {
                     {canSign ? (
                       <button
                         onClick={() => openSign(p)}
-                        className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--primary-hover)] transition"
+                        className="btn-primary"
                       >
                         서명하기 →
                       </button>
                     ) : p.status === "completed" ? (
                       <button
                         onClick={() => openSign(p)}
-                        className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-xl text-sm font-medium hover:text-[var(--text)] transition"
+                        className="btn-secondary"
                       >
                         보기
                       </button>

@@ -98,9 +98,9 @@ export function OvertimeApprovalInbox({ companyId, reviewerId }: { companyId: st
             </div>
             <div className="flex gap-1.5 shrink-0">
               <button onClick={() => approveMut.mutate(r)} disabled={approveMut.isPending}
-                className="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-[10px] font-semibold disabled:opacity-40">승인</button>
+                className="px-2.5 py-1 bg-[var(--success)] hover:brightness-110 text-white rounded text-[10px] font-semibold disabled:opacity-40">승인</button>
               <button onClick={() => onReject(r)} disabled={rejectMut.isPending}
-                className="px-2.5 py-1 bg-red-600/80 hover:bg-red-700 text-white rounded text-[10px] font-semibold disabled:opacity-40">반려</button>
+                className="px-2.5 py-1 bg-[var(--danger)] hover:brightness-110 text-white rounded text-[10px] font-semibold disabled:opacity-40">반려</button>
             </div>
           </div>
         ))}

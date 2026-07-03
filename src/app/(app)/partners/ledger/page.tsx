@@ -173,11 +173,8 @@ export default function PartnerLedgerPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── 히어로 밴드: 타이틀·액션 + 세그먼트·기간·검색·정렬 툴바 + KPI ── */}
-      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-card)]/70 backdrop-blur border border-[var(--border)]/70 p-6">
-        {/* 활성 탭 색 글로우 (장식) */}
-        <div aria-hidden className="pointer-events-none absolute -top-28 -right-20 w-80 h-80 rounded-full blur-3xl opacity-[0.13] transition-colors" style={{ background: pal.main }} />
-
+      {/* ── 히어로 카드: 타이틀·액션 + 세그먼트·기간·검색·정렬 툴바 + KPI ── */}
+      <div className="glass-card p-6">
         <div className="relative flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-bold text-[var(--primary)] uppercase tracking-[0.15em]">AR / AP Ledger</p>
@@ -185,13 +182,13 @@ export default function PartnerLedgerPage() {
             <p className="text-sm text-[var(--text-muted)] mt-1">매출처·매입처 잔액을 거래처별로 관리합니다</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap shrink-0">
-            <Link href="/partners" className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)]/80 border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">← 거래처</Link>
+            <Link href="/partners" className="btn-secondary text-xs">← 거래처</Link>
             <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
-              className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50 transition"
+              className="btn-secondary text-xs"
               title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
               {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
             <Link href="/partners/reconciliation"
-              className="px-4 py-2 text-xs font-semibold rounded-xl bg-[var(--primary)] text-white shadow-sm hover:opacity-90 transition"
+              className="btn-primary text-xs"
               title="입금·계산서 자동 매칭 (확인 큐 / 수동 매칭 / 확정 내역)">
               ⚙️ 거래 매칭 →
             </Link>
@@ -200,7 +197,7 @@ export default function PartnerLedgerPage() {
 
         {/* 툴바: 세그먼트 탭(매출처=파랑 / 매입처=주황 — 색+라벨+방향 아이콘 3중 신호) + 회계기간 + 검색 + 정렬 */}
         <div className="relative mt-5 flex items-center gap-2 flex-wrap">
-          <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/80 p-1 gap-1">
+          <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1 gap-1">
             {(["sales", "purchase"] as const).map((t) => {
               const p = AR_AP[t];
               const active = ledgerType === t;

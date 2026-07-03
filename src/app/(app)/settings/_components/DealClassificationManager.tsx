@@ -63,7 +63,7 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
         <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">분류명 *</label>
+              <label className="field-label">분류명 *</label>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -72,7 +72,7 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
               />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">색상</label>
+              <label className="field-label">색상</label>
               <div className="flex items-center gap-2">
                 <input
                   type="color"
@@ -88,11 +88,11 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
             <button
               onClick={() => form.name && upsertMut.mutate()}
               disabled={!form.name || upsertMut.isPending}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+              className="btn-primary"
             >
               {editId ? '수정' : '추가'}
             </button>
-            <button onClick={() => { setShowForm(false); setEditId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-xs">
+            <button onClick={() => { setShowForm(false); setEditId(null); }} className="btn-ghost">
               취소
             </button>
           </div>

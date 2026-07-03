@@ -78,8 +78,8 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
       <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
         <h2 className="text-base font-bold text-[var(--text)]">계정과목 관리</h2>
         <div className="flex items-center gap-2">
-          <button onClick={fillStandard} disabled={busy} className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50">{busy ? "추가 중…" : "표준 계정과목 채우기"}</button>
-          <button onClick={() => setNewAcct({ code: "", name: "", type: "asset" })} className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 계정과목 추가</button>
+          <button onClick={fillStandard} disabled={busy} className="btn-secondary">{busy ? "추가 중…" : "표준 계정과목 채우기"}</button>
+          <button onClick={() => setNewAcct({ code: "", name: "", type: "asset" })} className="btn-primary">+ 계정과목 추가</button>
         </div>
       </div>
       <p className="text-xs text-[var(--text-muted)] mb-4">회사 회계의 계정과목 마스터입니다. 기본 계정은 읽기전용, 회사 자체 계정만 추가·삭제할 수 있습니다. “표준 계정과목 채우기”로 일반기업회계 기준 ~90개 계정을 한 번에 등록할 수 있습니다. (거래매칭 직접입력·전표 처리에서 사용)</p>

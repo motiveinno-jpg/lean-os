@@ -156,7 +156,7 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
                               delMut.mutate(t.id);
                             }
                           }}
-                          className="px-2 py-1 bg-red-600/80 hover:bg-red-700 text-white rounded text-[10px]"
+                          className="px-2 py-1 bg-[var(--danger)] hover:brightness-110 text-white rounded text-[10px]"
                         >
                           삭제
                         </button>

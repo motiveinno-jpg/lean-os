@@ -346,7 +346,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
         <div className="flex gap-2">
           <button
             onClick={() => setShowTemplateEditor(!showTemplateEditor)}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5"
+            className="btn-secondary flex items-center gap-1.5"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             + 계약서식 추가
@@ -363,11 +363,11 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
 
       {/* 서식 에디터 (WYSIWYG) */}
       {showTemplateEditor && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-emerald-500/20 mb-6 flex flex-col" style={{ height: "80vh" }}>
+        <div className="glass-card mb-6 flex flex-col" style={{ height: "80vh" }}>
           <div className="p-6 pb-3 shrink-0">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h4 className="text-sm font-bold text-emerald-600 flex items-center gap-2">
+                <h4 className="text-sm font-bold text-[var(--primary)] flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                   계약서식 에디터
                 </h4>
@@ -377,7 +377,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
             </div>
             <div className="mb-3">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">서식 이름 *</label>
-              <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="예: 2026년 정규직 근로계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
+              <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="예: 2026년 정규직 근로계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
           </div>
           <div className="flex-1 flex gap-4 px-6 min-h-0">
@@ -407,8 +407,8 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                   { v: "{{근무시간}}", desc: "근무 시간" },
                 ].map(({ v, desc }) => (
                   <button key={v} type="button" onClick={() => editorRef.current?.insertText(v)}
-                    className="w-full text-left px-2.5 py-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/15 transition group shrink-0">
-                    <div className="text-xs font-mono font-semibold text-emerald-600 group-hover:text-emerald-500">{v}</div>
+                    className="w-full text-left px-2.5 py-2 rounded-lg bg-[var(--primary-light)] hover:brightness-95 transition group shrink-0">
+                    <div className="text-xs font-mono font-semibold text-[var(--primary)]">{v}</div>
                     <div className="text-[9px] text-[var(--text-dim)]">{desc}</div>
                   </button>
                 ))}
@@ -481,7 +481,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                       ? 'bg-amber-500/5 border-amber-500/30'
                       : 'bg-[var(--bg-surface)] border-[var(--border)]'
                   }`}>
-                    <button onClick={() => startEditTemplate(t)} className="text-xs text-[var(--text)] hover:text-emerald-600 transition" title={t.is_builtin ? "내장 서식 — 복제 후 편집" : t.is_active === false ? "임시저장" : "수정"}>
+                    <button onClick={() => startEditTemplate(t)} className="text-xs text-[var(--text)] hover:text-[var(--primary)] transition" title={t.is_builtin ? "내장 서식 — 복제 후 편집" : t.is_active === false ? "임시저장" : "수정"}>
                       {t.is_builtin && <span className="text-[9px] text-amber-500 mr-1">🔒</span>}
                       {t.is_active === false && <span className="text-[9px] text-amber-500 mr-1">📝</span>}
                       {t.name}
@@ -542,7 +542,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                 setSavingTemplate(false);
               }}
               disabled={!newTemplateName.trim() || savingTemplate}
-              className="px-4 py-2.5 bg-[var(--bg-surface)] border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 rounded-xl text-sm font-semibold disabled:opacity-50 transition"
+              className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)] rounded-xl text-sm font-semibold disabled:opacity-50 transition"
             >
               임시저장
             </button>
@@ -591,7 +591,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                 setSavingTemplate(false);
               }}
               disabled={!newTemplateName.trim() || !newTemplateBody.trim() || savingTemplate}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
+              className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
             >
               {savingTemplate ? "저장 중..." : editingTemplateId ? "수정 저장" : "서식 저장"}
             </button>
@@ -972,7 +972,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                       value={newFieldLabel}
                       onChange={(e) => setNewFieldLabel(e.target.value)}
                       placeholder="예: 인센티브, 직책수당"
-                      className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-emerald-500"
+                      className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
                     />
                   </div>
                   <div>
@@ -980,7 +980,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                     <select
                       value={newFieldType}
                       onChange={(e) => setNewFieldType(e.target.value as ContractFieldType)}
-                      className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-emerald-500"
+                      className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
                     >
                       <option value="text">텍스트</option>
                       <option value="date">날짜</option>
@@ -1001,7 +1001,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                       setNewFieldLabel("");
                     }}
                     disabled={!newFieldLabel.trim()}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                    className="px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
                   >
                     + 추가
                   </button>

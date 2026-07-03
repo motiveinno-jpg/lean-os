@@ -86,8 +86,8 @@ export function CashPulseHeader({ companyId, userId }: { companyId: string; user
 
       {/* 자금부족 경고 */}
       {shortfall && (
-        <div className="px-3.5 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-semibold">
-          ⚠ {shortfall.label} 시점 현금 부족 예상 (₩{won(shortfall.balance)}) — 입금 일정·지출 조정이 필요합니다
+        <div className="kpi-callout danger">
+          ⚠ {shortfall.label} 시점 현금 부족 예상 (<b>₩{won(shortfall.balance)}</b>) — 입금 일정·지출 조정이 필요합니다
         </div>
       )}
 

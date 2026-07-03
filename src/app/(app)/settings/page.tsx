@@ -187,10 +187,10 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-extrabold mb-1">설정</h1>
       </div>
 
-      {/* Main Tab Bar — horizontal scroll · 아이콘 + 라벨 · 활성 pill(링/그림자/포인트색) */}
+      {/* Main Tab Bar — seg-bar 필형 · 아이콘 + 라벨 */}
       <div className="mb-6 -mx-6 px-6">
         <div
-          className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 overflow-x-auto scrollbar-hide"
+          className="seg-bar flex w-full overflow-x-auto scrollbar-hide"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {mainTabs.map((t) => {
@@ -203,16 +203,14 @@ export default function SettingsPage() {
                   if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
                 }}
                 onClick={() => setMainTab(t.key)}
-                className={`group inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 md:grow md:basis-0 px-3 py-2.5 rounded-lg text-xs sm:text-sm font-semibold min-h-[44px] transition ${
+                className={`seg-item group inline-flex items-center justify-center gap-1.5 shrink-0 md:grow md:basis-0 min-h-[44px] ${
                   active
-                    ? danger
-                      ? "bg-red-500/10 text-red-500 ring-1 ring-red-500/30 shadow-sm"
-                      : "bg-[var(--bg-card)] text-[var(--text)] ring-1 ring-[var(--border)] shadow-sm"
-                    : `text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)]/50 ${danger ? "hover:text-red-500" : ""}`
+                    ? `seg-item-active ${danger ? "!bg-[var(--danger)]" : ""}`
+                    : danger ? "hover:!text-[var(--danger)]" : ""
                 }`}
               >
                 <svg
-                  className={`w-4 h-4 shrink-0 transition-colors ${active ? (danger ? "text-red-500" : "text-[var(--primary)]") : "text-[var(--text-dim)] group-hover:text-[var(--text-muted)]"}`}
+                  className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-white" : "text-[var(--text-dim)] group-hover:text-[var(--text-muted)]"}`}
                   fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"
                 >
                   <path d={t.icon} />
@@ -244,14 +242,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">추가 현금 — 시재금 / 미연동 계좌 (원)</label>
+                <label className="field-label">추가 현금 — 시재금 / 미연동 계좌 (원)</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   value={balance ? Number(balance).toLocaleString() : ""}
                   onChange={(e) => setBalance(e.target.value.replace(/[^0-9]/g, ""))}
                   placeholder="0"
-                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input"
                 />
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">연동되지 않은 통장이나 시재금이 있을 때만 입력. 0이면 무시.</p>
               </div>
@@ -267,14 +265,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">추가 월 고정비 (원)</label>
+                <label className="field-label">추가 월 고정비 (원)</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   value={fixedCost ? Number(fixedCost).toLocaleString() : ""}
                   onChange={(e) => setFixedCost(e.target.value.replace(/[^0-9]/g, ""))}
                   placeholder="0"
-                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input"
                 />
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">
                   대시보드 월 고정비 = <b>반복결제 합 + 직원급여 합 + 이 값</b>. 이미 등록된 반복결제/급여 외에 추가로 잡아둘 임대료/보험/기타 비용을 입력하세요.
@@ -293,7 +291,7 @@ export default function SettingsPage() {
               )}
               <button
                 onClick={save}
-                className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
+                className="btn-primary w-full"
               >
                 {saved ? "저장 완료" : "저장"}
               </button>
@@ -321,7 +319,7 @@ export default function SettingsPage() {
               <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">은행명 *</label>
+                    <label className="field-label">은행명 *</label>
                     <input
                       value={bankForm.bank_name}
                       onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })}
@@ -330,7 +328,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">계좌번호 *</label>
+                    <label className="field-label">계좌번호 *</label>
                     <input
                       value={bankForm.account_number}
                       onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })}
@@ -339,7 +337,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">별칭</label>
+                    <label className="field-label">별칭</label>
                     <input
                       value={bankForm.alias}
                       onChange={(e) => setBankForm({ ...bankForm, alias: e.target.value })}
@@ -348,7 +346,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">용도</label>
+                    <label className="field-label">용도</label>
                     <select
                       value={bankForm.role}
                       onChange={(e) => setBankForm({ ...bankForm, role: e.target.value })}
@@ -360,7 +358,7 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">잔고 (원)</label>
+                    <label className="field-label">잔고 (원)</label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -386,11 +384,11 @@ export default function SettingsPage() {
                   <button
                     onClick={() => bankForm.bank_name.trim() && bankForm.account_number.trim() && addBankMut.mutate()}
                     disabled={!bankForm.bank_name.trim() || !bankForm.account_number.trim() || addBankMut.isPending}
-                    className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                    className="btn-primary"
                   >
                     추가
                   </button>
-                  <button onClick={() => setShowBankForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">
+                  <button onClick={() => setShowBankForm(false)} className="btn-ghost">
                     취소
                   </button>
                 </div>
@@ -470,7 +468,7 @@ export default function SettingsPage() {
               <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">비용 유형</label>
+                    <label className="field-label">비용 유형</label>
                     <select
                       value={ruleForm.cost_type}
                       onChange={(e) => setRuleForm({ ...ruleForm, cost_type: e.target.value })}
@@ -482,7 +480,7 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">지급 통장</label>
+                    <label className="field-label">지급 통장</label>
                     <select
                       value={ruleForm.bank_account_id}
                       onChange={(e) => setRuleForm({ ...ruleForm, bank_account_id: e.target.value })}
@@ -501,11 +499,11 @@ export default function SettingsPage() {
                   <button
                     onClick={() => ruleForm.bank_account_id && addRuleMut.mutate()}
                     disabled={!ruleForm.bank_account_id || addRuleMut.isPending}
-                    className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                    className="btn-primary"
                   >
                     추가
                   </button>
-                  <button onClick={() => setShowRuleForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">
+                  <button onClick={() => setShowRuleForm(false)} className="btn-ghost">
                     취소
                   </button>
                 </div>

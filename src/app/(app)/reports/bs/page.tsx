@@ -647,17 +647,17 @@ export default function BalanceSheetPage() {
         </div>
         <div className="no-print flex items-center gap-1.5 flex-wrap">
           <button onClick={() => setIsCompareMode((v) => !v)} aria-label="전월 비교"
-            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition ${isCompareMode ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)]"}`}>
+            className={isCompareMode ? "btn-primary text-xs" : "btn-secondary text-xs"}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
             전월 비교
           </button>
           <button onClick={handleExportCsv} aria-label="CSV 다운로드"
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+            className="btn-secondary text-xs">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
             CSV
           </button>
           <button onClick={() => window.print()} aria-label="인쇄"
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition">
+            className="btn-secondary text-xs">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" /></svg>
             인쇄
           </button>
@@ -692,35 +692,32 @@ export default function BalanceSheetPage() {
       {/* Summary Cards — 그라데이션 액센트 + 전월 델타 (2026-06-25 리디자인) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
-          { key: "asset", label: "총 자산", value: data.totalAssets, prev: prevData?.totalAssets,
-            grad: "from-[var(--primary)]/12 to-transparent", ring: "ring-[var(--primary)]/15", color: "var(--primary)",
+          { key: "asset", label: "총 자산", value: data.totalAssets, prev: prevData?.totalAssets, tone: "",
             icon: <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M18 12a2 2 0 000 4h3v-4h-3z" /> },
-          { key: "liab", label: "총 부채", value: data.totalLiabilities, prev: prevData?.totalLiabilities,
-            grad: "from-rose-500/12 to-transparent", ring: "ring-rose-500/15", color: "#f43f5e",
+          { key: "liab", label: "총 부채", value: data.totalLiabilities, prev: prevData?.totalLiabilities, tone: "danger",
             icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" /> },
-          { key: "equity", label: "순자산 (자본)", value: data.totalEquity, prev: prevData?.totalEquity,
-            grad: "from-emerald-500/12 to-transparent", ring: "ring-emerald-500/15", color: data.totalEquity >= 0 ? "#10b981" : "#f43f5e",
+          { key: "equity", label: "순자산 (자본)", value: data.totalEquity, prev: prevData?.totalEquity, tone: data.totalEquity >= 0 ? "success" : "danger",
             icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9-4 9 4-9 4-9-4zm0 5l9 4 9-4M3 17l9 4 9-4" /> },
         ].map((card) => {
           const delta = isCompareMode && card.prev !== undefined ? card.value - card.prev : undefined;
           return (
-            <div key={card.key} className={`relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br ${card.grad} ring-1 ${card.ring} p-5 shadow-[var(--shadow-sm)]`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{card.label}</span>
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-[var(--bg-card)]/70 border border-[var(--border)]" style={{ color: card.color }}>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">{card.icon}</svg>
+            <div key={card.key} className="glass-card p-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-semibold text-[var(--text-muted)]">{card.label}</span>
+                <span className={`kpi-icon ${card.tone}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">{card.icon}</svg>
                 </span>
               </div>
-              <div className="mono-number font-extrabold leading-none tracking-tight" style={{ fontSize: 28, color: card.color }}>
-                {card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}
+              <div className="flex items-end gap-2 flex-wrap">
+                <span className={`text-[26px] leading-8 font-extrabold mono-number ${card.value < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
+                  {card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}
+                </span>
+                {delta !== undefined && (
+                  <span className={`delta-chip ${delta === 0 ? "delta-flat" : delta > 0 ? "delta-up" : "delta-down"}`}>
+                    {delta === 0 ? "전월과 동일" : `${delta > 0 ? "▲" : "▼"} ₩${Math.abs(Math.round(delta)).toLocaleString("ko-KR")}`}
+                  </span>
+                )}
               </div>
-              {delta !== undefined && (
-                <div className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: delta === 0 ? "var(--bg-surface)" : delta > 0 ? "#10b98115" : "#f43f5e15", color: delta === 0 ? "var(--text-dim)" : delta > 0 ? "#10b981" : "#f43f5e" }}>
-                  {delta === 0 ? "전월과 동일" : `${delta > 0 ? "▲" : "▼"} ₩${Math.abs(Math.round(delta)).toLocaleString("ko-KR")}`}
-                  <span className="font-normal text-[var(--text-dim)]">전월대비</span>
-                </div>
-              )}
             </div>
           );
         })}
@@ -978,9 +975,9 @@ export default function BalanceSheetPage() {
 
       {/* 데이터 신뢰도 배너 — 자본 섹션 추정값 안내 (정확도 투명성) */}
       {data.isCapitalDefault && (
-        <div className="mt-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
-          <svg className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.86l-8.1 14A1 1 0 003 19.5h18a1 1 0 00.87-1.5l-8.1-14a1 1 0 00-1.74 0z" /></svg>
-          <p className="text-[11.5px] leading-relaxed text-amber-700 dark:text-amber-300">
+        <div className="kpi-callout warning mt-4 flex items-start gap-2.5">
+          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.86l-8.1 14A1 1 0 003 19.5h18a1 1 0 00.87-1.5l-8.1-14a1 1 0 00-1.74 0z" /></svg>
+          <p className="text-[11.5px] leading-relaxed">
             <b>자본금이 미등록 상태입니다.</b> 기본값 {DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시 중이라 자본·이익잉여금이 부정확합니다. <Link href="/settings?tab=company" className="underline font-semibold">회사 설정 → 회사정보</Link>에서 자본금을 입력하면 정확해집니다.
           </p>
         </div>

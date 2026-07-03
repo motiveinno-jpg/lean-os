@@ -50,47 +50,47 @@ export default function SystemPage() {
   }, {});
 
   return (
-    <div className="max-w-5xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-extrabold text-white">시스템 현황</h1>
-        <p className="text-sm text-[#64748b] mt-1">플랫폼 리소스 및 요금제 설정</p>
+    <div className="max-w-5xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-extrabold text-[var(--text)]">시스템 현황</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">플랫폼 리소스 및 요금제 설정</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* DB Stats */}
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
-          <h3 className="font-bold text-white mb-4">데이터베이스</h3>
+        <div className="glass-card p-5">
+          <h3 className="section-title text-[var(--text)]">데이터베이스</h3>
           <div className="space-y-3">
             {/* 총 회사 — 클릭 시 목록 토글 */}
             <button
               onClick={() => toggle("companies")}
-              className="w-full flex justify-between items-center p-3 rounded-xl bg-[#0b0f1a] hover:bg-[#0f1524] transition text-left"
+              className="w-full flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-surface)]/70 transition text-left"
             >
-              <span className="text-sm text-[#94a3b8] flex items-center gap-1.5">
+              <span className="text-sm text-[var(--text-muted)] flex items-center gap-1.5">
                 총 회사
                 <svg className={`w-3.5 h-3.5 transition-transform ${expanded === "companies" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
               </span>
-              <span className="font-bold text-white">{companies.length}</span>
+              <span className="font-bold mono-number text-[var(--text)]">{companies.length}</span>
             </button>
             {expanded === "companies" && (
-              <div className="max-h-72 overflow-y-auto rounded-xl border border-[#1e293b] divide-y divide-[#1e293b]">
+              <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]">
                 {companies.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-[#64748b]">회사가 없습니다</div>
+                  <div className="p-4 text-center text-xs text-[var(--text-dim)]">회사가 없습니다</div>
                 ) : (
                   companies.map((c: any) => (
                     <Link
                       key={c.id}
                       href={`/platform/companies/${c.id}`}
-                      className="flex items-center justify-between px-3 py-2.5 hover:bg-[#0f1524] transition"
+                      className="flex items-center justify-between px-3 py-2.5 hover:bg-[var(--bg-surface)]/60 transition"
                     >
                       <div className="min-w-0">
-                        <div className="text-sm text-white font-medium truncate">{c.name || "(이름 없음)"}</div>
-                        <div className="text-[11px] text-[#64748b]">
+                        <div className="text-sm text-[var(--text)] font-medium truncate">{c.name || "(이름 없음)"}</div>
+                        <div className="text-[11px] text-[var(--text-dim)]">
                           {c.business_number || "사업자번호 미등록"}
                           {c.created_at && ` · 가입 ${new Date(c.created_at).toLocaleDateString("ko-KR")}`}
                         </div>
                       </div>
-                      <span className="text-[#64748b] text-xs shrink-0 ml-2">상세 →</span>
+                      <span className="text-[var(--text-dim)] text-xs shrink-0 ml-2">상세 →</span>
                     </Link>
                   ))
                 )}
@@ -100,32 +100,32 @@ export default function SystemPage() {
             {/* 총 사용자 — 클릭 시 목록 토글 */}
             <button
               onClick={() => toggle("users")}
-              className="w-full flex justify-between items-center p-3 rounded-xl bg-[#0b0f1a] hover:bg-[#0f1524] transition text-left"
+              className="w-full flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-surface)]/70 transition text-left"
             >
-              <span className="text-sm text-[#94a3b8] flex items-center gap-1.5">
+              <span className="text-sm text-[var(--text-muted)] flex items-center gap-1.5">
                 총 사용자
                 <svg className={`w-3.5 h-3.5 transition-transform ${expanded === "users" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
               </span>
-              <span className="font-bold text-white">{users.length}</span>
+              <span className="font-bold mono-number text-[var(--text)]">{users.length}</span>
             </button>
             {expanded === "users" && (
-              <div className="max-h-72 overflow-y-auto rounded-xl border border-[#1e293b] divide-y divide-[#1e293b]">
+              <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]">
                 {users.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-[#64748b]">사용자가 없습니다</div>
+                  <div className="p-4 text-center text-xs text-[var(--text-dim)]">사용자가 없습니다</div>
                 ) : (
                   users.map((u: any) => (
                     <Link
                       key={u.id}
                       href={`/operator-users?q=${encodeURIComponent(u.email || u.id)}`}
-                      className="flex items-center justify-between px-3 py-2.5 hover:bg-[#0f1524] transition"
+                      className="flex items-center justify-between px-3 py-2.5 hover:bg-[var(--bg-surface)]/60 transition"
                     >
                       <div className="min-w-0">
-                        <div className="text-sm text-white font-medium truncate">{u.name || "(이름 없음)"}</div>
-                        <div className="text-[11px] text-[#64748b] truncate">{u.email || u.id}</div>
+                        <div className="text-sm text-[var(--text)] font-medium truncate">{u.name || "(이름 없음)"}</div>
+                        <div className="text-[11px] text-[var(--text-dim)] truncate">{u.email || u.id}</div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1e293b] text-[#94a3b8]">{u.role}</span>
-                        {u.created_at && <span className="text-[10px] text-[#64748b]">{new Date(u.created_at).toLocaleDateString("ko-KR")}</span>}
+                        <span className="badge badge-muted">{u.role}</span>
+                        {u.created_at && <span className="text-[10px] text-[var(--text-dim)]">{new Date(u.created_at).toLocaleDateString("ko-KR")}</span>}
                       </div>
                     </Link>
                   ))
@@ -135,30 +135,30 @@ export default function SystemPage() {
 
             {/* 역할별 카운트 (기존 유지) */}
             {Object.entries(roleCounts).map(([role, count]) => (
-              <div key={role} className="flex justify-between items-center p-3 rounded-xl bg-[#0b0f1a]">
-                <span className="text-sm text-[#64748b]">  {role}</span>
-                <span className="text-sm text-[#94a3b8]">{count as number}명</span>
+              <div key={role} className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
+                <span className="text-sm text-[var(--text-dim)]">  {role}</span>
+                <span className="text-sm text-[var(--text-muted)]">{count as number}명</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Plans */}
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
-          <h3 className="font-bold text-white mb-4">요금제</h3>
+        <div className="glass-card p-5">
+          <h3 className="section-title text-[var(--text)]">요금제</h3>
           <div className="space-y-3">
             {plans.length === 0 ? (
-              <div className="text-center py-8 text-sm text-[#64748b]">요금제가 없습니다</div>
+              <div className="text-center py-8 text-sm text-[var(--text-dim)]">요금제가 없습니다</div>
             ) : (
               plans.map((p: any) => (
-                <div key={p.id} className="p-4 rounded-xl bg-[#0b0f1a] border border-[#1e293b]">
+                <div key={p.id} className="p-4 rounded-xl bg-[var(--bg-surface)]">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-white">{p.name}</span>
-                    <span className="text-sm font-bold text-blue-400">
+                    <span className="font-bold text-[var(--text)]">{p.name}</span>
+                    <span className="text-sm font-bold mono-number text-[var(--primary)]">
                       ₩{(p.base_price || 0).toLocaleString()}/월
                     </span>
                   </div>
-                  <div className="text-xs text-[#64748b]">
+                  <div className="text-xs text-[var(--text-dim)]">
                     슬러그: {p.slug} · 좌석당 ₩{(p.per_seat_price || 0).toLocaleString()}/월
                     {p.max_deals && ` · 최대 프로젝트 ${p.max_deals}개`}
                   </div>
@@ -169,8 +169,8 @@ export default function SystemPage() {
         </div>
 
         {/* Environment */}
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6 md:col-span-2">
-          <h3 className="font-bold text-white mb-4">환경 정보</h3>
+        <div className="glass-card p-5 md:col-span-2">
+          <h3 className="section-title text-[var(--text)]">환경 정보</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: "프레임워크", value: "Next.js 16" },
@@ -178,35 +178,35 @@ export default function SystemPage() {
               { label: "호스팅", value: "GitHub Pages" },
               { label: "도메인", value: "www.owner-view.com" },
             ].map((item) => (
-              <div key={item.label} className="p-3 rounded-xl bg-[#0b0f1a]">
-                <div className="text-[10px] text-[#64748b] mb-0.5">{item.label}</div>
-                <div className="text-sm font-semibold text-white">{item.value}</div>
+              <div key={item.label} className="p-3 rounded-xl bg-[var(--bg-surface)]">
+                <div className="text-[10px] text-[var(--text-dim)] mb-0.5">{item.label}</div>
+                <div className="text-sm font-semibold text-[var(--text)]">{item.value}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Release Log / 작업일지 */}
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6 md:col-span-2">
-          <h3 className="font-bold text-white mb-4">작업일지 / 릴리즈 로그</h3>
+        <div className="glass-card p-5 md:col-span-2">
+          <h3 className="section-title text-[var(--text)]">작업일지 / 릴리즈 로그</h3>
           <div className="space-y-4 max-h-[600px] overflow-y-auto">
             {releaseLog.map((release: any, idx: number) => (
-              <div key={idx} className="p-4 rounded-xl bg-[#0b0f1a] border border-[#1e293b]">
+              <div key={idx} className="p-4 rounded-xl bg-[var(--bg-surface)]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white">{release.version}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${release.type === 'hotfix' ? 'bg-red-500/10 text-red-400' : release.type === 'feature' ? 'bg-blue-500/10 text-blue-400' : 'bg-green-500/10 text-green-400'}`}>
+                    <span className="text-sm font-bold text-[var(--text)]">{release.version}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${release.type === 'hotfix' ? 'bg-[var(--danger-dim)] text-[var(--danger)]' : release.type === 'feature' ? 'bg-[var(--info-dim)] text-[var(--info)]' : 'bg-[var(--success-dim)] text-[var(--success)]'}`}>
                       {release.type === 'hotfix' ? '긴급수정' : release.type === 'feature' ? '기능추가' : 'QA/버그수정'}
                     </span>
                   </div>
-                  <span className="text-xs text-[#64748b]">{release.date}</span>
+                  <span className="text-xs text-[var(--text-dim)]">{release.date}</span>
                 </div>
-                <p className="text-sm text-[#94a3b8] mb-2">{release.summary}</p>
+                <p className="text-sm text-[var(--text-muted)] mb-2">{release.summary}</p>
                 {release.items.length > 0 && (
                   <ul className="space-y-1">
                     {release.items.map((item: any, i: number) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-[#64748b]">
-                        <span className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.severity === 'critical' ? 'bg-red-400' : item.severity === 'high' ? 'bg-orange-400' : item.severity === 'medium' ? 'bg-yellow-400' : 'bg-gray-400'}`} />
+                      <li key={i} className="flex items-start gap-2 text-xs text-[var(--text-muted)]">
+                        <span className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.severity === 'critical' ? 'bg-[var(--danger)]' : item.severity === 'high' ? 'bg-[var(--warning)]' : item.severity === 'medium' ? 'bg-[var(--info)]' : 'bg-[var(--text-dim)]'}`} />
                         <span>{item.text}</span>
                       </li>
                     ))}

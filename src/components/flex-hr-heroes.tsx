@@ -9,20 +9,18 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 const db = supabase as any;
-const FLEX = { violet: "#6C5CE7", green: "#00B894", amber: "#E0A33A", red: "#E84393", blue: "#0984E3" };
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
 
-// ── 공통 히어로 셸 ──
+// ── 공통 히어로 셸 (라운드6: 흰 카드 + 인디고 포인트, 그라데이션 제거) ──
 export function FlexTabHero({ icon, title, desc, chips }: {
   icon: string; title: string; desc: string;
   chips: { label: string; value: string; tone?: "violet" | "green" | "amber" | "red" | "blue" | "dim" }[];
 }) {
-  const toneColor: Record<string, string> = { violet: FLEX.violet, green: FLEX.green, amber: "#D97706", red: FLEX.red, blue: FLEX.blue, dim: "var(--text-muted)" };
+  const toneColor: Record<string, string> = { violet: "var(--primary)", green: "var(--success)", amber: "var(--warning)", red: "var(--danger)", blue: "var(--info)", dim: "var(--text-muted)" };
   return (
-    <div className="glass-card mb-4 px-5 py-4 flex flex-wrap items-center gap-x-6 gap-y-3"
-      style={{ background: `linear-gradient(120deg, ${FLEX.violet}0D, transparent 55%)` }}>
+    <div className="glass-card mb-4 px-5 py-4 flex flex-wrap items-center gap-x-6 gap-y-3">
       <div className="flex items-center gap-3 min-w-0">
-        <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0" style={{ background: `${FLEX.violet}14` }}>{icon}</span>
+        <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0 bg-[var(--primary-light)]">{icon}</span>
         <span className="min-w-0">
           <span className="block text-[15px] font-bold text-[var(--text)]">{title}</span>
           <span className="block text-[11px] text-[var(--text-dim)] truncate">{desc}</span>
@@ -30,7 +28,7 @@ export function FlexTabHero({ icon, title, desc, chips }: {
       </div>
       <div className="flex items-center gap-2 flex-wrap ml-auto">
         {chips.map((c) => (
-          <div key={c.label} className="px-3 py-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
+          <div key={c.label} className="px-3 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wide">{c.label}</div>
             <div className="text-[13px] font-bold mono-number" style={{ color: toneColor[c.tone || "violet"] }}>{c.value}</div>
           </div>

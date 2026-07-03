@@ -53,7 +53,7 @@ export function FlowSchedule({ companyId, userId }: { companyId: string; userId?
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h3 className="text-sm font-bold text-[var(--text)]">입금 / 지출 예정 <span className="font-normal text-[var(--text-dim)] text-xs">앞으로 90일</span></h3>
         <div className="flex gap-3 text-xs">
-          <span className="text-green-500 font-semibold mono-number">입금 +₩{won(inTotal)}</span>
+          <span className="text-[var(--success)] font-semibold mono-number">입금 +₩{won(inTotal)}</span>
           <span className="text-[var(--danger)] font-semibold mono-number">지출 -₩{won(outTotal)}</span>
         </div>
       </div>
@@ -80,7 +80,7 @@ export function FlowSchedule({ companyId, userId }: { companyId: string; userId?
                   {list.map((it, i) => (
                     <div key={i} className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)]">
                       <span className="text-[var(--text-muted)] mono-number">{it.date.slice(5)}</span>
-                      <span className={`font-semibold mono-number ${it.kind === "in" ? "text-green-500" : "text-[var(--danger)]"}`}>
+                      <span className={`font-semibold mono-number ${it.kind === "in" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                         {it.kind === "in" ? "+" : "-"}₩{won(it.amount)}
                       </span>
                     </div>

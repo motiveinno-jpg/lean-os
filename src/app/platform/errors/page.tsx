@@ -12,6 +12,14 @@ import {
 
 const db = supabase as any;
 
+// 라이트/다크 토큰 기반 심각도 색 (SEVERITY_TONE 의 다크 고정색 대체 — 라벨은 lib 유지)
+const SEVERITY_CLS: Record<string, string> = {
+  low: "bg-[var(--success-dim)] text-[var(--success)]",
+  medium: "bg-[var(--warning-dim)] text-[var(--warning)]",
+  high: "bg-[var(--danger-dim)] text-[var(--danger)]",
+  critical: "bg-[var(--danger)] text-white",
+};
+
 type ErrorRow = {
   id: string;
   company_id: string | null;
@@ -93,11 +101,11 @@ export default function PlatformErrorsPage() {
   const selectedExp = selected ? explainError(selected.message, selected.error_type, selected.context) : null;
 
   return (
-    <div className="max-w-6xl">
-      <div className="mb-6 flex items-end justify-between gap-4">
+    <div className="max-w-6xl space-y-6">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-white">에러 해석</h1>
-          <p className="text-sm text-[#64748b] mt-1">
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">에러 해석</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
             최근 {hours}시간 · {errors.length}건 · 코드별 그룹핑 {grouped.length}종
           </p>
         </div>
@@ -105,13 +113,13 @@ export default function PlatformErrorsPage() {
           <select
             value={hours}
             onChange={(e) => setHours(Number(e.target.value))}
-            className="px-3 py-2 bg-[#111827] border border-[#1e293b] rounded-lg text-sm text-white"
+            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]"
           >
             <option value={24}>최근 24시간</option>
             <option value={72}>최근 3일</option>
             <option value={168}>최근 7일</option>
           </select>
-          <div className="flex gap-1">
+          <div className="seg-bar">
             {[
               { k: "all", l: "전체" },
               { k: "unresolved", l: "미해결" },
@@ -120,9 +128,7 @@ export default function PlatformErrorsPage() {
               <button
                 key={f.k}
                 onClick={() => setFilter(f.k as any)}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                  filter === f.k ? "bg-cyan-600 text-white" : "bg-[#1e293b] text-[#94a3b8] hover:text-white"
-                }`}
+                className={`seg-item ${filter === f.k ? "seg-item-active" : ""}`}
               >
                 {f.l}
               </button>
@@ -131,67 +137,67 @@ export default function PlatformErrorsPage() {
         </div>
       </div>
 
-      {isLoading && <div className="text-sm text-[#64748b]">불러오는 중…</div>}
+      {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
       {!isLoading && errors.length === 0 && (
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-8 text-center text-sm text-emerald-400">
+        <div className="glass-card p-8 text-center text-sm text-[var(--success)]">
           🎉 이 기간에 에러 없음.
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* 좌: 코드별 그룹 */}
-        <div className="lg:col-span-2 space-y-3">
+        <div className="lg:col-span-2 space-y-4">
           {filteredGroups.map((g) => {
             const tone = SEVERITY_TONE[g.explanation.severity];
             const unresolvedCount = g.rows.filter((r) => !r.resolved).length;
             return (
-              <div key={g.code} className="bg-[#111827] rounded-2xl border border-[#1e293b] overflow-hidden">
-                <div className="px-5 py-3 border-b border-[#1e293b] flex items-center justify-between">
+              <div key={g.code} className="glass-card overflow-hidden">
+                <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tone.bg} ${tone.text}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${SEVERITY_CLS[g.explanation.severity] || SEVERITY_CLS.medium}`}>
                       {tone.label}
                     </span>
-                    <span className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider">
                       {CATEGORY_LABEL[g.explanation.category]}
                     </span>
-                    <span className="text-xs font-mono text-[#94a3b8]">{g.code}</span>
-                    <span className="text-xs text-white font-bold">
+                    <span className="text-xs font-mono text-[var(--text-muted)]">{g.code}</span>
+                    <span className="text-xs text-[var(--text)] font-bold">
                       {g.rows.length}회{unresolvedCount > 0 && ` (미해결 ${unresolvedCount})`}
                     </span>
                   </div>
                 </div>
-                <div className="px-5 py-4 bg-[#0b0f1a]/60">
-                  <div className="text-sm text-white font-semibold mb-1">{g.explanation.what}</div>
-                  <div className="text-xs text-[#94a3b8] mb-1">
-                    <span className="text-[#64748b]">왜 났을까?</span> {g.explanation.why}
+                <div className="px-5 py-4 bg-[var(--bg-surface)]/60">
+                  <div className="text-sm text-[var(--text)] font-semibold mb-1">{g.explanation.what}</div>
+                  <div className="text-xs text-[var(--text-muted)] mb-1">
+                    <span className="text-[var(--text-dim)]">왜 났을까?</span> {g.explanation.why}
                   </div>
-                  <div className="text-xs text-cyan-300">
-                    <span className="text-[#64748b]">어떻게 고치나?</span> {g.explanation.fix}
+                  <div className="text-xs text-[var(--primary)]">
+                    <span className="text-[var(--text-dim)]">어떻게 고치나?</span> {g.explanation.fix}
                   </div>
                 </div>
-                <div className="divide-y divide-[#1e293b]">
+                <div className="divide-y divide-[var(--border)]">
                   {g.rows.slice(0, 5).map((r) => (
                     <button
                       key={r.id}
                       onClick={() => setSelectedId(r.id)}
-                      className={`w-full text-left px-5 py-2.5 hover:bg-[#1e293b]/50 transition ${
-                        selectedId === r.id ? "bg-cyan-600/10" : ""
+                      className={`w-full text-left px-5 py-2.5 hover:bg-[var(--bg-surface)]/60 transition ${
+                        selectedId === r.id ? "bg-[var(--primary-light)]" : ""
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="text-[11px] text-[#94a3b8] truncate flex-1">
+                        <div className="text-[11px] text-[var(--text-muted)] truncate flex-1">
                           {r.company_name || "(no company)"} · {r.user_email || r.user_name || "—"} · {r.url || r.source || "?"}
                         </div>
-                        <div className="text-[10px] text-[#64748b] shrink-0">
+                        <div className="text-[10px] text-[var(--text-dim)] shrink-0">
                           {fmtRelative(r.created_at)}
-                          {r.resolved && <span className="ml-2 text-emerald-400">✓ 해결</span>}
+                          {r.resolved && <span className="ml-2 text-[var(--success)]">✓ 해결</span>}
                         </div>
                       </div>
-                      <div className="text-[11px] text-[#64748b] truncate mt-0.5">{r.message}</div>
+                      <div className="text-[11px] text-[var(--text-dim)] truncate mt-0.5">{r.message}</div>
                     </button>
                   ))}
                   {g.rows.length > 5 && (
-                    <div className="px-5 py-2 text-[11px] text-[#64748b] text-center">
+                    <div className="px-5 py-2 text-[11px] text-[var(--text-dim)] text-center">
                       … 외 {g.rows.length - 5}건
                     </div>
                   )}
@@ -204,9 +210,9 @@ export default function PlatformErrorsPage() {
         {/* 우: 선택 상세 */}
         <div className="lg:col-span-1">
           {selected && selectedExp ? (
-            <div className="bg-[#111827] rounded-2xl border border-cyan-600/30 p-5 sticky top-4">
+            <div className="glass-card p-5 sticky top-4">
               <div className="flex items-center justify-between mb-3">
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${SEVERITY_TONE[selectedExp.severity].bg} ${SEVERITY_TONE[selectedExp.severity].text}`}>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${SEVERITY_CLS[selectedExp.severity] || SEVERITY_CLS.medium}`}>
                   {SEVERITY_TONE[selectedExp.severity].label}
                 </span>
                 <button
@@ -214,25 +220,25 @@ export default function PlatformErrorsPage() {
                   disabled={resolve.isPending}
                   className={`text-[11px] font-semibold px-2 py-1 rounded ${
                     selected.resolved
-                      ? "bg-[#1e293b] text-[#64748b]"
-                      : "bg-emerald-600 text-white hover:bg-emerald-500"
+                      ? "bg-[var(--bg-surface)] text-[var(--text-dim)]"
+                      : "bg-[var(--success)] text-white hover:opacity-90"
                   } disabled:opacity-50`}
                 >
                   {selected.resolved ? "↺ 미해결로" : "✓ 해결로"}
                 </button>
               </div>
-              <div className="text-xs text-[#64748b] mb-2">{selectedExp.code}</div>
-              <div className="text-base text-white font-bold mb-2">{selectedExp.what}</div>
-              <div className="text-xs text-[#94a3b8] mb-3">
-                <div className="text-[#64748b] font-semibold">왜 났을까?</div>
+              <div className="text-xs text-[var(--text-dim)] mb-2">{selectedExp.code}</div>
+              <div className="text-base text-[var(--text)] font-bold mb-2">{selectedExp.what}</div>
+              <div className="text-xs text-[var(--text-muted)] mb-3">
+                <div className="text-[var(--text-dim)] font-semibold">왜 났을까?</div>
                 <div className="mt-0.5">{selectedExp.why}</div>
               </div>
-              <div className="text-xs text-cyan-200 mb-4">
-                <div className="text-[#64748b] font-semibold">어떻게 고치나?</div>
+              <div className="text-xs text-[var(--primary)] mb-4">
+                <div className="text-[var(--text-dim)] font-semibold">어떻게 고치나?</div>
                 <div className="mt-0.5">{selectedExp.fix}</div>
               </div>
 
-              <div className="border-t border-[#1e293b] pt-3 space-y-2 text-[11px]">
+              <div className="border-t border-[var(--border)] pt-3 space-y-2 text-[11px]">
                 <Row label="회사" value={selected.company_name || "—"} />
                 <Row label="사용자" value={selected.user_email || selected.user_name || "—"} />
                 <Row label="URL" value={selected.url || "—"} />
@@ -241,31 +247,31 @@ export default function PlatformErrorsPage() {
               </div>
 
               <details className="mt-3">
-                <summary className="text-[11px] text-cyan-400 cursor-pointer">원문 메시지</summary>
-                <pre className="mt-2 p-2 bg-[#0b0f1a] rounded-lg text-[10px] text-[#94a3b8] overflow-auto whitespace-pre-wrap break-words max-h-40">
+                <summary className="text-[11px] text-[var(--primary)] cursor-pointer">원문 메시지</summary>
+                <pre className="mt-2 p-2 bg-[var(--bg-surface)] rounded-lg text-[10px] text-[var(--text-muted)] overflow-auto whitespace-pre-wrap break-words max-h-40">
                   {selected.message}
                 </pre>
               </details>
               {selected.stack && (
                 <details className="mt-2">
-                  <summary className="text-[11px] text-cyan-400 cursor-pointer">스택트레이스</summary>
-                  <pre className="mt-2 p-2 bg-[#0b0f1a] rounded-lg text-[10px] text-[#64748b] overflow-auto whitespace-pre max-h-60">
+                  <summary className="text-[11px] text-[var(--primary)] cursor-pointer">스택트레이스</summary>
+                  <pre className="mt-2 p-2 bg-[var(--bg-surface)] rounded-lg text-[10px] text-[var(--text-dim)] overflow-auto whitespace-pre max-h-60">
                     {selected.stack}
                   </pre>
                 </details>
               )}
             </div>
           ) : (
-            <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-8 text-center text-sm text-[#64748b]">
+            <div className="glass-card p-8 text-center text-sm text-[var(--text-dim)]">
               왼쪽에서 에러를 선택하면 상세 해석이 표시됩니다.
             </div>
           )}
         </div>
       </div>
 
-      <div className="mt-6 bg-cyan-600/5 border border-cyan-600/20 rounded-2xl p-4 text-xs text-[#94a3b8]">
-        <span className="text-cyan-400 font-bold">OP-E</span> · 코드 매핑은{" "}
-        <span className="font-mono text-cyan-300">src/lib/operator-error-explain.ts</span> 에 누적.
+      <div className="kpi-callout">
+        <b>OP-E</b> · 코드 매핑은{" "}
+        <span className="font-mono text-[var(--primary)]">src/lib/operator-error-explain.ts</span> 에 누적.
         새 패턴 발생 시 같은 파일에 PG/PostgREST/CODEF/Stripe/Generic 섹션 중 알맞은 곳에 추가.
       </div>
     </div>
@@ -275,8 +281,8 @@ export default function PlatformErrorsPage() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start gap-2">
-      <div className="w-12 shrink-0 text-[#64748b]">{label}</div>
-      <div className="text-white break-all">{value}</div>
+      <div className="w-12 shrink-0 text-[var(--text-dim)]">{label}</div>
+      <div className="text-[var(--text)] break-all">{value}</div>
     </div>
   );
 }

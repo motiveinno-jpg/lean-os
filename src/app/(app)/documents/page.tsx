@@ -655,7 +655,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 toast('PDF 생성 실패: ' + (err?.message || err), "error");
               }
             }}
-            className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-xs font-semibold hover:bg-red-500/20 transition">
+            className="btn-secondary">
             PDF 다운로드
           </button>
           <button
@@ -669,16 +669,16 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 toast('문서번호 발급 실패: ' + (err?.message || err), "error");
               }
             }}
-            className="px-4 py-2 bg-teal-500/10 text-teal-500 rounded-lg text-xs font-semibold hover:bg-teal-500/20 transition">
+            className="btn-secondary">
             문서번호 발급
           </button>
           <button onClick={() => sendToPartnerMut.mutate()} disabled={sendToPartnerMut.isPending}
-            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 transition"
+            className="btn-primary"
             title="견적서 거래처에게 서명 링크를 바로 이메일로 발송합니다">
             {sendToPartnerMut.isPending ? "발송 중..." : "📤 거래처에게 발송"}
           </button>
           <button onClick={() => setShowSignRequestForm(!showSignRequestForm)}
-            className="px-4 py-2 bg-indigo-500/10 text-indigo-500 rounded-lg text-xs font-semibold hover:bg-indigo-500/20 transition"
+            className="btn-secondary"
             title="받는 사람을 직접 지정해 발송">
             직접 지정 발송
           </button>
@@ -703,18 +703,18 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 toast('공유 링크 생성 실패: ' + (err?.message || err), "error");
               }
             }}
-            className="px-4 py-2 bg-purple-500/10 text-purple-500 rounded-lg text-xs font-semibold hover:bg-purple-500/20 transition">
+            className="btn-secondary">
             공유 링크
           </button>
           {canSubmit && (
             <button onClick={() => submitMut.mutate()} disabled={submitMut.isPending}
-              className="px-4 py-2 bg-yellow-500/10 text-yellow-400 rounded-lg text-xs font-semibold hover:bg-yellow-500/20 transition disabled:opacity-50">
+              className="btn-secondary">
               검토 요청
             </button>
           )}
           {canApprove && (
             <button onClick={() => setShowApprovalForm(!showApprovalForm)}
-              className="px-4 py-2 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-semibold hover:bg-blue-500/20 transition">
+              className="btn-secondary">
               승인
             </button>
           )}
@@ -732,13 +732,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   toast('임의 승인 실패: ' + (err?.message || ''), "error");
                 }
               }}
-              className="px-4 py-2 bg-amber-500/10 text-amber-400 rounded-lg text-xs font-semibold hover:bg-amber-500/20 transition">
+              className="btn-secondary">
               임의 승인
             </button>
           )}
           {canLock && (
             <button onClick={() => lockMut.mutate()} disabled={lockMut.isPending}
-              className="px-4 py-2 bg-purple-500/10 text-purple-400 rounded-lg text-xs font-semibold hover:bg-purple-500/20 transition disabled:opacity-50">
+              className="btn-secondary">
               잠금 (체결)
             </button>
           )}
@@ -746,36 +746,36 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       </div>
 
       {showApprovalForm && (
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-5 mb-6">
-          <h3 className="text-sm font-bold text-blue-400 mb-3">문서 승인</h3>
+        <div className="glass-card p-5 mb-6">
+          <h3 className="text-sm font-bold text-[var(--text)] mb-3">문서 승인</h3>
           <textarea value={approvalComment} onChange={(e) => setApprovalComment(e.target.value)}
             placeholder="승인 코멘트 (선택)"
-            className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-blue-500 mb-3 h-20 resize-none" />
+            className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] mb-3 h-20 resize-none" />
           <div className="flex gap-2">
             <button onClick={() => approveMut.mutate()} disabled={approveMut.isPending}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-semibold disabled:opacity-50">
+              className="btn-primary">
               승인 확인
             </button>
-            <button onClick={() => setShowApprovalForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">취소</button>
+            <button onClick={() => setShowApprovalForm(false)} className="btn-ghost">취소</button>
           </div>
         </div>
       )}
 
       {/* Inline Share Email Input */}
       {showShareEmailInput && shareUrl && (
-        <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-5 mb-6">
+        <div className="glass-card p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-purple-500">공유 링크 생성 완료</h3>
+            <h3 className="text-sm font-bold text-[var(--text)]">공유 링크 생성 완료</h3>
             <button onClick={() => { setShowShareEmailInput(false); setShareUrl(""); }}
               className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">
               닫기
             </button>
           </div>
-          <div className="flex items-center gap-2 mb-3 p-2.5 bg-[var(--bg)] rounded-lg border border-[var(--border)]">
+          <div className="flex items-center gap-2 mb-3 p-2.5 bg-[var(--bg-surface)] rounded-lg border border-[var(--border)]">
             <span className="text-xs text-[var(--text-muted)] truncate flex-1">{shareUrl}</span>
             <button
               onClick={() => { navigator.clipboard.writeText(shareUrl); }}
-              className="px-2 py-1 text-xs bg-purple-500/10 text-purple-500 rounded font-semibold hover:bg-purple-500/20 transition whitespace-nowrap">
+              className="px-2 py-1 text-xs bg-[var(--primary)]/10 text-[var(--primary)] rounded font-semibold hover:bg-[var(--primary)]/20 transition whitespace-nowrap">
               복사
             </button>
           </div>
@@ -787,7 +787,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               onChange={(e) => setShareEmailAddress(e.target.value)}
               placeholder="recipient@example.com"
               onKeyDown={(e) => { if (e.key === 'Enter' && shareEmailAddress.trim()) { (e.target as HTMLInputElement).form?.requestSubmit(); } }}
-              className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-purple-500"
+              className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
             />
             <button
               disabled={!shareEmailAddress.trim() || shareSending}
@@ -818,7 +818,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   setShareSending(false);
                 }
               }}
-              className="px-4 py-2.5 bg-purple-500 text-white rounded-xl text-xs font-semibold disabled:opacity-50 hover:bg-purple-600 transition whitespace-nowrap">
+              className="btn-primary whitespace-nowrap">
               {shareSending ? '발송 중...' : '이메일 발송'}
             </button>
           </div>
@@ -827,12 +827,12 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
       {/* Signature Request Form (multi-signer) */}
       {showSignRequestForm && (
-        <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-5 mb-6">
+        <div className="glass-card p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-indigo-500">전자서명 요청 ({bulkSigners.length}명)</h3>
+            <h3 className="text-sm font-bold text-[var(--text)]">전자서명 요청 ({bulkSigners.length}명)</h3>
             <button
               onClick={() => setBulkSigners([...bulkSigners, { name: "", email: "", phone: "" }])}
-              className="text-xs px-3 py-1.5 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 rounded-lg font-semibold transition"
+              className="text-xs px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg font-semibold transition"
             >
               + 서명자 추가
             </button>
@@ -847,7 +847,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     value={s.name}
                     onChange={(e) => { const arr = [...bulkSigners]; arr[i].name = e.target.value; setBulkSigners(arr); }}
                     placeholder={`서명자 ${i + 1} 이름 *`}
-                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
                 <div className="col-span-12 sm:col-span-5">
@@ -856,7 +856,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     value={s.email}
                     onChange={(e) => { const arr = [...bulkSigners]; arr[i].email = e.target.value; setBulkSigners(arr); }}
                     placeholder="이메일 *"
-                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
                 <div className="col-span-10 sm:col-span-3">
@@ -865,7 +865,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     value={s.phone}
                     onChange={(e) => { const arr = [...bulkSigners]; arr[i].phone = e.target.value; setBulkSigners(arr); }}
                     placeholder="전화 (선택)"
-                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
                 <div className="col-span-2 sm:col-span-1 flex justify-end">
@@ -887,13 +887,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             <button
               onClick={() => bulkSignMut.mutate()}
               disabled={bulkSignMut.isPending || bulkSigners.every((s) => !s.name.trim() || !s.email.trim())}
-              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+              className="btn-primary"
             >
               {bulkSignMut.isPending ? "발송 중..." : `${bulkSigners.filter(s => s.name.trim() && s.email.trim()).length}명에게 일괄 발송`}
             </button>
             <button
               onClick={() => setShowSignRequestForm(false)}
-              className="px-4 py-2 text-[var(--text-muted)] text-xs"
+              className="btn-ghost"
             >
               취소
             </button>
@@ -913,9 +913,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               <div className="flex items-center gap-3">
                 <h4 className="text-xs font-bold text-[var(--text-muted)]">서명 진행 ({signedCount}/{total})</h4>
                 <div className="w-32 h-1.5 bg-[var(--bg-surface)] rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 transition-all" style={{ width: `${pct}%` }} />
+                  <div className="h-full bg-[var(--success)] transition-all" style={{ width: `${pct}%` }} />
                 </div>
-                <span className="text-[10px] font-semibold text-green-400">{pct}%</span>
+                <span className="text-[10px] font-semibold text-[var(--success)]">{pct}%</span>
               </div>
               <div className="flex gap-2">
                 {pendingCount > 0 && (
@@ -1038,8 +1038,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       {tab === "content" && (
         <div className="space-y-4">
           {isLocked && (
-            <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-4 text-xs text-purple-400 font-semibold">
-              이 문서는 잠금 상태입니다. 수정할 수 없습니다.
+            <div className="kpi-callout warning">
+              이 문서는 <b>잠금 상태</b>입니다. 수정할 수 없습니다.
             </div>
           )}
 
@@ -1246,7 +1246,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             <div className="flex items-center gap-4 mb-3">
               <span className="text-xs font-bold text-[var(--text-dim)]">직인 / 서명</span>
               {(doc as any).seal_applied && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/10 text-green-400">직인 적용됨</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--success-dim)] text-[var(--success)] font-semibold">직인 적용됨</span>
               )}
             </div>
             <div className="flex flex-wrap gap-3">
@@ -1266,7 +1266,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     }
                   }}
                   disabled={sealApplying || isLocked}
-                  className="px-4 py-2 bg-orange-500/10 text-orange-500 rounded-lg text-xs font-semibold hover:bg-orange-500/20 transition disabled:opacity-50">
+                  className="btn-secondary">
                   {sealApplying ? '적용 중...' : '직인 적용하기'}
                 </button>
               )}
@@ -1274,7 +1274,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               {!isLocked && (
                 <button
                   onClick={() => setShowSelfSign(!showSelfSign)}
-                  className="px-4 py-2 bg-indigo-500/10 text-indigo-500 rounded-lg text-xs font-semibold hover:bg-indigo-500/20 transition">
+                  className="btn-secondary">
                   자체 서명
                 </button>
               )}
@@ -1285,7 +1285,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 <div className="flex gap-2 items-center">
                   <input value={selfSignName} onChange={(e) => setSelfSignName(e.target.value)}
                     placeholder="서명자 이름"
-                    className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-indigo-500" />
+                    className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
                   <button
                     onClick={async () => {
                       if (!selfSignName.trim() || !companyId || !userId) return;
@@ -1306,7 +1306,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       }
                     }}
                     disabled={!selfSignName.trim()}
-                    className="px-4 py-2 bg-indigo-500 text-white rounded-lg text-xs font-semibold disabled:opacity-50">
+                    className="btn-primary">
                     서명 완료
                   </button>
                 </div>
@@ -1383,12 +1383,12 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 placeholder="변경 코멘트 (선택)"
                 className="flex-1 px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
               <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
-                className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+                className="btn-primary">
                 {saveMut.isPending ? "저장 중..." : "저장"}
               </button>
               {(contentType === 'invoice' || contentType === 'quote') && (
                 <button onClick={() => saveAndInvoiceMut.mutate()} disabled={saveAndInvoiceMut.isPending}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 whitespace-nowrap"
+                  className="btn-secondary whitespace-nowrap"
                   title="견적서를 저장하고, 품목 합계로 매출 세금계산서(초안)를 자동 생성합니다">
                   {saveAndInvoiceMut.isPending ? "처리 중..." : "💾 저장/전표"}
                 </button>
@@ -1437,12 +1437,12 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 <div key={appr.id} className="px-5 py-4">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                         appr.status === "approved"
-                          ? "bg-green-500/10 text-green-400"
+                          ? "bg-[var(--success-dim)] text-[var(--success)]"
                           : appr.status === "rejected"
-                          ? "bg-red-500/10 text-red-400"
-                          : "bg-gray-500/10 text-gray-400"
+                          ? "bg-[var(--danger-dim)] text-[var(--danger)]"
+                          : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
                       }`}>
                         {appr.status === "approved" ? "승인" : appr.status === "rejected" ? "거부" : "대기"}
                       </span>
@@ -2357,7 +2357,7 @@ function DocumentsPageInner() {
                   <select
                     value={signFormData.documentId}
                     onChange={(e) => setSignFormData({ ...signFormData, documentId: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                   >
                     <option value="">문서를 선택하세요</option>
                     {documents.map((doc: any) => (
@@ -2371,7 +2371,7 @@ function DocumentsPageInner() {
                     value={signFormData.signerName}
                     onChange={(e) => setSignFormData({ ...signFormData, signerName: e.target.value })}
                     placeholder="홍길동"
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
                 <div>
@@ -2381,7 +2381,7 @@ function DocumentsPageInner() {
                     value={signFormData.signerEmail}
                     onChange={(e) => setSignFormData({ ...signFormData, signerEmail: e.target.value })}
                     placeholder="signer@example.com"
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
                 <div>
@@ -2391,7 +2391,7 @@ function DocumentsPageInner() {
                     value={signFormData.signerPhone}
                     onChange={(e) => setSignFormData({ ...signFormData, signerPhone: e.target.value })}
                     placeholder="010-0000-0000"
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
               </div>
@@ -2997,11 +2997,11 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
           return (
             <div key={share.id} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
               <div className="flex items-center gap-3">
-                <span className="text-xs text-purple-500 font-semibold">🔗 공유 링크</span>
+                <span className="text-xs text-[var(--primary)] font-semibold">🔗 공유 링크</span>
                 <span className="caption">
                   {new Date(share.created_at).toLocaleDateString('ko-KR')} 생성
                 </span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[var(--text-muted)]">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">
                   조회 {share.view_count}회
                 </span>
               </div>
@@ -3020,7 +3020,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
                     await navigator.clipboard.writeText(`${base}/share?token=${share.share_token}`);
                     toast('링크 복사됨', "success");
                   }}
-                  className="text-[10px] px-2 py-1 bg-purple-500/10 text-purple-500 rounded-lg hover:bg-purple-500/20 transition font-semibold"
+                  className="text-[10px] px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 transition font-semibold"
                 >
                   복사
                 </button>

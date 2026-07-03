@@ -535,8 +535,7 @@ export default function OnboardingPage() {
         {/* Error banner */}
         {error && (
           <div
-            className="mb-4 px-4 py-3 rounded-xl text-sm flex items-start gap-2"
-            style={{ background: "var(--danger)/10", border: "1px solid var(--danger)/20" }}
+            className="mb-4 px-4 py-3 rounded-xl text-sm flex items-start gap-2 bg-[var(--danger)]/10 border border-[var(--danger)]/20"
             role="alert"
           >
             <svg className="w-4 h-4 text-[var(--danger)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -596,8 +595,7 @@ export default function OnboardingPage() {
                 <button
                   onClick={handleNext}
                   disabled={saving}
-                  className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2"
-                  style={{ background: "var(--primary)" }}
+                  className="btn-primary"
                 >
                   {saving ? (
                     <span className="flex items-center gap-2">
@@ -612,8 +610,7 @@ export default function OnboardingPage() {
               {step === 5 && (
                 <button
                   onClick={handleComplete}
-                  className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2"
-                  style={{ background: "var(--primary)" }}
+                  className="btn-primary"
                 >
                   대시보드로 시작하기
                 </button>
@@ -1092,7 +1089,7 @@ function Step5Complete({ status }: { status: CompletionStatus }) {
               {item.label}
             </span>
             {item.done ? (
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "var(--success)/15", color: "var(--success)" }}>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--success)]/15 text-[var(--success)]">
                 완료
               </span>
             ) : (
@@ -1149,7 +1146,7 @@ function StepHeader({
 
 function CompletedBadge({ message }: { message: string }) {
   return (
-    <div className="px-3 py-2.5 rounded-xl flex items-start gap-2" style={{ background: "var(--success)/10", border: "1px solid var(--success)/20" }}>
+    <div className="px-3 py-2.5 rounded-xl flex items-start gap-2 bg-[var(--success)]/10 border border-[var(--success)]/20">
       <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--success)" }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
         <polyline points="22 4 12 14.01 9 11.01" />
@@ -1298,7 +1295,7 @@ function StepIcon({ type, size = "lg" }: { type: string; size?: "sm" | "lg" }) {
   })();
 
   return (
-    <div className={`${s} rounded-xl flex items-center justify-center shrink-0`} style={{ background: "var(--primary)/10" }}>
+    <div className={`${s} rounded-xl flex items-center justify-center shrink-0 bg-[var(--primary)]/10`}>
       {iconElement}
     </div>
   );

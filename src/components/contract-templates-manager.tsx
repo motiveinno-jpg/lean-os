@@ -67,7 +67,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </div>
         <button
           onClick={() => { setEditing(null); setShowAdd(true); }}
-          className="px-3 py-1.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold transition"
+          className="btn-primary"
         >
           + 양식 추가
         </button>
@@ -369,7 +369,7 @@ function TemplateEditorModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition"
+                className="btn-ghost"
               >
                 취소
               </button>
@@ -377,7 +377,7 @@ function TemplateEditorModal({
                 type="button"
                 onClick={() => editing ? updateMut.mutate() : createMut.mutate()}
                 disabled={!canSave() || createMut.isPending || updateMut.isPending}
-                className="px-4 py-2 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold disabled:opacity-50 transition"
+                className="btn-primary"
               >
                 {createMut.isPending || updateMut.isPending ? "저장 중…" : editing ? "수정" : "추가"}
               </button>

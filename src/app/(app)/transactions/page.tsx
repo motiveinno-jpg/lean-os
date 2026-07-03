@@ -973,7 +973,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 }
               })}
               disabled={bankFetching || codefSyncing || !companyId || bankCd.disabled}
-              className={`flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+              className={`btn-primary whitespace-nowrap ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
               title={bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "CODEF 은행 연동으로 최근 거래를 불러오고 통장 잔액을 즉시 반영합니다"}
             >
               {bankFetching ? (
@@ -1034,7 +1034,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               }
             }}
             disabled={codefSyncing || !companyId}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
+            className="btn-primary whitespace-nowrap"
           >
             {codefSyncing ? '동기화 중...' : 'CODEF 동기화'}
           </button>
@@ -1059,17 +1059,17 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             }}
             disabled={!companyId}
             title="이미 자동이체 체크된 거래의 출금처+금액 패턴을 학습해 같은 패턴의 신규 거래를 자동 마킹"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
+            className="btn-secondary rounded-lg text-xs whitespace-nowrap"
           >
             🔁 자동이체 자동 인식
           </button>
           <button
             onClick={handleAIClassify}
             disabled={aiClassifying || !companyId}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
+            className="btn-secondary rounded-lg text-xs whitespace-nowrap"
           >
             {aiClassifying ? (
-              <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> 분류 중...</>
+              <><span className="w-3 h-3 border-2 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin" /> 분류 중...</>
             ) : (
               <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg> AI 자동분류{selectedIds.size > 0 ? ` (${selectedIds.size}건)` : ""}</>
             )}
@@ -1080,13 +1080,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               exportBankTransactionsDouzone(filteredBankTx as any);
             }}
             disabled={filteredBankTx.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text)] rounded-lg text-xs font-semibold transition border border-[var(--border)] disabled:opacity-50 whitespace-nowrap"
+            className="btn-secondary rounded-lg text-xs whitespace-nowrap"
             title="현재 보이는 거래내역을 엑셀로 다운로드"
           >
             📄 엑셀 내보내기
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs sm:text-sm font-semibold transition disabled:opacity-50 whitespace-nowrap">
+            className="btn-primary whitespace-nowrap">
             {uploading ? "업로드 중..." : "CSV 업로드"}
           </button>
         </div>
@@ -1141,7 +1141,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             a.click();
             URL.revokeObjectURL(url);
           }}
-          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] text-sm rounded-xl font-semibold transition"
+          className="btn-secondary whitespace-nowrap"
         >
           CSV 내보내기
         </button>
@@ -1341,7 +1341,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     {manualEntries.map((tx: any) => (
                       <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
                         <td className="px-2 py-2 text-xs">{tx.transaction_date}</td>
-                        <td className="px-2 py-2"><span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tx.type === 'income' ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>{tx.type === 'income' ? '입금' : '출금'}</span></td>
+                        <td className="px-2 py-2"><span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tx.type === 'income' ? 'bg-[var(--info-dim)] text-[var(--info)]' : 'bg-[var(--danger-dim)] text-[var(--danger)]'}`}>{tx.type === 'income' ? '입금' : '출금'}</span></td>
                         <td className="px-2 py-2 text-right font-mono text-xs">{Math.abs(Number(tx.amount)).toLocaleString()}원</td>
                         <td className="px-2 py-2 text-xs">{tx.counterparty || '-'}</td>
                         <td className="px-2 py-2 text-xs text-[var(--text-muted)]">{tx.description || '-'}</td>
@@ -1846,15 +1846,15 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             <div className="ml-auto flex gap-2">
               <input ref={cardFileRef} type="file" accept=".csv" onChange={handleCardCSVUpload} className="hidden" />
               <button onClick={() => cardFileRef.current?.click()} disabled={cardUploading}
-                className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] text-sm rounded-xl font-semibold transition disabled:opacity-50">
+                className="btn-secondary whitespace-nowrap">
                 {cardUploading ? "업로드 중..." : "카드 CSV"}
               </button>
               <button onClick={handleBulkVATClassify} disabled={vatClassifying}
-                className="px-3 py-2 bg-emerald-600/10 border border-emerald-600/30 hover:border-emerald-500 text-emerald-400 text-sm rounded-xl font-semibold transition disabled:opacity-50">
+                className="btn-secondary whitespace-nowrap">
                 {vatClassifying ? "분류 중..." : "VAT 자동분류"}
               </button>
               <button onClick={() => { setEditingCard(null); setCardForm({ card_name: '', card_number: '', card_company: '삼성', holder_name: '', monthly_limit: '', payment_day: '', billing_day: '', card_type: 'credit' }); setShowCardForm(true); }}
-                className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm rounded-xl font-semibold transition">
+                className="btn-primary whitespace-nowrap">
                 + 카드 등록
               </button>
             </div>
@@ -1942,11 +1942,11 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         {isRefund ? '+' : '-'}₩{Math.abs(amt).toLocaleString()}
                       </td>
                       <td className="px-4 py-2.5 text-center">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                          tx.mapping_status === 'unmapped' ? 'bg-yellow-500/10 text-yellow-400' :
-                          tx.mapping_status === 'auto_mapped' ? 'bg-blue-500/10 text-blue-400' :
-                          tx.mapping_status === 'manual_mapped' ? 'bg-green-500/10 text-green-400' :
-                          'bg-gray-500/10 text-gray-400'
+                        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${
+                          tx.mapping_status === 'unmapped' ? 'bg-[var(--warning-dim)] text-[var(--warning)]' :
+                          tx.mapping_status === 'auto_mapped' ? 'bg-[var(--info-dim)] text-[var(--info)]' :
+                          tx.mapping_status === 'manual_mapped' ? 'bg-[var(--success-dim)] text-[var(--success)]' :
+                          'bg-[var(--text-muted)]/10 text-[var(--text-muted)]'
                         }`}>
                           {tx.mapping_status === 'unmapped' ? '미매핑' :
                            tx.mapping_status === 'auto_mapped' ? '자동' :
@@ -2587,7 +2587,7 @@ function MonthlyChart({ data }: { data: MonthlyIncomeExpense[] }) {
   const hoverMIdx = hover ? parseInt(hover.month.split('-')[1], 10) - 1 : 0;
 
   return (
-    <div className="mb-5 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-surface)]/40 rounded-2xl border border-[var(--border)] p-5 shadow-sm">
+    <div className="mb-5 glass-card p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <div>

@@ -15,9 +15,9 @@ const wonM = (n: number) => `₩${(n / 1_000_000).toFixed(1)}M`;
 type Cat = { label: string; amount: number };
 type Breakdown = { fixed: Cat[]; variable: Cat[] };
 
-// 사진 강조 팔레트(고정 발색) — 양 테마 공통
-const A = { blue: "#2F7DE1", green: "#1FAE6B", red: "#E0524F", amber: "#E0A33A", teal: "#4F9D9D" };
-const SEG = [A.blue, A.green, A.amber, A.red, A.teal, "#94A3B8"];
+// 강조 팔레트 — 전부 CSS 토큰(라이트/다크 자동 대응). 포인트는 인디고(--primary).
+const A = { blue: "var(--info)", green: "var(--success)", red: "var(--danger)", amber: "var(--warning)" };
+const SEG = ["var(--primary)", "var(--info)", "var(--warning)", "var(--danger)", "var(--success)", "var(--text-dim)"];
 
 export function DashboardSiyanHero({
   balance,
@@ -85,19 +85,15 @@ export function DashboardSiyanHero({
 
   return (
     <div className="space-y-5 mb-6">
-      {/* ── 잔액 히어로 (브랜드 인디고 그라데이션 — 양 테마 공통) ── */}
-      <div
-        className="relative overflow-hidden rounded-2xl p-6 sm:p-7 text-white shadow-lg"
-        style={{ background: "linear-gradient(135deg, #4338CA 0%, #4F46E5 55%, #6366F1 100%)" }}
-      >
-        <div className="absolute top-0 right-0 w-56 h-56 rounded-full -mr-24 -mt-24 blur-3xl" style={{ background: "rgba(129,140,248,0.30)" }} />
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
+      {/* ── 잔액 히어로 (흰 카드 — TeamHub 라운드) ── */}
+      <div className="glass-card p-6 sm:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-white/55 mb-2">총 자금</p>
+            <p className="text-[13px] font-semibold text-[var(--text-muted)] mb-2">총 자금</p>
             <div className="flex items-center gap-2.5 mb-3">
-              <p className="text-3xl sm:text-4xl font-bold mono-number tracking-tight">{showBalance ? won(bal) : "••••••"}</p>
+              <p className="text-3xl sm:text-4xl font-extrabold mono-number tracking-tight text-[var(--text)]">{showBalance ? won(bal) : "••••••"}</p>
               <button type="button" onClick={() => setShowBalance((v) => !v)}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition shrink-0" aria-label="잔액 표시/숨김">
+                className="p-1.5 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] transition shrink-0" aria-label="잔액 표시/숨김">
                 {showBalance ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={2} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" strokeWidth={2} /></svg>
                 ) : (
@@ -105,56 +101,53 @@ export function DashboardSiyanHero({
                 )}
               </button>
             </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[13px] font-semibold"
-              style={{ background: netCashflow >= 0 ? "rgba(31,174,107,0.20)" : "rgba(224,82,79,0.20)", color: netCashflow >= 0 ? "#4FD89B" : "#FF8A88" }}>
+            <div className={`kpi-callout ${netCashflow >= 0 ? "success" : "danger"} inline-flex items-center gap-1.5 w-auto`}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d={netCashflow >= 0 ? "M5 11l7-7 7 7M12 4v16" : "M19 13l-7 7-7-7M12 20V4"} />
               </svg>
-              <span className="mono-number">{won(netCashflow)}</span>
-              <span className="opacity-70 font-medium">이번달 순흐름</span>
+              <b className="mono-number">{won(netCashflow)}</b>
+              <span>이번달 순흐름</span>
             </div>
           </div>
-          <Link href="/bank"
-            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold text-white transition"
-            style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
+          <Link href="/bank" className="btn-secondary rounded-lg shrink-0 text-[13px]">
             상세 보기
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </Link>
         </div>
       </div>
 
-      {/* ── 메트릭 3 (흰/다크 카드 적응 · 그린 델타칩 · 미니바) ── */}
+      {/* ── 메트릭 3 (KPI 카드 패턴 · delta-chip · 미니바) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {metrics.map((m) => (
-          <div key={m.label} className="card-hover rounded-2xl p-5 bg-[var(--bg-card)] border border-[var(--border)]">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{m.label}</p>
+          <div key={m.label} className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">{m.label}</span>
               {m.chip && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[11px] font-bold"
-                  style={{ background: m.chip.up ? "rgba(31,174,107,0.14)" : "rgba(224,82,79,0.14)", color: m.chip.up ? A.green : A.red }}>
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={m.chip.up ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} /></svg>
-                  {m.chip.text}
+                <span className={`delta-chip ${m.chip.up ? "delta-up" : "delta-down"}`}>
+                  {m.chip.up ? "▲" : "▼"} {m.chip.text}
                 </span>
               )}
             </div>
             {/* QA 2026-06-12: 9자리+ 금액이 좁은 화면에서 넘치던 것 → 반응형 폰트 + truncate */}
-            <p className="text-[22px] sm:text-[26px] font-bold mono-number mb-3 tracking-tight text-[var(--text)] truncate" title={m.value}>{m.value}</p>
-            <div className="flex h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)]">
-              {m.segments.map((s, i) => (
-                <div key={i} style={{ width: `${Math.max(0, Math.min(s.pct, 100))}%`, backgroundColor: s.color }} className="h-full" />
-              ))}
+            <p className="text-[22px] sm:text-[26px] leading-8 font-extrabold mono-number tracking-tight text-[var(--text)] truncate" title={m.value}>{m.value}</p>
+            <div>
+              <div className="flex h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)]">
+                {m.segments.map((s, i) => (
+                  <div key={i} style={{ width: `${Math.max(0, Math.min(s.pct, 100))}%`, backgroundColor: s.color }} className="h-full" />
+                ))}
+              </div>
+              <p className="text-[11px] mt-2 truncate text-[var(--text-dim)]">{m.sub}</p>
             </div>
-            <p className="text-[11px] mt-2 truncate text-[var(--text-dim)]">{m.sub}</p>
           </div>
         ))}
       </div>
 
       {/* ── Cost Composition (도넛 + 범례 %) ── */}
       {cats.length > 0 && (
-        <div className="rounded-2xl p-6 bg-[var(--bg-card)] border border-[var(--border)]" style={{ boxShadow: "var(--shadow-sm)" }}>
+        <div className="glass-card p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-[17px] font-bold text-[var(--text)]">비용 구성</h3>
-            <Link href="/reports/pnl" className="text-[13px] font-semibold" style={{ color: A.blue }}>상세 보기</Link>
+            <Link href="/reports/pnl" className="text-[13px] font-semibold text-[var(--primary)]">상세 보기</Link>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-9">
             <div className="relative shrink-0" style={{ width: 176, height: 176 }}>

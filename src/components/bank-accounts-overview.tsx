@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { IconTile, TileIcon } from "@/components/ui/icon-tile";
+import { TileIcon } from "@/components/ui/icon-tile";
 import { getDistinctBankAccountNos, getBankAccountChanges, setBankAccountAlias } from "@/lib/queries";
 
 // 은행 브랜드색 매핑 상수 (브랜드색은 매핑 상수 허용). logo: public/bank-logos/{logo} 있으면 표시, 없으면 이니셜.
@@ -84,19 +84,21 @@ function BankIcon({ name, size = 40 }: { name: string | undefined; size?: number
   );
 }
 
-// 시안 — 통장 통계 카드
+// TeamHub KPI 카드 — 통장 통계
 function BankStat({ tone, icon, label, value, sub, valueTone }: {
   tone: "brand" | "success" | "danger";
   icon: string; label: string; value: string; sub: string; valueTone: string;
 }) {
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{label}</p>
-        <IconTile tone={tone} size={34}><TileIcon name={icon} className="w-4 h-4 text-white" /></IconTile>
+    <div className="glass-card p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
+        <span className={`kpi-icon ${tone === "brand" ? "" : tone}`}><TileIcon name={icon} className="w-5 h-5" /></span>
       </div>
-      <p className={`text-2xl font-bold mono-number mb-1 ${valueTone}`}>{value}</p>
-      <p className="text-[11px] text-[var(--text-dim)]">{sub}</p>
+      <div className="flex items-end gap-2">
+        <span className={`text-[26px] leading-8 font-extrabold mono-number ${valueTone}`}>{value}</span>
+        <span className="text-[11px] text-[var(--text-dim)] mb-1.5">{sub}</span>
+      </div>
     </div>
   );
 }

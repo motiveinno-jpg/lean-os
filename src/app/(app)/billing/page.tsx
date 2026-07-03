@@ -269,22 +269,22 @@ export default function BillingPage() {
       </div>
 
       {/* Current plan summary */}
-      <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-2xl p-6 mb-6 text-white">
+      <div className="glass-card p-6 mb-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <div className="text-xs font-semibold opacity-80 mb-1">현재 플랜</div>
-            <div className="text-2xl font-extrabold">{currentPlan?.name || "Free"}</div>
-            <div className="text-sm opacity-80 mt-1">
+            <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-1">현재 플랜</div>
+            <div className="text-2xl font-extrabold text-[var(--text)]">{currentPlan?.name || "Free"}</div>
+            <div className="text-sm text-[var(--text-muted)] mt-1">
               {subscription?.seat_count || 1}명 · {subscription?.billing_cycle === "annual" ? "연간" : "월간"} 결제
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs font-semibold opacity-80 mb-1">월 결제 금액</div>
-            <div className="text-3xl font-extrabold">
+            <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-1">월 결제 금액</div>
+            <div className="text-3xl font-extrabold mono-number text-[var(--primary)]">
               {fmtW((currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * (subscription?.seat_count || 1))}
             </div>
             {subscription?.current_period_end && (
-              <div className="text-xs opacity-70 mt-1">
+              <div className="text-xs text-[var(--text-dim)] mt-1">
                 다음 결제: {new Date(subscription.current_period_end).toLocaleDateString("ko-KR")}
               </div>
             )}
@@ -294,7 +294,7 @@ export default function BillingPage() {
           <button
             onClick={handleOpenPortal}
             disabled={isPaymentLoading}
-            className="mt-4 px-5 py-2 rounded-xl text-sm font-semibold bg-white/20 hover:bg-white/30 transition disabled:opacity-50"
+            className="btn-secondary mt-4"
           >
             {isPaymentLoading ? "로딩 중..." : "구독 관리"}
           </button>
@@ -342,12 +342,12 @@ export default function BillingPage() {
                     const unlimited = it.limit >= 9999;
                     const pct = unlimited ? 0 : Math.min(100, Math.round((it.used / Math.max(1, it.limit)) * 100));
                     const danger = !unlimited && pct >= 80;
-                    const barColor = danger ? "bg-red-500" : pct >= 60 ? "bg-yellow-500" : "bg-blue-500";
+                    const barColor = danger ? "bg-[var(--danger)]" : pct >= 60 ? "bg-[var(--warning)]" : "bg-[var(--primary)]";
                     return (
                       <div key={it.label} className="bg-[var(--bg-surface)] rounded-xl p-4">
                         <div className="flex items-center gap-1.5 mb-1.5"><span className="text-sm">{it.icon}</span><span className="text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">{it.label}</span></div>
                         <div className="flex items-baseline gap-1">
-                          <span className={`text-xl font-black mono-number ${danger ? "text-red-500" : "text-[var(--text)]"}`}>{it.used.toLocaleString()}</span>
+                          <span className={`text-xl font-black mono-number ${danger ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{it.used.toLocaleString()}</span>
                           <span className="text-xs text-[var(--text-dim)]">/ {unlimited ? "무제한" : it.limit.toLocaleString()}</span>
                         </div>
                         {!unlimited && (
@@ -355,7 +355,7 @@ export default function BillingPage() {
                             <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
                           </div>
                         )}
-                        {danger && <div className="text-[10px] text-red-500 mt-1 font-semibold">⚠️ 한도 임박 - 업그레이드 권장</div>}
+                        {danger && <div className="text-[10px] text-[var(--danger)] mt-1 font-semibold">⚠️ 한도 임박 - 업그레이드 권장</div>}
                       </div>
                     );
                   })}

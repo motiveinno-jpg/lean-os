@@ -80,9 +80,9 @@ export function AccountTab() {
       {/* 계정 정보 */}
       <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
+          <span className="kpi-icon">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM5 21a7 7 0 0114 0" /></svg>
-          </div>
+          </span>
           <div>
             <div className="text-sm font-bold text-[var(--text)]">계정 정보</div>
             <div className="text-xs text-[var(--text-muted)]">{userEmail}</div>
@@ -93,9 +93,9 @@ export function AccountTab() {
       {/* 비밀번호 변경 */}
       <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+          <span className="kpi-icon warning">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M17 11V7a5 5 0 00-10 0v4M6 11h12v9a1 1 0 01-1 1H7a1 1 0 01-1-1z" /></svg>
-          </div>
+          </span>
           <div>
             <div className="text-sm font-bold text-[var(--text)]">비밀번호 변경</div>
             <div className="text-xs text-[var(--text-muted)]">영문+숫자+특수기호 조합 8자 이상</div>
@@ -116,7 +116,7 @@ export function AccountTab() {
               value={currentPw}
               onChange={(e) => setCurrentPw(e.target.value)}
               placeholder="현재 비밀번호를 입력하세요"
-              className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+              className="field-input"
               required
             />
           </div>
@@ -127,7 +127,7 @@ export function AccountTab() {
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
               placeholder="영문+숫자+특수기호 8자 이상"
-              className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+              className="field-input"
               required
             />
             {strength && (
@@ -149,7 +149,7 @@ export function AccountTab() {
               value={confirmPw}
               onChange={(e) => setConfirmPw(e.target.value)}
               placeholder="새 비밀번호를 다시 입력하세요"
-              className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+              className="field-input"
               required
             />
             {confirmPw && newPw !== confirmPw && (
@@ -159,7 +159,7 @@ export function AccountTab() {
           <button
             type="submit"
             disabled={saving || !currentPw || !newPw || newPw !== confirmPw}
-            className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50"
+            className="btn-primary w-full"
           >
             {saving ? "변경 중..." : "비밀번호 변경"}
           </button>

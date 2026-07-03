@@ -841,7 +841,7 @@ export default function BoardPage() {
                 !form.title.trim() ||
                 !form.content.trim()
               }
-              className="px-5 py-2 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+              className="btn-primary"
             >
               {uploading
                 ? "첨부 업로드 중..."
@@ -1270,7 +1270,7 @@ export default function BoardPage() {
                                         addComment.isPending ||
                                         !(replyDraft[c.id] || "").trim()
                                       }
-                                      className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50 self-start"
+                                      className="btn-primary self-start"
                                     >
                                       답글
                                     </button>
@@ -1347,7 +1347,7 @@ export default function BoardPage() {
                             addComment.isPending ||
                             (!(commentDraft[p.id] || "").trim() && !(commentFiles[p.id]?.length))
                           }
-                          className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold disabled:opacity-50 self-start"
+                          className="btn-primary self-start"
                         >
                           등록
                         </button>

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
-import { SiyanPageHeader, SiyanStatCard } from "@/components/siyan";
 import { AttendanceTab, LeaveTab } from "@/app/(app)/employees/page";
 import { OvertimeRequestCard } from "@/components/overtime-request-card";
 import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
@@ -110,19 +109,53 @@ export default function AttendancePage() {
 
   return (
     <div>
-      <SiyanPageHeader
-        title="근태 관리"
-        subtitle={`출퇴근 기록 · 월별 근무시간 · 휴가 사용 현황${isManager ? ` · 재직 ${activeEmp.toLocaleString()}명` : ""}`}
-        gradient="from-indigo-600 to-indigo-500"
-      />
+      <div className="page-sticky-header mb-6">
+        <h1 className="text-2xl font-extrabold">근태 관리</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">{`출퇴근 기록 · 월별 근무시간 · 휴가 사용 현황${isManager ? ` · 재직 ${activeEmp.toLocaleString()}명` : ""}`}</p>
+      </div>
 
-      {/* 시안 통계 4 (출석/지각/결석/휴가) — 관리자 노출. 실데이터 + derive(결석). */}
+      {/* KPI 4 (출석/지각/결석/휴가) — 관리자 노출. 실데이터 + derive(결석). */}
       {isManager && section === "work" && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <SiyanStatCard tone="blue" label="출석" value={`${present.toLocaleString()}명`} icon={<span>✓</span>} />
-          <SiyanStatCard tone="amber" label="지각" value={`${late.toLocaleString()}명`} icon={<span>⏰</span>} />
-          <SiyanStatCard tone="red" label="결석" value={`${absent.toLocaleString()}명`} icon={<span>✕</span>} sub={absent > 0 ? "재직 − 출석 − 지각 − 휴가" : "이상 없음"} />
-          <SiyanStatCard tone="green" label="휴가" value={`${leave.toLocaleString()}명`} icon={<span>🏖</span>} />
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">출석</span>
+              <span className="kpi-icon info">✓</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{present.toLocaleString()}명</span>
+            </div>
+          </div>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">지각</span>
+              <span className="kpi-icon warning">⏰</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{late.toLocaleString()}명</span>
+            </div>
+          </div>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">결석</span>
+              <span className="kpi-icon danger">✕</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{absent.toLocaleString()}명</span>
+            </div>
+            {absent > 0
+              ? <div className="kpi-callout danger">재직 − 출석 − 지각 − 휴가 = <b>{absent.toLocaleString()}명</b></div>
+              : <div className="text-[11px] text-[var(--text-dim)]">이상 없음</div>}
+          </div>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">휴가</span>
+              <span className="kpi-icon success">🏖</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{leave.toLocaleString()}명</span>
+            </div>
+          </div>
         </div>
       )}
 

@@ -111,7 +111,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
             <button onClick={() => setView("kanban")} className={`seg-item ${view === "kanban" ? "seg-item-active" : ""}`}>칸반</button>
             <button onClick={() => setView("gantt")} className={`seg-item ${view === "gantt" ? "seg-item-active" : ""}`}>간트</button>
           </div>
-          <button onClick={openNew} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 태스크</button>
+          <button onClick={openNew} className="btn-primary text-xs hover:opacity-90">+ 태스크</button>
         </div>
       </div>
 
@@ -122,7 +122,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
               onDragOver={(e) => { e.preventDefault(); setDragOver(col.key); }}
               onDragLeave={() => setDragOver((c) => (c === col.key ? null : c))}
               onDrop={(e) => { e.preventDefault(); if (dragId) moveTask(dragId, col.key); setDragId(null); setDragOver(null); }}
-              className={`rounded-xl border p-2.5 min-h-[120px] transition ${dragOver === col.key ? "border-[var(--primary)] bg-[var(--primary)]/5" : "border-[var(--border)] bg-[var(--bg-surface)]/30"}`}>
+              className={`rounded-xl p-2.5 min-h-[120px] transition border ${dragOver === col.key ? "border-[var(--primary)] bg-[var(--primary)]/5" : "border-transparent bg-[var(--bg-surface)]"}`}>
               <div className="flex items-center justify-between px-1 mb-2">
                 <span className={`text-xs font-bold ${col.color}`}>{col.label}</span>
                 <span className="text-[10px] text-[var(--text-dim)] mono-number">{byStatus[col.key].length}</span>

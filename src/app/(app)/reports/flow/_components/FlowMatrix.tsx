@@ -203,10 +203,10 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
           <span className="text-sm font-bold text-[var(--text)] mono-number">{year}년</span>
           <button onClick={() => setYear((y) => y + 1)} disabled={year >= curYear} className="px-2 py-1 text-xs rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] disabled:opacity-30">→</button>
         </div>
-        <div className="flex gap-1 flex-wrap">
+        <div className="seg-bar flex-wrap">
           {CELL_MODES.map((m) => (
             <button key={m.key} onClick={() => setMode(m.key)}
-              className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border transition ${mode === m.key ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+              className={`seg-item ${mode === m.key ? "seg-item-active" : ""}`}>
               {m.label}
             </button>
           ))}
@@ -223,7 +223,7 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
                 return (
                   <th key={mo} className="px-2 py-1.5 text-right font-bold border-b border-[var(--border)] whitespace-nowrap" style={{ minWidth: 78 }}>
                     <div className={isActual ? "text-[var(--text)]" : "text-[var(--text-dim)]"}>{mo}월</div>
-                    <div className={`text-[8px] font-semibold ${isActual ? "text-green-500" : "text-amber-500"}`}>{isActual ? "실적" : "예측"}</div>
+                    <div className={`text-[8px] font-semibold ${isActual ? "text-[var(--success)]" : "text-[var(--warning)]"}`}>{isActual ? "실적" : "예측"}</div>
                   </th>
                 );
               })}

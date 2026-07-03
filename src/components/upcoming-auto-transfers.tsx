@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { IconTile, TileIcon } from "@/components/ui/icon-tile";
+import { TileIcon } from "@/components/ui/icon-tile";
 import { getRecurringPayments } from "@/lib/approval-center";
 
 interface Props {
@@ -126,7 +126,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
     <div className="mb-3 glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <IconTile tone="warning" size={38}><TileIcon name="clock" /></IconTile>
+          <span className="kpi-icon warning"><TileIcon name="clock" className="w-5 h-5" /></span>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">고정비 지출예정</h2>
             <span className="caption">{windowDays}일 안 · {items.length}건</span>

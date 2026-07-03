@@ -56,7 +56,7 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
   );
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 mt-4 animate-[slide-in_0.3s]">
+    <div className="glass-card p-4 mt-4 animate-[slide-in_0.3s]">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold">{month} 상세 내역</h3>
         <div className="flex gap-2">
@@ -84,7 +84,7 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-[var(--text-dim)] text-[10px] border-b border-[var(--border)]">
+              <tr className="text-[var(--text-dim)] text-xs border-b border-[var(--border)]">
                 <th className="text-left py-1.5 cursor-pointer" onClick={() => toggleSort('name')}>항목<SortIcon k="name" /></th>
                 <th className="text-left py-1.5 cursor-pointer" onClick={() => toggleSort('category')}>구분<SortIcon k="category" /></th>
                 <th className="text-right py-1.5 cursor-pointer" onClick={() => toggleSort('amount')}>금액<SortIcon k="amount" /></th>
@@ -94,16 +94,16 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
             </thead>
             <tbody>
               {sorted.map((item, i) => (
-                <tr key={i} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
-                  <td className="py-1.5 text-[var(--text)]">{item.name}</td>
-                  <td className="py-1.5 text-[var(--text-muted)]">{CAT_LABELS[item.category] || item.category}</td>
-                  <td className={`py-1.5 text-right mono-number ${item.category === 'income' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                <tr key={i} className="border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition">
+                  <td className="py-3 text-[var(--text)]">{item.name}</td>
+                  <td className="py-3 text-[var(--text-muted)]">{CAT_LABELS[item.category] || item.category}</td>
+                  <td className={`py-3 text-right mono-number ${item.category === 'income' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                     ₩{Math.abs(item.amount).toLocaleString()}
                   </td>
-                  <td className={`py-1.5 text-center ${STATUS_COLORS[item.status] || 'text-[var(--text-muted)]'}`}>
+                  <td className={`py-3 text-center ${STATUS_COLORS[item.status] || 'text-[var(--text-muted)]'}`}>
                     {item.status}
                   </td>
-                  <td className="py-1.5 text-right text-[var(--text-dim)] mono-number">{item.due_date || '-'}</td>
+                  <td className="py-3 text-right text-[var(--text-dim)] mono-number">{item.due_date || '-'}</td>
                 </tr>
               ))}
             </tbody>

@@ -180,7 +180,7 @@ function GuestChatView({ token }: { token: string }) {
       <div className="flex items-center justify-center h-screen bg-[var(--bg)]">
         <div className="glass-card p-10 text-center max-w-md">
           <div className="text-3xl mb-4">🔒</div>
-          <div className="text-lg font-bold mb-2 text-red-400">접근 불가</div>
+          <div className="text-lg font-bold mb-2 text-[var(--danger)]">접근 불가</div>
           <div className="text-sm text-[var(--text-muted)]">{error}</div>
         </div>
       </div>
@@ -461,11 +461,13 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
               <h3 className="text-base font-bold text-[var(--text)]">새로 만들기</h3>
               <button onClick={() => setCreating(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-lg">×</button>
             </div>
-            <div className="flex gap-1 mx-6 mt-4 bg-[var(--bg-surface)] rounded-xl p-1">
-              {([["team", "팀 채널"], ["deal", "프로젝트"], ["dm", "DM"]] as const).map(([k, label]) => (
-                <button key={k} onClick={() => setCreating(k)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${creating === k ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>{label}</button>
-              ))}
+            <div className="mx-6 mt-4">
+              <div className="seg-bar flex w-full">
+                {([["team", "팀 채널"], ["deal", "프로젝트"], ["dm", "DM"]] as const).map(([k, label]) => (
+                  <button key={k} onClick={() => setCreating(k)}
+                    className={`seg-item flex-1 ${creating === k ? "seg-item-active" : ""}`}>{label}</button>
+                ))}
+              </div>
             </div>
             <div className="px-6 py-4">
               {creating === "team" && (
@@ -474,7 +476,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
                   <input value={teamName} onChange={(e) => setTeamName(e.target.value)} autoFocus placeholder="마케팅팀, 개발팀..."
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-4 focus:outline-none focus:border-[var(--primary)]" />
                   <button onClick={() => teamName.trim() && createTeamMut.mutate()} disabled={!teamName.trim() || createTeamMut.isPending}
-                    className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">만들기</button>
+                    className="btn-primary w-full">만들기</button>
                 </>
               )}
               {creating === "deal" && (
@@ -496,7 +498,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
                     <option value="general">일반 채널</option>
                   </select>
                   <button onClick={() => form.name.trim() && createMut.mutate()} disabled={!form.name.trim() || createMut.isPending}
-                    className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">만들기</button>
+                    className="btn-primary w-full">만들기</button>
                 </>
               )}
               {creating === "dm" && (
@@ -510,7 +512,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
                     ))}
                   </select>
                   <button onClick={() => dmUserId && createDMMut.mutate()} disabled={!dmUserId || createDMMut.isPending}
-                    className="w-full py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">대화 시작</button>
+                    className="btn-primary w-full">대화 시작</button>
                 </>
               )}
             </div>

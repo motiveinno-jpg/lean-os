@@ -52,21 +52,21 @@ function MaturityBadge({ maturityDate }: { maturityDate: string | null | undefin
   );
   if (daysLeft < 0) {
     return (
-      <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-semibold">
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--danger-dim)] text-[var(--danger)] font-semibold">
         만기 초과
       </span>
     );
   }
   if (daysLeft <= 7) {
     return (
-      <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-semibold">
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--danger-dim)] text-[var(--danger)] font-semibold">
         D-{daysLeft}
       </span>
     );
   }
   if (daysLeft <= 30) {
     return (
-      <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 font-semibold">
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">
         D-{daysLeft}
       </span>
     );
@@ -155,9 +155,9 @@ function fmtW(n: number): string {
 }
 
 const LOAN_STATUS: Record<string, { label: string; bg: string; text: string }> = {
-  active: { label: "상환중", bg: "bg-blue-500/10", text: "text-blue-400" },
-  paid_off: { label: "완납", bg: "bg-green-500/10", text: "text-green-400" },
-  refinanced: { label: "대환", bg: "bg-yellow-500/10", text: "text-yellow-400" },
+  active: { label: "상환중", bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]" },
+  paid_off: { label: "완납", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
+  refinanced: { label: "대환", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },
 };
 
 const LOAN_TYPES: Record<string, string> = {
@@ -349,17 +349,19 @@ export default function LoansPage() {
         {statCards.map((c) => (
           <div
             key={c.label}
-            className={`p-5 ${
+            className={`p-5 flex flex-col gap-3 ${
               (c as { highlight?: boolean }).highlight
-                ? "rounded-2xl border bg-[var(--warning)]/5 border-[var(--warning)]/30"
+                ? "rounded-[18px] border bg-[var(--warning)]/5 border-[var(--warning)]/30"
                 : "glass-card"
             }`}
           >
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">{c.label}</div>
-            <div className={`text-2xl font-black mono-number ${(c as { highlight?: boolean }).highlight ? "text-[var(--warning)]" : ""}`}>
-              {c.value}
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{c.label}</span>
+            <div>
+              <div className={`text-[26px] leading-8 font-extrabold mono-number ${(c as { highlight?: boolean }).highlight ? "text-[var(--warning)]" : "text-[var(--text)]"}`}>
+                {c.value}
+              </div>
+              {c.sub && <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{c.sub}</div>}
             </div>
-            {c.sub && <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{c.sub}</div>}
           </div>
         ))}
       </div>
@@ -674,7 +676,7 @@ export default function LoansPage() {
                           <td className="px-4 py-3 text-xs text-right font-bold">₩{Number(p.total_amount || 0).toLocaleString()}</td>
                           <td className="px-4 py-3 text-center">
                             {p.bank_transaction_id ? (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">연결됨</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--success-dim)] text-[var(--success)]">연결됨</span>
                             ) : (
                               <span className="caption">-</span>
                             )}

@@ -316,7 +316,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
         {step === "idle" && (
           <button
             onClick={() => setStep("confirm")}
-            className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl font-semibold text-sm transition border border-red-500/20"
+            className="btn-danger w-full"
           >
             데이터 초기화 시작
           </button>
@@ -342,14 +342,14 @@ export function DataResetTab({ companyId }: { companyId: string }) {
             <div className="flex gap-3">
               <button
                 onClick={() => { setStep("idle"); setConfirmText(""); }}
-                className="flex-1 py-3 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl font-semibold text-sm transition border border-[var(--border)]"
+                className="btn-secondary flex-1"
               >
                 취소
               </button>
               <button
                 onClick={handleReset}
                 disabled={confirmText !== companyName}
-                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-sm transition disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex-1 py-3 bg-[var(--danger)] hover:opacity-90 text-white rounded-xl font-semibold text-sm transition disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 초기화 실행
               </button>
@@ -411,7 +411,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
             </div>
             <button
               onClick={() => window.location.href = "/dashboard"}
-              className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition"
+              className="btn-primary w-full"
             >
               대시보드로 이동
             </button>

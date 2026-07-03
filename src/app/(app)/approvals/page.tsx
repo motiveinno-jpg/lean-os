@@ -171,21 +171,41 @@ export default function ApprovalsPage() {
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">대기 중</div>
-          <div className="text-2xl font-black mono-number text-yellow-500 mt-1.5 truncate">{stats?.pending ?? 0}건</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">대기 중</span>
+            <span className="kpi-icon warning">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" /></svg>
+            </span>
+          </div>
+          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)] truncate">{stats?.pending ?? 0}건</span>
         </div>
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">승인 완료</div>
-          <div className="text-2xl font-black mono-number text-green-500 mt-1.5 truncate">{stats?.approved ?? 0}건</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">승인 완료</span>
+            <span className="kpi-icon success">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </span>
+          </div>
+          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)] truncate">{stats?.approved ?? 0}건</span>
         </div>
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">반려</div>
-          <div className="text-2xl font-black mono-number text-red-500 mt-1.5 truncate">{stats?.rejected ?? 0}건</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">반려</span>
+            <span className="kpi-icon danger">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </span>
+          </div>
+          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--danger)] truncate">{stats?.rejected ?? 0}건</span>
         </div>
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">전체 요청</div>
-          <div className="text-2xl font-black mono-number mt-1.5 truncate">{stats?.total ?? 0}건</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">전체 요청</span>
+            <span className="kpi-icon">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.008v.008H3.75V6.75zm0 5.25h.008v.008H3.75V12zm0 5.25h.008v.008H3.75v-.008z" /></svg>
+            </span>
+          </div>
+          <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)] truncate">{stats?.total ?? 0}건</span>
         </div>
       </div>
 
@@ -374,14 +394,14 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
                     <button
                       onClick={() => approveMut.mutate(row)}
                       disabled={approveMut.isPending}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                      className="btn-primary"
                     >
                       승인
                     </button>
                     <button
                       onClick={() => handleReject(row)}
                       disabled={rejectMut.isPending}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                      className="btn-danger"
                     >
                       반려
                     </button>
@@ -484,13 +504,13 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                   <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title })}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition"
+                      className="btn-primary"
                     >
                       승인
                     </button>
                     <button
                       onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title })}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition"
+                      className="btn-danger"
                     >
                       반려
                     </button>
@@ -542,7 +562,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                 <button
                   onClick={() => approveMut.mutate({ stepId: actionModal.stepId, comment: comment || undefined })}
                   disabled={approveMut.isPending}
-                  className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition"
+                  className="btn-primary"
                 >
                   {approveMut.isPending ? "처리 중..." : "승인"}
                 </button>
@@ -550,7 +570,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                 <button
                   onClick={() => comment.trim() && rejectMut.mutate({ stepId: actionModal.stepId, comment })}
                   disabled={!comment.trim() || rejectMut.isPending}
-                  className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition"
+                  className="btn-danger"
                 >
                   {rejectMut.isPending ? "처리 중..." : "반려"}
                 </button>

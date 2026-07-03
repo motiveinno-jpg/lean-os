@@ -128,10 +128,10 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
     <div className="glass-card p-5 sm:p-6 space-y-5">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h3 className="text-sm font-bold text-[var(--text)]">과거 → 미래 흐름 <span className="font-normal text-[var(--text-dim)] text-xs">과거 {pastN}개월 실적 + 예측 3개월</span></h3>
-        <div className="flex gap-1.5">
+        <div className="seg-bar">
           {LENSES.map((l) => (
             <button key={l.key} onClick={() => onLensChange(l.key)}
-              className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border transition ${lens === l.key ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+              className={`seg-item ${lens === l.key ? "seg-item-active" : ""}`}>
               {l.label}
             </button>
           ))}
@@ -156,13 +156,13 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
             const total = lens === "net" ? net : lens === "income" ? b.incomeTotal : b.expenseTotal;
             const barH = Math.max(2, Math.round((Math.abs(total) / barMax) * (BAR_H - 6)));
             const neg = lens === "net" && net < 0;
-            const labelColor = neg ? "text-red-500" : "text-[var(--text-muted)]";
+            const labelColor = neg ? "text-[var(--danger)]" : "text-[var(--text-muted)]";
             return (
               <div key={b.month} className="flex-1 flex flex-col items-center gap-1.5" title={`${b.month}: ${fmtShort(total)}`}>
                 <span className={`text-[9px] mono-number ${labelColor}`}>{fmtShort(total)}</span>
                 <div className="w-full rounded-xl flex items-end overflow-hidden" style={{ height: BAR_H, background: "var(--bg-surface)" }}>
                   {lens === "net" ? (
-                    <div className={`w-full ${neg ? "bg-red-500/75" : "bg-emerald-500/80"}`} style={{ height: barH, borderRadius: "10px 10px 0 0" }} />
+                    <div className="w-full" style={{ height: barH, borderRadius: "10px 10px 0 0", background: neg ? "color-mix(in srgb, var(--danger) 75%, transparent)" : "color-mix(in srgb, var(--success) 80%, transparent)" }} />
                   ) : (
                     <div className="w-full flex flex-col-reverse overflow-hidden" style={{ height: barH, borderRadius: "10px 10px 0 0" }}>
                       {parts!.map((pt) => {

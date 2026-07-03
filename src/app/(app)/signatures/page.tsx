@@ -301,14 +301,14 @@ export default function SignaturesDashboardPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowOrgBulkWizard(true)}
-              className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--primary)] text-[var(--primary)] rounded-lg text-sm font-semibold hover:bg-[var(--primary)]/10"
+              className="btn-secondary"
               title="여러 거래처(미가입 단체)에 같은 계약서를 변수만 바꿔 한 번에 발송"
             >
               + 단체 일괄 발송
             </button>
             <button
               onClick={() => setShowInviteModal(true)}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90"
+              className="btn-primary"
             >
               + 새 서명 요청
             </button>
@@ -375,7 +375,7 @@ export default function SignaturesDashboardPage() {
           onClick={() => setStatusFilter("all")}
           className={`p-4 rounded-xl text-left transition ${
             statusFilter === "all"
-              ? "bg-gradient-to-br from-[var(--brand)] to-[var(--brand-to)] text-white shadow-md"
+              ? "bg-[var(--primary)] text-white shadow-md"
               : "glass-card card-hover"
           }`}
         >
@@ -463,7 +463,7 @@ export default function SignaturesDashboardPage() {
             <div className="text-5xl mb-4">✍️</div>
             <div className="text-base font-bold text-[var(--text)]">문서에 서명을 요청해보세요</div>
             <div className="text-xs text-[var(--text-muted)] mt-1.5">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
-            <button onClick={() => setShowInviteModal(true)} className="mt-5 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 서명 요청</button>
+            <button onClick={() => setShowInviteModal(true)} className="btn-primary mt-5">+ 서명 요청</button>
           </div>
         ) : (
           filtered.slice((page - 1) * pageSize, page * pageSize).map((r: any) => {
@@ -473,7 +473,7 @@ export default function SignaturesDashboardPage() {
             return (
               <div key={r.id} className="group glass-card p-5 flex items-start gap-4">
                 <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} className="mt-1.5 accent-[var(--primary)] shrink-0" aria-label="선택" />
-                <span className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-[var(--brand)] to-[var(--brand-to)] text-white shadow">
+                <span className="kpi-icon shrink-0">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                 </span>
                 <div className="flex-1 min-w-0">
@@ -514,7 +514,7 @@ export default function SignaturesDashboardPage() {
                   </div>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <span className="inline-flex items-center gap-2 bg-[var(--bg-surface)]/60 rounded-lg px-2.5 py-1">
-                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white text-[10px] font-semibold shrink-0">{(r.signer_name || "?").slice(0, 1)}</span>
+                      <span className="w-6 h-6 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-[10px] font-semibold shrink-0">{(r.signer_name || "?").slice(0, 1)}</span>
                       <span className="min-w-0">
                         <span className="block text-xs font-medium text-[var(--text)] truncate">{r.signer_name}</span>
                         <span className="block text-[10px] text-[var(--text-dim)] truncate">{r.signer_email}</span>

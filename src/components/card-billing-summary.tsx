@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { IconTile, TileIcon } from "@/components/ui/icon-tile";
+import { TileIcon } from "@/components/ui/icon-tile";
 import { getCorporateCards, getDistinctCardNames, upsertCorporateCard } from "@/lib/card-transactions";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -259,7 +259,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     return (
       <div className="glass-card p-5">
         <div className="flex items-center gap-2.5 mb-2">
-          <IconTile tone="warning" size={38}><TileIcon name="wallet" /></IconTile>
+          <span className="kpi-icon warning"><TileIcon name="wallet" className="w-5 h-5" /></span>
           <h2 className="text-[15px] font-bold text-[var(--text)]">이용대금 / 청구서</h2>
         </div>
         <div className="text-[11px] text-[var(--text-dim)]">
@@ -276,7 +276,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <IconTile tone="warning" size={38}><TileIcon name="wallet" /></IconTile>
+          <span className="kpi-icon warning"><TileIcon name="wallet" className="w-5 h-5" /></span>
           <h2 className="text-[15px] font-bold text-[var(--text)]">이용대금 / 청구서</h2>
           <span className="caption">신용 {billings.length}개</span>
         </div>
@@ -429,7 +429,7 @@ function BillingDetailModal({
           </div>
           <div>
             <div className="text-[9px] text-[var(--text-dim)]">취소·환불</div>
-            <div className="text-xs font-bold mono-number text-emerald-500">₩{fmtKRW(cancelSum)}</div>
+            <div className="text-xs font-bold mono-number text-[var(--success)]">₩{fmtKRW(cancelSum)}</div>
           </div>
           <div>
             <div className="text-[9px] text-[var(--text-dim)]">청구액(net)</div>
@@ -457,7 +457,7 @@ function BillingDetailModal({
                       <div className="text-xs text-[var(--text)] truncate">{tx.merchant_name || '가맹점 미상'}</div>
                       <div className="caption">{tx.transaction_date}</div>
                     </div>
-                    <div className={`text-xs font-bold mono-number shrink-0 ${isNeg ? 'text-emerald-500' : 'text-[var(--text)]'}`}>
+                    <div className={`text-xs font-bold mono-number shrink-0 ${isNeg ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>
                       {isNeg ? '' : ''}₩{fmtKRW(amt)}
                     </div>
                   </li>
@@ -472,7 +472,7 @@ function BillingDetailModal({
           <span>{cardTxs.length}건</span>
           {billing.nextPaymentDate
             ? <span>결제예정 {billing.nextPaymentDate.getMonth() + 1}/{billing.nextPaymentDate.getDate()}{billing.daysToPayment != null ? ` (D-${billing.daysToPayment})` : ''}</span>
-            : <span className="text-amber-500">결제일 미설정</span>}
+            : <span className="text-[var(--warning)]">결제일 미설정</span>}
         </div>
       </div>
     </div>
@@ -675,7 +675,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
             {b.billingDay == null && card && (
               <button
                 onClick={() => setEditing(true)}
-                className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition shrink-0"
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[var(--warning-dim)] text-[var(--warning)] hover:bg-[var(--warning)]/25 transition shrink-0"
                 title="청구 마감일이 설정되지 않아 청구 사이클이 부정확합니다. 클릭해 설정하세요."
               >
                 ⚠ 마감일 설정

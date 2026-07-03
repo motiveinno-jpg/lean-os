@@ -129,29 +129,22 @@ function KpiSection({ data }: { data: Summary }) {
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard label="진행 중 프로젝트" value={`${kpi.active_count}건`} sub="견적·계약·진행" tone="blue" />
-        <KpiCard label="이번 분기 완료" value={`${kpi.done_count_q}건`} sub={doneD.text} subColor={doneD.color} tone="emerald" />
-        <KpiCard label="이번 분기 매출" value={fmtW(kpi.revenue_q)} sub={revD.text} subColor={revD.color} tone="cyan" />
-        <KpiCard label="이번 분기 이윤" value={fmtW(kpi.profit_q)} sub={profD.text} subColor={profD.color} tone="purple" />
-        <KpiCard label="이윤율" value={`${kpi.profit_pct_q}%`} sub="이윤 ÷ 매출" tone="amber" />
+        <KpiCard label="진행 중 프로젝트" value={`${kpi.active_count}건`} sub="견적·계약·진행" />
+        <KpiCard label="이번 분기 완료" value={`${kpi.done_count_q}건`} sub={doneD.text} subColor={doneD.color} />
+        <KpiCard label="이번 분기 매출" value={fmtW(kpi.revenue_q)} sub={revD.text} subColor={revD.color} />
+        <KpiCard label="이번 분기 이윤" value={fmtW(kpi.profit_q)} sub={profD.text} subColor={profD.color} />
+        <KpiCard label="이윤율" value={`${kpi.profit_pct_q}%`} sub="이윤 ÷ 매출" />
       </div>
     </div>
   );
 }
 
-function KpiCard({ label, value, sub, subColor, tone }: { label: string; value: string; sub: string; subColor?: string; tone: "blue"|"emerald"|"cyan"|"purple"|"amber" }) {
-  const toneClass = {
-    blue: "from-blue-500/15 to-blue-500/5 border-blue-500/20",
-    emerald: "from-emerald-500/15 to-emerald-500/5 border-emerald-500/20",
-    cyan: "from-cyan-500/15 to-cyan-500/5 border-cyan-500/20",
-    purple: "from-purple-500/15 to-purple-500/5 border-purple-500/20",
-    amber: "from-amber-500/15 to-amber-500/5 border-amber-500/20",
-  }[tone];
+function KpiCard({ label, value, sub, subColor }: { label: string; value: string; sub: string; subColor?: string }) {
   return (
-    <div className={`rounded-2xl border bg-gradient-to-br ${toneClass} p-4`}>
-      <div className="text-[10px] font-bold tracking-wider uppercase text-[var(--text-muted)]">{label}</div>
-      <div className="text-2xl font-extrabold text-[var(--text)] mt-1">{value}</div>
-      <div className={`text-[11px] mt-1 ${subColor || "text-[var(--text-dim)]"}`}>{sub}</div>
+    <div className="glass-card p-5 flex flex-col gap-1">
+      <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
+      <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{value}</span>
+      <span className={`text-[11px] mt-0.5 ${subColor || "text-[var(--text-dim)]"}`}>{sub}</span>
     </div>
   );
 }

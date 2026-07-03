@@ -218,7 +218,7 @@ export default function ByPersonPage() {
           {/* 스탯 3카드 — 대시보드 글래스카드 (2026-06-10) */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 24 }}>
             {[
-              { label: `${year}년 급여 합계`, big: `₩${fmtKrw(totals.pay)}`, color: "#f97316", hint: "명세서/기본급여 추정" },
+              { label: `${year}년 급여 합계`, big: `₩${fmtKrw(totals.pay)}`, color: "var(--warning)", hint: "명세서/기본급여 추정" },
               { label: "인원 수", big: `${rows.length}명`, color: "var(--primary)", hint: "급여 집계 인원" },
               { label: "1인 평균", big: `₩${fmtKrw(Math.round(totals.pay / Math.max(rows.length, 1)))}`, color: "#10b981", hint: "합계 ÷ 인원" },
             ].map((c) => (
@@ -252,11 +252,11 @@ export default function ByPersonPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="flex items-center justify-between" style={{ gap: 8, marginBottom: 6 }}>
                         <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.key}</span>
-                        <span className="mono-number shrink-0" style={{ fontSize: 14, fontWeight: 700, color: "#f97316" }}>₩{fmtKrw(r.payroll)}</span>
+                        <span className="mono-number shrink-0" style={{ fontSize: 14, fontWeight: 700, color: "var(--warning)" }}>₩{fmtKrw(r.payroll)}</span>
                       </div>
                       <div className="flex items-center" style={{ gap: 10 }}>
                         <div style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--bg-surface)", overflow: "hidden" }}>
-                          <div style={{ height: "100%", borderRadius: 999, width: `${Math.min(barPct, 100)}%`, background: "linear-gradient(90deg, #f97316, #fbbf24)" }} />
+                          <div style={{ height: "100%", borderRadius: 999, width: `${Math.min(barPct, 100)}%`, background: "var(--warning)" }} />
                         </div>
                         <span className="mono-number shrink-0" style={{ fontSize: 10, color: "var(--text-dim)", width: 40, textAlign: "right" }}>{share.toFixed(1)}%</span>
                       </div>
@@ -267,7 +267,7 @@ export default function ByPersonPage() {
             })()}
             <div className="flex items-center justify-between" style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", background: "color-mix(in srgb, var(--bg-surface) 50%, transparent)" }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>합계 · {rows.length}명</span>
-              <span className="mono-number" style={{ fontSize: 14, fontWeight: 800, color: "#f97316" }}>₩{fmtKrw(totals.pay)}</span>
+              <span className="mono-number" style={{ fontSize: 14, fontWeight: 800, color: "var(--warning)" }}>₩{fmtKrw(totals.pay)}</span>
             </div>
           </div>
 
@@ -275,19 +275,19 @@ export default function ByPersonPage() {
           <div style={{ marginTop: 24 }}>
             <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-0.5">Monthly</div>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>월별 급여 추이</h3>
-            <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--border)" }}>
+            <div className="glass-card" style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>
                 <thead>
-                  <tr style={{ background: "var(--bg-surface)" }}>
-                    <th style={{ textAlign: "left", padding: "10px 14px", color: "var(--text-muted)", fontWeight: 600, position: "sticky", left: 0, background: "var(--bg-surface)" }}>인원</th>
+                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                    <th style={{ textAlign: "left", padding: "10px 14px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600, position: "sticky", left: 0, background: "var(--bg-card)" }}>인원</th>
                     {months.map((m) => (
-                      <th key={m} style={{ textAlign: "right", padding: "10px 14px", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap" }}>{monthLabel(m)}</th>
+                      <th key={m} style={{ textAlign: "right", padding: "10px 14px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>{monthLabel(m)}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
-                    <tr key={r.key} style={{ borderTop: "1px solid var(--border)" }}>
+                    <tr key={r.key} className="hover:bg-[var(--bg-surface)]/60 transition" style={{ borderTop: "1px solid var(--border)" }}>
                       <td style={{ padding: "9px 14px", color: "var(--text)", whiteSpace: "nowrap", position: "sticky", left: 0, background: "var(--bg-card)" }}>{r.key}</td>
                       {months.map((m) => {
                         const b = r.byMonth[m];

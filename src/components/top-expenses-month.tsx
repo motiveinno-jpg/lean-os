@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { IconTile, TileIcon } from "@/components/ui/icon-tile";
+import { TileIcon } from "@/components/ui/icon-tile";
 import { getBankTransactions } from "@/lib/queries";
 import { exportBankTransactionsDouzone } from "@/lib/export-douzone";
 
@@ -89,7 +89,7 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
     <div className="mb-3 glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <IconTile tone="danger" size={38}><TileIcon name="trendingDown" /></IconTile>
+          <span className="kpi-icon danger"><TileIcon name="trendingDown" className="w-5 h-5" /></span>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">이번달 지출 TOP {topN}</h2>
             <span className="caption">{monthLabel}</span>

@@ -460,7 +460,7 @@ export default function VaultPage() {
             <button
               onClick={() => runDiscMut.mutate()}
               disabled={runDiscMut.isPending}
-              className="px-4 py-2.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 rounded-xl text-sm font-semibold transition disabled:opacity-50"
+              className="btn-secondary"
             >
               {runDiscMut.isPending ? "분석 중..." : "패턴 분석 실행"}
             </button>
@@ -468,7 +468,7 @@ export default function VaultPage() {
           {tab !== "discovery" && (
             <button
               onClick={() => { setShowForm(!showForm); setEditingId(null); if (tab === "accounts") setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" }); if (tab === "assets") setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); if (tab === "docs") setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" }); }}
-              className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
+              className="btn-primary"
             >
               + 추가
             </button>
@@ -636,17 +636,29 @@ export default function VaultPage() {
 
       {/* Summary Cards — 자산 관리 스코프(자산·자동탐지)만. 구독은 '구독' 메뉴, 문서는 '파일보관함'으로 이동(2026-05-22)했으므로 제외해 혼란 방지. */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">자산 가치</div>
-          <div className="text-2xl font-black mono-number">{fmtW(stats.totalAssetValue)}원</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">{vault?.assets?.length || 0}건</div>
-        </div>
-        <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">자동 탐지</div>
-          <div className={`text-2xl font-black mono-number ${stats.pendingDiscoveryCount > 0 ? "text-purple-400" : ""}`}>
-            {stats.pendingDiscoveryCount}건
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">자산 가치</span>
+            <span className="kpi-icon">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
+            </span>
           </div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">검토 대기</div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmtW(stats.totalAssetValue)}원</span>
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">{vault?.assets?.length || 0}건 등록</div>
+        </div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">자동 탐지</span>
+            <span className={`kpi-icon ${stats.pendingDiscoveryCount > 0 ? "warning" : ""}`}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M21 21l-4.3-4.3" /></svg>
+            </span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{stats.pendingDiscoveryCount}건</span>
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">검토 대기</div>
         </div>
       </div>
 
@@ -888,7 +900,7 @@ export default function VaultPage() {
               <div className="text-5xl mb-4">🔐</div>
               <div className="text-base font-bold text-[var(--text)]">구독 서비스와 공용 계정을 등록하세요</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">SaaS 구독, 서비스 계정을 등록하여 비용을 관리하세요</div>
-              <button onClick={() => { setTab("accounts"); setShowForm(true); }} className="mt-5 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 계정 추가</button>
+              <button onClick={() => { setTab("accounts"); setShowForm(true); }} className="btn-primary mt-5">+ 계정 추가</button>
             </div>
           ) : (
             <table className="w-full text-sm min-w-[700px]">
@@ -1024,17 +1036,32 @@ export default function VaultPage() {
             const book = active.reduce((s, a) => s + computeBookValue(a.value, a.purchase_date, a.useful_life_months).book, 0);
             return (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                <div className="glass-card p-5">
-                  <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">총 취득가</div>
-                  <div className="text-2xl font-black mono-number mt-1">{fmtW(acquire)}</div>
+                <div className="glass-card p-5 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 취득가</span>
+                    <span className="kpi-icon">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 7H4a1 1 0 00-1 1v11a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1zM16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" /></svg>
+                    </span>
+                  </div>
+                  <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmtW(acquire)}</span>
                 </div>
-                <div className="glass-card p-5">
-                  <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">총 장부가 (감가 후)</div>
-                  <div className="text-2xl font-black mono-number mt-1 text-[var(--primary)]">{fmtW(book)}</div>
+                <div className="glass-card p-5 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 장부가 (감가 후)</span>
+                    <span className="kpi-icon success">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33" /></svg>
+                    </span>
+                  </div>
+                  <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">{fmtW(book)}</span>
                 </div>
-                <div className="glass-card p-5">
-                  <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">누적 감가상각</div>
-                  <div className="text-2xl font-black mono-number mt-1 text-amber-500">{fmtW(acquire - book)}</div>
+                <div className="glass-card p-5 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-semibold text-[var(--text-muted)]">누적 감가상각</span>
+                    <span className="kpi-icon warning">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" /></svg>
+                    </span>
+                  </div>
+                  <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)]">{fmtW(acquire - book)}</span>
                 </div>
               </div>
             );
@@ -1045,7 +1072,7 @@ export default function VaultPage() {
               <div className="text-5xl mb-4">📦</div>
               <div className="text-base font-bold mb-1.5">자산이 없습니다</div>
               <div className="text-xs text-[var(--text-muted)]">유형/무형 자산을 등록하면 감가상각 장부가를 자동으로 계산해 드립니다</div>
-              <button onClick={() => { setShowForm(true); setEditingId(null); setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); }} className="mt-5 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 자산 추가</button>
+              <button onClick={() => { setShowForm(true); setEditingId(null); setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); }} className="btn-primary mt-5">+ 자산 추가</button>
             </div>
           ) : (
             <table className="w-full text-sm min-w-[760px]">
@@ -1184,7 +1211,7 @@ export default function VaultPage() {
               <button
                 onClick={() => runDiscMut.mutate()}
                 disabled={runDiscMut.isPending}
-                className="px-6 py-3 bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 rounded-xl text-sm font-semibold transition disabled:opacity-50"
+                className="btn-primary"
               >
                 {runDiscMut.isPending ? "분석 중..." : "지금 분석 실행"}
               </button>
@@ -1194,9 +1221,9 @@ export default function VaultPage() {
               {(vault?.pendingDiscoveries || []).map((d: any) => (
                 <div key={d.id} className="p-5 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                    <span className="kpi-icon">
                       <span className="text-sm">🔍</span>
-                    </div>
+                    </span>
                     <div>
                       <div className="font-semibold text-sm">{d.name}</div>
                       <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
@@ -1208,7 +1235,7 @@ export default function VaultPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right mr-4">
-                      <div className="text-sm font-bold mono-number text-purple-400">
+                      <div className="text-sm font-bold mono-number text-[var(--primary)]">
                         월 {(d.estimated_monthly_cost || 0).toLocaleString()}원
                       </div>
                     </div>

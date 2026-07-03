@@ -270,85 +270,85 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">회사명 *</label>
+              <label className="field-label">회사명 *</label>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="(주)모티브이노베이션"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">사업자번호</label>
+              <label className="field-label">사업자번호</label>
               <input
                 value={form.business_number}
                 onChange={(e) => setForm({ ...form, business_number: formatBusinessNumber(e.target.value) })}
                 placeholder="000-00-00000"
                 maxLength={12}
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">대표자명</label>
+              <label className="field-label">대표자명</label>
               <input
                 value={form.representative}
                 onChange={(e) => setForm({ ...form, representative: e.target.value })}
                 placeholder="홍길동"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">전화번호</label>
+              <label className="field-label">전화번호</label>
               <input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="02-1234-5678"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">업태</label>
+              <label className="field-label">업태</label>
               <input
                 value={form.business_type}
                 onChange={(e) => setForm({ ...form, business_type: e.target.value })}
                 placeholder="서비스업"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">업종</label>
+              <label className="field-label">업종</label>
               <input
                 value={form.business_category}
                 onChange={(e) => setForm({ ...form, business_category: e.target.value })}
                 placeholder="소프트웨어 개발"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">자본금 (원)</label>
+              <label className="field-label">자본금 (원)</label>
               <input
                 inputMode="numeric"
                 value={form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")).toLocaleString("ko-KR") : ""}
                 onChange={(e) => setForm({ ...form, capital: e.target.value.replace(/[^0-9]/g, "") })}
                 placeholder="예: 10,000,000"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]"
+                className="field-input text-right mono-number"
               />
               <p className="text-[10px] text-[var(--text-dim)] mt-1">재무상태표 자본 항목에 사용됩니다. (등기부상 자본금)</p>
             </div>
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">주소</label>
+            <label className="field-label">주소</label>
             <input
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               placeholder="서울특별시 강남구 테헤란로 123"
-              className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              className="field-input"
             />
           </div>
           <button
             onClick={() => form.name && saveMut.mutate()}
             disabled={!form.name || saveMut.isPending}
-            className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+            className="btn-primary w-full"
           >
             {saveMut.isPending ? "저장 중..." : saved ? "저장 완료" : "회사 정보 저장"}
           </button>
@@ -364,7 +364,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Seal Upload */}
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-2">직인 (회사 도장)</label>
+            <label className="field-label mb-2">직인 (회사 도장)</label>
             <div className="border-2 border-dashed border-[var(--border)] rounded-xl p-4 text-center min-h-[160px] flex flex-col items-center justify-center gap-2">
               {sealUrl ? (
                 <>
@@ -383,7 +383,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                     <button
                       onClick={() => regenerateSealPreview()}
                       disabled={!form.name?.trim()}
-                      className="text-xs text-emerald-500 hover:underline disabled:opacity-50"
+                      className="text-xs text-[var(--success)] hover:underline disabled:opacity-50"
                       title={!form.name?.trim() ? "회사명을 먼저 입력하세요" : ""}
                     >
                       🪄 자동 재생성
@@ -417,7 +417,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                     <button
                       onClick={() => regenerateSealPreview()}
                       disabled={uploading === "seal" || generatingSeal || !form.name?.trim()}
-                      className="text-xs text-emerald-500 font-semibold hover:underline disabled:opacity-50"
+                      className="text-xs text-[var(--success)] font-semibold hover:underline disabled:opacity-50"
                       title={!form.name?.trim() ? "회사명을 먼저 입력하세요" : ""}
                     >
                       🪄 자동 생성
@@ -441,7 +441,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
             {/* 자동 생성 미리보기 + 스타일 선택 */}
             {sealPreview && (
-              <div className="mt-3 p-4 bg-[var(--bg-card)] border border-emerald-500/30 rounded-xl">
+              <div className="mt-3 p-4 bg-[var(--bg-card)] border border-[var(--success)]/30 rounded-xl">
                 <div className="flex items-start gap-4">
                   <img src={sealPreview} alt="직인 미리보기" className="w-32 h-32 object-contain bg-white rounded-lg p-2" />
                   <div className="flex-1">
@@ -458,7 +458,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                           onClick={() => { setSealVariant(opt.v); regenerateSealPreview(opt.v); }}
                           className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition ${
                             sealVariant === opt.v
-                              ? "bg-emerald-500 text-white"
+                              ? "bg-[var(--primary)] text-white"
                               : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
                           }`}
                         >
@@ -470,13 +470,13 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                       <button
                         onClick={handleAutoGenerateSeal}
                         disabled={generatingSeal}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+                        className="btn-primary !text-xs !px-3 !py-1.5"
                       >
                         {generatingSeal ? "저장 중..." : "이 직인 사용"}
                       </button>
                       <button
                         onClick={() => setSealPreview(null)}
-                        className="px-3 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg text-xs hover:text-[var(--text)] transition"
+                        className="btn-secondary !text-xs !px-3 !py-1.5"
                       >
                         취소
                       </button>
@@ -489,7 +489,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
           {/* Logo Upload */}
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-2">회사 로고</label>
+            <label className="field-label mb-2">회사 로고</label>
             <div className="border-2 border-dashed border-[var(--border)] rounded-xl p-4 text-center min-h-[160px] flex flex-col items-center justify-center gap-2">
               {logoUrl ? (
                 <>

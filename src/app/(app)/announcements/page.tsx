@@ -201,21 +201,19 @@ export default function AnnouncementsPage() {
           <div className="text-[11px] text-[var(--text-dim)] mt-1.5">서비스 공지·업데이트 소식이 등록되면 여기에 표시됩니다.</div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="glass-card overflow-hidden divide-y divide-[var(--border)]">
           {[...pinnedRows, ...normalRows].map((a) => {
             const cat = CATEGORY_META[a.category] || CATEGORY_META.notice;
             const expanded = expandedId === a.id;
             return (
-              <div
-                key={a.id}
-                className={`bg-[var(--bg-card)] rounded-2xl border transition ${
-                  a.pinned ? "border-[var(--primary)]/30" : "border-[var(--border)]"
-                }`}
-              >
+              <div key={a.id} className={a.pinned ? "bg-[var(--primary)]/[0.03]" : ""}>
                 <button
                   onClick={() => setExpandedId(expanded ? null : a.id)}
-                  className="w-full text-left px-5 py-4 flex items-start gap-3"
+                  className="w-full text-left px-5 py-4 flex items-start gap-3 hover:bg-[var(--bg-surface)]/60 transition"
                 >
+                  <div className="w-9 h-9 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-sm font-bold shrink-0">
+                    {(a.author_name || a.author_email || "운")[0].toUpperCase()}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       {a.pinned && <span className="text-[10px]">📌</span>}

@@ -186,7 +186,7 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
           <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">문서 유형 *</label>
+                <label className="field-label">문서 유형 *</label>
                 <select
                   value={form.entity_type}
                   onChange={(e) => setForm({ ...form, entity_type: e.target.value })}
@@ -198,7 +198,7 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">필요 권한</label>
+                <label className="field-label">필요 권한</label>
                 <select
                   value={form.required_role}
                   onChange={(e) => setForm({ ...form, required_role: e.target.value })}
@@ -210,7 +210,7 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">최소 금액 (원)</label>
+                <label className="field-label">최소 금액 (원)</label>
                 <input
                   type="number"
                   value={form.min_amount || ""}
@@ -220,7 +220,7 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
                 />
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">최대 금액 (원)</label>
+                <label className="field-label">최대 금액 (원)</label>
                 <input
                   type="number"
                   value={form.max_amount || ""}
@@ -340,11 +340,11 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
               <button
                 onClick={() => upsertMut.mutate()}
                 disabled={!form.entity_type || upsertMut.isPending}
-                className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                className="btn-primary"
               >
                 {upsertMut.isPending ? "저장 중..." : editId ? "수정" : "추가"}
               </button>
-              <button onClick={resetForm} className="px-4 py-2 text-[var(--text-muted)] text-xs">
+              <button onClick={resetForm} className="btn-ghost">
                 취소
               </button>
             </div>

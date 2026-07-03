@@ -89,7 +89,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
           <h2 className="text-base font-bold text-[var(--text)]">결재 양식 관리</h2>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">회사에서 쓰는 결재 양식(필드·내용·결재선)을 만들어 새 요청에서 선택합니다.</p>
         </div>
-        <button onClick={openNew} className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 새 양식 추가</button>
+        <button onClick={openNew} className="btn-primary">+ 새 양식 추가</button>
       </div>
 
       {(forms as ApprovalForm[]).length === 0 ? (
@@ -228,8 +228,8 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             </div>
 
             <div className="flex gap-2">
-              <button onClick={() => setEditing(null)} className="flex-1 py-2 rounded-lg border border-[var(--border)] text-sm text-[var(--text-muted)]">취소</button>
-              <button onClick={save} disabled={saving} className="flex-1 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold disabled:opacity-50">{saving ? "저장 중…" : "양식 저장"}</button>
+              <button onClick={() => setEditing(null)} className="btn-secondary flex-1">취소</button>
+              <button onClick={save} disabled={saving} className="btn-primary flex-1">{saving ? "저장 중…" : "양식 저장"}</button>
             </div>
           </div>
         </div>,

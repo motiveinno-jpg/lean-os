@@ -163,7 +163,7 @@ export default function NotificationsPage() {
           <div className="text-[11px] text-[var(--text-dim)] mt-1.5">새 알림이 도착하면 여기에 표시됩니다.</div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="glass-card overflow-hidden divide-y divide-[var(--border)]">
           {rows.map(n => {
             // v4 D4: 1) entity_type 매핑 우선, 2) entity_type=null 이면 type 기반 fallback,
             //          3) 둘 다 실패 시에만 /dashboard.
@@ -183,23 +183,26 @@ export default function NotificationsPage() {
             return (
               <Link key={n.id} href={href}
                 onClick={() => { if (!n.is_read) markOneRead(n.id); }}
-                className={`block rounded-xl border transition px-4 py-3 ${
+                className={`flex items-start gap-3 px-5 py-3.5 transition ${
                   n.is_read
-                    ? 'bg-[var(--bg-card)] border-[var(--border)] hover:bg-[var(--bg-surface)]'
-                    : 'bg-[var(--primary)]/5 border-[var(--primary)]/30 hover:bg-[var(--primary)]/10'
+                    ? 'hover:bg-[var(--bg-surface)]/60'
+                    : 'bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10'
                 }`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-sm font-semibold ${n.is_read ? 'text-[var(--text-muted)]' : 'text-[var(--text)]'}`}>
-                      {!n.is_read && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--primary)] mr-1.5 align-middle" />}
-                      {n.title}
-                    </div>
-                    {n.message && (
-                      <div className="text-xs text-[var(--text-dim)] mt-1 line-clamp-2">{n.message}</div>
-                    )}
+                <span className="kpi-icon">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm font-semibold ${n.is_read ? 'text-[var(--text-muted)]' : 'text-[var(--text)]'}`}>
+                    {!n.is_read && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--primary)] mr-1.5 align-middle" />}
+                    {n.title}
                   </div>
-                  <div className="text-[10px] text-[var(--text-dim)] shrink-0">{date}</div>
+                  {n.message && (
+                    <div className="text-xs text-[var(--text-dim)] mt-1 line-clamp-2">{n.message}</div>
+                  )}
                 </div>
+                <div className="text-[10px] text-[var(--text-dim)] shrink-0 mt-0.5">{date}</div>
               </Link>
             );
           })}

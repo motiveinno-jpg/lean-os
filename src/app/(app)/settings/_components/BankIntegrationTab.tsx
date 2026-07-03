@@ -269,7 +269,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           setRegistering(false);
         }}
         disabled={registering}
-        className="mb-4 w-full py-2.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-xl text-xs font-semibold hover:bg-blue-500/20 transition disabled:opacity-50"
+        className="mb-4 w-full py-2.5 bg-[var(--info-dim)] text-[var(--info)] border border-[var(--info)]/20 rounded-xl text-xs font-semibold hover:bg-[var(--info)]/20 transition disabled:opacity-50"
       >
         {registering ? "연결 중..." : "데모 데이터로 바로 체험하기"}
       </button>
@@ -286,20 +286,20 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
         {/* 개인/법인 선택 */}
         <div className="flex gap-2 mb-3">
-          <button onClick={() => setClientType("P")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "P" ? "bg-orange-500/10 text-orange-600 border-orange-500/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+          <button onClick={() => setClientType("P")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "P" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             개인
           </button>
-          <button onClick={() => setClientType("B")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "B" ? "bg-orange-500/10 text-orange-600 border-orange-500/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+          <button onClick={() => setClientType("B")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "B" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             법인/기업
           </button>
         </div>
 
         {/* 인증 방식 선택 */}
         <div className="flex gap-2 mb-4">
-          <button onClick={() => setAuthMethod("cert")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "cert" ? "bg-green-500/10 text-green-600 border-green-500/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+          <button onClick={() => setAuthMethod("cert")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "cert" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             공동인증서
           </button>
-          <button onClick={() => setAuthMethod("idpw")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "idpw" ? "bg-green-500/10 text-green-600 border-green-500/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+          <button onClick={() => setAuthMethod("idpw")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "idpw" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             아이디/비밀번호
           </button>
         </div>
@@ -307,8 +307,8 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
         {/* 금융기관 선택 */}
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">{accountType === "bank" ? "은행" : accountType === "card" ? "카드사" : "공공기관"} 선택</label>
-            <select value={organization} onChange={(e) => setOrganization(e.target.value)} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+            <label className="field-label">{accountType === "bank" ? "은행" : accountType === "card" ? "카드사" : "공공기관"} 선택</label>
+            <select value={organization} onChange={(e) => setOrganization(e.target.value)} className="field-input">
               <option value="">선택하세요</option>
               {Object.entries(orgList).map(([code, name]) => (
                 <option key={code} value={code}>{name}</option>
@@ -318,7 +318,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
           {accountType === "hometax" && (
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">대표자 주민번호 앞 7자리 <span className="caption">(선택, ID/PW 방식 또는 검증 필요시)</span></label>
+              <label className="field-label">대표자 주민번호 앞 7자리 <span className="caption">(선택, ID/PW 방식 또는 검증 필요시)</span></label>
               <input
                 type="password"
                 inputMode="numeric"
@@ -326,7 +326,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
                 value={hometaxIdentity}
                 onChange={(e) => setHometaxIdentity(e.target.value.replace(/[^0-9]/g, ""))}
                 placeholder="예: 8001011 (생년월일 6 + 성별 1)"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input"
               />
               <p className="text-[10px] text-[var(--text-dim)] mt-1">
                 개인사업자: 본인 주민번호 앞 7자리 / 법인: 대표자 주민번호 앞 7자리.
@@ -339,7 +339,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
             <>
               {/* 공동인증서 입력 */}
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">공동인증서 파일</label>
+                <label className="field-label">공동인증서 파일</label>
                 <div className="relative">
                   <input
                     type="file"
@@ -352,9 +352,9 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">signCert.der + signPri.key 또는 .pfx 파일을 선택하세요</p>
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">인증서 비밀번호</label>
+                <label className="field-label">인증서 비밀번호</label>
                 <div className="relative">
-                  <input type={showCertPw ? "text" : "password"} value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="인증서 비밀번호" className="w-full px-4 py-3 pr-16 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  <input type={showCertPw ? "text" : "password"} value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="인증서 비밀번호" className="field-input pr-16" />
                   <button type="button" onClick={() => setShowCertPw(!showCertPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showCertPw ? "숨기기" : "보기"}</button>
                 </div>
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">인증서와 비밀번호는 보안 서버에서 암호화 처리됩니다. 오너뷰는 저장하지 않습니다.</p>
@@ -364,13 +364,13 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
             <>
               {/* ID/PW 입력 */}
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">인터넷뱅킹 아이디</label>
-                <input value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder={accountType === "bank" ? "인터넷뱅킹 아이디" : "카드 홈페이지 아이디"} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                <label className="field-label">인터넷뱅킹 아이디</label>
+                <input value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder={accountType === "bank" ? "인터넷뱅킹 아이디" : "카드 홈페이지 아이디"} className="field-input" />
               </div>
               <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5">비밀번호</label>
+                <label className="field-label">비밀번호</label>
                 <div className="relative">
-                  <input type={showPw ? "text" : "password"} value={loginPw} onChange={(e) => setLoginPw(e.target.value)} placeholder="비밀번호" className="w-full px-4 py-3 pr-16 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  <input type={showPw ? "text" : "password"} value={loginPw} onChange={(e) => setLoginPw(e.target.value)} placeholder="비밀번호" className="field-input pr-16" />
                   <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showPw ? "숨기기" : "보기"}</button>
                 </div>
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">보안 서버를 통해 암호화 전송됩니다. 오너뷰는 비밀번호를 저장하지 않습니다.</p>
@@ -389,7 +389,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       <button
         onClick={handleRegister}
         disabled={registering || !isReady}
-        className="mt-4 w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+        className="btn-primary w-full mt-4"
       >
         {registering ? "연결 중..." : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
       </button>
@@ -719,7 +719,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             {isConnected ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/10 text-green-500">연결됨</span>
             ) : (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-500/10 text-gray-400">미연결</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)]">미연결</span>
             )}
           </div>
           {isConnected && (

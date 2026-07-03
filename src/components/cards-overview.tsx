@@ -8,7 +8,7 @@
 import { useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery } from "@tanstack/react-query";
-import { IconTile, TileIcon } from "@/components/ui/icon-tile";
+import { TileIcon } from "@/components/ui/icon-tile";
 import { getCardSpendByCompany, type CardSpendCard } from "@/lib/card-transactions";
 
 // 카드사 브랜드색 매핑 상수 (하드코딩 금지 규칙 — 브랜드색은 매핑 상수 허용)
@@ -97,16 +97,7 @@ function defaultRange(): { from: Date; to: Date } {
   return { from, to };
 }
 
-// 시안 — 증감 화살표(지출 기준: 증가=danger 빨강, 감소=success 초록)
-function TrendArrow({ up }: { up: boolean }) {
-  return (
-    <svg className={`w-3.5 h-3.5 ${up ? "text-[var(--danger)]" : "text-[var(--success)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={up ? "M5 11l7-7 7 7M12 4v16" : "M19 13l-7 7-7-7M12 20V4"} />
-    </svg>
-  );
-}
-
-// 시안 — 상단 통계 카드
+// TeamHub KPI 카드 — 상단 통계 (지출 기준: 증가=danger 빨강, 감소=success 초록)
 function StatCard({ tone, icon, label, value, trend }: {
   tone: "danger" | "brand" | "info" | "warning";
   icon: string;
@@ -115,21 +106,21 @@ function StatCard({ tone, icon, label, value, trend }: {
   trend: number | null;
 }) {
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">{label}</p>
-        <IconTile tone={tone} size={34}><TileIcon name={icon} className="w-4 h-4 text-white" /></IconTile>
+    <div className="glass-card p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
+        <span className={`kpi-icon ${tone === "brand" ? "" : tone}`}><TileIcon name={icon} className="w-5 h-5" /></span>
       </div>
-      <p className="text-2xl font-bold text-[var(--text)] mono-number mb-1">{value}</p>
-      {trend != null ? (
-        <div className="flex items-center gap-1">
-          <TrendArrow up={trend >= 0} />
-          <span className={`text-xs font-medium ${trend >= 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>{Math.abs(trend).toFixed(1)}%</span>
-          <span className="text-[11px] text-[var(--text-dim)]">전월 대비</span>
-        </div>
-      ) : (
-        <p className="text-[11px] text-[var(--text-dim)]">기간 합계</p>
-      )}
+      <div className="flex items-end gap-2">
+        <span className="text-[26px] leading-8 font-extrabold text-[var(--text)] mono-number">{value}</span>
+        {trend != null ? (
+          <span className={`delta-chip ${trend >= 0 ? "delta-down" : "delta-up"} mb-1`} title="전월 대비">
+            {trend >= 0 ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%
+          </span>
+        ) : (
+          <span className="text-[11px] text-[var(--text-dim)] mb-1.5">기간 합계</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -257,10 +248,10 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
       {/* 컨트롤 바 — 탭(카드 종류) + 기간/새로고침/다운로드 + 검색/정렬 */}
       <div className="glass-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-1.5 bg-[var(--bg-surface)] rounded-xl p-1 overflow-x-auto scrollbar-hide">
+          <div className="seg-bar overflow-x-auto scrollbar-hide">
             {([["all", "전체"], ["credit", "신용"], ["check", "체크"], ["debit", "직불"]] as const).map(([id, label]) => (
               <button key={id} onClick={() => setActiveTab(id)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition ${activeTab === id ? "bg-[var(--primary)] text-white shadow-md" : "text-[var(--text-muted)] hover:bg-[var(--bg-card)]"}`}>
+                className={`seg-item ${activeTab === id ? "seg-item-active" : ""}`}>
                 {label}
               </button>
             ))}
@@ -352,11 +343,12 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
                 </div>
                 <div className="mb-4">
                   <p className={`text-2xl font-bold mono-number mb-1 ${zero ? "text-[var(--text-dim)]" : "text-[var(--text)]"}`}>{fmtWon(c.spend)}</p>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     {tr != null ? (
                       <>
-                        <TrendArrow up={tr >= 0} />
-                        <span className={`text-sm font-medium ${tr >= 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>{Math.abs(tr).toFixed(1)}%</span>
+                        <span className={`delta-chip ${tr >= 0 ? "delta-down" : "delta-up"}`}>
+                          {tr >= 0 ? "▲" : "▼"} {Math.abs(tr).toFixed(1)}%
+                        </span>
                         <span className="text-xs text-[var(--text-dim)]">전월 대비</span>
                       </>
                     ) : (

@@ -640,20 +640,35 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
     <div className="space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">할 일</div>
-          <div className="text-2xl font-black mono-number mt-1.5">{undoneCount}건</div>
-        </div>
-        <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">오늘 마감</div>
-          <div className="text-2xl font-black mono-number mt-1.5 text-amber-500">
-            {todos.filter((t) => !t.done && t.due_date === today).length}건
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">할 일</span>
+            <span className="kpi-icon">📝</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{undoneCount}건</span>
           </div>
         </div>
-        <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">지연</div>
-          <div className="text-2xl font-black mono-number mt-1.5 text-red-400">
-            {todos.filter((t) => !t.done && t.due_date && t.due_date < today).length}건
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">오늘 마감</span>
+            <span className="kpi-icon warning">⏰</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)]">
+              {todos.filter((t) => !t.done && t.due_date === today).length}건
+            </span>
+          </div>
+        </div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">지연</span>
+            <span className="kpi-icon danger">⚠️</span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--danger)]">
+              {todos.filter((t) => !t.done && t.due_date && t.due_date < today).length}건
+            </span>
           </div>
         </div>
       </div>

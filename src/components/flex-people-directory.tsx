@@ -11,7 +11,11 @@ import { supabase } from "@/lib/supabase";
 
 const db = supabase as any;
 
-const FLEX = { violet: "#6C5CE7", green: "#00B894", amber: "#E0A33A", red: "#E84393", blue: "#0984E3" };
+// 라운드6: 시그니처 색 = 오너뷰 인디고 토큰 (라이트/다크 자동 대응)
+const FLEX = {
+  violet: "var(--primary)", green: "var(--success)", amber: "var(--warning)", blue: "var(--info)",
+  violetDim: "var(--primary-light)", greenDim: "var(--success-dim)",
+};
 
 type Emp = {
   id: string; name: string; email?: string | null; phone?: string | null;
@@ -20,19 +24,19 @@ type Emp = {
   hire_date?: string | null; status?: string | null; user_id?: string | null;
 };
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  active: { label: "재직", color: FLEX.green },
-  joined: { label: "재직", color: FLEX.green },
-  invited: { label: "초대됨", color: FLEX.amber },
-  contract_pending: { label: "계약 대기", color: FLEX.blue },
-  resigned: { label: "퇴사", color: "#9AA1AC" },
-  inactive: { label: "비활성", color: "#9AA1AC" },
+const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  active: { label: "재직", color: "var(--success)", bg: "var(--success-dim)" },
+  joined: { label: "재직", color: "var(--success)", bg: "var(--success-dim)" },
+  invited: { label: "초대됨", color: "var(--warning)", bg: "var(--warning-dim)" },
+  contract_pending: { label: "계약 대기", color: "var(--info)", bg: "var(--info-dim)" },
+  resigned: { label: "퇴사", color: "var(--text-dim)", bg: "var(--bg-surface)" },
+  inactive: { label: "비활성", color: "var(--text-dim)", bg: "var(--bg-surface)" },
 };
-const statusMeta = (s?: string | null) => STATUS_META[String(s || "")] || { label: s || "—", color: "#9AA1AC" };
+const statusMeta = (s?: string | null) => STATUS_META[String(s || "")] || { label: s || "—", color: "var(--text-dim)", bg: "var(--bg-surface)" };
 
 function avatarColor(id: string): string {
   let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  const palette = [FLEX.violet, FLEX.blue, FLEX.green, "#E17055", "#00CEC9", "#A29BFE", "#FF7675", "#55A3FF"];
+  const palette = ["#6C5CE7", "#0984E3", "#00B894", "#E17055", "#00CEC9", "#A29BFE", "#FF7675", "#55A3FF"];
   return palette[Math.abs(h) % palette.length];
 }
 const initials = (name: string) => (/[가-힣]/.test(name) ? name.slice(-2) : name.slice(0, 2).toUpperCase());
@@ -124,7 +128,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
                   <span className="min-w-0">
                     <span className="flex items-center gap-1.5">
                       <span className="text-[14px] font-bold text-[var(--text)] truncate group-hover:text-[var(--primary)]">{e.name}</span>
-                      <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: `${sm.color}1A`, color: sm.color }}>{sm.label}</span>
+                      <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
                     </span>
                     <span className="block text-[11px] text-[var(--text-muted)] truncate mt-0.5">{[e.job_title || e.position, e.department].filter(Boolean).join(" · ") || "직책 미지정"}</span>
                   </span>
@@ -141,7 +145,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
         /* ── 리스트 ── */
         <div className="glass-card overflow-hidden">
           <table className="w-full text-xs">
-            <thead className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
+            <thead className="text-xs text-[var(--text-dim)]">
               <tr className="border-b border-[var(--border)]">
                 <th className="text-left px-4 py-2.5 font-semibold">이름</th>
                 <th className="text-left px-4 py-2.5 font-semibold">팀</th>
@@ -166,7 +170,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
                     <td className="px-4 py-2 text-[var(--text-muted)]">{e.job_title || e.position || "—"}</td>
                     <td className="px-4 py-2 text-[var(--text-muted)] mono-number">{e.hire_date || "—"}</td>
                     <td className="px-4 py-2 text-[var(--text-muted)]">{tenure(e.hire_date)}</td>
-                    <td className="px-4 py-2 text-center"><span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: `${sm.color}1A`, color: sm.color }}>{sm.label}</span></td>
+                    <td className="px-4 py-2 text-center"><span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span></td>
                   </tr>
                 );
               })}
@@ -230,23 +234,23 @@ function ProfilePanel({ companyId, emp, isManager, onClose }: { companyId: strin
       <div className="absolute inset-0 bg-black/30" />
       <div className="relative w-full max-w-sm h-full bg-[var(--bg-card)] border-l border-[var(--border)] shadow-2xl flex flex-col overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
-        <div className="px-5 pt-6 pb-5 text-center border-b border-[var(--border)]" style={{ background: `linear-gradient(180deg, ${avatarColor(emp.id)}14, transparent)` }}>
+        <div className="px-5 pt-6 pb-5 text-center border-b border-[var(--border)] bg-[var(--bg-surface)]/60">
           <button onClick={onClose} className="absolute top-4 right-4 text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none">✕</button>
           <span className="inline-flex w-20 h-20 rounded-3xl items-center justify-center text-2xl font-bold text-white" style={{ background: avatarColor(emp.id) }}>
             {initials(emp.name)}
           </span>
           <div className="mt-3 text-lg font-bold text-[var(--text)]">{emp.name}</div>
           <div className="text-[12px] text-[var(--text-muted)] mt-0.5">{[emp.job_title || emp.position, emp.department].filter(Boolean).join(" · ") || "직책 미지정"}</div>
-          <span className="inline-block mt-2 text-[10px] px-2.5 py-1 rounded-full font-bold" style={{ background: `${sm.color}1A`, color: sm.color }}>{sm.label}</span>
+          <span className="inline-block mt-2 text-[10px] px-2.5 py-1 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
         </div>
 
         {/* 핵심 지표 2 */}
         <div className="grid grid-cols-2 gap-2 px-5 py-4">
-          <div className="rounded-2xl p-3 text-center" style={{ background: `${FLEX.violet}0F` }}>
+          <div className="rounded-2xl p-3 text-center" style={{ background: FLEX.violetDim }}>
             <div className="text-[10px] font-semibold" style={{ color: FLEX.violet }}>이번 주 근무</div>
             <div className="text-lg font-bold mono-number text-[var(--text)] mt-0.5">{hm(weekMin)}</div>
           </div>
-          <div className="rounded-2xl p-3 text-center" style={{ background: `${FLEX.green}0F` }}>
+          <div className="rounded-2xl p-3 text-center" style={{ background: FLEX.greenDim }}>
             <div className="text-[10px] font-semibold" style={{ color: FLEX.green }}>연차 잔여</div>
             <div className="text-lg font-bold mono-number text-[var(--text)] mt-0.5">
               {leave ? `${leave.remaining}일` : "—"}

@@ -89,98 +89,106 @@ export default function PlatformOverview() {
   }).length;
 
   return (
-    <div className="max-w-6xl">
+    <div className="max-w-6xl space-y-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-extrabold text-white">플랫폼 개요</h1>
-        <p className="text-sm text-[#64748b] mt-1">OwnerView SaaS 운영 현황</p>
+      <div>
+        <h1 className="text-2xl font-extrabold text-[var(--text)]">플랫폼 개요</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">OwnerView SaaS 운영 현황</p>
       </div>
 
       {/* KPI Row 1 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}` },
           { label: "총 사용자", value: totalUsers, sub: `회사당 ${totalCompanies ? (totalUsers / totalCompanies).toFixed(1) : 0}명` },
           { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%` },
           { label: "활성 구독", value: activeSubs, sub: "체험+유료 포함" },
         ].map((kpi) => (
-          <div key={kpi.label} className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
-            <div className="text-xs font-semibold text-[#64748b] mb-2">{kpi.label}</div>
-            <div className="text-3xl font-extrabold text-white">{kpi.value}</div>
-            <div className="text-[11px] text-[#64748b] mt-1">{kpi.sub}</div>
+          <div key={kpi.label} className="glass-card p-5 flex flex-col gap-3">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{kpi.label}</span>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{kpi.value}</span>
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)]">{kpi.sub}</div>
           </div>
         ))}
       </div>
 
       {/* Revenue Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
-          <div className="text-xs text-[#64748b] mb-1">MRR (월간 반복 매출)</div>
-          <div className="text-3xl font-extrabold text-white">{fmtW(mrr)}</div>
-          <div className="text-xs text-[#64748b] mt-1">ARR: {fmtW(mrr * 12)}</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR (월간 반복 매출)</span>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmtW(mrr)}</span>
+          </div>
+          <div className="text-[11px] text-[var(--text-dim)]">ARR: {fmtW(mrr * 12)}</div>
         </div>
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
-          <div className="text-xs text-[#64748b] mb-1">총 누적 매출</div>
-          <div className="text-3xl font-extrabold text-emerald-400">{fmtW(totalRevenue)}</div>
-          <div className="text-xs text-[#64748b] mt-1">{paidInvoices.length}건 결제</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 누적 매출</span>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)]">{fmtW(totalRevenue)}</span>
+          </div>
+          <div className="text-[11px] text-[var(--text-dim)]">{paidInvoices.length}건 결제</div>
         </div>
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
-          <div className="text-xs text-[#64748b] mb-1">미처리 피드백</div>
-          <div className="text-3xl font-extrabold text-amber-400">{pendingFeedback}</div>
-          <div className="text-xs text-[#64748b] mt-1">
-            <Link href="/platform/feedback" className="text-blue-400 hover:underline">바로가기</Link>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">미처리 피드백</span>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)]">{pendingFeedback}</span>
+          </div>
+          <div className="text-[11px]">
+            <Link href="/platform/feedback" className="text-[var(--primary)] hover:underline">바로가기</Link>
           </div>
         </div>
       </div>
 
       {/* OP-A: 운영 신호 (24h 에러 + 사고) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-xs text-[#64748b]">최근 24시간 에러</div>
-            <span className="text-[10px] font-bold tracking-wider uppercase text-cyan-400">운영</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">최근 24시간 에러</span>
+            <span className="badge badge-primary uppercase tracking-wider">운영</span>
           </div>
-          <div className={`text-3xl font-extrabold ${recentErrors.length > 50 ? "text-red-400" : recentErrors.length > 10 ? "text-amber-400" : "text-emerald-400"}`}>
+          <div className={`text-[26px] leading-8 font-extrabold mono-number ${recentErrors.length > 50 ? "text-[var(--danger)]" : recentErrors.length > 10 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
             {recentErrors.length}
           </div>
-          <div className="text-xs text-[#64748b] mt-1">
-            <Link href="/platform/errors" className="text-cyan-400 hover:underline">상세 해석 보기 →</Link>
+          <div className="text-[11px]">
+            <Link href="/platform/errors" className="text-[var(--primary)] hover:underline">상세 해석 보기 →</Link>
           </div>
         </div>
-        <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-xs text-[#64748b]">미해결 사고</div>
-            <span className="text-[10px] font-bold tracking-wider uppercase text-cyan-400">운영</span>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">미해결 사고</span>
+            <span className="badge badge-primary uppercase tracking-wider">운영</span>
           </div>
-          <div className="text-3xl font-extrabold text-[#64748b]">—</div>
-          <div className="text-xs text-[#64748b] mt-1">
-            <Link href="/platform/incidents" className="text-cyan-400 hover:underline">사고 기록 →</Link>
+          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text-dim)]">—</div>
+          <div className="text-[11px]">
+            <Link href="/platform/incidents" className="text-[var(--primary)] hover:underline">사고 기록 →</Link>
           </div>
         </div>
       </div>
 
       {/* Recent signups */}
-      <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-6">
+      <div className="glass-card p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-white">최근 가입</h3>
-          <Link href="/platform/customers" className="text-xs text-blue-400 hover:underline">전체 보기</Link>
+          <h3 className="font-bold text-[var(--text)]">최근 가입</h3>
+          <Link href="/platform/customers" className="text-xs text-[var(--primary)] hover:underline">전체 보기</Link>
         </div>
         <div className="space-y-2">
           {companies.slice(0, 8).map((c: any) => {
             const sub = c.subscriptions?.[0];
             const plan = sub?.subscription_plans;
             return (
-              <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-[#0b0f1a] hover:bg-[#1e293b] transition">
+              <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)]/60 hover:bg-[var(--bg-surface)] transition">
                 <div>
-                  <div className="font-semibold text-sm text-white">{c.name}</div>
-                  <div className="text-xs text-[#64748b]">
+                  <div className="font-semibold text-sm text-[var(--text)]">{c.name}</div>
+                  <div className="text-xs text-[var(--text-dim)]">
                     {new Date(c.created_at).toLocaleDateString("ko-KR")}
                   </div>
                 </div>
-                <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                  plan?.slug === "business" || plan?.slug === "pro" ? "bg-purple-500/20 text-purple-400" :
-                  plan?.slug === "starter" ? "bg-blue-500/20 text-blue-400" :
-                  "bg-[#1e293b] text-[#64748b]"
+                <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                  plan?.slug === "business" || plan?.slug === "pro" ? "bg-[var(--primary-light)] text-[var(--primary)]" :
+                  plan?.slug === "starter" ? "bg-[var(--info-dim)] text-[var(--info)]" :
+                  "bg-[var(--bg-surface)] text-[var(--text-muted)]"
                 }`}>
                   {plan?.name || c.current_plan || "Free"}
                 </span>
@@ -188,7 +196,7 @@ export default function PlatformOverview() {
             );
           })}
           {companies.length === 0 && (
-            <div className="text-center py-8 text-sm text-[#64748b]">아직 가입 고객이 없습니다</div>
+            <div className="text-center py-8 text-sm text-[var(--text-dim)]">아직 가입 고객이 없습니다</div>
           )}
         </div>
       </div>

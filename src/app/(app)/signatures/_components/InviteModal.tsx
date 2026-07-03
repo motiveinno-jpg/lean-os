@@ -163,13 +163,13 @@ export function InviteModal({
         </div>
 
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-sm">
+          <button onClick={onClose} className="btn-secondary">
             취소
           </button>
           <button
             onClick={submit}
             disabled={submitting || validSigners.length === 0 || !docId}
-            className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+            className="btn-primary"
           >
             {submitting ? "생성 중..." : `${validSigners.length}건 요청 생성`}
           </button>

@@ -11,8 +11,11 @@ import { supabase } from "@/lib/supabase";
 
 const db = supabase as any;
 
-// 플렉스 시그니처 바이올렛 + 보조 톤
-const FLEX = { violet: "#6C5CE7", green: "#00B894", amber: "#FDCB6E", red: "#E84393", blue: "#0984E3" };
+// 라운드6: 시그니처 색 = 오너뷰 인디고 토큰 (라이트/다크 자동 대응)
+const FLEX = {
+  violet: "var(--primary)", green: "var(--success)", amber: "var(--warning)", red: "var(--danger)", blue: "var(--info)",
+  violetDim: "var(--primary-light)", greenDim: "var(--success-dim)", amberDim: "var(--warning-dim)", redDim: "var(--danger-dim)",
+};
 
 type Emp = { id: string; name: string; department?: string | null; position?: string | null; status?: string | null; user_id?: string | null };
 type Att = {
@@ -151,7 +154,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
 
   const weekLabel = `${weekStart.getMonth() + 1}.${String(weekStart.getDate()).padStart(2, "0")} ~ ${weekEnd.getMonth() + 1}.${String(weekEnd.getDate()).padStart(2, "0")}`;
 
-  const gaugeColor = (min: number) => (min > LIMIT_MIN ? FLEX.red : min > STD_MIN ? "#E0A33A" : FLEX.violet);
+  const gaugeColor = (min: number) => (min > LIMIT_MIN ? FLEX.red : min > STD_MIN ? FLEX.amber : FLEX.violet);
 
   // 일별 타임라인 바 (07:00~22:00 스케일)
   const SCALE_FROM = 7 * 60, SCALE_TO = 22 * 60;
@@ -181,9 +184,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
         <div className="text-sm font-bold text-[var(--text)]">{weekStart.getFullYear()}년 {weekLabel}</div>
         {!isEmployee && (
           <div className="ml-auto flex items-center gap-2 flex-wrap text-[11px]">
-            <span className="px-2.5 py-1 rounded-full font-semibold" style={{ background: `${FLEX.violet}14`, color: FLEX.violet }}>평균 {hm(teamAvg)}</span>
-            <span className="px-2.5 py-1 rounded-full font-semibold" style={{ background: "#E0A33A14", color: "#D97706" }}>연장 합계 {hm(totalOt)}</span>
-            <span className={`px-2.5 py-1 rounded-full font-semibold`} style={over52 > 0 ? { background: `${FLEX.red}14`, color: FLEX.red } : { background: "var(--bg-surface)", color: "var(--text-dim)" }}>
+            <span className="px-2.5 py-1 rounded-full font-semibold" style={{ background: FLEX.violetDim, color: FLEX.violet }}>평균 {hm(teamAvg)}</span>
+            <span className="px-2.5 py-1 rounded-full font-semibold" style={{ background: FLEX.amberDim, color: FLEX.amber }}>연장 합계 {hm(totalOt)}</span>
+            <span className={`px-2.5 py-1 rounded-full font-semibold`} style={over52 > 0 ? { background: FLEX.redDim, color: FLEX.red } : { background: "var(--bg-surface)", color: "var(--text-dim)" }}>
               52시간 초과 {over52}명
             </span>
           </div>
@@ -195,8 +198,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse" style={{ minWidth: 860 }}>
             <thead>
-              <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
-                <th className="text-left px-4 py-2.5 font-semibold min-w-[180px]" style={{ position: "sticky", left: 0, background: "var(--bg-surface)", zIndex: 6 }}>구성원</th>
+              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
+                <th className="text-left px-4 py-2.5 font-semibold min-w-[180px]" style={{ position: "sticky", left: 0, background: "var(--bg-card)", zIndex: 6 }}>구성원</th>
                 {days.map((d, i) => {
                   const isToday = ymd(d) === todayStr;
                   const weekend = i >= 5;
@@ -239,7 +242,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
                     if (onLeave) {
                       return (
                         <td key={i} className="px-1 py-2 text-center align-middle">
-                          <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold" style={{ background: `${FLEX.green}14`, color: FLEX.green }}>휴가</span>
+                          <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold" style={{ background: FLEX.greenDim, color: FLEX.green }}>휴가</span>
                         </td>
                       );
                     }
@@ -254,7 +257,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
                         <div className="relative h-7 rounded-md bg-[var(--bg-surface)] overflow-hidden">
                           {pos && (
                             <div className="absolute top-1 bottom-1 rounded"
-                              style={{ left: `${pos.left}%`, width: `${Math.max(pos.width, 6)}%`, background: a.is_late ? "#E0A33A" : FLEX.violet, opacity: pos.open ? 0.55 : 0.9 }} />
+                              style={{ left: `${pos.left}%`, width: `${Math.max(pos.width, 6)}%`, background: a.is_late ? FLEX.amber : FLEX.violet, opacity: pos.open ? 0.55 : 0.9 }} />
                           )}
                           <div className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-[var(--text)] mix-blend-luminosity">
                             {ci}{co ? `–${co}` : ""}
@@ -280,7 +283,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
           </table>
         </div>
         <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
-          타임라인 = 출근~퇴근 (07~22시 스케일) · <span style={{ color: FLEX.violet }}>■</span> 정상 <span style={{ color: "#E0A33A" }}>■</span> 지각 <span style={{ color: FLEX.green }}>■</span> 휴가 · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span style={{ color: FLEX.red }}>빨강</span>
+          타임라인 = 출근~퇴근 (07~22시 스케일) · <span style={{ color: FLEX.violet }}>■</span> 정상 <span style={{ color: FLEX.amber }}>■</span> 지각 <span style={{ color: FLEX.green }}>■</span> 휴가 · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span style={{ color: FLEX.red }}>빨강</span>
         </div>
       </div>
     </div>

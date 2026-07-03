@@ -293,7 +293,7 @@ export default function ProjectHubPage() {
         </div>
         <div className="flex items-center gap-2">
           {isManager && typeFilter === "goal" && (
-            <button onClick={() => setShowDashboard((v) => !v)} className={`px-4 py-2 text-xs font-semibold rounded-lg border transition ${showDashboard ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
+            <button onClick={() => setShowDashboard((v) => !v)} className={showDashboard ? "btn-primary" : "btn-secondary"}>
               🎯 성과 대시보드
             </button>
           )}
@@ -377,38 +377,68 @@ export default function ProjectHubPage() {
         />
       )}
 
-      {/* 요약 카드 — 활성 유형 기준 */}
+      {/* 요약 카드 — 활성 유형 기준 (KPI 카드 패턴) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{PROJECT_TYPES[typeFilter].icon} {PROJECT_TYPES[typeFilter].label} 프로젝트</div>
-          <div className="text-2xl font-black mono-number mt-1 text-[var(--text)]">{summary.total}</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{PROJECT_TYPES[typeFilter].icon} {PROJECT_TYPES[typeFilter].label} 프로젝트</span>
+            <span className="kpi-icon"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg></span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{summary.total}</span>
+          </div>
         </div>
-        <div className="glass-card p-5">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">진행중</div>
-          <div className="text-2xl font-black mono-number mt-1 text-amber-500">{summary.inProgress}</div>
+        <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">진행중</span>
+            <span className="kpi-icon warning"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" /></svg></span>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)]">{summary.inProgress}</span>
+          </div>
         </div>
         {typeFilter === "margin" ? (<>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">총 계약금액 <span className="text-[10px] font-normal normal-case">(VAT별도)</span></div>
-            <div className="text-xl font-black mono-number mt-1 text-[var(--text)]">{won(summary.totalContract)}</div>
-            <div className="text-[10px] text-[var(--text-dim)] mt-0.5">VAT포함 {won(summary.totalContractWithVat)}</div>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 계약금액 <span className="text-[11px] font-normal">(VAT별도)</span></span>
+              <span className="kpi-icon success"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></svg></span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[22px] leading-7 font-extrabold mono-number text-[var(--text)]">{won(summary.totalContract)}</span>
+            </div>
+            <div className="kpi-callout">VAT포함 <b>{won(summary.totalContractWithVat)}</b></div>
           </div>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">평균 직접원가율</div>
-            <div className="text-2xl font-black mono-number mt-1 text-[var(--text)]" title="전표에 프로젝트를 태그한 직접원가 기준 (판관비 제외)">
-              {summary.avgRatio == null ? <span className="text-[var(--text-dim)]">—</span> : `${Math.round(summary.avgRatio * 100)}%`}
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">평균 직접원가율</span>
+              <span className="kpi-icon info"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 5L5 19" /><circle cx="7.5" cy="7.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" /></svg></span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]" title="전표에 프로젝트를 태그한 직접원가 기준 (판관비 제외)">
+                {summary.avgRatio == null ? <span className="text-[var(--text-dim)]">—</span> : `${Math.round(summary.avgRatio * 100)}%`}
+              </span>
             </div>
           </div>
         </>) : (<>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{typeFilter === "goal" ? "평균 달성률" : "평균 진행률"}</div>
-            <div className="text-2xl font-black mono-number mt-1 text-[var(--text)]">
-              {(() => { const v = typeFilter === "goal" ? typeSummary.goal.avgGoal : typeSummary.delivery.avgDelivery; return v == null ? <span className="text-[var(--text-dim)]">—</span> : `${v}%`; })()}
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">{typeFilter === "goal" ? "평균 달성률" : "평균 진행률"}</span>
+              <span className="kpi-icon"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 19h16M7 15v4M12 10v9M17 5v14" /></svg></span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">
+                {(() => { const v = typeFilter === "goal" ? typeSummary.goal.avgGoal : typeSummary.delivery.avgDelivery; return v == null ? <span className="text-[var(--text-dim)]">—</span> : `${v}%`; })()}
+              </span>
             </div>
           </div>
-          <div className="glass-card p-5">
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{typeFilter === "delivery" ? "지연·위험" : "위험"}</div>
-            <div className="text-2xl font-black mono-number mt-1 text-red-500">{rows.filter(isRisk).length}</div>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">{typeFilter === "delivery" ? "지연·위험" : "위험"}</span>
+              <span className="kpi-icon danger"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" /></svg></span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--danger)]">{rows.filter(isRisk).length}</span>
+            </div>
           </div>
         </>)}
       </div>
@@ -418,7 +448,7 @@ export default function ProjectHubPage() {
         <div className="overflow-auto max-h-[640px]">
           <table className={`w-full text-xs border-collapse ${typeFilter === "margin" ? "min-w-[1100px]" : "min-w-[720px]"}`}>
             <thead className="sticky top-0 z-10">
-              <tr className="bg-[var(--bg-surface)]/50 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide border-b border-[var(--border)]">
+              <tr className="bg-[var(--bg-card)] text-xs font-semibold text-[var(--text-dim)] border-b border-[var(--border)]">
                 {sortableTh("name", "프로젝트명", "px-3 py-2 text-left font-semibold")}
                 {typeFilter !== "delivery" && sortableTh("partner", "거래처", "px-3 py-2 text-left font-semibold")}
                 {sortableTh("manager", "담당자", "px-3 py-2 text-left font-semibold w-[100px]")}
@@ -461,7 +491,7 @@ export default function ProjectHubPage() {
                 return (
                   <tr key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
                     className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 cursor-pointer ${risk ? "bg-red-500/[0.04]" : ""}`}>
-                    <td className="px-3 py-2 text-[var(--text)] font-medium">
+                    <td className="px-3 py-3 text-[var(--text)] font-medium">
                       {risk && <span className="mr-1 text-red-500" title="위험 — 확인 필요">●</span>}
                       {d.name || "(이름 없음)"}
                       {childCount[d.id] > 0 && (
@@ -470,10 +500,10 @@ export default function ProjectHubPage() {
                         </span>
                       )}
                     </td>
-                    {typeFilter !== "delivery" && <td className="px-3 py-2 text-[var(--text-muted)] truncate">{partnerName[d.partner_id] || "—"}</td>}
-                    <td className="px-3 py-2 text-[var(--text-muted)] truncate">{userName[d.internal_manager_id] || "—"}</td>
+                    {typeFilter !== "delivery" && <td className="px-3 py-3 text-[var(--text-muted)] truncate">{partnerName[d.partner_id] || "—"}</td>}
+                    <td className="px-3 py-3 text-[var(--text-muted)] truncate">{userName[d.internal_manager_id] || "—"}</td>
                     {/* 핵심지표 — 유형별 마진률/달성률/진행률 0~100% 막대(위험=빨강) */}
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-3">
                       {!hero || hero.raw == null ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
                         <div className="flex items-center gap-1.5" title={`${PROJECT_TYPES[ptype].hero} ${hero.label}`}>
                           <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
@@ -484,11 +514,11 @@ export default function ProjectHubPage() {
                       )}
                     </td>
                     {typeFilter === "delivery" && (
-                      <td className="px-3 py-2 text-center">
+                      <td className="px-3 py-3 text-center">
                         {hero?.delayed ? <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-red-500/10 text-red-500">지연</span> : <span className="text-[var(--text-dim)]">—</span>}
                       </td>
                     )}
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-3 text-center">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
                     </td>
                     {typeFilter === "margin" && (() => {
@@ -496,21 +526,21 @@ export default function ProjectHubPage() {
                       const vat = Math.round(sup * 0.1);
                       const dash = <span className="text-[var(--text-dim)]">—</span>;
                       return (<>
-                        <td className="px-3 py-2 text-right mono-number text-[var(--text)]">{sup > 0 ? won(sup) : dash}</td>
-                        <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)]">{sup > 0 ? won(vat) : dash}</td>
-                        <td className="px-3 py-2 text-right mono-number font-bold text-[var(--text)]">{sup > 0 ? won(sup + vat) : dash}</td>
-                        <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)]">{p && Number(p.direct_cost) > 0 ? won(p.direct_cost) : dash}</td>
-                        <td className="px-3 py-2 text-center mono-number">
+                        <td className="px-3 py-3 text-right mono-number text-[var(--text)]">{sup > 0 ? won(sup) : dash}</td>
+                        <td className="px-3 py-3 text-right mono-number text-[var(--text-muted)]">{sup > 0 ? won(vat) : dash}</td>
+                        <td className="px-3 py-3 text-right mono-number font-bold text-[var(--text)]">{sup > 0 ? won(sup + vat) : dash}</td>
+                        <td className="px-3 py-3 text-right mono-number text-[var(--text-muted)]">{p && Number(p.direct_cost) > 0 ? won(p.direct_cost) : dash}</td>
+                        <td className="px-3 py-3 text-center mono-number">
                           {ratio == null || ratio === 0 ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
                             <span className={ratio >= 1 ? "text-red-500 font-semibold" : ratio >= 0.8 ? "text-amber-500" : "text-[var(--text)]"}>{Math.round(ratio * 100)}%</span>
                           )}
                         </td>
                       </>);
                     })()}
-                    <td className="px-3 py-2 text-[var(--text-muted)] mono-number text-[11px]">
+                    <td className="px-3 py-3 text-[var(--text-muted)] mono-number text-[11px]">
                       {fmtDate(d.start_date) || "—"}{d.end_date ? ` ~ ${fmtDate(d.end_date)}` : ""}
                     </td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                    <td className="px-3 py-3 text-center whitespace-nowrap">
                       <button onClick={(e) => { e.stopPropagation(); setEditDeal(d); }}
                         className="px-2 py-1 text-[11px] font-semibold rounded-md text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 transition">수정</button>
                       <button onClick={(e) => { e.stopPropagation(); setDelDeal(d); }}

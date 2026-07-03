@@ -67,7 +67,7 @@ function StepCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 p-5 backdrop-blur transition-shadow hover:shadow-lg hover:shadow-black/5">
+    <div className="glass-card relative flex flex-col overflow-hidden p-5 transition-shadow hover:shadow-lg hover:shadow-black/5">
       {/* 단계 액센트 라인 — 흐름의 연속성을 색으로 표현 */}
       <div
         className="absolute top-0 left-0 right-0 h-[3px]"
@@ -309,7 +309,7 @@ export default function BusinessFlowPage() {
   return (
     <div className="space-y-6">
       {/* ═══ 히어로 밴드 — 경영 콕핏 ═══ */}
-      <div className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 p-6 backdrop-blur">
+      <div className="glass-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-[240px]">
             <Link
@@ -341,7 +341,7 @@ export default function BusinessFlowPage() {
               />
               <button
                 onClick={saveFlowSettings}
-                className="rounded-full border border-[var(--border)] px-3 py-[7px] text-[11px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)]"
+                className="btn-secondary text-[11px]"
                 title="현재 뷰·렌즈·기간을 기본값으로 저장"
               >
                 {savedFlow ? "✓ 저장됨" : "⭐ 기본값 저장"}
@@ -365,12 +365,14 @@ export default function BusinessFlowPage() {
         <div className="space-y-4">
           <div className="no-print -mb-1 flex items-center justify-end gap-2">
             <span className="text-[11px] text-[var(--text-muted)]">과거 범위</span>
-            {[6, 12].map((n) => (
-              <button key={n} onClick={() => setPastN(n)}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border transition ${pastN === n ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>
-                {n}개월
-              </button>
-            ))}
+            <div className="seg-bar">
+              {[6, 12].map((n) => (
+                <button key={n} onClick={() => setPastN(n)}
+                  className={`seg-item ${pastN === n ? "seg-item-active" : ""}`}>
+                  {n}개월
+                </button>
+              ))}
+            </div>
           </div>
           <CashPulseHeader companyId={companyId} userId={userId || undefined} />
           <FlowTrend companyId={companyId} userId={userId || undefined} anchorMonth={month} pastN={pastN} lens={lens} onLensChange={setLens} />
@@ -392,14 +394,12 @@ export default function BusinessFlowPage() {
           { label: `${monthLabel} 지출`, value: monthBudget?.expenseTotal ?? 0, color: "#f97316", hint: "고정비 + 변동비" },
           { label: "부가세 예상", value: monthVat?.netVAT ?? 0, color: "#ec4899", hint: `${quarter.split("-")[1]} 분기 누적` },
         ].map((c) => (
-          <div key={c.label} className="relative overflow-hidden rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 p-5 backdrop-blur">
-            <div
-              className="absolute top-0 left-0 h-full w-[3px]"
-              style={{ background: `linear-gradient(180deg, ${c.color}, color-mix(in srgb, ${c.color} 20%, transparent))` }}
-            />
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{c.label}</div>
-            <div className="mono-number truncate text-2xl font-black" style={{ color: c.color }}>₩{fmtKrw(c.value)}</div>
-            <div className="mt-1.5 text-[10px] text-[var(--text-dim)]">{c.hint}</div>
+          <div key={c.label} className="glass-card flex flex-col gap-3 p-5">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{c.label}</span>
+            <div className="flex items-end gap-2">
+              <span className="mono-number truncate text-[26px] leading-8 font-extrabold" style={{ color: c.color }}>₩{fmtKrw(c.value)}</span>
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)]">{c.hint}</div>
           </div>
         ))}
       </div>

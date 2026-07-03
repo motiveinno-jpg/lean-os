@@ -138,14 +138,12 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       {/* 탭 + 연도 네비 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 bg-[var(--bg-surface)] rounded-xl p-1 border border-[var(--border)]">
+        <div className="seg-bar">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition ${
-                tab === t.key ? "bg-[var(--info)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"
-              }`}
+              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}
             >
               {t.label}
             </button>
@@ -158,7 +156,7 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
             <button onClick={() => setYear((y) => y + 1)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="다음 연도">▶</button>
           </div>
           <button onClick={() => refetchBd()} disabled={isFetching}
-            className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]/50 transition disabled:opacity-50">
+            className="btn-secondary text-xs rounded-xl">
             {isFetching ? "..." : "↻ 새로고침"}
           </button>
         </div>
@@ -357,7 +355,7 @@ function PnlDetail({ year, revenue, totalExpense, fixedTotal, variableTotal, mon
   const profit = revenue - totalExpense;
   return (
     <div className="space-y-4">
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-4 sm:p-5">
+      <div className="glass-card p-4 sm:p-5">
         <div className="text-[11px] text-[var(--text-dim)] mb-1">{year}년 영업이익</div>
         <div className="text-2xl sm:text-3xl font-extrabold mono-number" style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
           {won(profit)}
@@ -370,17 +368,17 @@ function PnlDetail({ year, revenue, totalExpense, fixedTotal, variableTotal, mon
         </div>
       </div>
 
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
-          <div className="text-sm font-bold text-[var(--info)]">월별 손익</div>
-          <Link href="/reports/pnl" className="text-[11px] font-semibold text-[var(--info)] hover:underline">손익계산서 자세히 →</Link>
+          <div className="text-sm font-bold text-[var(--text)]">월별 손익</div>
+          <Link href="/reports/pnl" className="text-[11px] font-semibold text-[var(--primary)] hover:underline">손익계산서 자세히 →</Link>
         </div>
         {monthly.length === 0 ? (
           <div className="p-8 text-center text-sm text-[var(--text-muted)]">{year}년 집계된 손익 데이터가 없습니다.</div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="bg-[var(--bg-surface)]">
-              <tr className="text-[var(--text-muted)]">
+            <thead>
+              <tr className="text-xs text-[var(--text-dim)]">
                 <th className="text-left px-4 py-2 font-semibold">월</th>
                 <th className="text-right px-4 py-2 font-semibold">매출</th>
                 <th className="text-right px-4 py-2 font-semibold">비용</th>
@@ -391,11 +389,11 @@ function PnlDetail({ year, revenue, totalExpense, fixedTotal, variableTotal, mon
               {monthly.map((m) => {
                 const p = m.revenue - m.expense;
                 return (
-                  <tr key={m.month} className="border-t border-[var(--border)]/60">
-                    <td className="px-4 py-2 text-[var(--text)]">{parseInt(m.month.split("-")[1], 10)}월</td>
-                    <td className="px-4 py-2 text-right mono-number text-[var(--success)]">{won(m.revenue)}</td>
-                    <td className="px-4 py-2 text-right mono-number text-[var(--danger)]">{wonOut(m.expense)}</td>
-                    <td className="px-4 py-2 text-right mono-number font-semibold" style={{ color: p >= 0 ? "var(--success)" : "var(--danger)" }}>{won(p)}</td>
+                  <tr key={m.month} className="border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition">
+                    <td className="px-4 py-3 text-[var(--text)]">{parseInt(m.month.split("-")[1], 10)}월</td>
+                    <td className="px-4 py-3 text-right mono-number text-[var(--success)]">{won(m.revenue)}</td>
+                    <td className="px-4 py-3 text-right mono-number text-[var(--danger)]">{wonOut(m.expense)}</td>
+                    <td className="px-4 py-3 text-right mono-number font-semibold" style={{ color: p >= 0 ? "var(--success)" : "var(--danger)" }}>{won(p)}</td>
                   </tr>
                 );
               })}
@@ -471,7 +469,7 @@ function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] })
                     </div>
                     <div className="flex items-center gap-2.5">
                       <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "linear-gradient(90deg, #f97316, #fbbf24)" }} />
+                        <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "#f97316" }} />
                       </div>
                       <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0 w-10 text-right">{share.toFixed(1)}%</span>
                     </div>

@@ -129,13 +129,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
 
   return (
     <div className="glass-card overflow-hidden shadow-2xl">
-      {/* Header — 그라데이션 + 아바타 + 상태배지 */}
-      <div className="relative px-6 py-5 border-b border-[var(--border)]"
-        style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--bg-card)) 0%, var(--bg-card) 72%)" }}>
+      {/* Header — 흰 카드 + 인디고 아바타 + 상태배지 (라운드6: 그라데이션 제거) */}
+      <div className="relative px-6 py-5 border-b border-[var(--border)]">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-4 min-w-0">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shrink-0 shadow-lg"
-              style={{ background: "linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 55%, #000))" }}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shrink-0 shadow-lg bg-[var(--primary)]">
               {emp.name?.charAt(0)}
             </div>
             <div className="min-w-0">
@@ -170,8 +168,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
         </div>
       </div>
 
-      {/* Detail Tabs — 언더라인 스타일 */}
-      <div className="flex gap-0.5 px-4 border-b border-[var(--border)] overflow-x-auto scrollbar-hide bg-[var(--bg-card)]">
+      {/* Detail Tabs — 언더라인 스타일 (공용 .tab-bar 수렴) */}
+      <div className="tab-bar px-4 bg-[var(--bg-card)]">
         {[
           { key: "info", label: "정보" },
           { key: "contracts", label: "계약서" },
@@ -183,9 +181,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
           ...(canManageAccess ? [{ key: "access", label: "탭 권한" }] : []),
         ].map((t) => (
           <button key={t.key} onClick={() => setDetailTab(t.key as any)}
-            className={`relative px-3.5 py-3 text-xs font-semibold transition whitespace-nowrap ${detailTab === t.key ? "text-[var(--primary)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
+            className={`tab-item ${detailTab === t.key ? "tab-item-active" : ""}`}>
             {t.label}
-            {detailTab === t.key && <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-[var(--primary)]" />}
           </button>
         ))}
       </div>
@@ -196,7 +193,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
           <div className="space-y-5">
             {isEditing && (
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-blue-400">정보 수정 중</span>
+                <span className="text-xs font-semibold text-[var(--info)]">정보 수정 중</span>
                 <div className="flex gap-2">
                   <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
                   <button onClick={async () => { try { await updateEmployee(employeeId, { ...editData, salary: editData.salary ? Number(editData.salary) : undefined, is_4_insurance: editData.is_4_insurance === "true" }); queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] }); queryClient.invalidateQueries({ queryKey: ["employees"] }); setIsEditing(false); toast("저장 완료", "success"); } catch (e: any) { toast(friendlyError(e, "저장 실패"), "error"); } }} className="px-3 py-1.5 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition">저장</button>
@@ -619,11 +616,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
         return createPortal(
           <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowTermModal(false)}>
             <div className="w-full max-w-md max-h-[88vh] flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              {/* 헤더 — 레드 그라데이션 + 대상 직원 */}
-              <div className="relative px-5 py-4 border-b border-[var(--border)] shrink-0"
-                style={{ background: "linear-gradient(135deg, color-mix(in srgb, #ef4444 13%, var(--bg-card)) 0%, var(--bg-card) 75%)" }}>
+              {/* 헤더 — 흰 카드 + 레드 포인트 아이콘 (라운드6: 그라데이션 제거) */}
+              <div className="relative px-5 py-4 border-b border-[var(--border)] shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-red-500/15 text-red-500 flex items-center justify-center text-lg shrink-0">🗂️</div>
+                  <div className="kpi-icon danger shrink-0">🗂️</div>
                   <div className="min-w-0">
                     <div className="text-sm font-extrabold text-[var(--text)]">퇴사 처리</div>
                     <div className="text-[11px] text-[var(--text-muted)] truncate">{emp.name} · {emp.department || ""} {emp.position || ""}</div>
@@ -730,7 +726,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                       setTermChecklist((prev) => ({ ...prev, insurance: true }));
                     }}
                     disabled={!termDate || ediGenerated}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition"
+                    className="w-full py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition"
                   >
                     {ediGenerated ? "EDI 파일 다운로드 완료" : "EDI 파일 생성 (4건 다운로드)"}
                   </button>
@@ -749,7 +745,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                   <button
                     onClick={confirmTermination}
                     disabled={!allChecked || terminating}
-                    className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition"
+                    className="flex-1 py-2.5 bg-[var(--danger)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition"
                   >
                     {terminating ? "처리 중..." : "퇴사 확정"}
                   </button>

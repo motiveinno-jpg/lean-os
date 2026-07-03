@@ -60,7 +60,7 @@ export function TaxAutomationTab({ companyId }: { companyId: string | null }) {
           <Tog label="프로젝트 완료 시 자동발행" desc="계약 완료 시 매출 세금계산서 자동 생성" checked={settings.auto_issue_on_deal_close} onChange={(v) => setSettings({ ...settings, auto_issue_on_deal_close: v })} />
           <Tog label="결제 완료 시 자동발행" desc="이체 완료 시 매입 세금계산서 자동 생성" checked={settings.auto_issue_on_payment} onChange={(v) => setSettings({ ...settings, auto_issue_on_payment: v })} />
           <Tog label="자동 이메일 발송" desc="발행된 세금계산서를 거래처에 자동 전송" checked={settings.auto_email_send} onChange={(v) => setSettings({ ...settings, auto_email_send: v })} />
-          <div><label className="block text-xs text-[var(--text-muted)] mb-1.5">발행 주기</label><select value={settings.issue_schedule} onChange={(e) => setSettings({ ...settings, issue_schedule: e.target.value })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"><option value="immediate">거래 즉시</option><option value="weekly">매주 월요일</option><option value="monthly">매월 말일</option></select></div>
+          <div><label className="field-label">발행 주기</label><select value={settings.issue_schedule} onChange={(e) => setSettings({ ...settings, issue_schedule: e.target.value })} className="field-input"><option value="immediate">거래 즉시</option><option value="weekly">매주 월요일</option><option value="monthly">매월 말일</option></select></div>
         </div>
       </div>
       <div className="glass-card p-6">
@@ -74,20 +74,20 @@ export function TaxAutomationTab({ companyId }: { companyId: string | null }) {
         <h2 className="section-title">결제/매칭 설정</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">선금 비율 (%)</label>
+            <label className="field-label">선금 비율 (%)</label>
             <p className="text-[10px] text-[var(--text-dim)] mb-1">계약 승인 시 선금/잔금 자동 분할 비율 (예: 30 → 선금 30%, 잔금 70%)</p>
-            <input type="number" min="0" max="100" value={settings.advance_ratio} onChange={(e) => setSettings({ ...settings, advance_ratio: Number(e.target.value) || 30 })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+            <input type="number" min="0" max="100" value={settings.advance_ratio} onChange={(e) => setSettings({ ...settings, advance_ratio: Number(e.target.value) || 30 })} className="field-input" />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1.5">3-way 매칭 허용오차 (%)</label>
+            <label className="field-label">3-way 매칭 허용오차 (%)</label>
             <p className="text-[10px] text-[var(--text-dim)] mb-1">계약↔세금계산서↔입금 비교 시 허용할 금액 차이 비율</p>
-            <input type="number" min="0" max="10" step="0.1" value={settings.matching_tolerance} onChange={(e) => setSettings({ ...settings, matching_tolerance: Number(e.target.value) || 1 })} className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+            <input type="number" min="0" max="10" step="0.1" value={settings.matching_tolerance} onChange={(e) => setSettings({ ...settings, matching_tolerance: Number(e.target.value) || 1 })} className="field-input" />
           </div>
         </div>
       </div>
       <div className="glass-card p-6">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-lg">🏛️</div>
+          <span className="kpi-icon success text-lg">🏛️</span>
           <div>
             <h2 className="text-sm font-bold">홈택스 연동</h2>
             <p className="text-xs text-[var(--text-dim)]">국세청 홈택스와 연동하여 세금계산서 자동 조회</p>
@@ -107,7 +107,7 @@ export function TaxAutomationTab({ companyId }: { companyId: string | null }) {
         </div>
         <label className="flex items-center gap-2 mt-4 text-xs text-[var(--text-muted)]"><input type="checkbox" checked={settings.vat_auto_aggregate} onChange={(e) => setSettings({ ...settings, vat_auto_aggregate: e.target.checked })} className="rounded" /> 부가세 자동 집계 (매 분기별)</label>
       </div>
-      <button onClick={saveTaxSettings} className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">{saved ? "저장 완료" : "세무자동화 설정 저장"}</button>
+      <button onClick={saveTaxSettings} className="btn-primary w-full">{saved ? "저장 완료" : "세무자동화 설정 저장"}</button>
     </div>
   );
 }

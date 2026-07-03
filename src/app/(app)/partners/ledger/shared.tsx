@@ -321,7 +321,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       <div className="overflow-auto max-h-[560px]">
         <table className="w-full min-w-[640px] text-xs border-collapse">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+            <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-left w-[92px]">일자</th>
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-left">적요</th>
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-right w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
@@ -757,7 +757,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
             <div className="px-5 py-3 pt-2">
               <table className="w-full text-xs border-collapse" style={{ minWidth: 560 }}>
                 <thead>
-                  <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)] border-b border-[var(--border)]">
+                  <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left min-w-[150px]">계정과목</th>
                     <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left min-w-[110px]">거래처·통장/카드</th>
                     <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left">적요</th>

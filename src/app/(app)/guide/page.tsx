@@ -335,7 +335,7 @@ function FeatureCard({
                 fontWeight: 500,
                 padding: '2px 8px',
                 borderRadius: '9999px',
-                backgroundColor: 'var(--primary-light, #EFF6FF)',
+                backgroundColor: 'var(--primary-light)',
                 color: 'var(--primary)',
               }}
             >
@@ -454,7 +454,7 @@ function FeatureCard({
                 gap: '8px',
                 padding: '10px 12px',
                 borderRadius: '8px',
-                backgroundColor: 'var(--primary-light, #EFF6FF)',
+                backgroundColor: 'var(--primary-light)',
                 marginBottom: '16px',
               }}
             >
@@ -482,25 +482,7 @@ function FeatureCard({
           {/* Action Link */}
           <Link
             href={feature.route}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#FFFFFF',
-              backgroundColor: 'var(--primary)',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--primary-hover, #1D4ED8)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--primary)';
-            }}
+            className="btn-primary hover:bg-[var(--primary-hover)]"
           >
             {feature.title} 시작하기
             <svg
@@ -764,7 +746,6 @@ export default function GuidePage() {
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor: 'var(--bg)',
       }}
     >
       <div
@@ -825,18 +806,7 @@ export default function GuidePage() {
               resetOnboardingDismiss();
               window.location.href = '/dashboard';
             }}
-            style={{
-              padding: '8px 16px',
-              fontSize: '12px',
-              fontWeight: 600,
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-            }}
+            className="btn-primary whitespace-nowrap shrink-0"
           >
             온보딩 다시 시작
           </button>
@@ -886,7 +856,7 @@ export default function GuidePage() {
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = 'var(--primary)';
-              e.currentTarget.style.boxShadow = '0 0 0 3px var(--primary-light, rgba(37,99,235,0.1))';
+              e.currentTarget.style.boxShadow = '0 0 0 3px var(--primary-light)';
             }}
             onBlur={(e) => {
               e.currentTarget.style.borderColor = 'var(--border)';
@@ -897,13 +867,7 @@ export default function GuidePage() {
 
         {/* ── Category Tabs ── */}
         <div
-          style={{
-            display: 'flex',
-            gap: '6px',
-            marginBottom: '16px',
-            overflowX: 'auto',
-            paddingBottom: '4px',
-          }}
+          className="seg-bar mb-4 max-w-full overflow-x-auto"
           role="tablist"
           aria-label="기능 카테고리"
         >
@@ -915,22 +879,7 @@ export default function GuidePage() {
                 onClick={() => setActiveTab(tab)}
                 role="tab"
                 aria-selected={isActive}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  fontSize: '13px',
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? '#FFFFFF' : 'var(--text-muted)',
-                  backgroundColor: isActive ? 'var(--primary)' : 'var(--bg-card)',
-                  border: `1px solid ${isActive ? 'var(--primary)' : 'var(--border)'}`,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.15s ease',
-                  flexShrink: 0,
-                }}
+                className={`seg-item flex items-center gap-1.5 ${isActive ? 'seg-item-active' : ''}`}
               >
                 <span style={{ fontSize: '14px' }}>{CATEGORY_TAB_ICONS[tab]}</span>
                 {tab}
@@ -1058,27 +1007,7 @@ export default function GuidePage() {
               <Link
                 key={f.id}
                 href={f.route}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: 'var(--text)',
-                  textDecoration: 'none',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border)',
-                  transition: 'border-color 0.15s ease, background-color 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--primary)';
-                  e.currentTarget.style.backgroundColor = 'var(--primary-light, #EFF6FF)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
+                className="flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-[var(--text)] rounded-lg border border-[var(--border)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-light)]"
               >
                 <span style={{ fontSize: '16px' }}>{f.icon}</span>
                 {f.title}

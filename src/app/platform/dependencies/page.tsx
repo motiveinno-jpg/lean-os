@@ -16,12 +16,12 @@ type Health = {
 function StatusBadge({ status }: { status: "ok" | "warn" | "down" }) {
   const tone =
     status === "ok"
-      ? "bg-emerald-500/20 text-emerald-300"
+      ? "bg-[var(--success-dim)] text-[var(--success)]"
       : status === "warn"
-      ? "bg-amber-500/20 text-amber-300"
-      : "bg-red-500/20 text-red-300";
+      ? "bg-[var(--warning-dim)] text-[var(--warning)]"
+      : "bg-[var(--danger-dim)] text-[var(--danger)]";
   const label = status === "ok" ? "정상" : status === "warn" ? "주의" : "장애";
-  return <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tone}`}>● {label}</span>;
+  return <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${tone}`}>● {label}</span>;
 }
 
 export default function PlatformDependenciesPage() {
@@ -119,38 +119,38 @@ export default function PlatformDependenciesPage() {
   ];
 
   return (
-    <div className="max-w-5xl">
-      <div className="mb-6 flex items-end justify-between gap-4">
+    <div className="max-w-5xl space-y-6">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-white">의존성 상태</h1>
-          <p className="text-sm text-[#64748b] mt-1">
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">의존성 상태</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
             외부 서비스 신호등 + 영향도. {data?.at ? `갱신: ${new Date(data.at).toLocaleTimeString("ko-KR")}` : ""}
           </p>
         </div>
         <button
           onClick={() => refetch()}
-          className="px-3 py-2 bg-[#1e293b] hover:bg-[#1e293b]/70 text-cyan-300 text-xs font-semibold rounded-lg transition"
+          className="btn-secondary text-xs"
         >
           ↻ 갱신
         </button>
       </div>
 
-      {isLoading && <div className="text-sm text-[#64748b]">불러오는 중…</div>}
+      {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {cards.map((c) => (
-          <div key={c.name} className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5">
+          <div key={c.name} className="glass-card p-5">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-bold text-white">{c.name}</div>
+              <div className="text-sm font-bold text-[var(--text)]">{c.name}</div>
               <StatusBadge status={c.status} />
             </div>
-            <div className="text-xs text-[#94a3b8] mb-3">{c.desc}</div>
+            <div className="text-xs text-[var(--text-muted)] mb-3">{c.desc}</div>
             {c.warning && (
-              <div className="text-[11px] text-amber-300 bg-amber-500/10 rounded-lg p-2 mb-2">
+              <div className="text-[11px] text-[var(--warning)] bg-[var(--warning-dim)] rounded-lg p-2 mb-2">
                 ⚠ {c.warning}
               </div>
             )}
-            <div className="text-[10px] text-[#64748b] mb-2">
+            <div className="text-[10px] text-[var(--text-dim)] mb-2">
               <span className="font-bold uppercase tracking-wider">영향도:</span> {c.blockedOn}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -160,7 +160,7 @@ export default function PlatformDependenciesPage() {
                   href={l.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[11px] text-cyan-400 hover:underline"
+                  className="text-[11px] text-[var(--primary)] hover:underline"
                 >
                   {l.label} ↗
                 </a>
@@ -170,8 +170,8 @@ export default function PlatformDependenciesPage() {
         ))}
       </div>
 
-      <div className="mt-6 bg-cyan-600/5 border border-cyan-600/20 rounded-2xl p-4 text-xs text-[#94a3b8]">
-        <span className="text-cyan-400 font-bold">OP-F</span> · 헬스 휴리스틱은 사이드 시그널만 (실제 ping X).
+      <div className="kpi-callout">
+        <b>OP-F</b> · 헬스 휴리스틱은 사이드 시그널만 (실제 ping X).
         외부 status 페이지로 직접 검증 권장. 1분 간격 자동 갱신.
       </div>
     </div>

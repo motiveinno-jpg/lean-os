@@ -10,7 +10,7 @@ import { getCurrentUser, getDeals } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { verifyBusinessNumber } from "@/lib/business-verification";
 import { QueryErrorBanner } from "@/components/query-status";
-import { IconTile, TileIcon } from "@/components/ui/icon-tile";
+import { TileIcon } from "@/components/ui/icon-tile";
 import { useToast } from "@/components/toast";
 
 const TYPE_OPTIONS = [
@@ -713,25 +713,27 @@ export default function PartnersPage() {
         </div>
       </div>
 
-      {/* 시안 통계 4 (거래처) */}
+      {/* KPI 카드 4 (거래처) — TeamHub 패턴 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {(() => {
           const all = rawPartners as any[];
           const active = all.filter((p) => p.is_active).length;
           const dormant = all.filter((p) => p.is_dormant).length;
-          const cards: { tone: "brand" | "success" | "warning" | "info"; icon: string; label: string; value: string }[] = [
-            { tone: "brand", icon: "building", label: "전체 거래처", value: `${all.length.toLocaleString()}곳` },
-            { tone: "success", icon: "check", label: "활성", value: `${active.toLocaleString()}곳` },
-            { tone: "warning", icon: "clock", label: "휴면", value: `${dormant.toLocaleString()}곳` },
-            { tone: "info", icon: "card", label: "표시 중", value: `${partners.length.toLocaleString()}곳` },
+          const cards: { variant: string; icon: string; label: string; value: string }[] = [
+            { variant: "", icon: "building", label: "전체 거래처", value: `${all.length.toLocaleString()}곳` },
+            { variant: "success", icon: "check", label: "활성", value: `${active.toLocaleString()}곳` },
+            { variant: "warning", icon: "clock", label: "휴면", value: `${dormant.toLocaleString()}곳` },
+            { variant: "info", icon: "card", label: "표시 중", value: `${partners.length.toLocaleString()}곳` },
           ];
           return cards.map((s) => (
-            <div key={s.label} className="glass-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{s.label}</p>
-                <IconTile tone={s.tone} size={34}><TileIcon name={s.icon} className="w-4 h-4 text-white" /></IconTile>
+            <div key={s.label} className="glass-card p-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-semibold text-[var(--text-muted)]">{s.label}</span>
+                <span className={`kpi-icon ${s.variant}`}><TileIcon name={s.icon} className="w-5 h-5" /></span>
               </div>
-              <p className="text-2xl font-black text-[var(--text)] mono-number">{s.value}</p>
+              <div className="flex items-end gap-2">
+                <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{s.value}</span>
+              </div>
             </div>
           ));
         })()}
@@ -845,8 +847,8 @@ export default function PartnersPage() {
           )}
           <div className="overflow-auto max-h-[60vh]">
             <table className="w-full min-w-[600px]">
-              <thead className="bg-[var(--bg-surface)]/50 text-[var(--text-muted)] sticky top-0 z-10">
-                <tr className="text-[11px] font-semibold text-[var(--text-dim)] tracking-wide border-b border-[var(--border)] whitespace-nowrap">
+              <thead className="bg-[var(--bg-card)] sticky top-0 z-10">
+                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)] whitespace-nowrap">
                   <th className="text-center px-3 py-3 w-10">
                     <input
                       type="checkbox"
@@ -880,7 +882,7 @@ export default function PartnersPage() {
                   const badge = TYPE_BADGE[p.type] || TYPE_BADGE.other;
                   return (
                     <tr key={p.id} onClick={() => { setDetailPartner(p); setDetailTab("info"); setShowCommForm(false); }}
-                      className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer transition ${selectedIds.has(p.id) ? 'bg-[var(--primary)]/5' : ''}`}>
+                      className={`border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 cursor-pointer transition ${selectedIds.has(p.id) ? 'bg-[var(--primary)]/5' : ''}`}>
                       <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
@@ -945,8 +947,8 @@ export default function PartnersPage() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button onClick={(e) => { e.stopPropagation(); toggleActiveMutation.mutate(p); }}
-                          className={`text-xs px-2 py-0.5 rounded-full transition ${
-                            p.is_active ? "bg-green-500/10 text-green-400 hover:bg-green-500/20" : "bg-gray-500/10 text-gray-400 hover:bg-gray-500/20"
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                            p.is_active ? "bg-[var(--success-dim)] text-[var(--success)] hover:opacity-80" : "bg-[var(--bg-surface)] text-[var(--text-dim)] hover:opacity-80"
                           }`}>
                           {p.is_active ? "활성" : "비활성"}
                         </button>

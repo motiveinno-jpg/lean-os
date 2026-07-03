@@ -256,17 +256,17 @@ export default function MyPage() {
         <h2 className="section-title">{currentYear}년 연차 현황</h2>
         {leaveBalance ? (
           <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="bg-[var(--bg-surface)] rounded-xl p-5 text-center border border-[var(--border)]">
-              <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">총 연차</div>
+            <div className="stat-tile items-center text-center">
+              <div className="stat-tile-label">총 연차</div>
               <div className="text-2xl font-black mono-number text-[var(--primary)]">{leaveBalance.total_days}일</div>
             </div>
-            <div className="bg-[var(--bg-surface)] rounded-xl p-5 text-center border border-[var(--border)]">
-              <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">사용</div>
-              <div className="text-2xl font-black mono-number text-orange-400">{leaveBalance.used_days}일</div>
+            <div className="stat-tile items-center text-center">
+              <div className="stat-tile-label">사용</div>
+              <div className="text-2xl font-black mono-number text-[var(--warning)]">{leaveBalance.used_days}일</div>
             </div>
-            <div className="bg-[var(--bg-surface)] rounded-xl p-5 text-center border border-[var(--border)]">
-              <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">잔여</div>
-              <div className={`text-2xl font-black mono-number ${remaining !== null && remaining <= 3 ? "text-red-400" : "text-green-400"}`}>
+            <div className="stat-tile items-center text-center">
+              <div className="stat-tile-label">잔여</div>
+              <div className={`text-2xl font-black mono-number ${remaining !== null && remaining <= 3 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>
                 {remaining ?? 0}일
               </div>
             </div>
@@ -304,8 +304,8 @@ export default function MyPage() {
       </div>
 
       {/* 회원 탈퇴 */}
-      <div className="glass-card p-6 border border-red-500/30">
-        <h2 className="text-sm font-bold mb-2 text-red-400">회원 탈퇴</h2>
+      <div className="glass-card p-6 border border-[var(--danger)]/30">
+        <h2 className="text-sm font-bold mb-2 text-[var(--danger)]">회원 탈퇴</h2>
         <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
           탈퇴하면 <b>로그인 계정이 영구 삭제</b>되고 이름·이메일 등 개인정보가 파기됩니다. <b>되돌릴 수 없습니다.</b>
           {role === "owner" && <span className="block mt-1 text-amber-500">※ 대표 계정입니다. 탈퇴해도 회사·직원·거래 데이터는 남으니, 회사 정리가 필요하면 먼저 처리하세요.</span>}
@@ -320,12 +320,12 @@ export default function MyPage() {
           <button
             onClick={handleWithdraw}
             disabled={withdrawText.trim() !== "탈퇴" || withdrawing}
-            className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="btn-danger disabled:cursor-not-allowed"
           >
             {withdrawing ? "처리 중..." : "회원 탈퇴"}
           </button>
         </div>
-        {withdrawErr && <p className="text-xs text-red-400 mt-2">{withdrawErr}</p>}
+        {withdrawErr && <p className="text-xs text-[var(--danger)] mt-2">{withdrawErr}</p>}
       </div>
     </div>
   );

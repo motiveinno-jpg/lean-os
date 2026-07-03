@@ -530,10 +530,10 @@ export default function DashboardPage() {
 
       {/* ═══ 분석(granter) / 경영(기존 위젯) 뷰 토글 — owner 전용(관리자는 경영탭 없음) ═══ */}
       {role === "owner" && (
-        <div className="flex items-center gap-1 mb-4 bg-[var(--bg-surface)] rounded-xl p-1 border border-[var(--border)] w-fit">
+        <div className="seg-bar mb-4 w-fit">
           {([['analytics', '분석'], ['manage', '경영']] as ['analytics' | 'manage', string][]).map(([k, label]) => (
             <button key={k} onClick={() => setDashView(k)}
-              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition ${dashView === k ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
+              className={`seg-item ${dashView === k ? 'seg-item-active' : ''}`}>
               {label}
             </button>
           ))}
@@ -3003,23 +3003,20 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
 
   return (
     <div className="">
-      {/* Welcome hero — 그라데이션 배너 (2026-06-25 직원 홈 리디자인) */}
+      {/* Welcome hero — 흰 카드 (TeamHub 라운드, 2026-07-03 그라데이션 제거) */}
       <div className="mb-4">
-        <div className="relative overflow-hidden rounded-3xl p-5 md:p-6 text-white shadow-lg"
-          style={{ background: "linear-gradient(135deg, #4338ca 0%, #6366f1 52%, #0ea5e9 100%)" }}>
-          <div className="absolute -right-10 -top-12 w-44 h-44 rounded-full bg-white/10" />
-          <div className="absolute right-6 bottom-[-34px] w-28 h-28 rounded-full bg-white/10" />
-          <div className="relative flex items-center gap-3.5">
-            <div className="rounded-full ring-2 ring-white/40 shrink-0"><Avatar name={userName || "E"} src={myAvatar} size={48} /></div>
+        <div className="glass-card p-5 md:p-6">
+          <div className="flex items-center gap-3.5">
+            <div className="rounded-full ring-2 ring-[var(--primary)]/25 shrink-0"><Avatar name={userName || "E"} src={myAvatar} size={48} /></div>
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold text-white/70">
+              <div className="text-[11px] font-semibold text-[var(--text-muted)]">
                 {(() => { const h = new Date().getHours(); return h < 12 ? "좋은 아침이에요" : h < 18 ? "좋은 오후예요" : "오늘도 수고하셨어요"; })()}
               </div>
-              <h1 className="text-xl md:text-2xl font-extrabold truncate leading-tight">{userName}님 👋</h1>
-              <p className="text-xs text-white/75 mt-0.5 truncate">{companyName} · {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</p>
+              <h1 className="text-xl md:text-2xl font-extrabold truncate leading-tight text-[var(--text)]">{userName}님 👋</h1>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{companyName} · {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</p>
             </div>
-            <span className="ml-auto self-start shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur text-[11px] font-bold">
-              <span className={`w-1.5 h-1.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-emerald-300 animate-pulse" : isCheckedOut ? "bg-white/60" : "bg-amber-300"}`} />
+            <span className="ml-auto self-start shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-bold text-[var(--text)]">
+              <span className={`w-1.5 h-1.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
               {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
             </span>
           </div>
@@ -3037,11 +3034,10 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
 
         {/* 출퇴근 — 빠른 기록 (상세 관리는 근태 페이지 한 곳에서) */}
-        <div className="rounded-2xl border border-[var(--border)] p-4 mb-3"
-          style={{ background: `linear-gradient(150deg, ${isCheckedIn && !isCheckedOut ? "#10b981" : isCheckedOut ? "#94a3b8" : "#f59e0b"}16, transparent 72%)` }}>
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 mb-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-green-500 animate-pulse" : isCheckedOut ? "bg-gray-400" : "bg-yellow-400"}`} />
+              <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
               <span className="text-sm font-bold text-[var(--text)]">
                 {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
               </span>
@@ -3104,7 +3100,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
               <button
                 onClick={handleCheckIn}
                 disabled={checkingIn}
-                className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
+                className="flex-1 py-3 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
               >
                 {checkingIn ? "처리 중..." : attendanceStatus === "present" ? "출근하기" : attendanceStatus === "remote" ? "재택근무 시작" : attendanceStatus === "half_day" ? "반차 출근" : "결근 처리"}
               </button>
@@ -3199,7 +3195,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
           ].map((t) => (
             <Link key={t.label} href={t.href}
               className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-3.5 active:scale-[0.98] transition hover:shadow-md group"
-              style={{ background: `linear-gradient(150deg, ${t.tint}14, transparent 70%)` }}>
+              style={{ background: `${t.tint}14` }}>
               <div className="flex items-center justify-between mb-2">
                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl text-base" style={{ background: `${t.tint}1f` }}>{t.icon}</span>
                 {!!t.badge && t.badge > 0 && (
@@ -3230,7 +3226,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
       )}
 
       {/* 이번 달 급여 */}
-      <div className="mb-4 rounded-2xl border border-[var(--border)] p-4 md:p-5" style={{ background: "linear-gradient(150deg, #6366f114, transparent 70%)" }}>
+      <div className="mb-4 glass-card p-4 md:p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#6366f1]/15 text-sm">💰</span>
@@ -3246,7 +3242,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
         </div>
         {myPayroll ? (
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex-1 min-w-[150px] rounded-xl p-3.5 text-white shadow-md" style={{ background: "linear-gradient(135deg, #6366f1, #4338ca)" }}>
+            <div className="flex-1 min-w-[150px] rounded-xl p-3.5 text-white" style={{ background: "var(--primary)" }}>
               <div className="text-[10px] font-semibold text-white/70">실수령액</div>
               <div className="text-2xl font-black leading-tight mono-number">{fmtWFull(myPayroll.net_pay)}</div>
             </div>
@@ -3307,7 +3303,7 @@ function EmployeeDashboard({ userName, companyId, companyName, userId, userEmail
           ].map(card => (
             <Link key={card.href} href={card.href}
               className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-4 active:scale-[0.98] transition hover:shadow-md group touch-card"
-              style={{ background: `linear-gradient(150deg, ${card.tint}12, transparent 72%)` }}>
+              style={{ background: `${card.tint}12` }}>
               <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-lg mb-2" style={{ background: `${card.tint}1f` }}>{card.icon}</div>
               <div className="text-xs font-bold transition" style={{ color: card.tint }}>{card.label}</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
@@ -3442,7 +3438,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
       {/* Welcome header */}
       <div className="mb-5 md:mb-6">
         <div className="flex items-center gap-3 mb-1">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-white font-bold text-sm">
             {(userName || "P").charAt(0)}
           </div>
           <div className="page-sticky-header">
@@ -3524,7 +3520,7 @@ function PartnerDashboard({ userName, companyId, companyName, userId }: {
       )}
 
       {/* Info card */}
-      <div className="bg-gradient-to-br from-[var(--primary-light)] to-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 md:p-6">
+      <div className="glass-card p-5 md:p-6">
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shrink-0">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>

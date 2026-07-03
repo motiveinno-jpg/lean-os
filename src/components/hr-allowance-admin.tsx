@@ -196,7 +196,7 @@ export default function AllowanceAdminTab({
           <button
             onClick={() => recomputeMut.mutate()}
             disabled={recomputeMut.isPending}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold disabled:opacity-40"
+            className="px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold disabled:opacity-40"
             title="모든 직원에 대해 attendance_records 기반으로 allowance_entries 재계산"
           >
             {recomputeMut.isPending ? "재계산 중…" : "이번 달 일괄 재계산"}

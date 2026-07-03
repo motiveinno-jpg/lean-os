@@ -787,7 +787,7 @@ export function OrgBulkWizard({
                 </div>
 
                 {/* 발송 예측 (504 인시던트 3차 후속 — 대량 발송 사전 안내) */}
-                <div className="mt-3 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs">
+                <div className="mt-3 px-4 py-3 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/30 text-[var(--info)] text-xs">
                   <div className="font-semibold mb-1">📊 발송 예측</div>
                   <ul className="space-y-0.5">
                     <li>· 거래처: {selectedPartners.length}개 (이메일 미등록 자동 스킵 후 실 발송 기준)</li>
@@ -795,7 +795,7 @@ export function OrgBulkWizard({
                     <li>· chunk: {chunkSizeFor(selectedPartners.length)}건 동시 × 간격 {intervalSecFor(selectedPartners.length)}초</li>
                     <li>· 이메일 발송 한도(Resend 등): 시간당 한도 초과 시 일부 지연 가능</li>
                     {selectedPartners.length > 200 && (
-                      <li className="text-yellow-300">⚠️ 200개 초과 — 분할(예: 150 + 150) 발송 권장</li>
+                      <li className="text-[var(--warning)]">⚠️ 200개 초과 — 분할(예: 150 + 150) 발송 권장</li>
                     )}
                   </ul>
                 </div>
@@ -828,7 +828,7 @@ export function OrgBulkWizard({
         <div className="flex items-center justify-between gap-2 mt-6 pt-4 border-t border-[var(--border)]">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-sm"
+            className="btn-ghost"
           >
             취소
           </button>
@@ -836,7 +836,7 @@ export function OrgBulkWizard({
             {step > 1 && (
               <button
                 onClick={() => setStep((s) => (s - 1) as 1|2|3|4|5)}
-                className="px-4 py-2 rounded-lg bg-[var(--bg-surface)] text-[var(--text)] text-sm"
+                className="btn-secondary"
               >
                 ← 이전
               </button>
@@ -845,7 +845,7 @@ export function OrgBulkWizard({
               <button
                 onClick={() => setStep((s) => (s + 1) as 1|2|3|4|5)}
                 disabled={!canNext}
-                className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+                className="btn-primary"
               >
                 다음 →
               </button>
@@ -853,7 +853,7 @@ export function OrgBulkWizard({
               <button
                 onClick={submit}
                 disabled={submitting || selectedPartners.length === 0}
-                className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+                className="btn-primary"
               >
                 {submitting ? "발송 중..." : `🚀 ${selectedPartners.length}곳 일괄 발송`}
               </button>

@@ -82,7 +82,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
         <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) addMut.mutate(newName); }}
           placeholder="새 부서 이름 (예: 마케팅팀)" className="flex-1 h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         <button onClick={() => newName.trim() && addMut.mutate(newName)} disabled={!newName.trim() || addMut.isPending}
-          className="px-4 h-9 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold disabled:opacity-50">추가</button>
+          className="btn-primary h-9">추가</button>
       </div>
 
       {active.length === 0 ? (

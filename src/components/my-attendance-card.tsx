@@ -131,7 +131,7 @@ export function MyAttendanceCard({ companyId, userId }: { companyId: string; use
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-green-500 animate-pulse" : isCheckedOut ? "bg-gray-400" : "bg-yellow-400"}`} />
+          <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
           <span className="text-sm font-bold text-[var(--text)]">
             내 출퇴근 · {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
           </span>
@@ -196,7 +196,7 @@ export function MyAttendanceCard({ companyId, userId }: { companyId: string; use
       <div className="flex gap-3">
         {!isCheckedIn ? (
           <button onClick={doCheckIn} disabled={busy}
-            className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50">
+            className="flex-1 py-3 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50">
             {busy ? "처리 중..." : "출근하기"}
           </button>
         ) : !isCheckedOut ? (

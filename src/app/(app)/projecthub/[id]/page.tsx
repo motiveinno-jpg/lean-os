@@ -833,9 +833,9 @@ export default function ProjectHubDetailPage() {
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
             <div className="flex items-center gap-2 relative">
               <button onClick={() => setShowColSettings((v) => !v)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">⚙ 열 설정</button>
+                className="btn-secondary text-xs">⚙ 열 설정</button>
               <button onClick={pipelineDir === "purchase" ? createInboundQuote : createQuoteInstant} disabled={creatingQuote}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">{creatingQuote ? "생성 중..." : pipelineDir === "purchase" ? "📥 협력사 견적 등록" : "+ 견적서 작성"}</button>
+                className="btn-primary text-xs hover:opacity-90">{creatingQuote ? "생성 중..." : pipelineDir === "purchase" ? "📥 협력사 견적 등록" : "+ 견적서 작성"}</button>
               {showColSettings && (
                 <>
                   <div className="fixed inset-0 z-[60]" onClick={() => setShowColSettings(false)} />
@@ -859,7 +859,7 @@ export default function ProjectHubDetailPage() {
             <div className="glass-card overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                  <tr className="text-xs text-[var(--text-dim)]">
                     {cols.map((c) => (
                       <th key={c.key} className={`px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] ${c.align === "r" ? "text-right" : c.align === "c" ? "text-center" : "text-left"}`}>{c.label}</th>
                     ))}
@@ -924,9 +924,9 @@ export default function ProjectHubDetailPage() {
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
             <div className="flex items-center gap-2">
               <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 계약서 작성</button>
-              <Link href="/signatures?bulk=1" className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:opacity-90">📤 단체 일괄 발송</Link>
-              <Link href="/signatures" className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">전자계약 메뉴 →</Link>
+                className="btn-primary text-xs hover:opacity-90">+ 계약서 작성</button>
+              <Link href="/signatures?bulk=1" className="btn-secondary text-xs">📤 단체 일괄 발송</Link>
+              <Link href="/signatures" className="btn-secondary text-xs">전자계약 메뉴 →</Link>
             </div>
           </div>
 
@@ -998,7 +998,7 @@ export default function ProjectHubDetailPage() {
               <span className="text-[11px] text-[var(--text-dim)]">세부 프로젝트는 2단계까지만 — 캠페인 안에는 추가할 수 없습니다.</span>
             ) : (
               <button onClick={() => { resetChildForm(); setChildName(`${deal.name || "프로젝트"} 캠페인`); setShowChildForm(true); }}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">+ 세부 프로젝트 추가</button>
+                className="btn-primary text-xs hover:opacity-90">+ 세부 프로젝트 추가</button>
             )}
           </div>
 
@@ -1047,7 +1047,7 @@ export default function ProjectHubDetailPage() {
             <div className="glass-card overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
+                  <tr className="text-xs text-[var(--text-dim)]">
                     <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)]">캠페인명</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[80px]">단계</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-right border-b border-[var(--border)] w-[120px]">매출</th>

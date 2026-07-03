@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { IconTile, TileIcon } from "@/components/ui/icon-tile";
+import { TileIcon } from "@/components/ui/icon-tile";
 import { getCardTransactions, getCorporateCards } from "@/lib/card-transactions";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -83,7 +83,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <IconTile tone="danger" size={38}><TileIcon name="card" /></IconTile>
+          <span className="kpi-icon danger"><TileIcon name="card" className="w-5 h-5" /></span>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">이번달 카드 지출 TOP 5</h2>
             <span className="caption">{dateFrom} ~ {dateTo}</span>
@@ -205,7 +205,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <IconTile tone="info" size={38}><TileIcon name="repeat" /></IconTile>
+          <span className="kpi-icon info"><TileIcon name="repeat" className="w-5 h-5" /></span>
           <h2 className="text-[15px] font-bold text-[var(--text)]">정기결제내역</h2>
           <span className="caption">{monthLabel} · {items.length}건</span>
         </div>
@@ -394,7 +394,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <IconTile tone="brand" size={38}><TileIcon name="trendingUp" /></IconTile>
+          <span className="kpi-icon"><TileIcon name="trendingUp" className="w-5 h-5" /></span>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">카드 월별 사용금액</h2>
             <span className="caption">최근 6개월</span>
@@ -418,7 +418,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
               <div key={m} className="flex flex-col items-center">
                 <div className="text-[10px] font-semibold text-[var(--text)] mono-number mb-1">₩{fmtW(v)}</div>
                 <div className="w-full h-20 bg-[var(--bg-surface)] rounded-md relative overflow-hidden flex items-end">
-                  <div className="w-full bg-gradient-to-t from-[var(--primary)] to-[var(--primary)]/60 transition-all"
+                  <div className="w-full bg-[var(--primary)] transition-all"
                     style={{ height: `${pct}%` }} />
                 </div>
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">{mLabel}</div>

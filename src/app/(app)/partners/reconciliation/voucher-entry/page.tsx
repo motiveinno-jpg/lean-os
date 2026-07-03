@@ -478,10 +478,8 @@ export default function VoucherEntryPage() {
 
   return (
     <div className="space-y-6">
-      {/* ══ 히어로 밴드 — 모던 장부 콘솔 ══ */}
-      <div className="relative overflow-hidden rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 backdrop-blur p-6">
-        <div aria-hidden className="pointer-events-none absolute -top-28 -right-20 h-64 w-64 rounded-full bg-[var(--primary)]/10 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-32 left-1/3 h-56 w-56 rounded-full bg-[var(--primary)]/5 blur-3xl" />
+      {/* ══ 히어로 카드 — 모던 장부 콘솔 ══ */}
+      <div className="glass-card p-6">
         <div className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--primary)]">Journal Voucher</p>
@@ -489,7 +487,7 @@ export default function VoucherEntryPage() {
             <p className="text-sm text-[var(--text-muted)] mt-1.5">상단에서 분개 입력 → 저장하면 하단 전표목록에 바로 쌓입니다 · 차변·대변이 일치해야 저장됩니다</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Link href="/partners/reconciliation" className="px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">← 거래 매칭</Link>
+            <Link href="/partners/reconciliation" className="btn-secondary text-xs">← 거래 매칭</Link>
             <div className="flex items-center gap-1.5 pl-2.5 pr-1 py-0.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
               <span className="text-[11px] font-semibold text-[var(--text-dim)]">일자</span>
               <DateField value={entryDate}
@@ -498,19 +496,19 @@ export default function VoucherEntryPage() {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-semibold text-[var(--text-dim)]">구분</span>
-              <div className="inline-flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-0.5">
+              <div className="seg-bar">
                 {VTYPES.map((t) => (
                   <button key={t.id} onClick={() => changeVtype(t.id)} title={t.desc}
-                    className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition ${vtype === t.id ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+                    className={`seg-item ${vtype === t.id ? "seg-item-active" : ""}`}>
                     {t.label}
                   </button>
                 ))}
               </div>
             </div>
             <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); }} disabled={busy}
-              className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40 transition">새 전표</button>
+              className="btn-secondary text-xs">새 전표</button>
             <button onClick={save} disabled={!canSave}
-              className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/25 hover:opacity-90 disabled:opacity-40 disabled:shadow-none transition">
+              className="btn-primary text-xs disabled:opacity-40">
               {busy ? "저장 중..." : "저장"}</button>
           </div>
         </div>
@@ -523,7 +521,7 @@ export default function VoucherEntryPage() {
       )}
 
       {/* ══ 상단: 입력 영역 (§3-3) ══ */}
-      <div ref={topRef} onKeyDown={onTopKey} className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 backdrop-blur shadow-[0_12px_40px_-16px_rgba(0,0,0,0.25)]" style={{ overflow: "visible" }}>
+      <div ref={topRef} onKeyDown={onTopKey} className="glass-card" style={{ overflow: "visible" }}>
         <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
             <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-[var(--primary)]" />분개 입력
@@ -597,7 +595,7 @@ export default function VoucherEntryPage() {
           </table>
         </div>
         {/* 스티키 풋터 바 — 합계(차변합/대변합) + 차대일치 상태 pill */}
-        <div className="sticky bottom-0 z-10 px-5 py-3 border-t-2 border-[var(--border)] rounded-b-2xl bg-[var(--bg-card)]/90 backdrop-blur flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="sticky bottom-0 z-10 px-5 py-3 border-t-2 border-[var(--border)] rounded-b-[18px] bg-[var(--bg-card)] flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-dim)]">차변합</span>
             <span className="text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalD.toLocaleString()}</span>
@@ -621,7 +619,7 @@ export default function VoucherEntryPage() {
       </div>
 
       {/* ══ 하단: 전표목록 그리드 (§3-3-A 사용자 지정 스펙) ══ */}
-      <div className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)]/70 backdrop-blur" style={{ overflow: "visible" }}>
+      <div className="glass-card" style={{ overflow: "visible" }}>
         <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
             <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-emerald-500" />{entryDate} 전표목록
@@ -761,7 +759,7 @@ export default function VoucherEntryPage() {
 
       {/* 우클릭 메뉴 (§3-3-A: 행 삽입/복사/삭제) */}
       {ctx && (
-        <div className="fixed z-[80] rounded-xl border border-[var(--border)] bg-[var(--bg-card)]/95 backdrop-blur shadow-2xl p-1.5 text-xs"
+        <div className="fixed z-[80] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl p-1.5 text-xs"
           style={{ left: ctx.x, top: ctx.y }} onClick={(e) => e.stopPropagation()}>
           {ctx.rowId.startsWith("s:") ? (
             <>

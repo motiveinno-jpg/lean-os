@@ -44,7 +44,7 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 function NavIcon({ type, active }: { type: string; active: boolean }) {
-  const cls = `w-4 h-4 ${active ? "text-white" : "text-[#94a3b8]"}`;
+  const cls = `w-4 h-4 ${active ? "text-white" : "text-[var(--text-dim)]"}`;
   const props = { className: cls, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24" };
   switch (type) {
     case "chart": return <svg {...props}><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-9"/></svg>;
@@ -97,12 +97,12 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
   // 인라인 스타일 — CSS 로딩 전에도 보이도록
   if (status === "denied") {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b0f1a", color: "#fff" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F2F4F9", color: "#18181B" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
           <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>접근 권한 없음</h1>
-          <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>OwnerView 플랫폼 관리자만 접근할 수 있습니다.</p>
-          <a href="/dashboard" style={{ padding: "10px 24px", background: "#2563eb", color: "#fff", borderRadius: 12, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+          <p style={{ fontSize: 14, color: "#52525B", marginBottom: 24 }}>OwnerView 플랫폼 관리자만 접근할 수 있습니다.</p>
+          <a href="/dashboard" style={{ padding: "10px 24px", background: "#4F46E5", color: "#fff", borderRadius: 12, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             대시보드로 이동
           </a>
         </div>
@@ -112,27 +112,28 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
   if (status === "loading") {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b0f1a" }}>
-        <div style={{ width: 32, height: 32, border: "2px solid #3b82f6", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F2F4F9" }}>
+        <div style={{ width: 32, height: 32, border: "2px solid #4F46E5", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "#0b0f1a" }}>
+    // 2026-07-03 TeamHub 라운드 — 다크 고정 콘솔을 라이트 토큰 캔버스로 전환(고객 앱과 동일 언어)
+    <div className="min-h-screen flex bg-[var(--bg)]">
       {/* Sidebar */}
-      <aside className="w-56 bg-[#111827] border-r border-[#1e293b] flex flex-col fixed inset-y-0 left-0 z-40">
-        <div className="p-5 border-b border-[#1e293b]">
+      <aside className="w-56 bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col fixed inset-y-0 left-0 z-40">
+        <div className="p-5 border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center">
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
               </svg>
             </div>
             <div>
-              <div className="text-sm font-bold text-white">OwnerView</div>
-              <div className="text-[10px] text-[#64748b] font-medium">Platform Admin</div>
+              <div className="text-sm font-bold text-[var(--text)]">OwnerView</div>
+              <div className="text-[10px] text-[var(--text-dim)] font-medium">Platform Admin</div>
             </div>
           </div>
         </div>
@@ -140,7 +141,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         <nav className="flex-1 py-3 px-2 space-y-3 overflow-y-auto">
           {NAV_GROUPS.map((group) => (
             <div key={group.title}>
-              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#475569]">
+              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">
                 {group.title}
               </div>
               <div className="space-y-0.5 mt-1">
@@ -151,7 +152,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
                       key={item.href}
                       href={item.href}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                        active ? "bg-cyan-600/20 text-cyan-200 border border-cyan-600/30" : "text-[#94a3b8] hover:text-white hover:bg-[#1e293b]"
+                        active ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                       }`}
                     >
                       <NavIcon type={item.icon} active={active} />
@@ -164,14 +165,14 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           ))}
         </nav>
 
-        <div className="p-4 border-t border-[#1e293b]">
+        <div className="p-4 border-t border-[var(--border)]">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
+            <div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs font-bold">
               {userName.charAt(0)}
             </div>
-            <div className="text-xs text-[#94a3b8] truncate">{userName}</div>
+            <div className="text-xs text-[var(--text-muted)] truncate">{userName}</div>
           </div>
-          <Link href="/dashboard" className="flex items-center gap-2 text-xs text-[#64748b] hover:text-white transition">
+          <Link href="/dashboard" className="flex items-center gap-2 text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
             고객 앱으로 돌아가기
           </Link>

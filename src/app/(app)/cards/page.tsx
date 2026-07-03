@@ -486,7 +486,7 @@ export default function CardsPage() {
               cardCd.run(handleSyncCards);
             }}
             disabled={syncing || !companyId || cardCd.disabled}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold text-sm shadow hover:shadow-lg hover:shadow-indigo-500/30 transition disabled:opacity-50 ${cardCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+            className={`btn-primary ${cardCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
             title={cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
           >
             {syncing ? (
@@ -634,7 +634,7 @@ export default function CardsPage() {
                         </p>
                         <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}</span>
                         {tx.journal_entry_id ? (
-                          <span className="text-[10px] px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 font-semibold shrink-0">전표처리됨</span>
+                          <span className="text-[10px] px-2 py-1 rounded-lg bg-[var(--success-dim)] text-[var(--success)] font-semibold shrink-0">전표처리됨</span>
                         ) : (
                           <button onClick={() => openPost(tx)} className="text-[11px] px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 shrink-0 font-semibold">전표처리</button>
                         )}
@@ -725,11 +725,11 @@ export default function CardsPage() {
                         className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
                       />
                     </th>
-                    <th onDoubleClick={() => onSortTx("merchant_name")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">가맹점{sortKey === "merchant_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("card_name")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">카드{sortKey === "card_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-4 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("merchant_name")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">가맹점{sortKey === "merchant_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("card_name")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">카드{sortKey === "card_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -759,7 +759,7 @@ export default function CardsPage() {
                             className="h-4 w-4 cursor-pointer accent-[var(--primary)] disabled:opacity-40 disabled:cursor-not-allowed"
                           />
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-3.5">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
                               {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
@@ -767,12 +767,12 @@ export default function CardsPage() {
                             <span className="font-medium text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{cat}</td>
-                        <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
-                        <td className="px-6 py-4 font-semibold mono-number text-[var(--text)]">-₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
-                        <td className="px-6 py-4 text-sm text-[var(--text-muted)] mono-number">
+                        <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{cat}</td>
+                        <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
+                        <td className="px-6 py-3.5 font-semibold mono-number text-[var(--text)]">-₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
+                        <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] mono-number">
                           {tx.transaction_date}
-                          {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500">전표처리됨</span>}
+                          {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">전표처리됨</span>}
                         </td>
                       </tr>
                     );
@@ -789,20 +789,20 @@ export default function CardsPage() {
         <div className="space-y-6">
           {/* Stat 4 — 가짜 trend 없음 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Stat tone="from-indigo-500 to-blue-600" label="총 사용액" value={fmtW(totalUsage)} sub="이번 달" icon="🛒" />
+            <Stat tone="danger" label="총 사용액" value={fmtW(totalUsage)} sub="이번 달" icon="🛒" />
             {hasLimits ? (
               <Stat
-                tone="from-indigo-600 to-purple-600"
+                tone="info"
                 label="사용 가능 한도"
                 value={fmtW(Math.max(0, totalLimit - totalUsage))}
                 sub={`당월 사용 차감 · 총 한도 ${fmtW(totalLimit)}`}
                 icon="💼"
               />
             ) : (
-              <Stat tone="from-slate-500 to-slate-600" label="한도" value="—" sub="한도 정보 없음" icon="💼" />
+              <Stat tone="" label="한도" value="—" sub="한도 정보 없음" icon="💼" />
             )}
-            <Stat tone="from-indigo-500 to-indigo-700" label="활성 카드" value={`${activeCards}개`} sub={`등록 ${cards.length}개`} icon="💳" />
-            <Stat tone="from-blue-600 to-indigo-700" label="이번 달 거래" value={`${monthTx.length}건`} sub="카드 거래 수" icon="📊" />
+            <Stat tone="" label="활성 카드" value={`${activeCards}개`} sub={`등록 ${cards.length}개`} icon="💳" />
+            <Stat tone="info" label="이번 달 거래" value={`${monthTx.length}건`} sub="카드 거래 수" icon="📊" />
           </div>
 
           {/* 카테고리별 지출 */}
@@ -816,7 +816,7 @@ export default function CardsPage() {
                   <div className="w-28 text-sm text-[var(--text-muted)] truncate shrink-0">{c.name}</div>
                   <div className="flex-1">
                     <div className="w-full bg-[var(--bg-surface)] rounded-full h-3 overflow-hidden">
-                      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 rounded-full" style={{ width: `${c.pct}%` }} />
+                      <div className="bg-[var(--primary)] h-3 rounded-full" style={{ width: `${c.pct}%` }} />
                     </div>
                   </div>
                   <div className="w-32 text-right shrink-0">
@@ -986,7 +986,7 @@ function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; mo
           <span>한도 {fmtW(limit)}</span>
         </div>
         <div className="w-full bg-[var(--bg-surface)] rounded-full h-1.5 overflow-hidden mt-auto">
-          <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
+          <div className="bg-[var(--primary)] h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
     );
@@ -1075,14 +1075,17 @@ function MiniCard({
 }
 
 function Stat({ tone, label, value, sub, icon }: { tone: string; label: string; value: string; sub?: string; icon?: string }) {
+  // tone = kpi-icon 변형: "" | "success" | "warning" | "danger" | "info"
   return (
-    <div className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${tone}`}>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-white/80 uppercase tracking-wide font-medium">{label}</p>
-        {icon && <span className="p-2 bg-white/20 rounded-lg text-base leading-none">{icon}</span>}
+    <div className="glass-card p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
+        {icon && <span className={`kpi-icon ${tone}`}>{icon}</span>}
       </div>
-      <p className="text-2xl font-bold mono-number truncate">{value}</p>
-      {sub && <p className="text-xs text-white/75 mt-1 truncate">{sub}</p>}
+      <div>
+        <p className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)] truncate">{value}</p>
+        {sub && <p className="text-[11px] text-[var(--text-dim)] mt-1 truncate">{sub}</p>}
+      </div>
     </div>
   );
 }
