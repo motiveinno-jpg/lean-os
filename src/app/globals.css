@@ -11,12 +11,14 @@
      --content-max-wide: 표·관리 화면(인력/급여/대시보드 등). */
   --content-max: 900px;
   --content-max-wide: 1100px;
-  --bg: #FAFAFA;                /* near-white neutral */
+  /* 2026-07-03 TeamHub 라운드 — 소프트 틴트 배경 + 흰 솔리드 카드.
+     레퍼런스(민트 틴트 배경/흰 카드)를 오너뷰 인디고 계열로 치환. */
+  --bg: #F2F4F9;                /* 소프트 인디고-그레이 틴트 — 카드가 떠 보이는 캔버스 */
   --bg-card: #FFFFFF;
-  --bg-surface: #F4F4F5;        /* zinc-100 */
+  --bg-surface: #EDEFF6;        /* 틴트 서피스 (입력칸·hover) */
   --bg-elevated: #FFFFFF;
-  --border: #E4E4E7;            /* zinc-200 */
-  --border-light: #D4D4D8;
+  --border: #E5E8F0;            /* 틴트 계열 보더 */
+  --border-light: #D8DCE8;
   --text: #18181B;              /* zinc-900 — 부드러운 검정 */
   --text-muted: #52525B;        /* zinc-600 */
   --text-dim: #A1A1AA;          /* zinc-400 */
@@ -48,13 +50,14 @@
   --brand-info: #3B82F6;
   --fin-from: #111827;          /* 재무 숫자 그라데이션 텍스트 시작 */
   --fin-to: #374151;            /* 끝 */
-  --glass-bg: rgba(255,255,255,0.8);
-  --glass-border: rgba(255,255,255,0.6);
-  --page-from: #F8FAFC;
-  --page-via: #F1F5F9;
-  --page-to: #E2E8F0;
+  /* TeamHub 라운드: 글래스 → 솔리드 흰 카드 (토큰만 바꿔 전 화면 일괄 전환) */
+  --glass-bg: #FFFFFF;
+  --glass-border: #E5E8F0;
+  --page-from: #F2F4F9;
+  --page-via: #F2F4F9;
+  --page-to: #F2F4F9;
   --shadow-glass: 0 20px 40px -12px rgba(0,0,0,0.08);
-  --radius-card: 16px;
+  --radius-card: 18px;
 }
 
 [data-theme="dark"] {
@@ -93,23 +96,18 @@
   --brand-info: #60A5FA;
   --fin-from: #FAFAFA;
   --fin-to: #A1A1AA;
-  --glass-bg: rgba(24,24,27,0.75);
-  --glass-border: rgba(63,63,70,0.6);
-  --page-from: #09090B;
-  --page-via: #18181B;
-  --page-to: #27272A;
+  --glass-bg: #18181B;
+  --glass-border: #3F3F46;
+  --page-from: #0B0C10;
+  --page-via: #0B0C10;
+  --page-to: #0B0C10;
   --shadow-glass: 0 20px 40px -12px rgba(0,0,0,0.5);
-  --radius-card: 16px;
+  --radius-card: 18px;
 }
 
 body {
-  /* 2026-07-02 프리미엄 무드 — 평면 배경 위에 은은한 브랜드 오로라 틴트(우상단 인디고, 좌하단 청록기).
-     fixed 라 스크롤해도 고정, 라이트/다크 모두 토큰 기반 자동 대응. 인쇄는 @media print 에서 흰색 강제. */
-  background:
-    radial-gradient(1100px 550px at 85% -8%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 62%),
-    radial-gradient(900px 500px at -10% 105%, color-mix(in srgb, var(--info) 5%, transparent), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  /* 2026-07-03 TeamHub 라운드 — 오로라 제거, 플랫 소프트 틴트 캔버스(흰 카드가 떠 보이는 배경). */
+  background: var(--bg);
   color: var(--text);
   /* Pretendard 우선 — 한글 가독성 ↑ (Inter 는 라틴 fallback) */
   font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -223,20 +221,16 @@ body {
   border-left: 3px solid var(--success);
 }
 
-/* 2026-05-27 시안 글래스 카드 — 솔리드 bg-card 컨테이너(rounded-2xl)를 전 페이지 일괄 글래스화.
-   --glass-bg/--glass-border/--shadow-glass/--radius-card 토큰으로 라이트·다크 자동 대응.
-   배경 그라데이션+orbs 위에 카드가 떠 보이는 granter/시안 룩. */
+/* 2026-07-03 TeamHub 라운드 — .glass-card 를 솔리드 흰 라운드 카드로 재정의(블러 제거).
+   109개 파일이 이 클래스를 쓰므로 정의 교체만으로 전 화면 일괄 전환. 토큰이 솔리드라 다크 자동 대응. */
 .glass-card {
   background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-card);
-  /* 라이트 모드에서도 카드가 확실히 떠 보이도록 그림자 강화(흰 배경 위 흰 카드 대비 확보). */
-  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.15), 0 3px 10px -4px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -16px rgba(16,24,40,0.08);
 }
 [data-theme="dark"] .glass-card {
-  box-shadow: 0 16px 40px -12px rgba(0,0,0,0.55), 0 4px 12px -4px rgba(0,0,0,0.4);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -14px rgba(0,0,0,0.5);
 }
 
 /* Card Hover */
@@ -510,14 +504,7 @@ input, textarea, [contenteditable="true"] {
    포커스링을 더 세련되게. 전부 additive 또는 시각-only(레이아웃 무이동) → 회귀 최소.
    ══════════════════════════════════════════════════════════════════ */
 
-/* 1) 카드 섀도 정제 — 무겁던 라이트 섀도를 더 얕고 프리미엄하게(1px 크리스프 + 부드러운 확산).
-   border 로 경계는 유지되므로 흰 배경 위에서도 카드가 또렷. */
-.glass-card {
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 6px 20px -8px rgba(24,24,27,0.10);
-}
-[data-theme="dark"] .glass-card {
-  box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -10px rgba(0,0,0,0.5);
-}
+/* 1) (2026-07-03) 카드 섀도는 위 .glass-card 정의로 일원화 — 중복 오버라이드 제거. */
 
 /* 2) 포커스 링 — outline 대신 부드러운 이중 ring(모던 SaaS 룩). 요소 radius 존중. */
 *:focus-visible {
@@ -550,22 +537,63 @@ input, textarea, [contenteditable="true"] {
 .seg-bar { display: inline-flex; gap: 0.25rem; padding: 0.25rem; border-radius: 0.75rem; background: var(--bg-surface); border: 1px solid var(--border); }
 .seg-item { flex-shrink: 0; padding: 0.375rem 0.875rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; transition: all 0.15s ease; }
 .seg-item:hover { color: var(--text); }
-.seg-item-active { background: var(--bg-card); color: var(--text); box-shadow: var(--shadow-sm); }
+/* TeamHub 라운드: 활성 세그먼트 = 프라이머리 필 (레퍼런스의 진한 필 탭) */
+.seg-item-active { background: var(--primary); color: #fff; box-shadow: var(--shadow-sm); }
+.seg-item-active:hover { color: #fff; }
 
 /* 5) 뱃지/칩 — 상태 표시 표준(인라인 색은 유틸로 덮어씀). */
 .badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 10px; font-weight: 600; line-height: 1; }
 .badge-primary { background: var(--primary-light); color: var(--primary); }
 .badge-muted { background: var(--bg-surface); color: var(--text-muted); }
 
-/* 6) 스탯 타일 — KPI/요약 카드 표준. glass-card 시각 + 내부 레이아웃. */
+/* 6) 스탯 타일 — KPI/요약 카드 표준. glass-card 시각 + 내부 레이아웃. (TeamHub: 솔리드, 블러 제거) */
 .stat-tile {
   display: flex; flex-direction: column; gap: 0.25rem; padding: 1rem;
-  background: var(--glass-bg); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  background: var(--glass-bg);
   border: 1px solid var(--glass-border); border-radius: var(--radius-card);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 6px 20px -8px rgba(24,24,27,0.10);
+  box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -16px rgba(16,24,40,0.08);
 }
 .stat-tile-label { font-size: 11px; font-weight: 500; color: var(--text-dim); }
 .stat-tile-value { font-size: 1.25rem; line-height: 1.75rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
 /* 7) 섹션 제목 위계 미세 정제 — 살짝 더 또렷한 tracking. */
 .section-title { letter-spacing: -0.01em; }
+
+/* ══════════════════════════════════════════════════════════════════
+   2026-07-03 TeamHub 라운드 — KPI 카드 시그니처 요소 (레퍼런스 대시보드 패턴)
+   KPI 카드 = glass-card p-5 + [라벨행: 라벨 + .kpi-icon] + [값행: 큰 숫자 + .delta-chip]
+   + [.kpi-callout 틴트 스트립]. 색은 전부 토큰 → 라이트/다크 자동 대응.
+   ══════════════════════════════════════════════════════════════════ */
+.kpi-icon {
+  width: 2.5rem; height: 2.5rem; border-radius: 0.875rem; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--primary-light); color: var(--primary);
+}
+.kpi-icon.success { background: var(--success-dim); color: var(--success); }
+.kpi-icon.warning { background: var(--warning-dim); color: var(--warning); }
+.kpi-icon.danger  { background: var(--danger-dim);  color: var(--danger); }
+.kpi-icon.info    { background: var(--info-dim);    color: var(--info); }
+
+.delta-chip {
+  display: inline-flex; align-items: center; gap: 0.125rem;
+  padding: 0.1875rem 0.5rem; border-radius: 9999px;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.delta-up   { background: var(--success-dim); color: var(--success); }
+.delta-down { background: var(--danger-dim);  color: var(--danger); }
+.delta-flat { background: var(--bg-surface);  color: var(--text-muted); }
+
+.kpi-callout {
+  display: flex; align-items: center; gap: 0.375rem;
+  padding: 0.5rem 0.75rem; border-radius: 0.625rem;
+  font-size: 0.75rem; line-height: 1.1rem; color: var(--text-muted);
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+}
+.kpi-callout b, .kpi-callout strong { color: var(--primary); font-weight: 700; }
+.kpi-callout.success { background: color-mix(in srgb, var(--success) 9%, transparent); }
+.kpi-callout.success b, .kpi-callout.success strong { color: var(--success); }
+.kpi-callout.warning { background: color-mix(in srgb, var(--warning) 10%, transparent); }
+.kpi-callout.warning b, .kpi-callout.warning strong { color: var(--warning); }
+.kpi-callout.danger { background: color-mix(in srgb, var(--danger) 8%, transparent); }
+.kpi-callout.danger b, .kpi-callout.danger strong { color: var(--danger); }

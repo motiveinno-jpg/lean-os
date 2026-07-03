@@ -303,9 +303,9 @@ export function Sidebar() {
           <Link href={item.href}
             className={`flex items-center rounded-lg text-[13px] transition-all ${
               collapsed ? "justify-center px-0 py-2.5" : `gap-2.5 px-2.5 py-2 ${isChild ? "pl-8" : ""}`
-            } ${active ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold shadow-[inset_3px_0_0_0_var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+            } ${active ? "bg-[var(--primary)] text-white font-semibold shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
             <span className="relative">
-              <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+              <NavIcon name={item.icon} className={active ? "text-white" : ""} />
               {collapsed && badge > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--danger)] text-white text-[8px] font-bold rounded-full px-0.5">{badge > 99 ? "99" : badge}</span>
               )}
@@ -345,8 +345,8 @@ export function Sidebar() {
     return (
       <div key={item.href} className="relative flex items-center">
         <Link href={item.href}
-          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${isChild ? "pl-8" : ""} ${active ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold shadow-[inset_3px_0_0_0_var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
-          <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${isChild ? "pl-8" : ""} ${active ? "bg-[var(--primary)] text-white font-semibold shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+          <NavIcon name={item.icon} className={active ? "text-white" : ""} />
           <span className="flex-1">{item.label}</span>
           {badge > 0 && (
             <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">{badge > 99 ? "99+" : badge}</span>
@@ -448,7 +448,7 @@ export function Sidebar() {
 
   const sidebarContent = (
     <aside
-      className={`${sidebarWidth} h-screen bg-[var(--bg-card)]/85 backdrop-blur-xl border-r border-[var(--border)]/70 flex flex-col transition-all duration-200 overflow-hidden`}
+      className={`${sidebarWidth} h-screen bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col transition-all duration-200 overflow-hidden`}
       style={{ boxShadow: "var(--shadow-sm)" }}
     >
       {/* Logo — U1: 로고 클릭 → /dashboard */}
@@ -519,11 +519,11 @@ export function Sidebar() {
                         collapsed ? "justify-center px-0 py-2.5" : "gap-2.5 px-2.5 py-2"
                       } ${
                         active
-                          ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold shadow-[inset_3px_0_0_0_var(--primary)]"
+                          ? "bg-[var(--primary)] text-white font-semibold shadow-sm"
                           : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                       }`}
                     >
-                      <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+                      <NavIcon name={item.icon} className={active ? "text-white" : ""} />
                       {!collapsed && <span className="flex-1">{item.label}</span>}
                     </Link>
                   </Tooltip>
@@ -735,10 +735,10 @@ export function Sidebar() {
                       <Link key={`mpin-${item.href}`} href={item.href}
                         className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
                           active
-                            ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold shadow-[inset_3px_0_0_0_var(--primary)]"
+                            ? "bg-[var(--primary)] text-white font-semibold shadow-sm"
                             : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                         }`}>
-                        <NavIcon name={item.icon} className={active ? "text-[var(--primary)]" : ""} />
+                        <NavIcon name={item.icon} className={active ? "text-white" : ""} />
                         <span className="flex-1">{item.label}</span>
                       </Link>
                     );

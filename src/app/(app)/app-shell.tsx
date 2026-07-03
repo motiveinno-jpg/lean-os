@@ -263,23 +263,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
           DEV 환경 · 운영 데이터 아님
         </div>
       )}
-      {/* 시안 배경 레이어 — 콘텐츠 뒤(-z-10). 라이트/다크 토큰 자동 대응.
-          2026-06-09 스크롤 시 차트 SVG(preserveAspectRatio=none·non-scaling-stroke)가 이 고정+blur 레이어 위에
-          번져 남는 페인트 잔상(GPU 컴포지팅) 발생 → translateZ(0)/backface-hidden 로 자체 레이어 승격해 매 프레임 클린 리페인트. */}
-      <div
-        aria-hidden
-        className="fixed inset-0 -z-10 pointer-events-none overflow-hidden bg-gradient-to-br from-[var(--page-from)] via-[var(--page-via)] to-[var(--page-to)]"
-        style={{ transform: "translateZ(0)", backfaceVisibility: "hidden" }}
-      >
-        {/* 점 패턴 */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{ backgroundImage: "radial-gradient(circle at 1px 1px, var(--brand) 1px, transparent 0)", backgroundSize: "40px 40px" }}
-        />
-        {/* 그라데이션 orbs */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-[var(--brand)]/10 to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-[var(--success)]/10 to-transparent rounded-full blur-3xl" />
-      </div>
+      {/* 2026-07-03 TeamHub 라운드 — 배경 레이어(점 패턴+오로라 orbs) 제거.
+          body 가 플랫 소프트 틴트(--bg)를 직접 칠해 흰 카드가 떠 보이는 캔버스가 됨. */}
       <Sidebar />
       {/* Top header bar (mobile: hamburger + notification, desktop: notification only) */}
       <div
