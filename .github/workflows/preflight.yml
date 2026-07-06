@@ -47,3 +47,19 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           echo "::warning::SUPABASE_ACCESS_TOKEN secret not set — preflight gates skipped. Add it in repo Settings > Secrets to activate."
+
+  # 크리티컬 경로 유닛 테스트 + 타입체크 (2026-07-06) — 시크릿 불필요, 항상 실행.
+  #   가입 검증(assertBizNoActive 판정표)·사업자번호 checksum·브레드크럼 매핑 회귀 방지.
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      # --ignore-scripts: puppeteer/playwright 브라우저 다운로드 등 postinstall 생략 (tsc·vitest에 불필요)
+      - run: npm ci --ignore-scripts
+      - name: typecheck
+        run: npx tsc --noEmit
+      - name: unit tests
+        run: npx vitest run
