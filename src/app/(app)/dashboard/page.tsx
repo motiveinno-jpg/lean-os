@@ -37,6 +37,8 @@ import { PRESET_VIEWS, WIDGET_REGISTRY, ROLE_PRESETS } from "@/lib/widget-regist
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
+import { ActionInbox } from "@/components/action-inbox";
+import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
 import { DashboardAnalytics } from "@/components/dashboard-analytics";
@@ -504,6 +506,33 @@ export default function DashboardPage() {
            owner/admin 기본 노출(뷰 토글과 무관). ═══ */}
       {(role === "owner" || role === "admin") && companyId && (
         <div className="space-y-5 mb-6">
+          {/* (0) AI 브리핑 + 오늘의 액션 — 라운드7.1(컨셉 1안). 문장 요약은 MorningBrief(규칙 기반) 재사용,
+               버튼은 이미 계산된 sixPack·세금 마감에서 파생 — 신규 쿼리 0. */}
+          <div>
+            <MorningBrief
+              userName={userName}
+              companyName={companyName}
+              cashPulse={cashPulse}
+              dashboard={dashboard}
+              hasData={hasData}
+            />
+            {(() => {
+              const nearestTax = getUpcomingTaxDeadlines(30)[0];
+              const acts: { key: string; href: string; label: string; primary?: boolean }[] = [];
+              if (dashboard.sixPack.arOver30 > 0) acts.push({ key: "ar", href: "/tax-invoices", label: "미수금 회수 관리 →", primary: true });
+              if (dashboard.sixPack.pendingApprovals > 0) acts.push({ key: "appr", href: "/approvals", label: `결재 ${dashboard.sixPack.pendingApprovals}건 처리` });
+              if (nearestTax) acts.push({ key: nearestTax.id, href: nearestTax.href, label: `${nearestTax.title} ${nearestTax.daysLeft === 0 ? "D-Day" : `D-${nearestTax.daysLeft}`}` });
+              if (acts.length === 0) return null;
+              return (
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  {acts.map((a) => (
+                    <Link key={a.key} href={a.href} className={`${a.primary ? "btn-primary" : "btn-secondary"} btn-sm`}>{a.label}</Link>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
           {/* (1) KPI 4카드 행 — 잔고·매출·운영비·미수금 + kpi-callout */}
           <DashboardSiyanHero
             balance={cashPulse?.currentBalance ?? null}
@@ -524,8 +553,14 @@ export default function DashboardPage() {
               <DashboardCostDonut costBreakdown={costBreakdown} />
             </div>
             <div className="space-y-5">
-              {/* 2026-05-28 관리자 — 내 출퇴근 유지(사장님 명시 요청). owner 는 hide. */}
-              {role === "admin" && userId && <MyAttendanceCard companyId={companyId} userId={userId} />}
+              {/* 라운드7.1 — 출퇴근은 오너/관리자 화면에선 한 줄 압축(직원 화면만 큰 카드 유지) */}
+              {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
+              {/* 처리 대기 큐(액션 인박스) — 미수금 지연·결재·세금 마감을 심각도순 + 진입 버튼 */}
+              <ActionInbox
+                pendingApprovals={dashboard.sixPack.pendingApprovals}
+                arOver30={dashboard.sixPack.arOver30}
+                arTotal={dashboard.sixPack.arTotal}
+              />
               <UpcomingScheduleCard companyId={companyId} windowDays={30} />
               {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
               {userId && <QuickApprovalCard companyId={companyId} userId={userId} />}
@@ -559,14 +594,8 @@ export default function DashboardPage() {
       <div className="mb-4">
         {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
         <div className="mb-3">
-          <MorningBrief
-            userName={userName}
-            companyName={companyName}
-            cashPulse={cashPulse}
-            dashboard={dashboard}
-            hasData={hasData}
-          />
-          <div className="flex items-center gap-1.5 justify-end -mt-2 mb-2">
+          {/* 라운드7.1 — MorningBrief 는 대시보드 최상단(시안 메인)으로 이동. 여기엔 도구 버튼만 유지 */}
+          <div className="flex items-center gap-1.5 justify-end mb-2">
             {role === "owner" && (
               <button onClick={handleDataSync} disabled={syncing}
                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 ${
@@ -2152,6 +2181,7 @@ function DealFunnel({ companyId }: { companyId: string }) {
 // GettingStartedChecklist — 실데이터 카운트 기반 진행률
 // ═══════════════════════════════════════════
 const CHECKLIST_DISMISS_KEY = "leanos-getting-started-dismissed";
+const CHECKLIST_DONE_SEEN_KEY = "leanos-getting-started-done-seen"; // 라운드7.1 — 완료 배너 1회 노출용
 
 interface ChecklistStatus {
   company: boolean;
@@ -2164,6 +2194,8 @@ interface ChecklistStatus {
 function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: string; initialDealCount: number }) {
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  // 완료 배너는 1회만 — 마운트 시점에 이미 본 적 있으면 숨김
+  const [doneSeenAtMount] = useState(() => { try { return localStorage.getItem(CHECKLIST_DONE_SEEN_KEY) === "1"; } catch { return false; } });
 
   useEffect(() => {
     try {
@@ -2213,7 +2245,13 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
     if (status) setExpanded(shouldAutoExpand);
   }, [status, shouldAutoExpand]);
 
+  // 라운드7.1 — "초기 설정 완료" 배너는 완료 후 1회 노출로 충분. 이번에 보이면 다음 방문부터 자동 숨김.
+  useEffect(() => {
+    if (allDone) { try { localStorage.setItem(CHECKLIST_DONE_SEEN_KEY, "1"); } catch {} }
+  }, [allDone]);
+
   if (dismissed) return null;
+  if (allDone && doneSeenAtMount) return null;
 
   if (allDone) {
     return (

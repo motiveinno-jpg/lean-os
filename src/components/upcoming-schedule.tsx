@@ -56,6 +56,15 @@ function fmtDateKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+// 라운드7.1 — 액션 인박스/브리핑에서 재사용할 수 있게 공개 헬퍼로 노출 (계산 로직 동일)
+export function getUpcomingTaxDeadlines(windowDays = 30): ScheduleItem[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const windowEnd = new Date(today.getTime() + windowDays * 86400000);
+  return buildTaxSchedules(today, windowEnd).sort((a, b) => a.daysLeft - b.daysLeft);
+}
+export type { ScheduleItem };
+
 function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
   const items: ScheduleItem[] = [];
 

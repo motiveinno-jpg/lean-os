@@ -25,7 +25,8 @@ function elapsedSince(ts?: string | null): string {
 }
 
 // 본인 출퇴근 카드 — 직원/관리자/대표 누구나 사용 (employees.user_id 연결 필요)
-export function MyAttendanceCard({ companyId, userId }: { companyId: string; userId: string }) {
+//   compact: 오너/관리자 대시보드용 한 줄 압축 모드 (라운드7.1 — 직원 화면에서만 큰 카드)
+export function MyAttendanceCard({ companyId, userId, compact = false }: { companyId: string; userId: string; compact?: boolean }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   // QA 2026-06-12: UTC 날짜였음 → KST 00:00~08:59 에 "어제"로 기록되던 버그. KST 보정.
@@ -107,6 +108,28 @@ export function MyAttendanceCard({ companyId, userId }: { companyId: string; use
     }
     setBusy(false);
   };
+
+  // 한 줄 압축 모드 — 상태점 + 시각 요약 + 소형 버튼. 미연결 계정은 표시 안 함(오너 화면 노이즈 방지)
+  if (compact) {
+    if (empLoading || !employeeId) return null;
+    return (
+      <div className="glass-card px-4 py-3 flex items-center gap-3">
+        <div className={`w-2 h-2 rounded-full shrink-0 ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
+        <span className="flex-1 min-w-0 text-xs text-[var(--text-muted)] truncate">
+          {!isCheckedIn
+            ? "오늘 아직 출근 전"
+            : isCheckedOut
+              ? `근무 완료 · ${fmtTime(todayAtt?.check_in)} ~ ${fmtTime(todayAtt?.check_out)}`
+              : `${fmtTime(todayAtt?.check_in)} 출근 · ${elapsedSince(todayAtt?.check_in)}`}
+        </span>
+        {!isCheckedIn ? (
+          <button onClick={doCheckIn} disabled={busy} className="btn-primary btn-sm shrink-0">{busy ? "..." : "출근"}</button>
+        ) : !isCheckedOut ? (
+          <button onClick={doCheckOut} disabled={busy} className="btn-secondary btn-sm shrink-0">{busy ? "..." : "퇴근"}</button>
+        ) : null}
+      </div>
+    );
+  }
 
   if (empLoading) {
     return (
