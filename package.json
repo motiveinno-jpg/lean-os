@@ -11,8 +11,9 @@
     "typecheck": "tsc --noEmit",
     "check:migrations": "node scripts/check-migrations.mjs",
     "smoke:rls": "node scripts/rls-smoke.mjs",
-    "preflight": "npm run check:migrations && npm run smoke:rls",
-    "test": "vitest run"
+    "preflight": "npm run check:migrations && npm run smoke:rls && npm run smoke:db-guards",
+    "test": "vitest run",
+    "smoke:db-guards": "node scripts/db-guards-smoke.mjs"
   },
   "keywords": [],
   "author": "",

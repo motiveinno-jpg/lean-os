@@ -41,6 +41,13 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/rls-smoke.mjs
 
+      # 정산 과배분 차단·전표 자동기장·카드 중복차단 등 DB 트리거 가드 실존 확인 (2026-07-06)
+      - name: DB guards smoke
+        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/db-guards-smoke.mjs
+
       - name: warn if secret missing
         if: ${{ env.SUPABASE_ACCESS_TOKEN == '' }}
         env:
