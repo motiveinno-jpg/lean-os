@@ -476,7 +476,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       {/* 상단 버튼 + 알림 */}
       <div className="flex items-center justify-between mb-4">
         <div className="text-xs text-[var(--text-dim)]">
-          {pendingInvites.length > 0 && <span className="text-amber-500 font-semibold">초대 대기 {pendingInvites.length}명</span>}
+          {pendingInvites.length > 0 && <span className="text-[var(--warning)] font-semibold">초대 대기 {pendingInvites.length}명</span>}
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">+ 직원 초대</button>
@@ -484,17 +484,17 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       </div>
 
       {inviteMsg && (
-        <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${inviteMsg.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+        <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${inviteMsg.ok ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" : "bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20"}`}>
           {inviteMsg.msg}
         </div>
       )}
 
       {/* 4대보험 취득신고 EDI 생성 패널 */}
       {showAcqEdi && acqEdiData && (
-        <div className="mb-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5">
+        <div className="mb-4 bg-[var(--info)]/5 border border-[var(--info)]/20 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <div className="text-sm font-bold text-blue-400 flex items-center gap-2">
+              <div className="text-sm font-bold text-[var(--info)] flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 4대보험 취득신고 EDI 생성
               </div>
@@ -509,7 +509,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">산재보험</span></div>
           </div>
           {acqEdiGenerated ? (
-            <div className="text-xs text-green-400 font-medium text-center py-2">EDI 파일 4건 다운로드 완료</div>
+            <div className="text-xs text-[var(--success)] font-medium text-center py-2">EDI 파일 4건 다운로드 완료</div>
           ) : (
             <button
               onClick={() => {
@@ -536,7 +536,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                 results.forEach((r) => downloadEDIFile(r));
                 setAcqEdiGenerated(true);
               }}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition"
+              className="w-full py-2.5 bg-[var(--info)] hover:brightness-110 text-white rounded-xl text-xs font-semibold transition"
             >
               EDI 파일 생성 (4건 다운로드)
             </button>
@@ -560,8 +560,8 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">역할</label>
               <div className="flex gap-2">
-                <button onClick={() => setForm({...form, role: "employee"})} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${form.role === "employee" ? "bg-green-600 text-white border-green-600" : "text-[var(--text-muted)] border-[var(--border)]"}`}>직원</button>
-                <button onClick={() => setForm({...form, role: "admin"})} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${form.role === "admin" ? "bg-blue-600 text-white border-blue-600" : "text-[var(--text-muted)] border-[var(--border)]"}`}>관리자</button>
+                <button onClick={() => setForm({...form, role: "employee"})} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${form.role === "employee" ? "bg-[var(--success)] text-white border-[var(--success)]" : "text-[var(--text-muted)] border-[var(--border)]"}`}>직원</button>
+                <button onClick={() => setForm({...form, role: "admin"})} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${form.role === "admin" ? "bg-[var(--info)] text-white border-[var(--info)]" : "text-[var(--text-muted)] border-[var(--border)]"}`}>관리자</button>
               </div>
             </div>
           </div>
@@ -584,7 +584,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             </div>
           </div>
           {addExisting ? (
-            <p className="text-[10px] text-amber-500">이미 가입한 회원의 이메일로 바로 추가합니다. <b>해당 회원의 계정 소속이 우리 회사로 변경되고 직원 권한이 됩니다.</b> (초대 이메일 없이 즉시 적용)</p>
+            <p className="text-[10px] text-[var(--warning)]">이미 가입한 회원의 이메일로 바로 추가합니다. <b>해당 회원의 계정 소속이 우리 회사로 변경되고 직원 권한이 됩니다.</b> (초대 이메일 없이 즉시 적용)</p>
           ) : (
             <p className="caption">초대 이메일이 발송되며, 직원이 가입 후 계약서 서명까지 완료하면 급여가 자동 반영됩니다.</p>
           )}
@@ -597,7 +597,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           <h4 className="text-xs font-bold text-[var(--text-muted)] mb-2">초대 대기중</h4>
           <div className="space-y-2">
             {pendingInvites.map((inv: any) => (
-              <div key={inv.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+              <div key={inv.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--warning)]/5 border border-[var(--warning)]/10">
                 <div>
                   <div className="text-sm font-medium">{inv.name || inv.email}</div>
                   <div className="text-xs text-[var(--text-dim)]">{inv.email} · {inv.role === "admin" ? "관리자" : "직원"}</div>
@@ -609,7 +609,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                   <button onClick={() => copyLink(inv.invite_token)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]">
                     {copiedToken === inv.invite_token ? "복사됨!" : "링크"}
                   </button>
-                  <button onClick={() => cancelMut.mutate(inv.id)} className="text-xs text-red-400/60 hover:text-red-400">취소</button>
+                  <button onClick={() => cancelMut.mutate(inv.id)} className="text-xs text-[var(--danger)]/60 hover:text-[var(--danger)]">취소</button>
                 </div>
               </div>
             ))}
@@ -657,7 +657,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                       <div className="flex items-center gap-2">
                         {e.name}
                         {e.onboarding_completed_at ? null : e.status !== "active" && e.status !== "inactive" && (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-500 rounded-full">온보딩 미완료</span>
+                          <span className="text-[10px] px-1.5 py-0.5 bg-[var(--warning)]/10 text-[var(--warning)] rounded-full">온보딩 미완료</span>
                         )}
                       </div>
                     </td>
@@ -721,7 +721,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                               const { ok } = await confirm({ title: "직원 삭제", desc: `${e.name} 직원을 삭제하시겠습니까?`, danger: true });
                               if (ok) deleteMut.mutate(e.id);
                             }}
-                            className="text-[var(--text-dim)] hover:text-red-500 transition"
+                            className="text-[var(--text-dim)] hover:text-[var(--danger)] transition"
                             title="삭제"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -1167,8 +1167,8 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
                     <td className="px-5 py-3 text-center">
                       {e.status === "pending" && !isEmployee && (
                         <div className="flex gap-1 justify-center">
-                          <button onClick={() => approve.mutate(e.id)} className="text-[10px] px-2 py-1 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20">승인</button>
-                          <button onClick={() => reject.mutate(e.id)} className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20">반려</button>
+                          <button onClick={() => approve.mutate(e.id)} className="text-[10px] px-2 py-1 rounded bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20">승인</button>
+                          <button onClick={() => reject.mutate(e.id)} className="text-[10px] px-2 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20">반려</button>
                         </div>
                       )}
                     </td>
@@ -1414,11 +1414,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
   const statusColor = (status: string) => {
     switch (status) {
-      case "present": return "bg-green-500";
+      case "present": return "bg-[var(--success)]";
       case "late": return "bg-yellow-500";
-      case "absent": return "bg-red-500";
+      case "absent": return "bg-[var(--danger)]";
       case "half_day": return "bg-orange-400";
-      case "remote": return "bg-blue-500";
+      case "remote": return "bg-[var(--info)]";
       default: return "bg-gray-400";
     }
   };
@@ -1644,9 +1644,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             const rate = total > 0 ? Math.round(((presentIds.length + lateIds.length) / total) * 100) : 0;
             const toNames = (ids: string[]) => ids.map((id) => nameMap.get(id) || "직원");
             const CATS: { key: "present" | "late" | "leave" | "absent"; emoji: string; label: string; ids: string[]; tile: string; txt: string }[] = [
-              { key: "present", emoji: "🟢", label: "출근", ids: presentIds, tile: "bg-emerald-500/8 border-emerald-500/20", txt: "text-emerald-500" },
+              { key: "present", emoji: "🟢", label: "출근", ids: presentIds, tile: "bg-[var(--success)]/8 border-[var(--success)]/20", txt: "text-[var(--success)]" },
               { key: "late", emoji: "🟡", label: "지각", ids: lateIds, tile: "bg-yellow-500/8 border-yellow-500/20", txt: "text-yellow-500" },
-              { key: "leave", emoji: "🔵", label: "휴가", ids: leaveIds, tile: "bg-sky-500/8 border-sky-500/20", txt: "text-sky-500" },
+              { key: "leave", emoji: "🔵", label: "휴가", ids: leaveIds, tile: "bg-[var(--info)]/8 border-[var(--info)]/20", txt: "text-[var(--info)]" },
               { key: "absent", emoji: "⚪", label: "미출근", ids: absentIds, tile: "bg-[var(--bg-surface)] border-[var(--border)]", txt: "text-[var(--text-muted)]" },
             ];
             const sel = CATS.find((c) => c.key === attnDetail);
@@ -1706,7 +1706,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               key={w.employeeId}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
                 w.level === "danger"
-                  ? "bg-red-500/10 border-red-500/30 text-red-400"
+                  ? "bg-[var(--danger)]/10 border-[var(--danger)]/30 text-[var(--danger)]"
                   : "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
               }`}
             >
@@ -1763,14 +1763,14 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   <button
                     disabled={hasIn}
                     onClick={() => doCheckIn.mutate(myEmployeeRecord.id)}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
+                    className="px-4 py-2 bg-[var(--success)] hover:brightness-110 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
                   >
                     {hasIn ? "출근 완료" : "출근"}
                   </button>
                   <button
                     disabled={!hasIn || hasOut}
                     onClick={() => doCheckOut.mutate(myEmployeeRecord.id)}
-                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
+                    className="px-4 py-2 bg-[var(--warning)] hover:brightness-110 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
                   >
                     {hasOut ? "퇴근 완료" : "퇴근"}
                   </button>
@@ -1781,7 +1781,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                           doCancelCheckOut.mutate(myEmployeeRecord.id);
                         }
                       }}
-                      className="px-3 py-2 bg-red-600/80 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition"
+                      className="px-3 py-2 bg-[var(--danger)]/80 hover:brightness-110 text-white rounded-xl text-xs font-semibold transition"
                     >
                       퇴근 취소
                     </button>
@@ -1825,7 +1825,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           {/* Calendar header: days of week */}
           <div className="grid grid-cols-7 border-b border-[var(--border)]">
             {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
-              <div key={d} className={`text-center text-xs font-medium py-2 ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-[var(--text-dim)]"}`}>
+              <div key={d} className={`text-center text-xs font-medium py-2 ${i === 0 ? "text-[var(--danger)]" : i === 6 ? "text-[var(--info)]" : "text-[var(--text-dim)]"}`}>
                 {d}
               </div>
             ))}
@@ -1874,7 +1874,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   }`}
                 >
                   <div className={`text-xs font-medium mb-1 ${
-                    isToday ? "text-[var(--primary)] font-bold" : dayOfWeek === 0 ? "text-red-400" : dayOfWeek === 6 ? "text-blue-400" : "text-[var(--text-muted)]"
+                    isToday ? "text-[var(--primary)] font-bold" : dayOfWeek === 0 ? "text-[var(--danger)]" : dayOfWeek === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
                   }`}>
                     {day}
                   </div>
@@ -1978,7 +1978,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                           <button
                             onClick={submitCorrection}
                             disabled={doCorrectAttendance.isPending}
-                            className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg transition disabled:opacity-50"
+                            className="px-2 py-1 text-xs bg-[var(--success)] hover:brightness-110 text-white rounded-lg transition disabled:opacity-50"
                           >
                             {doCorrectAttendance.isPending ? "..." : "저장"}
                           </button>
@@ -2022,11 +2022,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                           const es = effectiveStatus(r);
                           return (
                             <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                              es === "present" ? "bg-green-500/10 text-green-400"
+                              es === "present" ? "bg-[var(--success)]/10 text-[var(--success)]"
                               : es === "late" ? "bg-yellow-500/10 text-yellow-400"
-                              : es === "absent" ? "bg-red-500/10 text-red-400"
+                              : es === "absent" ? "bg-[var(--danger)]/10 text-[var(--danger)]"
                               : es === "half_day" ? "bg-orange-500/10 text-orange-400"
-                              : es === "remote" ? "bg-blue-500/10 text-blue-400"
+                              : es === "remote" ? "bg-[var(--info)]/10 text-[var(--info)]"
                               : "bg-gray-500/10 text-gray-400"
                             }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${statusColor(es)}`} />
@@ -2131,13 +2131,13 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                         <td className="px-5 py-3 text-sm text-center text-yellow-400">{fmtMin(s.lateMinutesSum)}</td>
                         <td className="px-5 py-3 text-sm text-center text-orange-400">{fmtMin(s.overtimeMinutesSum)}</td>
                         <td className="px-5 py-3 text-sm text-center text-purple-400">{fmtMin(s.nightMinutesSum)}</td>
-                        <td className="px-5 py-3 text-sm text-center text-green-400">{fmtMin(s.holidayMinutesSum)}</td>
-                        <td className="px-5 py-3 text-sm text-center text-red-400">{s.absentDays > 0 ? `${s.absentDays}회` : "—"}</td>
-                        <td className="px-5 py-3 text-sm text-center text-blue-400">{s.remoteDays > 0 ? `${s.remoteDays}일` : "—"}</td>
+                        <td className="px-5 py-3 text-sm text-center text-[var(--success)]">{fmtMin(s.holidayMinutesSum)}</td>
+                        <td className="px-5 py-3 text-sm text-center text-[var(--danger)]">{s.absentDays > 0 ? `${s.absentDays}회` : "—"}</td>
+                        <td className="px-5 py-3 text-sm text-center text-[var(--info)]">{s.remoteDays > 0 ? `${s.remoteDays}일` : "—"}</td>
                         <td className="px-5 py-3 text-sm text-center text-orange-400">{s.halfDays > 0 ? `${s.halfDays}회` : "—"}</td>
                         <td className="px-5 py-3 text-sm text-right font-medium">{s.totalHours.toFixed(1)}h</td>
                         {isAdminForAllowance && (
-                          <td className="px-5 py-3 text-sm text-right font-medium text-emerald-400" title={alwTitle}>
+                          <td className="px-5 py-3 text-sm text-right font-medium text-[var(--success)]" title={alwTitle}>
                             {fmtKRW(alw?.total ?? 0)}
                           </td>
                         )}
@@ -2384,14 +2384,14 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
       <button
         disabled={!selectedEmp || hasCheckedIn}
         onClick={() => selectedEmp && onCheckIn(selectedEmp)}
-        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
+        className="px-4 py-2 bg-[var(--success)] hover:brightness-110 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
       >
         출근
       </button>
       <button
         disabled={!selectedEmp || !hasCheckedIn || hasCheckedOut}
         onClick={() => selectedEmp && onCheckOut(selectedEmp)}
-        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
+        className="px-4 py-2 bg-[var(--warning)] hover:brightness-110 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
       >
         퇴근
       </button>
@@ -2671,10 +2671,10 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
             <>
               {editMode ? (
                 <>
-                  <button onClick={loadAllowances} disabled={loadingAllowances} className="px-3 py-2 bg-blue-500/10 text-blue-500 border border-blue-500/30 hover:bg-blue-500/20 rounded-xl text-xs font-semibold transition disabled:opacity-50" title="해당 월 근태 산정 수당(야간·연장·당직 등)을 불러와 채웁니다">
+                  <button onClick={loadAllowances} disabled={loadingAllowances} className="px-3 py-2 bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/30 hover:bg-[var(--info)]/20 rounded-xl text-xs font-semibold transition disabled:opacity-50" title="해당 월 근태 산정 수당(야간·연장·당직 등)을 불러와 채웁니다">
                     {loadingAllowances ? "불러오는 중..." : "📥 수당 불러오기"}
                   </button>
-                  <button onClick={saveEdits} disabled={savingEdit} className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+                  <button onClick={saveEdits} disabled={savingEdit} className="px-3 py-2 bg-[var(--warning)] hover:bg-[var(--warning)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
                     {savingEdit ? "저장 중..." : "💾 편집 저장"}
                   </button>
                   <button onClick={() => { setEditMode(false); generate(); }} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
@@ -2689,7 +2689,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
               <button onClick={downloadAll} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
                 전체 PDF 다운로드
               </button>
-              <button onClick={() => handleSendPayslips()} disabled={sending} className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+              <button onClick={() => handleSendPayslips()} disabled={sending} className="px-4 py-2.5 bg-[var(--success)] hover:brightness-110 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
                 {sending ? "발송 중..." : `전 직원 발송 (${preview.items.length}명)`}
               </button>
             </>
@@ -2719,11 +2719,11 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
             </div>
             <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">총 공제액</div>
-              <div className="text-lg font-bold text-red-400 mt-1">-{fmtKRW(preview.totalDeductions)}</div>
+              <div className="text-lg font-bold text-[var(--danger)] mt-1">-{fmtKRW(preview.totalDeductions)}</div>
             </div>
             <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">총 실수령액</div>
-              <div className="text-lg font-bold text-green-400 mt-1">{fmtKRW(preview.totalNet)}</div>
+              <div className="text-lg font-bold text-[var(--success)] mt-1">{fmtKRW(preview.totalNet)}</div>
             </div>
           </div>
 
@@ -2759,9 +2759,9 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                       {item.employeeName}
                       {!editMode && (allowanceSum > 0 || deductionSum > 0) && (
                         <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
-                          {allowanceSum > 0 && <span className="text-blue-400">수당 +{allowanceSum.toLocaleString()}</span>}
+                          {allowanceSum > 0 && <span className="text-[var(--info)]">수당 +{allowanceSum.toLocaleString()}</span>}
                           {allowanceSum > 0 && deductionSum > 0 && <span className="mx-1">·</span>}
-                          {deductionSum > 0 && <span className="text-red-400">공제 -{deductionSum.toLocaleString()}</span>}
+                          {deductionSum > 0 && <span className="text-[var(--danger)]">공제 -{deductionSum.toLocaleString()}</span>}
                         </div>
                       )}
                     </td>
@@ -2802,8 +2802,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                         ) : fmtKRW(Number(val || 0))}
                       </td>
                     ))}
-                    <td className="px-4 py-3 text-sm text-right text-red-400">-{fmtKRW(item.deductionsTotal)}</td>
-                    <td className="px-4 py-3 text-sm text-right font-bold text-green-400">{fmtKRW(item.netPay)}</td>
+                    <td className="px-4 py-3 text-sm text-right text-[var(--danger)]">-{fmtKRW(item.deductionsTotal)}</td>
+                    <td className="px-4 py-3 text-sm text-right font-bold text-[var(--success)]">{fmtKRW(item.netPay)}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => downloadOne(item)} title="급여명세서 PDF 다운로드" className="px-2 py-1 text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg transition">
@@ -2811,7 +2811,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                         </button>
                         <button onClick={() => handleSendPayslips([item.employeeId])} disabled={sending}
                           title="이 직원에게만 메일로 명세서 발송 (비밀번호=생년월일)"
-                          className="px-2 py-1 text-[10px] font-semibold bg-green-500/10 text-green-500 hover:bg-green-500/20 rounded-lg transition disabled:opacity-50">
+                          className="px-2 py-1 text-[10px] font-semibold bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 rounded-lg transition disabled:opacity-50">
                           ✉ 발송
                         </button>
                       </div>
@@ -2825,10 +2825,10 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                           <span className="text-[10px] text-[var(--text-dim)] font-semibold">임의 수당/공제 ({(ev.extras || []).length}건)</span>
                           <button type="button"
                             onClick={() => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: [...(ev.extras || []), { type: 'allowance', name: '', amount: 0 }] } }))}
-                            className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20">+ 수당</button>
+                            className="text-[10px] px-2 py-0.5 rounded bg-[var(--info)]/10 text-[var(--info)] hover:bg-[var(--info)]/20">+ 수당</button>
                           <button type="button"
                             onClick={() => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: [...(ev.extras || []), { type: 'deduction', name: '', amount: 0 }] } }))}
-                            className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20">+ 공제</button>
+                            className="text-[10px] px-2 py-0.5 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20">+ 공제</button>
                         </div>
                         {(ev.extras || []).length > 0 && (
                           <div className="space-y-1">
@@ -2838,7 +2838,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                                   const next = [...(ev.extras || [])];
                                   next[idx] = { ...ex, type: e.target.value as 'allowance' | 'deduction' };
                                   setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: next } }));
-                                }} className={`text-[10px] px-2 py-1 rounded border ${ex.type === 'allowance' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
+                                }} className={`text-[10px] px-2 py-1 rounded border ${ex.type === 'allowance' ? 'bg-[var(--info)]/10 text-[var(--info)] border-[var(--info)]/30' : 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/30'}`}>
                                   <option value="allowance">수당</option>
                                   <option value="deduction">공제</option>
                                 </select>
@@ -2858,7 +2858,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                                 <button type="button" onClick={() => {
                                   const next = (ev.extras || []).filter((_, i) => i !== idx);
                                   setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: next } }));
-                                }} className="text-red-400/70 hover:text-red-400 text-xs">✕</button>
+                                }} className="text-[var(--danger)]/70 hover:text-[var(--danger)] text-xs">✕</button>
                               </div>
                             ))}
                           </div>
@@ -3215,9 +3215,9 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
               <div className="text-xs text-[var(--text-dim)]">{lt.label}</div>
               <div className="flex items-end gap-1.5 mt-1">
                 <span className="text-lg font-bold">{lt.defaultDays}일</span>
-                {lt.used > 0 && <span className="text-[10px] text-red-400 mb-0.5">-{lt.used}일 사용</span>}
+                {lt.used > 0 && <span className="text-[10px] text-[var(--danger)] mb-0.5">-{lt.used}일 사용</span>}
               </div>
-              {lt.pending > 0 && <div className="text-[10px] text-amber-500 mt-1">{lt.pending}건 대기</div>}
+              {lt.pending > 0 && <div className="text-[10px] text-[var(--warning)] mt-1">{lt.pending}건 대기</div>}
             </div>
           ))}
         </div>
@@ -3323,8 +3323,8 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
 
         {/* 아직 연차 미설정 직원 — 자동 부여 안내 (자동부여 모드 전용) */}
         {!isEmployee && grantMethod === "auto" && employeesWithoutBalance.length > 0 && (
-          <div className="mb-3 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
-            <div className="text-xs text-amber-600 font-medium mb-2">연차 미설정 {employeesWithoutBalance.length}명</div>
+          <div className="mb-3 bg-[var(--warning)]/5 border border-[var(--warning)]/20 rounded-xl p-3">
+            <div className="text-xs text-[var(--warning)] font-medium mb-2">연차 미설정 {employeesWithoutBalance.length}명</div>
             <div className="flex flex-wrap gap-2">
               {employeesWithoutBalance.map((e: any) => {
                 const calc = e.hire_date ? calculateAnnualLeave(e.hire_date, `${currentYear}-12-31`) : null;
@@ -3335,10 +3335,10 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                       if (e.hire_date) autoInitMut.mutate({ employeeId: e.id, hireDate: e.hire_date });
                       else initBalance.mutate({ employeeId: e.id, totalDays: 15 });
                     }}
-                    className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-amber-500/50 transition"
+                    className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-[var(--warning)]/50 transition"
                     title={calc ? calc.formula : "입사일 미등록 — 기본 15일"}
                   >
-                    {e.name} <span className="text-amber-600 font-semibold">{calc ? `${calc.totalDays}일` : "15일"}</span> 부여
+                    {e.name} <span className="text-[var(--warning)] font-semibold">{calc ? `${calc.totalDays}일` : "15일"}</span> 부여
                   </button>
                 );
               })}
@@ -3365,14 +3365,14 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                   <div className="text-xs text-[var(--text-dim)] mb-2 flex items-center gap-1">
                     {b.employees?.department || "미배정"}
                     {calc && (
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${underOneYear ? "bg-amber-500/10 text-amber-600" : "bg-blue-500/10 text-blue-500"}`}>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${underOneYear ? "bg-[var(--warning)]/10 text-[var(--warning)]" : "bg-[var(--info)]/10 text-[var(--info)]"}`}>
                         {underOneYear ? `1년미만 ${calc.monthsWorked}개월` : `${calc.yearsWorked}년차`}
                       </span>
                     )}
                   </div>
                   <div className="flex items-end gap-1 mb-2">
                     <span className={`text-xl font-bold ${
-                      remaining <= 0 ? "text-red-400" : remaining <= 3 ? "text-yellow-400" : "text-green-400"
+                      remaining <= 0 ? "text-[var(--danger)]" : remaining <= 3 ? "text-yellow-400" : "text-[var(--success)]"
                     }`}>
                       {remaining}
                     </span>
@@ -3416,7 +3416,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                   <div className="w-full h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        remaining <= 0 ? "bg-red-400" : remaining <= 3 ? "bg-yellow-400" : "bg-green-400"
+                        remaining <= 0 ? "bg-[var(--danger)]" : remaining <= 3 ? "bg-yellow-400" : "bg-[var(--success)]"
                       }`}
                       style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
                     />
@@ -3625,7 +3625,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                               <div className="text-xs font-medium truncate">{lbl.name}</div>
                               {lbl.sub && <div className="text-[10px] text-[var(--text-dim)] truncate">{lbl.sub}</div>}
                             </div>
-                            <button type="button" onClick={() => setForm({ ...form, ccUserIds: form.ccUserIds.filter((id) => id !== uid) })} className="text-[var(--text-dim)] hover:text-red-400 text-sm px-1">×</button>
+                            <button type="button" onClick={() => setForm({ ...form, ccUserIds: form.ccUserIds.filter((id) => id !== uid) })} className="text-[var(--text-dim)] hover:text-[var(--danger)] text-sm px-1">×</button>
                           </div>
                         );
                       })}
@@ -3643,7 +3643,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                           <button
                             type="button"
                             onClick={() => setForm({ ...form, approverSteps: form.approverSteps.filter((_, idx) => idx !== i) })}
-                            className="text-[10px] text-[var(--text-dim)] hover:text-red-400"
+                            className="text-[10px] text-[var(--text-dim)] hover:text-[var(--danger)]"
                           >
                             단계 삭제
                           </button>
@@ -3656,7 +3656,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                             <div className="text-xs font-medium truncate">{(memberLabel(stepId) as any).name}</div>
                             {(memberLabel(stepId) as any).sub && <div className="text-[10px] text-[var(--text-dim)] truncate">{(memberLabel(stepId) as any).sub}</div>}
                           </div>
-                          <button type="button" onClick={() => setForm({ ...form, approverSteps: form.approverSteps.map((s, idx) => idx === i ? "" : s) })} className="text-[var(--text-dim)] hover:text-red-400 text-sm px-1">×</button>
+                          <button type="button" onClick={() => setForm({ ...form, approverSteps: form.approverSteps.map((s, idx) => idx === i ? "" : s) })} className="text-[var(--text-dim)] hover:text-[var(--danger)] text-sm px-1">×</button>
                         </div>
                       ) : (
                         <select
@@ -3774,7 +3774,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                               const u = memberById[s.approver_id];
                               const nm = u?.name || u?.email || "구성원";
                               const mark = s.status === "approved" ? "✓" : s.status === "rejected" ? "✕" : "·";
-                              const cls = s.status === "approved" ? "text-green-400" : s.status === "rejected" ? "text-red-400" : "text-[var(--text-dim)]";
+                              const cls = s.status === "approved" ? "text-[var(--success)]" : s.status === "rejected" ? "text-[var(--danger)]" : "text-[var(--text-dim)]";
                               return <span key={i}><span className={cls}>{mark}</span> {i + 1}단계: {nm}</span>;
                             });
                           }
@@ -3810,13 +3810,13 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                             <>
                               <button
                                 onClick={() => approveMut.mutate(r.id)}
-                                className="text-[10px] px-2 py-1 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20"
+                                className="text-[10px] px-2 py-1 rounded bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20"
                               >
                                 {stageLabel}
                               </button>
                               <button
                                 onClick={() => rejectMut.mutate(r.id)}
-                                className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                                className="text-[10px] px-2 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20"
                               >
                                 반려
                               </button>
@@ -3872,7 +3872,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
               <div
                 key={d}
                 className={`text-center text-xs font-medium py-2 ${
-                  i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-[var(--text-dim)]"
+                  i === 0 ? "text-[var(--danger)]" : i === 6 ? "text-[var(--info)]" : "text-[var(--text-dim)]"
                 }`}
               >
                 {d}
@@ -3901,7 +3901,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                   }`}
                 >
                   <div className={`text-xs font-medium mb-1 ${
-                    isToday ? "text-[var(--primary)] font-bold" : dow === 0 ? "text-red-400" : dow === 6 ? "text-blue-400" : "text-[var(--text-muted)]"
+                    isToday ? "text-[var(--primary)] font-bold" : dow === 0 ? "text-[var(--danger)]" : dow === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
                   }`}>
                     {day}
                   </div>
@@ -3957,11 +3957,11 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                       <td className="px-2 py-2.5 text-xs text-center font-semibold">{b.total_days}</td>
                       {monthUsage.map((u, i) => (
                         <td key={i} className="px-2 py-2.5 text-center">
-                          {u > 0 ? <span className="text-xs font-semibold text-red-400">{u}</span> : <span className="text-[10px] text-[var(--border)]">-</span>}
+                          {u > 0 ? <span className="text-xs font-semibold text-[var(--danger)]">{u}</span> : <span className="text-[10px] text-[var(--border)]">-</span>}
                         </td>
                       ))}
-                      <td className="px-2 py-2.5 text-xs text-center font-bold text-red-400">{totalUsed > 0 ? totalUsed : "-"}</td>
-                      <td className={`px-2 py-2.5 text-xs text-center font-bold ${remaining <= 0 ? "text-red-400" : remaining <= 3 ? "text-yellow-400" : "text-green-400"}`}>{remaining}</td>
+                      <td className="px-2 py-2.5 text-xs text-center font-bold text-[var(--danger)]">{totalUsed > 0 ? totalUsed : "-"}</td>
+                      <td className={`px-2 py-2.5 text-xs text-center font-bold ${remaining <= 0 ? "text-[var(--danger)]" : remaining <= 3 ? "text-yellow-400" : "text-[var(--success)]"}`}>{remaining}</td>
                     </tr>
                   );
                 })}
@@ -4027,7 +4027,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                                   unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
                                 })}
                                 disabled={!c.email || sendPromotion.isPending}
-                                className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 disabled:opacity-50"
+                                className="text-[10px] px-2 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 disabled:opacity-50"
                               >
                                 2차
                               </button>
@@ -4059,7 +4059,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                         <tr key={n.id} className="border-b border-[var(--border)]/50">
                           <td className="px-5 py-2.5 text-sm">{n.employees?.name || "—"}</td>
                           <td className="px-5 py-2.5 text-center">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${n.notice_type === 'first' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-red-500/10 text-red-400'}`}>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${n.notice_type === 'first' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-[var(--danger)]/10 text-[var(--danger)]'}`}>
                               {n.notice_type === "first" ? "1차" : "2차"}
                             </span>
                           </td>
@@ -4274,7 +4274,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
                   <td className="px-5 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
                       log.certificate_type === "재직증명서"
-                        ? "bg-blue-500/10 text-blue-400"
+                        ? "bg-[var(--info)]/10 text-[var(--info)]"
                         : "bg-purple-500/10 text-purple-400"
                     }`}>
                       {log.certificate_type}
@@ -4362,9 +4362,9 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
   };
 
   const STATUS_META: Record<Status, { label: string; bg: string; text: string }> = {
-    pending: { label: "미제출", bg: "bg-red-500/10", text: "text-red-400" },
-    submitted: { label: "제출완료", bg: "bg-blue-500/10", text: "text-blue-400" },
-    reviewed: { label: "검토완료", bg: "bg-green-500/10", text: "text-green-400" },
+    pending: { label: "미제출", bg: "bg-[var(--danger)]/10", text: "text-[var(--danger)]" },
+    submitted: { label: "제출완료", bg: "bg-[var(--info)]/10", text: "text-[var(--info)]" },
+    reviewed: { label: "검토완료", bg: "bg-[var(--success)]/10", text: "text-[var(--success)]" },
   };
 
   return (
@@ -4384,7 +4384,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
           <a href="https://www.hometax.go.kr" target="_blank" rel="noopener noreferrer" className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
             홈택스 열기 ↗
           </a>
-          <button onClick={sendReminderToAll} className="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-xl text-xs font-semibold transition border border-amber-500/30">
+          <button onClick={sendReminderToAll} className="px-3 py-2 bg-[var(--warning)]/10 hover:bg-[var(--warning)]/20 text-amber-400 rounded-xl text-xs font-semibold transition border border-[var(--warning)]/30">
             전체 안내 발송
           </button>
         </div>
@@ -4397,13 +4397,13 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
           <span className="font-bold">{counts.submitted + counts.reviewed} / {employees.length}명 ({completedPct}%)</span>
         </div>
         <div className="h-2 bg-[var(--bg-surface)] rounded-full overflow-hidden flex">
-          <div className="bg-blue-500" style={{ width: `${(counts.submitted / total) * 100}%` }} />
-          <div className="bg-green-500" style={{ width: `${(counts.reviewed / total) * 100}%` }} />
+          <div className="bg-[var(--info)]" style={{ width: `${(counts.submitted / total) * 100}%` }} />
+          <div className="bg-[var(--success)]" style={{ width: `${(counts.reviewed / total) * 100}%` }} />
         </div>
         <div className="flex gap-4 mt-2 text-[10px]">
-          <span className="text-red-400">미제출 {counts.pending}명</span>
-          <span className="text-blue-400">제출완료 {counts.submitted}명</span>
-          <span className="text-green-400">검토완료 {counts.reviewed}명</span>
+          <span className="text-[var(--danger)]">미제출 {counts.pending}명</span>
+          <span className="text-[var(--info)]">제출완료 {counts.submitted}명</span>
+          <span className="text-[var(--success)]">검토완료 {counts.reviewed}명</span>
         </div>
       </div>
 

@@ -607,12 +607,12 @@ function OurSignatureModal({
         </p>
 
         {companyInfo.seal_url && (
-          <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+          <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-[var(--success-dim)] border border-[var(--success)]/25">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={companyInfo.seal_url} alt="기본 직인" className="w-12 h-12 object-contain bg-white rounded" />
-            <div className="flex-1 text-[11px] text-emerald-900">
+            <div className="flex-1 text-[11px] text-[var(--success)]">
               <div className="font-semibold">회사 기본 직인 등록됨</div>
-              <div className="text-emerald-700">한 번 클릭으로 자동 적용</div>
+              <div>한 번 클릭으로 자동 적용</div>
             </div>
             <button
               type="button"
@@ -632,11 +632,11 @@ function OurSignatureModal({
           onChange={(m, u) => { setUsingDefaultSeal(false); onCapture(m, u); }}
         />
 
-        {errMsg && <div className="mt-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">{errMsg}</div>}
+        {errMsg && <div className="mt-3 px-3 py-2 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/25 text-xs text-[var(--danger)]">{errMsg}</div>}
 
-        <div className="mt-5 flex gap-2 justify-end pt-3 border-t border-gray-200">
+        <div className="mt-5 flex gap-2 justify-end pt-3 border-t border-[var(--border)]">
           <button type="button" onClick={onClose} disabled={submitting}
-            className="px-4 py-2 rounded-lg text-xs text-gray-600 hover:text-gray-900 transition">취소</button>
+            className="px-4 py-2 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">취소</button>
           <button
             type="button"
             onClick={onSubmit}

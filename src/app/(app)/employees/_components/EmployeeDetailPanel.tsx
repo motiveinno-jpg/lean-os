@@ -140,7 +140,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
               </button>
             )}
             {emp.status !== "inactive" && emp.status !== "resigned" && (
-              <button onClick={() => setShowTermModal(true)} className="px-3 py-1.5 text-[11px] font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition">
+              <button onClick={() => setShowTermModal(true)} className="px-3 py-1.5 text-[11px] font-semibold text-[var(--danger)] bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 rounded-lg transition">
                 퇴사 처리
               </button>
             )}
@@ -369,7 +369,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                       </div>
                       <div>
                         <div className="caption mb-0.5">수급 자격</div>
-                        <div className={`font-medium ${retCalcResult.eligible ? "text-green-400" : "text-amber-500"}`}>
+                        <div className={`font-medium ${retCalcResult.eligible ? "text-[var(--success)]" : "text-[var(--warning)]"}`}>
                           {retCalcResult.eligible ? "해당 (1년 이상)" : "미해당 (1년 미만)"}
                         </div>
                       </div>
@@ -431,9 +431,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                       {empPackages.map((p: any) => {
                         const PKG_STATUS: Record<string, { label: string; color: string }> = {
                           draft: { label: "임시저장", color: "text-gray-400 bg-gray-500/10" },
-                          sent: { label: "발송됨", color: "text-blue-400 bg-blue-500/10" },
-                          partially_signed: { label: "일부 서명", color: "text-amber-500 bg-amber-500/10" },
-                          completed: { label: "서명 완료", color: "text-green-400 bg-green-500/10" },
+                          sent: { label: "발송됨", color: "text-[var(--info)] bg-[var(--info)]/10" },
+                          partially_signed: { label: "일부 서명", color: "text-[var(--warning)] bg-[var(--warning)]/10" },
+                          completed: { label: "서명 완료", color: "text-[var(--success)] bg-[var(--success)]/10" },
                           cancelled: { label: "취소", color: "text-gray-400 bg-gray-500/10" },
                         };
                         const st = PKG_STATUS[p.status] || PKG_STATUS.draft;
@@ -474,7 +474,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                             <div className="text-xs font-medium truncate">{c.contract_type === "regular" ? "정규직 근로계약서" : c.contract_type === "contract" ? "계약직 근로계약서" : c.contract_type || "근로계약서"}</div>
                             <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{c.start_date}{c.end_date ? ` ~ ${c.end_date}` : " ~ 현재"}</div>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${c.status === "active" ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"}`}>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${c.status === "active" ? "bg-[var(--success)]/10 text-[var(--success)]" : "bg-gray-500/10 text-gray-400"}`}>
                             {c.status === "active" ? "유효" : "종료"}
                           </span>
                         </div>
@@ -531,11 +531,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                 </div>
                 <div className="glass-card p-3 text-center">
                   <div className="caption">사용</div>
-                  <div className="text-lg font-bold text-red-400 mt-0.5">{empLeaveBalance.used_days}일</div>
+                  <div className="text-lg font-bold text-[var(--danger)] mt-0.5">{empLeaveBalance.used_days}일</div>
                 </div>
                 <div className="glass-card p-3 text-center">
                   <div className="caption">잔여</div>
-                  <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? empLeaveBalance.total_days - empLeaveBalance.used_days) <= 3 ? "text-yellow-400" : "text-green-400"}`}>
+                  <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? empLeaveBalance.total_days - empLeaveBalance.used_days) <= 3 ? "text-yellow-400" : "text-[var(--success)]"}`}>
                     {empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days - empLeaveBalance.used_days)}일
                   </div>
                 </div>
@@ -573,9 +573,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                   {empLeaveRequests.slice(0, 10).map((r: any) => {
                     const typeLabel = LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
                     const statusColors: Record<string, string> = {
-                      pending: "text-amber-500 bg-amber-500/10",
-                      approved: "text-green-400 bg-green-500/10",
-                      rejected: "text-red-400 bg-red-500/10",
+                      pending: "text-[var(--warning)] bg-[var(--warning)]/10",
+                      approved: "text-[var(--success)] bg-[var(--success)]/10",
+                      rejected: "text-[var(--danger)] bg-[var(--danger)]/10",
                     };
                     return (
                       <div key={r.id} className="flex items-center justify-between px-4 py-2.5 glass-card">
@@ -665,7 +665,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div><span className="text-[var(--text-dim)]">재직일수:</span> <span className="font-medium">{retCalc.totalDays}일</span></div>
                       <div><span className="text-[var(--text-dim)]">1일 평균임금:</span> <span className="font-medium">₩{retCalc.dailyAvgWage.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}</span></div>
-                      <div><span className="text-[var(--text-dim)]">수급 자격:</span> <span className={`font-medium ${retCalc.eligible ? "text-green-400" : "text-red-400"}`}>{retCalc.eligible ? "해당" : "미해당 (1년 미만)"}</span></div>
+                      <div><span className="text-[var(--text-dim)]">수급 자격:</span> <span className={`font-medium ${retCalc.eligible ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{retCalc.eligible ? "해당" : "미해당 (1년 미만)"}</span></div>
                       <div><span className="text-[var(--text-dim)]">예상 퇴직금:</span> <span className="font-bold">₩{retCalc.retirementPay.toLocaleString("ko-KR")}</span></div>
                     </div>
                   </div>
@@ -712,7 +712,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                 <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3">
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="text-xs font-semibold text-[var(--text-muted)]">4대보험 상실신고 EDI</div>
-                    {ediGenerated && <span className="text-[10px] text-green-400 font-medium">생성 완료</span>}
+                    {ediGenerated && <span className="text-[10px] text-[var(--success)] font-medium">생성 완료</span>}
                   </div>
                   <p className="text-[10px] text-[var(--text-dim)] mb-2">국민연금, 건강보험, 고용보험, 산재보험 상실신고 EDI 파일 4건을 일괄 생성합니다.</p>
                   <button
@@ -887,7 +887,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
           </div>
           <span className="text-xs font-bold text-[var(--primary)]">{completedCount}/{items.length}</span>
           {requiredCompleted === requiredCount && (
-            <span className="text-[10px] px-2 py-0.5 bg-green-500/10 text-green-400 rounded-full font-medium">필수 완료</span>
+            <span className="text-[10px] px-2 py-0.5 bg-[var(--success)]/10 text-[var(--success)] rounded-full font-medium">필수 완료</span>
           )}
         </div>
       </div>
@@ -895,7 +895,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
       {/* Document checklist */}
       <div className="space-y-2">
         {items.map((item) => (
-          <div key={item.key} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition ${item.completed ? "bg-green-500/5 border-green-500/20" : "bg-[var(--bg-card)] border-[var(--border)]"}`}>
+          <div key={item.key} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition ${item.completed ? "bg-[var(--success)]/5 border-[var(--success)]/20" : "bg-[var(--bg-card)] border-[var(--border)]"}`}>
             {/* Checkbox */}
             <input
               type="checkbox"
@@ -914,7 +914,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
                   <span className="text-[9px] px-1.5 py-0.5 bg-gray-500/10 text-[var(--text-dim)] rounded-full">선택</span>
                 )}
                 {item.autoGen && (
-                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded-full font-medium">자동생성</span>
+                  <span className="text-[9px] px-1.5 py-0.5 bg-[var(--info)]/10 text-[var(--info)] rounded-full font-medium">자동생성</span>
                 )}
               </div>
               {item.uploadedAt && (

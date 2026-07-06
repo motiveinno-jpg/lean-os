@@ -738,7 +738,7 @@ export default function BoardPage() {
                         onClick={() =>
                           setPollOptions((o) => o.filter((_, idx) => idx !== i))
                         }
-                        className="px-2 text-[var(--text-dim)] hover:text-red-400"
+                        className="px-2 text-[var(--text-dim)] hover:text-[var(--danger)]"
                       >
                         ×
                       </button>
@@ -906,17 +906,17 @@ export default function BoardPage() {
                         </span>
                       )}
                       {p.event_date && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 font-semibold">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--info-dim)] text-[var(--info)] font-semibold">
                           📅 {new Date(p.event_date).toLocaleDateString("ko-KR")}
                         </span>
                       )}
                       {p.poll_question && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-500 font-semibold">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
                           🗳️ 투표
                         </span>
                       )}
                       {(p.attachments?.length ?? 0) > 0 && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-semibold">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">
                           📎 {p.attachments!.length}
                         </span>
                       )}
@@ -950,7 +950,7 @@ export default function BoardPage() {
 
                     {/* 일정 표시 */}
                     {p.event_date && (
-                      <div className="mt-3 flex items-center gap-2 text-xs px-3 py-2 rounded-lg bg-blue-500/5 text-blue-500">
+                      <div className="mt-3 flex items-center gap-2 text-xs px-3 py-2 rounded-lg bg-[var(--info-dim)] text-[var(--info)]">
                         <span>📅</span>
                         <span className="font-semibold">
                           일정: {new Date(p.event_date).toLocaleDateString("ko-KR")}
@@ -970,7 +970,7 @@ export default function BoardPage() {
                               className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                                 expired
                                   ? "bg-[var(--text-dim)]/15 text-[var(--text-dim)]"
-                                  : "bg-amber-500/10 text-amber-500"
+                                  : "bg-[var(--warning-dim)] text-[var(--warning)]"
                               }`}
                             >
                               {expired ? "투표 마감" : label}
@@ -1124,7 +1124,7 @@ export default function BoardPage() {
                               if (confirm("이 글을 삭제하시겠습니까?"))
                                 delPost.mutate(p.id);
                             }}
-                            className="text-xs px-3 py-1.5 text-red-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition"
+                            className="text-xs px-3 py-1.5 text-[var(--danger)] rounded-lg hover:bg-[var(--danger-dim)] transition"
                           >
                             삭제
                           </button>
@@ -1188,7 +1188,7 @@ export default function BoardPage() {
                                 {(mine(c.author_id) || canPin) && (
                                   <button
                                     onClick={() => delComment.mutate(c.id)}
-                                    className="text-[var(--text-dim)] hover:text-red-400 text-xs shrink-0 mt-1"
+                                    className="text-[var(--text-dim)] hover:text-[var(--danger)] text-xs shrink-0 mt-1"
                                   >
                                     ×
                                   </button>
@@ -1212,7 +1212,7 @@ export default function BoardPage() {
                                       {(mine(r.author_id) || canPin) && (
                                         <button
                                           onClick={() => delComment.mutate(r.id)}
-                                          className="text-[var(--text-dim)] hover:text-red-400 text-xs shrink-0 mt-1"
+                                          className="text-[var(--text-dim)] hover:text-[var(--danger)] text-xs shrink-0 mt-1"
                                         >
                                           ×
                                         </button>
