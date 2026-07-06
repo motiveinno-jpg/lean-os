@@ -141,9 +141,9 @@ function KpiSection({ data }: { data: Summary }) {
 
 function KpiCard({ label, value, sub, subColor }: { label: string; value: string; sub: string; subColor?: string }) {
   return (
-    <div className="glass-card p-5 flex flex-col gap-1">
-      <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
-      <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{value}</span>
+    <div className="stat-tile">
+      <span className="stat-tile-label">{label}</span>
+      <span className="stat-tile-value mono-number">{value}</span>
       <span className={`text-[11px] mt-0.5 ${subColor || "text-[var(--text-dim)]"}`}>{sub}</span>
     </div>
   );

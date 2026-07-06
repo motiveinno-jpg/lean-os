@@ -33,14 +33,14 @@ const LENSES: { key: Lens; label: string }[] = [
 
 // 수입원/지출 구성 색 (비목 중립 — 동등 표시)
 const INCOME_PARTS = [
-  { key: "salesRevenue", label: "매출", color: "#6366f1" },
-  { key: "subsidies", label: "보조금", color: "#10b981" },
-  { key: "ownerInjection", label: "대표 가수금", color: "#f59e0b" },
-  { key: "otherIncome", label: "기타", color: "#94a3b8" },
+  { key: "salesRevenue", label: "매출", color: "var(--primary)" },
+  { key: "subsidies", label: "보조금", color: "var(--success)" },
+  { key: "ownerInjection", label: "대표 가수금", color: "var(--warning)" },
+  { key: "otherIncome", label: "기타", color: "var(--text-dim)" },
 ] as const;
 const EXPENSE_PARTS = [
-  { key: "fixedCosts", label: "고정비", color: "#f97316" },
-  { key: "variableCosts", label: "변동비", color: "#ec4899" },
+  { key: "fixedCosts", label: "고정비", color: "var(--warning)" },
+  { key: "variableCosts", label: "변동비", color: "#ec4899" }, // 장식용 고유색 — 고정비(--warning)와 구분 유지
 ] as const;
 
 const BAR_H = 96;

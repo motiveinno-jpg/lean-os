@@ -103,7 +103,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {(forms as ApprovalForm[]).map((f) => (
-            <div key={f.id} className="group rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 hover:border-[var(--primary)]/40 hover:shadow-md transition">
+            <div key={f.id} className="glass-card group p-4 hover:border-[var(--primary)]/40 hover:shadow-md transition">
               <div className="flex items-start gap-3">
                 <span className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -135,7 +135,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       {/* 빌더 모달 */}
       {editing && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditing(null)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2.5 mb-4">
               <span className="w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>

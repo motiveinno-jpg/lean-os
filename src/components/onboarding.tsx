@@ -350,8 +350,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   if (loading) {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div className="w-full max-w-[600px] mx-4 rounded-2xl shadow-lg p-10 text-center"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+        <div className="glass-card w-full max-w-[600px] mx-4 p-10 text-center">
           <div className="animate-spin w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full mx-auto mb-3" />
           <p className="text-sm text-[var(--text-muted)]">설정 상태를 확인하는 중...</p>
         </div>
@@ -362,8 +361,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleDismiss}>
       <div
-        className="w-full max-w-[600px] mx-4 rounded-2xl shadow-lg overflow-hidden relative"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}
+        className="glass-card w-full max-w-[600px] mx-4 overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 닫기 버튼 */}

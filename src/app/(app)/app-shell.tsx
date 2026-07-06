@@ -69,7 +69,7 @@ function MobileBottomNav() {
   return (
     // P0-D: 모바일 첫진입 발견성 — 라벨 10px→12px(text-xs) 가독성 회복,
     //   탭 높이 56→60px 로 살짝 키워 손가락 타깃 + 라벨 균형 확보.
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-card)] border-t border-[var(--border)] safe-area-bottom" style={{ boxShadow: "0 -1px 8px rgba(0,0,0,0.06)" }}>
+    <nav className="chrome-glass md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)]/60 safe-area-bottom" style={{ boxShadow: "0 -4px 16px rgba(0,0,0,0.06)" }}>
       <div className="flex items-center justify-around h-[60px] px-1">
         {tabs.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(tab.href + "/");
@@ -294,7 +294,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <Sidebar />
       {/* 라운드6.5 TeamHub 헤더바 — 좌: 브레드크럼+타이틀 / 우: 검색 필·알림 벨·도움말·프로필 칩 */}
       <header
-        className={`fixed top-0 right-0 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b border-[var(--border)]/60 bg-[var(--bg)]/85 backdrop-blur-md transition-[left] duration-200 ${
+        className={`chrome-glass fixed top-0 right-0 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b border-[var(--border)]/60 transition-[left] duration-200 ${
           collapsed ? "md:left-[68px]" : "md:left-60"
         } left-0`}
       >

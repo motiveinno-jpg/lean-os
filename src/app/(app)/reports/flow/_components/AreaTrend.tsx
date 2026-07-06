@@ -91,7 +91,7 @@ export function AreaTrend({
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
           <defs>
             <linearGradient id={`at-${gid}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={accent} stopOpacity="0.30" />
+              <stop offset="0%" stopColor={accent} stopOpacity="0.12" />
               <stop offset="100%" stopColor={accent} stopOpacity="0" />
             </linearGradient>
           </defs>
@@ -102,7 +102,7 @@ export function AreaTrend({
             <line x1={X(markerIndex)} y1="0" x2={X(markerIndex)} y2="100" stroke="var(--text-dim)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" opacity={0.55} />
           )}
           <path d={area} fill={`url(#at-${gid})`} />
-          <path d={line} fill="none" stroke={accent} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+          <path d={line} fill="none" stroke={accent} strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
         </svg>
         {coords.map((c, i) => {
           const isMarker = i === markerIndex;

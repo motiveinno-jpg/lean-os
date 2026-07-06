@@ -68,7 +68,7 @@ export function MenuGuide() {
           {/* 바깥 클릭 닫기 */}
           <div className="fixed inset-0 z-[998]" onClick={() => setOpen(false)} />
           <div
-            className="fixed z-[999] w-[min(92vw,360px)] max-h-[70vh] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] animate-[slide-in_0.15s_ease]"
+            className="glass-card fixed z-[999] w-[min(92vw,360px)] max-h-[70vh] overflow-y-auto animate-[slide-in_0.15s_ease]"
             style={{ top: pos.top, right: pos.right, boxShadow: "var(--shadow-lg, 0 12px 32px rgba(0,0,0,0.18))" }}
           >
             {/* 헤더 */}

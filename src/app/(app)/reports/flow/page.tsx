@@ -49,7 +49,7 @@ function thisMonth(): string {
 /* ── 6단계 정의 — 타임라인 노드 + 카드 액센트가 같은 소스를 공유 ── */
 const FLOW_STEPS = [
   { no: 1, title: "영업", accent: "var(--primary)" },
-  { no: 2, title: "매출", accent: "#6366f1" },
+  { no: 2, title: "매출", accent: "var(--info)" },
   { no: 3, title: "수금", accent: "var(--success)" },
   { no: 4, title: "비용", accent: "var(--warning)" },
   { no: 5, title: "손익 · 세금", accent: "var(--primary)" },
@@ -459,7 +459,7 @@ export default function BusinessFlowPage() {
           </StepCard>
 
           {/* ② 매출 */}
-          <StepCard no={2} title="매출" accent="#6366f1"
+          <StepCard no={2} title="매출" accent="var(--info)"
             links={[{ href: "/tax-invoices", label: "세금계산서" }]}>
             <Row label="매출 발행" value={`${monthInv?.salesCount ?? 0}건 · ₩${fmtKrw(monthInv?.salesTotal ?? 0)}`} bold />
             <Row label="공급가액" value={`₩${fmtKrw(monthInv?.salesSupply ?? 0)}`} />
@@ -528,7 +528,7 @@ export default function BusinessFlowPage() {
       </div>
 
       {/* Footer note */}
-      <div className="rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-surface)]/60 px-5 py-4 text-xs leading-relaxed text-[var(--text-dim)]">
+      <div className="glass-card px-5 py-4 text-xs leading-relaxed text-[var(--text-dim)]">
         <strong className="text-[var(--text-muted)]">숫자 기준</strong>
         <br />- 매출·부가세는 세금계산서(발행) 기준, 수금은 입금 매칭 확정 기준, 비용은 정기결제+카드+일회성 지출 기준입니다.
         <br />- 각 카드의 숫자는 해당 상세 화면(세금계산서·거래처 원장·고정비/변동비·손익계산서)과 동일한 집계를 사용합니다.

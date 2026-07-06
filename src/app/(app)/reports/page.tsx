@@ -28,7 +28,7 @@ const CARDS: HubCard[] = [
     href: "/reports/flow",
     title: "경영 흐름",
     desc: "영업 → 매출 → 수금 → 비용 → 손익 → 세금 → 결산. 회사 돈의 흐름을 한 줄로 봅니다.",
-    accent: "#6366f1",
+    accent: "var(--primary)",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="5" cy="12" r="2.2" />
@@ -43,7 +43,7 @@ const CARDS: HubCard[] = [
     href: "/reports/bs",
     title: "재무상태표",
     desc: "회사가 가진 자산·부채·자본을 한눈에. 현재 회사의 재무 건강 상태를 봅니다.",
-    accent: "#3b82f6",
+    accent: "var(--info)",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <line x1="12" y1="20" x2="12" y2="10" />
@@ -56,7 +56,7 @@ const CARDS: HubCard[] = [
     href: "/reports/pnl",
     title: "손익계산서",
     desc: "월별 매출과 비용, 그리고 최종 이익/손실을 추이로 확인합니다.",
-    accent: "#10b981",
+    accent: "var(--success)",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
@@ -68,7 +68,7 @@ const CARDS: HubCard[] = [
     href: "/reports/costs",
     title: "고정비 · 변동비",
     desc: "매달 꼭 나가는 돈(고정비)과 그때그때 바뀌는 돈(변동비)을 분리해 봅니다.",
-    accent: "#f59e0b",
+    accent: "var(--warning)",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -113,7 +113,7 @@ export default function ReportsHubPage() {
           <Link
             key={c.href}
             href={c.href}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 no-underline transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--primary)] hover:shadow-lg hover:shadow-[var(--primary)]/5"
+            className="glass-card group relative flex flex-col overflow-hidden p-5 no-underline transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--primary)] hover:shadow-lg hover:shadow-[var(--primary)]/5"
           >
             {/* top accent glow */}
             <div

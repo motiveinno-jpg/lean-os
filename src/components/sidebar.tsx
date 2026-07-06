@@ -448,7 +448,7 @@ export function Sidebar() {
 
   const sidebarContent = (
     <aside
-      className={`${sidebarWidth} h-screen bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col transition-all duration-200 overflow-hidden`}
+      className={`chrome-glass ${sidebarWidth} h-screen border-r border-[var(--border)]/60 flex flex-col transition-all duration-200 overflow-hidden`}
       style={{ boxShadow: "var(--shadow-sm)" }}
     >
       {/* Logo — U1: 로고 클릭 → /dashboard */}
@@ -667,7 +667,7 @@ export function Sidebar() {
       >
         {/* Force expanded width on mobile */}
         <aside
-          className="w-60 h-screen bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col overflow-hidden"
+          className="chrome-glass w-60 h-screen border-r border-[var(--border)]/60 flex flex-col overflow-hidden"
           style={{ boxShadow: "var(--shadow-sm)" }}
         >
           {/* Mobile close button + Logo (U1: 로고 클릭 → /dashboard) */}

@@ -692,7 +692,7 @@ export default function QuoteApprovalPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-gray-50 py-8 px-4">
+    <main className="min-h-screen bg-[var(--bg)] py-8 px-4">
       <div className="max-w-2xl mx-auto">{children}</div>
       <p className="text-[10px] text-gray-400 text-center mt-8">
         Powered by OwnerView · 본 페이지는 안전한 1회용 링크로 보호됩니다

@@ -2912,22 +2912,6 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
     enabled: !!companyId && !!userId,
   });
 
-  // 이번 달 급여 (최근 payroll_items)
-  const { data: myPayroll } = useQuery({
-    queryKey: ["emp-payroll", employeeId],
-    queryFn: async () => {
-      const { data } = await db
-        .from("payroll_items")
-        .select("base_salary, deductions_total, net_pay, status, payment_batches!inner(name, created_at)")
-        .eq("employee_id", employeeId!)
-        .order("created_at", { ascending: false, referencedTable: "payment_batches" })
-        .limit(1)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!employeeId,
-  });
-
   // 알림
   const { data: notifications = [] } = useQuery({
     queryKey: ["emp-notifications", userId],
@@ -3181,7 +3165,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
                 </div>
                 <button
                   onClick={handleCancelCheckOut}
-                  className="px-4 py-3 rounded-xl bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 text-xs font-semibold transition"
+                  className="btn-secondary btn-sm"
                 >
                   퇴근 취소
                 </button>
@@ -3194,31 +3178,24 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
               <span>이번 달: 출근 <b className="text-[var(--text)]">{monthSummary.totalDays}일</b></span>
               <span>근무 <b className="text-[var(--text)]">{monthSummary.totalHours}h</b></span>
               {monthSummary.overtimeHours > 0 && (
-                <span>초과 <b className="text-orange-500">{monthSummary.overtimeHours}h</b></span>
+                <span>초과 <b className="text-[var(--warning)]">{monthSummary.overtimeHours}h</b></span>
               )}
             </div>
           )}
         </div>
 
-        {/* 처리 대기 4종 — 컬러 타일 */}
+        {/* 처리 대기 4종 — 라운드7.2: 파스텔 타일 → 오너 KPI 동일 언어(.stat-tile, 값 색은 의미 있을 때만) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {[
-            { href: "/approvals", label: "승인 대기", value: `${pendingCount}건`, badge: pendingCount, tint: "var(--warning)", dim: "var(--warning-dim)" },
-            { href: "/my-contracts", label: "서명 요청", value: `${signPending}건`, badge: signPending, tint: "var(--primary)", dim: "var(--primary-light)" },
-            { href: "/leave", label: "휴가 잔여", value: leaveBalance ? `${leaveBalance.remaining}일` : "—", sub: leaveBalance ? `${leaveBalance.total}일 중 ${leaveBalance.used}일 사용` : undefined, tint: "var(--info)", dim: "var(--info-dim)" },
-            { href: "/approvals?new=expense", label: "경비 청구", value: `${expenseCount}건`, badge: expenseCount, tint: "var(--success)", dim: "var(--success-dim)" },
+            { href: "/approvals", label: "승인 대기", value: `${pendingCount}건`, alert: pendingCount > 0, tint: "var(--warning)" },
+            { href: "/my-contracts", label: "서명 요청", value: `${signPending}건`, alert: signPending > 0, tint: "var(--primary)" },
+            { href: "/leave", label: "휴가 잔여", value: leaveBalance ? `${leaveBalance.remaining}일` : "—", sub: leaveBalance ? `${leaveBalance.total}일 중 ${leaveBalance.used}일 사용` : undefined, tint: "var(--info)" },
+            { href: "/approvals?new=expense", label: "경비 청구", value: `${expenseCount}건`, alert: expenseCount > 0, tint: "var(--success)" },
           ].map((t) => (
-            <Link key={t.label} href={t.href}
-              className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-3.5 active:scale-[0.98] transition hover:shadow-md group"
-              style={{ background: t.dim }}>
-              <div className="flex items-center justify-end mb-2 min-h-[18px]">
-                {!!t.badge && t.badge > 0 && (
-                  <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-white text-[10px] font-bold rounded-full" style={{ background: t.tint }}>{t.badge}</span>
-                )}
-              </div>
-              <div className="text-[11px] text-[var(--text-muted)] font-medium">{t.label}</div>
-              <div className="text-lg font-extrabold leading-tight" style={{ color: t.tint }}>{t.value}</div>
-              {t.sub && <div className="text-[9px] text-[var(--text-dim)] mt-0.5">{t.sub}</div>}
+            <Link key={t.label} href={t.href} className="stat-tile active:scale-[0.98] transition hover:shadow-md">
+              <span className="stat-tile-label">{t.label}</span>
+              <span className="stat-tile-value" style={t.alert ? { color: t.tint } : undefined}>{t.value}</span>
+              <span className="text-[10px] text-[var(--text-dim)] truncate min-h-[14px]">{t.sub || ""}</span>
             </Link>
           ))}
         </div>
@@ -3233,55 +3210,18 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
       {/* 전자결재 — QuickApprovalCard 컴포넌트로 단일 소스 통합(글자/이모지 정렬 일관) */}
       {companyId && userId && <QuickApprovalCard companyId={companyId} userId={userId} />}
 
-      {/* 이번 달 급여 */}
-      <div className="glass-card p-4 md:p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#6366f1]/15 text-sm">💰</span>
-            <span className="text-xs font-bold text-[var(--text)]">이번 달 급여</span>
-          </div>
-          {myPayroll && (
-            <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold ${
-              myPayroll.status === "paid" ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"
-            }`}>
-              {myPayroll.status === "paid" ? "지급 완료" : "처리 중"}
-            </span>
-          )}
-        </div>
-        {myPayroll ? (
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex-1 min-w-[150px] rounded-xl p-3.5 text-white" style={{ background: "var(--primary)" }}>
-              <div className="text-[10px] font-semibold text-white/70">실수령액</div>
-              <div className="text-2xl font-black leading-tight mono-number">{fmtWFull(myPayroll.net_pay)}</div>
-            </div>
-            <div className="flex gap-6">
-              <div>
-                <div className="caption mb-0.5">기본급</div>
-                <div className="text-sm font-bold">{fmtWFull(myPayroll.base_salary)}</div>
-              </div>
-              <div>
-                <div className="caption mb-0.5">공제</div>
-                <div className="text-sm font-bold text-red-400">-{fmtWFull(myPayroll.deductions_total)}</div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-xs text-[var(--text-muted)]">이번 달 급여 정보가 아직 없습니다. 지급일: 매월 25일</div>
-        )}
-      </div>
-
       {/* 공지/알림 */}
       {notifications.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse" />
             <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">알림</h2>
-            <span className="text-[10px] text-orange-500 font-bold">{notifications.length}건</span>
+            <span className="text-[10px] text-[var(--warning)] font-bold">{notifications.length}건</span>
           </div>
           <div className="glass-card divide-y divide-[var(--border)]">
             {notifications.map((n: any) => (
               <div key={n.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="text-base shrink-0">🔔</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs text-[var(--text)] font-medium truncate">{n.title}</div>
                   {n.message && <div className="text-[10px] text-[var(--text-muted)] truncate">{n.message}</div>}
@@ -3306,16 +3246,15 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { href: "/chat", icon: "💬", label: "팀 채팅", desc: "팀원들과 대화", tint: "#6366f1" },
-            { href: "/documents", icon: "📄", label: "문서/계약", desc: "서류 확인 및 서명", tint: "#0ea5e9" },
-            { href: "/approvals", icon: "📋", label: "결재함", desc: "결재 요청 관리", tint: "#f97316" },
-            { href: "/leave", icon: "🏖️", label: "휴가 신청", desc: "연차 및 휴가 관리", tint: "#10b981" },
+            { href: "/chat", icon: "💬", label: "팀 채팅", desc: "팀원들과 대화" },
+            { href: "/documents", icon: "📄", label: "문서/계약", desc: "서류 확인 및 서명" },
+            { href: "/approvals", icon: "📋", label: "결재함", desc: "결재 요청 관리" },
+            { href: "/leave", icon: "🏖️", label: "휴가 신청", desc: "연차 및 휴가 관리" },
           ].map(card => (
             <Link key={card.href} href={card.href}
-              className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-4 active:scale-[0.98] transition hover:shadow-md group touch-card"
-              style={{ background: `${card.tint}12` }}>
-              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-lg mb-2" style={{ background: `${card.tint}1f` }}>{card.icon}</div>
-              <div className="text-xs font-bold transition" style={{ color: card.tint }}>{card.label}</div>
+              className="glass-card p-4 active:scale-[0.98] transition hover:shadow-md group touch-card">
+              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-base mb-2 bg-[var(--bg-surface)]">{card.icon}</div>
+              <div className="text-xs font-bold text-[var(--text)] group-hover:text-[var(--primary)] transition">{card.label}</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
             </Link>
           ))}

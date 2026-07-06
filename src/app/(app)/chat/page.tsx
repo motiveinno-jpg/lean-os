@@ -285,7 +285,7 @@ function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean;
       <span className={`text-sm shrink-0 ${active ? "text-white/70" : "text-[var(--text-dim)]"}`}>{prefix}</span>
       <span className={`flex-1 truncate text-sm ${unread > 0 && !active ? "font-bold text-[var(--text)]" : "font-medium"}`}>{isDM ? (ch.dm_name || "1:1 대화") : ch.name}</span>
       {unread > 0 && (
-        <span className={`min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full px-1 shrink-0 ${active ? "bg-white/25 text-white" : "bg-red-500 text-white"}`}>
+        <span className={`min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full px-1 shrink-0 ${active ? "bg-white/25 text-white" : "bg-[var(--danger)] text-white"}`}>
           {unread > 99 ? "99+" : unread}
         </span>
       )}
@@ -406,13 +406,13 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   ];
 
   return (
-    <div className="flex rounded-2xl border border-[var(--border)] overflow-hidden bg-[var(--bg-card)]" style={{ height: "calc(100dvh - 104px)" }}>
+    <div className="glass-card flex overflow-hidden" style={{ height: "calc(100dvh - 104px)" }}>
       {/* ── 좌측 채널 사이드바 ── */}
       <aside className={`${selectedChannel ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40`}>
         <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">채널</span>
-            {totalUnread > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-red-500 text-white rounded-full font-bold">{totalUnread}</span>}
+            {totalUnread > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-[var(--danger)] text-white rounded-full font-bold">{totalUnread}</span>}
           </div>
           <button onClick={() => { setCreating("team"); }} title="새로 만들기"
             className="w-7 h-7 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center text-base leading-none hover:opacity-90 transition">+</button>

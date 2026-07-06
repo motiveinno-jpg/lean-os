@@ -13,11 +13,11 @@ import { AreaTrend, type TrendPoint } from "./AreaTrend";
 const won = (n: number) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}`;
 
 const RUNWAY_TONE: Record<string, { color: string; label: string }> = {
-  CRITICAL: { color: "#ef4444", label: "위급" },
-  DANGER: { color: "#ef4444", label: "위험" },
-  WARNING: { color: "#f59e0b", label: "주의" },
+  CRITICAL: { color: "var(--danger)", label: "위급" },
+  DANGER: { color: "var(--danger)", label: "위험" },
+  WARNING: { color: "var(--warning)", label: "주의" },
   STABLE: { color: "var(--text)", label: "안정" },
-  SAFE: { color: "#10b981", label: "여유" },
+  SAFE: { color: "var(--success)", label: "여유" },
 };
 
 function StatPill({ label, value, unit, sub, color }: { label: string; value: string; unit?: string; sub?: string; color: string }) {
@@ -56,7 +56,7 @@ export function CashPulseHeader({ companyId, userId }: { companyId: string; user
   const runway = calcRunwayMonths(pulse.currentBalance, 0, 0, pulse.monthlyBurn);
   const runwayTone = RUNWAY_TONE[getRunwayLevel(runway)] || RUNWAY_TONE.STABLE;
   const pulseLevel = getPulseLevel(pulse.pulseScore);
-  const pulseColor = pulseLevel === "critical" || pulseLevel === "danger" ? "#ef4444" : pulseLevel === "warning" ? "#f59e0b" : "#10b981";
+  const pulseColor = pulseLevel === "critical" || pulseLevel === "danger" ? "var(--danger)" : pulseLevel === "warning" ? "var(--warning)" : "var(--success)";
 
   // 자금부족 시점 — 잔액이 음수가 되는 첫 예측 포인트
   const shortfall = pulse.forecastPoints.find((p) => p.balance < 0);

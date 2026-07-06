@@ -51,13 +51,20 @@
   --fin-from: #111827;          /* 재무 숫자 그라데이션 텍스트 시작 */
   --fin-to: #374151;            /* 끝 */
   /* TeamHub 라운드: 글래스 → 솔리드 흰 카드 (토큰만 바꿔 전 화면 일괄 전환) */
-  --glass-bg: #FFFFFF;
-  --glass-border: #E5E8F0;
+  /* 라운드8 리퀴드글래스 — 카드=반투명 유리(블러 없음·성능), 크롬=진짜 블러 유리 */
+  --glass-bg: rgba(255,255,255,0.72);
+  --glass-border: rgba(255,255,255,0.75);
+  --glass-inner: rgba(255,255,255,0.9);       /* 유리 윗면 스펙큘러 */
+  --chrome-bg: rgba(255,255,255,0.62);        /* 헤더/사이드바/하단탭 — backdrop-blur 대상 */
+  --primary-soft: #6366F1;                    /* 그라데이션 필 끝색 */
+  --orb1: rgba(99,102,241,0.22);              /* 앰비언트 빛 — 사장님 확정 강도 */
+  --orb2: rgba(56,189,248,0.16);
+  --orb3: rgba(244,114,182,0.11);
   --page-from: #F2F4F9;
   --page-via: #F2F4F9;
-  --page-to: #F2F4F9;
+  --page-to: #E9EDFA;
   --shadow-glass: 0 20px 40px -12px rgba(0,0,0,0.08);
-  --radius-card: 18px;
+  --radius-card: 20px;
 }
 
 [data-theme="dark"] {
@@ -96,8 +103,14 @@
   --brand-info: #60A5FA;
   --fin-from: #FAFAFA;
   --fin-to: #A1A1AA;
-  --glass-bg: #18181B;
-  --glass-border: #3F3F46;
+  --glass-bg: rgba(26,26,34,0.62);
+  --glass-border: rgba(255,255,255,0.09);
+  --glass-inner: rgba(255,255,255,0.14);
+  --chrome-bg: rgba(16,16,24,0.60);
+  --primary-soft: #818CF8;
+  --orb1: rgba(99,102,241,0.20);
+  --orb2: rgba(14,165,233,0.11);
+  --orb3: rgba(217,70,146,0.08);
   --page-from: #0B0C10;
   --page-via: #0B0C10;
   --page-to: #0B0C10;
@@ -223,14 +236,18 @@ body {
 
 /* 2026-07-03 TeamHub 라운드 — .glass-card 를 솔리드 흰 라운드 카드로 재정의(블러 제거).
    109개 파일이 이 클래스를 쓰므로 정의 교체만으로 전 화면 일괄 전환. 토큰이 솔리드라 다크 자동 대응. */
+/* 라운드8 — 리퀴드글래스: 반투명 유리 + 윗면 스펙큘러 1px. backdrop-blur 는 의도적으로 미사용
+   (카드 뒤는 정적 캔버스뿐이라 반투명만으로 동일한 시각 — 300+ 카드에 GPU 비용 0). */
 .glass-card {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-card);
-  box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -16px rgba(16,24,40,0.08);
+  box-shadow: 0 8px 32px -10px rgba(31,38,75,0.13), 0 2px 8px -3px rgba(31,38,75,0.05),
+              inset 0 1px 0 var(--glass-inner);
 }
 [data-theme="dark"] .glass-card {
-  box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -14px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 32px -10px rgba(0,0,0,0.55), 0 2px 8px -3px rgba(0,0,0,0.4),
+              inset 0 1px 0 var(--glass-inner);
 }
 
 /* Card Hover */
@@ -551,7 +568,8 @@ input, textarea, [contenteditable="true"] {
   display: flex; flex-direction: column; gap: 0.25rem; padding: 1rem;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border); border-radius: var(--radius-card);
-  box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -16px rgba(16,24,40,0.08);
+  box-shadow: 0 8px 32px -10px rgba(31,38,75,0.13), 0 2px 8px -3px rgba(31,38,75,0.05),
+              inset 0 1px 0 var(--glass-inner);
 }
 .stat-tile-label { font-size: 11px; font-weight: 500; color: var(--text-dim); }
 .stat-tile-value { font-size: 1.25rem; line-height: 1.75rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
@@ -658,3 +676,44 @@ textarea.field-input { height: auto; min-height: 5rem; padding-top: 0.625rem; pa
 }
 .btn-danger-solid:hover:not(:disabled) { background: var(--critical); }
 .btn-danger-solid:disabled { opacity: 0.5; }
+
+/* ══════════════════════════════════════════════════════════════════
+   2026-07-06 라운드7.2 — 전 메뉴 통일성 패스
+   글자 최소 크기 바닥: text-[8px]/text-[9px] 초소형(219곳)이 가독성을 해침 →
+   전역 10px 로 상향. 개별 파일 수정 없이 일괄 적용(레이아웃 영향 ±1px).
+   ══════════════════════════════════════════════════════════════════ */
+[class*="text-[8px]"], [class*="text-[9px]"] { font-size: 10px !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   2026-07-06 라운드8 — 리퀴드글래스 재질 전환 (사장님 확정 스펙)
+   색을 면으로 칠하지 않고 빛으로: 캔버스 뒤 앰비언트 오브(22/16/11%) 가 반투명
+   유리 카드를 투과한다. 오브는 radial-gradient 라 GPU filter 비용 0.
+   landing(.landing-root 불투명 배경)은 자연 차폐, 인쇄는 숨김.
+   ══════════════════════════════════════════════════════════════════ */
+body::before {
+  content: "";
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(620px 620px at -4% -8%, var(--orb1), transparent 70%),
+    radial-gradient(520px 520px at 104% 38%, var(--orb2), transparent 70%),
+    radial-gradient(460px 460px at 34% 108%, var(--orb3), transparent 70%),
+    linear-gradient(160deg, var(--page-from), var(--page-to));
+}
+@media print { body::before { display: none; } }
+
+/* 크롬 유리 — 콘텐츠가 밑으로 스크롤되는 층(헤더·사이드바·모바일 하단탭·드로어)에만 진짜 블러 */
+.chrome-glass {
+  background: var(--chrome-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+}
+@supports (not (backdrop-filter: blur(1px))) and (not (-webkit-backdrop-filter: blur(1px))) {
+  .chrome-glass { background: var(--bg-card); }
+}
+
+/* 주 액션 — 인디고 그라데이션 필 (평면 단색 → 깊이) */
+.btn-primary, .seg-item-active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-soft));
+}
+.btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, var(--primary-hover), var(--primary)); }
+.seg-item-active { box-shadow: 0 3px 10px -3px color-mix(in srgb, var(--primary) 55%, transparent); }
