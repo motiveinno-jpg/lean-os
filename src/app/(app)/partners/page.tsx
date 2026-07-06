@@ -1332,7 +1332,7 @@ export default function PartnersPage() {
                       <tbody>
                         {partnerDocs.map((doc: any) => (
                           <tr key={doc.id} className="border-b border-[var(--border)]/30">
-                            <td className="px-4 py-2.5 text-sm font-medium">{doc.title || "—"}</td>
+                            <td className="px-4 py-2.5 text-sm font-medium">{doc.name || "—"}</td>
                             <td className="px-4 py-2.5 text-center">
                               <span className={`text-xs px-2 py-0.5 rounded-full ${
                                 doc.status === "approved" || doc.status === "signed" ? "bg-green-500/10 text-green-400"

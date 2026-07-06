@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { openStoredFile } from "@/lib/file-storage";
 
 // ── Types ──
 interface FileItem {
@@ -120,11 +121,13 @@ export function FileList({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // ── Handle download ──
+  // private 전환된 버킷(document-files 등)은 저장된 public URL 이 400/403 → 클릭 시점에
+  // storage_path 로 signed URL 재발급(openStoredFile). 폴더·전체·검색 모든 목록 경로 공통 수정. (2026-07-06 QA)
   function handleDownload(file: FileItem) {
     if (onDownload) {
       onDownload(file);
     } else {
-      window.open(file.file_url, "_blank");
+      void openStoredFile(file.file_url);
     }
   }
 

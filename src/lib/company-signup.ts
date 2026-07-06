@@ -107,7 +107,9 @@ export async function createCompanyWithOwner(
   }
 
   await db.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });
-  await createTrialingSubscription(companyId, "starter", 14);
+  // 트라이얼은 활성 'free'(이름 "14일 무료체험") 플랜으로 — 'starter' 는 비활성이라
+  //   billing 요금제 탭에서 현재플랜 뱃지·사용량 한도가 매칭 안 됐음 (2026-07-06 QA)
+  await createTrialingSubscription(companyId, "free", 14);
   return { ok: true };
 }
 

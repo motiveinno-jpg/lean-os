@@ -339,9 +339,10 @@ export default function CardsPage() {
   const currentSpend = perCard.sums[currentCardKey] || 0;
 
   const totalUsage = monthTx.reduce((s: number, t: any) => s + Math.abs(Number(t.amount || 0)), 0);
-  const activeCards = cards.filter((c: any) => !c.status || c.status === "active").length;
-  const hasLimits = cards.some((c: any) => Number(c.credit_limit || 0) > 0);
-  const totalLimit = hasLimits ? cards.reduce((s: number, c: any) => s + Number(c.credit_limit || 0), 0) : 0;
+  // corporate_cards 실제 컬럼은 is_active / monthly_limit (credit_limit·status 는 없음 — 2026-07-06 QA)
+  const activeCards = cards.filter((c: any) => c.is_active !== false).length;
+  const hasLimits = cards.some((c: any) => Number(c.monthly_limit || 0) > 0);
+  const totalLimit = hasLimits ? cards.reduce((s: number, c: any) => s + Number(c.monthly_limit || 0), 0) : 0;
 
   // 거래내역 검색 클라이언트 필터
   const filteredTx = recentTx.filter((tx: any) => {
@@ -953,7 +954,7 @@ function BigCard({ card }: { card: any | null }) {
 
 function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; monthSpend: number; showBalance: boolean; onToggle: () => void }) {
   if (!card) return null;
-  const limit = Number(card.credit_limit || 0);
+  const limit = Number(card.monthly_limit || 0);
   const remaining = Math.max(0, limit - monthSpend);
   const pct = limit > 0 ? Math.min(100, (monthSpend / limit) * 100) : 0;
 

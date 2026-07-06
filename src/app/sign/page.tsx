@@ -1196,7 +1196,7 @@ function SignContent() {
             {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
               /^\s*</.test(String(content.body)) ? (
                 // 서명 완료 상태 — 저장된 signer_inputs 로 ☑/☐ 정적 합성(편집 불가).
-                <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs)) }} />
+                <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs))) }} />
               ) : (
                 <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                   {stripSignatureBlock(String(content.body))}

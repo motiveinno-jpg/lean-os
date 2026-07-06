@@ -134,19 +134,19 @@ export default function CompanySetupPage() {
             )}
 
             {joinPrompt && (
-              <div className="mb-4 p-4 rounded-xl bg-blue-50 border border-blue-200">
-                <p className="text-sm font-semibold text-blue-900 mb-1">이미 오너뷰에 등록된 회사입니다 — <b>{joinPrompt}</b></p>
-                <p className="text-xs text-blue-800 leading-relaxed mb-3">
+              <div className="mb-4 p-4 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/25">
+                <p className="text-sm font-semibold text-[var(--info)] mb-1">이미 오너뷰에 등록된 회사입니다 — <b>{joinPrompt}</b></p>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
                   회사를 새로 만들 수 없습니다. 이 회사의 대표/관리자에게 <b>합류 요청</b>을 보내고, 승인되면 회사 페이지를 함께 사용합니다.
                   (초대 링크를 받았다면 그 링크로 합류하는 것이 가장 빠릅니다)
                 </p>
                 <div className="flex gap-2">
                   <button type="button" onClick={sendJoin} disabled={loading}
-                    className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition disabled:opacity-50">
+                    className="flex-1 py-2.5 bg-[var(--info)] hover:opacity-90 text-white rounded-lg font-semibold text-xs transition disabled:opacity-50">
                     {loading ? "처리 중..." : "합류 요청 보내기"}
                   </button>
                   <button type="button" onClick={() => { setJoinPrompt(null); setBizNo(""); }}
-                    className="px-3 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-lg font-semibold text-xs transition hover:bg-blue-50">
+                    className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--info)]/30 text-[var(--info)] rounded-lg font-semibold text-xs transition hover:bg-[var(--info-dim)]">
                     번호 다시 입력
                   </button>
                 </div>

@@ -702,7 +702,8 @@ export default function LoansPage() {
                 try {
                   const results = await autoMatchLoanPayments(companyId);
                   setMatchCandidates(results);
-                } catch { /* ignore */ }
+                  if (results.length === 0) toast("매칭할 상환 후보를 찾지 못했습니다", "info");
+                } catch (e: any) { toast("자동 매칭 실패: " + friendlyError(e, "알 수 없는 오류"), "error"); }
                 setMatchLoading(false);
               }}
               disabled={matchLoading}
@@ -778,7 +779,8 @@ export default function LoansPage() {
                                   await acceptLoanMatch(candidate);
                                   setMatchCandidates(prev => prev.filter(c => c.transaction.id !== candidate.transaction.id));
                                   invalidate();
-                                } catch { /* ignore */ }
+                                  toast("상환 매칭이 반영되었습니다", "success");
+                                } catch (e: any) { toast("매칭 반영 실패: " + friendlyError(e, "알 수 없는 오류"), "error"); }
                                 setAcceptingId(null);
                               }}
                               disabled={isAccepting}

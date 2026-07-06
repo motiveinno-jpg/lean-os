@@ -1357,7 +1357,7 @@ export default function TaxInvoicesPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" data-print-area>
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번 달 매출</span>
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">조회기간 매출</span>
             <span className="kpi-icon success text-base leading-none">📈</span>
           </div>
           <div className="flex items-end gap-2">
@@ -1374,7 +1374,7 @@ export default function TaxInvoicesPage() {
         </div>
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번 달 매입</span>
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">조회기간 매입</span>
             <span className="kpi-icon warning text-base leading-none">📉</span>
           </div>
           <div className="flex items-end gap-2">
