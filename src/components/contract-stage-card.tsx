@@ -596,12 +596,12 @@ function OurSignatureModal({
   void partnerName; void partnerRep; void partnerBiz;
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="glass-card w-full max-w-lg max-h-[92vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-gray-900">우리(갑) 서명 / 날인</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
+          <h2 className="text-lg font-bold text-[var(--text)]">우리(갑) 서명 / 날인</h2>
+          <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl">×</button>
         </div>
-        <p className="text-xs text-gray-600 mb-4">
+        <p className="text-xs text-[var(--text-muted)] mb-4">
           서명·도장 추가 후 "최종 성립" 클릭 시 계약 stage 가 자동 전환됩니다.
           (회사: <strong>{companyInfo.name || "—"}</strong>{companyInfo.representative ? ` · 대표 ${companyInfo.representative}` : ""})
         </p>

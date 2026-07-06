@@ -151,7 +151,7 @@ export default function MyContractsPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <h3 className="text-base font-bold truncate">{p.title}</h3>
+                      <h3 className="text-sm font-bold truncate">{p.title}</h3>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>
                         {expired ? "만료됨" : st.label}
                       </span>

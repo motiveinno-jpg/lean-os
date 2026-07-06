@@ -186,7 +186,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <button onClick={prevMonth} className="btn-ghost btn-sm">‹</button>
-          <div className="text-base font-bold min-w-[110px] text-center">
+          <div className="text-sm font-bold min-w-[110px] text-center">
             {view.year}년 {view.monthIdx0 + 1}월
           </div>
           <button onClick={nextMonth} className="btn-ghost btn-sm">›</button>

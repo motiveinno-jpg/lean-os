@@ -243,9 +243,8 @@ export default function AuthPage() {
             style={{ boxShadow: 'var(--shadow-lg)' }}>
             <div className="text-center">
               {/* 이메일 아이콘 */}
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
-                style={{ background: 'linear-gradient(135deg, #DBEAFE, #E0E7FF)' }}>
-                <svg className="w-10 h-10 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-[var(--info-dim)]">
+                <svg className="w-10 h-10 text-[var(--info)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
               </div>
@@ -264,8 +263,8 @@ export default function AuthPage() {
               <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-6 text-left">
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="text-xs font-bold text-blue-600">1</span>
+                    <div className="w-6 h-6 rounded-full bg-[var(--info-dim)] flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-xs font-bold text-[var(--info)]">1</span>
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-[var(--text)]">메일함을 확인하세요</p>
@@ -273,8 +272,8 @@ export default function AuthPage() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="text-xs font-bold text-blue-600">2</span>
+                    <div className="w-6 h-6 rounded-full bg-[var(--info-dim)] flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-xs font-bold text-[var(--info)]">2</span>
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-[var(--text)]">&ldquo;이메일 인증하기&rdquo; 버튼 클릭</p>
@@ -282,8 +281,8 @@ export default function AuthPage() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="text-xs font-bold text-blue-600">3</span>
+                    <div className="w-6 h-6 rounded-full bg-[var(--info-dim)] flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-xs font-bold text-[var(--info)]">3</span>
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-[var(--text)]">가입 완료!</p>

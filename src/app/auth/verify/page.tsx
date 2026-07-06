@@ -235,13 +235,10 @@ export default function VerifyEmailPage() {
           {state === "success" && (
             <div className="text-center py-8">
               <div
-                className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
-                style={{
-                  background: "linear-gradient(135deg, #D1FAE5, #DCFCE7)",
-                }}
+                className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-[var(--success-dim)]"
               >
                 <svg
-                  className="w-10 h-10 text-green-600"
+                  className="w-10 h-10 text-[var(--success)]"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -282,13 +279,10 @@ export default function VerifyEmailPage() {
           {state === "email_confirmed_need_login" && (
             <div className="text-center py-8">
               <div
-                className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
-                style={{
-                  background: "linear-gradient(135deg, #D1FAE5, #DCFCE7)",
-                }}
+                className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-[var(--success-dim)]"
               >
                 <svg
-                  className="w-10 h-10 text-green-600"
+                  className="w-10 h-10 text-[var(--success)]"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -397,9 +391,9 @@ export default function VerifyEmailPage() {
           {/* Error — genuine error (no code, timeout, etc.) */}
           {state === "error" && (
             <div className="text-center py-8">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-50 mb-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--danger-dim)] mb-6">
                 <svg
-                  className="w-10 h-10 text-red-500"
+                  className="w-10 h-10 text-[var(--danger)]"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"

@@ -534,7 +534,7 @@ export default function BoardPage() {
       out.push(
         <span
           key={`m${key++}`}
-          className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-500 text-[12px] font-semibold mx-0.5"
+          className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[var(--info-dim)] text-[var(--info)] text-[12px] font-semibold mx-0.5"
         >
           @{m[1]}
         </span>,
@@ -679,9 +679,9 @@ export default function BoardPage() {
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto" onClick={resetForm}>
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border)] p-5 sm:p-6 my-8 w-full max-w-2xl space-y-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="glass-card p-5 sm:p-6 my-8 w-full max-w-2xl space-y-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
-            <h3 className="text-base font-bold">
+            <h3 className="text-sm font-bold">
               {editing ? "글 수정" : "새 글 작성"}
             </h3>
             <button onClick={resetForm} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-lg" aria-label="닫기">×</button>
