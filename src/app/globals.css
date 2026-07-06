@@ -57,12 +57,12 @@
   --glass-inner: rgba(255,255,255,0.9);       /* 유리 윗면 스펙큘러 */
   --chrome-bg: rgba(255,255,255,0.62);        /* 헤더/사이드바/하단탭 — backdrop-blur 대상 */
   --primary-soft: #6366F1;                    /* 그라데이션 필 끝색 */
-  --orb1: rgba(99,102,241,0.22);              /* 앰비언트 빛 — 사장님 확정 강도 */
-  --orb2: rgba(56,189,248,0.16);
-  --orb3: rgba(244,114,182,0.11);
-  --page-from: #F2F4F9;
-  --page-via: #F2F4F9;
-  --page-to: #E9EDFA;
+  --orb1: rgba(99,102,241,0.40);              /* 앰비언트 빛 — 목업 라벤더 톤 정합(강화) */
+  --orb2: rgba(56,189,248,0.26);
+  --orb3: rgba(244,114,182,0.20);
+  --page-from: #ECEAFB;                       /* 라벤더 캔버스 — 목업처럼 배경 전체가 은은한 보라 */
+  --page-via: #E7E7FA;
+  --page-to: #DEE0F6;
   --shadow-glass: 0 20px 40px -12px rgba(0,0,0,0.08);
   --radius-card: 20px;
 }
