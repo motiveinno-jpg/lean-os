@@ -163,7 +163,8 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       if (res.ok) {
         toast("테스트 메시지 발송 — 텔레그램을 확인하세요", "success");
       } else {
-        toast("발송 실패 — Chat ID를 확인하세요", "error");
+        const body = await res.json().catch(() => ({}));
+        toast(body?.error || "발송 실패 — Chat ID를 확인하세요", "error");
       }
     } catch {
       toast("네트워크 오류 — 잠시 후 다시 시도하세요", "error");
