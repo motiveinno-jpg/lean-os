@@ -1,0 +1,736 @@
+diff --git a/src/app/(app)/dashboard/page.tsx b/src/app/(app)/dashboard/page.tsx
+index 7c026f25..9de668e2 100644
+--- a/src/app/(app)/dashboard/page.tsx
++++ b/src/app/(app)/dashboard/page.tsx
+@@ -37,6 +37,8 @@ import { PRESET_VIEWS, WIDGET_REGISTRY, ROLE_PRESETS } from "@/lib/widget-regist
+ import { QueryErrorBanner } from "@/components/query-status";
+ import { useToast } from "@/components/toast";
+ import { MorningBrief } from "@/components/morning-brief";
++import { ActionInbox } from "@/components/action-inbox";
++import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
+ import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
+ import { OwnerCommandCenter } from "@/components/owner-command-center";
+ import { DashboardAnalytics } from "@/components/dashboard-analytics";
+@@ -504,6 +506,33 @@ export default function DashboardPage() {
+            owner/admin 기본 노출(뷰 토글과 무관). ═══ */}
+       {(role === "owner" || role === "admin") && companyId && (
+         <div className="space-y-5 mb-6">
++          {/* (0) AI 브리핑 + 오늘의 액션 — 라운드7.1(컨셉 1안). 문장 요약은 MorningBrief(규칙 기반) 재사용,
++               버튼은 이미 계산된 sixPack·세금 마감에서 파생 — 신규 쿼리 0. */}
++          <div>
++            <MorningBrief
++              userName={userName}
++              companyName={companyName}
++              cashPulse={cashPulse}
++              dashboard={dashboard}
++              hasData={hasData}
++            />
++            {(() => {
++              const nearestTax = getUpcomingTaxDeadlines(30)[0];
++              const acts: { key: string; href: string; label: string; primary?: boolean }[] = [];
++              if (dashboard.sixPack.arOver30 > 0) acts.push({ key: "ar", href: "/tax-invoices", label: "미수금 회수 관리 →", primary: true });
++              if (dashboard.sixPack.pendingApprovals > 0) acts.push({ key: "appr", href: "/approvals", label: `결재 ${dashboard.sixPack.pendingApprovals}건 처리` });
++              if (nearestTax) acts.push({ key: nearestTax.id, href: nearestTax.href, label: `${nearestTax.title} ${nearestTax.daysLeft === 0 ? "D-Day" : `D-${nearestTax.daysLeft}`}` });
++              if (acts.length === 0) return null;
++              return (
++                <div className="flex flex-wrap items-center gap-2 mt-3">
++                  {acts.map((a) => (
++                    <Link key={a.key} href={a.href} className={`${a.primary ? "btn-primary" : "btn-secondary"} btn-sm`}>{a.label}</Link>
++                  ))}
++                </div>
++              );
++            })()}
++          </div>
++
+           {/* (1) KPI 4카드 행 — 잔고·매출·운영비·미수금 + kpi-callout */}
+           <DashboardSiyanHero
+             balance={cashPulse?.currentBalance ?? null}
+@@ -524,8 +553,14 @@ export default function DashboardPage() {
+               <DashboardCostDonut costBreakdown={costBreakdown} />
+             </div>
+             <div className="space-y-5">
+-              {/* 2026-05-28 관리자 — 내 출퇴근 유지(사장님 명시 요청). owner 는 hide. */}
+-              {role === "admin" && userId && <MyAttendanceCard companyId={companyId} userId={userId} />}
++              {/* 라운드7.1 — 출퇴근은 오너/관리자 화면에선 한 줄 압축(직원 화면만 큰 카드 유지) */}
++              {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
++              {/* 처리 대기 큐(액션 인박스) — 미수금 지연·결재·세금 마감을 심각도순 + 진입 버튼 */}
++              <ActionInbox
++                pendingApprovals={dashboard.sixPack.pendingApprovals}
++                arOver30={dashboard.sixPack.arOver30}
++                arTotal={dashboard.sixPack.arTotal}
++              />
+               <UpcomingScheduleCard companyId={companyId} windowDays={30} />
+               {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
+               {userId && <QuickApprovalCard companyId={companyId} userId={userId} />}
+@@ -559,14 +594,8 @@ export default function DashboardPage() {
+       <div className="mb-4">
+         {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
+         <div className="mb-3">
+-          <MorningBrief
+-            userName={userName}
+-            companyName={companyName}
+-            cashPulse={cashPulse}
+-            dashboard={dashboard}
+-            hasData={hasData}
+-          />
+-          <div className="flex items-center gap-1.5 justify-end -mt-2 mb-2">
++          {/* 라운드7.1 — MorningBrief 는 대시보드 최상단(시안 메인)으로 이동. 여기엔 도구 버튼만 유지 */}
++          <div className="flex items-center gap-1.5 justify-end mb-2">
+             {role === "owner" && (
+               <button onClick={handleDataSync} disabled={syncing}
+                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 ${
+@@ -2152,6 +2181,7 @@ function DealFunnel({ companyId }: { companyId: string }) {
+ // GettingStartedChecklist — 실데이터 카운트 기반 진행률
+ // ═══════════════════════════════════════════
+ const CHECKLIST_DISMISS_KEY = "leanos-getting-started-dismissed";
++const CHECKLIST_DONE_SEEN_KEY = "leanos-getting-started-done-seen"; // 라운드7.1 — 완료 배너 1회 노출용
+
+ interface ChecklistStatus {
+   company: boolean;
+@@ -2164,6 +2194,8 @@ interface ChecklistStatus {
+ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: string; initialDealCount: number }) {
+   const [dismissed, setDismissed] = useState(false);
+   const [expanded, setExpanded] = useState(false);
++  // 완료 배너는 1회만 — 마운트 시점에 이미 본 적 있으면 숨김
++  const [doneSeenAtMount] = useState(() => { try { return localStorage.getItem(CHECKLIST_DONE_SEEN_KEY) === "1"; } catch { return false; } });
+
+   useEffect(() => {
+     try {
+@@ -2213,7 +2245,13 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
+     if (status) setExpanded(shouldAutoExpand);
+   }, [status, shouldAutoExpand]);
+
++  // 라운드7.1 — "초기 설정 완료" 배너는 완료 후 1회 노출로 충분. 이번에 보이면 다음 방문부터 자동 숨김.
++  useEffect(() => {
++    if (allDone) { try { localStorage.setItem(CHECKLIST_DONE_SEEN_KEY, "1"); } catch {} }
++  }, [allDone]);
++
+   if (dismissed) return null;
++  if (allDone && doneSeenAtMount) return null;
+
+   if (allDone) {
+     return (
+diff --git a/src/components/action-inbox.tsx b/src/components/action-inbox.tsx
+new file mode 100644
+index 00000000..e7567ccf
+--- /dev/null
++++ b/src/components/action-inbox.tsx
+@@ -0,0 +1,109 @@
++"use client";
++
++// 처리 대기 큐(액션 인박스) — 라운드7.1 대시보드 재설계 (컨셉 5안).
++//   "보는 대시보드 → 하는 대시보드": 미수금 지연·결재 대기·세금 마감을 심각도 순으로 쌓고
++//   각 줄에 진입 버튼을 붙인다. 데이터는 부모(대시보드)가 이미 계산한 값 + 세금 마감 헬퍼 재사용 — 신규 쿼리 0.
++//   모두 비면 "처리할 항목 없음" 안심 상태를 보여준다(인박스 제로).
++
++import Link from "next/link";
++import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
++
++const fmtKR = (n: number): string => {
++  const abs = Math.abs(n);
++  if (abs >= 1e8) return `${(abs / 1e8).toFixed(1)}억`;
++  if (abs >= 1e4) return `${Math.round(abs / 1e4).toLocaleString()}만`;
++  return abs.toLocaleString();
++};
++
++type Sev = 0 | 1 | 2; // 0=위험(빨강) 1=주의(주황) 2=예정(회색)
++type InboxItem = { key: string; sev: Sev; text: string; meta?: string; href: string; cta: string };
++
++const SEV_DOT: Record<Sev, string> = {
++  0: "bg-[var(--danger)]",
++  1: "bg-[var(--warning)]",
++  2: "bg-[var(--text-dim)]",
++};
++
++export function ActionInbox({
++  pendingApprovals,
++  arOver30,
++  arTotal,
++}: {
++  pendingApprovals: number;
++  arOver30: number;
++  arTotal: number;
++}) {
++  const taxItems = getUpcomingTaxDeadlines(30);
++
++  const items: InboxItem[] = [];
++  if (arOver30 > 0) {
++    items.push({
++      key: "ar-over30", sev: 0,
++      text: "미수금 30일+ 지연",
++      meta: `₩${fmtKR(arOver30)}`,
++      href: "/tax-invoices", cta: "회수 관리",
++    });
++  } else if (arTotal > 0) {
++    items.push({
++      key: "ar-normal", sev: 2,
++      text: "미수금 회수 진행 중",
++      meta: `₩${fmtKR(arTotal)}`,
++      href: "/tax-invoices", cta: "현황",
++    });
++  }
++  if (pendingApprovals > 0) {
++    items.push({
++      key: "approvals", sev: 0,
++      text: `전자결재 ${pendingApprovals}건 대기`,
++      href: "/approvals", cta: "검토",
++    });
++  }
++  taxItems.forEach((t) => {
++    items.push({
++      key: t.id,
++      sev: t.daysLeft <= 7 ? 1 : 2,
++      text: t.title,
++      meta: t.daysLeft === 0 ? "D-Day" : `D-${t.daysLeft}`,
++      href: t.href, cta: "확인",
++    });
++  });
++  items.sort((a, b) => a.sev - b.sev);
++  const urgent = items.filter((i) => i.sev === 0).length;
++
++  return (
++    <div className="glass-card p-5">
++      <div className="flex items-center justify-between mb-3">
++        <h3 className="text-sm font-bold text-[var(--text)]">
++          처리 대기
++          {items.length > 0 && (
++            <span className={`ml-1.5 ${urgent > 0 ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{items.length}</span>
++          )}
++        </h3>
++        <span className="text-[11px] text-[var(--text-dim)]">심각도순</span>
++      </div>
++      {items.length === 0 ? (
++        <div className="py-4 text-center">
++          <div className="text-xs font-semibold text-[var(--success)]">지금 처리할 항목이 없습니다</div>
++          <div className="text-[11px] text-[var(--text-dim)] mt-1">새 결재·지연·마감이 생기면 여기에 쌓입니다</div>
++        </div>
++      ) : (
++        <div className="divide-y divide-[var(--border)]/50">
++          {items.map((it) => (
++            <div key={it.key} className="py-2.5 flex items-center gap-2.5">
++              <span className={`w-2 h-2 rounded-full shrink-0 ${SEV_DOT[it.sev]}`} />
++              <span className="flex-1 min-w-0 text-xs text-[var(--text)] truncate">{it.text}</span>
++              {it.meta && (
++                <span className={`text-[11px] font-bold mono-number shrink-0 ${it.sev === 0 ? "text-[var(--danger)]" : it.sev === 1 ? "text-[var(--warning)]" : "text-[var(--text-muted)]"}`}>
++                  {it.meta}
++                </span>
++              )}
++              <Link href={it.href} className={`${it.sev === 0 ? "btn-primary" : "btn-secondary"} btn-sm shrink-0`}>
++                {it.cta}
++              </Link>
++            </div>
++          ))}
++        </div>
++      )}
++    </div>
++  );
++}
+diff --git a/src/components/dashboard-bottom-cards.tsx b/src/components/dashboard-bottom-cards.tsx
+index f724b5e9..c3e6040d 100644
+--- a/src/components/dashboard-bottom-cards.tsx
++++ b/src/components/dashboard-bottom-cards.tsx
+@@ -5,6 +5,7 @@
+ //   DashboardBottomCards 는 카드/자산 2카드 하단 풀폭 행만 담당. 실데이터·쿼리 무변경.
+ //   표면(카드/행/텍스트/보더)은 테마 토큰 → 다크모드 자동 적응.
+
++import { useState } from "react";
+ import Link from "next/link";
+ import { useQuery } from "@tanstack/react-query";
+ import { supabase } from "@/lib/supabase";
+@@ -16,26 +17,75 @@ const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
+ // 강조 팔레트 — CSS 토큰(라이트/다크 자동 대응)
+ const A = { blue: "var(--info)", green: "var(--success)", red: "var(--danger)" };
+
+-// 매출 월별 영역 라인차트 (사진 Sales Performance) — 인라인 SVG, 새 의존성 없음.
+-function RevenueSparkline({ series, height = 92 }: { series: number[]; height?: number }) {
+-  const W = 280, H = 92, pad = 4;
+-  const max = Math.max(...series, 1);
++// ── 정제 라인차트 (라운드7.1 공통 차트 스타일) — 인라인 SVG, 새 의존성 없음.
++//   스펙: 선 1.5px 곡선 보간(Catmull-Rom→Bezier) · 12% 그라데이션 면 · 작은 끝점+헤일로 ·
++//         극세 점선 그리드 + Y눈금 3개(0/½/max, 억·만 단위) + X 라벨. preserveAspectRatio 유지(텍스트 왜곡 방지).
++const fmtAxis = (v: number): string => {
++  if (v <= 0) return "0";
++  if (v >= 1e8) return `${v % 1e8 === 0 ? v / 1e8 : (v / 1e8).toFixed(1)}억`;
++  if (v >= 1e4) return `${Math.round(v / 1e4).toLocaleString()}만`;
++  return String(Math.round(v));
++};
++// 축 최대값을 1/2/2.5/5×10^k 로 올림 — 눈금이 어중간한 수가 되지 않게
++const niceMax = (v: number): number => {
++  if (v <= 0) return 1;
++  const exp = Math.pow(10, Math.floor(Math.log10(v)));
++  const f = v / exp;
++  const nice = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
++  return nice * exp;
++};
++// Catmull-Rom 스플라인 → cubic Bezier 변환 (부드러운 곡선, 오버슈트 낮춤 t=0.8)
++const smoothPath = (pts: { x: number; y: number }[]): string => {
++  if (pts.length < 2) return "";
++  const d: string[] = [`M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`];
++  for (let i = 0; i < pts.length - 1; i++) {
++    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
++    const k = 0.8 / 6;
++    const c1x = p1.x + (p2.x - p0.x) * k, c1y = p1.y + (p2.y - p0.y) * k;
++    const c2x = p2.x - (p3.x - p1.x) * k, c2y = p2.y - (p3.y - p1.y) * k;
++    d.push(`C${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`);
++  }
++  return d.join(" ");
++};
++
++function RefinedTrendChart({ series, labels, gradId }: { series: number[]; labels: string[]; gradId: string }) {
++  const W = 560, H = 216, padL = 48, padR = 16, padT = 14, padB = 26;
++  const max = niceMax(Math.max(...series, 1));
+   const n = series.length;
+-  const x = (i: number) => pad + (i / (n - 1)) * (W - pad * 2);
+-  const y = (v: number) => H - pad - (v / max) * (H - pad * 2);
+-  const line = series.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
+-  const area = `${line} L${x(n - 1).toFixed(1)} ${H - pad} L${x(0).toFixed(1)} ${H - pad} Z`;
++  const x = (i: number) => padL + (n === 1 ? 0.5 : i / (n - 1)) * (W - padL - padR);
++  const y = (v: number) => H - padB - (v / max) * (H - padT - padB);
++  const pts = series.map((v, i) => ({ x: x(i), y: y(v) }));
++  const line = smoothPath(pts);
++  const area = `${line} L${x(n - 1).toFixed(1)} ${H - padB} L${x(0).toFixed(1)} ${H - padB} Z`;
++  const last = pts[n - 1];
++  const xStep = Math.max(1, Math.ceil(n / 7)); // 라벨 과밀 방지 — 최대 ~7개
+   return (
+-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height, transform: "translateZ(0)", contain: "paint" }} preserveAspectRatio="none">
++    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="추이 차트">
+       <defs>
+-        <linearGradient id="rev-grad" x1="0" y1="0" x2="0" y2="1">
+-          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.24" />
++        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
++          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.12" />
+           <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+         </linearGradient>
+       </defs>
+-      <path d={area} fill="url(#rev-grad)" />
+-      <path d={line} fill="none" stroke="var(--primary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+-      <circle cx={x(n - 1)} cy={y(series[n - 1])} r="3" fill="var(--primary)" />
++      {/* 그리드 — 0선은 실선 헤어라인, ½·max 는 극세 점선 */}
++      <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke="var(--border)" strokeWidth="0.8" />
++      {[0.5, 1].map((r) => (
++        <line key={r} x1={padL} y1={y(max * r)} x2={W - padR} y2={y(max * r)} stroke="var(--border)" strokeWidth="0.6" strokeDasharray="1.5 4" />
++      ))}
++      {/* Y 눈금 (0 / ½ / max) */}
++      {[0, 0.5, 1].map((r) => (
++        <text key={r} x={padL - 8} y={y(max * r) + 3.5} textAnchor="end" fontSize="10" fill="var(--text-dim)">{fmtAxis(max * r)}</text>
++      ))}
++      {/* X 라벨 */}
++      {labels.map((lb, i) => (i % xStep === 0 || i === n - 1) && (
++        <text key={i} x={x(i)} y={H - padB + 15} textAnchor="middle" fontSize="10" fill="var(--text-dim)">{lb}</text>
++      ))}
++      <path d={area} fill={`url(#${gradId})`} />
++      <path d={line} fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
++      {last && (<>
++        <circle cx={last.x} cy={last.y} r="5.5" fill="var(--primary)" opacity="0.15" />
++        <circle cx={last.x} cy={last.y} r="2.5" fill="var(--primary)" />
++      </>)}
+     </svg>
+   );
+ }
+@@ -69,48 +119,80 @@ const MoreLink = ({ href, label }: { href: string; label: string }) => (
+
+ const cardCls = "glass-card p-5 flex flex-col";
+
+-// ── 매출 추이 — 본문 2/3 컬럼의 큰 차트 카드 (레퍼런스 Team Performance 자리) ──
++// ── 매출 추이 — 본문 2/3 컬럼의 큰 차트 카드 (라운드7.1: 기간 토글 월/분기/연 + 축·눈금) ──
++type TrendMode = "month" | "quarter" | "year";
++
+ export function DashboardRevenueTrendCard({ companyId }: { companyId: string }) {
+-  // 매출 — 올해 월별(type='sales'). 누적 total + 월별 시계열.
+-  //   2026-06-11: 연도 하드코딩 제거(매년 자동) + 공급가액 기준(손익계산서·히어로와 동일, 부가세 제외) + void 제외.
++  const [mode, setMode] = useState<TrendMode>("month");
++  // 매출 — 최근 3개년(type='sales', 공급가액, void 제외) 한 번에 조회 → 월/분기/연 시리즈를 클라이언트에서 파생.
++  //   기간 전환 시 재조회 없음. 손익계산서·히어로와 동일 소스 기준.
+   const year = new Date().getFullYear();
+   const { data: rev } = useQuery({
+-    queryKey: ["dash-revenue", companyId, year],
++    queryKey: ["dash-revenue-3y", companyId, year],
+     queryFn: async () => {
+       const { data } = await db.from("tax_invoices").select("supply_amount, issue_date")
+         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
+-        .gte("issue_date", `${year}-01-01`).lt("issue_date", `${year + 1}-01-01`);
+-      const monthly = new Array(12).fill(0);
++        .gte("issue_date", `${year - 2}-01-01`).lt("issue_date", `${year + 1}-01-01`);
++      // 연도별 월 매트릭스
++      const byYear: Record<number, number[]> = { [year - 2]: new Array(12).fill(0), [year - 1]: new Array(12).fill(0), [year]: new Array(12).fill(0) };
+       (data || []).forEach((t: any) => {
+-        const m = new Date(t.issue_date).getMonth();
+-        if (m >= 0 && m < 12) monthly[m] += Number(t.supply_amount || 0);
++        const d = new Date(t.issue_date);
++        const y = d.getFullYear(), m = d.getMonth();
++        if (byYear[y] && m >= 0 && m < 12) byYear[y][m] += Number(t.supply_amount || 0);
+       });
+-      const upto = new Date().getMonth() + 1;
+-      const series = monthly.slice(0, Math.max(upto, 1));
+-      return { total: monthly.reduce((s: number, v: number) => s + v, 0), series };
++      return { byYear };
+     },
+     enabled: !!companyId, staleTime: 60_000,
+   });
+-  const revenue = rev?.total ?? 0;
+-  const revSeries = rev?.series ?? [];
++
++  const byYear = rev?.byYear;
++  const uptoM = new Date().getMonth() + 1;                 // 올해 경과 월수
++  const uptoQ = Math.ceil(uptoM / 3);                      // 올해 경과 분기수
++  const thisYearTotal = (byYear?.[year] || []).reduce((s, v) => s + v, 0);
++
++  let series: number[] = [], labels: string[] = [], totalLabel = "", totalAmount = 0;
++  if (byYear) {
++    if (mode === "month") {
++      series = byYear[year].slice(0, Math.max(uptoM, 1));
++      labels = series.map((_, i) => `${i + 1}월`);
++      totalLabel = `${year} 누적 (공급가액)`; totalAmount = thisYearTotal;
++    } else if (mode === "quarter") {
++      series = Array.from({ length: Math.max(uptoQ, 1) }, (_, q) => byYear[year].slice(q * 3, q * 3 + 3).reduce((s, v) => s + v, 0));
++      labels = series.map((_, q) => `${q + 1}분기`);
++      totalLabel = `${year} 누적 (공급가액)`; totalAmount = thisYearTotal;
++    } else {
++      series = [year - 2, year - 1, year].map((y) => (byYear[y] || []).reduce((s, v) => s + v, 0));
++      labels = [`${year - 2}`, `${year - 1}`, `${year}`];
++      totalLabel = "최근 3개년 합계 (공급가액)"; totalAmount = series.reduce((s, v) => s + v, 0);
++    }
++  }
++  const hasChart = series.length > 1 && series.some((v) => v > 0);
+
+   return (
+     <div className={cardCls}>
+-      <div className="flex items-center justify-between mb-4">
+-        <h3 className="text-sm font-bold text-[var(--text)]">매출 추이</h3>
+-        <Link href="/reports/pnl" className="text-[12px] font-semibold text-[var(--primary)]">손익 상세 보기 →</Link>
++      <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
++        <div className="flex items-baseline gap-2.5">
++          <h3 className="text-sm font-bold text-[var(--text)]">매출 추이</h3>
++          <Link href="/reports/pnl" className="text-[12px] font-semibold text-[var(--primary)]">손익 상세 →</Link>
++        </div>
++        <div className="seg-bar">
++          {([["month", "월"], ["quarter", "분기"], ["year", "연"]] as [TrendMode, string][]).map(([k, lb]) => (
++            <button key={k} type="button" onClick={() => setMode(k)}
++              className={`seg-item !px-2.5 !py-1 !text-[11px] ${mode === k ? "seg-item-active" : ""}`}>{lb}</button>
++          ))}
++        </div>
+       </div>
+       <div className="flex-1 flex flex-col justify-center">
+-        {revSeries.length > 1 && revenue > 0 ? (
+-          <RevenueSparkline series={revSeries} height={180} />
++        {hasChart ? (
++          <RefinedTrendChart series={series} labels={labels} gradId={`rev-grad-${mode}`} />
+         ) : (
+           <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
+-            <span className="text-[13px] text-[var(--text-muted)]">{year}년 누적 매출</span>
+-            <span className="text-[13px] font-semibold tabular-nums shrink-0 text-[var(--text)]">{fmtW(revenue)}</span>
++            <span className="text-[13px] text-[var(--text-muted)]">{mode === "year" ? "연도별" : `${year}년`} 매출 데이터가 아직 부족합니다</span>
++            <span className="text-[13px] font-semibold tabular-nums shrink-0 text-[var(--text)]">{fmtW(totalAmount)}</span>
+           </div>
+         )}
+       </div>
+-      <TotalRow label={`${year} 누적 (공급가액)`} amount={revenue} />
++      <TotalRow label={totalLabel || `${year} 누적 (공급가액)`} amount={totalAmount} />
+     </div>
+   );
+ }
+diff --git a/src/components/dashboard-siyan-hero.tsx b/src/components/dashboard-siyan-hero.tsx
+index 5ff63196..e434303a 100644
+--- a/src/components/dashboard-siyan-hero.tsx
++++ b/src/components/dashboard-siyan-hero.tsx
+@@ -1,9 +1,12 @@
+ "use client";
+
+ // 대시보드 메인 — 2026-06-09 Stitch 시안(modern_business_financial_dashboard) 정렬 + 다크/라이트 적응.
+-//   라운드6.5: 레퍼런스 골격 정렬 — 히어로+메트릭3 을 KPI 4카드 행(grid-cols-2 lg:grid-cols-4)으로 압축,
+-//   비용 구성 도넛은 DashboardCostDonut 으로 분리(본문 2/3 컬럼 배치용). 계산/fetch 무변경, 표시 전용.
+-//   표면(카드/배경/텍스트/보더)은 테마 토큰(var(--bg-card) 등)으로 → 다크모드 자동 적응.
++//   라운드6.5: 히어로+메트릭3 을 KPI 4카드 행으로 압축.
++//   라운드7.1 (대시보드 재설계):
++//     - KPI 4카드 형식 통일 — [라벨행: 라벨+칩] / [값 26px] / [보조 한 줄] 동일 골격. 미니 진행바 제거,
++//       위험 값(미수금 지연)만 색으로 구분. 미수금 카드엔 회수 관리 진입 링크(문제를 보여주면 동선을 붙인다).
++//     - 비용 구성 도넛 → 가로 막대(Top 6). 급여 편중(80%+) 구조에선 막대가 항상 더 잘 읽힌다.
++//   표면은 전부 테마 토큰 → 다크모드 자동 적응. 계산/fetch 무변경, 표시 전용.
+
+ import { useState } from "react";
+ import Link from "next/link";
+@@ -15,8 +18,7 @@ const wonM = (n: number) => `₩${(n / 1_000_000).toFixed(1)}M`;
+ type Cat = { label: string; amount: number };
+ type Breakdown = { fixed: Cat[]; variable: Cat[] };
+
+-// 강조 팔레트 — 전부 CSS 토큰(라이트/다크 자동 대응). 포인트는 인디고(--primary).
+-const A = { blue: "var(--info)", green: "var(--success)", red: "var(--danger)", amber: "var(--warning)" };
++// 막대 팔레트 — 전부 CSS 토큰(라이트/다크 자동 대응). 1위는 브랜드 인디고.
+ const SEG = ["var(--primary)", "var(--info)", "var(--warning)", "var(--danger)", "var(--success)", "var(--text-dim)"];
+
+ export function DashboardSiyanHero({
+@@ -44,40 +46,15 @@ export function DashboardSiyanHero({
+   const bal = balance ?? 0;
+   const expense = fixedCost + variableCost;
+   const perfPct = monthTarget > 0 ? Math.round((monthRevenue / monthTarget) * 100) : null;
+-  void pendingApprovals; // 사진 템플릿엔 승인 카드 없음 — prop 시그니처는 보존
++  void pendingApprovals; // 결재는 액션 인박스가 담당 — prop 시그니처는 보존
+
+-  // 메트릭 3 (사진: MRR / Sales Revenue / Accounts Receivable → 우리: 매출 / 운영비 / 미수금)
+-  const fixedPct = expense > 0 ? (fixedCost / expense) * 100 : 0;
+-  const arOverPct = arTotal > 0 ? (arOver30 / arTotal) * 100 : 0;
+-  const metrics: {
+-    label: string; value: string; sub: string;
+-    chip?: { text: string; up: boolean };
+-    segments: { pct: number; color: string }[];
+-  }[] = [
+-    {
+-      // 2026-06-11 매출 단일 기준: 세금계산서 공급가액 (손익계산서·하단 매출 카드와 동일 소스)
+-      label: "이번달 매출", value: won(monthRevenue),
+-      sub: perfPct != null ? `목표 ${wonM(monthTarget)} · 공급가액 기준` : "세금계산서 공급가액 기준",
+-      chip: perfPct != null ? { text: `${perfPct}%`, up: perfPct >= 100 } : undefined,
+-      segments: [{ pct: Math.min(perfPct ?? 0, 100), color: A.green }],
+-    },
+-    {
+-      label: "월 운영비", value: won(expense),
+-      sub: `고정 ${wonM(fixedCost)} · 변동 ${wonM(variableCost)}`,
+-      segments: [{ pct: fixedPct, color: A.red }, { pct: 100 - fixedPct, color: A.amber }],
+-    },
+-    {
+-      label: "미수금", value: won(arTotal),
+-      sub: arOver30 > 0 ? `30일+ ${wonM(arOver30)}` : "정상 회수 중",
+-      chip: arOver30 > 0 ? { text: "지연", up: false } : { text: "정상", up: true },
+-      segments: [{ pct: arOverPct, color: A.red }, { pct: 100 - arOverPct, color: A.blue }],
+-    },
+-  ];
++  const fixedPct = expense > 0 ? Math.round((fixedCost / expense) * 100) : 0;
++  const valueCls = "text-[22px] sm:text-[26px] leading-8 font-extrabold mono-number tracking-tight truncate";
+
+-  // ── KPI 4카드 행 (잔고 + 매출/운영비/미수금) ──
++  // ── KPI 4카드 — 공통 골격: [라벨 + 우측 칩/버튼] / [값] / [보조 한 줄] ──
+   return (
+     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+-      {/* 총 자금 (잔액 히어로 → KPI 카드) */}
++      {/* 총 자금 */}
+       <div className="glass-card p-5 flex flex-col gap-3">
+         <div className="flex items-center justify-between">
+           <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 자금</span>
+@@ -96,53 +73,67 @@ export function DashboardSiyanHero({
+             </Link>
+           </div>
+         </div>
+-        <p className="text-[22px] sm:text-[26px] leading-8 font-extrabold mono-number tracking-tight text-[var(--text)] truncate" title={showBalance ? won(bal) : undefined}>
++        <p className={`${valueCls} text-[var(--text)]`} title={showBalance ? won(bal) : undefined}>
+           {showBalance ? won(bal) : "••••••"}
+         </p>
+-        <div className={`kpi-callout ${netCashflow >= 0 ? "success" : "danger"} inline-flex items-center gap-1.5 w-auto self-start max-w-full`}>
+-          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d={netCashflow >= 0 ? "M5 11l7-7 7 7M12 4v16" : "M19 13l-7 7-7-7M12 20V4"} />
+-          </svg>
+-          <b className="mono-number truncate">{won(netCashflow)}</b>
+-          <span className="shrink-0">이번달 순흐름</span>
++        <p className="text-[11px] truncate">
++          <span className={`delta-chip ${netCashflow >= 0 ? "delta-up" : "delta-down"}`}>
++            {netCashflow >= 0 ? "▲" : "▼"} <span className="mono-number">{won(Math.abs(netCashflow))}</span>
++          </span>
++          <span className="ml-1.5 text-[var(--text-dim)]">이번달 순흐름</span>
++        </p>
++      </div>
++
++      {/* 이번달 매출 */}
++      <div className="glass-card p-5 flex flex-col gap-3">
++        <div className="flex items-center justify-between">
++          <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번달 매출</span>
++          {perfPct != null && (
++            <span className={`delta-chip ${perfPct >= 100 ? "delta-up" : "delta-flat"}`}>목표 {perfPct}%</span>
++          )}
+         </div>
++        <p className={`${valueCls} text-[var(--text)]`} title={won(monthRevenue)}>{won(monthRevenue)}</p>
++        <p className="text-[11px] truncate text-[var(--text-dim)]">
++          {perfPct != null ? `목표 ${wonM(monthTarget)} · ` : ""}세금계산서 공급가액 기준
++        </p>
+       </div>
+
+-      {/* 메트릭 3 (KPI 카드 패턴 · delta-chip · 미니바) */}
+-      {metrics.map((m) => (
+-        <div key={m.label} className="glass-card p-5 flex flex-col gap-3">
+-          <div className="flex items-center justify-between">
+-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{m.label}</span>
+-            {m.chip && (
+-              <span className={`delta-chip ${m.chip.up ? "delta-up" : "delta-down"}`}>
+-                {m.chip.up ? "▲" : "▼"} {m.chip.text}
+-              </span>
+-            )}
+-          </div>
+-          {/* QA 2026-06-12: 9자리+ 금액이 좁은 화면에서 넘치던 것 → 반응형 폰트 + truncate */}
+-          <p className="text-[22px] sm:text-[26px] leading-8 font-extrabold mono-number tracking-tight text-[var(--text)] truncate" title={m.value}>{m.value}</p>
+-          <div>
+-            <div className="flex h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)]">
+-              {m.segments.map((s, i) => (
+-                <div key={i} style={{ width: `${Math.max(0, Math.min(s.pct, 100))}%`, backgroundColor: s.color }} className="h-full" />
+-              ))}
+-            </div>
+-            <p className="text-[11px] mt-2 truncate text-[var(--text-dim)]">{m.sub}</p>
+-          </div>
++      {/* 월 운영비 */}
++      <div className="glass-card p-5 flex flex-col gap-3">
++        <div className="flex items-center justify-between">
++          <span className="text-[13px] font-semibold text-[var(--text-muted)]">월 운영비</span>
++          <span className="delta-chip delta-flat">고정 {fixedPct}%</span>
+         </div>
+-      ))}
++        <p className={`${valueCls} text-[var(--text)]`} title={won(expense)}>{won(expense)}</p>
++        <p className="text-[11px] truncate text-[var(--text-dim)]">고정 {wonM(fixedCost)} · 변동 {wonM(variableCost)}</p>
++      </div>
++
++      {/* 미수금 — 위험 값만 색으로 구분 + 회수 관리 진입 링크 */}
++      <div className="glass-card p-5 flex flex-col gap-3">
++        <div className="flex items-center justify-between">
++          <span className="text-[13px] font-semibold text-[var(--text-muted)]">미수금</span>
++          <span className={`delta-chip ${arOver30 > 0 ? "delta-down" : "delta-up"}`}>{arOver30 > 0 ? "▼ 지연" : "▲ 정상"}</span>
++        </div>
++        <p className={`${valueCls} ${arOver30 > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`} title={won(arTotal)}>{won(arTotal)}</p>
++        <p className="text-[11px] truncate">
++          <Link href="/tax-invoices" className={`font-semibold hover:underline ${arOver30 > 0 ? "text-[var(--danger)]" : "text-[var(--primary)]"}`}>
++            {arOver30 > 0 ? `30일+ ${wonM(arOver30)} · 회수 관리 →` : "정상 회수 중 · 현황 보기 →"}
++          </Link>
++        </p>
++      </div>
+     </div>
+   );
+ }
+
+-// ── Cost Composition (도넛 + 범례 %) — 본문 2/3 컬럼 배치용 분리 카드 ──
+-export function DashboardCostDonut({ costBreakdown }: { costBreakdown?: Breakdown }) {
++// ── 비용 구성 — 가로 막대 Top 6 (라운드7.1: 도넛 → 막대) ──
++export function DashboardCostBars({ costBreakdown }: { costBreakdown?: Breakdown }) {
+   // 고정/변동 병합 → 비중
+   const cats: Cat[] = [...(costBreakdown?.fixed || []), ...(costBreakdown?.variable || [])]
+     .filter((c) => c.amount > 0)
+     .sort((a, b) => b.amount - a.amount)
+     .slice(0, 6);
+   const catTotal = cats.reduce((s, c) => s + c.amount, 0);
++  const maxAmount = cats.length > 0 ? cats[0].amount : 0;
+
+   // 라운드7: 데이터 0건이어도 null 대신 EmptyState 카드 렌더 — 2/3 컬럼 높이 불균형 해소
+   if (cats.length === 0) {
+@@ -158,47 +149,30 @@ export function DashboardCostDonut({ costBreakdown }: { costBreakdown?: Breakdow
+
+   return (
+     <div className="glass-card p-6">
+-      <div className="flex items-center justify-between mb-4">
++      <div className="flex items-center justify-between mb-1">
+         <h3 className="text-sm font-bold text-[var(--text)]">비용 구성</h3>
+         <Link href="/reports/pnl" className="text-[13px] font-semibold text-[var(--primary)]">상세 보기</Link>
+       </div>
+-      <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-9">
+-        <div className="relative shrink-0" style={{ width: 176, height: 176 }}>
+-          <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+-            <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--bg-surface)" strokeWidth="3.4" />
+-            {(() => {
+-              let cum = 0;
+-              return cats.map((c, i) => {
+-                const pct = catTotal > 0 ? (c.amount / catTotal) * 100 : 0;
+-                const seg = (
+-                  <circle key={c.label} cx="18" cy="18" r="15.9155" fill="none"
+-                    stroke={SEG[i % SEG.length]} strokeWidth="3.4"
+-                    strokeDasharray={`${pct} ${100 - pct}`} strokeDashoffset={-cum} strokeLinecap="butt" />
+-                );
+-                cum += pct;
+-                return seg;
+-              });
+-            })()}
+-          </svg>
+-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+-            <span className="text-[10px] font-semibold text-[var(--text-dim)]">총 비용</span>
+-            <span className="text-[15px] font-bold mono-number text-[var(--text)]">{wonM(catTotal)}</span>
+-          </div>
+-        </div>
+-        <div className="flex-1 w-full space-y-3">
+-          {cats.map((c, i) => {
+-            const pct = catTotal > 0 ? Math.round((c.amount / catTotal) * 100) : 0;
+-            return (
+-              <div key={c.label} className="flex items-center gap-3">
+-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SEG[i % SEG.length] }} />
+-                <span className="flex-1 text-[14px] font-medium truncate text-[var(--text)]">{c.label}</span>
+-                <span className="text-[12px] mono-number shrink-0 text-[var(--text-dim)]">{won(c.amount)}</span>
+-                <span className="text-[14px] font-bold mono-number w-10 text-right shrink-0 text-[var(--text)]">{pct}%</span>
++      <p className="text-[11px] text-[var(--text-dim)] mb-4">이번 달 총 비용 <b className="text-[var(--text)] mono-number">{won(catTotal)}</b></p>
++      <div className="space-y-3">
++        {cats.map((c, i) => {
++          const pct = catTotal > 0 ? Math.round((c.amount / catTotal) * 100) : 0;
++          const barPct = maxAmount > 0 ? (c.amount / maxAmount) * 100 : 0; // 막대 길이는 최대 항목 대비 — 편중 구조에서도 차이가 읽힘
++          return (
++            <div key={c.label} className="flex items-center gap-3">
++              <span className="w-20 text-[13px] font-medium truncate text-[var(--text)] shrink-0">{c.label}</span>
++              <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
++                <div className="h-full rounded-full" style={{ width: `${Math.max(barPct, 1.5)}%`, backgroundColor: SEG[i % SEG.length] }} />
+               </div>
+-            );
+-          })}
+-        </div>
++              <span className="text-[12px] mono-number shrink-0 text-[var(--text-dim)] w-24 text-right">{won(c.amount)}</span>
++              <span className="text-[13px] font-bold mono-number w-10 text-right shrink-0 text-[var(--text)]">{pct}%</span>
++            </div>
++          );
++        })}
+       </div>
+     </div>
+   );
+ }
++
++// 하위호환 — 기존 import 명(도넛) 유지. 실체는 가로 막대.
++export { DashboardCostBars as DashboardCostDonut };
+diff --git a/src/components/my-attendance-card.tsx b/src/components/my-attendance-card.tsx
+index 5385428c..4fcf6601 100644
+--- a/src/components/my-attendance-card.tsx
++++ b/src/components/my-attendance-card.tsx
+@@ -25,7 +25,8 @@ function elapsedSince(ts?: string | null): string {
+ }
+
+ // 본인 출퇴근 카드 — 직원/관리자/대표 누구나 사용 (employees.user_id 연결 필요)
+-export function MyAttendanceCard({ companyId, userId }: { companyId: string; userId: string }) {
++//   compact: 오너/관리자 대시보드용 한 줄 압축 모드 (라운드7.1 — 직원 화면에서만 큰 카드)
++export function MyAttendanceCard({ companyId, userId, compact = false }: { companyId: string; userId: string; compact?: boolean }) {
+   const { toast } = useToast();
+   const qc = useQueryClient();
+   // QA 2026-06-12: UTC 날짜였음 → KST 00:00~08:59 에 "어제"로 기록되던 버그. KST 보정.
+@@ -108,6 +109,28 @@ export function MyAttendanceCard({ companyId, userId }: { companyId: string; use
+     setBusy(false);
+   };
+
++  // 한 줄 압축 모드 — 상태점 + 시각 요약 + 소형 버튼. 미연결 계정은 표시 안 함(오너 화면 노이즈 방지)
++  if (compact) {
++    if (empLoading || !employeeId) return null;
++    return (
++      <div className="glass-card px-4 py-3 flex items-center gap-3">
++        <div className={`w-2 h-2 rounded-full shrink-0 ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
++        <span className="flex-1 min-w-0 text-xs text-[var(--text-muted)] truncate">
++          {!isCheckedIn
++            ? "오늘 아직 출근 전"
++            : isCheckedOut
++              ? `근무 완료 · ${fmtTime(todayAtt?.check_in)} ~ ${fmtTime(todayAtt?.check_out)}`
++              : `${fmtTime(todayAtt?.check_in)} 출근 · ${elapsedSince(todayAtt?.check_in)}`}
++        </span>
++        {!isCheckedIn ? (
++          <button onClick={doCheckIn} disabled={busy} className="btn-primary btn-sm shrink-0">{busy ? "..." : "출근"}</button>
++        ) : !isCheckedOut ? (
++          <button onClick={doCheckOut} disabled={busy} className="btn-secondary btn-sm shrink-0">{busy ? "..." : "퇴근"}</button>
++        ) : null}
++      </div>
++    );
++  }
++
+   if (empLoading) {
+     return (
+       <div className="glass-card p-5 text-sm text-[var(--text-muted)]">
+diff --git a/src/components/upcoming-schedule.tsx b/src/components/upcoming-schedule.tsx
+index ced3ae5e..59cf1e61 100644
+--- a/src/components/upcoming-schedule.tsx
++++ b/src/components/upcoming-schedule.tsx
+@@ -56,6 +56,15 @@ function fmtDateKey(d: Date): string {
+   return `${y}-${m}-${day}`;
+ }
+
++// 라운드7.1 — 액션 인박스/브리핑에서 재사용할 수 있게 공개 헬퍼로 노출 (계산 로직 동일)
++export function getUpcomingTaxDeadlines(windowDays = 30): ScheduleItem[] {
++  const today = new Date();
++  today.setHours(0, 0, 0, 0);
++  const windowEnd = new Date(today.getTime() + windowDays * 86400000);
++  return buildTaxSchedules(today, windowEnd).sort((a, b) => a.daysLeft - b.daysLeft);
++}
++export type { ScheduleItem };
++
+ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
+   const items: ScheduleItem[] = [];
+
