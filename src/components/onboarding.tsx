@@ -483,7 +483,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             <StepComplete status={status} />
           )}
           {saveError && (
-            <div className="mt-3 px-4 py-3 rounded-xl text-sm bg-red-50 border border-red-200 text-red-700">
+            <div className="mt-3 px-4 py-3 rounded-xl text-sm bg-[var(--danger-dim)] border border-[var(--danger)]/25 text-[var(--danger)]">
               {saveError}
             </div>
           )}
@@ -994,11 +994,11 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
 
               {engineStatus === "not-installed" && (
                 <div className="py-4 space-y-3">
-                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
-                    <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-[var(--warning-dim)] border border-[var(--warning)]/25">
+                    <svg className="w-4 h-4 text-[var(--warning)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
                     </svg>
-                    <div className="text-[11px] text-amber-800 leading-relaxed">
+                    <div className="text-[11px] text-[var(--warning)] leading-relaxed">
                       <p className="font-semibold mb-1">CodefCert 프로그램이 설치되어 있지 않습니다</p>
                       <p>PC에 저장된 공동인증서를 자동으로 불러오려면 CodefCert 프로그램을 설치해주세요.</p>
                       <p className="mt-1">또는 &quot;PFX 파일 직접 업로드&quot; 탭을 사용하세요.</p>
@@ -1072,7 +1072,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
                   )}
 
                   {data.pfxBase64 && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--success-dim)] border border-[var(--success)]/25 text-[var(--success)] text-xs font-semibold">
                       <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
                       인증서 추출 완료 — {data.fileName}
                     </div>
@@ -1131,7 +1131,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
           </div>
 
           {data.error && (
-            <div className="px-4 py-3 rounded-xl text-sm bg-red-50 border border-red-200 text-red-700">{data.error}</div>
+            <div className="px-4 py-3 rounded-xl text-sm bg-[var(--danger-dim)] border border-[var(--danger)]/25 text-[var(--danger)]">{data.error}</div>
           )}
 
           {/* Register button */}
@@ -1149,11 +1149,11 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
             ) : "인증서 등록하기"}
           </button>
 
-          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
-            <svg className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/20">
+            <svg className="w-3.5 h-3.5 text-[var(--info)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
-            <p className="text-[11px] text-blue-700 leading-relaxed">
+            <p className="text-[11px] text-[var(--info)] leading-relaxed">
               {mode === "engine"
                 ? "PC에 설치된 공동인증서를 CodefCert 프로그램이 자동으로 찾아 추출합니다. 인증서는 암호화되어 안전하게 전송됩니다."
                 : "PFX 파일은 은행 인터넷뱅킹에서 \"인증서 내보내기\"로 발급받을 수 있습니다. 인증서는 암호화되어 안전하게 전송되며, 금융 데이터 조회에만 사용됩니다."}
@@ -1321,9 +1321,9 @@ function StepComplete({ status }: { status: CompletionStatus }) {
             <SectionIcon type={item.icon} />
             <span className="flex-1 text-sm font-medium text-[var(--text)]">{item.label}</span>
             {item.done ? (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-600 font-bold">완료</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--success-dim)] text-[var(--success)] font-bold">완료</span>
             ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 font-bold">건너뜀</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)] font-bold">건너뜀</span>
             )}
           </div>
         ))}
@@ -1352,12 +1352,12 @@ function StepHeader({ title, desc, icon, whyItMatters }: { title: string; desc: 
         </div>
       </div>
       {whyItMatters && (
-        <div className="mt-3 px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
+        <div className="mt-3 px-3 py-2.5 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/20">
           <div className="flex items-start gap-2">
-            <svg className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-[var(--info)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
-            <p className="text-[11px] text-blue-700 leading-relaxed">{whyItMatters}</p>
+            <p className="text-[11px] text-[var(--info)] leading-relaxed">{whyItMatters}</p>
           </div>
         </div>
       )}
@@ -1367,11 +1367,11 @@ function StepHeader({ title, desc, icon, whyItMatters }: { title: string; desc: 
 
 function CompletedBadge({ message }: { message: string }) {
   return (
-    <div className="mb-4 px-3 py-2.5 rounded-xl bg-green-50 border border-green-200 flex items-start gap-2">
-      <svg className="w-4 h-4 text-green-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <div className="mb-4 px-3 py-2.5 rounded-xl bg-[var(--success-dim)] border border-[var(--success)]/25 flex items-start gap-2">
+      <svg className="w-4 h-4 text-[var(--success)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
       </svg>
-      <span className="text-xs text-green-700">{message}</span>
+      <span className="text-xs text-[var(--success)]">{message}</span>
     </div>
   );
 }

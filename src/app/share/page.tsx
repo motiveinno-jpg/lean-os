@@ -165,10 +165,10 @@ function ShareContent() {
 
         {/* Feedback sent confirmation */}
         {feedbackSent && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-4 text-center">
+          <div className="bg-[var(--success-dim)] border border-[var(--success)]/25 rounded-2xl p-6 mb-4 text-center">
             <div className="text-2xl mb-2">✅</div>
-            <h3 className="text-sm font-bold text-green-800">피드백이 전송되었습니다</h3>
-            <p className="text-xs text-green-600 mt-1">감사합니다. 담당자에게 알림이 전달됩니다.</p>
+            <h3 className="text-sm font-bold text-[var(--success)]">피드백이 전송되었습니다</h3>
+            <p className="text-xs text-[var(--success)] mt-1">감사합니다. 담당자에게 알림이 전달됩니다.</p>
           </div>
         )}
 

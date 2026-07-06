@@ -73,11 +73,11 @@ function fmtW(n: number | null | undefined): string {
 
 function deltaLabel(now: number, prev: number): { text: string; color: string } {
   if (prev === 0 && now === 0) return { text: "직전 분기 0", color: "text-[var(--text-dim)]" };
-  if (prev === 0) return { text: "신규 (직전 0)", color: "text-emerald-500" };
+  if (prev === 0) return { text: "신규 (직전 0)", color: "text-[var(--success)]" };
   const diff = now - prev;
   const pct = Math.round((diff / Math.abs(prev)) * 100);
-  if (diff > 0) return { text: `↑ ${pct}% (직전 ${fmtW(prev)})`, color: "text-emerald-500" };
-  if (diff < 0) return { text: `↓ ${Math.abs(pct)}% (직전 ${fmtW(prev)})`, color: "text-red-500" };
+  if (diff > 0) return { text: `↑ ${pct}% (직전 ${fmtW(prev)})`, color: "text-[var(--success)]" };
+  if (diff < 0) return { text: `↓ ${Math.abs(pct)}% (직전 ${fmtW(prev)})`, color: "text-[var(--danger)]" };
   return { text: "직전 분기 동일", color: "text-[var(--text-dim)]" };
 }
 
@@ -468,7 +468,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                           {r.completion_id && (
                             <button
                               onClick={() => openDocViewer({ type: 'contract', id: r.completion_id! })}
-                              className="text-[10px] px-2 py-1 rounded bg-emerald-500/10 text-emerald-500 font-semibold hover:bg-emerald-500/20"
+                              className="text-[10px] px-2 py-1 rounded bg-[var(--success)]/10 text-[var(--success)] font-semibold hover:bg-[var(--success)]/20"
                               title="완료확인서 보기"
                             >
                               📄 완료

@@ -479,14 +479,14 @@ export default function BillingPage() {
                   <button
                     onClick={handleOpenPortal}
                     disabled={isPaymentLoading}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold text-red-500 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 transition disabled:opacity-50"
+                    className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--danger)] border border-[var(--danger)]/40 hover:bg-[var(--danger-dim)] transition disabled:opacity-50"
                   >
                     {isPaymentLoading ? "로딩 중..." : "Stripe에서 해지"}
                   </button>
                 ) : (
                   <button
                     onClick={() => setShowCancelModal(true)}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold text-red-500 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 transition"
+                    className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--danger)] border border-[var(--danger)]/40 hover:bg-[var(--danger-dim)] transition"
                   >
                     해지하기
                   </button>
@@ -507,7 +507,7 @@ export default function BillingPage() {
             {hasStripeSubscription ? (
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg">💳</div>
+                  <div className="w-10 h-10 rounded-lg bg-[var(--info-dim)] flex items-center justify-center text-[var(--info)] text-lg">💳</div>
                   <div>
                     <div className="font-semibold text-sm text-[var(--text)]">Stripe 구독 결제</div>
                     <div className="text-xs text-[var(--text-muted)]">등록된 카드로 자동 결제됩니다</div>
@@ -516,7 +516,7 @@ export default function BillingPage() {
                 <button
                   onClick={handleOpenPortal}
                   disabled={isPaymentLoading}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--info)] border border-[var(--info)]/30 hover:bg-[var(--info-dim)] transition disabled:opacity-50"
                 >
                   {isPaymentLoading ? "로딩 중..." : "카드 변경"}
                 </button>

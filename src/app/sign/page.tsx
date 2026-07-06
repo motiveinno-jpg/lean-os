@@ -904,7 +904,7 @@ function SignContent() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
         <div className="w-full max-w-md text-center">
-          <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 text-xl font-black flex items-center justify-center mx-auto mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--danger-dim)] text-[var(--danger)] text-xl font-black flex items-center justify-center mx-auto mb-4">
             !
           </div>
           <h1 className="text-2xl font-extrabold text-gray-900 mb-2">유효하지 않은 링크</h1>
@@ -921,7 +921,7 @@ function SignContent() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
         <div className="w-full max-w-md text-center">
-          <div className="w-14 h-14 rounded-2xl bg-yellow-50 text-yellow-600 text-xl font-black flex items-center justify-center mx-auto mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--warning-dim)] text-[var(--warning)] text-xl font-black flex items-center justify-center mx-auto mb-4">
             !
           </div>
           <h1 className="text-2xl font-extrabold text-gray-900 mb-2">서명 기한 만료</h1>
@@ -945,7 +945,7 @@ function SignContent() {
             <div>
               <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 {pkg.title}
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">
                   서명 완료
                 </span>
               </h1>
@@ -971,7 +971,7 @@ function SignContent() {
                   <h3 className="text-sm font-bold text-gray-800">
                     문서 {idx + 1} · {item.title}
                   </h3>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-semibold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--success-dim)] text-[var(--success)] font-semibold">
                     ✓ 서명완료
                   </span>
                 </div>
@@ -1120,7 +1120,7 @@ function SignContent() {
             </p>
           </div>
           <div className="text-right">
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[var(--info-dim)] text-[var(--info)]">
               {signedCount}/{pkg.items.length} 완료
             </span>
           </div>
@@ -1152,7 +1152,7 @@ function SignContent() {
                 idx === activeItem
                   ? "bg-blue-600 text-white"
                   : item.status === "signed"
-                  ? "bg-green-50 text-green-700"
+                  ? "bg-[var(--success-dim)] text-[var(--success)]"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -1166,14 +1166,14 @@ function SignContent() {
       {/* Document Content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
         {currentItem?.status === "signed" ? (
-          <div className="bg-white rounded-2xl border border-green-200 p-6 md:p-8 shadow-sm">
+          <div className="bg-white rounded-2xl border border-[var(--success)]/30 p-6 md:p-8 shadow-sm">
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <div className="w-8 h-8 rounded-full bg-[var(--success-dim)] flex items-center justify-center">
+                <svg className="w-4 h-4 text-[var(--success)]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-green-700">서명 완료</span>
+              <span className="text-sm font-semibold text-[var(--success)]">서명 완료</span>
               <span className="text-[10px] text-gray-400 ml-auto">
                 {currentItem.signed_at ? new Date(currentItem.signed_at).toLocaleString("ko-KR") : "-"}
               </span>
@@ -1262,7 +1262,7 @@ function SignContent() {
             {/* 2026-05-28 서명자 입력 — 본문 토큰 자리에 인라인 렌더(html-react-parser).
                 별도 입력 카드 제거. 미입력 항목만 작은 알림 바로 표시(서명 완료 가드). */}
             {hasSignerInputs && !inputsOk && (
-              <div className="mb-6 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
+              <div className="mb-6 px-4 py-3 rounded-xl bg-[var(--warning-dim)] border border-[var(--warning)]/25 text-xs text-[var(--warning)] flex items-start gap-2">
                 <span className="text-base leading-none mt-0.5">⚠️</span>
                 <span>
                   본문에서 <strong>{inputsValidation.missing.join(", ")}</strong> 항목을 선택·입력해 주세요.
@@ -1280,7 +1280,7 @@ function SignContent() {
                   {savedSignature && (
                     <button
                       onClick={() => setSignMode("saved")}
-                      className="w-full py-4 rounded-xl border-2 border-blue-200 bg-blue-50 hover:border-blue-400 transition text-center"
+                      className="w-full py-4 rounded-xl border-2 border-[var(--info)]/30 bg-[var(--info-dim)] hover:border-[var(--info)] transition text-center"
                     >
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -1297,7 +1297,7 @@ function SignContent() {
                   )}
                   <button
                     onClick={() => setSignMode("draw")}
-                    className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition text-center"
+                    className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-[var(--info)] hover:bg-[var(--info-dim)] transition text-center"
                   >
                     <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                       <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
@@ -1309,7 +1309,7 @@ function SignContent() {
 
               {signMode === "saved" && savedSignature && (
                 <div>
-                  <div className="p-6 bg-gray-50 rounded-xl border-2 border-blue-200 text-center mb-4">
+                  <div className="p-6 bg-[var(--bg-surface)] rounded-xl border-2 border-[var(--info)]/30 text-center mb-4">
                     <p className="text-xs text-gray-500 mb-2">저장된 서명</p>
                     {savedSignature.type === "draw" ? (
                       <img src={savedSignature.data} alt="서명" className="h-16 mx-auto" />

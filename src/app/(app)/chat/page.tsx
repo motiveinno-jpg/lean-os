@@ -180,7 +180,7 @@ function GuestChatView({ token }: { token: string }) {
       <div className="flex items-center justify-center h-screen bg-[var(--bg)]">
         <div className="glass-card p-10 text-center max-w-md">
           <div className="text-3xl mb-4">🔒</div>
-          <div className="text-lg font-bold mb-2 text-[var(--danger)]">접근 불가</div>
+          <div className="text-sm font-bold mb-2 text-[var(--danger)]">접근 불가</div>
           <div className="text-sm text-[var(--text-muted)]">{error}</div>
         </div>
       </div>
@@ -194,7 +194,7 @@ function GuestChatView({ token }: { token: string }) {
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 font-bold">GUEST</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-bold">GUEST</span>
             <h1 className="text-lg font-extrabold">{session.channelName}</h1>
           </div>
           <div className="text-xs text-[var(--text-dim)] mt-0.5">
@@ -242,7 +242,7 @@ function GuestChatView({ token }: { token: string }) {
           <div ref={messagesEndRef} />
         </div>
         {guestSendError && (
-          <div className="px-4 py-2 bg-red-500/10 text-red-400 text-xs font-medium">{guestSendError}</div>
+          <div className="px-4 py-2 bg-[var(--danger-dim)] text-[var(--danger)] text-xs font-medium">{guestSendError}</div>
         )}
         <div className="rounded-b-2xl border border-t-0 border-[var(--border)] overflow-hidden">
           <ChatInput onSend={(text) => sendMut.mutate(text)} disabled={sendMut.isPending} />
@@ -456,9 +456,9 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       {/* ── 생성 모달 (프로젝트/팀/DM 통합) ── */}
       {creating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCreating(null)}>
-          <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-card w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-              <h3 className="text-base font-bold text-[var(--text)]">새로 만들기</h3>
+              <h3 className="text-sm font-bold text-[var(--text)]">새로 만들기</h3>
               <button onClick={() => setCreating(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-lg">×</button>
             </div>
             <div className="mx-6 mt-4">
