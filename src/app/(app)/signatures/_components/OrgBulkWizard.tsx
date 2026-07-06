@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import Link from "next/link";
 import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, buildOrgContractSnapshotHtml, type PartnerVarColumn } from "@/lib/signatures";
 import { supabase } from "@/lib/supabase";
@@ -751,7 +752,7 @@ export function OrgBulkWizard({
                   </div>
                   {previewBodyHtml ? (
                     <div className="border border-[var(--border)] rounded-lg bg-white max-h-[440px] overflow-auto p-5">
-                      <div dangerouslySetInnerHTML={{ __html: previewBodyHtml }} />
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(previewBodyHtml) }} />
                     </div>
                   ) : (
                     <div className="p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5 text-yellow-600 text-xs">

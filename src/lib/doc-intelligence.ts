@@ -119,11 +119,15 @@ export async function getContractDocuments(companyId: string) {
 
 // Search documents by full text
 export async function searchDocuments(companyId: string, searchTerm: string) {
+  // PostgREST .or() 필터 주입 방지 (2026-07-06 보안감사 P2) — 쉼표·괄호·별표·백슬래시 이스케이프.
+  //   미이스케이프 시 검색어의 ,/)/* 로 필터 로직 조작 가능(테넌트 경계는 eq company_id 로 유지되나 필터 왜곡).
+  const safe = searchTerm.replace(/[,()*\\]/g, ' ').trim();
+  if (!safe) return [];
   const { data } = await db
     .from('documents')
     .select('*')
     .eq('company_id', companyId)
-    .or(`name.ilike.%${searchTerm}%,full_text.ilike.%${searchTerm}%`)
+    .or(`name.ilike.%${safe}%,full_text.ilike.%${safe}%`)
     .order('created_at', { ascending: false })
     .limit(50);
   return data || [];

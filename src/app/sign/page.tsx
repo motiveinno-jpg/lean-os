@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import parse, { type HTMLReactParserOptions } from "html-react-parser";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
@@ -1036,7 +1037,7 @@ function SignContent() {
                 })}
                 {(!Array.isArray(cj?.sections) || cj.sections.length === 0) && cj?.body && (
                   /^\s*</.test(String(cj.body)) ? (
-                    <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto" dangerouslySetInnerHTML={{ __html: injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(cj.body)), signerInputs)) }} />
+                    <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(cj.body)), signerInputs))) }} />
                   ) : (
                     <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                       {stripSignatureBlock(String(cj.body))}

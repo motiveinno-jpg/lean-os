@@ -5,6 +5,7 @@
 //   기존 페이지 로직을 그대로 추출 (렌더/서명/직인/PDF 무변경). backHref 있으면 ← 목록 링크(페이지 전용).
 
 import { useEffect, useState } from "react";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { friendlyError, reportError } from "@/lib/friendly-error";
@@ -334,7 +335,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
       {/* 계약서 본문 (print-friendly) — 양식 안에 sig-box 이미 있으면 푸터 중복 회피.
           globals.css 의 `body * { visibility: hidden }` 우회 — `.print-area` 만 visible. */}
       <div className="print-area bg-white text-gray-900 rounded-xl shadow border border-[var(--border)] p-8 print:shadow-none print:border-0 print:p-0 print:rounded-none print:m-0 print:w-full">
-        <div dangerouslySetInnerHTML={{ __html: stripBodySignatureArea(html) }} />
+        <div dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(stripBodySignatureArea(html)) }} />
 
         {/* 갑/을 푸터 자동 합성 — 본문에 sig-box 없는 경우만 (자유 본문·옛 양식) */}
         {!/class="sig-box"/.test(html) && (

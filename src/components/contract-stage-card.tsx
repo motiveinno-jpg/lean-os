@@ -11,6 +11,7 @@
 // 그대로 렌더.
 
 import Link from "next/link";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -462,7 +463,7 @@ export function ContractStageCard({
           ) : (
             <div
               className="prose prose-sm max-w-none bg-white text-gray-900 p-4 rounded border border-[var(--border)] text-xs max-h-[300px] overflow-y-auto"
-              dangerouslySetInnerHTML={{ __html: renderedHtml }}
+              dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(renderedHtml) }}
             />
           )}
         </div>

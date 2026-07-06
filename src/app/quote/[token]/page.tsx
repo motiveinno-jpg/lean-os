@@ -18,6 +18,7 @@
 //   다른 stage(contract/progress_report/completion/settlement)는 다음 라운드.
 
 import { useEffect, useMemo, useState } from "react";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { friendlyError, reportError } from "@/lib/friendly-error";
@@ -430,7 +431,7 @@ export default function QuoteApprovalPage() {
               {contractSnapshot.html ? (
                 <div
                   className="border border-gray-200 rounded-lg p-4 bg-gray-50 text-xs max-h-[500px] overflow-y-auto"
-                  dangerouslySetInnerHTML={{ __html: contractSnapshot.html }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(contractSnapshot.html) }}
                 />
               ) : contractSnapshot.fileUrl ? (
                 <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 text-xs text-gray-700">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef, Suspense } from "react";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { DateField } from "@/components/date-field";
 import { DEFAULT_DOC_TEMPLATES } from "@/lib/default-doc-templates";
 import dynamic from "next/dynamic";
@@ -1355,7 +1356,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 const filled = fillVars(editContent);
                 const t = filled.trim();
                 if (t.startsWith('<!DOCTYPE') || t.startsWith('<html') || t.startsWith('<div') || t.startsWith('<h') || t.startsWith('<p') || t.startsWith('<ul') || t.startsWith('<ol') || t.startsWith('<img') || t.startsWith('<blockquote')) {
-                  return <div className="text-sm leading-relaxed text-[var(--text)] document-html-content [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2" dangerouslySetInnerHTML={{ __html: filled }} />;
+                  return <div className="text-sm leading-relaxed text-[var(--text)] document-html-content [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(filled) }} />;
                 }
                 if (!t) return <div className="text-sm text-[var(--text-dim)]">(내용 없음)</div>;
                 // 마크다운식 렌더 — ## 제목, ※ 주석, [품목 테이블]은 위 품목표로 대체(숨김)

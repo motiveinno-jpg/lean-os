@@ -40,6 +40,7 @@
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "html-react-parser": "^6.1.2",
+    "isomorphic-dompurify": "^3.18.0",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",

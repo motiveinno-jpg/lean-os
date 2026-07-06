@@ -7,6 +7,7 @@
 //   권한: owner/admin 만 (RLS DB 측 admin only, UI 측 친절 안내).
 
 import { useMemo, useState } from "react";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
@@ -358,7 +359,7 @@ function TemplateEditorModal({
               <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">미리보기</label>
               <div
                 className="prose prose-sm max-w-none bg-white text-gray-900 p-4 rounded border border-[var(--border)] text-xs"
-                dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(bodyHtml) }}
               />
             </div>
           )}
