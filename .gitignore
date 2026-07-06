@@ -56,3 +56,18 @@ _QA_LOG_*.md
 .claude/settings.local.json
 .tmp_qa/
 .env.local
+
+# 핸드오프/QA 산출물 — 사장님 지시(2026-07-06): 커밋/푸시에 안 올리기.
+#   handoff/qa 폴더 전체 + 저장소 루트에 떨어지는 스크린샷/압축본은 로컬 전달용이라 git 이력 오염.
+#   앱 자산(public/, src/ 하위)은 대상 아님 — 아래 패턴이 하위 디렉터리를 매칭 안 함.
+handoff/
+qa/
+/*.zip
+/*.png
+/*.jpg
+/*.jpeg
+*.hwp
+*.hwpx
+*.docx
+*.pptx
+*.xlsx
