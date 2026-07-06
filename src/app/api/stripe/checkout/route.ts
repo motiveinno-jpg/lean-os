@@ -14,6 +14,11 @@ const PRICE_MAP: Record<string, Record<string, string | undefined>> = {
     monthly: process.env.STRIPE_PRICE_BASIC_MONTHLY,
     annual: process.env.STRIPE_PRICE_BASIC_ANNUAL,
   },
+  // 울트라 88,000 (2026-07-06) — Stripe 대시보드에서 price 생성 후 Vercel env 에 등록해야 활성
+  ultra: {
+    monthly: process.env.STRIPE_PRICE_ULTRA_MONTHLY,
+    annual: process.env.STRIPE_PRICE_ULTRA_ANNUAL,
+  },
   starter: {
     monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,
     annual: process.env.STRIPE_PRICE_STARTER_ANNUAL,

@@ -86,6 +86,30 @@ function meterPush(path: string, code: string) {
     if (s) s.calls.push({ path, code });
   } catch (_) { /* 계측은 절대 동기화를 깨지 않는다 */ }
 }
+// ── 2026-07-06 CODEF 원가 가드 — 페이월에 막힌 회사(체험 만료·해지 기간종료)는 자동 cron 제외.
+//   앱 접근도 못 하는 회사에 하루 4회 CODEF 과금이 나가는 누수 방지. 수동 동기화는 영향 없음
+//   (어차피 페이월로 화면 진입 불가). 구독행 없음(레거시)·active·trialing(유효)·past_due 는 유지.
+async function filterBillableCompanies(supabase: any, companyIds: string[]): Promise<Set<string>> {
+  const allowed = new Set(companyIds);
+  if (companyIds.length === 0) return allowed;
+  try {
+    const { data: subs } = await supabase
+      .from("subscriptions")
+      .select("company_id, status, trial_ends_at, current_period_end")
+      .in("company_id", companyIds);
+    const now = Date.now();
+    for (const s of subs || []) {
+      const trialOver = s.status === "trialing" && s.trial_ends_at && new Date(s.trial_ends_at).getTime() < now;
+      const canceledOver = s.status === "canceled" && (!s.current_period_end || new Date(s.current_period_end).getTime() < now);
+      if (trialOver || canceledOver) allowed.delete(s.company_id);
+    }
+  } catch (e: any) {
+    // 가드 조회 실패 시 전체 허용(fail-open) — 구독 조회 장애가 동기화를 멈추면 안 됨
+    console.error("[CRON-GUARD] subscription check failed:", e?.message);
+  }
+  return allowed;
+}
+
 async function flushCodefUsage(store: MeterStore) {
   try {
     if (!store.calls.length) return;
@@ -1370,12 +1394,15 @@ serve(async (req) => {
     //   ⚠️ 은행 분기 전용 — 홈택스/현금영수증/카드 미접촉. dedup(20260518130000)으로
     //      중복 안전. hometax-cron-tick 과 동일한 fan-out 패턴.
     if (action === "bank-cron-tick") {
-      const { data: companies } = await supabase
+      const { data: allCompanies } = await supabase
         .from("company_settings")
         .select("company_id, codef_connected_id, codef_client_id")
         .not("codef_connected_id", "is", null)
         .neq("codef_connected_id", "")
         .limit(50);
+      // 체험 만료·해지 기간종료 회사 제외 — 페이월 뒤 회사에 CODEF 과금 누수 방지
+      const billable = await filterBillableCompanies(supabase, (allCompanies || []).map((c: any) => c.company_id));
+      const companies = (allCompanies || []).filter((c: any) => billable.has(c.company_id));
       const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
       const cronSecretForChain = CRON_SECRET;
       const triggers = (companies || []).map((c: any) =>
@@ -1409,12 +1436,15 @@ serve(async (req) => {
     //     · billing+approval 을 같은 호출에 묶으면 Edge 150s 초과(HTTP 546) → 회사당 2개 호출로 분리.
     //   dedup(external_id 동일 포맷)으로 billing/approval 간 중복 안전.
     if (action === "card-cron-tick") {
-      const { data: companies } = await supabase
+      const { data: allCardCompanies } = await supabase
         .from("company_settings")
         .select("company_id, codef_connected_id")
         .not("codef_connected_id", "is", null)
         .neq("codef_connected_id", "")
         .limit(50);
+      // 체험 만료·해지 기간종료 회사 제외 — bank-cron-tick 과 동일 가드
+      const cardBillable = await filterBillableCompanies(supabase, (allCardCompanies || []).map((c: any) => c.company_id));
+      const companies = (allCardCompanies || []).filter((c: any) => cardBillable.has(c.company_id));
       const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
       const triggers = (companies || []).flatMap((c: any) => [
         fetch(selfUrl, {

@@ -16,10 +16,12 @@ const db = supabase as any;
 type Tab = "plan" | "payment" | "invoices" | "referral";
 type BillingCycle = "monthly" | "annual";
 
+// 2026-07-06 4티어 정합(랜딩과 동일) — 허위 항목(SSO/SAML·API·온프레미스) 제거
 const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommended?: boolean }> = {
-  free: { icon: "🎁", features: ["14일간 전 기능 무료 체험", "직원 3명 / 프로젝트 3개", "전자서명 월 3건", "AI 분석 월 5회", "생존 대시보드", "팀 채팅"] },
-  basic: { icon: "🚀", recommended: true, features: ["직원 / 프로젝트 무제한", "4대 엔진 전체", "전자서명 무제한", "AI 분석 무제한", "거래처 / 파트너 무제한", "세무 리포트", "우선 지원"] },
-  enterprise: { icon: "🏢", features: ["기본요금제 전체 +", "SSO / SAML", "감사 로그 무제한", "API 접근", "전담 CSM", "맞춤 개발", "SLA 보장"] },
+  free: { icon: "🎁", features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
+  basic: { icon: "🚀", recommended: true, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자계약 · 전자결재 무제한", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏"] },
+  ultra: { icon: "⚡", features: ["프로 전체 +", "은행·카드 동기화 무제한", "연결 계좌·카드 수 제한 없음", "신기능 우선 제공", "우선 지원"] },
+  enterprise: { icon: "🏢", features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 보장"] },
 };
 
 function fmtW(n: number): string {
@@ -341,6 +343,7 @@ export default function BillingPage() {
             const limits: Record<string, { employees: number; aiCalls: number; signatures: number; partners: number }> = {
               free:       { employees: 3,    aiCalls: 5,    signatures: 3,    partners: 5 },
               basic:      { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
+              ultra:      { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
               enterprise: { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
             };
             const lim = limits[currentSlug] || limits.free;
@@ -386,7 +389,7 @@ export default function BillingPage() {
             );
           })()}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
               const meta = PLAN_FEATURES[slug] || { icon: "📦", features: [] };
