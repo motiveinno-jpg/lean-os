@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "re_ZMVoVhc2_7Ui1ukqYnR5wPgec56r97Uqm";
+// 2026-07-06 보안감사 P0: 하드코딩 Resend 키 제거 — env 로만. (노출된 키는 사장님이 Resend 대시보드에서 로테이션 필요)
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "OwnerView <noreply@owner-view.com>";
 
 const corsHeaders = {

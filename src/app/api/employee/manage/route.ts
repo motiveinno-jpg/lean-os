@@ -1,5 +1,6 @@
 // 회사 멤버 관리 — 역할 변경 / 인사파일 등록·해제 / 회사 제외
 import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 
 type Role = "owner" | "admin" | "employee" | "partner";
@@ -7,18 +8,30 @@ type Action = "update-role" | "register-hr" | "unregister-hr" | "remove-from-com
 
 export async function POST(req: NextRequest) {
   try {
-    const { action, companyId, userId, role } = (await req.json()) as {
+    // 1) 호출자 인증 + 권한 (대표/관리자만). service_role 로 RLS 우회하므로 앱 레벨 인가 필수.
+    //    (2026-07-06 보안감사 P0: 인증·인가 전무 → 비인증 크로스테넌트 파괴적 쓰기 가능했음)
+    const ss = await createSupabaseServerClient();
+    const { data: { user: caller } } = await ss.auth.getUser();
+    if (!caller) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+
+    const admin = createSupabaseAdminClient();
+    const { data: callerRow } = await admin.from("users").select("id, company_id, role").eq("auth_id", caller.id).maybeSingle();
+    if (!callerRow?.company_id) return NextResponse.json({ error: "회사 정보를 찾을 수 없습니다." }, { status: 403 });
+    if (!["owner", "admin"].includes(callerRow.role || "")) {
+      return NextResponse.json({ error: "멤버 관리는 대표/관리자만 가능합니다." }, { status: 403 });
+    }
+    // 회사 스코프는 body 가 아니라 호출자 소속에서 결정 — 남의 회사 지정 불가
+    const companyId = callerRow.company_id;
+
+    const { action, userId, role } = (await req.json()) as {
       action?: Action;
-      companyId?: string;
       userId?: string;
       role?: Role;
     };
 
-    if (!action || !companyId || !userId) {
-      return NextResponse.json({ error: "action, companyId, userId 필수" }, { status: 400 });
+    if (!action || !userId) {
+      return NextResponse.json({ error: "action, userId 필수" }, { status: 400 });
     }
-
-    const admin = createSupabaseAdminClient();
 
     // 본인 보호 — owner 본인이 자기 role 을 employee 로 바꾸면 회사 관리 불가
     const { data: targetUser } = await admin

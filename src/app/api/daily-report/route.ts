@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -150,8 +151,10 @@ async function sendTelegram(text: string): Promise<boolean> {
 }
 
 export async function GET(request: NextRequest) {
+  // fail-closed — CRON_SECRET 미설정 시 전 회사 일보를 누구나 발송할 수 있으므로 거부.
+  //   (2026-07-06 보안감사 P2)
   const authHeader = request.headers.get('authorization');
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Invalid cron secret' } },
       { status: 401 },
@@ -200,13 +203,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { companyId } = body;
-
+    // 인증 + 회사 스코프 — buildDailyReport 는 통장잔고·미수금·런웨이 등 재무요약을 응답에 담으므로
+    //   호출자 소속 회사만 조회 가능해야 함. companyId 는 body 가 아니라 호출자 users 행에서 결정.
+    //   (2026-07-06 보안감사 P0: 인증 없이 임의 회사 재무요약을 응답으로 유출했음)
+    const ss = await createSupabaseServerClient();
+    const { data: { user: caller } } = await ss.auth.getUser();
+    if (!caller) return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: '인증이 필요합니다' } }, { status: 401 });
+    const admin = getSupabaseAdmin() as any;
+    const { data: callerRow } = await admin.from('users').select('company_id').eq('auth_id', caller.id).maybeSingle();
+    const companyId = callerRow?.company_id;
     if (!companyId) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'companyId는 필수입니다' } },
-        { status: 400 },
+        { error: { code: 'FORBIDDEN', message: '회사 정보를 찾을 수 없습니다' } },
+        { status: 403 },
       );
     }
 

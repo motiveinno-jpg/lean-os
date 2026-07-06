@@ -104,6 +104,26 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+  // ── 2026-07-06 보안감사 P0: 실계좌 이체 함수에 인증·인가·회사스코프가 전무했음.
+  //    공개 anon 키 + approved paymentId 만으로 무인증 이체/재무변조(IDOR) 가능했음.
+  //    → 호출자 인증 + owner/admin + payment 회사 == 호출자 회사 대조.
+  const authHeader = req.headers.get("authorization") || "";
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "인증이 필요합니다." }), { status: 401, headers: CORS_HEADERS });
+  }
+  const { data: { user: caller } } = await createClient(
+    supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    { global: { headers: { Authorization: authHeader } } },
+  ).auth.getUser();
+  if (!caller) {
+    return new Response(JSON.stringify({ error: "인증이 필요합니다." }), { status: 401, headers: CORS_HEADERS });
+  }
+  const { data: callerRow } = await supabase
+    .from("users").select("company_id, role").eq("auth_id", caller.id).maybeSingle();
+  if (!callerRow?.company_id || !["owner", "admin"].includes(callerRow.role || "")) {
+    return new Response(JSON.stringify({ error: "결제 실행은 대표/관리자만 가능합니다." }), { status: 403, headers: CORS_HEADERS });
+  }
+
   // 1) Load payment
   const { data: payment, error: pErr } = await supabase
     .from("payment_queue")
@@ -115,6 +135,10 @@ Deno.serve(async (req: Request) => {
       status: 404,
       headers: CORS_HEADERS,
     });
+  }
+  // 소유권 — 남의 회사 결제 실행 차단 (IDOR)
+  if (payment.company_id !== callerRow.company_id) {
+    return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: CORS_HEADERS });
   }
   if (payment.status !== "approved") {
     return new Response(

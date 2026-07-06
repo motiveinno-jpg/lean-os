@@ -1472,6 +1472,16 @@ serve(async (req) => {
 
     if (!companyId) return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    // 2026-07-06 보안감사 P1(IDOR): 일반 유저 호출은 body.companyId 가 그 유저 소속인지 검증.
+    //   미검증 시 임의 companyId 로 타사 CODEF sync 강제 → 타사 과금(호출당 실비)+데이터 조작 가능했음.
+    //   internal(cron/service_role) 호출은 이미 위에서 allowlist 로 제한되므로 제외.
+    if (!isInternalAuth) {
+      const { data: callerRow } = await supabase.from("users").select("company_id").eq("auth_id", user.id).maybeSingle();
+      if (!callerRow || callerRow.company_id !== companyId) {
+        return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // Get CODEF credentials from company settings
     const { data: settings } = await supabase.from("company_settings").select("codef_client_id, codef_client_secret, codef_connected_id").eq("company_id", companyId).maybeSingle();
 
