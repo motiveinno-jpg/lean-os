@@ -717,3 +717,11 @@ body::before {
 }
 .btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, var(--primary-hover), var(--primary)); }
 .seg-item-active { box-shadow: 0 3px 10px -3px color-mix(in srgb, var(--primary) 55%, transparent); }
+
+/* 사이드바 활성 nav — 목업(리퀴드글래스) 인디고 그라데이션 필 필드. 기존 단색 bg-[var(--primary)] 대체 */
+.nav-active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-soft));
+  color: var(--primary-foreground);
+  font-weight: 600;
+  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--primary) 55%, transparent);
+}

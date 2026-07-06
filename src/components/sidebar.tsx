@@ -303,7 +303,7 @@ export function Sidebar() {
           <Link href={item.href}
             className={`flex items-center rounded-lg text-[13px] transition-all ${
               collapsed ? "justify-center px-0 py-2.5" : `gap-2.5 px-2.5 py-2 ${isChild ? "pl-8" : ""}`
-            } ${active ? "bg-[var(--primary)] text-white font-semibold shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+            } ${active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
             <span className="relative">
               <NavIcon name={item.icon} className={active ? "text-white" : ""} />
               {collapsed && badge > 0 && (
@@ -345,7 +345,7 @@ export function Sidebar() {
     return (
       <div key={item.href} className="relative flex items-center">
         <Link href={item.href}
-          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${isChild ? "pl-8" : ""} ${active ? "bg-[var(--primary)] text-white font-semibold shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${isChild ? "pl-8" : ""} ${active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
           <NavIcon name={item.icon} className={active ? "text-white" : ""} />
           <span className="flex-1">{item.label}</span>
           {badge > 0 && (
@@ -519,7 +519,7 @@ export function Sidebar() {
                         collapsed ? "justify-center px-0 py-2.5" : "gap-2.5 px-2.5 py-2"
                       } ${
                         active
-                          ? "bg-[var(--primary)] text-white font-semibold shadow-sm"
+                          ? "nav-active"
                           : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                       }`}
                     >
@@ -735,7 +735,7 @@ export function Sidebar() {
                       <Link key={`mpin-${item.href}`} href={item.href}
                         className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
                           active
-                            ? "bg-[var(--primary)] text-white font-semibold shadow-sm"
+                            ? "nav-active"
                             : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                         }`}>
                         <NavIcon name={item.icon} className={active ? "text-white" : ""} />
