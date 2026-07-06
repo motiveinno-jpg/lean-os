@@ -2,11 +2,12 @@
 
 // 거래처 원장 — 매출처(받을 돈)/매입처(줄 돈) 잔액 조회 (2026-06-12 메뉴 분리 핸드오프).
 //   대사 작업(확인 큐/수동 매칭/확정 내역)은 /partners/reconciliation (거래 대사)로 분리.
-//   UX(§4): 세그먼트 탭(매출처=파랑 #2563EB / 매입처=주황 #EA580C, 빨강은 연체·마이너스 전용) +
+//   UX(§4): 세그먼트 탭(매출처=파랑 var(--info) / 매입처=주황 var(--warning), 빨강은 연체·마이너스 전용) +
 //   요약 카드 + 좌 거래처 목록 / 우 위하고식 원장 시트. 탭 상태는 URL ?type= 에 반영.
 
 import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -316,10 +317,11 @@ export default function PartnerLedgerPage() {
             )}
             <div className="overflow-y-auto max-h-[560px] p-1.5 space-y-0.5">
               {shown.length === 0 ? (
-                <div className="py-12 px-4 text-center">
-                  <div className="text-3xl mb-3">{sq ? "🔍" : "📒"}</div>
-                  <div className="text-xs font-semibold text-[var(--text)]">{sq ? "검색 결과가 없습니다." : `${periodLabel} ${pal.label} 거래가 없습니다. 상단 “홈택스 거래처 연결”을 먼저 실행해 보세요.`}</div>
-                </div>
+                <EmptyState
+                  icon={sq ? "🔍" : "📒"}
+                  title={sq ? "검색 결과가 없습니다." : `${periodLabel} ${pal.label} 거래가 없습니다.`}
+                  desc={sq ? undefined : "상단 “홈택스 거래처 연결”을 먼저 실행해 보세요."}
+                />
               ) : shown.map((r, idx) => {
                 const key = r.partner_id ?? "none";
                 const active = key === selKey;
@@ -338,7 +340,7 @@ export default function PartnerLedgerPage() {
                         <span className="block text-[10px] text-[var(--text-dim)] mono-number">{r.partner_id && partnerCodeMap[r.partner_id] ? String(partnerCodeMap[r.partner_id]).padStart(4, "0") : "—"}</span>
                         <span className={`block text-xs truncate ${active ? "font-bold" : "font-medium text-[var(--text)]"}`} style={active ? { color: pal.main } : undefined}>{nameOf(r.partner_id)}</span>
                       </span>
-                      <span className={`shrink-0 text-xs font-semibold mono-number ${out > 0 ? pal.tintText : out < 0 ? "text-red-500" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</span>
+                      <span className={`shrink-0 text-xs font-semibold mono-number ${out > 0 ? pal.tintText : out < 0 ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</span>
                     </button>
                   </div>
                 );
@@ -361,11 +363,12 @@ export default function PartnerLedgerPage() {
               onOpenDetail={() => setDetail({ partnerId: selRow.partner_id, type: selRow.type, focus: "all" })}
             />
           ) : (
-            <div className="glass-card py-16 px-6 text-center">
-              <div className="text-4xl mb-3">👈</div>
-              <div className="text-sm font-semibold text-[var(--text)]">좌측에서 거래처를 선택하세요.</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">선택한 거래처의 일자별 원장(차변·대변·잔액)이 표시됩니다</div>
-            </div>
+            <EmptyState
+              card
+              icon="📒"
+              title="좌측에서 거래처를 선택하세요."
+              desc="선택한 거래처의 일자별 원장(차변·대변·잔액)이 표시됩니다"
+            />
           )}
         </div>
       )}
@@ -384,7 +387,7 @@ export default function PartnerLedgerPage() {
       )}
 
       <p className="text-[11px] text-[var(--text-dim)]">
-        ※ 미확정 입금 매칭은 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 매칭</Link>에서 확정해야 잔액에 반영됩니다 · <span className="text-red-500">빨간색</span>은 마이너스 잔액·장기 미정산에만 사용됩니다
+        ※ 미확정 입금 매칭은 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 매칭</Link>에서 확정해야 잔액에 반영됩니다 · <span className="text-[var(--danger)]">빨간색</span>은 마이너스 잔액·장기 미정산에만 사용됩니다
       </p>
     </div>
   );

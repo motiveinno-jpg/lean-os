@@ -48,6 +48,7 @@ import {
 import { AttendanceBadges } from "@/components/attendance-badges";
 import AllowanceAdminTab from "@/components/hr-allowance-admin";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
+import { useConfirm } from "@/components/confirm-dialog";
 import { PayrollHero, ContractsHero, CertificatesHero } from "@/components/flex-hr-heroes";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
@@ -178,41 +179,41 @@ export default function EmployeesPage() {
       {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김 */}
       {!isEmployee && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">재직 인원</span>
+              <span className="stat-tile-label">재직 인원</span>
               <span className="kpi-icon">👥</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{activeCount}명</span>
+              <span className="stat-tile-value mono-number">{activeCount}명</span>
             </div>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">연 인건비</span>
+              <span className="stat-tile-label">연 인건비</span>
               <span className="kpi-icon danger">💸</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">₩{(totalSalary * 12).toLocaleString()}</span>
+              <span className="stat-tile-value mono-number">₩{(totalSalary * 12).toLocaleString()}</span>
             </div>
             <div className="kpi-callout">월 <b>₩{totalSalary.toLocaleString()}</b></div>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">퇴직충당금</span>
+              <span className="stat-tile-label">퇴직충당금</span>
               <span className="kpi-icon warning">🏦</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">₩{totalRetirement.toLocaleString()}</span>
+              <span className="stat-tile-value mono-number">₩{totalRetirement.toLocaleString()}</span>
             </div>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">미결 경비</span>
+              <span className="stat-tile-label">미결 경비</span>
               <span className="kpi-icon warning">🧾</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">
+              <span className="stat-tile-value mono-number">
                 {expenses.filter((e: any) => e.status === "pending").length}건
               </span>
             </div>
@@ -269,16 +270,17 @@ export default function EmployeesPage() {
 
 // ── Employee Tab (초대 기반 통합) ──
 const EMP_STATUS: Record<string, { label: string; bg: string; text: string }> = {
-  invited: { label: "초대중", bg: "bg-amber-500/10", text: "text-amber-500" },
-  joined: { label: "가입완료", bg: "bg-blue-500/10", text: "text-blue-400" },
+  invited: { label: "초대중", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },
+  joined: { label: "가입완료", bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]" },
   contract_pending: { label: "계약대기", bg: "bg-purple-500/10", text: "text-purple-400" },
-  active: { label: "재직", bg: "bg-green-500/10", text: "text-green-400" },
-  inactive: { label: "퇴직", bg: "bg-gray-500/10", text: "text-gray-400" },
-  resigned: { label: "퇴사", bg: "bg-gray-500/10", text: "text-gray-400" },
+  active: { label: "재직", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
+  inactive: { label: "퇴직", bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-muted)]" },
+  resigned: { label: "퇴사", bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-muted)]" },
 };
 
 function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -632,7 +634,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       /* ── 직원 목록 뷰 ── */
       <div className="glass-card overflow-hidden">
         {employees.length === 0 ? (
-          <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm font-medium text-[var(--text)]">직원을 등록하면 급여 자동계산, 4대보험이 시작됩니다</div><div className="text-xs text-[var(--text-muted)] mt-1">근태, 휴가, 증명서 발급까지 한번에 관리하세요</div><button onClick={() => setShowForm(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 직원 등록</button></div>
+          <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm font-medium text-[var(--text)]">직원을 등록하면 급여 자동계산, 4대보험이 시작됩니다</div><div className="text-xs text-[var(--text-muted)] mt-1">근태, 휴가, 증명서 발급까지 한번에 관리하세요</div><button onClick={() => setShowForm(true)} className="btn-primary mt-4">+ 직원 등록</button></div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead className="sticky-bar"><tr className="table-head-row">
@@ -666,9 +668,9 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                     <td className="px-5 py-3 text-center">
                       {leaveBalanceMap[e.id] !== undefined ? (
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                          leaveBalanceMap[e.id] <= 0 ? "bg-red-500/10 text-red-400"
-                            : leaveBalanceMap[e.id] <= 3 ? "bg-yellow-500/10 text-yellow-400"
-                            : "bg-green-500/10 text-green-400"
+                          leaveBalanceMap[e.id] <= 0 ? "bg-[var(--danger-dim)] text-[var(--danger)]"
+                            : leaveBalanceMap[e.id] <= 3 ? "bg-[var(--warning-dim)] text-[var(--warning)]"
+                            : "bg-[var(--success-dim)] text-[var(--success)]"
                         }`}>
                           {leaveBalanceMap[e.id]}일{leaveBalanceMap[e.id] <= 0 ? " (소진)" : leaveBalanceMap[e.id] <= 3 ? " (임박)" : ""}
                         </span>
@@ -714,9 +716,10 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                         )}
                         {e.status !== "active" && (
                           <button
-                            onClick={(ev) => {
+                            onClick={async (ev) => {
                               ev.stopPropagation();
-                              if (confirm(`${e.name} 직원을 삭제하시겠습니까?`)) deleteMut.mutate(e.id);
+                              const { ok } = await confirm({ title: "직원 삭제", desc: `${e.name} 직원을 삭제하시겠습니까?`, danger: true });
+                              if (ok) deleteMut.mutate(e.id);
                             }}
                             className="text-[var(--text-dim)] hover:text-red-500 transition"
                             title="삭제"
@@ -748,6 +751,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           </div>
         </div>
       )}
+      {confirmElement}
     </div>
   );
 }

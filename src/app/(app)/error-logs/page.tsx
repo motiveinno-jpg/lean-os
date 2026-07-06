@@ -7,6 +7,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { explainError } from "@/lib/error-logger";
 import { AccessDenied } from "@/components/access-denied";
+import { useConfirm } from "@/components/confirm-dialog";
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -20,9 +21,9 @@ function timeAgo(iso: string): string {
 }
 
 const SEVERITY_META: Record<string, { label: string; cls: string }> = {
-  high: { label: "심각", cls: "bg-red-500/15 text-red-500" },
-  medium: { label: "보통", cls: "bg-amber-500/15 text-amber-500" },
-  low: { label: "낮음", cls: "bg-gray-500/15 text-gray-400" },
+  high: { label: "심각", cls: "bg-[var(--danger-dim)] text-[var(--danger)]" },
+  medium: { label: "보통", cls: "bg-[var(--warning-dim)] text-[var(--warning)]" },
+  low: { label: "낮음", cls: "bg-[var(--bg-surface)] text-[var(--text-dim)]" },
 };
 
 function isPlatformOperator(email?: string | null): boolean {
@@ -56,6 +57,7 @@ const SOURCE_LABEL: Record<string, string> = {
 export default function ErrorLogsPage() {
   const { user, loading } = useUser();
   const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const qc = useQueryClient();
   const isOperator = isPlatformOperator(user?.email);
 
@@ -145,7 +147,7 @@ export default function ErrorLogsPage() {
   }
 
   return (
-    <div data-theme="light" className="bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
+    <div className="bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
       {/* 툴바 — 필터(좌) + 액션(우) */}
       <div className="page-sticky-header mb-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -190,7 +192,7 @@ export default function ErrorLogsPage() {
               {isFetching ? "갱신 중..." : "🔄 새로고침"}
             </button>
             <button
-              onClick={() => { if (confirm("해결 처리된 로그를 모두 삭제할까요?")) clearResolved.mutate(); }}
+              onClick={async () => { const { ok } = await confirm({ title: "해결됨 비우기", desc: "해결 처리된 로그를 모두 삭제할까요?", danger: true }); if (ok) clearResolved.mutate(); }}
               className="btn-danger !text-xs"
             >
               해결됨 비우기
@@ -238,20 +240,20 @@ export default function ErrorLogsPage() {
                     {/* 누가 / 무슨 작업 / 언제 */}
                     <div className="flex items-center gap-2 flex-wrap text-[11px] mb-1">
                       <span className="px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">
-                        👤 {r.user_name || r.user_email || "익명 사용자"}
+                        {r.user_name || r.user_email || "익명 사용자"}
                       </span>
                       {r.context?.action && (
                         <span className="px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]">
-                          🛠 {String(r.context.action)}
+                          {String(r.context.action)}
                         </span>
                       )}
                       {(r.context?.page || r.url) && (
                         <span className="px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] truncate max-w-[200px]">
-                          📄 {r.context?.page || (() => { try { return new URL(r.url!).pathname; } catch { return r.url; } })()}
+                          {r.context?.page || (() => { try { return new URL(r.url!).pathname; } catch { return r.url; } })()}
                         </span>
                       )}
                       <span className="text-[var(--text-dim)]">
-                        🕒 {timeAgo(r.created_at)} ({new Date(r.created_at).toLocaleString("ko-KR")})
+                        {timeAgo(r.created_at)} ({new Date(r.created_at).toLocaleString("ko-KR")})
                       </span>
                     </div>
                     <div className="text-xs text-[var(--text-muted)] truncate">{r.message}</div>
@@ -341,6 +343,7 @@ export default function ErrorLogsPage() {
           })}
         </div>
       )}
+      {confirmElement}
     </div>
   );
 }

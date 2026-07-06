@@ -822,13 +822,13 @@ export default function BalanceSheetPage() {
           <div className="text-xs font-bold text-[var(--primary)]">자산 합계</div>
           <div className="text-base font-extrabold text-[var(--primary)] mono-number">₩{Math.round(data.totalAssets).toLocaleString("ko-KR")}</div>
         </div>
-        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-orange-500/8 border border-orange-500/20">
-          <div className="text-xs font-bold text-orange-600 dark:text-orange-400">부채 + 자본 합계</div>
-          <div className="text-base font-extrabold text-orange-600 dark:text-orange-400 mono-number">₩{Math.round(data.totalLiabilities + data.totalEquity).toLocaleString("ko-KR")}</div>
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--warning)]/8 border border-[var(--warning)]/20">
+          <div className="text-xs font-bold text-[var(--warning)]">부채 + 자본 합계</div>
+          <div className="text-base font-extrabold text-[var(--warning)] mono-number">₩{Math.round(data.totalLiabilities + data.totalEquity).toLocaleString("ko-KR")}</div>
         </div>
         {/* 균형 여부 표시 — 회계 정합성 */}
         {Math.abs(data.totalAssets - (data.totalLiabilities + data.totalEquity)) > 1 && (
-          <div className="md:col-span-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-[10px] text-yellow-700 dark:text-yellow-400">
+          <div className="md:col-span-2 px-3 py-1.5 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/30 text-[10px] text-[var(--warning)]">
             ⚠ 차변(자산) - 대변(부채+자본) 차이 ₩{Math.round(data.totalAssets - (data.totalLiabilities + data.totalEquity)).toLocaleString("ko-KR")} — 자본금 / 이익잉여금 데이터 확인 필요
           </div>
         )}
@@ -867,7 +867,7 @@ export default function BalanceSheetPage() {
                   <div
                     style={{
                       width: `${Math.round((data.accountsReceivable / data.totalAssets) * 100)}%`,
-                      background: "#10b981",
+                      background: "var(--success)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -913,7 +913,7 @@ export default function BalanceSheetPage() {
                   <div
                     style={{
                       width: `${Math.round((data.totalLiabilities / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100)}%`,
-                      background: "#ef4444",
+                      background: "var(--danger)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -929,7 +929,7 @@ export default function BalanceSheetPage() {
                   <div
                     style={{
                       width: `${Math.round((Math.max(data.totalEquity, 0) / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100)}%`,
-                      background: "#10b981",
+                      background: "var(--success)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -951,13 +951,13 @@ export default function BalanceSheetPage() {
               <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--primary)", display: "inline-block" }} />현금
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "#10b981", display: "inline-block" }} />채권/자본
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--success)", display: "inline-block" }} />채권/자본
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: "#8b5cf6", display: "inline-block" }} />고정자산
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "#ef4444", display: "inline-block" }} />부채
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--danger)", display: "inline-block" }} />부채
             </span>
           </div>
         </div>

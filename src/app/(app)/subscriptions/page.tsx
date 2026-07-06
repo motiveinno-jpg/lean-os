@@ -15,6 +15,7 @@ import {
   getCompanyUsers,
 } from "@/lib/queries";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { CurrencyInput } from "@/components/currency-input";
@@ -47,6 +48,7 @@ const STATUS_TONE: Record<string, { label: string; cls: string }> = {
 export default function SubscriptionsPage() {
   const { role } = useUser();
   const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const qc = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const canEdit = role === "owner" || role === "admin";
@@ -164,20 +166,20 @@ export default function SubscriptionsPage() {
 
       {/* 요약 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="glass-card p-5">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">월 총 구독비</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number mt-2 text-[var(--primary)]">{fmtW(totalMonthly)}</div>
+        <div className="stat-tile">
+          <div className="stat-tile-label">월 총 구독비</div>
+          <div className="stat-tile-value text-[var(--primary)]">{fmtW(totalMonthly)}</div>
         </div>
-        <div className="glass-card p-5">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">연 환산</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number mt-2 text-[var(--text)]">{fmtW(totalMonthly * 12)}</div>
+        <div className="stat-tile">
+          <div className="stat-tile-label">연 환산</div>
+          <div className="stat-tile-value">{fmtW(totalMonthly * 12)}</div>
         </div>
-        <div className="glass-card p-5">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">외부 구독</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number mt-2 text-[var(--text)]">{activeAccounts.length}개</div>
+        <div className="stat-tile">
+          <div className="stat-tile-label">외부 구독</div>
+          <div className="stat-tile-value">{activeAccounts.length}개</div>
         </div>
-        <div className="glass-card p-5">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">카테고리</div>
+        <div className="stat-tile">
+          <div className="stat-tile-label">카테고리</div>
           <div className="text-xs mt-1.5 space-y-0.5">
             {Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => (
               <div key={k} className="flex justify-between gap-2">
@@ -255,8 +257,8 @@ export default function SubscriptionsPage() {
               {editingId ? "저장" : "추가"}
             </button>
             {editingId && (
-              <button onClick={() => { if (confirm("이 구독을 해지 처리할까요?")) deleteMut.mutate(editingId); }} disabled={deleteMut.isPending}
-                className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold disabled:opacity-50">해지</button>
+              <button onClick={async () => { const { ok } = await confirm({ title: "구독 해지", desc: "이 구독을 해지 처리할까요?", danger: true, confirmLabel: "해지" }); if (ok) deleteMut.mutate(editingId); }} disabled={deleteMut.isPending}
+                className="btn-danger btn-sm">해지</button>
             )}
             <button onClick={resetForm} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
           </div>
@@ -335,6 +337,7 @@ export default function SubscriptionsPage() {
         · 월 금액은 결제주기와 무관하게 월 환산액으로 입력하세요 (연간 결제는 ÷12).
         · OwnerView 요금제는 자동 표시되며 "관리"에서 플랜·결제수단을 변경합니다.
       </div>
+      {confirmElement}
     </div>
   );
 }

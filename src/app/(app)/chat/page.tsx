@@ -206,12 +206,12 @@ function GuestChatView({ token }: { token: string }) {
       <div className="flex flex-col flex-1 min-h-0">
         {guestRtStatus !== 'SUBSCRIBED' && (
           <div className={`px-4 py-2 text-xs font-medium flex items-center justify-between rounded-t-2xl ${
-            guestRtStatus === 'connecting' ? 'bg-yellow-500/10 text-yellow-500' :
-            'bg-red-500/10 text-red-400'
+            guestRtStatus === 'connecting' ? 'bg-[var(--warning-dim)] text-[var(--warning)]' :
+            'bg-[var(--danger-dim)] text-[var(--danger)]'
           }`}>
             <span className="flex items-center gap-2">
-              {guestRtStatus === 'connecting' && <><span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" /> 연결 중...</>}
-              {(guestRtStatus === 'CHANNEL_ERROR' || guestRtStatus === 'TIMED_OUT') && <><span className="w-2 h-2 rounded-full bg-red-400" /> 연결 오류</>}
+              {guestRtStatus === 'connecting' && <><span className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse" /> 연결 중...</>}
+              {(guestRtStatus === 'CHANNEL_ERROR' || guestRtStatus === 'TIMED_OUT') && <><span className="w-2 h-2 rounded-full bg-[var(--danger)]" /> 연결 오류</>}
               {guestRtStatus === 'CLOSED' && <><span className="w-2 h-2 rounded-full bg-gray-400" /> 연결 종료됨</>}
             </span>
             {guestRtStatus !== 'connecting' && (

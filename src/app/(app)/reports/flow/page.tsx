@@ -50,9 +50,9 @@ function thisMonth(): string {
 const FLOW_STEPS = [
   { no: 1, title: "영업", accent: "var(--primary)" },
   { no: 2, title: "매출", accent: "#6366f1" },
-  { no: 3, title: "수금", accent: "#10b981" },
-  { no: 4, title: "비용", accent: "#f97316" },
-  { no: 5, title: "손익 · 세금", accent: "#ec4899" },
+  { no: 3, title: "수금", accent: "var(--success)" },
+  { no: 4, title: "비용", accent: "var(--warning)" },
+  { no: 5, title: "손익 · 세금", accent: "var(--primary)" },
   { no: 6, title: "결산", accent: "#06b6d4" },
 ] as const;
 
@@ -333,7 +333,7 @@ export default function BusinessFlowPage() {
             className="btn-secondary text-[11px]"
             title="현재 뷰·렌즈·기간을 기본값으로 저장"
           >
-            {savedFlow ? "✓ 저장됨" : "⭐ 기본값 저장"}
+            {savedFlow ? "✓ 저장됨" : "기본값 저장"}
           </button>
         </div>
       </div>
@@ -368,9 +368,9 @@ export default function BusinessFlowPage() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { label: `${monthLabel} 발행 매출`, value: issuedThisMonth, color: "var(--primary)", hint: "세금계산서 합계 (부가세 포함)" },
-          { label: `${monthLabel} 수금`, value: settledThisMonth, color: "#10b981", hint: "확정 매칭 입금 (부가세 포함)" },
-          { label: `${monthLabel} 지출`, value: monthBudget?.expenseTotal ?? 0, color: "#f97316", hint: "고정비 + 변동비" },
-          { label: "부가세 예상", value: monthVat?.netVAT ?? 0, color: "#ec4899", hint: `${quarter.split("-")[1]} 분기 누적` },
+          { label: `${monthLabel} 수금`, value: settledThisMonth, color: "var(--success)", hint: "확정 매칭 입금 (부가세 포함)" },
+          { label: `${monthLabel} 지출`, value: monthBudget?.expenseTotal ?? 0, color: "var(--warning)", hint: "고정비 + 변동비" },
+          { label: "부가세 예상", value: monthVat?.netVAT ?? 0, color: "var(--primary)", hint: `${quarter.split("-")[1]} 분기 누적` },
         ].map((c) => (
           <div key={c.label} className="glass-card flex flex-col gap-3 p-5">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">{c.label}</span>
@@ -389,27 +389,27 @@ export default function BusinessFlowPage() {
             <Link
               href="/partners/ledger"
               className="block rounded-xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-85"
-              style={{ background: "color-mix(in srgb, #ef4444 8%, transparent)", border: "1px solid color-mix(in srgb, #ef4444 25%, transparent)", color: "#ef4444" }}
+              style={{ background: "color-mix(in srgb, var(--danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--danger) 25%, transparent)", color: "var(--danger)" }}
             >
-              ⚠️ 30일 넘은 미수금 ₩{fmtKrw(receivable!.over30)} — 거래처 원장에서 확인·독촉하세요 →
+              30일 넘은 미수금 ₩{fmtKrw(receivable!.over30)} — 거래처 원장에서 확인·독촉하세요 →
             </Link>
           )}
           {monthGap > 0 && (
             <Link
               href="/partners/reconciliation"
               className="block rounded-xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-85"
-              style={{ background: "color-mix(in srgb, #f59e0b 8%, transparent)", border: "1px solid color-mix(in srgb, #f59e0b 25%, transparent)", color: "#d97706" }}
+              style={{ background: "color-mix(in srgb, var(--warning) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 25%, transparent)", color: "var(--warning)" }}
             >
-              💸 {monthLabel} 발행액 중 ₩{fmtKrw(monthGap)} 아직 수금 확인 안 됨 — 입금 매칭으로 확인하세요 →
+              {monthLabel} 발행액 중 ₩{fmtKrw(monthGap)} 아직 수금 확인 안 됨 — 입금 매칭으로 확인하세요 →
             </Link>
           )}
           {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && (
             <Link
               href="/tax-invoices"
               className="block rounded-xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-85"
-              style={{ background: "color-mix(in srgb, #ec4899 8%, transparent)", border: "1px solid color-mix(in srgb, #ec4899 25%, transparent)", color: "#ec4899" }}
+              style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 25%, transparent)", color: "var(--primary)" }}
             >
-              🧾 부가세 신고 D-{vatDday} ({monthVat!.dueDate}) — 예상 납부 ₩{fmtKrw(monthVat!.netVAT)} 현금 준비 →
+              부가세 신고 D-{vatDday} ({monthVat!.dueDate}) — 예상 납부 ₩{fmtKrw(monthVat!.netVAT)} 현금 준비 →
             </Link>
           )}
         </div>
@@ -454,7 +454,7 @@ export default function BusinessFlowPage() {
             <Row label="진행중 프로젝트" value={`${pipeline?.count ?? 0}건`} />
             <Row label="계약 총액 (파이프라인)" value={`₩${fmtKrw(pipeline?.total ?? 0)}`} bold />
             {(pipeline?.settling ?? 0) > 0 && (
-              <Row label="정산 단계" value={`${pipeline!.settling}건`} color="#f59e0b" />
+              <Row label="정산 단계" value={`${pipeline!.settling}건`} color="var(--warning)" />
             )}
           </StepCard>
 
@@ -467,38 +467,38 @@ export default function BusinessFlowPage() {
           </StepCard>
 
           {/* ③ 수금 */}
-          <StepCard no={3} title="수금" accent="#10b981"
+          <StepCard no={3} title="수금" accent="var(--success)"
             links={[{ href: "/partners/ledger", label: "거래처 원장 · 입금 매칭" }, { href: "/bank", label: "통장" }]}>
-            <Row label="확정 수금" value={`${settled?.count ?? 0}건 · ₩${fmtKrw(settledThisMonth)}`} bold color="#10b981" />
+            <Row label="확정 수금" value={`${settled?.count ?? 0}건 · ₩${fmtKrw(settledThisMonth)}`} bold color="var(--success)" />
             {issuedThisMonth > 0 && (
               <MiniBar
                 pct={(settledThisMonth / issuedThisMonth) * 100}
-                color="#10b981"
+                color="var(--success)"
                 label={`${monthLabel} 발행 대비 수금률 ${Math.min(100, Math.round((settledThisMonth / issuedThisMonth) * 100))}%`}
               />
             )}
             <Row label="미수금 잔액 (전체)" value={`₩${fmtKrw(receivable?.total ?? 0)}`} color={(receivable?.total ?? 0) > 0 ? "var(--primary)" : "var(--text)"} />
             {(receivable?.over30 ?? 0) > 0 && (
-              <Row label="30일+ 연체" value={`₩${fmtKrw(receivable!.over30)}`} color="#ef4444" />
+              <Row label="30일+ 연체" value={`₩${fmtKrw(receivable!.over30)}`} color="var(--danger)" />
             )}
           </StepCard>
 
           {/* ④ 비용 */}
-          <StepCard no={4} title="비용" accent="#f97316"
+          <StepCard no={4} title="비용" accent="var(--warning)"
             links={[{ href: "/reports/costs", label: "고정비·변동비" }, { href: "/cards", label: "카드" }, { href: "/payments", label: "결제" }]}>
-            <Row label="지출 합계" value={`₩${fmtKrw(monthBudget?.expenseTotal ?? 0)}`} bold color="#f97316" />
+            <Row label="지출 합계" value={`₩${fmtKrw(monthBudget?.expenseTotal ?? 0)}`} bold color="var(--warning)" />
             <Row label="고정비" value={`₩${fmtKrw(monthBudget?.fixedCosts ?? 0)}`} />
             <Row label="변동비" value={`₩${fmtKrw(monthBudget?.variableCosts ?? 0)}`} />
           </StepCard>
 
           {/* ⑤ 손익 + 세무 */}
-          <StepCard no={5} title="손익 · 세금" accent="#ec4899"
+          <StepCard no={5} title="손익 · 세금" accent="var(--primary)"
             links={[{ href: "/reports/pnl", label: "손익계산서" }, { href: "/reports/bs", label: "재무상태표" }]}>
             <Row label="수입 합계 (자금 기준)" value={`₩${fmtKrw(monthBudget?.incomeTotal ?? 0)}`} />
-            <Row label="이번 달 순흐름" value={`₩${fmtKrw(monthNet)}`} bold color={monthNet >= 0 ? "#10b981" : "#ef4444"} />
-            <Row label={`부가세 예상 (${quarter.split("-")[1]})`} value={`₩${fmtKrw(monthVat?.netVAT ?? 0)}`} color="#ec4899" />
+            <Row label="이번 달 순흐름" value={`₩${fmtKrw(monthNet)}`} bold color={monthNet >= 0 ? "var(--success)" : "var(--danger)"} />
+            <Row label={`부가세 예상 (${quarter.split("-")[1]})`} value={`₩${fmtKrw(monthVat?.netVAT ?? 0)}`} color="var(--primary)" />
             {vatDday !== null && (
-              <Row label="신고 기한" value={vatDday >= 0 ? `${monthVat!.dueDate} (D-${vatDday})` : monthVat!.dueDate} color={vatDday >= 0 && vatDday <= 30 ? "#ef4444" : "var(--text-muted)"} />
+              <Row label="신고 기한" value={vatDday >= 0 ? `${monthVat!.dueDate} (D-${vatDday})` : monthVat!.dueDate} color={vatDday >= 0 && vatDday <= 30 ? "var(--danger)" : "var(--text-muted)"} />
             )}
           </StepCard>
 
@@ -508,17 +508,17 @@ export default function BusinessFlowPage() {
             {closing ? (
               <>
                 <Row label="필수 항목" value={`${closing.requiredDone} / ${closing.requiredTotal} 완료`} bold
-                  color={closing.requiredDone === closing.requiredTotal ? "#10b981" : "var(--text)"} />
+                  color={closing.requiredDone === closing.requiredTotal ? "var(--success)" : "var(--text)"} />
                 {closing.total > 0 && (
                   <MiniBar
                     pct={(closing.done / closing.total) * 100}
-                    color={closing.requiredDone === closing.requiredTotal ? "#10b981" : "#06b6d4"}
+                    color={closing.requiredDone === closing.requiredTotal ? "var(--success)" : "#06b6d4"}
                     label={`전체 진행 ${Math.round((closing.done / closing.total) * 100)}%`}
                   />
                 )}
                 <Row label="전체 진행" value={`${closing.done} / ${closing.total}`} />
-                <Row label="상태" value={closing.status === "locked" ? "잠금 🔒" : closing.status === "completed" ? "마감 완료 ✅" : "진행 중"}
-                  color={closing.status === "open" ? "var(--text-muted)" : "#10b981"} />
+                <Row label="상태" value={closing.status === "locked" ? "잠금" : closing.status === "completed" ? "마감 완료" : "진행 중"}
+                  color={closing.status === "open" ? "var(--text-muted)" : "var(--success)"} />
               </>
             ) : (
               <div className="py-2 text-[12.5px] text-[var(--text-dim)]">체크리스트 불러오는 중…</div>

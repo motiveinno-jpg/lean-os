@@ -297,41 +297,33 @@ export default function BillingPage() {
 
       {/* KPI 행 — 현재 플랜 · 월 결제 금액 · 다음 결제 · 사용량 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">현재 플랜</span>
-          <div>
-            <div className="text-[26px] leading-8 font-extrabold text-[var(--text)]">{currentPlan?.name || "Free"}</div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">
-              {subscription?.seat_count || 1}명 · {subscription?.billing_cycle === "annual" ? "연간" : "월간"} 결제
-            </div>
+        <div className="stat-tile">
+          <div className="stat-tile-label">현재 플랜</div>
+          <div className="stat-tile-value">{currentPlan?.name || "Free"}</div>
+          <div className="text-xs text-[var(--text-dim)]">
+            {subscription?.seat_count || 1}명 · {subscription?.billing_cycle === "annual" ? "연간" : "월간"} 결제
           </div>
         </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">월 결제 금액</span>
-          <div>
-            <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">
-              {fmtW((currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * (subscription?.seat_count || 1))}
-            </div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">VAT 별도</div>
+        <div className="stat-tile">
+          <div className="stat-tile-label">월 결제 금액</div>
+          <div className="stat-tile-value text-[var(--primary)]">
+            {fmtW((currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * (subscription?.seat_count || 1))}
           </div>
+          <div className="text-xs text-[var(--text-dim)]">VAT 별도</div>
         </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">다음 결제</span>
-          <div>
-            <div className="text-xl leading-8 font-extrabold mono-number text-[var(--text)]">
-              {subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString("ko-KR") : "—"}
-            </div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">{hasStripeSubscription ? "자동 결제 예정" : "결제 수단 미등록"}</div>
+        <div className="stat-tile">
+          <div className="stat-tile-label">다음 결제</div>
+          <div className="stat-tile-value">
+            {subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString("ko-KR") : "—"}
           </div>
+          <div className="text-xs text-[var(--text-dim)]">{hasStripeSubscription ? "자동 결제 예정" : "결제 수단 미등록"}</div>
         </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">활성 직원</span>
-          <div>
-            <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">
-              {usage ? `${usage.employees.toLocaleString()}명` : "—"}
-            </div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">이번 달 전자서명 {usage?.signatures ?? 0}건</div>
+        <div className="stat-tile">
+          <div className="stat-tile-label">활성 직원</div>
+          <div className="stat-tile-value">
+            {usage ? `${usage.employees.toLocaleString()}명` : "—"}
           </div>
+          <div className="text-xs text-[var(--text-dim)]">이번 달 전자서명 {usage?.signatures ?? 0}건</div>
         </div>
       </div>
 
@@ -349,12 +341,12 @@ export default function BillingPage() {
             const lim = limits[currentSlug] || limits.free;
             // CODEF 동기화 크레딧 한도 — 플랜의 monthly_credits (null=무제한/미시행 → 측정만 표시)
             const codefLimit = subscription?.subscription_plans?.monthly_credits ?? 9999;
-            const items: { label: string; used: number; limit: number; icon: string }[] = [
-              { label: "활성 직원", used: usage.employees, limit: lim.employees, icon: "👥" },
-              { label: "AI 분석 (이번 달)", used: usage.aiCalls, limit: lim.aiCalls, icon: "🤖" },
-              { label: "전자서명 (이번 달)", used: usage.signatures, limit: lim.signatures, icon: "✍️" },
-              { label: "거래처", used: usage.partners, limit: lim.partners, icon: "🏢" },
-              { label: "동기화 크레딧 (이번 달)", used: usage.codefUnits, limit: codefLimit, icon: "🔄" },
+            const items: { label: string; used: number; limit: number }[] = [
+              { label: "활성 직원", used: usage.employees, limit: lim.employees },
+              { label: "AI 분석 (이번 달)", used: usage.aiCalls, limit: lim.aiCalls },
+              { label: "전자서명 (이번 달)", used: usage.signatures, limit: lim.signatures },
+              { label: "거래처", used: usage.partners, limit: lim.partners },
+              { label: "동기화 크레딧 (이번 달)", used: usage.codefUnits, limit: codefLimit },
             ];
             return (
               <div className="glass-card p-6 mb-6">
@@ -370,7 +362,7 @@ export default function BillingPage() {
                     const barColor = danger ? "bg-[var(--danger)]" : pct >= 60 ? "bg-[var(--warning)]" : "bg-[var(--primary)]";
                     return (
                       <div key={it.label} className="bg-[var(--bg-surface)] rounded-xl p-4">
-                        <div className="flex items-center gap-1.5 mb-1.5"><span className="text-sm">{it.icon}</span><span className="text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">{it.label}</span></div>
+                        <div className="mb-1.5"><span className="text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">{it.label}</span></div>
                         <div className="flex items-baseline gap-1">
                           <span className={`text-xl font-black mono-number ${danger ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{it.used.toLocaleString()}</span>
                           <span className="text-xs text-[var(--text-dim)]">/ {unlimited ? "무제한" : it.limit.toLocaleString()}</span>
@@ -380,7 +372,7 @@ export default function BillingPage() {
                             <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
                           </div>
                         )}
-                        {danger && <div className="text-[10px] text-[var(--danger)] mt-1 font-semibold">⚠️ 한도 임박 - 업그레이드 권장</div>}
+                        {danger && <div className="text-[10px] text-[var(--danger)] mt-1 font-semibold">한도 임박 - 업그레이드 권장</div>}
                       </div>
                     );
                   })}
@@ -534,6 +526,7 @@ export default function BillingPage() {
                 <div className="text-4xl mb-3">💳</div>
                 <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">등록된 결제 수단이 없습니다</p>
                 <p className="text-xs text-[var(--text-dim)]">유료 플랜 결제 시 Stripe를 통해 카드가 등록됩니다</p>
+                <button onClick={() => setTab("plan")} className="btn-secondary btn-sm mt-4">플랜 선택하고 등록하기</button>
               </div>
             )}
           </div>
@@ -564,6 +557,7 @@ export default function BillingPage() {
               <div className="text-4xl mb-3">🧾</div>
               <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">청구서 내역이 없습니다</p>
               <p className="text-xs text-[var(--text-dim)]">유료 플랜을 시작하면 청구서가 이곳에 표시됩니다</p>
+              <button onClick={() => setTab("plan")} className="btn-secondary btn-sm mt-4">유료 플랜 보러가기</button>
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]">

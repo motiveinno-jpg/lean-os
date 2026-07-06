@@ -38,9 +38,9 @@ export default function JoinPendingPage() {
   const logout = async () => { await supabase.auth.signOut(); router.push("/auth"); };
 
   const box = (icon: string, title: string, desc: React.ReactNode, tone: string) => (
-    <div className="text-center py-6">
-      <div className="text-5xl mb-4" aria-hidden>{icon}</div>
-      <h2 className={`text-xl font-extrabold mb-2 ${tone}`}>{title}</h2>
+    <div className="empty-state py-6">
+      <div className="empty-state-icon" aria-hidden>{icon}</div>
+      <h2 className={`text-base font-bold ${tone}`}>{title}</h2>
       <div className="text-sm text-[var(--text-muted)] leading-relaxed">{desc}</div>
     </div>
   );
@@ -59,7 +59,7 @@ export default function JoinPendingPage() {
             </>
           ), "text-[var(--text)]")}
 
-          {status === "approved" && box("🎉", "합류가 승인되었습니다!", "잠시 후 대시보드로 이동합니다.", "text-green-600")}
+          {status === "approved" && box("🎉", "합류가 승인되었습니다!", "잠시 후 대시보드로 이동합니다.", "text-[var(--success)]")}
 
           {status === "rejected" && box("🚫", "합류 요청이 거절되었습니다", (
             <>회사 대표/관리자에게 문의하거나, 초대 링크를 받아 다시 시도해주세요.</>
@@ -75,18 +75,15 @@ export default function JoinPendingPage() {
 
           <div className="space-y-2.5 mt-4">
             {status === "approved" ? (
-              <button onClick={() => router.push("/dashboard")}
-                className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition shadow-sm">
+              <button onClick={() => router.push("/dashboard")} className="btn-primary w-full">
                 대시보드로 이동
               </button>
             ) : (
-              <button onClick={load} disabled={refreshing}
-                className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition shadow-sm disabled:opacity-50">
-                {refreshing ? "확인 중..." : "🔄 승인 여부 새로고침"}
+              <button onClick={load} disabled={refreshing} className="btn-primary w-full">
+                {refreshing ? "확인 중..." : "승인 여부 새로고침"}
               </button>
             )}
-            <button onClick={logout}
-              className="w-full py-3 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl font-semibold text-sm transition border border-[var(--border)]">
+            <button onClick={logout} className="btn-secondary w-full">
               로그아웃
             </button>
           </div>

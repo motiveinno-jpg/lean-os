@@ -24,6 +24,7 @@ import { decryptCredential } from "@/lib/crypto";
 import { analyzeTransactionPatterns, saveDiscoveryResults, acceptDiscovery, dismissDiscovery } from "@/lib/auto-discovery";
 import { uploadFile, openStoredFile } from "@/lib/file-storage";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
 import { CurrencyInput } from "@/components/currency-input";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useUser } from "@/components/user-context";
@@ -51,9 +52,9 @@ function computeBookValue(value: number, purchaseDate: string | null | undefined
 }
 
 const ACCOUNT_STATUS: Record<string, { label: string; color: string; bg: string; text: string }> = {
-  active: { label: "활성", color: "green", bg: "bg-green-500/10", text: "text-green-400" },
-  paused: { label: "일시중지", color: "yellow", bg: "bg-yellow-500/10", text: "text-yellow-400" },
-  cancelled: { label: "해지", color: "red", bg: "bg-red-500/10", text: "text-red-400" },
+  active: { label: "활성", color: "green", bg: "bg-[var(--success)]/10", text: "text-[var(--success)]" },
+  paused: { label: "일시중지", color: "yellow", bg: "bg-[var(--warning)]/10", text: "text-[var(--warning)]" },
+  cancelled: { label: "해지", color: "red", bg: "bg-[var(--danger)]/10", text: "text-[var(--danger)]" },
 };
 
 const ASSET_TYPES: Record<string, string> = {
@@ -74,6 +75,7 @@ export default function VaultPage() {
     return <AccessDenied detail="보관함(중요 자료)은 대표 계정 전용입니다." />;
   }
   const { toast } = useToast();
+  const { confirm: confirmDialog, confirmElement } = useConfirm();
   const router = useRouter();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -671,7 +673,7 @@ export default function VaultPage() {
       {showForm && tab === "accounts" && (
         <div className="glass-card p-6 mb-4">
           <h3 className="section-title">{editingId ? "구독/계정 수정" : "구독/계정 추가"}</h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">서비스명 *</label>
               <input value={accForm.serviceName} onChange={(e) => setAccForm({ ...accForm, serviceName: e.target.value })}
@@ -728,7 +730,7 @@ export default function VaultPage() {
           <div className="flex gap-2">
             <button onClick={() => { if (!accForm.serviceName.trim()) return; if (editingId) updateAccMut.mutate(); else createAccMut.mutate(); }} disabled={!accForm.serviceName.trim() || createAccMut.isPending || updateAccMut.isPending}
               className="btn-primary">{editingId ? "저장" : "추가"}</button>
-            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="btn-ghost">취소</button>
           </div>
         </div>
       )}
@@ -737,7 +739,7 @@ export default function VaultPage() {
       {showForm && tab === "assets" && (
         <div className="glass-card p-6 mb-4">
           <h3 className="section-title">{editingId ? "자산 수정" : "자산 추가"}</h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">자산명 *</label>
               <input value={assetForm.name} onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
@@ -776,7 +778,7 @@ export default function VaultPage() {
               <input value={assetForm.notes} onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
                 className="field-input" />
             </div>
-            <div className="col-span-3">
+            <div className="sm:col-span-3">
               <label className="block text-xs text-[var(--text-muted)] mb-1">증빙 문서 (영수증·계약서 등)</label>
               {assetForm.attachmentUrl ? (
                 <div className="flex items-center gap-2">
@@ -804,8 +806,8 @@ export default function VaultPage() {
             <button onClick={() => { if (!assetForm.name.trim()) return; if (editingId) updateAssetMut.mutate(); else createAssetMut.mutate(); }} disabled={!assetForm.name.trim() || createAssetMut.isPending || updateAssetMut.isPending}
               className="btn-primary">{editingId ? "저장" : "추가"}</button>
             {editingId && <button onClick={() => { if (confirm("이 자산을 삭제하시겠습니까?")) deleteAssetMut.mutate(editingId); }} disabled={deleteAssetMut.isPending}
-              className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold disabled:opacity-50">삭제</button>}
-            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+              className="btn-danger">삭제</button>}
+            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="btn-ghost">취소</button>
           </div>
         </div>
       )}
@@ -814,7 +816,7 @@ export default function VaultPage() {
       {showForm && tab === "docs" && (
         <div className="glass-card p-6 mb-4">
           <h3 className="section-title">{editingId ? "문서 수정" : "문서 추가"}</h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">문서명 *</label>
               <input value={docForm.name} onChange={(e) => setDocForm({ ...docForm, name: e.target.value })}
@@ -848,7 +850,7 @@ export default function VaultPage() {
               <input value={docForm.tags} onChange={(e) => setDocForm({ ...docForm, tags: e.target.value })}
                 placeholder="세무, 법인" className="field-input" />
             </div>
-            <div className="col-span-3">
+            <div className="sm:col-span-3">
               <label className="block text-xs text-[var(--text-muted)] mb-1">파일 첨부</label>
               <div className="flex items-center gap-3">
                 <label className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm cursor-pointer hover:border-[var(--primary)] transition inline-flex items-center gap-2">
@@ -878,8 +880,8 @@ export default function VaultPage() {
             <button onClick={() => { if (!docForm.name.trim()) return; if (editingId) updateDocMut.mutate(); else createDocMut.mutate(); }} disabled={!docForm.name.trim() || createDocMut.isPending || updateDocMut.isPending}
               className="btn-primary">{editingId ? "저장" : "추가"}</button>
             {editingId && <button onClick={() => { if (confirm("이 문서를 삭제하시겠습니까?")) deleteDocMut.mutate(editingId); }} disabled={deleteDocMut.isPending}
-              className="px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-semibold disabled:opacity-50">삭제</button>}
-            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+              className="btn-danger">삭제</button>}
+            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="btn-ghost">취소</button>
           </div>
         </div>
       )}
@@ -1004,8 +1006,8 @@ export default function VaultPage() {
                             로그
                           </button>
                           {acc.status === "active" && (
-                            <button onClick={() => cancelAccMut.mutate(acc.id)}
-                              className="text-[10px] text-red-400 hover:text-red-300 transition">해지</button>
+                            <button onClick={async () => { const { ok } = await confirmDialog({ title: "구독/계정 해지", desc: `${acc.service_name || "이 계정"}을(를) 해지 상태로 변경합니다.`, danger: true, confirmLabel: "해지" }); if (ok) cancelAccMut.mutate(acc.id); }}
+                              className="text-[10px] text-[var(--danger)] hover:opacity-80 transition">해지</button>
                           )}
                         </div>
                       </td>
@@ -1290,6 +1292,7 @@ export default function VaultPage() {
           </div>
         );
       })()}
+      {confirmElement}
     </div>
   );
 }

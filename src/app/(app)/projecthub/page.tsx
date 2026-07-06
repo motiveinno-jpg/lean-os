@@ -288,7 +288,7 @@ export default function ProjectHubPage() {
       <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2">
         {isManager && typeFilter === "goal" && (
           <button onClick={() => setShowDashboard((v) => !v)} className={showDashboard ? "btn-primary" : "btn-secondary"}>
-            🎯 성과 대시보드
+            성과 대시보드
           </button>
         )}
         <button onClick={() => setShowCreate(true)} className="btn-primary">
@@ -370,67 +370,67 @@ export default function ProjectHubPage() {
         />
       )}
 
-      {/* 요약 카드 — 활성 유형 기준 (KPI 카드 패턴) */}
+      {/* 요약 카드 — 활성 유형 기준 (stat-tile 표준) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card p-5 flex flex-col gap-3">
+        <div className="stat-tile">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{PROJECT_TYPES[typeFilter].icon} {PROJECT_TYPES[typeFilter].label} 프로젝트</span>
+            <span className="stat-tile-label">{PROJECT_TYPES[typeFilter].icon} {PROJECT_TYPES[typeFilter].label} 프로젝트</span>
             <span className="kpi-icon"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg></span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{summary.total}</span>
+            <span className="stat-tile-value mono-number">{summary.total}</span>
           </div>
         </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
+        <div className="stat-tile">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">진행중</span>
+            <span className="stat-tile-label">진행중</span>
             <span className="kpi-icon warning"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" /></svg></span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)]">{summary.inProgress}</span>
+            <span className="stat-tile-value mono-number">{summary.inProgress}</span>
           </div>
         </div>
         {typeFilter === "margin" ? (<>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 계약금액 <span className="text-[11px] font-normal">(VAT별도)</span></span>
+              <span className="stat-tile-label">총 계약금액 <span className="font-normal">(VAT별도)</span></span>
               <span className="kpi-icon success"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></svg></span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[22px] leading-7 font-extrabold mono-number text-[var(--text)]">{won(summary.totalContract)}</span>
+              <span className="stat-tile-value mono-number">{won(summary.totalContract)}</span>
             </div>
             <div className="kpi-callout">VAT포함 <b>{won(summary.totalContractWithVat)}</b></div>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">평균 직접원가율</span>
+              <span className="stat-tile-label">평균 직접원가율</span>
               <span className="kpi-icon info"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 5L5 19" /><circle cx="7.5" cy="7.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" /></svg></span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]" title="전표에 프로젝트를 태그한 직접원가 기준 (판관비 제외)">
+              <span className="stat-tile-value mono-number" title="전표에 프로젝트를 태그한 직접원가 기준 (판관비 제외)">
                 {summary.avgRatio == null ? <span className="text-[var(--text-dim)]">—</span> : `${Math.round(summary.avgRatio * 100)}%`}
               </span>
             </div>
           </div>
         </>) : (<>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">{typeFilter === "goal" ? "평균 달성률" : "평균 진행률"}</span>
+              <span className="stat-tile-label">{typeFilter === "goal" ? "평균 달성률" : "평균 진행률"}</span>
               <span className="kpi-icon"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 19h16M7 15v4M12 10v9M17 5v14" /></svg></span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">
+              <span className="stat-tile-value mono-number">
                 {(() => { const v = typeFilter === "goal" ? typeSummary.goal.avgGoal : typeSummary.delivery.avgDelivery; return v == null ? <span className="text-[var(--text-dim)]">—</span> : `${v}%`; })()}
               </span>
             </div>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">{typeFilter === "delivery" ? "지연·위험" : "위험"}</span>
+              <span className="stat-tile-label">{typeFilter === "delivery" ? "지연·위험" : "위험"}</span>
               <span className="kpi-icon danger"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" /></svg></span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--danger)]">{rows.filter(isRisk).length}</span>
+              <span className="stat-tile-value mono-number">{rows.filter(isRisk).length}</span>
             </div>
           </div>
         </>)}
@@ -483,9 +483,9 @@ export default function ProjectHubPage() {
                 const risk = isRisk(d);
                 return (
                   <tr key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
-                    className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 cursor-pointer ${risk ? "bg-red-500/[0.04]" : ""}`}>
+                    className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 cursor-pointer ${risk ? "bg-[var(--danger)]/[0.04]" : ""}`}>
                     <td className="px-3 py-3 text-[var(--text)] font-medium">
-                      {risk && <span className="mr-1 text-red-500" title="위험 — 확인 필요">●</span>}
+                      {risk && <span className="mr-1 text-[var(--danger)]" title="위험 — 확인 필요">●</span>}
                       {d.name || "(이름 없음)"}
                       {childCount[d.id] > 0 && (
                         <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle" title={`세부 프로젝트 ${childCount[d.id]}개`}>
@@ -500,9 +500,9 @@ export default function ProjectHubPage() {
                       {!hero || hero.raw == null ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
                         <div className="flex items-center gap-1.5" title={`${PROJECT_TYPES[ptype].hero} ${hero.label}`}>
                           <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                            <div className={`h-full rounded-full ${risk ? "bg-red-500" : hero.pct >= 70 ? "bg-green-500" : "bg-[var(--primary)]"}`} style={{ width: `${hero.pct}%` }} />
+                            <div className={`h-full rounded-full ${risk ? "bg-[var(--danger)]" : hero.pct >= 70 ? "bg-[var(--success)]" : "bg-[var(--primary)]"}`} style={{ width: `${hero.pct}%` }} />
                           </div>
-                          <span className={`text-[10px] mono-number w-9 text-right ${risk ? "text-red-500 font-semibold" : "text-[var(--text-muted)]"}`}>{hero.label}</span>
+                          <span className={`text-[10px] mono-number w-9 text-right ${risk ? "text-[var(--danger)] font-semibold" : "text-[var(--text-muted)]"}`}>{hero.label}</span>
                         </div>
                       )}
                     </td>
@@ -525,7 +525,7 @@ export default function ProjectHubPage() {
                         <td className="px-3 py-3 text-right mono-number text-[var(--text-muted)]">{p && Number(p.direct_cost) > 0 ? won(p.direct_cost) : dash}</td>
                         <td className="px-3 py-3 text-center mono-number">
                           {ratio == null || ratio === 0 ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
-                            <span className={ratio >= 1 ? "text-red-500 font-semibold" : ratio >= 0.8 ? "text-amber-500" : "text-[var(--text)]"}>{Math.round(ratio * 100)}%</span>
+                            <span className={ratio >= 1 ? "text-[var(--danger)] font-semibold" : ratio >= 0.8 ? "text-[var(--warning)]" : "text-[var(--text)]"}>{Math.round(ratio * 100)}%</span>
                           )}
                         </td>
                       </>);
@@ -535,9 +535,9 @@ export default function ProjectHubPage() {
                     </td>
                     <td className="px-3 py-3 text-center whitespace-nowrap">
                       <button onClick={(e) => { e.stopPropagation(); setEditDeal(d); }}
-                        className="px-2 py-1 text-[11px] font-semibold rounded-md text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 transition">수정</button>
+                        className="btn-ghost btn-sm">수정</button>
                       <button onClick={(e) => { e.stopPropagation(); setDelDeal(d); }}
-                        className="ml-1 px-2 py-1 text-[11px] font-semibold rounded-md text-red-400 bg-red-500/10 hover:bg-red-500/20 transition">삭제</button>
+                        className="btn-danger btn-sm ml-1">삭제</button>
                     </td>
                   </tr>
                 );
@@ -665,7 +665,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
     } catch (e: any) { toast(e?.message || (isEdit ? "수정 실패" : "생성 실패"), "error"); } finally { setSaving(false); }
   };
 
-  const IN = "w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]";
+  const IN = "field-input";
   const LB = "block text-xs text-[var(--text-muted)] mb-1";
   const cfg = PROJECT_TYPES[projectType];
   return (
@@ -700,8 +700,8 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               })}
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-              <button onClick={() => setStep(2)} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">다음 →</button>
+              <button onClick={onClose} className="btn-secondary">취소</button>
+              <button onClick={() => setStep(2)} className="btn-primary">다음 →</button>
             </div>
           </div>
         )}
@@ -847,8 +847,8 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                 <button onClick={() => setStep(1)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">← 이전</button>
               ) : <span />}
               <div className="flex gap-2">
-                <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-                <button onClick={submit} disabled={saving || !form.name.trim()} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                <button onClick={onClose} className="btn-secondary">취소</button>
+                <button onClick={submit} disabled={saving || !form.name.trim()} className="btn-primary">
                   {saving ? "저장 중..." : isEdit ? "저장" : "생성"}
                 </button>
               </div>

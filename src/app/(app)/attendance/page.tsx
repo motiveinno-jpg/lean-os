@@ -112,7 +112,7 @@ export default function AttendancePage() {
       {/* 상위 섹션 탭 — 근무현황 / 휴가 / 연장근무 (라운드6.5: 타이틀 제거 → 필형 seg-bar 툴바) */}
       <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <div className="seg-bar">
-          {([["work", "🗓 근무 현황"], ["leave", "🏖 휴가"], ["overtime", "🌙 연장근무"]] as const).map(([k, l]) => (
+          {([["work", "근무 현황"], ["leave", "휴가"], ["overtime", "연장근무"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setSection(k)}
               className={`seg-item ${section === k ? "seg-item-active" : ""}`}>
               {l}
@@ -125,43 +125,43 @@ export default function AttendancePage() {
       {/* KPI 4 (출석/지각/결석/휴가) — 관리자 노출. 실데이터 + derive(결석). */}
       {isManager && section === "work" && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">출석</span>
+              <span className="stat-tile-label">출석</span>
               <span className="kpi-icon info">✓</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{present.toLocaleString()}명</span>
+              <span className="stat-tile-value mono-number">{present.toLocaleString()}명</span>
             </div>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">지각</span>
+              <span className="stat-tile-label">지각</span>
               <span className="kpi-icon warning">⏰</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{late.toLocaleString()}명</span>
+              <span className="stat-tile-value mono-number">{late.toLocaleString()}명</span>
             </div>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">결석</span>
+              <span className="stat-tile-label">결석</span>
               <span className="kpi-icon danger">✕</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{absent.toLocaleString()}명</span>
+              <span className="stat-tile-value mono-number">{absent.toLocaleString()}명</span>
             </div>
             {absent > 0
               ? <div className="kpi-callout danger">재직 − 출석 − 지각 − 휴가 = <b>{absent.toLocaleString()}명</b></div>
               : <div className="text-[11px] text-[var(--text-dim)]">이상 없음</div>}
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
+          <div className="stat-tile">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">휴가</span>
+              <span className="stat-tile-label">휴가</span>
               <span className="kpi-icon success">🏖</span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{leave.toLocaleString()}명</span>
+              <span className="stat-tile-value mono-number">{leave.toLocaleString()}명</span>
             </div>
           </div>
         </div>
@@ -174,10 +174,10 @@ export default function AttendancePage() {
             setSection("leave"); setLeaveFocusPending(true);
             setTimeout(() => document.getElementById("leave-approve-section")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
           }}
-          className="w-full mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left hover:bg-amber-500/15 transition"
+          className="w-full mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--warning-dim)] border border-[var(--warning)]/30 text-left hover:opacity-90 transition"
         >
-          <span className="text-sm font-semibold text-amber-600">⚠️ 미검토 휴가 신청 {pendingLeave}건 — 클릭해서 승인하세요</span>
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500 text-white whitespace-nowrap">휴가 승인하기 →</span>
+          <span className="text-sm font-semibold text-[var(--warning)]">⚠️ 미검토 휴가 신청 {pendingLeave}건 — 클릭해서 승인하세요</span>
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--warning)] text-white whitespace-nowrap">휴가 승인하기 →</span>
         </button>
       )}
 
@@ -185,7 +185,7 @@ export default function AttendancePage() {
         <>
           {/* 플렉스 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
           <div className="seg-bar mb-4">
-            {([["work", "📊 워크보드 (주간)"], ["records", "📋 기록 상세"]] as const).map(([k, l]) => (
+            {([["work", "워크보드 (주간)"], ["records", "기록 상세"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setAttView(k)}
                 className={`seg-item ${attView === k ? "seg-item-active" : ""}`}>
                 {l}

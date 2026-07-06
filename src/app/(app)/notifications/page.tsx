@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import Link from "next/link";
+import { EmptyState } from "@/components/empty-state";
 
 interface NotificationRow {
   id: string;
@@ -141,7 +142,7 @@ export default function NotificationsPage() {
   const unread = rows.filter(r => !r.is_read).length;
 
   return (
-    <div className="">
+    <div className="max-w-[var(--content-max)] mx-auto">
       <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <p className="text-xs text-[var(--text-dim)]">
           전체 <span className="mono-number font-semibold text-[var(--text-muted)]">{rows.length}</span>건 · 안읽음{" "}
@@ -157,11 +158,13 @@ export default function NotificationsPage() {
       {loading ? (
         <div className="text-center py-12 text-sm text-[var(--text-dim)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
-        <div className="text-center py-16 glass-card">
-          <div className="text-4xl mb-3">🔔</div>
-          <div className="text-sm font-semibold text-[var(--text)]">알림이 없습니다</div>
-          <div className="text-[11px] text-[var(--text-dim)] mt-1.5">새 알림이 도착하면 여기에 표시됩니다.</div>
-        </div>
+        <EmptyState
+          card
+          icon="🔔"
+          title="알림이 없습니다"
+          desc="새 알림이 도착하면 여기에 표시됩니다."
+          action={<Link href="/dashboard" className="btn-secondary">대시보드로 이동</Link>}
+        />
       ) : (
         <div className="glass-card overflow-hidden divide-y divide-[var(--border)]">
           {rows.map(n => {

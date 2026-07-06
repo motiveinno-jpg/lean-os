@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
-import { nextQuoteNumber } from "@/lib/documents";
+import { nextQuoteNumber, DOC_STATUS } from "@/lib/documents";
 
 const db = supabase as any;
 
@@ -90,7 +90,7 @@ export default function QuotesPage() {
                     </td>
                     <td className="px-3 py-3 text-right mono-number">{q.contract_amount != null ? won(q.contract_amount) : "—"}</td>
                     <td className="px-3 py-3 text-center">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{q.status || "draft"}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{(DOC_STATUS as any)[q.status]?.label || DOC_STATUS.draft.label}</span>
                     </td>
                     <td className="px-3 py-3 text-[var(--text-muted)] mono-number text-[11px]">{fmtDate(q.created_at)}</td>
                     <td className="px-3 py-3 text-center">

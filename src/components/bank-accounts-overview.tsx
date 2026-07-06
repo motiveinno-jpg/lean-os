@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { TileIcon } from "@/components/ui/icon-tile";
 import { getDistinctBankAccountNos, getBankAccountChanges, setBankAccountAlias } from "@/lib/queries";
+import { useConfirm } from "@/components/confirm-dialog";
 
 // 은행 브랜드색 매핑 상수 (브랜드색은 매핑 상수 허용). logo: public/bank-logos/{logo} 있으면 표시, 없으면 이니셜.
 const BANK_STYLE: { re: RegExp; label: string; color: string; initial: string; fg?: string; logo?: string }[] = [
@@ -182,6 +183,7 @@ interface Props {
 
 export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }: Props) {
   const queryClient = useQueryClient();
+  const { confirm, confirmElement } = useConfirm();
   const [range, setRange] = useState(defaultRange);
   const [sortBy, setSortBy] = useState<"balance" | "name">("balance");
   const [search, setSearch] = useState("");
@@ -237,9 +239,15 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
   const shiftMonths = (delta: number) => setRange((r) => ({ from: addMonths(r.from, delta), to: addMonths(r.to, delta) }));
 
   async function handleEdit(accountNo: string, currentAlias: string | undefined, bankName: string | undefined, balance: number) {
-    const next = typeof window !== "undefined" ? window.prompt("계좌 별칭", currentAlias || "") : null;
-    if (next === null) return;
-    await setBankAccountAlias(companyId, accountNo, next, { bankName, balance });
+    const { ok, input } = await confirm({
+      title: "통장 이름 변경",
+      desc: currentAlias ? `현재 이름: ${currentAlias}` : undefined,
+      withInput: "새 이름",
+      inputOptional: true,
+      confirmLabel: "저장",
+    });
+    if (!ok) return;
+    await setBankAccountAlias(companyId, accountNo, input ?? "", { bankName, balance });
     queryClient.invalidateQueries({ queryKey: ["bank-accounts-distinct", companyId] });
   }
 
@@ -352,6 +360,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
           ))}
         </div>
       )}
+      {confirmElement}
     </div>
   );
 }

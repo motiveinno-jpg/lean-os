@@ -118,7 +118,6 @@ function Inner() {
               <div className="p-8 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
             ) : invoices.length === 0 ? (
               <div className="py-14 px-4 text-center">
-                <div className="text-3xl mb-2">✅</div>
                 <div className="text-xs font-semibold text-[var(--text)]">미매칭 세금계산서 없음</div>
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">모든 세금계산서가 매칭 완료된 상태입니다</div>
               </div>
@@ -138,7 +137,7 @@ function Inner() {
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
                         <span>{inv.issue_date || '—'}</span>
-                        <span className="font-semibold text-[var(--text)]">₩{Number(inv.total_amount || 0).toLocaleString()}</span>
+                        <span className="font-semibold text-[var(--text)] mono-number">₩{Number(inv.total_amount || 0).toLocaleString()}</span>
                       </div>
                     </button>
                   </li>
@@ -164,7 +163,6 @@ function Inner() {
           <div className="max-h-[70vh] overflow-y-auto">
             {!selectedInvoice ? (
               <div className="py-16 px-4 text-center">
-                <div className="text-3xl mb-2">👈</div>
                 <div className="text-xs font-semibold text-[var(--text)]">좌측 미매칭 세금계산서를 클릭해 매칭 후보를 확인하세요</div>
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">거래처명·대표자명·금액±10% 기준으로 자동 추천됩니다</div>
               </div>
@@ -172,7 +170,6 @@ function Inner() {
               <div className="p-8 text-center text-xs text-[var(--text-muted)]">후보 분석 중...</div>
             ) : candidates.length === 0 ? (
               <div className="py-14 px-4 text-center">
-                <div className="text-3xl mb-2">🔍</div>
                 <div className="text-xs font-semibold text-[var(--text)]">매칭 후보 없음</div>
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">거래처명·대표자명·금액±10% 모두 미충족</div>
               </div>
@@ -192,7 +189,7 @@ function Inner() {
                           </span>
                           {c.score >= 3 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">강력 추천</span>}
                         </div>
-                        <span className="text-xs font-bold text-[var(--text)] shrink-0">₩{c.bankAmount.toLocaleString()}</span>
+                        <span className="text-xs font-bold text-[var(--text)] shrink-0 mono-number">₩{c.bankAmount.toLocaleString()}</span>
                       </div>
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <div className="text-[10px] text-[var(--text-muted)] truncate">
@@ -222,7 +219,7 @@ function Inner() {
         <div className="lg:col-span-2 glass-card overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
             <div>
-              <div className="text-sm font-bold">✅ 매칭됨 ({matched.length})</div>
+              <div className="text-sm font-bold">매칭됨 ({matched.length})</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-0.5">행 클릭 → 연결 프로젝트 진입 · ✕ 로 해제</div>
             </div>
           </div>
@@ -259,7 +256,7 @@ function Inner() {
                             {m.invoiceType === 'sales' ? '매출' : '매입'}
                           </span>
                           <span className="text-xs font-semibold truncate flex-1">{m.invoiceCounterparty || '거래처'}</span>
-                          <span className="text-[9px] text-emerald-400">✓</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-emerald-500/15 text-emerald-400 shrink-0">완료</span>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -276,12 +273,12 @@ function Inner() {
                           </button>
                         </div>
                         <div className="flex items-center justify-between text-[10px] mb-1">
-                          <span className="text-[var(--text-muted)]">📄 {m.invoiceDate || '—'}</span>
-                          <span className="text-[var(--text)] font-semibold">₩{m.invoiceTotal.toLocaleString()}</span>
+                          <span className="text-[var(--text-muted)]">계산서 {m.invoiceDate || '—'}</span>
+                          <span className="text-[var(--text)] font-semibold mono-number">₩{m.invoiceTotal.toLocaleString()}</span>
                         </div>
                         <div className="flex items-center justify-between text-[10px] mb-1">
-                          <span className="text-[var(--text-muted)] truncate">💸 {m.bankCounterparty} · {m.bankDate}</span>
-                          <span className="text-[var(--text)] font-semibold">₩{m.bankAmount.toLocaleString()}</span>
+                          <span className="text-[var(--text-muted)] truncate">입출금 {m.bankCounterparty} · {m.bankDate}</span>
+                          <span className="text-[var(--text)] font-semibold mono-number">₩{m.bankAmount.toLocaleString()}</span>
                         </div>
                         {diff > 0 && (
                           <div className="text-[9px] text-amber-400 mb-1">차이 ₩{diff.toLocaleString()}</div>
@@ -293,7 +290,7 @@ function Inner() {
                             className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--primary)] hover:underline mt-0.5"
                             title={`'${m.dealName}' 프로젝트로 이동`}
                           >
-                            🔗 {m.dealName} →
+                            {m.dealName} →
                           </button>
                         )}
                       </div>

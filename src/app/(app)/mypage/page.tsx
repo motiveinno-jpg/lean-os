@@ -9,10 +9,10 @@ import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
 
 const EMP_STATUS: Record<string, { label: string; color: string }> = {
-  invited: { label: "초대중", color: "text-amber-500" },
-  joined: { label: "가입완료", color: "text-blue-400" },
-  active: { label: "재직", color: "text-green-400" },
-  inactive: { label: "퇴직", color: "text-gray-400" },
+  invited: { label: "초대중", color: "text-[var(--warning)]" },
+  joined: { label: "가입완료", color: "text-[var(--info)]" },
+  active: { label: "재직", color: "text-[var(--success)]" },
+  inactive: { label: "퇴직", color: "text-[var(--text-muted)]" },
 };
 
 export default function MyPage() {
@@ -178,12 +178,12 @@ export default function MyPage() {
             <div className="text-xs text-[var(--text-dim)]">프로필 사진</div>
             <div className="flex items-center gap-2">
               <button onClick={() => fileRef.current?.click()} disabled={uploadingAvatar}
-                className="px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition">
+                className="btn-secondary btn-sm">
                 {uploadingAvatar ? "처리 중..." : "사진 변경"}
               </button>
               {(userInfo as any)?.avatar_url && (
                 <button onClick={handleAvatarRemove} disabled={uploadingAvatar}
-                  className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] text-xs font-semibold hover:text-[var(--text)] disabled:opacity-50 transition">
+                  className="btn-ghost btn-sm">
                   기본 이미지로
                 </button>
               )}
@@ -258,15 +258,15 @@ export default function MyPage() {
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div className="stat-tile items-center text-center">
               <div className="stat-tile-label">총 연차</div>
-              <div className="text-2xl font-black mono-number text-[var(--primary)]">{leaveBalance.total_days}일</div>
+              <div className="stat-tile-value mono-number text-[var(--primary)]">{leaveBalance.total_days}일</div>
             </div>
             <div className="stat-tile items-center text-center">
               <div className="stat-tile-label">사용</div>
-              <div className="text-2xl font-black mono-number text-[var(--warning)]">{leaveBalance.used_days}일</div>
+              <div className="stat-tile-value mono-number text-[var(--warning)]">{leaveBalance.used_days}일</div>
             </div>
             <div className="stat-tile items-center text-center">
               <div className="stat-tile-label">잔여</div>
-              <div className={`text-2xl font-black mono-number ${remaining !== null && remaining <= 3 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>
+              <div className={`stat-tile-value mono-number ${remaining !== null && remaining <= 3 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>
                 {remaining ?? 0}일
               </div>
             </div>
@@ -290,9 +290,9 @@ export default function MyPage() {
                     <span className="text-[var(--text-muted)]">{leave.start_date}{leave.end_date && leave.end_date !== leave.start_date ? ` ~ ${leave.end_date}` : ""}</span>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                    leave.status === "approved" ? "bg-green-500/10 text-green-400"
-                      : leave.status === "rejected" ? "bg-red-500/10 text-red-400"
-                      : "bg-amber-500/10 text-amber-500"
+                    leave.status === "approved" ? "bg-[var(--success-dim)] text-[var(--success)]"
+                      : leave.status === "rejected" ? "bg-[var(--danger-dim)] text-[var(--danger)]"
+                      : "bg-[var(--warning-dim)] text-[var(--warning)]"
                   }`}>
                     {leave.status === "approved" ? "승인" : leave.status === "rejected" ? "반려" : "대기"}
                   </span>

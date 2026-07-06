@@ -404,7 +404,7 @@ export default function SignaturesDashboardPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="제목·서명자 검색..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-transparent transition"
+            className="field-input pl-10"
           />
         </div>
         {signedFiltered.length > 0 && (
@@ -412,7 +412,7 @@ export default function SignaturesDashboardPage() {
             <button
               onClick={toggleSelectAllSigned}
               disabled={exporting}
-              className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-elevated)] disabled:opacity-50 whitespace-nowrap"
+              className="btn-secondary btn-sm whitespace-nowrap"
               title="현재 목록의 서명완료 계약서를 모두 선택/해제"
             >
               {allSignedSelected ? "☑ 서명완료 전체해제" : "☐ 서명완료 전체선택"}
@@ -420,12 +420,12 @@ export default function SignaturesDashboardPage() {
             <button
               onClick={handleBulkExport}
               disabled={exporting || selectedSignedTargets.length === 0}
-              className="px-3 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50 whitespace-nowrap"
+              className="btn-secondary btn-sm whitespace-nowrap"
               title="체크한 서명완료 계약서를 단건 인쇄와 동일한 품질의 PDF 로 저장 (파일명: 소상공인 개별계약서_업체명)"
             >
               {exporting
                 ? `PDF 생성 중… ${exportProgress?.done ?? 0}/${exportProgress?.total ?? 0}`
-                : `📦 선택한 ${selectedSignedTargets.length}건 PDF 저장`}
+                : `선택한 ${selectedSignedTargets.length}건 PDF 저장`}
             </button>
           </>
         )}
@@ -435,13 +435,13 @@ export default function SignaturesDashboardPage() {
             <button
               onClick={() => bulkRemindMut.mutate(remindableSelected)}
               disabled={remindableSelected.length === 0 || bulkRemindMut.isPending}
-              className="px-3 py-2 bg-yellow-500/10 text-yellow-500 rounded-lg text-xs font-semibold hover:bg-yellow-500/20 disabled:opacity-50"
+              className="btn-secondary btn-sm whitespace-nowrap"
             >
-              🔔 일괄 리마인더 ({remindableSelected.length})
+              일괄 리마인더 ({remindableSelected.length})
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="px-3 py-2 bg-[var(--bg-card)] text-[var(--text-muted)] rounded-lg text-xs"
+              className="btn-ghost btn-sm"
             >
               선택 해제
             </button>
@@ -490,20 +490,20 @@ export default function SignaturesDashboardPage() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {canRemind && (
-                        <button onClick={() => reminderMut.mutate(r.id)} disabled={reminderMut.isPending} className="px-2 py-1 text-xs bg-yellow-500/10 text-yellow-500 rounded-lg hover:bg-yellow-500/20" aria-label="리마인더 발송" title="리마인더 발송">🔔</button>
+                        <button onClick={() => reminderMut.mutate(r.id)} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송">🔔</button>
                       )}
                       {r.sign_token && r.status !== 'signed' && (
-                        <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-xs bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 inline-block" aria-label="서명 링크 열기" title="서명 링크">🔗</a>
+                        <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명 링크 열기" title="서명 링크">🔗</a>
                       )}
-                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="px-2 py-1 text-xs bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20" aria-label="계약서 보기 / PDF 다운로드" title="이 계약서 보기 / PDF 다운로드">📄</button>
+                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="계약서 보기 / PDF 다운로드" title="이 계약서 보기 / PDF 다운로드">📄</button>
                       {r.status === 'signed' && (
-                        <button onClick={async () => { const proof = await getSignatureProof(r.id); setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: proof.signature_data, title: r.title, signer_inputs: proof.signer_inputs }); }} className="px-2 py-1 text-xs bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500/20" aria-label="서명본 보기" title="서명본 보기">✅</button>
+                        <button onClick={async () => { const proof = await getSignatureProof(r.id); setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: proof.signature_data, title: r.title, signer_inputs: proof.signer_inputs }); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명본 보기" title="서명본 보기">✅</button>
                       )}
                       {canRemind && (
-                        <button onClick={() => { if (confirm("이 서명 요청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }} className="px-2 py-1 text-xs bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20" aria-label="서명 요청 취소" title="취소(만료 처리)">✕</button>
+                        <button onClick={() => { if (confirm("이 서명 요청을 취소하시겠습니까?")) cancelMut.mutate(r.id); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition" aria-label="서명 요청 취소" title="취소(만료 처리)">✕</button>
                       )}
                       {isManager && (
-                        <button onClick={() => { if (confirm("이 서명 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.")) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="px-2 py-1 text-xs bg-red-500/15 text-red-600 rounded-lg hover:bg-red-500/25 disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제">🗑</button>
+                        <button onClick={() => { if (confirm("이 서명 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.")) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제">🗑</button>
                       )}
                     </div>
                   </div>

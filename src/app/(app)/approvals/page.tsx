@@ -32,6 +32,7 @@ import { CurrencyInput } from "@/components/currency-input";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
+import { useConfirm } from "@/components/confirm-dialog";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 
 const db = supabase as any;
@@ -65,7 +66,7 @@ const TYPE_META: Record<string, { icon: string; bg: string; text: string }> = {
   expense_report: { icon: "wallet", bg: "bg-violet-500/12", text: "text-violet-500" },
   card_expense: { icon: "card", bg: "bg-fuchsia-500/12", text: "text-fuchsia-500" },
   payment: { icon: "banknote", bg: "bg-sky-500/12", text: "text-sky-500" },
-  leave: { icon: "sun", bg: "bg-emerald-500/12", text: "text-emerald-500" },
+  leave: { icon: "sun", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
   overtime: { icon: "clock", bg: "bg-amber-500/12", text: "text-amber-500" },
   purchase: { icon: "cart", bg: "bg-orange-500/12", text: "text-orange-500" },
   equipment: { icon: "monitor", bg: "bg-cyan-600/12", text: "text-cyan-600" },
@@ -312,6 +313,7 @@ export default function ApprovalsPage() {
 // RLS 가 회사 격리 자동 처리.
 function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
   const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const qc = useQueryClient();
 
   const { data: rows = [], isLoading } = useQuery<any[]>({
@@ -384,10 +386,15 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
     onError: (err: any) => toast(friendlyError(err, "반려 처리 실패"), "error"),
   });
 
-  const handleReject = (row: any) => {
-    const reason = window.prompt("반려 사유를 입력하세요 (3자 이상)");
-    if (reason === null) return;
-    const trimmed = reason.trim();
+  const handleReject = async (row: any) => {
+    const { ok, input } = await confirm({
+      title: "연장근무 반려",
+      withInput: "반려 사유를 입력하세요 (3자 이상)",
+      confirmLabel: "반려",
+      danger: true,
+    });
+    if (!ok) return;
+    const trimmed = (input || "").trim();
     if (trimmed.length < 3) {
       toast("반려 사유는 3자 이상 입력해 주세요", "error");
       return;
@@ -411,6 +418,7 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
 
   return (
     <div>
+      {confirmElement}
       {rows.length === 0 ? (
         <div className="text-center py-16 glass-card">
           <div className="text-3xl mb-3">&#10003;</div>

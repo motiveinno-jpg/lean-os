@@ -17,6 +17,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
 import { SortToolbar } from "@/components/sort-toolbar";
+import { EmptyState } from "@/components/empty-state";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -532,11 +533,12 @@ export default function CardsPage() {
       {/* ========== 카드 탭 ========== */}
       {tab === "cards" && (
         cards.length === 0 ? (
-          <div className="glass-card py-16 px-6 text-center">
-            <div className="text-4xl mb-3">💳</div>
-            <p className="text-sm font-semibold text-[var(--text)] mb-1">등록된 카드가 없습니다</p>
-            <p className="text-xs text-[var(--text-muted)]">/transactions 카드 탭에서 등록하거나 CODEF 카드 동기화로 자동 등록할 수 있습니다</p>
-          </div>
+          <EmptyState
+            card
+            icon="💳"
+            title="등록된 카드가 없습니다"
+            desc="/transactions 카드 탭에서 등록하거나 CODEF 카드 동기화로 자동 등록할 수 있습니다"
+          />
         ) : (
           <div className="space-y-6">
             {/* 큰 카드 + 사용현황 패널 */}
@@ -595,7 +597,7 @@ export default function CardsPage() {
                     <button
                       type="button"
                       onClick={() => { setSelectedCardId(""); setSelectedCardName(""); setCardTxFrom(""); setCardTxTo(""); }}
-                      className="px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
+                      className="btn-secondary btn-sm"
                     >
                       ✕ 닫기
                     </button>
@@ -603,11 +605,12 @@ export default function CardsPage() {
                 </div>
                 <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
                   {cardTx.length === 0 ? (
-                    <div className="glass-card py-14 px-6 text-center">
-                      <div className="text-4xl mb-3">🧾</div>
-                      <p className="text-sm font-semibold text-[var(--text)] mb-1">{(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다" : "이 카드의 거래내역이 없습니다"}</p>
-                      <p className="text-xs text-[var(--text-muted)]">기간을 조정하거나 상단의 카드 연동으로 거래를 불러오세요</p>
-                    </div>
+                    <EmptyState
+                      card
+                      icon="🧾"
+                      title={(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다" : "이 카드의 거래내역이 없습니다"}
+                      desc="기간을 조정하거나 상단의 카드 연동으로 거래를 불러오세요"
+                    />
                   ) : cardTx.map((tx: any) => (
                     <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -726,10 +729,8 @@ export default function CardsPage() {
                 <tbody>
                   {sortedTx.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-16 text-center">
-                        <div className="text-4xl mb-3">💳</div>
-                        <p className="text-sm font-semibold text-[var(--text)] mb-1">최근 카드 거래가 없습니다</p>
-                        <p className="text-xs text-[var(--text-muted)]">상단의 카드 연동으로 거래를 불러올 수 있습니다</p>
+                      <td colSpan={6} className="px-6 py-4">
+                        <EmptyState icon="💳" title="최근 카드 거래가 없습니다" desc="상단의 카드 연동으로 거래를 불러올 수 있습니다" />
                       </td>
                     </tr>
                   ) : sortedTx.map((tx: any) => {
@@ -960,7 +961,7 @@ function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; mo
     return (
       <div className="glass-card p-4 sm:p-5 h-full flex flex-col">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-medium text-[var(--text-muted)]">사용 가능 금액</h3>
+          <h3 className="stat-tile-label">사용 가능 금액</h3>
           <button type="button" onClick={onToggle} className="p-1 rounded-lg hover:bg-[var(--bg-surface)]" aria-label="잔액 표시 토글">
             {showBalance ? (
               <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={2} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" strokeWidth={2} /></svg>
@@ -969,7 +970,7 @@ function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; mo
             )}
           </button>
         </div>
-        <p className="text-2xl sm:text-3xl font-bold text-[var(--text)] mb-2 mono-number">
+        <p className="stat-tile-value mono-number mb-2">
           {showBalance ? fmtW(remaining) : "••••••"}
         </p>
         <div className="text-[11px] text-[var(--text-muted)] mb-1.5 flex justify-between mono-number">
@@ -985,8 +986,8 @@ function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; mo
   // 한도 정보 없음 — 이번 달 사용액만 표시(가짜 한도 진행률 금지)
   return (
     <div className="glass-card p-4 sm:p-5 h-full flex flex-col justify-center">
-      <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">이번 달 사용액</h3>
-      <p className="text-2xl sm:text-3xl font-bold text-[var(--text)] mono-number">{fmtW(monthSpend)}</p>
+      <h3 className="stat-tile-label mb-2">이번 달 사용액</h3>
+      <p className="stat-tile-value mono-number">{fmtW(monthSpend)}</p>
       <p className="text-[11px] text-[var(--text-dim)] mt-1">{card.card_type === "credit" ? "한도 미설정" : "체크/직불 — 한도 개념 없음"}</p>
     </div>
   );
@@ -1068,13 +1069,13 @@ function MiniCard({
 function Stat({ tone, label, value, sub, icon }: { tone: string; label: string; value: string; sub?: string; icon?: string }) {
   // tone = kpi-icon 변형: "" | "success" | "warning" | "danger" | "info"
   return (
-    <div className="glass-card p-5 flex flex-col gap-3">
+    <div className="stat-tile">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
+        <span className="stat-tile-label">{label}</span>
         {icon && <span className={`kpi-icon ${tone}`}>{icon}</span>}
       </div>
       <div>
-        <p className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)] truncate">{value}</p>
+        <p className="stat-tile-value mono-number truncate">{value}</p>
         {sub && <p className="text-[11px] text-[var(--text-dim)] mt-1 truncate">{sub}</p>}
       </div>
     </div>

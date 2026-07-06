@@ -208,12 +208,12 @@ export default function ByPersonPage() {
             {[
               { label: `${year}년 급여 합계`, big: `₩${fmtKrw(totals.pay)}`, color: "var(--warning)", hint: "명세서/기본급여 추정" },
               { label: "인원 수", big: `${rows.length}명`, color: "var(--primary)", hint: "급여 집계 인원" },
-              { label: "1인 평균", big: `₩${fmtKrw(Math.round(totals.pay / Math.max(rows.length, 1)))}`, color: "#10b981", hint: "합계 ÷ 인원" },
+              { label: "1인 평균", big: `₩${fmtKrw(Math.round(totals.pay / Math.max(rows.length, 1)))}`, color: "var(--success)", hint: "합계 ÷ 인원" },
             ].map((c) => (
-              <div key={c.label} className="glass-card" style={{ padding: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>{c.label}</div>
-                <div className="mono-number" style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: c.color, lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.big}</div>
-                <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.hint}</div>
+              <div key={c.label} className="stat-tile">
+                <div className="stat-tile-label">{c.label}</div>
+                <div className="stat-tile-value mono-number truncate" style={{ color: c.color }}>{c.big}</div>
+                <div className="text-[10px] text-[var(--text-dim)] truncate">{c.hint}</div>
               </div>
             ))}
           </div>

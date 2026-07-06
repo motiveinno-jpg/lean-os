@@ -34,6 +34,7 @@ import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { useCanAccessTab } from "@/lib/tab-access";
@@ -237,6 +238,7 @@ export default function TaxInvoicesPage() {
     return <AccessDenied detail="세금계산서 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
   }
   const { toast } = useToast();
+  const { confirm: confirmDialog, confirmElement } = useConfirm();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const hometaxCd = useSyncCooldown(companyId, "hometax");
@@ -990,7 +992,8 @@ export default function TaxInvoicesPage() {
   // 선택 일괄 삭제 — 미발행(홈택스 승인번호 없음) 건만 대상. 파괴적이라 확인 후 진행.
   async function handleBatchDelete() {
     if (selectedDeletable.length === 0) { toast("삭제 가능한 미발행 건이 없습니다", "error"); return; }
-    if (!confirm(`선택한 ${selectedDeletable.length}건을 삭제합니다.\n홈택스 미발행 건만 삭제되며, 되돌릴 수 없습니다. 계속할까요?`)) return;
+    const { ok: delOk } = await confirmDialog({ title: `선택 ${selectedDeletable.length}건 삭제`, desc: "홈택스 미발행 건만 삭제되며, 되돌릴 수 없습니다.", danger: true });
+    if (!delOk) return;
     setBatchIssuing(true);
     let ok = 0, fail = 0;
     for (const inv of selectedDeletable) {
@@ -1045,6 +1048,7 @@ export default function TaxInvoicesPage() {
 
   return (
     <div className="" data-print-area>
+      {confirmElement}
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* 툴바 — 액션 버튼 (타이틀은 공통 헤더바가 담당) */}
       <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2 mb-6">
@@ -1320,7 +1324,8 @@ export default function TaxInvoicesPage() {
                         상세
                       </button>
                       <button type="button" onClick={async () => {
-                        if (!confirm(`이 세금계산서를 삭제하시겠습니까?\n${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString()}`)) return;
+                        const { ok: rowOk } = await confirmDialog({ title: "세금계산서 삭제", desc: `${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString()}`, danger: true });
+                        if (!rowOk) return;
                         await supabase.from("tax_invoices").delete().eq("id", inv.id);
                         invalidate();
                         toast("세금계산서가 삭제되었습니다", "success");
@@ -1796,7 +1801,7 @@ export default function TaxInvoicesPage() {
             <button
               onClick={handleBatchDelete}
               disabled={batchIssuing}
-              className="px-3 py-1.5 bg-red-500/90 text-white rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-500 transition"
+              className="btn-danger-solid btn-sm"
             >
               선택 삭제
             </button>
@@ -1822,7 +1827,7 @@ export default function TaxInvoicesPage() {
             </div>
           ) : currentList.length === 0 ? (
             <div className="py-16 px-6 text-center">
-              <div className="text-5xl mb-4">🧾</div>
+              <div className="empty-state-icon mx-auto">🧾</div>
               <div className="text-base font-semibold text-[var(--text)]">
                 세금계산서가 등록되면 3-Way 매칭이 시작됩니다
               </div>
@@ -1913,7 +1918,7 @@ export default function TaxInvoicesPage() {
                               ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-500 font-semibold">국세청</span>
                               : inv.hometax_synced_at
                                 ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold" title={`전송: ${new Date(inv.hometax_synced_at).toLocaleDateString('ko-KR')}`}>전송완료</span>
-                                : <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400">미전송</span>}
+                                : <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">미전송</span>}
                           </td>
                           <td className="px-3 py-2 text-center border-l border-[var(--border)]/40">
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${sc.bg} ${sc.text}`}>{sc.label}</span>
@@ -2058,7 +2063,7 @@ export default function TaxInvoicesPage() {
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : queueItems.length === 0 ? (
             <div className="glass-card py-16 px-6 text-center">
-              <div className="text-5xl mb-4">⚡</div>
+              <div className="empty-state-icon mx-auto">⚡</div>
               <div className="text-base font-semibold mb-1.5">대기 중인 자동발행 없음</div>
               <div className="text-xs text-[var(--text-muted)]">프로젝트의 매출 스케줄이 확정되면 여기에 표시됩니다</div>
             </div>
@@ -2100,7 +2105,7 @@ export default function TaxInvoicesPage() {
                             q.status === 'needs_approval' ? 'bg-orange-500/10 text-orange-400'
                             : q.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400'
                             : q.status === 'processing' ? 'bg-blue-500/10 text-blue-400'
-                            : 'bg-gray-500/10 text-gray-400'
+                            : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
                           }`}>
                             {q.status === 'needs_approval' ? '승인 필요' : q.status === 'pending' ? '대기' : q.status === 'processing' ? '처리중' : q.status}
                           </span>
@@ -2361,7 +2366,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
       <div className="glass-card overflow-hidden">
         {periodSummary.length === 0 ? (
           <div className="py-16 px-6 text-center">
-            <div className="text-5xl mb-4">📊</div>
+            <div className="empty-state-icon mx-auto">📊</div>
             <div className="text-base font-semibold text-[var(--text)]">{currentYear}년 세금계산서 데이터가 없습니다</div>
             <div className="text-xs text-[var(--text-muted)] mt-1.5">세금계산서가 쌓이면 기간별 집계가 자동으로 생성됩니다</div>
           </div>
@@ -2515,7 +2520,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{v.dueDate}</td>
                   <td className="px-5 py-3 text-center">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      !hasActivity ? "bg-gray-500/10 text-gray-400"
+                      !hasActivity ? "bg-[var(--bg-surface)] text-[var(--text-muted)]"
                       : isPast ? "bg-green-500/10 text-green-400"
                       : "bg-yellow-500/10 text-yellow-400"
                     }`}>

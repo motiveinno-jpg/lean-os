@@ -14,6 +14,8 @@ import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { DateField } from "@/components/date-field";
 import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
+import { EmptyState } from "@/components/empty-state";
+import { useConfirm } from "@/components/confirm-dialog";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { SortToolbar } from "@/components/sort-toolbar";
@@ -46,6 +48,7 @@ export default function BankPage() {
   const [mapOpenId, setMapOpenId] = useState<string | null>(null);
   const [mapCat, setMapCat] = useState("");
   const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const [syncing, setSyncing] = useState(false);
   // 통장 카드 클릭 시 거래내역 필터 — accountNo + 표시 이름 동시 보관.
   const [selectedAccountNo, setSelectedAccountNo] = useState<string>("");
@@ -71,14 +74,20 @@ export default function BankPage() {
 
   // 통장 이름 편집 — BankAccountsOverview 와 동일한 setBankAccountAlias 사용. 빈 문자열이면 별칭 해제.
   const handleEditAlias = async (accountNo: string, currentAlias: string | undefined, bankName: string | undefined, balance: number) => {
-    if (typeof window === "undefined") return;
-    const next = window.prompt("통장 이름(별칭)", currentAlias || "");
-    if (next === null) return; // 취소
+    const { ok, input } = await confirm({
+      title: "통장 이름 변경",
+      desc: currentAlias ? `현재 이름: ${currentAlias} — 비워두고 저장하면 별칭이 해제됩니다.` : "비워두고 저장하면 별칭이 해제됩니다.",
+      withInput: "새 이름",
+      inputOptional: true,
+      confirmLabel: "저장",
+    });
+    if (!ok) return; // 취소
+    const next = (input ?? "").trim();
     try {
-      await setBankAccountAlias(companyId!, accountNo, next.trim(), { bankName, balance });
+      await setBankAccountAlias(companyId!, accountNo, next, { bankName, balance });
       queryClient.invalidateQueries({ queryKey: ["bank-page-accounts-distinct"] });
       queryClient.invalidateQueries({ queryKey: ["bank-accounts-distinct"] });
-      toast(next.trim() ? `이름을 "${next.trim()}"으로 변경` : "별칭 해제 완료", "success");
+      toast(next ? `이름을 "${next}"으로 변경` : "별칭 해제 완료", "success");
     } catch (e: any) {
       toast(friendlyError(e, "이름 변경 실패"), "error");
     }
@@ -329,13 +338,13 @@ export default function BankPage() {
     sub?: string;
     invertDeltaColor?: boolean;
   }) => (
-    <div className="glass-card p-5 flex flex-col gap-3">
+    <div className="stat-tile">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
+        <span className="stat-tile-label">{label}</span>
         <span className={`kpi-icon ${tone}`}>{icon}</span>
       </div>
       <div className="flex items-end gap-2">
-        <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{value}</span>
+        <span className="stat-tile-value mono-number">{value}</span>
         {delta != null ? (
           <span className={`delta-chip ${(invertDeltaColor ? delta < 0 : delta >= 0) ? "delta-up" : "delta-down"} mb-1`}>
             {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(1)}%
@@ -450,18 +459,18 @@ export default function BankPage() {
       {tab === "accounts" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {accounts.length === 0 ? (
-            <div className="sm:col-span-2 lg:col-span-3 glass-card py-14 px-6 text-center">
-              <div className="text-4xl mb-3">🏦</div>
-              <p className="text-sm font-semibold text-[var(--text)] mb-1">통장이 아직 연동되지 않았습니다</p>
-              <p className="text-xs text-[var(--text-muted)] mb-4">CODEF 은행 연동으로 통장과 거래내역을 자동으로 불러옵니다</p>
-              <button
-                type="button"
-                onClick={handleSyncBank}
-                disabled={syncing}
-                className="btn-primary"
-              >
-                {syncing ? "연동 중..." : "🏦 통장 연동하기"}
-              </button>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <EmptyState
+                card
+                icon="🏦"
+                title="통장이 아직 연동되지 않았습니다"
+                desc="CODEF 은행 연동으로 통장과 거래내역을 자동으로 불러옵니다"
+                action={
+                  <button type="button" onClick={handleSyncBank} disabled={syncing} className="btn-primary">
+                    {syncing ? "연동 중..." : "통장 연동하기"}
+                  </button>
+                }
+              />
             </div>
           ) : accounts.map((a) => {
             const accNo = a.accountNo || "";
@@ -543,14 +552,14 @@ export default function BankPage() {
               <button
                 type="button"
                 onClick={() => { setBulkAccountId(""); setBulkFixed(false); setShowBulkPost(true); }}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:brightness-110 transition"
+                className="btn-primary btn-sm"
               >
                 전표처리({selectedTxIds.size})
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedTxIds(new Set())}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition"
+                className="btn-secondary btn-sm"
               >
                 선택 해제
               </button>
@@ -598,10 +607,12 @@ export default function BankPage() {
               <tbody>
                 {sortedTx.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-16 text-center">
-                      <div className="text-4xl mb-3">📄</div>
-                      <p className="text-sm font-semibold text-[var(--text)] mb-1">{hasTxRange ? "이 기간에 거래내역이 없습니다" : "최근 거래내역이 없습니다"}</p>
-                      <p className="text-xs text-[var(--text-muted)]">상단에서 기간을 설정하고 &lsquo;통장 연동&rsquo;을 누르면 그 기간의 거래를 불러옵니다</p>
+                    <td colSpan={8} className="px-6 py-4">
+                      <EmptyState
+                        icon="📄"
+                        title={hasTxRange ? "이 기간에 거래내역이 없습니다" : "최근 거래내역이 없습니다"}
+                        desc="상단에서 기간을 설정하고 ‘통장 연동’을 누르면 그 기간의 거래를 불러옵니다"
+                      />
                     </td>
                   </tr>
                 ) : sortedTx.map((tx) => {
@@ -659,7 +670,7 @@ export default function BankPage() {
                                 {BANK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                               </select>
                               <label className="flex items-center gap-1.5 mb-2 text-[11px] text-[var(--text)] cursor-pointer" title="매월 반복되는 지출이면 체크 — 경영흐름·고정비 리포트에 고정비로 집계되고, 같은 거래처는 다음부터 자동 체크됩니다">
-                                <input type="checkbox" checked={mapFixed} onChange={(e) => setMapFixed(e.target.checked)} className="accent-orange-500" />
+                                <input type="checkbox" checked={mapFixed} onChange={(e) => setMapFixed(e.target.checked)} className="accent-[var(--warning)]" />
                                 고정비로 표시 <span className="text-[var(--text-dim)]">(매월 반복 지출)</span>
                               </label>
                               <div className="flex gap-1.5">
@@ -702,7 +713,7 @@ export default function BankPage() {
                 </select>
               </div>
               <label className="flex items-center gap-2 text-xs text-[var(--text)] cursor-pointer">
-                <input type="checkbox" checked={bulkFixed} onChange={(e) => setBulkFixed(e.target.checked)} className="accent-orange-500" />
+                <input type="checkbox" checked={bulkFixed} onChange={(e) => setBulkFixed(e.target.checked)} className="accent-[var(--warning)]" />
                 고정비로 표시 <span className="text-[var(--text-dim)]">— 매월 반복 지출이면 체크 (경영흐름·고정비 리포트에 고정비로 집계)</span>
               </label>
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">출금은 차) 선택 계정 / 대) 보통예금, 입금은 차) 보통예금 / 대) 선택 계정으로 방향이 자동 결정됩니다. 통장 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
@@ -718,6 +729,7 @@ export default function BankPage() {
         </div>
       )}
 
+      {confirmElement}
     </div>
   );
 }

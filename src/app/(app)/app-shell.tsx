@@ -410,10 +410,14 @@ function AppContent({ children }: { children: React.ReactNode }) {
           collapsed ? "md:ml-[68px]" : "md:ml-60"
         } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pb-6" : role === "owner" ? "p-6 pb-20 md:pb-6" : "p-6"}`}
       >
-        {/* 유료 출시 게이트(2026-06-11): trial D-N 배너 + 만료/해지 페이월. 운영자·레거시(구독행 없음) 비차단. */}
-        <RouteGuard>
-          <SubscriptionGate>{children}</SubscriptionGate>
-        </RouteGuard>
+        {/* 라운드7: 콘텐츠 폭 상한 — 초광폭 모니터에서 표·폼이 가장자리까지 늘어져 휑하던 문제.
+            1400px 이하 화면은 변화 없음. 좁아야 하는 페이지(폼·문서)는 페이지 내 --content-max 로 추가 제한. */}
+        <div className="mx-auto w-full max-w-[1400px]">
+          {/* 유료 출시 게이트(2026-06-11): trial D-N 배너 + 만료/해지 페이월. 운영자·레거시(구독행 없음) 비차단. */}
+          <RouteGuard>
+            <SubscriptionGate>{children}</SubscriptionGate>
+          </RouteGuard>
+        </div>
       </main>
       <MobileBottomNav />
       <GlobalSearch />

@@ -597,3 +597,64 @@ input, textarea, [contenteditable="true"] {
 .kpi-callout.warning b, .kpi-callout.warning strong { color: var(--warning); }
 .kpi-callout.danger { background: color-mix(in srgb, var(--danger) 8%, transparent); }
 .kpi-callout.danger b, .kpi-callout.danger strong { color: var(--danger); }
+
+/* ══════════════════════════════════════════════════════════════════
+   2026-07-06 디자인 라운드7 파운데이션 — 전 메뉴 점검 라운드
+   ① 컨트롤 높이 통일: 버튼(py-2≈36px)과 입력칸(py-2.5≈42px)이 시스템 차원에서
+      어긋나 같은 행에서 들쭉날쭉 → 표준 높이 40px(--control-h)로 일원화.
+   ② 빈 상태(0건)/스켈레톤 로딩 표준 클래스 — 화면별 재구현 수렴용.
+   전부 시각-only(레이아웃 ±수px) → 회귀 최소.
+   ══════════════════════════════════════════════════════════════════ */
+:root { --control-h: 2.5rem; --control-h-sm: 2rem; }
+
+/* 1) 버튼 표준 높이 — 기존 py 무력화, 세로 중앙정렬은 flex 가 처리 */
+.btn-primary, .btn-secondary, .btn-ghost, .btn-danger {
+  height: var(--control-h); padding-top: 0; padding-bottom: 0;
+}
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+/* 작은 버튼(테이블 행 안 등) — 뒤에 .btn-sm 만 붙이면 32px */
+.btn-sm { height: var(--control-h-sm); padding-left: 0.75rem; padding-right: 0.75rem; font-size: 0.75rem; }
+
+/* 2) 입력 표준 높이 — 버튼과 같은 40px. textarea 는 멀티라인이라 제외 */
+.field-input { height: var(--control-h); padding-top: 0; padding-bottom: 0; }
+textarea.field-input { height: auto; min-height: 5rem; padding-top: 0.625rem; padding-bottom: 0.625rem; }
+.field-input-sm { height: var(--control-h-sm); padding-top: 0; padding-bottom: 0; }
+
+/* 3) 빈 상태 표준 — 아이콘 칩 + 제목 + 설명 + (선택) CTA. 이모지 대형 노출 대체 */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 0.375rem; padding: 3rem 1.5rem;
+}
+.empty-state-icon {
+  width: 3rem; height: 3rem; border-radius: 1rem; margin-bottom: 0.375rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-surface); color: var(--text-dim); font-size: 1.375rem;
+}
+.empty-state-title { font-size: 0.875rem; font-weight: 700; color: var(--text); }
+.empty-state-desc { font-size: 0.75rem; line-height: 1.125rem; color: var(--text-dim); max-width: 26rem; }
+.empty-state .btn-primary, .empty-state .btn-secondary { margin-top: 0.625rem; }
+
+/* 4) 스켈레톤 로딩 — "불러오는 중..." 텍스트 대체용 심머 */
+@keyframes skeleton-wave { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skeleton {
+  border-radius: 0.5rem; pointer-events: none; user-select: none; color: transparent !important;
+  background: linear-gradient(90deg, var(--bg-surface) 25%, color-mix(in srgb, var(--bg-surface) 45%, var(--bg-card)) 50%, var(--bg-surface) 75%);
+  background-size: 200% 100%; animation: skeleton-wave 1.6s ease-in-out infinite;
+}
+
+/* 5) 숫자 셀 — 표의 금액/수치 우측정렬 + 고정폭 숫자 (mono-number 와 달리 정렬 포함) */
+.num-cell { text-align: right; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* 6) KPI 값 표준 상향 — 화면 다수(employees·attendance·projecthub·partners…)가 26px 로
+   재구현해 표준(.stat-tile-value 20px)과 난립하던 것을 다수파 26px 로 표준을 올려 수렴. */
+.stat-tile-value { font-size: 1.625rem; line-height: 2.125rem; font-weight: 800; }
+
+/* 7) 파괴 확정 버튼(솔리드) — 확인 모달의 최종 삭제/해지용. .btn-danger(틴트)와 구분. */
+.btn-danger-solid {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
+  height: var(--control-h); padding: 0 1rem; border-radius: 0.5rem;
+  font-size: 0.875rem; font-weight: 700; color: #fff; background: var(--danger);
+  transition: all 0.15s ease;
+}
+.btn-danger-solid:hover:not(:disabled) { background: var(--critical); }
+.btn-danger-solid:disabled { opacity: 0.5; }

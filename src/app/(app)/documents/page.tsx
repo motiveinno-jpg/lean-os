@@ -2798,8 +2798,9 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
 
     return (
       <div key={folder.id}>
+        {/* group — 삭제 버튼(group-hover) 이 동작하려면 필수. 누락으로 폴더 삭제 버튼이 영구 invisible 이던 버그 픽스 */}
         <div
-          className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs transition ${
+          className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs transition ${
             isSelected
               ? "bg-[var(--primary)]/10 text-[var(--primary)] font-semibold"
               : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]"

@@ -840,14 +840,14 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
           {/* Realtime connection status banner */}
           {rtStatus !== 'SUBSCRIBED' && (
             <div className={`px-4 py-2 text-xs font-medium flex items-center justify-between rounded-t-2xl ${
-              rtStatus === 'connecting' ? 'bg-yellow-500/10 text-yellow-500' :
-              rtStatus === 'CHANNEL_ERROR' || rtStatus === 'TIMED_OUT' ? 'bg-red-500/10 text-red-400' :
+              rtStatus === 'connecting' ? 'bg-[var(--warning-dim)] text-[var(--warning)]' :
+              rtStatus === 'CHANNEL_ERROR' || rtStatus === 'TIMED_OUT' ? 'bg-[var(--danger-dim)] text-[var(--danger)]' :
               'bg-gray-500/10 text-gray-400'
             }`}>
               <span className="flex items-center gap-2">
-                {rtStatus === 'connecting' && <><span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" /> 실시간 연결 중...</>}
-                {rtStatus === 'CHANNEL_ERROR' && <><span className="w-2 h-2 rounded-full bg-red-400" /> 실시간 연결 오류 — 5초마다 자동 갱신 중</>}
-                {rtStatus === 'TIMED_OUT' && <><span className="w-2 h-2 rounded-full bg-red-400" /> 연결 시간 초과</>}
+                {rtStatus === 'connecting' && <><span className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse" /> 실시간 연결 중...</>}
+                {rtStatus === 'CHANNEL_ERROR' && <><span className="w-2 h-2 rounded-full bg-[var(--danger)]" /> 실시간 연결 오류 — 5초마다 자동 갱신 중</>}
+                {rtStatus === 'TIMED_OUT' && <><span className="w-2 h-2 rounded-full bg-[var(--danger)]" /> 연결 시간 초과</>}
                 {rtStatus === 'CLOSED' && <><span className="w-2 h-2 rounded-full bg-gray-400" /> 연결 종료됨</>}
               </span>
               {(rtStatus === 'CHANNEL_ERROR' || rtStatus === 'TIMED_OUT' || rtStatus === 'CLOSED') && (
@@ -916,7 +916,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
             <div ref={messagesEndRef} />
           </div>
           {sendError && (
-            <div className="px-4 py-2 bg-red-500/10 text-red-400 text-xs font-medium">{sendError}</div>
+            <div className="px-4 py-2 bg-[var(--danger-dim)] text-[var(--danger)] text-xs font-medium">{sendError}</div>
           )}
           <div className={compact ? "rounded-b-3xl" : "rounded-b-2xl border border-t-0 border-[var(--border)]"}>
             <ChatInput
@@ -967,13 +967,13 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                       </div>
                     </div>
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                    p.role === 'OWNER' ? 'bg-yellow-500/10 text-yellow-600' :
-                    p.role === 'INTERNAL_MANAGER' ? 'bg-blue-500/10 text-blue-600' :
-                    p.role === 'CLIENT' ? 'bg-green-500/10 text-green-600' :
-                    p.role === 'VENDOR' ? 'bg-purple-500/10 text-purple-600' :
-                    p.role === 'GUEST' ? 'bg-orange-500/10 text-orange-600' :
-                    'bg-gray-500/10 text-gray-500'
+                  <span className={`badge ${
+                    p.role === 'OWNER' ? 'bg-[var(--warning-dim)] text-[var(--warning)]' :
+                    p.role === 'INTERNAL_MANAGER' ? 'badge-primary' :
+                    p.role === 'CLIENT' ? 'bg-[var(--success-dim)] text-[var(--success)]' :
+                    p.role === 'VENDOR' ? 'bg-[var(--info-dim)] text-[var(--info)]' :
+                    p.role === 'GUEST' ? 'bg-[var(--warning-dim)] text-[var(--warning)]' :
+                    'badge-muted'
                   }`}>
                     {p.role === 'OWNER' ? '오너' : p.role === 'INTERNAL_MANAGER' ? '담당자' : p.role === 'CLIENT' ? '클라이언트' : p.role === 'VENDOR' ? '외주사' : p.role === 'GUEST' ? '게스트' : '멤버'}
                   </span>
@@ -1103,7 +1103,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                             />
                             <button
                               onClick={() => { navigator.clipboard.writeText(inviteLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
-                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition shrink-0 ${linkCopied ? 'bg-green-100 text-green-700' : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]'}`}
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition shrink-0 ${linkCopied ? 'bg-[var(--success-dim)] text-[var(--success)]' : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]'}`}
                             >
                               {linkCopied ? "복사됨!" : "복사"}
                             </button>
@@ -1123,7 +1123,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                           <div className="grid grid-cols-2 gap-2">
                             <a
                               href={`sms:${extContact.includes('@') ? '' : extContact.replace(/-/g, '')}?body=${encodeURIComponent(`[OwnerView] "${channel?.name || '채팅방'}" 에 초대되었습니다.\n아래 링크를 눌러 참가하세요:\n${inviteLink}`)}`}
-                              className="flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition"
+                              className="btn-primary"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -1132,7 +1132,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                             </a>
                             <a
                               href={`mailto:${extContact.includes('@') ? extContact : ''}?subject=${encodeURIComponent(`[OwnerView] 채팅방 초대`)}&body=${encodeURIComponent(`안녕하세요,\n\n"${channel?.name || '채팅방'}" 에 초대되었습니다.\n아래 링크를 클릭하여 참가하세요:\n\n${inviteLink}\n\nOwnerView`)}`}
-                              className="flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition"
+                              className="btn-secondary"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

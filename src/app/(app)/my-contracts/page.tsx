@@ -19,11 +19,11 @@ type Package = {
 };
 
 const STATUS_INFO: Record<string, { label: string; bg: string; text: string }> = {
-  sent: { label: "서명 대기", bg: "bg-amber-500/10", text: "text-amber-400" },
-  partially_signed: { label: "일부 서명", bg: "bg-blue-500/10", text: "text-blue-400" },
-  completed: { label: "서명 완료", bg: "bg-green-500/10", text: "text-green-400" },
-  cancelled: { label: "취소됨", bg: "bg-gray-500/10", text: "text-gray-400" },
-  draft: { label: "준비 중", bg: "bg-gray-500/10", text: "text-gray-400" },
+  sent: { label: "서명 대기", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },
+  partially_signed: { label: "일부 서명", bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]" },
+  completed: { label: "서명 완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
+  cancelled: { label: "취소됨", bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-muted)]" },
+  draft: { label: "준비 중", bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-muted)]" },
 };
 
 // 내게 온 서명 요청 — 모두사인 스타일 인앱 서명 inbox.
@@ -82,7 +82,7 @@ export default function MyContractsPage() {
   }
 
   return (
-    <div>
+    <div className="max-w-[var(--content-max)] mx-auto">
       <div className="page-sticky-header mb-6 flex flex-wrap items-center justify-between gap-2">
         <div className="seg-bar">
           {[
@@ -107,7 +107,7 @@ export default function MyContractsPage() {
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition disabled:opacity-50 flex items-center gap-1.5"
+          className="btn-secondary"
         >
           <svg className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path d="M23 4v6h-6M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round" />

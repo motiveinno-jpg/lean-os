@@ -294,12 +294,12 @@ export default function AuthPage() {
               </div>
 
               {/* 스팸 안내 */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 text-left">
+              <div className="bg-[var(--warning-dim)] border border-[var(--warning)]/25 rounded-xl p-3 mb-6 text-left">
                 <div className="flex items-start gap-2">
-                  <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-4 h-4 text-[var(--warning)] mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                   </svg>
-                  <p className="text-xs text-amber-800">
+                  <p className="text-xs text-[var(--text-muted)]">
                     메일이 보이지 않으면 <span className="font-semibold">스팸/프로모션</span> 폴더를 확인해주세요.
                     Gmail의 경우 &ldquo;프로모션&rdquo; 탭에 분류될 수 있습니다.
                   </p>
@@ -361,16 +361,12 @@ export default function AuthPage() {
         <div className="glass-card p-8"
           style={{ boxShadow: 'var(--shadow-lg)' }}>
           {/* Tabs */}
-          <div className="flex gap-1 bg-[var(--bg-surface)] rounded-xl p-1 mb-6">
+          <div className="seg-bar w-full mb-6">
             {(["login", "signup"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setError(""); }}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                  mode === m
-                    ? "bg-[var(--primary)] text-white shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
-                }`}
+                className={`seg-item flex-1 ${mode === m ? "seg-item-active" : ""}`}
               >
                 {m === "login" ? "로그인" : "회원가입"}
               </button>
@@ -444,7 +440,7 @@ export default function AuthPage() {
                   placeholder="(주)모티브이노베이션"
                   maxLength={50}
                   autoComplete="organization"
-                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                  className="field-input"
                   required
                 />
               </div>
@@ -458,7 +454,7 @@ export default function AuthPage() {
                   onChange={(e) => { setBizNo(formatBizNo(bizNoDigits(e.target.value))); setJoinPrompt(null); }}
                   placeholder="123-45-67890"
                   maxLength={12}
-                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] mono-number focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                  className="field-input mono-number"
                   required
                 />
                 <p className="text-[11px] text-[var(--text-dim)] mt-1">회사마다 하나의 오너뷰 공간이 만들어집니다. 이미 등록된 회사라면 합류 요청으로 이어집니다.</p>
@@ -495,19 +491,19 @@ export default function AuthPage() {
                 </div>
               )}
               {joinPrompt && (
-                <div className="mb-4 p-4 rounded-xl bg-blue-50 border border-blue-200">
-                  <p className="text-sm font-semibold text-blue-900 mb-1">이미 오너뷰에 등록된 회사입니다 — <b>{joinPrompt}</b></p>
-                  <p className="text-xs text-blue-800 leading-relaxed mb-3">
+                <div className="mb-4 p-4 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/25">
+                  <p className="text-sm font-semibold text-[var(--info)] mb-1">이미 오너뷰에 등록된 회사입니다 — <b>{joinPrompt}</b></p>
+                  <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
                     회사를 새로 만들 수 없습니다. 계정을 만든 뒤 이 회사의 대표/관리자에게 <b>합류 요청</b>을 보내고, 승인되면 회사 페이지를 함께 사용합니다.
                     (초대 링크를 받았다면 그 링크로 가입하는 것이 가장 빠릅니다)
                   </p>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => doSignup(true)} disabled={loading}
-                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition disabled:opacity-50">
+                      className="flex-1 py-2.5 bg-[var(--info)] hover:opacity-90 text-white rounded-lg font-semibold text-xs transition disabled:opacity-50">
                       {loading ? "처리 중..." : "가입하고 합류 요청 보내기"}
                     </button>
                     <button type="button" onClick={() => { setJoinPrompt(null); setBizNo(""); }}
-                      className="px-3 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-lg font-semibold text-xs transition hover:bg-blue-50">
+                      className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--info)]/30 text-[var(--info)] rounded-lg font-semibold text-xs transition hover:bg-[var(--info-dim)]">
                       번호 다시 입력
                     </button>
                   </div>
@@ -524,7 +520,7 @@ export default function AuthPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ceo@company.com"
                 autoComplete="email"
-                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                className="field-input"
                 required
               />
             </div>
@@ -538,7 +534,7 @@ export default function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="영문+숫자+특수기호 8자 이상"
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  className="w-full px-4 py-3 pr-12 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                  className="field-input pr-12"
                   required
                 />
                 <button type="button" onClick={() => setShowPw(!showPw)}
@@ -555,7 +551,7 @@ export default function AuthPage() {
                       { ok: /[0-9]/.test(password), label: "숫자" },
                       { ok: /[^A-Za-z0-9]/.test(password), label: "특수기호" },
                     ].map((r) => (
-                      <span key={r.label} className={`text-xs px-2 py-0.5 rounded-full ${r.ok ? "bg-green-100 text-green-700" : "bg-gray-100 text-[var(--text-muted)]"}`}>
+                      <span key={r.label} className={`text-xs px-2 py-0.5 rounded-full ${r.ok ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>
                         {r.ok ? "\u2713" : "\u2022"} {r.label}
                       </span>
                     ))}

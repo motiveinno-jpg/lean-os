@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { EmptyState } from "@/components/empty-state";
 
 const won = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 const wonM = (n: number) => `₩${(n / 1_000_000).toFixed(1)}M`;
@@ -143,7 +144,17 @@ export function DashboardCostDonut({ costBreakdown }: { costBreakdown?: Breakdow
     .slice(0, 6);
   const catTotal = cats.reduce((s, c) => s + c.amount, 0);
 
-  if (cats.length === 0) return null;
+  // 라운드7: 데이터 0건이어도 null 대신 EmptyState 카드 렌더 — 2/3 컬럼 높이 불균형 해소
+  if (cats.length === 0) {
+    return (
+      <EmptyState
+        card
+        title="이번 달 비용 데이터가 없습니다"
+        desc="거래내역이 등록·분류되면 비용 구성이 여기에 표시됩니다."
+        action={<Link href="/transactions" className="btn-secondary">거래내역 보기</Link>}
+      />
+    );
+  }
 
   return (
     <div className="glass-card p-6">

@@ -23,6 +23,8 @@ import { TopCardExpensesThisMonth, CardMonthlyUsage, CardAutoTransferHistory } f
 import { CardsOverview } from "@/components/cards-overview";
 import { BankAccountsOverview } from "@/components/bank-accounts-overview";
 import { AccessDenied } from "@/components/access-denied";
+import { EmptyState } from "@/components/empty-state";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
@@ -1301,7 +1303,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 setManualSaving(false);
               }}
               disabled={manualSaving || !companyId}
-              className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+              className="btn-primary w-full"
             >
               {manualSaving ? '저장 중...' : '거래내역 등록'}
             </button>
@@ -1319,11 +1321,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               }} className="text-xs text-[var(--primary)] font-semibold">새로고침</button>
             </div>
             {manualEntries.length === 0 ? (
-              <div className="py-12 text-center">
-                <div className="text-4xl mb-3">✍️</div>
-                <p className="text-sm font-semibold text-[var(--text)] mb-1">수기 입력된 거래가 없습니다</p>
-                <p className="text-xs text-[var(--text-muted)]">위에서 거래를 등록하세요.</p>
-              </div>
+              <EmptyState icon="✍️" title="수기 입력된 거래가 없습니다" desc="위에서 거래를 등록하세요." />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -1417,19 +1415,20 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               <div className="flex gap-2">
                 <button onClick={() => ruleForm.rule_name && ruleForm.match_value && addRuleMut.mutate()}
                   disabled={!ruleForm.rule_name || !ruleForm.match_value}
-                  className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">추가</button>
+                  className="btn-primary btn-sm">추가</button>
                 <button onClick={() => setShowRuleForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">취소</button>
               </div>
             </div>
           )}
 
           {rules.length === 0 ? (
-            <div className="glass-card py-14 px-6 text-center">
-              <div className="text-4xl mb-3">📐</div>
-              <p className="text-sm font-semibold text-[var(--text)] mb-1">분류 규칙이 없습니다</p>
-              <p className="text-xs text-[var(--text-muted)] mb-4">규칙을 추가하면 거래가 자동으로 분류됩니다.</p>
-              <button onClick={() => setShowRuleForm(!showRuleForm)} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold hover:opacity-90">+ 규칙 추가</button>
-            </div>
+            <EmptyState
+              card
+              icon="📐"
+              title="분류 규칙이 없습니다"
+              desc="규칙을 추가하면 거래가 자동으로 분류됩니다."
+              action={<button onClick={() => setShowRuleForm(!showRuleForm)} className="btn-primary">+ 규칙 추가</button>}
+            />
           ) : (
             <div className="space-y-2">
               {rules.map((r: any) => (
@@ -1529,16 +1528,18 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           {/* Filter pills */}
           {tab === 'all' && (
             <div className="flex items-center gap-2 mb-3">
-              {([['all', '전체'], ['unmapped', '미매핑'], ['auto_mapped', '자동'], ['manual_mapped', '수동'], ['ignored', '무시']] as [FilterStatus, string][]).map(([f, label]) => (
-                <button key={f} onClick={() => setFilterStatus(f)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${filterStatus === f ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
-                  {label}
-                </button>
-              ))}
-              <div className="ml-auto flex gap-1">
+              <div className="seg-bar">
+                {([['all', '전체'], ['unmapped', '미매핑'], ['auto_mapped', '자동'], ['manual_mapped', '수동'], ['ignored', '무시']] as [FilterStatus, string][]).map(([f, label]) => (
+                  <button key={f} onClick={() => setFilterStatus(f)}
+                    className={`seg-item ${filterStatus === f ? 'seg-item-active' : ''}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="ml-auto seg-bar">
                 {['', 'income', 'expense'].map(t => (
                   <button key={t} onClick={() => setFilterType(t)}
-                    className={`px-2 py-1 rounded text-[10px] font-semibold ${filterType === t ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'text-[var(--text-dim)]'}`}>
+                    className={`seg-item ${filterType === t ? 'seg-item-active' : ''}`}>
                     {t === '' ? '전체' : t === 'income' ? '입금' : '출금'}
                   </button>
                 ))}
@@ -1550,13 +1551,11 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             {isLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : filteredBankTx.length === 0 ? (
-              <div className="py-16 px-6 text-center">
-                <div className="text-4xl mb-4">{tab === 'inbox' ? '✅' : '🏦'}</div>
-                <div className="text-sm font-semibold text-[var(--text)]">{tab === 'inbox' ? '처리할 거래가 없습니다' : searchQuery ? '검색 결과가 없습니다' : '은행 거래내역을 연결하면 자동 분류가 시작됩니다'}</div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">
-                  {tab === 'inbox' ? '모든 거래가 분류되었습니다.' : searchQuery ? '다른 키워드로 검색해보세요.' : 'CSV를 업로드하거나 n8n 자동 수집을 설정하세요'}
-                </div>
-              </div>
+              <EmptyState
+                icon={tab === 'inbox' ? '✅' : '🏦'}
+                title={tab === 'inbox' ? '처리할 거래가 없습니다' : searchQuery ? '검색 결과가 없습니다' : '은행 거래내역을 연결하면 자동 분류가 시작됩니다'}
+                desc={tab === 'inbox' ? '모든 거래가 분류되었습니다.' : searchQuery ? '다른 키워드로 검색해보세요.' : 'CSV를 업로드하거나 n8n 자동 수집을 설정하세요'}
+              />
             ) : (
               <div className="overflow-auto max-h-[600px] space-y-2.5 pr-1">
                 {/* 정렬·전체선택 툴바 (시안) */}
@@ -1570,12 +1569,14 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                       전체 선택
                     </label>
                   )}
-                  <button onClick={() => toggleBankSort('transaction_date')} className={`px-2.5 py-1 rounded-lg font-semibold transition ${bankSortBy === 'transaction_date' ? 'bg-[var(--primary)]/10 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>
-                    날짜순 {bankSortBy === 'transaction_date' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
-                  </button>
-                  <button onClick={() => toggleBankSort('counterparty')} className={`px-2.5 py-1 rounded-lg font-semibold transition ${bankSortBy === 'counterparty' ? 'bg-[var(--primary)]/10 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface)]'}`}>
-                    거래처순 {bankSortBy === 'counterparty' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
-                  </button>
+                  <div className="seg-bar">
+                    <button onClick={() => toggleBankSort('transaction_date')} className={`seg-item ${bankSortBy === 'transaction_date' ? 'seg-item-active' : ''}`}>
+                      날짜순 {bankSortBy === 'transaction_date' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
+                    </button>
+                    <button onClick={() => toggleBankSort('counterparty')} className={`seg-item ${bankSortBy === 'counterparty' ? 'seg-item-active' : ''}`}>
+                      거래처순 {bankSortBy === 'counterparty' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
+                    </button>
+                  </div>
                 </div>
 
                 {/* 거래 카드 행 (시안) */}
@@ -1880,11 +1881,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             {cardTxLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : displayCardTx.length === 0 ? (
-              <div className="py-16 px-6 text-center">
-                <div className="text-4xl mb-4">💳</div>
-                <div className="text-lg font-bold mb-2">카드 거래내역이 없습니다</div>
-                <div className="text-sm text-[var(--text-muted)]">카드를 등록하고 CSV를 업로드하세요.</div>
-              </div>
+              <EmptyState icon="💳" title="카드 거래내역이 없습니다" desc="카드를 등록하고 CSV를 업로드하세요." />
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead className="sticky-bar">
@@ -2177,6 +2174,7 @@ function ChipPicker({ options, value, onSelect, onAddOption, onDeleteOption, del
   const [showAll, setShowAll] = useState(false);
   const [showAddInput, setShowAddInput] = useState(false);
   const [newChip, setNewChip] = useState('');
+  const { confirm: confirmDialog, confirmElement } = useConfirm();
   if (!options.length && !showAddInput) {
     return (
       <div className="mt-1.5">
@@ -2216,7 +2214,7 @@ function ChipPicker({ options, value, onSelect, onAddOption, onDeleteOption, del
             {canDelete && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); if (confirm(`'${opt}' 옵션을 삭제할까요? (이미 분류된 거래엔 영향 없음)`)) onDeleteOption!(opt); }}
+                onClick={async (e) => { e.stopPropagation(); const { ok } = await confirmDialog({ title: "옵션 삭제", desc: `'${opt}' 옵션을 삭제할까요? (이미 분류된 거래엔 영향 없음)`, danger: true }); if (ok) onDeleteOption!(opt); }}
                 className={`pr-1.5 pl-0.5 text-[10px] ${selected ? 'text-white/70 hover:text-white' : 'text-[var(--text-dim)] hover:text-red-400'}`}
                 title="이 옵션 삭제"
               >
@@ -2254,6 +2252,7 @@ function ChipPicker({ options, value, onSelect, onAddOption, onDeleteOption, del
           + 추가
         </button>
       )}
+      {confirmElement}
     </div>
   );
 }

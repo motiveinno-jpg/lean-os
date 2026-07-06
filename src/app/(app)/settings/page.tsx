@@ -13,6 +13,7 @@ import type { BankAccount } from "@/types/models";
 import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitations, getPartnerInvitations, getInviteUrl, cancelEmployeeInvitation, cancelPartnerInvitation, sendInviteEmail } from "@/lib/invitations";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
 import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
 import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
@@ -38,6 +39,7 @@ export default function SettingsPage() {
     return <AccessDenied detail="회사 설정은 대표·관리자 전용입니다." />;
   }
   const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const searchParams = useSearchParams();
   const VALID_TABS: MainTab[] = ["general", "account", "company", "approval", "bank", "tax", "certificate", "notifications", "danger", "hr_attendance"];
   const initialTab = (() => {
@@ -308,7 +310,7 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => setShowBankForm(!showBankForm)}
-                className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold transition"
+                className="btn-secondary btn-sm"
               >
                 + 통장 추가
               </button>
@@ -424,7 +426,10 @@ export default function SettingsPage() {
                     <div className="text-right flex items-center gap-3">
                       <span className="text-sm font-bold">₩{Number(acc.balance || 0).toLocaleString()}</span>
                       <button
-                        onClick={() => deleteBankMut.mutate(acc.id)}
+                        onClick={async () => {
+                          const { ok } = await confirm({ title: "통장 연결 삭제", desc: "기존 거래내역은 유지됩니다.", danger: true });
+                          if (ok) deleteBankMut.mutate(acc.id);
+                        }}
                         className="text-xs text-red-400/60 hover:text-red-400 transition"
                       >
                         삭제
@@ -457,7 +462,7 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => setShowRuleForm(!showRuleForm)}
-                className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold transition"
+                className="btn-secondary btn-sm"
               >
                 + 규칙 추가
               </button>
@@ -572,6 +577,7 @@ export default function SettingsPage() {
       {mainTab === "danger" && companyId && <DataResetTab companyId={companyId} />}
 
       {mainTab === "hr_attendance" && companyId && <HrAttendanceSettingsPanel companyId={companyId} />}
+      {confirmElement}
     </div>
   );
 }

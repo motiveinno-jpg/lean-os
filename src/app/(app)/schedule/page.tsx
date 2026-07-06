@@ -25,6 +25,7 @@ import {
   type ScheduleScope,
 } from "@/lib/schedule";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type Tab = "calendar" | "todo";
 
@@ -71,6 +72,7 @@ export default function SchedulePage() {
 
 function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: string; toast: any }) {
   const queryClient = useQueryClient();
+  const { confirm, confirmElement } = useConfirm();
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), monthIdx0: today.getMonth() });
   const [scope, setScope] = useState<ScheduleScope>("shared");
@@ -183,12 +185,12 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] rounded-lg hover:bg-[var(--bg)]">‹</button>
+          <button onClick={prevMonth} className="btn-ghost btn-sm">‹</button>
           <div className="text-base font-bold min-w-[110px] text-center">
             {view.year}년 {view.monthIdx0 + 1}월
           </div>
-          <button onClick={nextMonth} className="px-2 py-1.5 text-xs bg-[var(--bg-surface)] rounded-lg hover:bg-[var(--bg)]">›</button>
-          <button onClick={goToday} className="ml-1 px-2 py-1.5 text-[10px] bg-[var(--bg-surface)] rounded-lg hover:bg-[var(--bg)] text-[var(--text-muted)]">오늘</button>
+          <button onClick={nextMonth} className="btn-ghost btn-sm">›</button>
+          <button onClick={goToday} className="btn-ghost btn-sm ml-1">오늘</button>
         </div>
         <div className="flex items-center gap-2">
           {/* 전체공유 / 개인 보기 전환 */}
@@ -217,7 +219,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
           </div>
           <button
             onClick={() => openAdd(toLocalDateStr(today))}
-            className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition"
+            className="btn-primary"
           >+ 일정 추가</button>
         </div>
       </div>
@@ -345,8 +347,9 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
           event={editingEvent}
           onClose={() => setEditingEvent(null)}
           onSave={(payload) => saveMut.mutate(payload)}
-          onDelete={editingEvent.id ? () => {
-            if (confirm("일정을 삭제하시겠습니까?")) deleteMut.mutate(editingEvent.id!);
+          onDelete={editingEvent.id ? async () => {
+            const { ok } = await confirm({ title: "일정 삭제", desc: "일정을 삭제하시겠습니까?", danger: true });
+            if (ok) deleteMut.mutate(editingEvent.id!);
           } : undefined}
           saving={saveMut.isPending}
         />
@@ -388,6 +391,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
           </div>
         </div>
       )}
+      {confirmElement}
     </div>
   );
 }
@@ -466,7 +470,7 @@ function EventModal({
         </div>
         <div className="p-5 space-y-3">
           <div>
-            <label className="block text-[10px] text-[var(--text-muted)] mb-1">제목 *</label>
+            <label className="field-label">제목 *</label>
             <input
               autoFocus
               value={form.title}
@@ -477,7 +481,7 @@ function EventModal({
             />
           </div>
           <div>
-            <label className="block text-[10px] text-[var(--text-muted)] mb-1">설명</label>
+            <label className="field-label">설명</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -492,7 +496,7 @@ function EventModal({
           <div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] text-[var(--text-muted)] mb-1">시작일</label>
+                <label className="field-label">시작일</label>
                 <input
                   type={form.allDay ? "date" : "datetime-local"}
                   value={form.allDay ? form.startAt.slice(0, 10) : form.startAt}
@@ -501,7 +505,7 @@ function EventModal({
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-[var(--text-muted)] mb-1">종료일 (기간일정만)</label>
+                <label className="field-label">종료일 (기간일정만)</label>
                 <input
                   type={form.allDay ? "date" : "datetime-local"}
                   min={form.allDay ? form.startAt.slice(0, 10) : form.startAt}
@@ -535,7 +539,7 @@ function EventModal({
             ) : null}
           </div>
           <div>
-            <label className="block text-[10px] text-[var(--text-muted)] mb-1">색상</label>
+            <label className="field-label">색상</label>
             <div className="flex gap-1.5">
               {colorOptions.map((c) => (
                 <button
@@ -554,11 +558,11 @@ function EventModal({
         </div>
         <div className="px-5 py-4 border-t border-[var(--border)] flex justify-between gap-2">
           {onDelete ? (
-            <button onClick={onDelete} className="px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 rounded-lg">삭제</button>
+            <button onClick={onDelete} className="btn-danger">삭제</button>
           ) : <div />}
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-lg">취소</button>
-            <button onClick={submit} disabled={!form.title.trim() || !!dateError || saving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">
+            <button onClick={onClose} className="btn-secondary">취소</button>
+            <button onClick={submit} disabled={!form.title.trim() || !!dateError || saving} className="btn-primary">
               {saving ? "저장 중..." : (form.id ? "수정" : "추가")}
             </button>
           </div>
@@ -572,6 +576,7 @@ function EventModal({
 
 function TodoTab({ companyId, userId, toast }: { companyId: string; userId: string; toast: any }) {
   const queryClient = useQueryClient();
+  const { confirm, confirmElement } = useConfirm();
   const [showDone, setShowDone] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newPriority, setNewPriority] = useState<0 | 1 | 2>(1);
@@ -635,33 +640,33 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
     <div className="space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="glass-card p-5 flex flex-col gap-3">
+        <div className="stat-tile">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">할 일</span>
+            <span className="stat-tile-label">할 일</span>
             <span className="kpi-icon">📝</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{undoneCount}건</span>
+            <span className="stat-tile-value mono-number">{undoneCount}건</span>
           </div>
         </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
+        <div className="stat-tile">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">오늘 마감</span>
+            <span className="stat-tile-label">오늘 마감</span>
             <span className="kpi-icon warning">⏰</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)]">
+            <span className="stat-tile-value mono-number text-[var(--warning)]">
               {todos.filter((t) => !t.done && t.due_date === today).length}건
             </span>
           </div>
         </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
+        <div className="stat-tile">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">지연</span>
+            <span className="stat-tile-label">지연</span>
             <span className="kpi-icon danger">⚠️</span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--danger)]">
+            <span className="stat-tile-value mono-number text-[var(--danger)]">
               {todos.filter((t) => !t.done && t.due_date && t.due_date < today).length}건
             </span>
           </div>
@@ -693,7 +698,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
             <label className="block text-[10px] text-[var(--text-muted)] mb-1">마감일</label>
             <DateField value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
           </div>
-          <button onClick={() => newTitle.trim() && addMut.mutate()} disabled={!newTitle.trim() || addMut.isPending} className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">
+          <button onClick={() => newTitle.trim() && addMut.mutate()} disabled={!newTitle.trim() || addMut.isPending} className="btn-primary">
             추가
           </button>
         </div>
@@ -738,7 +743,10 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
                     </div>
                   </div>
                   <button
-                    onClick={() => { if (confirm("이 할 일을 삭제하시겠습니까?")) deleteMut.mutate(t.id); }}
+                    onClick={async () => {
+                      const { ok } = await confirm({ title: "할 일 삭제", desc: "이 할 일을 삭제하시겠습니까?", danger: true });
+                      if (ok) deleteMut.mutate(t.id);
+                    }}
                     className="text-xs text-[var(--text-dim)] hover:text-red-400 transition px-2 py-1"
                     aria-label="삭제"
                   >✕</button>
@@ -757,6 +765,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
           saving={editMut.isPending}
         />
       )}
+      {confirmElement}
     </div>
   );
 }

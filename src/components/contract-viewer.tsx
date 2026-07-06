@@ -298,9 +298,9 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
         </div>
         <button
           onClick={() => window.print()}
-          className="px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold transition whitespace-nowrap"
+          className="btn-primary whitespace-nowrap"
         >
-          🖨 인쇄 / PDF 저장
+          인쇄 / PDF 저장
         </button>
       </div>
 
@@ -346,7 +346,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
                 {!row.our_signature_data_url && !row.companies?.seal_url && (
                   <button
                     onClick={() => setShowOurSignModal(true)}
-                    className="px-2 py-0.5 text-[10px] bg-orange-500 hover:bg-orange-600 text-white rounded font-semibold print:hidden"
+                    className="px-2 py-0.5 text-[10px] bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded font-semibold print:hidden"
                     title="우리 서명·도장 추가"
                   >
                     📝 우리 서명
@@ -432,7 +432,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
               <button
                 onClick={submitOurSignature}
                 disabled={submittingOurSig || !ourSigMethod || !ourSigDataUrl}
-                className="px-4 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg font-semibold"
+                className="btn-primary"
               >
                 {submittingOurSig ? '적용 중...' : '서명 적용'}
               </button>

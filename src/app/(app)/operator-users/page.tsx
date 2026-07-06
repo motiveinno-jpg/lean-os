@@ -111,14 +111,14 @@ export default function OperatorUsersPage() {
   const dirty = u && (edit.name !== (u.name || "") || edit.email !== (u.email || "") || edit.role !== (u.role || ""));
 
   return (
-    <div data-theme="light" className="bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
+    <div className="bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
       {/* 툴바 — 탭(좌) + 검색(우) */}
       <div className="page-sticky-header mb-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="seg-bar">
             {[
-              { k: "view" as const, label: "🔍 회원 조회" },
-              { k: "edit" as const, label: "✏️ 계정 수정" },
+              { k: "view" as const, label: "회원 조회" },
+              { k: "edit" as const, label: "계정 수정" },
             ].map((t) => (
               <button
                 key={t.k}
@@ -181,7 +181,7 @@ export default function OperatorUsersPage() {
             <>
               <div className="glass-card p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold">📋 계정 정보</h3>
+                  <h3 className="text-sm font-bold">계정 정보</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <Info label="이름" value={u.name || "-"} />
@@ -205,12 +205,12 @@ export default function OperatorUsersPage() {
               {/* 에러 발생 이력 */}
               <div className="glass-card p-5">
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                  <h3 className="text-sm font-bold">⚠️ 에러 발생 이력</h3>
+                  <h3 className="text-sm font-bold">에러 발생 이력</h3>
                   {errors?.stats && (
                     <div className="text-[11px] text-[var(--text-dim)]">
                       총 <span className="text-[var(--text)] font-semibold">{errors.stats.total}</span>건 ·
-                      미해결 <span className="text-red-500 font-semibold">{errors.stats.unresolved}</span>건 ·
-                      7일 <span className="text-amber-500 font-semibold">{errors.stats.last_7d}</span>건 ·
+                      미해결 <span className="text-[var(--danger)] font-semibold">{errors.stats.unresolved}</span>건 ·
+                      7일 <span className="text-[var(--warning)] font-semibold">{errors.stats.last_7d}</span>건 ·
                       30일 <span className="text-[var(--text-muted)] font-semibold">{errors.stats.last_30d}</span>건
                     </div>
                   )}
@@ -244,7 +244,7 @@ export default function OperatorUsersPage() {
                             <span className="text-[var(--text-muted)]">{l.source || "-"}</span>
                             <span className="text-[var(--text-dim)]">·</span>
                             <span className="text-[var(--text-dim)]">{new Date(l.created_at).toLocaleString("ko-KR")}</span>
-                            {l.resolved && <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-600">해결됨</span>}
+                            {l.resolved && <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-[var(--success-dim)] text-[var(--success)]">해결됨</span>}
                           </div>
                           <div className="text-xs text-[var(--text-muted)] truncate" title={l.message}>{l.message}</div>
                           {(l.url || l.context?.action || l.context?.page) && (
@@ -271,9 +271,9 @@ export default function OperatorUsersPage() {
 
           {/* 계정 수정 탭 */}
           {tab === "edit" && (
-            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5">
+            <div className="glass-card p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-[var(--primary)]">✏️ 정보 수정</h3>
+                <h3 className="text-sm font-bold text-[var(--primary)]">정보 수정</h3>
               </div>
               <div className="space-y-3">
                 <Field label="이름">

@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 
 // 직원용 구성원 디렉토리 — 읽기 전용. 누가 어느 부서/직책에 있는지만 보여준다.
 export default function TeamPage() {
-  const { user } = useUser();
+  const { user, role } = useUser();
   const companyId = user?.company_id ?? null;
   const [search, setSearch] = useState("");
 
@@ -78,6 +79,9 @@ export default function TeamPage() {
           <div className="text-[11px] text-[var(--text-dim)] mt-1.5">
             {search ? "다른 키워드로 검색해보세요." : "구성원이 등록되면 여기에 표시됩니다."}
           </div>
+          {!search && role !== "employee" && (
+            <Link href="/employees" className="btn-secondary mt-4">직원 관리로 →</Link>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
@@ -90,7 +94,7 @@ export default function TeamPage() {
                 {list.map((e) => (
                   <div
                     key={e.id}
-                    className="glass-card p-5 hover:border-[var(--primary)]/30 transition"
+                    className="glass-card p-5"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-bold flex items-center justify-center shrink-0">

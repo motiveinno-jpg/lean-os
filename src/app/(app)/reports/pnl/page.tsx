@@ -485,7 +485,7 @@ export default function PnlPage() {
               whiteSpace: "nowrap",
               color: delta === undefined || delta === 0
                 ? "var(--text-dim)"
-                : delta > 0 ? "#10b981" : "#ef4444",
+                : delta > 0 ? "var(--success)" : "var(--danger)",
               background: isHighlight ? "var(--bg-surface)" : "var(--bg-card)",
               position: "sticky",
               right: 0,
@@ -620,7 +620,7 @@ export default function PnlPage() {
             onClick={() => setRefreshKey(k => k + 1)}
             aria-label="새로고침"
             title="DB 에서 최신 데이터 다시 불러오기"
-            className="btn-primary text-xs"
+            className="btn-ghost text-xs"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
               <polyline points="23 4 23 10 17 10" />
@@ -681,19 +681,19 @@ export default function PnlPage() {
             label: "매출총이익",
             value: computed.sumCurr(computed.grossProfit),
             prev: computed.prevTotals.grossProfit,
-            color: "#10b981",
+            color: "var(--success)",
           },
           {
             label: "영업이익",
             value: computed.sumCurr(computed.operatingIncome),
             prev: computed.prevTotals.operatingIncome,
-            color: computed.sumCurr(computed.operatingIncome) >= 0 ? "#10b981" : "var(--danger)",
+            color: computed.sumCurr(computed.operatingIncome) >= 0 ? "var(--success)" : "var(--danger)",
           },
           {
             label: "당기순이익",
             value: computed.sumCurr(computed.netIncome),
             prev: computed.prevTotals.netIncome,
-            color: computed.sumCurr(computed.netIncome) >= 0 ? "#10b981" : "var(--danger)",
+            color: computed.sumCurr(computed.netIncome) >= 0 ? "var(--success)" : "var(--danger)",
           },
         ].map((card) => {
           const d = card.value - card.prev;

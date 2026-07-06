@@ -173,7 +173,7 @@ export default function ReconciliationPage() {
     onError: (e: any) => { setAiProgress(null); toast(e?.message || "AI 매칭 실패", "error"); },
   });
   // 대기 중 재미용 회전 메시지
-  const AI_MSGS = ["통장 입금을 살펴보는 중...", "거래처를 찾아내는 중 🔎", "금액을 맞춰보는 중 🧮", "세금계산서와 연결하는 중 🔗", "패턴을 학습하는 중 🧠", "조금만 더요! 💪"];
+  const AI_MSGS = ["통장 입금을 살펴보는 중...", "거래처를 찾아내는 중...", "금액을 맞춰보는 중...", "세금계산서와 연결하는 중...", "패턴을 학습하는 중...", "거의 다 됐습니다..."];
   const [aiMsgIdx, setAiMsgIdx] = useState(0);
   useEffect(() => {
     if (!aiMut.isPending) { setAiMsgIdx(0); return; }
@@ -538,9 +538,9 @@ export default function ReconciliationPage() {
             title="선택 기간(최대 6개월)의 미정산 입금과 세금계산서를 규칙으로 매칭. 여러 기간 반복해도 기존 매칭은 유지·누적됩니다.">
             {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
           <button onClick={() => matchCd.run(() => { if (!aiMut.isPending) aiMut.mutate(); })} disabled={aiMut.isPending || matchCd.disabled}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg bg-purple-500 text-white shadow-sm hover:opacity-90 disabled:opacity-50 transition ${matchCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
+            className={`btn-primary text-xs ${matchCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
             title={matchCd.disabled ? `30분 쿨타임 — ${matchCd.label}` : "규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다."}>
-            {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : matchCd.disabled ? `⏳ ${matchCd.label}` : "✨ AI 전체 매칭"}</button>
+            {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : matchCd.disabled ? matchCd.label : "AI 전체 매칭"}</button>
         </div>
       </div>
 
@@ -583,7 +583,7 @@ export default function ReconciliationPage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm p-7 text-center">
             <div className="relative mx-auto mb-3 w-16 h-16 flex items-center justify-center">
               <span className="absolute inset-0 rounded-full bg-purple-500/20 animate-ping" />
-              <span className="relative text-5xl animate-bounce">🤖</span>
+              <span className="relative w-10 h-10 rounded-full border-4 border-purple-500/25 border-t-purple-500 animate-spin" />
             </div>
             <div className="text-base font-bold">AI가 거래를 매칭하고 있어요</div>
             <div className="text-xs text-[var(--text-muted)] mt-1 mb-4 h-4 transition-all">{AI_MSGS[aiMsgIdx]}</div>
@@ -604,7 +604,7 @@ export default function ReconciliationPage() {
                     <span className="font-bold text-purple-500 mono-number">{pct}%</span>
                   </div>
                   <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-purple-500/10 text-purple-500 text-sm font-bold">
-                    <span className="animate-pulse">✨</span> 매칭 제안 <span className="mono-number">{suggested}</span>건
+                    매칭 제안 <span className="mono-number">{suggested}</span>건
                   </div>
                 </>
               );
@@ -627,7 +627,7 @@ export default function ReconciliationPage() {
               )}
               <div className="text-[11px] text-[var(--text-dim)] mt-1 leading-relaxed">
                 대기 매칭은 <b>자동 제안</b>만 표시됩니다(상단 기간의 거래일만 노출). 상단에서 기간을 고르고 <b>“⚙️ 이 기간 매칭”</b>(규칙: 입금자명↔거래처)으로 제안을 생성하세요.<br />
-                입금자명이 거래처와 다른 건(자사명·개인명 등)은 <b>“✨ AI 매칭”</b>을 누르면 AI가 금액·일자·정황으로 추천합니다(30건씩, 여러 번 눌러 누적).
+                입금자명이 거래처와 다른 건(자사명·개인명 등)은 <b>“AI 전체 매칭”</b>을 누르면 AI가 금액·일자·정황으로 추천합니다(30건씩, 여러 번 눌러 누적).
               </div>
             </div>
           ) : (
@@ -642,13 +642,13 @@ export default function ReconciliationPage() {
                   {selected.size > 0 ? (
                     <>
                       <button onClick={() => bulkDecideMut.mutate({ ids: [...selected], status: "confirmed" })} disabled={bulkDecideMut.isPending}
-                        className="px-4 py-1.5 text-xs font-semibold rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 hover:opacity-90 disabled:opacity-50 transition">선택 {selected.size}건 확정</button>
+                        className="btn-primary btn-sm">선택 {selected.size}건 확정</button>
                       <button onClick={() => bulkDecideMut.mutate({ ids: [...selected], status: "rejected" })} disabled={bulkDecideMut.isPending}
-                        className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 disabled:opacity-50 transition">선택 반려</button>
+                        className="btn-danger btn-sm">선택 반려</button>
                     </>
                   ) : highConfIds.length > 0 ? (
                     <button onClick={() => bulkDecideMut.mutate({ ids: highConfIds, status: "confirmed" })} disabled={bulkDecideMut.isPending}
-                      className="px-4 py-1.5 text-xs font-semibold rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 hover:opacity-90 disabled:opacity-50 transition"
+                      className="btn-primary btn-sm"
                       title="신뢰도 90% 이상(금액 정확·45일 이내) 매칭을 한 번에 확정합니다">고신뢰 {highConfIds.length}건 일괄 확정 (90%+)</button>
                   ) : null}
                 </div>

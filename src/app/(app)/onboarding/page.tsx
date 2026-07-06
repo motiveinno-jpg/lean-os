@@ -461,7 +461,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-8" onKeyDown={handleKeyDown}>
-      <div className="w-full">
+      <div className="w-full max-w-[680px] mx-auto">
         {/* Progress bar */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">

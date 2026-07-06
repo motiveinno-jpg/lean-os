@@ -3,7 +3,7 @@
 // 거래처 원장 ↔ 거래 대사 공유 모듈 (2026-06-12 메뉴 분리 핸드오프).
 //   /partners/ledger (조회: 원장) 와 /partners/reconciliation (작업: 대사) 가 공용으로 쓰는
 //   타입·포맷·그리드 유틸·원장 시트·거래처 상세(차액 마감 포함).
-//   색 규칙(핸드오프 §4-2): 매출처=파랑(#2563EB) / 매입처=주황(#EA580C). 빨강은 연체·마이너스 전용.
+//   색 규칙(핸드오프 §4-2): 매출처=파랑(var(--info)) / 매입처=주황(var(--warning)). 빨강은 연체·마이너스 전용.
 
 import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
@@ -37,8 +37,8 @@ export const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString(); /
 
 // ── 매출/매입 확정 팔레트 (§4-2 — 빨강은 연체 전용으로 예약) ──
 export const AR_AP = {
-  sales: { main: "#2563EB", tintBg: "bg-blue-500/10", tintText: "text-blue-600", label: "매출처", money: "받을 돈", acct: "외상매출금", arrow: "↘" },
-  purchase: { main: "#EA580C", tintBg: "bg-orange-500/10", tintText: "text-orange-600", label: "매입처", money: "줄 돈", acct: "외상매입금", arrow: "↗" },
+  sales: { main: "var(--info)", tintBg: "bg-blue-500/10", tintText: "text-blue-600", label: "매출처", money: "받을 돈", acct: "외상매출금", arrow: "↘" },
+  purchase: { main: "var(--warning)", tintBg: "bg-orange-500/10", tintText: "text-orange-600", label: "매입처", money: "줄 돈", acct: "외상매입금", arrow: "↗" },
 } as const;
 export const palette = (type: string) => (type === "sales" ? AR_AP.sales : AR_AP.purchase);
 

@@ -15,7 +15,7 @@ export default function SignedContractPage() {
   const params = useParams<{ id: string }>();
   const id = String(params?.id || "");
   return (
-    <div className="mx-auto p-6">
+    <div className="max-w-[var(--content-max)] mx-auto p-6">
       <ContractViewer id={id} backHref="/projects" />
     </div>
   );

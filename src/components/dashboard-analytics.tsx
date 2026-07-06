@@ -415,10 +415,6 @@ function PnlStat({ label, value, color }: { label: string; value: string; color:
 }
 
 // ── 인원 인라인 상세: 스탯 3카드 + 차트 + 인원별 랭크 바 리스트 (현대적 리디자인 2026-06-10) ──
-const PEOPLE_AVATAR = [
-  "from-indigo-500 to-violet-500", "from-emerald-500 to-teal-500", "from-orange-500 to-amber-500",
-  "from-rose-500 to-pink-500", "from-sky-500 to-cyan-500", "from-fuchsia-500 to-purple-500",
-];
 function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] }) {
   const sorted = [...rows].sort((a, b) => b.payroll - a.payroll);
   const total = sorted.reduce((s, r) => s + r.payroll, 0);
@@ -461,15 +457,15 @@ function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] })
               return (
                 <div key={r.key} className="px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-[var(--bg-surface)]/40 transition">
                   <span className="text-[11px] text-[var(--text-dim)] w-4 text-center shrink-0 mono-number">{i + 1}</span>
-                  <span className={`w-9 h-9 rounded-full bg-gradient-to-br ${PEOPLE_AVATAR[i % PEOPLE_AVATAR.length]} flex items-center justify-center text-white text-sm font-bold shrink-0 shadow`}>{(r.key || "?").slice(0, 1)}</span>
+                  <span className="w-9 h-9 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-sm font-bold shrink-0 shadow">{(r.key || "?").slice(0, 1)}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                       <span className="text-sm font-semibold text-[var(--text)] truncate">{r.key}</span>
-                      <span className="text-sm font-bold mono-number shrink-0" style={{ color: "#f97316" }}>{won(r.payroll)}</span>
+                      <span className="text-sm font-bold mono-number shrink-0" style={{ color: "var(--primary)" }}>{won(r.payroll)}</span>
                     </div>
                     <div className="flex items-center gap-2.5">
                       <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "#f97316" }} />
+                        <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "var(--primary)" }} />
                       </div>
                       <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0 w-10 text-right">{share.toFixed(1)}%</span>
                     </div>
@@ -479,7 +475,7 @@ function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] })
             })}
             <div className="px-4 sm:px-5 py-3 flex items-center justify-between bg-[var(--bg-surface)]/50">
               <span className="text-sm font-bold text-[var(--text)]">합계 · {sorted.length}명</span>
-              <span className="text-sm font-extrabold mono-number" style={{ color: "#f97316" }}>{won(total)}</span>
+              <span className="text-sm font-extrabold mono-number" style={{ color: "var(--primary)" }}>{won(total)}</span>
             </div>
           </div>
         )}

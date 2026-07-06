@@ -12,6 +12,8 @@ import { verifyBusinessNumber } from "@/lib/business-verification";
 import { QueryErrorBanner } from "@/components/query-status";
 import { TileIcon } from "@/components/ui/icon-tile";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
+import { EmptyState } from "@/components/empty-state";
 
 const TYPE_OPTIONS = [
   { value: "", label: "전체" },
@@ -116,6 +118,7 @@ function calcRelationshipScore(opts: { dealCount: number; contractTotal: number;
 export default function PartnersPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { confirm: confirmDialog, confirmElement } = useConfirm();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(true);
@@ -680,7 +683,7 @@ export default function PartnersPage() {
           <Link href="/partners/ledger"
             className="btn-secondary whitespace-nowrap"
             title="거래처별 미수금/미지급금 원장 (채권·채무 대사)">
-            📒 거래처 원장
+            거래처 원장
           </Link>
           <button onClick={downloadCSVTemplate}
             className="btn-secondary"
@@ -699,7 +702,7 @@ export default function PartnersPage() {
           <button onClick={runDormancyDetect} disabled={detecting}
             className="btn-secondary whitespace-nowrap disabled:opacity-50"
             title="6개월 이상 거래·연락 없는 거래처를 휴면으로 표시하고 담당자에게 리마인더 알림 발송">
-            {detecting ? "감지 중..." : "💤 휴면 감지"}
+            {detecting ? "감지 중..." : "휴면 감지"}
           </button>
           <button onClick={openCreate}
             className="btn-primary whitespace-nowrap">
@@ -707,7 +710,7 @@ export default function PartnersPage() {
           </button>
       </div>
 
-      {/* KPI 카드 4 (거래처) — TeamHub 패턴 */}
+      {/* KPI 카드 4 (거래처) — stat-tile 표준 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {(() => {
           const all = rawPartners as any[];
@@ -720,13 +723,13 @@ export default function PartnersPage() {
             { variant: "info", icon: "card", label: "표시 중", value: `${partners.length.toLocaleString()}곳` },
           ];
           return cards.map((s) => (
-            <div key={s.label} className="glass-card p-5 flex flex-col gap-3">
+            <div key={s.label} className="stat-tile">
               <div className="flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-[var(--text-muted)]">{s.label}</span>
+                <span className="stat-tile-label">{s.label}</span>
                 <span className={`kpi-icon ${s.variant}`}><TileIcon name={s.icon} className="w-5 h-5" /></span>
               </div>
               <div className="flex items-end gap-2">
-                <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{s.value}</span>
+                <span className="stat-tile-value mono-number">{s.value}</span>
               </div>
             </div>
           ));
@@ -812,12 +815,12 @@ export default function PartnersPage() {
             <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>
           </div>
         ) : partners.length === 0 ? (
-          <div className="py-16 px-6 text-center">
-            <div className="text-5xl mb-4">🏢</div>
-            <div className="text-sm font-semibold text-[var(--text)]">거래처를 추가하면 프로젝트, 세금계산서에서 바로 연결됩니다</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1.5">매출처, 매입처, 협력사를 한곳에서 관리하세요</div>
-            <button onClick={() => setShowModal(true)} className="mt-5 btn-primary">+ 거래처 추가</button>
-          </div>
+          <EmptyState
+            icon="🏢"
+            title="거래처를 추가하면 프로젝트, 세금계산서에서 바로 연결됩니다"
+            desc="매출처, 매입처, 협력사를 한곳에서 관리하세요"
+            action={<button onClick={() => setShowModal(true)} className="btn-primary">+ 거래처 추가</button>}
+          />
         ) : (
           <>
           {/* PR: 다중선택 액션바 (선택 1+ 시만 노출) */}
@@ -826,7 +829,8 @@ export default function PartnersPage() {
               <span className="text-xs text-[var(--text-muted)]"><b className="text-[var(--text)]">{selectedIds.size}개</b> 선택됨</span>
               <button
                 onClick={async () => {
-                  if (!confirm(`선택한 거래처 ${selectedIds.size}개를 삭제하시겠습니까?\n복구할 수 없습니다.`)) return;
+                  const { ok } = await confirmDialog({ title: "거래처 일괄 삭제", desc: `선택한 거래처 ${selectedIds.size}개를 삭제하시겠습니까? 복구할 수 없습니다.`, danger: true });
+                  if (!ok) return;
                   await bulkDeleteMut.mutateAsync(Array.from(selectedIds));
                 }}
                 disabled={bulkDeleteMut.isPending}
@@ -1431,7 +1435,7 @@ export default function PartnersPage() {
                                 )}
                               </div>
                               <button
-                                onClick={() => { if (confirm("이 기록을 삭제하시겠습니까?")) deleteCommMutation.mutate(c.id); }}
+                                onClick={async () => { const { ok } = await confirmDialog({ title: "기록 삭제", desc: "이 기록을 삭제하시겠습니까?", danger: true }); if (ok) deleteCommMutation.mutate(c.id); }}
                                 className="text-xs text-[var(--text-dim)] hover:text-red-400 transition shrink-0"
                                 title="삭제">
                                 삭제
@@ -1679,8 +1683,8 @@ export default function PartnersPage() {
             <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
               <div>
                 {editingId && (
-                  <button onClick={() => { if (confirm("이 거래처를 삭제하시겠습니까?")) deleteMutation.mutate(editingId); }}
-                    className="px-4 py-2 text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition">
+                  <button onClick={async () => { const { ok } = await confirmDialog({ title: "거래처 삭제", desc: "이 거래처를 삭제하시겠습니까?", danger: true }); if (ok) deleteMutation.mutate(editingId); }}
+                    className="btn-danger">
                     삭제
                   </button>
                 )}
@@ -1704,6 +1708,7 @@ export default function PartnersPage() {
       {portalModal && (
         <PortalLinkModal url={portalModal.url} partnerName={portalModal.partnerName} onClose={() => setPortalModal(null)} />
       )}
+      {confirmElement}
     </div>
   );
 }
@@ -1729,7 +1734,7 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-md bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-          <h2 className="text-base font-bold text-[var(--text)]">✅ 포털 링크가 발급되었습니다</h2>
+          <h2 className="text-base font-bold text-[var(--text)]">포털 링크가 발급되었습니다</h2>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl transition">✕</button>
         </div>
         <div className="px-5 py-4 space-y-3">

@@ -14,6 +14,7 @@ import { createExpenseRequest, getExpenseRequests, approveExpense, rejectExpense
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { useCanAccessTab } from "@/lib/tab-access";
@@ -152,6 +153,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, failed: 0 });
   const { toast: queueToast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const [receiptItem, setReceiptItem] = useState<any | null>(null);
   const [refundItem, setRefundItem] = useState<any | null>(null);
   const [refundReason, setRefundReason] = useState("");
@@ -262,7 +264,8 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       return;
     }
     const verb = action === 'approve' ? '승인' : action === 'reject' ? '거부' : '실행';
-    if (!confirm(`${candidates.length}건 ${verb}하시겠습니까?`)) return;
+    const { ok } = await confirm({ title: `일괄 ${verb}`, desc: `${candidates.length}건 ${verb}하시겠습니까?`, danger: true, confirmLabel: verb });
+    if (!ok) return;
     setBulkRunning(true);
     setBulkProgress({ done: 0, total: candidates.length, failed: 0 });
     let failed = 0;
@@ -297,25 +300,25 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     <>
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">승인 대기</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)] mt-2 truncate">{stats?.pendingCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mono-number mt-1 truncate">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</div>
+        <div className="stat-tile overflow-hidden">
+          <div className="stat-tile-label">승인 대기</div>
+          <div className="stat-tile-value text-[var(--warning)] truncate">{stats?.pendingCount ?? 0}건</div>
+          <div className="text-xs text-[var(--text-dim)] mono-number truncate">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">승인 완료</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--info)] mt-2 truncate">{stats?.approvedCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mono-number mt-1 truncate">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</div>
+        <div className="stat-tile overflow-hidden">
+          <div className="stat-tile-label">승인 완료</div>
+          <div className="stat-tile-value text-[var(--info)] truncate">{stats?.approvedCount ?? 0}건</div>
+          <div className="text-xs text-[var(--text-dim)] mono-number truncate">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">실행 완료</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)] mt-2 truncate">{stats?.executedCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mono-number mt-1 truncate">₩{(stats?.executedAmount ?? 0).toLocaleString()}</div>
+        <div className="stat-tile overflow-hidden">
+          <div className="stat-tile-label">실행 완료</div>
+          <div className="stat-tile-value text-[var(--success)] truncate">{stats?.executedCount ?? 0}건</div>
+          <div className="text-xs text-[var(--text-dim)] mono-number truncate">₩{(stats?.executedAmount ?? 0).toLocaleString()}</div>
         </div>
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">통장 총 잔고</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)] mt-2 truncate">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
-          <div className="text-xs text-[var(--text-dim)] mt-1 truncate">{bankAccounts.length}개 통장</div>
+        <div className="stat-tile overflow-hidden">
+          <div className="stat-tile-label">통장 총 잔고</div>
+          <div className="stat-tile-value truncate">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
+          <div className="text-xs text-[var(--text-dim)] truncate">{bankAccounts.length}개 통장</div>
         </div>
       </div>
 
@@ -571,6 +574,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
           </div>
         </div>
       )}
+      {confirmElement}
     </>
   );
 }
@@ -1169,6 +1173,7 @@ function RecurringDetailModal({
 
 function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
   const { toast: recurToast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const { data: bankAccounts = [] } = useQuery({
     queryKey: ["bank-accounts", companyId],
     queryFn: () => getBankAccounts(companyId),
@@ -1544,11 +1549,10 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                         title="수정"
                       >수정</button>
                       <button
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          if (confirm(`"${r.name}" 반복결제를 삭제하시겠습니까? 등록된 자동이체와 연결도 함께 끊깁니다.`)) {
-                            deleteMut.mutate(r.id);
-                          }
+                          const { ok } = await confirm({ title: "반복결제 삭제", desc: `"${r.name}" 반복결제를 삭제하시겠습니까? 등록된 자동이체와 연결도 함께 끊깁니다.`, danger: true });
+                          if (ok) deleteMut.mutate(r.id);
                         }}
                         disabled={deleteMut.isPending}
                         className="text-xs px-2.5 py-1 rounded-lg font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition disabled:opacity-50"
@@ -1562,6 +1566,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
           </table></div>
         )}
       </div>
+      {confirmElement}
     </>
   );
 }
@@ -1574,6 +1579,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
   const [includeRisky, setIncludeRisky] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
 
   const { data: stats } = useQuery({
     queryKey: ["payment-stats", companyId],
@@ -1794,7 +1800,8 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
             {freshDetected.length > 1 && (
               <button
                 onClick={async () => {
-                  if (!confirm(`감지된 ${freshDetected.length}건을 전부 고정비(반복결제)로 등록할까요?\n반복 이체라도 정기결제가 아닐 수 있으니 목록을 확인한 뒤 진행하세요.`)) return;
+                  const { ok } = await confirm({ title: "전체 등록", desc: `감지된 ${freshDetected.length}건을 전부 고정비(반복결제)로 등록할까요? 반복 이체라도 정기결제가 아닐 수 있으니 목록을 확인한 뒤 진행하세요.`, danger: true, confirmLabel: "등록" });
+                  if (!ok) return;
                   await registerDetectedRecurring(companyId, freshDetected);
                   invalidate();
                   refetchDetect();
@@ -1851,6 +1858,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
           )}
         </div>
       )}
+      {confirmElement}
     </div>
   );
 }
@@ -1963,24 +1971,24 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
     <>
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">승인 대기</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)] mt-2 truncate">{pendingCount}건</div>
+        <div className="stat-tile overflow-hidden">
+          <div className="stat-tile-label">승인 대기</div>
+          <div className="stat-tile-value text-[var(--warning)] truncate">{pendingCount}건</div>
         </div>
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">승인 완료 (미지급)</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--info)] mt-2 truncate">₩{approvedTotal.toLocaleString()}</div>
+        <div className="stat-tile overflow-hidden">
+          <div className="stat-tile-label">승인 완료 (미지급)</div>
+          <div className="stat-tile-value text-[var(--info)] truncate">₩{approvedTotal.toLocaleString()}</div>
         </div>
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">이번달 지출</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)] mt-2 truncate">
+        <div className="stat-tile overflow-hidden">
+          <div className="stat-tile-label">이번달 지출</div>
+          <div className="stat-tile-value text-[var(--success)] truncate">
             ₩{expenses.filter((e: any) => e.status === 'paid' && e.created_at?.startsWith(new Date().toISOString().slice(0, 7)))
               .reduce((s: number, e: any) => s + Number(e.amount || 0), 0).toLocaleString()}
           </div>
         </div>
-        <div className="glass-card p-5 overflow-hidden">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)]">전체</div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)] mt-2 truncate">{expenses.length}건</div>
+        <div className="stat-tile overflow-hidden">
+          <div className="stat-tile-label">전체</div>
+          <div className="stat-tile-value truncate">{expenses.length}건</div>
         </div>
       </div>
 

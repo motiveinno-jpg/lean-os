@@ -605,7 +605,7 @@ export default function VoucherEntryPage() {
             {pendTotalD + pendTotalC === 0 ? (
               <span className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-semibold text-[var(--text-dim)]">금액을 입력하세요</span>
             ) : pendBalanced ? (
-              <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">✅ 차대일치 — 저장 가능</span>
+              <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치 — 저장 가능</span>
             ) : (
               <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold">⚠️ 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}) — 저장 불가</span>
             )}
@@ -622,7 +622,7 @@ export default function VoucherEntryPage() {
           <span className="px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-bold mono-number">{entries.length}건</span>
           <span className="hidden md:inline text-[11px] text-[var(--text-dim)]">셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span>
           <button onClick={deleteSelected} disabled={busy || selected.size === 0}
-            className="ml-auto px-3 py-1.5 text-[11px] font-semibold rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-400 hover:border-red-400/40 disabled:opacity-40 transition">
+            className="ml-auto btn-danger btn-sm">
             선택 삭제{selected.size ? ` (${selected.size})` : ""}</button>
         </div>
         {/* 전표목록도 가로 스크롤 제거 — 폭에 맞춰(w-full) 표시하고 페이지가 세로로 스크롤되게.
@@ -743,7 +743,7 @@ export default function VoucherEntryPage() {
                   <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.debit, 0), 0).toLocaleString()}</td>
                   <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.credit, 0), 0).toLocaleString()}</td>
                   <td colSpan={2} className="px-2 py-2.5">
-                    <span className="inline-flex px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">✅ 차대일치</span>
+                    <span className="inline-flex px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치</span>
                   </td>
                 </tr>
               </tfoot>

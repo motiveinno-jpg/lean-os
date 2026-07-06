@@ -24,6 +24,8 @@ import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
+import { EmptyState } from "@/components/empty-state";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type Tab = "list" | "payments" | "register" | "match";
 
@@ -179,6 +181,7 @@ export default function LoansPage() {
   const [tab, setTab] = useState<Tab>("list");
   const [editingLoan, setEditingLoan] = useState<LoanRow | null>(null);
   const queryClient = useQueryClient();
+  const { confirm, confirmElement } = useConfirm();
 
   // Register form
   const [form, setForm] = useState({
@@ -316,7 +319,7 @@ export default function LoansPage() {
   }
 
   if (mainError) {
-    return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
+    return <div className="p-6 text-center text-[var(--danger)]">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
   }
 
   return (
@@ -353,15 +356,15 @@ export default function LoansPage() {
         {statCards.map((c) => (
           <div
             key={c.label}
-            className={`p-5 flex flex-col gap-3 ${
+            className={`stat-tile ${
               (c as { highlight?: boolean }).highlight
-                ? "rounded-[18px] border bg-[var(--warning)]/5 border-[var(--warning)]/30"
-                : "glass-card"
+                ? "!bg-[var(--warning)]/5 !border-[var(--warning)]/30"
+                : ""
             }`}
           >
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{c.label}</span>
+            <span className="stat-tile-label">{c.label}</span>
             <div>
-              <div className={`text-[26px] leading-8 font-extrabold mono-number ${(c as { highlight?: boolean }).highlight ? "text-[var(--warning)]" : "text-[var(--text)]"}`}>
+              <div className={`stat-tile-value mono-number ${(c as { highlight?: boolean }).highlight ? "!text-[var(--warning)]" : ""}`}>
                 {c.value}
               </div>
               {c.sub && <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{c.sub}</div>}
@@ -374,12 +377,12 @@ export default function LoansPage() {
       {tab === "list" && (<>
         <div className="glass-card overflow-hidden">
           {loans.length === 0 ? (
-            <div className="py-16 px-6 text-center">
-              <div className="text-4xl mb-4">🏦</div>
-              <div className="text-sm font-semibold text-[var(--text)]">대출 정보를 등록하면 상환 일정이 자동 관리됩니다</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">이자, 원금 상환 스케줄을 한눈에 확인하세요</div>
-              <button onClick={() => setTab("register")} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 대출 등록</button>
-            </div>
+            <EmptyState
+              icon="🏦"
+              title="대출 정보를 등록하면 상환 일정이 자동 관리됩니다"
+              desc="이자, 원금 상환 스케줄을 한눈에 확인하세요"
+              action={<button onClick={() => setTab("register")} className="btn-primary">+ 대출 등록</button>}
+            />
           ) : (
             <div className="divide-y divide-[var(--border)]/50">
               {loans.map((loan) => {
@@ -431,7 +434,7 @@ export default function LoansPage() {
                         </div>
                         <div className="flex gap-1 ml-3">
                           <button onClick={() => setEditingLoan(loan)} className="text-[10px] px-2 py-1 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">수정</button>
-                          <button onClick={() => { if (confirm("이 대출을 삭제하시겠습니까?")) deleteMut.mutate(loan.id); }}
+                          <button onClick={async () => { const { ok } = await confirm({ title: "대출 삭제", desc: "이 대출을 삭제하시겠습니까?", danger: true }); if (ok) deleteMut.mutate(loan.id); }}
                             className="text-[10px] px-2 py-1 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10">삭제</button>
                         </div>
                       </div>
@@ -638,11 +641,11 @@ export default function LoansPage() {
           {/* Payments table */}
           <div className="glass-card overflow-hidden">
             {allPayments.length === 0 ? (
-              <div className="py-16 px-6 text-center">
-                <div className="text-4xl mb-4">📋</div>
-                <div className="text-sm font-semibold text-[var(--text)]">상환 이력이 없습니다</div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">상단의 &lsquo;+ 상환 기록&rsquo; 버튼으로 납부 내역을 추가하세요</div>
-              </div>
+              <EmptyState
+                icon="📋"
+                title="상환 이력이 없습니다"
+                desc="상단의 ‘+ 상환 기록’ 버튼으로 납부 내역을 추가하세요"
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[600px]">
@@ -716,13 +719,11 @@ export default function LoansPage() {
 
           <div className="glass-card overflow-hidden">
             {matchCandidates.length === 0 ? (
-              <div className="py-16 px-6 text-center">
-                <div className="text-4xl mb-4">🔍</div>
-                <div className="text-sm font-semibold text-[var(--text)]">
-                  {matchLoading ? "은행 거래를 분석하고 있습니다..." : "\"자동 매칭 실행\" 버튼을 눌러 시작하세요"}
-                </div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">은행 거래내역에서 대출 상환 건을 자동으로 찾아 제안합니다</div>
-              </div>
+              <EmptyState
+                icon="🔍"
+                title={matchLoading ? "은행 거래를 분석하고 있습니다..." : "\"자동 매칭 실행\" 버튼을 눌러 시작하세요"}
+                desc="은행 거래내역에서 대출 상환 건을 자동으로 찾아 제안합니다"
+              />
             ) : (
               <div className="divide-y divide-[var(--border)]/50">
                 {matchCandidates
@@ -874,6 +875,7 @@ export default function LoansPage() {
           </button>
         </div>
       )}
+      {confirmElement}
     </div>
   );
 }

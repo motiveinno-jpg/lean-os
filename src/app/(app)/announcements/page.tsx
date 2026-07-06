@@ -24,10 +24,10 @@ type Announcement = {
 };
 
 const CATEGORY_META: Record<string, { label: string; color: string }> = {
-  notice: { label: "공지", color: "bg-blue-500/10 text-blue-500" },
-  update: { label: "업데이트", color: "bg-emerald-500/10 text-emerald-500" },
-  maintenance: { label: "점검", color: "bg-amber-500/10 text-amber-500" },
-  event: { label: "이벤트", color: "bg-purple-500/10 text-purple-500" },
+  notice: { label: "공지", color: "bg-[var(--info-dim)] text-[var(--info)]" },
+  update: { label: "업데이트", color: "bg-[var(--success-dim)] text-[var(--success)]" },
+  maintenance: { label: "점검", color: "bg-[var(--warning-dim)] text-[var(--warning)]" },
+  event: { label: "이벤트", color: "bg-[var(--primary-light)] text-[var(--primary)]" },
 };
 
 export default function AnnouncementsPage() {
@@ -137,7 +137,7 @@ export default function AnnouncementsPage() {
               <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input max-w-[140px]"
               >
                 {Object.entries(CATEGORY_META).map(([k, v]) => (
                   <option key={k} value={k}>{v.label}</option>
@@ -147,7 +147,7 @@ export default function AnnouncementsPage() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="제목"
-                className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                className="field-input flex-1"
               />
             </div>
             <textarea
@@ -155,7 +155,7 @@ export default function AnnouncementsPage() {
               onChange={(e) => setForm({ ...form, content: e.target.value })}
               placeholder="공지 내용을 입력하세요"
               rows={6}
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-y"
+              className="field-input w-full resize-y"
             />
             <label className="flex items-center gap-2 text-sm text-[var(--text-muted)] cursor-pointer">
               <input
@@ -231,13 +231,13 @@ export default function AnnouncementsPage() {
                       <div className="flex gap-2 mt-3">
                         <button
                           onClick={() => startEdit(a)}
-                          className="text-xs px-3 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] transition"
+                          className="btn-ghost btn-sm"
                         >
                           수정
                         </button>
                         <button
                           onClick={() => { if (confirm("이 공지를 삭제하시겠습니까?")) delMut.mutate(a.id); }}
-                          className="text-xs px-3 py-1.5 text-red-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition"
+                          className="btn-danger btn-sm"
                         >
                           삭제
                         </button>

@@ -21,6 +21,7 @@ import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
 import { SortToolbar } from "@/components/sort-toolbar";
 
 type Tab = "income" | "expense" | "register";
@@ -43,6 +44,7 @@ const INITIAL_FORM = {
 
 export default function CashReceiptsPage() {
   const { toast } = useToast();
+  const { confirm: confirmDialog, confirmElement } = useConfirm();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("expense");
@@ -363,7 +365,8 @@ export default function CashReceiptsPage() {
   };
 
   const handleCancel = async (receipt: CashReceipt) => {
-    if (!confirm(`${receipt.counterparty_name || "현금영수증"} ₩${Number(receipt.amount).toLocaleString()} 취소하시겠습니까?`)) return;
+    const { ok } = await confirmDialog({ title: "현금영수증 취소", desc: `${receipt.counterparty_name || "현금영수증"} ₩${Number(receipt.amount).toLocaleString()} 을(를) 취소합니다.`, confirmLabel: "취소 확정", danger: true });
+    if (!ok) return;
     try {
       await cancelCashReceipt(receipt.id);
       toast("현금영수증이 취소되었습니다", "success");
@@ -403,7 +406,7 @@ export default function CashReceiptsPage() {
   return (
     <div className="space-y-6 mx-auto">
       {/* ─── 툴바 — 조회기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) ─── */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2">
         {/* 조회기간 — 목록·요약·홈택스 동기화 공통 기준 (기준 하나로 통일) */}
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
           <span className="text-[11px] font-semibold text-[var(--text-muted)]">조회기간</span>
@@ -764,7 +767,7 @@ export default function CashReceiptsPage() {
             <button
               onClick={handleSave}
               disabled={saving || !companyId}
-              className="w-full py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+              className="btn-primary w-full"
             >
               {saving ? "저장 중..." : "현금영수증 등록"}
             </button>
@@ -964,6 +967,7 @@ export default function CashReceiptsPage() {
           </div>
         </div>
       )}
+      {confirmElement}
     </div>
   );
 }

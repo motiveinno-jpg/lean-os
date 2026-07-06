@@ -637,19 +637,16 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button onClick={handleSampleData} disabled={generating}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 transition disabled:opacity-50">
-              <span className="text-2xl">🚀</span>
               <span className="text-sm font-bold text-[var(--primary)]">{generating ? '생성 중...' : '샘플 데이터 생성'}</span>
               <span className="text-[10px] text-[var(--text-muted)]">추천 — 즉시 체험</span>
             </button>
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
-              <span className="text-2xl">📊</span>
               <span className="text-sm font-bold text-[var(--text)]">{uploading ? '업로드 중...' : '엑셀 업로드'}</span>
               <span className="text-[10px] text-[var(--text-muted)]">실제 데이터로 시작</span>
             </button>
             <Link href="/guide"
               className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition">
-              <span className="text-2xl">📖</span>
               <span className="text-sm font-bold text-[var(--text)]">시작 가이드 보기</span>
               <span className="text-[10px] text-[var(--text-muted)]">사용법 안내</span>
             </Link>
@@ -3007,7 +3004,6 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
       <div className="lg:col-span-2 glass-card p-5 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="text-base">✅</span>
             <span className="text-sm font-bold text-[var(--text)]">오늘 할 일</span>
           </div>
           <span className="text-xs text-[var(--text-dim)]">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</span>
@@ -3050,7 +3046,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
             {/* 퇴근하기 — 크기 줄여 퇴근 옆에 배치(근무 중에만) */}
             {isCheckedIn && !isCheckedOut && (
               <button onClick={handleCheckOut} disabled={checkingOut}
-                className="ml-auto px-3.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-400 text-white text-xs font-bold transition active:scale-[0.98] disabled:opacity-50">
+                className="ml-auto btn-danger btn-sm font-bold active:scale-[0.98]">
                 {checkingOut ? "처리 중..." : "퇴근하기"}
               </button>
             )}
@@ -3059,10 +3055,10 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
           {!isCheckedIn && (
             <div className="flex gap-2 mb-3">
               {([
-                { value: "present", label: "출근", activeClass: "bg-green-500/20 text-green-400 border border-green-500/40" },
-                { value: "remote", label: "재택", activeClass: "bg-blue-500/20 text-blue-400 border border-blue-500/40" },
-                { value: "half_day", label: "반차", activeClass: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/40" },
-                { value: "absent", label: "결근", activeClass: "bg-red-500/20 text-red-400 border border-red-500/40" },
+                { value: "present", label: "출근", activeClass: "bg-[var(--success-dim)] text-[var(--success)] border border-[var(--success)]/40" },
+                { value: "remote", label: "재택", activeClass: "bg-[var(--info-dim)] text-[var(--info)] border border-[var(--info)]/40" },
+                { value: "half_day", label: "반차", activeClass: "bg-[var(--warning-dim)] text-[var(--warning)] border border-[var(--warning)]/40" },
+                { value: "absent", label: "결근", activeClass: "bg-[var(--danger-dim)] text-[var(--danger)] border border-[var(--danger)]/40" },
               ] as const).map(({ value, label, activeClass }) => (
                 <button key={value} type="button" onClick={() => setAttendanceStatus(value)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
@@ -3168,16 +3164,15 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
         {/* 처리 대기 4종 — 컬러 타일 */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {[
-            { href: "/approvals", icon: "📝", label: "승인 대기", value: `${pendingCount}건`, badge: pendingCount, tint: "#f97316" },
-            { href: "/my-contracts", icon: "✍️", label: "서명 요청", value: `${signPending}건`, badge: signPending, tint: "#6366f1" },
-            { href: "/leave", icon: "🏖️", label: "휴가 잔여", value: leaveBalance ? `${leaveBalance.remaining}일` : "—", sub: leaveBalance ? `${leaveBalance.total}일 중 ${leaveBalance.used}일 사용` : undefined, tint: "#06b6d4" },
-            { href: "/approvals?new=expense", icon: "🧾", label: "경비 청구", value: `${expenseCount}건`, badge: expenseCount, tint: "#10b981" },
+            { href: "/approvals", label: "승인 대기", value: `${pendingCount}건`, badge: pendingCount, tint: "var(--warning)", dim: "var(--warning-dim)" },
+            { href: "/my-contracts", label: "서명 요청", value: `${signPending}건`, badge: signPending, tint: "var(--primary)", dim: "var(--primary-light)" },
+            { href: "/leave", label: "휴가 잔여", value: leaveBalance ? `${leaveBalance.remaining}일` : "—", sub: leaveBalance ? `${leaveBalance.total}일 중 ${leaveBalance.used}일 사용` : undefined, tint: "var(--info)", dim: "var(--info-dim)" },
+            { href: "/approvals?new=expense", label: "경비 청구", value: `${expenseCount}건`, badge: expenseCount, tint: "var(--success)", dim: "var(--success-dim)" },
           ].map((t) => (
             <Link key={t.label} href={t.href}
               className="relative overflow-hidden rounded-2xl border border-[var(--border)] p-3.5 active:scale-[0.98] transition hover:shadow-md group"
-              style={{ background: `${t.tint}14` }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl text-base" style={{ background: `${t.tint}1f` }}>{t.icon}</span>
+              style={{ background: t.dim }}>
+              <div className="flex items-center justify-end mb-2 min-h-[18px]">
                 {!!t.badge && t.badge > 0 && (
                   <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-white text-[10px] font-bold rounded-full" style={{ background: t.tint }}>{t.badge}</span>
                 )}
