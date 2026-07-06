@@ -13,6 +13,8 @@
 // Pure display component — 데이터는 부모가 넘겨준다.
 
 import { useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import type { CashPulseResult } from "@/lib/cash-pulse";
 import type { FounderDashboardData } from "@/lib/engines";
 import type { YesterdayTxSummary } from "@/lib/queries";
@@ -79,6 +81,35 @@ export function MorningBrief({
   // KAIROS H2 fix: 모바일에서 카드가 80%+ 차지하던 문제 해결
   // 기본은 축약(line1, line2, line4만), 펼치면 전체
   const [expanded, setExpanded] = useState(false);
+
+  // AI 브리핑 (진짜 Claude) — 회사당 하루 1회 서버 캐시. 실패/미생성 시 아래 규칙 브리핑으로 폴백.
+  //   훅 순서 보존을 위해 early return 앞에 선언, enabled 로 데이터 있을 때만 호출.
+  const aiBrief = useQuery({
+    queryKey: ["ai-briefing", formatTodayKorean(now)],
+    enabled: hasData && !!cashPulse,
+    staleTime: 6 * 60 * 60 * 1000,
+    retry: false,
+    queryFn: async (): Promise<string | null> => {
+      if (!cashPulse) return null;
+      const nums = {
+        balance: cashPulse.currentBalance,
+        forecast30: cashPulse.forecast30d,
+        forecast90: cashPulse.forecast90d,
+        runwayMonths: dashboard?.sixPack.runwayMonths ?? 0,
+        monthlyBurn: cashPulse.monthlyBurn,
+        arOver30: dashboard?.sixPack.arOver30 ?? 0,
+        pendingApprovals: cashPulse.pendingApprovalCount,
+        riskCount: dashboard?.risks.length ?? 0,
+        monthRevenue: dashboard?.growth.monthRevenue ?? 0,
+        monthTarget: dashboard?.growth.monthTarget ?? 0,
+      };
+      try {
+        const { data, error } = await supabase.functions.invoke("ai-briefing", { body: { nums, companyName } });
+        if (error) return null;
+        return (data?.content as string) || null;
+      } catch { return null; }
+    },
+  }).data ?? null;
 
   // 데이터 없음 — 온보딩 톤
   if (!hasData || !cashPulse) {
@@ -218,15 +249,26 @@ export function MorningBrief({
       </p>
 
       <div className="space-y-1.5 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.6] sm:leading-[1.85] tracking-[-0.01em] break-keep">
-        <p>{line1}</p>
-        <p>{line2}</p>
-        {/* 모바일: 데스크톱처럼 항상 펼치지 않고, 펼치기 버튼으로 열기 (카드 과점유 방지) */}
-        <div className={expanded ? "block" : "hidden sm:block"}>
-          {line3 && <p className="mb-1.5 sm:mb-0">{line3}</p>}
-          {progressLine && (
-            <p className="text-[var(--text-muted)]">{progressLine}</p>
-          )}
-        </div>
+        {aiBrief ? (
+          <>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]">✦ AI 브리핑</span>
+            {aiBrief.split(/\n+/).map((s) => s.trim()).filter(Boolean).map((s, i) => (
+              <p key={i}>{s}</p>
+            ))}
+          </>
+        ) : (
+          <>
+            <p>{line1}</p>
+            <p>{line2}</p>
+            {/* 모바일: 데스크톱처럼 항상 펼치지 않고, 펼치기 버튼으로 열기 (카드 과점유 방지) */}
+            <div className={expanded ? "block" : "hidden sm:block"}>
+              {line3 && <p className="mb-1.5 sm:mb-0">{line3}</p>}
+              {progressLine && (
+                <p className="text-[var(--text-muted)]">{progressLine}</p>
+              )}
+            </div>
+          </>
+        )}
 
         {/* 어제 거래 요약 — AI 브리핑 */}
         <div className={expanded ? "block" : "hidden sm:block"}>
@@ -296,18 +338,21 @@ export function MorningBrief({
         )}
         </div>
 
-        <p
-          className="pt-3 mt-1 border-t"
-          style={{
-            borderColor: "var(--border)",
-            color: actionParts.length > 0 ? "var(--text)" : "var(--text-muted)",
-          }}
-        >
-          {line4}
-        </p>
+        {/* 규칙 브리핑일 때만 액션 라인 노출 — AI 브리핑은 본문에 이미 행동 제안을 포함 */}
+        {!aiBrief && (
+          <p
+            className="pt-3 mt-1 border-t"
+            style={{
+              borderColor: "var(--border)",
+              color: actionParts.length > 0 ? "var(--text)" : "var(--text-muted)",
+            }}
+          >
+            {line4}
+          </p>
+        )}
 
-        {/* KAIROS H2: 모바일 전용 펼치기/접기 버튼 — 카드 과점유 방지 */}
-        {hasExtra && (
+        {/* KAIROS H2: 모바일 전용 펼치기/접기 버튼 — 카드 과점유 방지. AI 모드는 어제 요약만 접힘 */}
+        {((!aiBrief && hasExtra) || (aiBrief && hasTx)) && (
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
