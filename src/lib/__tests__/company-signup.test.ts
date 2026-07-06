@@ -4,12 +4,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 vi.mock("@/lib/billing", () => ({ createTrialingSubscription: vi.fn() }));
-vi.mock("@/lib/business-verification", () => ({ verifyBusinessNumber: vi.fn() }));
+vi.mock("@/lib/business-verification", () => ({ verifyBusinessNumber: vi.fn(), validateBusinessOwnership: vi.fn() }));
 
-import { bizNoDigits, formatBizNo, isValidBizNo, assertBizNoActive } from "@/lib/company-signup";
-import { verifyBusinessNumber } from "@/lib/business-verification";
+import { bizNoDigits, formatBizNo, isValidBizNo, assertBizNoActive, assertBizNoOwnerValid } from "@/lib/company-signup";
+import { verifyBusinessNumber, validateBusinessOwnership } from "@/lib/business-verification";
 
 const mockVerify = vi.mocked(verifyBusinessNumber);
+const mockOwner = vi.mocked(validateBusinessOwnership);
 
 describe("사업자번호 유틸", () => {
   it("bizNoDigits — 숫자만 추출, 10자리 초과 절단", () => {
@@ -74,5 +75,50 @@ describe("assertBizNoActive — 가입 게이트 판정표 (정상 사업자만 
   it("조회 자체가 reject → 통과 (fail-open)", async () => {
     mockVerify.mockRejectedValueOnce(new Error("network"));
     expect((await assertBizNoActive("155-88-02209")).ok).toBe(true);
+  });
+});
+
+describe("assertBizNoOwnerValid — 대표자 진위확인 게이트 (선점 방지)", () => {
+  beforeEach(() => { mockOwner.mockReset(); mockVerify.mockReset(); });
+
+  it("진위 일치 + 계속사업자 → 허용", async () => {
+    mockOwner.mockResolvedValue({ result: "match", status: "계속사업자" });
+    expect((await assertBizNoOwnerValid("155-88-02209", "채희웅", "2021-01-01")).ok).toBe(true);
+  });
+
+  it("대표자·개업일 불일치 → 차단 (선점 시도)", async () => {
+    mockOwner.mockResolvedValue({ result: "mismatch" });
+    const r = await assertBizNoOwnerValid("155-88-02209", "사칭자", "2020-01-01");
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("일치하지 않습니다");
+  });
+
+  it("진위 일치라도 폐업자 → 차단", async () => {
+    mockOwner.mockResolvedValue({ result: "match", status: "폐업자" });
+    expect((await assertBizNoOwnerValid("155-88-02209", "채희웅", "2021-01-01")).ok).toBe(false);
+  });
+
+  it("대표자명 미입력 → 차단 (API 호출 전)", async () => {
+    const r = await assertBizNoOwnerValid("155-88-02209", "  ", "2021-01-01");
+    expect(r.ok).toBe(false);
+    expect(mockOwner).not.toHaveBeenCalled();
+  });
+
+  it("개업일자 형식 불량 → 차단 (API 호출 전)", async () => {
+    expect((await assertBizNoOwnerValid("155-88-02209", "채희웅", "2021-1")).ok).toBe(false);
+    expect(mockOwner).not.toHaveBeenCalled();
+  });
+
+  it("진위 API 장애(unavailable) → 상태 조회 폴백 (계속사업자면 통과)", async () => {
+    mockOwner.mockResolvedValue({ result: "unavailable" });
+    mockVerify.mockResolvedValue({ valid: true, status: "계속사업자" });
+    expect((await assertBizNoOwnerValid("155-88-02209", "채희웅", "2021-01-01")).ok).toBe(true);
+    expect(mockVerify).toHaveBeenCalled(); // 폴백 경로 사용 확인
+  });
+
+  it("진위 API 장애 + 폴백에서 폐업 → 차단 (이중 게이트)", async () => {
+    mockOwner.mockResolvedValue({ result: "unavailable" });
+    mockVerify.mockResolvedValue({ valid: true, status: "폐업자" });
+    expect((await assertBizNoOwnerValid("155-88-02209", "채희웅", "2021-01-01")).ok).toBe(false);
   });
 });

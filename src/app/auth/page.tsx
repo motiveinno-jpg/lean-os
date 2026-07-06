@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { RollingBrandText } from "@/components/brand-logo";
-import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, provisionCompanyForUser, createCompanyWithOwner, assertBizNoActive } from "@/lib/company-signup";
+import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, provisionCompanyForUser, createCompanyWithOwner, assertBizNoOwnerValid } from "@/lib/company-signup";
 
 import Link from "next/link";
 
@@ -39,6 +39,9 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [bizNo, setBizNo] = useState(""); // 사업자번호 — 1사업자=1회사 원칙의 키
+  // 대표자 인증 (2026-07-06) — 국세청 진위확인(번호+대표자성명+개업일자)으로 선점 방지
+  const [ownerName, setOwnerName] = useState("");
+  const [openDate, setOpenDate] = useState(""); // YYYY-MM-DD (input date)
   // 사업자번호가 이미 등록된 회사와 일치할 때 — 합류 요청 전환 안내 (마스킹된 회사명)
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -112,8 +115,9 @@ export default function AuthPage() {
         setJoinPrompt(dup.companyNameMasked || "등록된 회사");
         return;
       }
-      // ② 국세청 실체 검증 — 정상(계속사업자)만 가입 허용. 미등록·폐업·휴업 차단, API 장애만 통과.
-      const gate = await assertBizNoActive(bizNo);
+      // ② 국세청 진위확인 + 상태 — 대표자성명·개업일자까지 일치해야 개설(선점 방지),
+      //    미등록·폐업·휴업 차단. 진위 API 장애 시 상태 조회 폴백(fail-open).
+      const gate = await assertBizNoOwnerValid(bizNo, ownerName, openDate);
       if (!gate.ok) {
         setLoading(false);
         return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
@@ -459,6 +463,37 @@ export default function AuthPage() {
                 />
                 <p className="text-[11px] text-[var(--text-dim)] mt-1">회사마다 하나의 오너뷰 공간이 만들어집니다. 이미 등록된 회사라면 합류 요청으로 이어집니다.</p>
               </div>
+              {/* 대표자 인증 (2026-07-06) — 국세청 진위확인으로 사업자번호 선점 방지. 합류 요청 경로에선 불필요 */}
+              {!joinPrompt && (
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="owner-name" className="field-label">대표자 성명</label>
+                    <input
+                      id="owner-name"
+                      type="text"
+                      value={ownerName}
+                      onChange={(e) => setOwnerName(e.target.value)}
+                      placeholder="홍길동"
+                      maxLength={30}
+                      autoComplete="name"
+                      className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="open-date" className="field-label">개업일자</label>
+                    <input
+                      id="open-date"
+                      type="date"
+                      value={openDate}
+                      onChange={(e) => setOpenDate(e.target.value)}
+                      className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
+                      required
+                    />
+                    <p className="text-[11px] text-[var(--text-dim)] mt-1">사업자등록증의 개업연월일 — 국세청 대표자 인증에 사용됩니다.</p>
+                  </div>
+                </div>
+              )}
               {joinPrompt && (
                 <div className="mb-4 p-4 rounded-xl bg-blue-50 border border-blue-200">
                   <p className="text-sm font-semibold text-blue-900 mb-1">이미 오너뷰에 등록된 회사입니다 — <b>{joinPrompt}</b></p>

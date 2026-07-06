@@ -5,7 +5,7 @@
 
 import { supabase } from "./supabase";
 import { createTrialingSubscription } from "./billing";
-import { verifyBusinessNumber } from "./business-verification";
+import { verifyBusinessNumber, validateBusinessOwnership } from "./business-verification";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -39,6 +39,29 @@ export async function assertBizNoActive(bizNo: string): Promise<{ ok: boolean; e
     case "폐업자": return { ok: false, error: "폐업 처리된 사업자번호로는 가입할 수 없습니다." };
     case "휴업자": return { ok: false, error: "휴업 상태의 사업자번호입니다. 정상 영업 중인 사업자만 가입할 수 있습니다." };
     default: return { ok: true }; // 계속사업자 · 확인불가(API 장애)
+  }
+}
+
+// 회사 개설 통합 게이트 (2026-07-06) — 진위확인(대표자성명+개업일자 국세청 일치) + 상태(정상 사업자).
+//   사업자번호는 공개정보라 번호만으로는 선점 가능 → 대표자·개업일자까지 일치해야 개설 허용.
+//   진위 API 장애 시엔 상태 조회(assertBizNoActive)로 폴백 — 이중 fail-open (장애가 가입을 막지 않음).
+export async function assertBizNoOwnerValid(
+  bizNo: string,
+  ownerName: string,
+  startDateYYYYMMDD: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!ownerName.trim()) return { ok: false, error: "대표자 성명을 입력해주세요." };
+  if (startDateYYYYMMDD.replace(/[^0-9]/g, "").length !== 8) return { ok: false, error: "개업일자를 입력해주세요." };
+  const v = await validateBusinessOwnership(bizNo, ownerName, startDateYYYYMMDD).catch(() => null);
+  if (!v || v.result === "unavailable") return assertBizNoActive(bizNo); // 진위 API 장애 → 상태 조회 폴백
+  if (v.result === "mismatch") {
+    return { ok: false, error: "사업자 정보가 국세청 등록 정보와 일치하지 않습니다. 사업자등록증의 대표자 성명과 개업일자를 확인해주세요." };
+  }
+  // 진위 일치 — 상태까지 확인 (validate 응답에 동봉)
+  switch (v.status) {
+    case "폐업자": return { ok: false, error: "폐업 처리된 사업자번호로는 가입할 수 없습니다." };
+    case "휴업자": return { ok: false, error: "휴업 상태의 사업자번호입니다. 정상 영업 중인 사업자만 가입할 수 있습니다." };
+    default: return { ok: true };
   }
 }
 

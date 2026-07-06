@@ -11,7 +11,9 @@ const corsHeaders = {
 };
 
 interface VerifyRequest {
-  businessNumbers: string[];
+  businessNumbers?: string[];
+  // 진위확인 모드 (2026-07-06 가입 대표자 인증) — 번호+대표자성명+개업일자가 국세청 기록과 일치하는지
+  owner?: { businessNumber: string; ownerName: string; startDate: string /* YYYYMMDD */ };
 }
 
 interface BusinessStatus {
@@ -66,7 +68,53 @@ serve(async (req: Request) => {
     }
 
     // Parse request
-    const { businessNumbers }: VerifyRequest = await req.json();
+    const { businessNumbers, owner }: VerifyRequest = await req.json();
+
+    // ─── 진위확인 모드 — 사업자번호+대표자성명+개업일자 국세청 일치 확인 (가입 선점 방지) ───
+    if (owner) {
+      const bno = String(owner.businessNumber || "").replace(/[^0-9]/g, "");
+      const pnm = String(owner.ownerName || "").trim();
+      const sdt = String(owner.startDate || "").replace(/[^0-9]/g, "");
+      if (bno.length !== 10 || !isValidBusinessNumber(bno) || !pnm || sdt.length !== 8) {
+        return jsonResponse(400, { success: false, message: "사업자번호(10자리)·대표자성명·개업일자(YYYYMMDD)가 필요합니다." });
+      }
+      const vres = await fetch(
+        `https://api.odcloud.kr/api/nts-businessman/v1/validate?serviceKey=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ businesses: [{ b_no: bno, start_dt: sdt, p_nm: pnm }] }),
+        },
+      );
+      if (!vres.ok) {
+        const t = await vres.text();
+        console.error(`[verify-business-number] validate API error: ${vres.status} ${t}`);
+        return jsonResponse(502, { success: false, message: `국세청 진위확인 API 호출 실패 (HTTP ${vres.status})` });
+      }
+      const vdata = await vres.json();
+      const item = (vdata.data || [])[0] || {};
+      // valid: "01"=일치, "02"=불일치(valid_msg 참조). status 는 상태조회와 동일 구조 동봉.
+      const matched = item.valid === "01";
+      const st = item.status || {};
+      return jsonResponse(200, {
+        success: true,
+        message: matched ? "진위 일치" : (item.valid_msg || "국세청 등록 정보와 일치하지 않습니다"),
+        results: [{
+          b_no: st.b_no || bno,
+          b_stt: st.b_stt || "",
+          b_stt_cd: st.b_stt_cd || "",
+          tax_type: st.tax_type || "",
+          tax_type_cd: st.tax_type_cd || "",
+          end_dt: st.end_dt || "",
+          utcc_yn: st.utcc_yn || "",
+          tax_type_change_dt: st.tax_type_change_dt || "",
+          invoice_apply_dt: st.invoice_apply_dt || "",
+          rbf_tax_type: st.rbf_tax_type || "",
+          rbf_tax_type_cd: st.rbf_tax_type_cd || "",
+        }],
+        errors: matched ? undefined : ["OWNER_MISMATCH"],
+      });
+    }
 
     if (
       !businessNumbers ||

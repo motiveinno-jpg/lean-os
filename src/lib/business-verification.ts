@@ -49,3 +49,29 @@ export async function verifyBusinessNumber(bizNo: string): Promise<{
     return { valid: true, status: '확인불가' };
   }
 }
+
+// 진위확인 (2026-07-06) — 사업자번호+대표자성명+개업일자가 국세청 기록과 일치하는지.
+//   가입 시 사업자번호 선점(남의 번호로 회사 개설) 방지용. 상태(계속/휴업/폐업)도 함께 반환.
+//   'unavailable' = API/네트워크 장애 — 호출부가 fail-open 처리.
+export async function validateBusinessOwnership(
+  bizNo: string,
+  ownerName: string,
+  startDateYYYYMMDD: string,
+): Promise<{ result: 'match' | 'mismatch' | 'unavailable'; status?: '계속사업자' | '휴업자' | '폐업자' | '확인불가' }> {
+  const cleaned = bizNo.replace(/[^0-9]/g, '');
+  const sdt = startDateYYYYMMDD.replace(/[^0-9]/g, '');
+  if (cleaned.length !== 10 || !ownerName.trim() || sdt.length !== 8) return { result: 'mismatch' };
+  try {
+    const { data, error } = await (supabase as any).functions.invoke('verify-business-number', {
+      body: { owner: { businessNumber: cleaned, ownerName: ownerName.trim(), startDate: sdt } },
+    });
+    if (error) throw error;
+    if (!data?.success) return { result: 'unavailable' };
+    const matched = !(data.errors || []).includes('OWNER_MISMATCH');
+    const cd = data.results?.[0]?.b_stt_cd;
+    const statusMap: Record<string, '계속사업자' | '휴업자' | '폐업자'> = { '01': '계속사업자', '02': '휴업자', '03': '폐업자' };
+    return { result: matched ? 'match' : 'mismatch', status: statusMap[cd] || '확인불가' };
+  } catch {
+    return { result: 'unavailable' };
+  }
+}
