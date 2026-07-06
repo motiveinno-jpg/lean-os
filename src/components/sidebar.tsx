@@ -448,8 +448,8 @@ export function Sidebar() {
 
   const sidebarContent = (
     <aside
-      className={`chrome-glass ${sidebarWidth} h-screen border-r border-[var(--border)]/60 flex flex-col transition-all duration-200 overflow-hidden`}
-      style={{ boxShadow: "var(--shadow-sm)" }}
+      className={`chrome-glass ${sidebarWidth} h-full rounded-[20px] border border-[var(--border)]/60 flex flex-col transition-all duration-200 overflow-hidden`}
+      style={{ boxShadow: "var(--shadow-lg)" }}
     >
       {/* Logo — U1: 로고 클릭 → /dashboard */}
       <div className={`border-b border-[var(--border)] ${collapsed ? "px-3 py-4" : "px-5 py-4"}`}>
@@ -645,8 +645,8 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop sidebar: fixed position */}
-      <div className="hidden md:block fixed left-0 top-0 z-50 h-screen">
+      {/* Desktop sidebar: 떠 있는 유리 패널 (여백 두고 둥글게 — 리퀴드글래스 목업 정합) */}
+      <div className="hidden md:block fixed left-3 top-3 bottom-3 z-50">
         {sidebarContent}
       </div>
 
