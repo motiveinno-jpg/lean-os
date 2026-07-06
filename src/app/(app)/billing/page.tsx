@@ -469,7 +469,7 @@ export default function BillingPage() {
           </div>
 
           {currentSlug !== "free" && (
-            <div className="mt-8 p-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/10">
+            <div className="mt-8 p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger-dim)]">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-semibold text-sm text-[var(--text)]">구독 해지</div>

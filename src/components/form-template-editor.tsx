@@ -119,7 +119,7 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
       <div className="flex-1">
         <div className="mb-2 flex items-center gap-2">
           {pageImages.map((_, i) => (
-            <button key={i} onClick={() => setPageIdx(i)} className={`rounded px-2 py-1 text-sm ${i === pageIdx ? "bg-indigo-600 text-white" : "bg-gray-100"}`}>
+            <button key={i} onClick={() => setPageIdx(i)} className={`rounded px-2 py-1 text-sm ${i === pageIdx ? "bg-indigo-600 text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>
               {i + 1}p
             </button>
           ))}
@@ -194,7 +194,7 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
                 <input type="number" value={sel.font_size ?? 10} onChange={(e) => patchField(selected!, { font_size: Number(e.target.value) || 10 })} className="w-full rounded border px-2 py-1 text-sm" />
               </div>
             </div>
-            <button onClick={() => removeField(selected!)} className="w-full rounded bg-red-50 py-1 text-sm text-red-600">필드 삭제</button>
+            <button onClick={() => removeField(selected!)} className="w-full rounded bg-[var(--danger-dim)] py-1 text-sm text-[var(--danger)]">필드 삭제</button>
           </div>
         ) : (
           <p className="rounded border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">필드 박스를 선택하면 속성이 표시됩니다.</p>

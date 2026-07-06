@@ -1959,7 +1959,7 @@ function DocumentsPageInner() {
                                 deleteDocMut.mutate(doc.id);
                               }
                             }}
-                            className="opacity-0 group-hover:opacity-100 transition p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-red-400 hover:text-red-500 disabled:opacity-30"
+                            className="opacity-0 group-hover:opacity-100 transition p-1 rounded-md hover:bg-[var(--danger-dim)] text-red-400 hover:text-[var(--danger)] disabled:opacity-30"
                             disabled={deleteDocMut.isPending}
                             title="문서 삭제"
                             aria-label="문서 삭제"

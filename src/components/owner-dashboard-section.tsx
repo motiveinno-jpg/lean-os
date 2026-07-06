@@ -124,7 +124,7 @@ function KpiSection({ data }: { data: Summary }) {
     <div>
       <div className="flex items-end justify-between mb-3 gap-2 flex-wrap">
         <div>
-          <h2 className="text-lg font-extrabold text-[var(--text)]">🎯 {quarter.label} 한눈에</h2>
+          <h2 className="text-lg font-extrabold text-[var(--text)]">{quarter.label} 한눈에</h2>
           <p className="text-xs text-[var(--text-dim)]">{quarter.from} ~ {quarter.to} · 직전 {quarter.prev_label} 대비</p>
         </div>
       </div>
@@ -157,7 +157,7 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
 
   return (
     <div>
-      <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">📊 프로젝트 현황 </h2>
+      <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">프로젝트 현황</h2>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {STAGES.map((s) => {
           const d = map.get(s);
@@ -166,7 +166,7 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
             <Link
               key={s}
               href={`/projects?stage=${s}`}
-              className={`block rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 hover:border-[var(--primary)] hover:bg-[var(--bg-surface)] transition`}
+              className={`glass-card block p-4 hover:border-[var(--primary)] hover:bg-[var(--bg-surface)] transition`}
             >
               <div className="flex items-center gap-1.5 mb-2">
                 <span className={`w-2 h-2 rounded-full ${c.dot}`} />
@@ -416,7 +416,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
 
   return (
     <div>
-      <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">📁 완료 보고서 보관함</h2>
+      <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">완료 보고서 보관함</h2>
       {groups.length === 0 ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-sm text-[var(--text-dim)]">
           완료된 프로젝트 보고서가 아직 없습니다
