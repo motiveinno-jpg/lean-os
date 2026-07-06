@@ -2674,7 +2674,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   <button onClick={loadAllowances} disabled={loadingAllowances} className="px-3 py-2 bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/30 hover:bg-[var(--info)]/20 rounded-xl text-xs font-semibold transition disabled:opacity-50" title="해당 월 근태 산정 수당(야간·연장·당직 등)을 불러와 채웁니다">
                     {loadingAllowances ? "불러오는 중..." : "📥 수당 불러오기"}
                   </button>
-                  <button onClick={saveEdits} disabled={savingEdit} className="px-3 py-2 bg-[var(--warning)] hover:bg-[var(--warning)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+                  <button onClick={saveEdits} disabled={savingEdit} className="px-3 py-2 bg-[var(--warning)] hover:brightness-110 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
                     {savingEdit ? "저장 중..." : "💾 편집 저장"}
                   </button>
                   <button onClick={() => { setEditMode(false); generate(); }} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
@@ -4384,7 +4384,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
           <a href="https://www.hometax.go.kr" target="_blank" rel="noopener noreferrer" className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
             홈택스 열기 ↗
           </a>
-          <button onClick={sendReminderToAll} className="px-3 py-2 bg-[var(--warning)]/10 hover:bg-[var(--warning)]/20 text-amber-400 rounded-xl text-xs font-semibold transition border border-[var(--warning)]/30">
+          <button onClick={sendReminderToAll} className="px-3 py-2 bg-[var(--warning)]/10 hover:bg-[var(--warning)]/20 text-[var(--warning)] rounded-xl text-xs font-semibold transition border border-[var(--warning)]/30">
             전체 안내 발송
           </button>
         </div>

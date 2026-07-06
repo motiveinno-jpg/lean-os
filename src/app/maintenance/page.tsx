@@ -14,7 +14,7 @@ export default function MaintenancePage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] p-6">
+    <div className="min-h-screen flex items-center justify-center p-6">
       {/* 점검 페이지 전용 망치질 애니메이션 (순수 CSS, 외부 의존 없음) */}
       <style>{`
         @keyframes hmr-swing { 0%,32%,100% { transform: rotate(-22deg); } 50% { transform: rotate(20deg); } 64% { transform: rotate(15deg); } }

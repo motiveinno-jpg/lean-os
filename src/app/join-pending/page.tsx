@@ -46,7 +46,7 @@ export default function JoinPendingPage() {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[var(--bg)]">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="glass-card p-8" style={{ boxShadow: "var(--shadow-lg)" }}>
           {status === "loading" && box("⏳", "확인 중...", "합류 요청 상태를 불러오고 있습니다.", "text-[var(--text)]")}

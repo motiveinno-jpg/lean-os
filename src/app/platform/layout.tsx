@@ -121,9 +121,11 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
   return (
     // 2026-07-03 TeamHub 라운드 — 다크 고정 콘솔을 라이트 토큰 캔버스로 전환(고객 앱과 동일 언어)
-    <div className="min-h-screen flex bg-[var(--bg)]">
-      {/* Sidebar */}
-      <aside className="w-56 bg-[var(--bg-card)] border-r border-[var(--border)] flex flex-col fixed inset-y-0 left-0 z-40">
+    // 2026-07-06 라운드8.2 — 고객 앱 셸과 동일한 리퀴드글래스 적용(전 화면 통일):
+    //   래퍼 배경 제거(body::before 앰비언트 캔버스가 비쳐 보이게) + 사이드바를 떠 있는 유리 패널로.
+    <div className="min-h-screen flex">
+      {/* Sidebar — 고객 앱 sidebar.tsx 와 동일한 인셋 플로팅 유리 패널 */}
+      <aside className="chrome-glass w-56 rounded-[20px] border border-[var(--border)]/60 flex flex-col fixed left-3 top-3 bottom-3 z-40">
         <div className="p-5 border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center">
@@ -152,7 +154,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
                       key={item.href}
                       href={item.href}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                        active ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                        active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                       }`}
                     >
                       <NavIcon type={item.icon} active={active} />
@@ -179,7 +181,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         </div>
       </aside>
 
-      <main className="flex-1 ml-56 p-6 lg:p-8">
+      <main className="flex-1 ml-[248px] p-6 lg:p-8 lg:pr-6">
         {children}
       </main>
     </div>

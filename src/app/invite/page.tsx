@@ -14,7 +14,7 @@ type InviteInfo = {
 export default function InvitePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
       </div>
     }>
@@ -96,7 +96,7 @@ function InviteContent() {
 
   if (validating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm text-[var(--text-muted)]">초대 확인 중...</p>
@@ -107,7 +107,7 @@ function InviteContent() {
 
   if (invalid) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-[var(--bg)]">
+      <div className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--danger-dim)] text-[var(--danger)] text-xl font-black mb-4">
             !
@@ -131,7 +131,7 @@ function InviteContent() {
   const roleColor = invite?.type === "partner" ? "#7C3AED" : "#2563EB";
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-[var(--bg)]">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-6 md:mb-8">

@@ -1,5 +1,8 @@
 "use client";
 
+// 2026-07-06 라운드8.1 — /sign, /share 는 외부(비로그인) 서명·공유 링크: 문서를 종이처럼 항상 밝게 보여주는 게
+// 의도(뷰어 OS 다크모드와 무관) → 배경/카드는 의도적으로 라이트 하드코딩 유지, var(--bg) 전환 금지.
+
 import { Suspense, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import parse, { type HTMLReactParserOptions } from "html-react-parser";

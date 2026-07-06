@@ -155,7 +155,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
       <div className="grid gap-5 lg:grid-cols-3 p-6 bg-[var(--bg-surface)]/30 max-h-[74vh] overflow-y-auto">
         {/* 좌 — 프로필 카드 */}
         <div className="lg:col-span-1">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 text-center">
+          <div className="glass-card p-5 text-center">
             <div className="w-20 h-20 mx-auto rounded-3xl flex items-center justify-center text-white font-extrabold text-2xl shadow-lg bg-[var(--primary)]">
               {emp.name?.charAt(0)}
             </div>
@@ -535,7 +535,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                 </div>
                 <div className="glass-card p-3 text-center">
                   <div className="caption">잔여</div>
-                  <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? empLeaveBalance.total_days - empLeaveBalance.used_days) <= 3 ? "text-yellow-400" : "text-[var(--success)]"}`}>
+                  <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? empLeaveBalance.total_days - empLeaveBalance.used_days) <= 3 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
                     {empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days - empLeaveBalance.used_days)}일
                   </div>
                 </div>

@@ -418,7 +418,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
     <div>
       <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">완료 보고서 보관함</h2>
       {groups.length === 0 ? (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-sm text-[var(--text-dim)]">
+        <div className="glass-card p-8 text-center text-sm text-[var(--text-dim)]">
           완료된 프로젝트 보고서가 아직 없습니다
         </div>
       ) : (
@@ -428,7 +428,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
             const totalRev = items.reduce((s, x) => s + Number(x.revenue || 0), 0);
             const totalProf = items.reduce((s, x) => s + Number(x.profit || 0), 0);
             return (
-              <div key={qLabel} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+              <div key={qLabel} className="glass-card overflow-hidden">
                 <button
                   type="button"
                   onClick={() => toggle(qLabel)}

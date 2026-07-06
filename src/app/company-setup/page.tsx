@@ -80,11 +80,11 @@ export default function CompanySetupPage() {
   const logout = async () => { await supabase.auth.signOut(); router.push("/auth"); };
 
   if (!ready) {
-    return <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-sm text-[var(--text-muted)]">확인 중...</div>;
+    return <div className="min-h-screen flex items-center justify-center text-sm text-[var(--text-muted)]">확인 중...</div>;
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[var(--bg)]">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-4xl mb-3" aria-hidden>🏢</div>
