@@ -1,7 +1,21 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
 const FROM_EMAIL = 'OwnerView <noreply@owner-view.com>';
+
+// 2026-07-06 보안감사 P1: 무인증 발송 → 브랜드 사칭 피싱 방지. 로그인 유저(실 JWT)만 발송 가능.
+async function requireUser(req: Request): Promise<boolean> {
+  try {
+    const authHeader = req.headers.get('Authorization') || '';
+    if (!authHeader) return false;
+    const { data: { user } } = await createClient(
+      Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    ).auth.getUser();
+    return !!user;
+  } catch { return false; }
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -12,6 +26,7 @@ Deno.serve(async (req: Request) => {
       },
     });
   }
+  if (!(await requireUser(req))) return new Response(JSON.stringify({ error: '인증이 필요합니다.' }), { status: 401, headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' } });
 
   try {
     const { to, employeeName, companyName, year, noticeType, unusedDays, deadline } = await req.json();

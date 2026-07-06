@@ -4,12 +4,27 @@
 //   ※ 배포: supabase/functions/parse-form-template/index.ts 로 복사 후 deploy. ANTHROPIC_API_KEY 필요.
 //   ※ ocr-receipt 패턴 확장. 클라이언트가 pdfjs 로 각 페이지를 PNG 로 래스터화해 보낸다.
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// 2026-07-06 보안감사 P1: 무인증 → LLM(Claude Vision) 비용 소진 방지. 로그인 유저만 호출.
+async function requireUser(req: Request): Promise<boolean> {
+  try {
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader) return false;
+    const { data: { user } } = await createClient(
+      Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    ).auth.getUser();
+    return !!user;
+  } catch { return false; }
+}
 
 // 인식 대상 표준 필드 키 (문서종류별). 모델이 영역을 이 키 중 하나로 매핑.
 const KEYS: Record<string, string[]> = {
@@ -70,6 +85,7 @@ const clamp01 = (n: any) => Math.max(0, Math.min(1, Number(n) || 0));
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (!(await requireUser(req))) return new Response(JSON.stringify({ error: "인증이 필요합니다." }), { status: 401, headers: { ...CORS, "content-type": "application/json" } });
   try {
     const body = await req.json();
     const docType: string = body.doc_type === "contract" ? "contract" : "quote";
