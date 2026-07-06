@@ -216,7 +216,7 @@ const ENGINES = [
     apis: ["4대보험공단 요율", "국세청 간이세액표", "급여 배치처리", "자동 명세서"],
     steps: [
       { step: "직원 등록", detail: "4대보험·원천세 요율 자동 매칭" },
-      { step: "배치 생성", detail: "매월 20일 전 직원 급여 자동 산출 → 대표 알림" },
+      { step: "배치 생성", detail: "급여 배치 생성 시 전 직원 4대보험·원천세 자동 산출 → 대표 검토" },
       { step: "명세서 발송", detail: "대표 승인 → 전 직원 급여명세서 이메일 자동 발송" },
     ],
     features: [
@@ -941,7 +941,7 @@ export default function LandingPage() {
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 카드 등록 없이 무료</span>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 3분 만에 세팅 완료</span>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 24시간 자동 운영</span>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> SOC2 보안 인프라</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> RLS 기반 데이터 보안</span>
           </div>
 
           {/* Hero mini dashboard mockup */}
