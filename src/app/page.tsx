@@ -1122,7 +1122,6 @@ export default function LandingPage() {
 
           <div className="space-y-8">
             {ENGINES.map((engine, idx) => {
-              const coverage = engine.num === "01" ? 87 : engine.num === "02" ? 94 : engine.num === "03" ? 91 : 82;
               return (
               <div key={engine.num} className="group relative">
                 {/* Engine card */}
@@ -1195,15 +1194,17 @@ export default function LandingPage() {
                         <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">핵심 기능</div>
                         <div className="grid grid-cols-2 gap-2.5 mb-6">
                           {engine.features.map((f) => (
-                            <div key={f.name} className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3.5 hover:border-white/10 transition">
-                              <div className="text-lg mb-1.5">{f.icon}</div>
-                              <div className="text-xs font-bold text-white mb-0.5">{f.name}</div>
-                              <div className="text-[10px] text-slate-500 leading-snug">{f.desc}</div>
+                            <div key={f.name} className="flex items-start gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-2xl p-3 hover:bg-white/[0.06] hover:border-white/12 transition-colors">
+                              <span className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: `${engine.color}1a`, boxShadow: `inset 0 0 0 1px ${engine.color}22` }}>{f.icon}</span>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-white mb-0.5 leading-tight">{f.name}</div>
+                                <div className="text-[10px] text-slate-400 leading-snug">{f.desc}</div>
+                              </div>
                             </div>
                           ))}
                         </div>
 
-                        {/* Metrics row */}
+                        {/* Metrics row — 예시 대시보드 미리보기 (샘플 수치) */}
                         <div className="grid grid-cols-3 gap-2">
                           {engine.metrics.map((m) => (
                             <div key={m.label} className="bg-white/[0.05] rounded-xl p-3 text-center border border-white/[0.06]">
@@ -1213,17 +1214,7 @@ export default function LandingPage() {
                             </div>
                           ))}
                         </div>
-
-                        {/* Coverage bar */}
-                        <div className="mt-3 bg-white/[0.04] rounded-xl p-3 border border-white/[0.06]">
-                          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2">
-                            <span>자동화 커버리지</span>
-                            <span className="text-xs font-extrabold" style={{ color: engine.color }}>{coverage}%</span>
-                          </div>
-                          <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                            <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${coverage}%`, background: engine.color }} />
-                          </div>
-                        </div>
+                        <div className="mt-2 text-[10px] text-slate-600 text-right">※ 예시 대시보드 화면입니다</div>
                       </div>
                     </div>
 
