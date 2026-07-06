@@ -727,7 +727,12 @@ export default function ProjectHubDetailPage() {
           <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
         )}
         {deal.parent_deal_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">세부 프로젝트</span>}
-        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
+        {/* 영업단계 배지는 수익형 전용 — 목표형/실행형엔 견적·계약 개념이 없어 유형 배지로 대체 */}
+        {projectType === "margin" ? (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
+        ) : (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]">{typeCfg.icon} {typeCfg.label}</span>
+        )}
         {editingName ? (
           <input
             value={nameInput} autoFocus
@@ -744,7 +749,8 @@ export default function ProjectHubDetailPage() {
             <svg className="w-3.5 h-3.5 text-[var(--text-dim)] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </h1>
         )}
-        <span className="text-xs text-[var(--text-dim)]">{partner?.name || "거래처 미지정"}{manager?.name ? ` · 담당 ${manager.name}` : ""}</span>
+        {/* 거래처 문구 — 수익형만 '미지정' 유도. 목표형/실행형(내부 프로젝트)은 있을 때만 표시 */}
+        <span className="text-xs text-[var(--text-dim)]">{[partner?.name || (projectType === "margin" ? "거래처 미지정" : null), manager?.name ? `담당 ${manager.name}` : null].filter(Boolean).join(" · ")}</span>
       </div>
 
       {/* 탭 — 유형별 노출 탭(typeCfg.tabs). 세부 프로젝트(캠페인) 화면에서는 '세부 프로젝트'(2단계 제한)·'프로젝트 운영' 숨김 */}
@@ -763,9 +769,9 @@ export default function ProjectHubDetailPage() {
         <GoalOverviewTab deal={deal} />
       )}
 
-      {/* 개요 — 실행형 히어로(태스크 진행률 요약) */}
+      {/* 개요 — 실행형 콕핏(태스크 진행률·상태분포·마감·담당자별 현황) */}
       {tab === "overview" && projectType === "delivery" && (
-        <DeliveryOverview deal={deal} dealId={dealId} partner={partner} manager={manager} stage={stage} />
+        <DeliveryOverview deal={deal} dealId={dealId} partner={partner} manager={manager} companyUsers={companyUsers as any[]} />
       )}
 
       {/* 개요 — 수익형(margin, 현행) : 좌 2/3 본문(약정·실적·비용) + 우 1/3 요약 위젯(기본 정보·안내) */}
@@ -1401,13 +1407,21 @@ function Empty({ text }: { text: string }) {
   );
 }
 
-// 실행형 개요 — 태스크 진행률 요약(완료/전체·지연) + 기본 정보. 상세 칸반은 '태스크' 탭.
-function DeliveryOverview({ deal, dealId, partner, manager, stage }: { deal: any; dealId: string; partner: any; manager: any; stage: ProjectStage }) {
+// 실행형 개요 — 태스크 중심 콕핏: 진행률·상태 분포·다가오는 마감·담당자별 현황 + 실행 정보.
+//   영업 개념(단계·견적·계약)은 실행형과 무관 → 미노출. 거래처·예산은 값이 있을 때만 표시.
+//   실행 상태(진행 전/진행 중/완료)는 deals.stage 가 아니라 태스크에서 파생.
+const DELIVERY_STATUS_META: { key: string; label: string; color: string }[] = [
+  { key: "todo", label: "할 일", color: "text-[var(--text-muted)]" },
+  { key: "doing", label: "진행", color: "text-amber-500" },
+  { key: "review", label: "검토", color: "text-blue-400" },
+  { key: "done", label: "완료", color: "text-green-500" },
+];
+function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { deal: any; dealId: string; partner: any; manager: any; companyUsers: any[] }) {
   const today = new Date().toISOString().slice(0, 10);
   const { data: tasks = [] } = useQuery({
     queryKey: ["project-tasks-overview", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_tasks").select("id, status, due_date").eq("deal_id", dealId).is("archived_at", null);
+      const { data } = await db.from("project_tasks").select("id, title, status, due_date, assignee_id, assignee_ids").eq("deal_id", dealId).is("archived_at", null);
       return (data || []) as any[];
     },
     enabled: !!dealId,
@@ -1416,42 +1430,115 @@ function DeliveryOverview({ deal, dealId, partner, manager, stage }: { deal: any
   const done = (tasks as any[]).filter((t) => t.status === "done").length;
   const delayed = (tasks as any[]).filter((t) => t.due_date && t.status !== "done" && String(t.due_date).slice(0, 10) < today).length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  // 상태 분포 — 태스크 탭 칸반 4컬럼과 동일 집합. 알 수 없는 status 는 '할 일'로.
+  const byStatus: Record<string, number> = { todo: 0, doing: 0, review: 0, done: 0 };
+  (tasks as any[]).forEach((t) => { byStatus[t.status === "doing" || t.status === "review" || t.status === "done" ? t.status : "todo"] += 1; });
+  // 실행 상태 (영업단계 대체) — 태스크에서 파생
+  const runState = total === 0 ? "태스크 없음" : done === total ? "완료" : byStatus.doing + byStatus.review + done > 0 ? "진행 중" : "진행 전";
+  // D-day 표기 (지연이면 D+n)
+  const dday = (d: string) => {
+    const diff = Math.round((new Date(String(d).slice(0, 10)).getTime() - new Date(today).getTime()) / 86400000);
+    return diff < 0 ? `D+${-diff}` : diff === 0 ? "D-Day" : `D-${diff}`;
+  };
+  // 다가오는 마감 — 미완료 & 마감일 있는 태스크, 지연 포함 마감일 오름차순 상위 5
+  const upcoming = (tasks as any[])
+    .filter((t) => t.status !== "done" && t.due_date)
+    .sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)))
+    .slice(0, 5);
+  // 담당자별 현황 — 다중 담당(assignee_ids) 우선, 없으면 단일 assignee_id 폴백 (태스크 탭과 동일 규칙)
+  const assigneesOf = (t: any): string[] => (Array.isArray(t.assignee_ids) && t.assignee_ids.length > 0 ? t.assignee_ids : t.assignee_id ? [t.assignee_id] : []);
+  const userName = (id: string) => (companyUsers as any[]).find((u) => u.id === id)?.name || "(미상)";
+  const byAssignee: Record<string, { done: number; total: number }> = {};
+  (tasks as any[]).forEach((t) => assigneesOf(t).forEach((id) => {
+    if (!byAssignee[id]) byAssignee[id] = { done: 0, total: 0 };
+    byAssignee[id].total += 1;
+    if (t.status === "done") byAssignee[id].done += 1;
+  }));
+  const assigneeRows = Object.entries(byAssignee).sort((a, b) => b[1].total - a[1].total);
   const budget = Number(deal.contract_total || 0);
+  const endOver = deal.end_date && String(deal.end_date).slice(0, 10) < today && runState !== "완료";
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Metric label="진행률" value={total > 0 ? `${pct}%` : "—"} accent={pct >= 100 ? "primary" : undefined} />
+        <Metric label="진행률" value={total > 0 ? `${pct}%` : "—"} accent={pct >= 100 && total > 0 ? "primary" : undefined} />
         <Metric label="완료 / 전체" value={`${done} / ${total}`} />
         <Metric label="지연" value={String(delayed)} accent={delayed > 0 ? "danger" : undefined} />
-        <Metric label="예산" value={budget > 0 ? won(budget) : "—"} />
+        <Metric label="마감" value={deal.end_date ? dday(deal.end_date) : "—"} hint={deal.end_date ? `종료일 ${fmtDate(deal.end_date)}` : "종료일을 설정하면 D-day가 표시됩니다"} accent={endOver ? "danger" : undefined} />
       </div>
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">
-          {total > 0 && (
-            <div className="glass-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold">태스크 진행률</h3>
-                <span className="text-xs mono-number text-[var(--text)]">{done} / {total}</span>
+          <div className="glass-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold">태스크 진행률</h3>
+              <span className="text-xs mono-number text-[var(--text)]">{done} / {total}</span>
+            </div>
+            <div className="h-3 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+              <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%` }} />
+            </div>
+            <div className="grid grid-cols-4 gap-2 mt-4">
+              {DELIVERY_STATUS_META.map((s) => (
+                <div key={s.key} className="rounded-xl bg-[var(--bg-surface)] px-3 py-2 text-center">
+                  <div className={`text-[11px] font-semibold ${s.color}`}>{s.label}</div>
+                  <div className="text-base font-black mono-number text-[var(--text)]">{byStatus[s.key]}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="glass-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold">다가오는 마감</h3>
+              <Link href={`/projecthub/${dealId}?tab=tasks`} className="text-[11px] text-[var(--primary)] hover:underline">태스크 탭 →</Link>
+            </div>
+            {upcoming.length === 0 ? (
+              <p className="text-xs text-[var(--text-dim)]">마감일이 지정된 미완료 태스크가 없습니다.</p>
+            ) : (
+              <div className="divide-y divide-[var(--border)]/40">
+                {upcoming.map((t) => {
+                  const late = String(t.due_date).slice(0, 10) < today;
+                  return (
+                    <div key={t.id} className="py-2 flex items-center gap-2 text-sm">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold mono-number shrink-0 ${late ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{dday(t.due_date)}</span>
+                      <span className="flex-1 truncate text-[var(--text)]">{t.title || "(제목 없음)"}</span>
+                      <span className="text-[11px] text-[var(--text-dim)] shrink-0">{assigneesOf(t).map(userName).join(", ") || "미지정"}</span>
+                      <span className="text-[11px] text-[var(--text-muted)] mono-number shrink-0">{fmtDate(t.due_date)}</span>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="h-3 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%` }} />
+            )}
+          </div>
+          {assigneeRows.length > 0 && (
+            <div className="glass-card p-5">
+              <h3 className="text-sm font-bold mb-3">담당자별 현황</h3>
+              <div className="space-y-2.5">
+                {assigneeRows.map(([id, v]) => {
+                  const p = v.total > 0 ? Math.round((v.done / v.total) * 100) : 0;
+                  return (
+                    <div key={id} className="flex items-center gap-3">
+                      <span className="text-xs text-[var(--text)] w-24 truncate shrink-0">{userName(id)}</span>
+                      <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                        <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${p}%` }} />
+                      </div>
+                      <span className="text-[11px] mono-number text-[var(--text-muted)] w-14 text-right shrink-0">{v.done} / {v.total}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
-          <p className="text-[11px] text-[var(--text-dim)]">※ 태스크 추가·칸반·간트는 <b className="text-[var(--text-muted)]">태스크</b> 탭에서, 비용은 <b className="text-[var(--text-muted)]">비용</b> 탭에서 관리합니다.</p>
+          <p className="text-[11px] text-[var(--text-dim)]">※ 태스크 추가·칸반·간트는 <b className="text-[var(--text-muted)]">태스크</b> 탭에서 관리합니다.</p>
         </div>
         <div className="space-y-5">
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold">기본 정보</h3>
+              <h3 className="text-sm font-bold">실행 정보</h3>
             </div>
             <div className="grid grid-cols-1 gap-y-3 text-sm">
-              <Info label="거래처" value={partner?.name || "—"} />
               <Info label="담당자" value={manager?.name || "—"} />
-              <Info label="단계" value={STAGE_LABEL[stage]} />
-              <Info label="시작일" value={fmtDate(deal.start_date)} />
-              <Info label="종료일" value={fmtDate(deal.end_date)} />
-              <Info label="상태" value={deal.status || "—"} />
+              <Info label="기간" value={deal.start_date || deal.end_date ? `${fmtDate(deal.start_date)} ~ ${fmtDate(deal.end_date)}` : "—"} />
+              <Info label="실행 상태" value={runState} />
+              {partner?.name && <Info label="거래처" value={partner.name} />}
+              {budget > 0 && <Info label="예산" value={won(budget)} />}
             </div>
           </div>
         </div>
