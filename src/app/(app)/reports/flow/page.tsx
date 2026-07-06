@@ -69,10 +69,10 @@ function StepCard({
   return (
     <div className="glass-card relative flex flex-col overflow-hidden p-5 transition-shadow hover:shadow-lg hover:shadow-black/5">
       {/* 단계 액센트 라인 — 흐름의 연속성을 색으로 표현 */}
-      <div
+      {/* <div
         className="absolute top-0 left-0 right-0 h-[3px]"
         style={{ background: `linear-gradient(90deg, ${accent}, color-mix(in srgb, ${accent} 25%, transparent))` }}
-      />
+      /> */}
       <div className="mb-3.5 flex items-center gap-2.5">
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[14px] font-black"
