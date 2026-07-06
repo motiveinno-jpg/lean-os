@@ -515,6 +515,7 @@ export default function DashboardPage() {
               cashPulse={cashPulse}
               dashboard={dashboard}
               hasData={hasData}
+              userId={userId ?? undefined}
             />
             {(() => {
               const nearestTax = getUpcomingTaxDeadlines(30)[0];

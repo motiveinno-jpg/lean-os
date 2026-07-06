@@ -15,6 +15,8 @@
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { getTodos } from "@/lib/schedule";
+import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import type { CashPulseResult } from "@/lib/cash-pulse";
 import type { FounderDashboardData } from "@/lib/engines";
 import type { YesterdayTxSummary } from "@/lib/queries";
@@ -26,6 +28,24 @@ interface MorningBriefProps {
   dashboard: FounderDashboardData | null;
   hasData: boolean;
   yesterdayTx?: YesterdayTxSummary | null;
+  userId?: string;
+}
+
+// AI 브리핑의 톤 태그(<neg>/<pos>/<key>)를 색상 강조 span 으로 변환 (예전 규칙 브리핑의 hl 색상 재사용)
+function renderTagged(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const re = /<(neg|pos|key)>([\s\S]*?)<\/\1>/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let i = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    const color = m[1] === "neg" ? "var(--danger)" : m[1] === "pos" ? "var(--success)" : "var(--primary)";
+    parts.push(<strong key={i++} className="font-bold" style={{ color }}>{m[2]}</strong>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
 }
 
 // ── 문구 헬퍼 ─────────────────────────────────────────
@@ -75,6 +95,7 @@ export function MorningBrief({
   dashboard,
   hasData,
   yesterdayTx,
+  userId,
 }: MorningBriefProps) {
   const now = new Date();
   const today = formatTodayKorean(now);
@@ -103,8 +124,23 @@ export function MorningBrief({
         monthRevenue: dashboard?.growth.monthRevenue ?? 0,
         monthTarget: dashboard?.growth.monthTarget ?? 0,
       };
+      // 처리 대기·할 일 — AI 가 우선순위로 정리하도록 함께 전달 (세금 마감은 순수 계산, 할 일은 본인 것만)
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const taxDeadlines = getUpcomingTaxDeadlines(30).slice(0, 4).map((t) => ({ title: t.title, daysLeft: t.daysLeft }));
+      let todos: Array<{ title: string; priority: number; dueDate: string | null; overdue: boolean }> = [];
+      if (userId) {
+        try {
+          const rows = await getTodos(userId, { includeDone: false });
+          todos = rows.slice(0, 8).map((t) => ({
+            title: t.title,
+            priority: t.priority,
+            dueDate: t.due_date,
+            overdue: !!t.due_date && t.due_date < todayStr,
+          }));
+        } catch { /* 할 일 조회 실패는 무시 — 브리핑은 재무만으로도 생성 */ }
+      }
       try {
-        const { data, error } = await supabase.functions.invoke("ai-briefing", { body: { nums, companyName } });
+        const { data, error } = await supabase.functions.invoke("ai-briefing", { body: { nums, actions: { taxDeadlines, todos }, companyName } });
         if (error) return null;
         return (data?.content as string) || null;
       } catch { return null; }
@@ -253,7 +289,7 @@ export function MorningBrief({
           <>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]">✦ AI 브리핑</span>
             {aiBrief.split(/\n+/).map((s) => s.trim()).filter(Boolean).map((s, i) => (
-              <p key={i}>{s}</p>
+              <p key={i}>{renderTagged(s)}</p>
             ))}
           </>
         ) : (
