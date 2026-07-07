@@ -2584,6 +2584,34 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
   const myBizType = companyInfo?.business_type || '';
   const myBizCat = companyInfo?.business_category || '';
 
+  // ── 홈택스 전자세금계산서 양식용 공급자/공급받는자 정리 ──
+  //   매출: 공급자=우리회사, 공급받는자=거래처. 매입: 반대.
+  const isSales = inv.type === 'sales';
+  const issuedToNts = !!inv.nts_confirm_no; // 국세청 승인번호 보유 = 전송(발행)됨
+  const supplier = {
+    bizNo: isSales ? myBizNo : (inv.counterparty_bizno || ''),
+    name: isSales ? myCompany : (inv.counterparty_name || ''),
+    rep: isSales ? myRep : '',
+    addr: isSales ? (companyInfo?.address || '') : '',
+    bizType: isSales ? myBizType : (inv.partners?.business_type || ''),
+    bizCat: isSales ? myBizCat : (inv.partners?.business_item || ''),
+    email: isSales ? (companyInfo?.email || '') : (inv.counterparty_email || inv.partners?.email || ''),
+  };
+  const buyer = {
+    bizNo: !isSales ? myBizNo : (inv.counterparty_bizno || ''),
+    name: !isSales ? myCompany : (inv.counterparty_name || ''),
+    rep: !isSales ? myRep : '',
+    addr: !isSales ? (companyInfo?.address || '') : '',
+    bizType: !isSales ? myBizType : (inv.partners?.business_type || ''),
+    bizCat: !isSales ? myBizCat : (inv.partners?.business_item || ''),
+    email: !isSales ? (companyInfo?.email || '') : (inv.counterparty_email || inv.partners?.email || ''),
+  };
+  // 실제 세금계산서 관행: 매출(공급자 보관용)=적색, 매입=청색. 은은한 톤으로 공식 느낌만.
+  const formColor = isSales ? '#C0392B' : '#1D6AA8';
+  const formTint = isSales ? '#FBEEEC' : '#EAF2FA';
+  const docTitle = issuedToNts ? '전자세금계산서' : '미전송 전자세금계산서';
+  const isBilled = !inv.label?.includes('영수'); // 영수/청구 구분
+
   const buildPdfParams = (): TaxInvoicePdfParams => ({
     invoiceNumber: `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase()}`,
     issueDate: inv.issue_date || new Date().toISOString().split('T')[0],
@@ -2701,126 +2729,133 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
     setRegisterLoading(false);
   };
 
+  // 세금계산서 양식 내부 라벨/값 행 (항상 라이트 — 실제 종이 문서처럼)
+  const F = ({ label, value, mono, wide }: { label: string; value: React.ReactNode; mono?: boolean; wide?: boolean }) => (
+    <div className="flex border-b last:border-b-0" style={{ borderColor: "#e6e6e6" }}>
+      <div className={`${wide ? "w-[64px]" : "w-[64px]"} shrink-0 px-2 py-[5px] text-[10px] font-semibold flex items-center`} style={{ background: "#f6f6f6", color: "#555", borderRight: "1px solid #e6e6e6" }}>{label}</div>
+      <div className={`flex-1 px-2 py-[5px] text-[11px] leading-snug ${mono ? "font-mono" : ""}`} style={{ color: "#1a1a1a" }}>{value || "—"}</div>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="glass-card w-full max-w-[90vw] sm: max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="glass-card w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        {/* Header (모달 크롬) */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-lg font-black">세금계산서</span>
+            <span className="text-base font-black">세금계산서 상세</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
-            {/* 매출 — 실제 국세청 발행 여부(nts_confirm_no)로 별도 표시. status='issued'는 앱 내부 상태일 뿐. */}
-            {inv.type === 'sales' && (
-              inv.nts_confirm_no ? (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-500" title={`국세청 승인번호 ${inv.nts_confirm_no}`}>홈택스 발행완료</span>
-              ) : (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/15 text-red-500">홈택스 미발행</span>
-              )
+            {/* 국세청 전송 여부 — nts_confirm_no 유무로 판정(status='issued'는 앱 내부 상태). */}
+            {issuedToNts ? (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 font-semibold" title={`국세청 승인번호 ${inv.nts_confirm_no}`}>홈택스 전송완료</span>
+            ) : (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 font-semibold">홈택스 미전송</span>
             )}
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl transition">&times;</button>
         </div>
 
-        {/* Tax Invoice Form (국세청 양식 스타일) */}
-        <div className="p-6" data-print-area>
-          <div className="border-2 border-[var(--primary)] rounded-lg overflow-hidden print:border-black">
-            {/* Title bar */}
-            <div className="bg-[var(--primary)]/10 px-4 py-2 text-center">
-              <span className="text-sm font-black text-[var(--primary)] tracking-widest">
-                전 자 세 금 계 산 서
-              </span>
-              <span className="text-[10px] text-[var(--text-muted)] ml-2">
-                ({inv.type === "sales" ? "공급자 보관용" : "공급받는자 보관용"})
-              </span>
-            </div>
-
-            {/* Supplier / Receiver Info */}
-            <div className="grid grid-cols-2 divide-x divide-[var(--border)]">
-              {/* 공급자 */}
-              <div className="p-3">
-                <div className="text-[10px] font-bold text-[var(--primary)] mb-2 tracking-wider">공급자</div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "sales" ? (myBizNo || "—") : (inv.counterparty_bizno || "—")}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "sales" ? myCompany : inv.counterparty_name}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">{inv.type === "sales" ? (myRep || "—") : "—"}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">{inv.type === "sales" ? ([myBizType, myBizCat].filter(Boolean).join(" / ") || "—") : ([inv.partners?.business_type, inv.partners?.business_item].filter(Boolean).join(" / ") || "—")}</span></div>
-                </div>
-              </div>
-              {/* 공급받는자 */}
-              <div className="p-3">
-                <div className="text-[10px] font-bold text-orange-400 mb-2 tracking-wider">공급받는자</div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">등록번호</span><span className="font-medium">{inv.type === "purchase" ? (myBizNo || "—") : (inv.counterparty_bizno || "—")}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">상호</span><span className="font-medium">{inv.type === "purchase" ? myCompany : inv.counterparty_name}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">대표자</span><span className="text-[var(--text-muted)]">{inv.type === "purchase" ? (myRep || "—") : "—"}</span></div>
-                  <div className="flex"><span className="text-[var(--text-dim)] w-16 shrink-0">업태/종목</span><span className="text-[var(--text-muted)]">{inv.type === "purchase" ? ([myBizType, myBizCat].filter(Boolean).join(" / ") || "—") : ([inv.partners?.business_type, inv.partners?.business_item].filter(Boolean).join(" / ") || "—")}</span></div>
-                </div>
+        {/* 홈택스 전자세금계산서 양식 — 실제 발행본과 동일한 시각 형태(항상 흰 배경 공식 문서). */}
+        <div className="p-4 sm:p-6" data-print-area>
+          <div className="mx-auto" style={{ background: "#fff", color: "#1a1a1a", border: `2.5px solid ${formColor}`, borderRadius: 4, overflow: "hidden" }}>
+            {/* 제목 바 — 전송 여부에 따라 전자세금계산서 / 미전송 전자세금계산서 */}
+            <div className="relative text-center" style={{ background: formTint, borderBottom: `1.5px solid ${formColor}` }}>
+              <div className="py-2 font-black tracking-[0.35em] text-[15px] sm:text-[17px]" style={{ color: formColor }}>{docTitle}</div>
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-semibold" style={{ color: formColor }}>
+                {isSales ? "공급자 보관용" : "공급받는자 보관용"}
               </div>
             </div>
 
-            {/* Amount summary */}
-            <div className="border-t border-[var(--border)] grid grid-cols-2 sm:grid-cols-4 divide-x divide-[var(--border)] text-center">
-              <div className="p-2">
-                <div className="caption">작성일자</div>
-                <div className="text-xs font-bold mt-0.5">{inv.issue_date}</div>
-              </div>
-              <div className="p-2">
-                <div className="caption">공급가액</div>
-                <div className="text-xs font-bold mt-0.5 text-green-500">₩{supplyAmt.toLocaleString()}</div>
-              </div>
-              <div className="p-2">
-                <div className="caption">세액</div>
-                <div className="text-xs font-bold mt-0.5">₩{taxAmt.toLocaleString()}</div>
-              </div>
-              <div className="p-2">
-                <div className="caption">합계금액</div>
-                <div className="text-sm font-black mt-0.5 text-[var(--primary)]">₩{totalAmt.toLocaleString()}</div>
+            {/* 승인번호 */}
+            <div className="flex text-[11px]" style={{ borderBottom: "1px solid #ddd" }}>
+              <div className="px-3 py-1.5 w-[88px] shrink-0 font-semibold" style={{ background: "#f6f6f6", color: "#555", borderRight: "1px solid #ddd" }}>승인번호</div>
+              <div className="px-3 py-1.5 flex-1 font-mono" style={{ color: issuedToNts ? "#1a1a1a" : "#b45309" }}>
+                {inv.nts_confirm_no || "미발급 — 국세청에 전송되지 않은 계산서입니다"}
               </div>
             </div>
 
-            {/* Item detail table */}
-            <div className="border-t border-[var(--border)]">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="px-3 py-1.5 text-left font-medium">월/일</th>
-                    <th className="px-3 py-1.5 text-left font-medium">품목</th>
-                    <th className="px-3 py-1.5 text-right font-medium">수량</th>
-                    <th className="px-3 py-1.5 text-right font-medium">단가</th>
-                    <th className="px-3 py-1.5 text-right font-medium">공급가액</th>
-                    <th className="px-3 py-1.5 text-right font-medium">세액</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-[var(--border)]/50">
-                    <td className="px-3 py-2">{inv.issue_date?.slice(5)}</td>
-                    <td className="px-3 py-2 font-medium">
-                      {inv.label || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || EXPENSE_CATEGORIES.find((c: any) => c.value === inv.expense_category)?.label || "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right">1</td>
-                    <td className="px-3 py-2 text-right">₩{supplyAmt.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right">₩{supplyAmt.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right">₩{taxAmt.toLocaleString()}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Footer info */}
-            <div className="border-t border-[var(--border)] px-4 py-2 grid grid-cols-3 text-xs">
-              <div>
-                <span className="text-[var(--text-dim)]">프로젝트: </span>
-                <span className="font-medium">{inv.deals?.name || "—"}</span>
+            {/* 공급자 / 공급받는자 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ borderBottom: "1px solid #ddd" }}>
+              <div style={{ borderRight: "1px solid #ddd" }}>
+                <div className="text-center py-1 text-[11px] font-bold text-white" style={{ background: formColor }}>공 급 자</div>
+                <F label="등록번호" value={supplier.bizNo} mono />
+                <F label="상호" value={supplier.name} />
+                <F label="성명" value={supplier.rep} />
+                <F label="사업장" value={supplier.addr} />
+                <F label="업태" value={supplier.bizType} />
+                <F label="종목" value={supplier.bizCat} />
+                <F label="이메일" value={supplier.email} />
               </div>
               <div>
-                <span className="text-[var(--text-dim)]">비목: </span>
-                <span className="font-medium">{EXPENSE_CATEGORIES.find(c => c.value === inv.expense_category)?.label || inv.label || "—"}</span>
-              </div>
-              <div>
-                <span className="text-[var(--text-dim)]">영수/청구: </span>
-                <span className="font-medium">{inv.label?.includes("영수") ? "영수" : "청구"}</span>
+                <div className="text-center py-1 text-[11px] font-bold text-white" style={{ background: "#555" }}>공급받는자</div>
+                <F label="등록번호" value={buyer.bizNo} mono />
+                <F label="상호" value={buyer.name} />
+                <F label="성명" value={buyer.rep} />
+                <F label="사업장" value={buyer.addr} />
+                <F label="업태" value={buyer.bizType} />
+                <F label="종목" value={buyer.bizCat} />
+                <F label="이메일" value={buyer.email} />
               </div>
             </div>
+
+            {/* 작성일자 · 공급가액 · 세액 */}
+            <div className="grid grid-cols-3 text-center" style={{ borderBottom: "1px solid #ddd" }}>
+              <div style={{ borderRight: "1px solid #ddd" }}>
+                <div className="text-[9px] py-1" style={{ background: "#f6f6f6", color: "#555", borderBottom: "1px solid #ddd" }}>작성일자</div>
+                <div className="text-[12px] font-bold py-1.5 font-mono">{inv.issue_date || "—"}</div>
+              </div>
+              <div style={{ borderRight: "1px solid #ddd" }}>
+                <div className="text-[9px] py-1" style={{ background: "#f6f6f6", color: "#555", borderBottom: "1px solid #ddd" }}>공급가액</div>
+                <div className="text-[12px] font-bold py-1.5 font-mono">₩{supplyAmt.toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-[9px] py-1" style={{ background: "#f6f6f6", color: "#555", borderBottom: "1px solid #ddd" }}>세액</div>
+                <div className="text-[12px] font-bold py-1.5 font-mono">₩{taxAmt.toLocaleString()}</div>
+              </div>
+            </div>
+
+            {/* 품목 상세 */}
+            <table className="w-full" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr className="text-[9.5px] font-semibold" style={{ background: "#f6f6f6", color: "#555" }}>
+                  <th className="py-1 px-1 text-center" style={{ borderBottom: "1px solid #ddd", borderRight: "1px solid #eee", width: "44px" }}>월/일</th>
+                  <th className="py-1 px-2 text-left" style={{ borderBottom: "1px solid #ddd", borderRight: "1px solid #eee" }}>품목</th>
+                  <th className="py-1 px-1 text-center" style={{ borderBottom: "1px solid #ddd", borderRight: "1px solid #eee", width: "38px" }}>수량</th>
+                  <th className="py-1 px-2 text-right" style={{ borderBottom: "1px solid #ddd", borderRight: "1px solid #eee" }}>단가</th>
+                  <th className="py-1 px-2 text-right" style={{ borderBottom: "1px solid #ddd", borderRight: "1px solid #eee" }}>공급가액</th>
+                  <th className="py-1 px-2 text-right" style={{ borderBottom: "1px solid #ddd" }}>세액</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="text-[11px]" style={{ color: "#1a1a1a" }}>
+                  <td className="py-2 px-1 text-center font-mono" style={{ borderRight: "1px solid #eee" }}>{inv.issue_date?.slice(5) || "—"}</td>
+                  <td className="py-2 px-2" style={{ borderRight: "1px solid #eee" }}>
+                    {inv.label || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || EXPENSE_CATEGORIES.find((c: any) => c.value === inv.expense_category)?.label || "—"}
+                  </td>
+                  <td className="py-2 px-1 text-center font-mono" style={{ borderRight: "1px solid #eee" }}>{inv.item_quantity || 1}</td>
+                  <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{Number(inv.item_unit_price || supplyAmt).toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{supplyAmt.toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right font-mono">₩{taxAmt.toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* 합계금액 · 영수/청구 */}
+            <div className="flex items-stretch text-[11px]" style={{ borderTop: "2px solid " + formColor }}>
+              <div className="px-3 py-2 font-semibold flex items-center" style={{ background: "#f6f6f6", color: "#555", borderRight: "1px solid #ddd", width: "88px" }}>합계금액</div>
+              <div className="px-3 py-2 flex-1 font-black font-mono text-[14px] flex items-center" style={{ color: formColor }}>₩{totalAmt.toLocaleString()}</div>
+              <div className="px-4 py-2 flex items-center gap-1.5 font-semibold" style={{ borderLeft: "1px solid #ddd", color: "#333" }}>
+                이 금액을
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: formTint, color: formColor }}>{isBilled ? "청구" : "영수"}</span>
+                함
+              </div>
+            </div>
+          </div>
+
+          {/* 내부 참고 정보(양식 밖) — 프로젝트/비목 */}
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[var(--text-muted)]">
+            <span>프로젝트: <b className="text-[var(--text)]">{inv.deals?.name || "—"}</b></span>
+            <span>비목: <b className="text-[var(--text)]">{EXPENSE_CATEGORIES.find(c => c.value === inv.expense_category)?.label || inv.label || "—"}</b></span>
           </div>
 
           {/* Actions */}
