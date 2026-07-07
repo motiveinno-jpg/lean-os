@@ -13,6 +13,7 @@ import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget"
 import { getOrCreateChecklist } from "@/lib/closing";
 import { CashPulseHeader } from "./_components/CashPulseHeader";
 import { FlowTrend, type FlowLens } from "./_components/FlowTrend";
+import { ReportsTabs } from "../_components/ReportsTabs";
 import { FlowSchedule } from "./_components/FlowSchedule";
 import { FlowMatrix } from "./_components/FlowMatrix";
 
@@ -308,6 +309,7 @@ export default function BusinessFlowPage() {
 
   return (
     <div className="space-y-6">
+      <ReportsTabs />
       {/* ═══ 툴바 — 뷰 전환(좌) + 기간·기본값 저장(우). 타이틀은 공통 헤더바가 표시 ═══ */}
       <div className="no-print flex flex-wrap items-center justify-between gap-2">
         {/* 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) / 월별표 */}

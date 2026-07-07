@@ -8,6 +8,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { getMonthlyBudgetOverview, getCostBreakdown, getCostCategoryDetail, type MonthlyBudget, type CostBreakdown } from "@/lib/cash-budget";
 import { CellDetail } from "../flow/_components/CellDetail";
 import CostsChart from "./costs-chart";
+import { ReportsTabs } from "../_components/ReportsTabs";
 
 /* ------------------------------------------------------------------ */
 /*  회계 › 고정비 · 변동비                                              */
@@ -101,6 +102,7 @@ export default function CostsPage() {
 
   return (
     <div>
+      <ReportsTabs />
       {/* 툴바 — 연도 필터. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
       <div className="page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
         <select
