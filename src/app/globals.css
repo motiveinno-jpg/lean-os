@@ -427,16 +427,13 @@ input, textarea, [contenteditable="true"] {
   padding-right: 1rem;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
-  /* 2026-07-07 라운드11 — 메인 헤더/사이드바(.chrome-glass)와 동일한 유리 크롬으로 통일.
-     예전 blur(12px)+캔버스색 90% 조합이 셸의 crome-glass(blur18+saturate1.5)와 달라
-     "이 부분만 디자인 미적용"처럼 보이던 문제. */
-  background-color: var(--chrome-bg);
-  -webkit-backdrop-filter: blur(18px) saturate(1.5);
-  backdrop-filter: blur(18px) saturate(1.5);
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-}
-@supports (not (backdrop-filter: blur(1px))) and (not (-webkit-backdrop-filter: blur(1px))) {
-  .page-sticky-header { background-color: var(--bg-card); }
+  /* 2026-07-08 라운드12 — chrome-glass(blur18+saturate1.5) 의존을 걷어냄. 이 바는 셸 크롬(헤더·
+     사이드바)과 달리 페이지 콘텐츠와 함께 스크롤되는 요소라 position:sticky + backdrop-filter 조합이
+     브라우저에 따라 블러가 아예 안 먹혀 완전 불투명 흰 바처럼 보이는 사례가 실측 확인됨(스크린샷).
+     검증 없이 backdrop-filter 에 의존하는 대신, 앱 전체 300여 곳에서 이미 확실히 동작 중인
+     .glass-card 레시피(반투명 배경 + 인셋 하이라이트, 블러 불필요)로 교체 — 항상 보장되는 통일. */
+  background: var(--glass-bg);
+  box-shadow: inset 0 -1px 0 var(--glass-border);
 }
 @media (min-width: 640px) {
   .page-sticky-header {
