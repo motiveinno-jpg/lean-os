@@ -7,6 +7,9 @@ import { getCurrentUser, clearCurrentUserCache } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
+// 개인 계정 영역 — 회사 설정에서 마이페이지로 이관(2026-07-08). 컴포넌트 위치는 유지, 마운트만 옮김.
+import { AccountTab } from "../settings/_components/AccountTab";
+import { NotificationsTab } from "../settings/_components/NotificationsTab";
 
 const EMP_STATUS: Record<string, { label: string; color: string }> = {
   invited: { label: "초대중", color: "text-[var(--warning)]" },
@@ -302,6 +305,12 @@ export default function MyPage() {
           </div>
         )}
       </div>
+
+      {/* 계정·보안 — 비밀번호 변경 (회사 설정에서 이관) */}
+      <AccountTab />
+
+      {/* 알림 설정 — 내 알림 수신 채널·이벤트 (회사 설정에서 이관) */}
+      {companyId && <NotificationsTab companyId={companyId} />}
 
       {/* 회원 탈퇴 */}
       <div className="glass-card p-6 border border-[var(--danger)]/30">

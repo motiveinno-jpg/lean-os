@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { friendlyError } from "@/lib/friendly-error";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { encryptCredential, decryptJsonCredentials } from "@/lib/crypto";
@@ -20,18 +20,65 @@ import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
 import { TaxAutomationTab } from "./_components/TaxAutomationTab";
 import { CertificateManagementTab } from "./_components/CertificateManagementTab";
 import { BankIntegrationTab } from "./_components/BankIntegrationTab";
-import { NotificationsTab } from "./_components/NotificationsTab";
 import { ApprovalPolicyTab } from "./_components/ApprovalPolicyTab";
 import { TeamManagement } from "./_components/TeamManagement";
 import { DepartmentsTab } from "./_components/DepartmentsTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { DealClassificationManager } from "./_components/DealClassificationManager";
-import { AccountTab } from "./_components/AccountTab";
 import { DataResetTab } from "./_components/DataResetTab";
 import { CompanyInfoTab } from "./_components/CompanyInfoTab";
 import { AccountingClosingTab } from "./_components/AccountingClosingTab";
+// 계정·알림(개인)은 마이페이지로 이관됨(2026-07-08) — 여기선 import/렌더 제거.
 
-type MainTab = "general" | "account" | "company" | "approval" | "bank" | "tax" | "certificate" | "notifications" | "danger" | "hr_attendance";
+// ── 2026-07-08 회사 설정 IA 재편 — 6개 그룹 × 세부탭(2단 네비). 잡동사니였던 "일반 설정" 해체,
+//    계정과목·회계마감을 회계 그룹으로 노출, 개인(계정·알림)은 마이페이지로 분리. ──
+type LeafKey =
+  | "company-info" | "team"                       // 회사 기본
+  | "cash" | "chart" | "closing" | "tax"          // 회계·세무
+  | "bank" | "certificate"                        // 연동·인증
+  | "departments" | "attendance"                  // 인사·근태
+  | "approval" | "deal" | "forms"                 // 업무 규칙
+  | "data";                                       // 시스템
+
+const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: LeafKey; label: string }[] }[] = [
+  { key: "basic", label: "회사 기본", icon: "M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 7h2M9 11h2M9 15h2M13 7h2M13 11h2M13 15h2", tabs: [
+    { key: "company-info", label: "회사정보" },
+    { key: "team", label: "팀·권한" },
+  ] },
+  { key: "accounting", label: "회계·세무", icon: "M9 7h6m-6 4h6m-6 4h4M5 3h14a1 1 0 011 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 011-1z", tabs: [
+    { key: "cash", label: "자금·통장" },
+    { key: "chart", label: "계정과목" },
+    { key: "closing", label: "회계마감" },
+    { key: "tax", label: "세무자동화" },
+  ] },
+  { key: "integration", label: "연동·인증", icon: "M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5", tabs: [
+    { key: "bank", label: "은행연동" },
+    { key: "certificate", label: "인증서" },
+  ] },
+  { key: "hr", label: "인사·근태", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z", tabs: [
+    { key: "departments", label: "부서" },
+    { key: "attendance", label: "근태·가산수당" },
+  ] },
+  { key: "rules", label: "업무 규칙", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", tabs: [
+    { key: "approval", label: "승인·결재" },
+    { key: "deal", label: "딜 분류" },
+    { key: "forms", label: "회사 양식" },
+  ] },
+  { key: "system", label: "시스템", icon: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m-1 0v14a1 1 0 01-1 1H9a1 1 0 01-1-1V6", tabs: [
+    { key: "data", label: "데이터 관리" },
+  ] },
+];
+const ALL_LEAVES: LeafKey[] = SETTINGS_GROUPS.flatMap((g) => g.tabs.map((t) => t.key));
+// 옛 ?tab= 딥링크 호환 — 재편 전 키를 새 leaf 로 매핑("mypage"=마이페이지로 이관돼 리다이렉트).
+const TAB_COMPAT: Record<string, LeafKey | "mypage"> = {
+  general: "team",          // 합류요청 알림이 팀관리(승인 UI)로 연결되던 링크
+  account: "mypage", notifications: "mypage",
+  company: "company-info", approval: "approval", bank: "bank", tax: "tax",
+  certificate: "certificate", hr_attendance: "attendance", danger: "data",
+};
+function groupOfLeaf(leaf: LeafKey): string {
+  return SETTINGS_GROUPS.find((g) => g.tabs.some((t) => t.key === leaf))?.key || "basic";
+}
 
 export default function SettingsPage() {
   const { role } = useUser();
@@ -41,12 +88,29 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const searchParams = useSearchParams();
-  const VALID_TABS: MainTab[] = ["general", "account", "company", "approval", "bank", "tax", "certificate", "notifications", "danger", "hr_attendance"];
-  const initialTab = (() => {
-    const t = searchParams?.get("tab");
-    return t && (VALID_TABS as string[]).includes(t) ? (t as MainTab) : "general";
+  const router = useRouter();
+  const rawTab = searchParams?.get("tab") || "";
+  // 옛 키가 마이페이지로 이관된 경우(계정·알림) → 마이페이지로 리다이렉트
+  useEffect(() => {
+    if (rawTab && TAB_COMPAT[rawTab] === "mypage") router.replace("/mypage");
+  }, [rawTab, router]);
+  const initialTab: LeafKey = (() => {
+    if (ALL_LEAVES.includes(rawTab as LeafKey)) return rawTab as LeafKey;
+    const mapped = TAB_COMPAT[rawTab];
+    if (mapped && mapped !== "mypage") return mapped;
+    return "company-info";
   })();
-  const [mainTab, setMainTab] = useState<MainTab>(initialTab);
+  const [tab, setTabState] = useState<LeafKey>(initialTab);
+  // 탭 변경 시 URL ?tab= 동기화(북마크·뒤로가기 유지, 페이지 리로드 없음)
+  const setTab = (next: LeafKey) => {
+    setTabState(next);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", next);
+      window.history.replaceState(null, "", url.toString());
+    }
+  };
+  const activeGroup = groupOfLeaf(tab);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [balance, setBalance] = useState("");
   const [fixedCost, setFixedCost] = useState("");
@@ -158,19 +222,6 @@ export default function SettingsPage() {
 
   const totalBankBalance = bankAccounts.reduce((s: number, a: BankAccount) => s + Number(a.balance || 0), 0);
 
-  const mainTabs: { key: MainTab; label: string; icon: string }[] = [
-    { key: "general", label: "일반 설정", icon: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" },
-    { key: "account", label: "계정", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM5 21a7 7 0 0114 0" },
-    { key: "company", label: "회사정보", icon: "M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 7h2M9 11h2M9 15h2M13 7h2M13 11h2M13 15h2" },
-    { key: "approval", label: "승인정책", icon: "M12 3l7 4v5c0 4-3 7-7 9-4-2-7-5-7-9V7l7-4zM9 12l2 2 4-4" },
-    { key: "hr_attendance", label: "근태/가산수당", icon: "M12 8v4l3 2M22 12a10 10 0 11-20 0 10 10 0 0120 0z" },
-    { key: "bank", label: "은행연동", icon: "M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6" },
-    { key: "tax", label: "세무자동화", icon: "M6 3h12a1 1 0 011 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 011-1zM9 8h6M9 12h6M9 16h4" },
-    { key: "certificate", label: "인증서", icon: "M12 15a4 4 0 100-8 4 4 0 000 8zM8.5 13.5L7 22l5-3 5 3-1.5-8.5" },
-    { key: "notifications", label: "알림", icon: "M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0" },
-    { key: "danger", label: "데이터 관리", icon: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m-1 0v14a1 1 0 01-1 1H9a1 1 0 01-1-1V6" },
-  ];
-
   if (pageLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -182,47 +233,64 @@ export default function SettingsPage() {
     );
   }
 
+  const currentGroup = SETTINGS_GROUPS.find((g) => g.key === activeGroup) || SETTINGS_GROUPS[0];
+
   return (
     <div className="space-y-6">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
-      {/* Main Tab Bar — seg-bar 필형 · 아이콘 + 라벨 (컴팩트 툴바 행) */}
-      <div className="page-sticky-header mb-6">
-        <div
-          className="seg-bar flex w-full overflow-x-auto scrollbar-hide"
-          style={{ WebkitOverflowScrolling: "touch" }}
-        >
-          {mainTabs.map((t) => {
-            const active = mainTab === t.key;
-            const danger = t.key === "danger";
+      {/* 상단 그룹 탭(1단) — 아이콘 + 라벨. 클릭 시 해당 그룹 첫 세부탭으로 이동 */}
+      <div className="page-sticky-header mb-4">
+        <div className="seg-bar flex w-full overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch" }}>
+          {SETTINGS_GROUPS.map((g) => {
+            const active = activeGroup === g.key;
+            const danger = g.key === "system";
             return (
               <button
-                key={t.key}
-                ref={(el) => {
-                  if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-                }}
-                onClick={() => setMainTab(t.key)}
+                key={g.key}
+                ref={(el) => { if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }); }}
+                onClick={() => setTab(g.tabs[0].key)}
                 className={`seg-item group inline-flex items-center justify-center gap-1.5 shrink-0 md:grow md:basis-0 min-h-[44px] ${
-                  active
-                    ? `seg-item-active ${danger ? "!bg-[var(--danger)]" : ""}`
-                    : danger ? "hover:!text-[var(--danger)]" : ""
+                  active ? `seg-item-active ${danger ? "!bg-[var(--danger)]" : ""}` : danger ? "hover:!text-[var(--danger)]" : ""
                 }`}
               >
                 <svg
                   className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-white" : "text-[var(--text-dim)] group-hover:text-[var(--text-muted)]"}`}
                   fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"
                 >
-                  <path d={t.icon} />
+                  <path d={g.icon} />
                 </svg>
-                <span>{t.label}</span>
+                <span>{g.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* ═══ General Tab ═══ */}
-      {mainTab === "general" && (
+      {/* 하위 세부 탭(2단) — 현재 그룹의 탭들. 그룹에 탭이 2개 이상일 때만 표시 */}
+      {currentGroup.tabs.length > 1 && (
+        <div className="flex flex-wrap gap-1.5 -mt-2">
+          {currentGroup.tabs.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${
+                  active
+                    ? "bg-[var(--primary)] text-white shadow-sm"
+                    : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]"
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══ 자금·통장 (구 일반설정: 현금현황 + 법인통장 + 비용라우팅) ═══ */}
+      {tab === "cash" && (
         <>
           {/* Cash Snapshot */}
           <div className="glass-card p-6">
@@ -441,18 +509,6 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* Team Management */}
-          <TeamManagement companyId={companyId} />
-
-          {/* Departments */}
-          <DepartmentsTab companyId={companyId} />
-
-          {/* 회사 양식 PDF (오버레이) */}
-          <FormTemplateManager companyId={companyId} />
-
-          {/* Deal Classifications */}
-          <DealClassificationManager companyId={companyId} />
-
           {/* Routing Rules */}
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-4">
@@ -541,47 +597,46 @@ export default function SettingsPage() {
         </>
       )}
 
-      {/* ═══ Account Tab ═══ */}
-      {mainTab === "account" && <AccountTab />}
+      {/* ═══ 회사 기본 — 회사정보 ═══ */}
+      {tab === "company-info" && <CompanyInfoTab companyId={companyId} />}
 
-      {/* ═══ Company Info Tab ═══ */}
-      {mainTab === "company" && (
-        <div className="space-y-6">
-          <CompanyInfoTab companyId={companyId} />
-          {/* 계약서 양식 관리는 전자계약 > 양식 관리 탭으로 이관됨 (2026-07-01) */}
-          {companyId && <ChartOfAccountsManager companyId={companyId} />}
-        </div>
-      )}
+      {/* ═══ 회사 기본 — 팀·권한 ═══ */}
+      {tab === "team" && <TeamManagement companyId={companyId} />}
 
-      {/* ═══ Approval Policy Tab ═══ */}
-      {mainTab === "approval" && <ApprovalPolicyTab companyId={companyId} />}
+      {/* ═══ 회계·세무 — 계정과목 ═══ */}
+      {tab === "chart" && companyId && <ChartOfAccountsManager companyId={companyId} />}
 
-      {/* ═══ Bank Integration Tab ═══ */}
-      {mainTab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
+      {/* ═══ 회계·세무 — 회계마감 ═══ */}
+      {tab === "closing" && <AccountingClosingTab companyId={companyId} />}
 
-      {/* ═══ Tax Automation Tab ═══ */}
-      {mainTab === "tax" && (
-        <div className="space-y-6">
-          <AccountingClosingTab companyId={companyId} />
-          <TaxAutomationTab companyId={companyId} />
-        </div>
-      )}
+      {/* ═══ 회계·세무 — 세무자동화 ═══ */}
+      {tab === "tax" && <TaxAutomationTab companyId={companyId} />}
 
-      {/* ═══ Certificate Management Tab ═══ */}
-      {mainTab === "certificate" && <CertificateManagementTab companyId={companyId} />}
+      {/* ═══ 연동·인증 — 은행연동 ═══ */}
+      {tab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
 
-      {/* ═══ Notifications Tab ═══ */}
-      {mainTab === "notifications" && <NotificationsTab companyId={companyId} />}
+      {/* ═══ 연동·인증 — 인증서 ═══ */}
+      {tab === "certificate" && <CertificateManagementTab companyId={companyId} />}
 
-      {/* ═══ Data Management (Danger Zone) ═══ */}
-      {mainTab === "danger" && companyId && <DataResetTab companyId={companyId} />}
+      {/* ═══ 인사·근태 — 부서 ═══ */}
+      {tab === "departments" && <DepartmentsTab companyId={companyId} />}
 
-      {mainTab === "hr_attendance" && companyId && <HrAttendanceSettingsPanel companyId={companyId} />}
+      {/* ═══ 인사·근태 — 근태·가산수당 ═══ */}
+      {tab === "attendance" && companyId && <HrAttendanceSettingsPanel companyId={companyId} />}
+
+      {/* ═══ 업무 규칙 — 승인·결재 정책 ═══ */}
+      {tab === "approval" && <ApprovalPolicyTab companyId={companyId} />}
+
+      {/* ═══ 업무 규칙 — 딜 분류 ═══ */}
+      {tab === "deal" && <DealClassificationManager companyId={companyId} />}
+
+      {/* ═══ 업무 규칙 — 회사 양식 PDF ═══ */}
+      {tab === "forms" && <FormTemplateManager companyId={companyId} />}
+
+      {/* ═══ 시스템 — 데이터 관리 ═══ */}
+      {tab === "data" && companyId && <DataResetTab companyId={companyId} />}
+
       {confirmElement}
     </div>
   );
 }
-
-// ═══════════════════════════════════════════
-// Notifications Tab — 채널별 + 이벤트별 세분화
-// ═══════════════════════════════════════════

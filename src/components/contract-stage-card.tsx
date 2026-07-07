@@ -386,13 +386,13 @@ export function ContractStageCard({
           <label className="block text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
             계약서 양식 선택
           </label>
-          <Link href="/settings?tab=company" className="text-[10px] text-[var(--primary)] hover:underline">
+          <Link href="/settings?tab=forms" className="text-[10px] text-[var(--primary)] hover:underline">
             양식 관리 →
           </Link>
         </div>
         {templates.length === 0 ? (
           <div className="text-[11px] text-[var(--text-dim)] py-3 text-center bg-[var(--bg)] rounded border border-dashed border-[var(--border)]">
-            사용 가능한 양식이 없습니다. <Link href="/settings?tab=company" className="text-[var(--primary)] underline">양식 추가</Link>
+            사용 가능한 양식이 없습니다. <Link href="/settings?tab=forms" className="text-[var(--primary)] underline">양식 추가</Link>
           </div>
         ) : (
           <select

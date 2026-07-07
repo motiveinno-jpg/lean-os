@@ -25,7 +25,7 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   document_share: (id) => `/documents?id=${id}`,
   signature_request: () => `/signatures`,
   signature: (id) => `/contracts/signed/${id}`,
-  company_join_request: () => `/settings?tab=general`,
+  company_join_request: () => `/settings?tab=team`,
   hr_contract_package: () => `/my-contracts`,
   leave_request: () => `/attendance?section=leave&focus=pending`,
   overtime_request: () => `/attendance?section=overtime`,
@@ -45,7 +45,7 @@ export const TYPE_HREF: Record<string, (id: string | null) => string> = {
   contract_expiry: (id) => id ? `/documents?id=${id}` : `/documents`,
   approval: () => `/approvals`,
   chat: () => `/chat`,
-  company_join_request: () => `/settings?tab=general`,
+  company_join_request: () => `/settings?tab=team`,
 };
 
 export function stageToAction(stage: string | null | undefined): "quote" | "contract" {
