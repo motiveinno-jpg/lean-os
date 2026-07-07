@@ -71,6 +71,8 @@ const CSV_FIELD_MAP: Record<string, string> = {
   "분류": "classification", "classification": "classification",
   "사업자번호": "businessNumber", "business_number": "businessNumber", "businessnumber": "businessNumber",
   "대표자": "representative", "representative": "representative",
+  "업태": "businessType", "business_type": "businessType", "businesstype": "businessType",
+  "종목": "businessItem", "business_item": "businessItem", "businessitem": "businessItem",
   "담당자": "contactName", "contact_name": "contactName", "contactname": "contactName",
   "이메일": "contactEmail", "contact_email": "contactEmail", "contactemail": "contactEmail", "email": "contactEmail",
   "연락처": "contactPhone", "contact_phone": "contactPhone", "contactphone": "contactPhone", "phone": "contactPhone",
@@ -593,6 +595,8 @@ export default function PartnersPage() {
             classification: row.classification || undefined,
             businessNumber: row.businessNumber || undefined,
             representative: row.representative || undefined,
+            businessType: row.businessType || undefined,
+            businessItem: row.businessItem || undefined,
             contactName: row.contactName || undefined,
             contactEmail: row.contactEmail || undefined,
             contactPhone: row.contactPhone || undefined,
@@ -646,8 +650,8 @@ export default function PartnersPage() {
   }, [importResult]);
 
   const downloadCSVTemplate = useCallback(() => {
-    const headers = ["이름", "구분", "분류", "사업자번호", "대표자", "담당자", "이메일", "연락처", "주소", "은행명", "계좌번호", "태그", "메모"];
-    const sample = ["예시상사", "client", "원자재", "123-45-67890", "홍길동", "김담당", "kim@example.com", "010-1234-5678", "서울시 강남구", "신한은행", "110-123-456789", "VIP, 장기거래", "주력 고객"];
+    const headers = ["이름", "구분", "분류", "사업자번호", "대표자", "업태", "종목", "담당자", "이메일", "연락처", "주소", "은행명", "계좌번호", "태그", "메모"];
+    const sample = ["예시상사", "client", "원자재", "123-45-67890", "홍길동", "도소매", "전자제품", "김담당", "kim@example.com", "010-1234-5678", "서울시 강남구", "신한은행", "110-123-456789", "VIP, 장기거래", "주력 고객"];
     const csv = [headers, sample].map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);

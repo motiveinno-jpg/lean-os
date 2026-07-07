@@ -2413,7 +2413,7 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-bold mb-1">카드 거래 매핑</h3>
         <div className="text-xs text-[var(--text-muted)] mb-4">
-          {tx.transaction_date} · {tx.merchant_name || '알 수 없음'} · -₩{Number(tx.amount).toLocaleString()}
+          {tx.transaction_date} · {tx.merchant_name || '알 수 없음'} · {Number(tx.amount) < 0 ? <span className="text-green-500">+₩{Math.abs(Number(tx.amount)).toLocaleString()} (취소/환불)</span> : `-₩${Number(tx.amount).toLocaleString()}`}
         </div>
 
         <div className="space-y-3 mb-4">

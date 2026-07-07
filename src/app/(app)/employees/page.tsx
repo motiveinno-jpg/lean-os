@@ -2870,6 +2870,30 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   );
                 })}
               </tbody>
+              {/* 직원 QA #13 — 3개 총계만이 아니라 컬럼별 합계 행 추가 */}
+              <tfoot>
+                {(() => {
+                  const its = preview.items;
+                  const sum = (f: (x: any) => number) => its.reduce((s, x) => s + Number(f(x) || 0), 0);
+                  return (
+                    <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-semibold">
+                      <td className="px-4 py-3 text-sm">합계 ({its.length}명)</td>
+                      <td className="px-4 py-3 text-sm text-right">{fmtKRW(sum((x) => x.baseSalary))}</td>
+                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.nonTaxableAmount || 0))}</td>
+                      <td className="px-4 py-3 text-sm text-right">{fmtKRW(preview.totalGross)}</td>
+                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.nationalPension))}</td>
+                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.healthInsurance))}</td>
+                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.longTermCareInsurance || 0))}</td>
+                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.employmentInsurance))}</td>
+                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.incomeTax))}</td>
+                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.localIncomeTax))}</td>
+                      <td className="px-4 py-3 text-sm text-right text-[var(--danger)]">-{fmtKRW(preview.totalDeductions)}</td>
+                      <td className="px-4 py-3 text-sm text-right text-[var(--success)]">{fmtKRW(preview.totalNet)}</td>
+                      <td className="px-4 py-3"></td>
+                    </tr>
+                  );
+                })()}
+              </tfoot>
             </table></div>
           </div>
         </>
