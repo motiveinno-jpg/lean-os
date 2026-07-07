@@ -38,10 +38,10 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { ActionInbox } from "@/components/action-inbox";
+import { MyWorkSection } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
-import { DashboardAnalytics } from "@/components/dashboard-analytics";
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -92,8 +92,6 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
 
   const [userLoadFailed, setUserLoadFailed] = useState(false);
-  // granter 분석 뷰(기본) / 기존 경영 위젯 뷰 토글 (owner)
-  const [dashView, setDashView] = useState<'analytics' | 'manage'>('analytics');
 
   useEffect(() => {
     let retries = 0;
@@ -534,6 +532,9 @@ export default function DashboardPage() {
             })()}
           </div>
 
+          {/* 내 업무 — 상황판 핵심(내가 처리/담당하는 것 요약+바로가기). 관리자·직원 공통, 권한 무관 노출 */}
+          {userId && <MyWorkSection companyId={companyId} userId={userId} />}
+
           {/* (1) KPI 4카드 행 — 잔고·매출·운영비·미수금 + kpi-callout */}
           <DashboardSiyanHero
             balance={cashPulse?.currentBalance ?? null}
@@ -573,25 +574,16 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ═══ 분석(granter) / 경영(기존 위젯) 뷰 토글 — owner 전용(관리자는 경영탭 없음) ═══ */}
-      {role === "owner" && (
-        <div className="seg-bar mb-4 w-fit">
-          {([['analytics', '분석'], ['manage', '경영']] as ['analytics' | 'manage', string][]).map(([k, label]) => (
-            <button key={k} onClick={() => setDashView(k)}
-              className={`seg-item ${dashView === k ? 'seg-item-active' : ''}`}>
-              {label}
-            </button>
-          ))}
+      {/* ═══ 2026-07-08 분석 뷰 토글·DashboardAnalytics 제거 — 추세·과거·미래는 분석 메뉴(/reports)로 일원화.
+           대시보드는 현재 상황·내 업무 중심. 심층 분석은 아래 링크로 이동. ═══ */}
+      {(role === "owner" || role === "admin") && (
+        <div className="flex justify-end mb-4">
+          <Link href="/reports/summary" className="btn-secondary btn-sm">📊 상세 분석·추이 보기 →</Link>
         </div>
       )}
 
-      {/* ═══ 분석 뷰 (granter 스타일) — owner 는 dashView 따라, admin 은 항상 ═══ */}
-      {((role === "owner" && dashView === 'analytics') || role === "admin") && companyId && (
-        <DashboardAnalytics companyId={companyId} />
-      )}
-
-      {/* ═══ 경영 뷰 — CEO 커맨드 센터 (2026-06-12 전면 재설계). owner 전용. ═══ */}
-      {role === "owner" && dashView === 'manage' && (<>
+      {/* ═══ 경영 종합 — CEO 커맨드 센터(액션·펄스·목표·리스크). owner 전용, 상시 노출. ═══ */}
+      {role === "owner" && (<>
       <div className="mb-4">
         {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
         <div className="mb-3">
@@ -3021,6 +3013,8 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
 
   return (
     <div className="space-y-5">
+      {/* 내 업무 — 관리자·직원 동일 상황판. 권한 필요한 회사 현황은 이 화면에 없음(직원 노출 X) */}
+      {companyId && userId && <MyWorkSection companyId={companyId} userId={userId} />}
       {/* 인사말 히어로 제거(라운드6.5) — 고정 헤더바가 인사·프로필을 대체. 근무 상태 칩은 아래 카드에 동일 표시 */}
       <div className="grid gap-5 lg:grid-cols-3 items-start">
       {/* ─ 주 콘텐츠 (좌 2/3) — 오늘 할 일: 출퇴근·결재·서명·휴가 통합 단일 카드 ─ */}
