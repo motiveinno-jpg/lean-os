@@ -49,6 +49,10 @@ export default function BankPage() {
   const [mapCat, setMapCat] = useState("");
   // 직원 QA — 계정과목 매핑을 전표입력처럼 검색으로 (스크롤 대신 타이핑)
   const [mapAcctQuery, setMapAcctQuery] = useState("");
+  // 직원 QA 통장(그랜터) — 거래별 사유·태그·사용직원
+  const [mapMemo, setMapMemo] = useState("");
+  const [mapTags, setMapTags] = useState("");
+  const [mapEmployee, setMapEmployee] = useState("");
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const [syncing, setSyncing] = useState(false);
@@ -114,8 +118,10 @@ export default function BankPage() {
   //   고정비 체크: is_fixed_cost 저장 + 거래처 규칙 학습(learnRuleFromMapping) → 같은 거래처는 다음부터 자동 체크.
   const [mapFixed, setMapFixed] = useState(false);
   const mapMut = useMutation({
-    mutationFn: async ({ id, category, isFixedCost }: { id: string; category: string; isFixedCost: boolean }) => {
+    mutationFn: async ({ id, category, isFixedCost, memo, tags, employeeId }: { id: string; category: string; isFixedCost: boolean; memo?: string; tags?: string[]; employeeId?: string | null }) => {
       await mapBankTransaction(id, { category: category || null, classification: category || null, isFixedCost, mappedBy: userId || "" });
+      // 직원 QA 통장(그랜터) — 사유·태그·사용직원 함께 저장
+      await (supabase as any).from("bank_transactions").update({ memo: memo || null, tags: tags ?? [], used_by_employee_id: employeeId || null }).eq("id", id);
     },
     onSuccess: () => {
       toast("매핑 완료", "success");
@@ -236,7 +242,7 @@ export default function BankPage() {
     queryFn: async () => {
       // accountNo 는 client-side 필터 (raw_data->>accountNo PostgREST eq 불안정 — transactions 페이지와 동일 패턴)
       let q = db.from("bank_transactions")
-        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, is_fixed_cost")
+        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
         .eq("company_id", companyId)
         .order("transaction_date", { ascending: false })
         .limit(selectedAccountNo || hasTxRange ? 2000 : 50);
@@ -262,6 +268,16 @@ export default function BankPage() {
     queryKey: ["bank-page-coa-accounts", companyId],
     queryFn: async () => {
       const { data } = await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code");
+      return (data || []) as any[];
+    },
+    enabled: !!companyId, staleTime: 300_000,
+  });
+
+  // 직원 QA 통장(그랜터) — 사용직원 선택용 재직 직원 목록
+  const { data: bankEmployees = [] } = useQuery({
+    queryKey: ["bank-page-employees", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("employees").select("id, name").eq("company_id", companyId).eq("status", "active").order("name");
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -698,7 +714,7 @@ export default function BankPage() {
                       <td className="px-6 py-3.5 relative">
                         <button
                           type="button"
-                          onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); setMapFixed(!!tx.is_fixed_cost); setMapAcctQuery(""); }}
+                          onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); setMapFixed(!!tx.is_fixed_cost); setMapAcctQuery(""); setMapMemo(tx.memo || ""); setMapTags((tx.tags || []).join(", ")); setMapEmployee(tx.used_by_employee_id || ""); }}
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${m.bg} ${m.text} cursor-pointer hover:ring-1 hover:ring-current`}
                           title="클릭해서 바로 매핑/무시 처리"
                         >{m.label}</button>
@@ -731,8 +747,17 @@ export default function BankPage() {
                                 <input type="checkbox" checked={mapFixed} onChange={(e) => setMapFixed(e.target.checked)} className="accent-[var(--warning)]" />
                                 고정비로 표시 <span className="text-[var(--text-dim)]">(매월 반복 지출)</span>
                               </label>
+                              <input value={mapMemo} onChange={(e) => setMapMemo(e.target.value)} placeholder="사유 / 메모"
+                                className="w-full px-2 py-1.5 mb-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]" />
+                              <input value={mapTags} onChange={(e) => setMapTags(e.target.value)} placeholder="태그 (쉼표로 구분)"
+                                className="w-full px-2 py-1.5 mb-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]" />
+                              <select value={mapEmployee} onChange={(e) => setMapEmployee(e.target.value)}
+                                className="w-full px-2 py-1.5 mb-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]">
+                                <option value="">사용직원 선택 (선택)</option>
+                                {bankEmployees.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                              </select>
                               <div className="flex gap-1.5">
-                                <button type="button" onClick={() => mapMut.mutate({ id: tx.id, category: mapCat, isFixedCost: mapFixed })} disabled={mapMut.isPending}
+                                <button type="button" onClick={() => mapMut.mutate({ id: tx.id, category: mapCat, isFixedCost: mapFixed, memo: mapMemo, tags: mapTags.split(",").map((s) => s.trim()).filter(Boolean), employeeId: mapEmployee || null })} disabled={mapMut.isPending}
                                   className="flex-1 px-2 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white disabled:opacity-50 hover:brightness-110">매핑 완료</button>
                                 <button type="button" onClick={() => ignoreMut.mutate(tx.id)} disabled={ignoreMut.isPending}
                                   className="px-2 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">무시</button>
