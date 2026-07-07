@@ -6,11 +6,11 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Sidebar } from "@/components/sidebar";
 import { GlobalSearch, openGlobalSearch } from "@/components/global-search";
-import { Avatar } from "@/components/avatar";
 import { getRouteCrumb } from "@/lib/route-labels";
 import { FloatingMessenger } from "@/components/floating-messenger";
 import { MenuGuide } from "@/components/menu-guide";
-// NotificationCenter import 제거 — 알림은 사이드바 페이지(/notifications)로 통합됨
+import { NotificationBell } from "@/components/notification-bell";
+import { AccountChip } from "@/components/account-chip";
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon } from "@/components/brand-logo";
 import { UserProvider, useUser } from "@/components/user-context";
@@ -185,28 +185,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const isLimitedRole = role === "partner" || role === "employee";
   const [mutationError, setMutationError] = useState<string | null>(null);
 
-  // 라운드6.5 TeamHub 헤더바 — 브레드크럼 + 알림 벨 배지
+  // 라운드6.5 TeamHub 헤더바 — 브레드크럼. 알림 벨 배지/최근목록은 NotificationBell 컴포넌트가 자체 관리.
   const crumb = getRouteCrumb(pathname);
-  const roleLabel = role === "owner" ? "대표" : role === "admin" ? "관리자" : role === "partner" ? "파트너" : "직원";
-  const [bellUnread, setBellUnread] = useState(0);
-  useEffect(() => {
-    let alive = true;
-    async function loadBell() {
-      if (!user) return;
-      try {
-        const { count } = await (supabase as any)
-          .from("notifications")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("is_read", false);
-        if (alive) setBellUnread(count ?? 0);
-      } catch {}
-    }
-    loadBell();
-    const iv = setInterval(loadBell, 60000);
-    window.addEventListener("sidebar-refresh-badges", loadBell);
-    return () => { alive = false; clearInterval(iv); window.removeEventListener("sidebar-refresh-badges", loadBell); };
-  }, [user, pathname]);
 
   // P0-D: 모바일 햄버거 first-time hint — 첫 진입 한 번만 펄스 + 작은 툴팁.
   //   localStorage 키 'hint:hamburger' 가 비어있을 때만 활성, 클릭하면 dismiss.
@@ -368,40 +348,14 @@ function AppContent({ children }: { children: React.ReactNode }) {
           </svg>
         </button>
 
-        {/* 알림 벨 */}
-        <Link
-          href="/notifications"
-          className="relative p-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition shrink-0"
-          aria-label="알림"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 01-3.46 0" />
-          </svg>
-          {bellUnread > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
-              {bellUnread > 99 ? "99+" : bellUnread}
-            </span>
-          )}
-        </Link>
+        {/* 알림 벨 — 클릭 시 현재 페이지 유지, 최근 알림 팝오버 (전체보기 → /notifications) */}
+        <NotificationBell />
 
         {/* 이 메뉴 도움말 '?' 토글 */}
         <MenuGuide />
 
-        {/* 프로필 칩 — 아바타 + 이름/역할 (레퍼런스 우상단), 클릭 → 마이페이지 */}
-        <Link
-          href="/mypage"
-          className="flex items-center gap-2 md:pl-2 md:pr-3 md:py-1.5 rounded-full md:bg-[var(--bg-card)] md:border md:border-[var(--border)] hover:opacity-85 transition shrink-0"
-          aria-label="마이페이지"
-        >
-          <Avatar name={user?.name || user?.email} src={user?.avatar_url} size={30} />
-          <span className="hidden md:block min-w-0 text-left">
-            <span className="block text-xs font-bold text-[var(--text)] leading-4 truncate max-w-[110px]">
-              {user?.name || user?.email?.split("@")[0] || ""}
-            </span>
-            <span className="block text-[10px] text-[var(--text-dim)] leading-3">{roleLabel}</span>
-          </span>
-        </Link>
+        {/* 프로필 칩 — 클릭 시 현재 페이지 유지, 내 계정 상태 팝오버 (마이페이지로 이동 버튼) */}
+        <AccountChip />
       </header>
 
       {/* Main content */}

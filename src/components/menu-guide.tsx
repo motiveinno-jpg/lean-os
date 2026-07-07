@@ -64,12 +64,14 @@ export function MenuGuide() {
       </button>
 
       {open && pos && typeof document !== "undefined" && createPortal(
-        <>
-          {/* 바깥 클릭 닫기 */}
-          <div className="fixed inset-0 z-[998]" onClick={() => setOpen(false)} />
+        // 바깥 클릭 닫기 — 백드롭이 패널을 감싸는 구조(다른 모달과 동일 관례)라야 round10 CSS 규칙
+        // (fixed+inset-0 직계 자식 .glass-card → 불투명)을 물려받아 또렷하게 보임. 이전엔 백드롭/패널이
+        // 형제라 이 규칙이 안 걸려 반투명한 채 남아있었음(가독성 저하 — 2026-07-07 확인).
+        <div className="fixed inset-0 z-[998]" onClick={() => setOpen(false)}>
           <div
             className="glass-card fixed z-[999] w-[min(92vw,360px)] max-h-[70vh] overflow-y-auto animate-[slide-in_0.15s_ease]"
             style={{ top: pos.top, right: pos.right, boxShadow: "var(--shadow-lg, 0 12px 32px rgba(0,0,0,0.18))" }}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* 헤더 */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] sticky top-0 bg-[var(--bg-card)]">
@@ -128,7 +130,7 @@ export function MenuGuide() {
               </Link>
             </div>
           </div>
-        </>,
+        </div>,
         document.body,
       )}
     </>
