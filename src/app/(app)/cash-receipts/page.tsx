@@ -67,6 +67,15 @@ export default function CashReceiptsPage() {
     if (id) localStorage.setItem(SYNC_STORAGE_KEY, id);
     else localStorage.removeItem(SYNC_STORAGE_KEY);
   };
+  // 직원 QA #7 — 멈춘(hang) 백그라운드 job 을 failed 로 마킹(서버 409 잠금 해제) + 로컬 해제 → 다시 시도 가능 (CODEF 미접촉)
+  const forceClearStuckJob = async (jid: string, silent = false) => {
+    const db = supabase as any;
+    try {
+      await db.from("hometax_sync_jobs").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", jid).in("status", ["pending", "running"]);
+    } catch { /* best-effort */ }
+    setActiveJobId(null);
+    if (!silent) toast("멈춘 백그라운드 동기화를 해제했습니다. 다시 시도할 수 있습니다.", "info");
+  };
 
   // Date range for filter
   const now = new Date();
@@ -284,7 +293,12 @@ export default function CashReceiptsPage() {
       setActiveJobId(null);
       queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
       queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
+      return;
     }
+    // 30분+ 진척 없으면 hang(CF-12200 등) 으로 간주 → 자동 해제해 버튼 잠금 풀기
+    const upd = activeJob.updated_at ? new Date(activeJob.updated_at).getTime() : 0;
+    if (upd && Date.now() - upd > 30 * 60 * 1000) { void forceClearStuckJob(activeJobId, true); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeJob, activeJobId, queryClient]);
 
   const startSync = async () => {
@@ -444,6 +458,13 @@ export default function CashReceiptsPage() {
                     : "홈택스 매출 가져오기"}
               </span>
             </button>
+            {activeJobId && (
+              <button type="button" onClick={() => forceClearStuckJob(activeJobId)}
+                title="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 rounded-lg text-xs font-semibold transition">
+                동기화 취소
+              </button>
+            )}
             <label className="btn-secondary text-xs inline-flex items-center gap-1.5 cursor-pointer">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />

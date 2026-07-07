@@ -301,6 +301,16 @@ export default function TaxInvoicesPage() {
       else localStorage.removeItem("hometax-active-job-id");
     }
   };
+  // 직원 QA #6 — 백그라운드 job 이 hang(CF-12200 등) 하면 completed/failed 로 안 바뀌어 버튼이 영구 잠김.
+  //   멈춘 job 을 failed 로 마킹(서버 409 잠금까지 해제) + 로컬 해제 → 다시 시도 가능. (CODEF 수집 로직 미접촉)
+  const forceClearStuckJob = async (jid: string, silent = false) => {
+    const db = supabase as any;
+    try {
+      await db.from("hometax_sync_jobs").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", jid).in("status", ["pending", "running"]);
+    } catch { /* best-effort */ }
+    setActiveJobId(null);
+    if (!silent) toast("멈춘 백그라운드 동기화를 해제했습니다. 다시 시도할 수 있습니다.", "info");
+  };
   // 월별 동기화 결과 — 완료 후 사용자에게 명확히 표시 (누락 N건 식)
   type MonthSyncResult = { month: string; responseCount: number; synced: number; status: "ok" | "partial" | "error"; errorMsg?: string };
   const [syncResultDetail, setSyncResultDetail] = useState<MonthSyncResult[] | null>(null);
@@ -770,6 +780,15 @@ export default function TaxInvoicesPage() {
     return () => { db.removeChannel(ch); };
   }, [activeJobId, companyId, queryClient]);
 
+  // 멈춘 job 자동 감지 — 이미 끝났거나 30분+ 진척 없으면(=hang) 자동 해제해 버튼 잠금 풀기
+  useEffect(() => {
+    if (!activeJobId || !activeJob) return;
+    if (activeJob.status === "completed" || activeJob.status === "failed") { setActiveJobId(null); return; }
+    const upd = activeJob.updated_at ? new Date(activeJob.updated_at).getTime() : 0;
+    if (upd && Date.now() - upd > 30 * 60 * 1000) { void forceClearStuckJob(activeJobId); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeJob, activeJobId]);
+
   // (page chain 제거 — layout 의 HometaxBackgroundChain 만 단독으로 chain 추진. 이중 호출 시 CF-00016 발생.)
 
   // 홈택스 연결 상태 — automation_credentials.hometax 존재 여부 (codef-sync edge function이 실제로 사용하는 자격증명)
@@ -1199,6 +1218,13 @@ export default function TaxInvoicesPage() {
               : hometaxCd.disabled ? `⏳ ${hometaxCd.label}`
               : "홈택스에서 가져오기"}
           </button>
+          {activeJobId && (
+            <button type="button" onClick={() => forceClearStuckJob(activeJobId)}
+              title="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 rounded-lg text-xs font-semibold transition">
+              동기화 취소
+            </button>
+          )}
         </div>
       </div>
       <p className="-mt-4 mb-6 text-[10px] text-[var(--text-muted)]">
