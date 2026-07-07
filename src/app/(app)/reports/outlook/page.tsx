@@ -48,9 +48,9 @@ export default function OutlookPage() {
 
   // 시나리오 — 매달 나가는 돈 민감도(정직한 what-if)
   const scen = [
-    { label: "지금 이대로", months: runway, tone: rTone },
-    { label: "지출이 10% 늘면", months: calcRunwayMonths(balance, 0, 0, burn * 1.1), tone: "" },
-    { label: "지출을 10% 줄이면", months: calcRunwayMonths(balance, 0, 0, burn * 0.9), tone: "" },
+    { label: "현 수준 유지", months: runway, tone: rTone },
+    { label: "지출 10% 증가", months: calcRunwayMonths(balance, 0, 0, burn * 1.1), tone: "" },
+    { label: "지출 10% 감소", months: calcRunwayMonths(balance, 0, 0, burn * 0.9), tone: "" },
   ].map((s) => ({ ...s, tone: s.tone || runwayTone(s.months) }));
 
   const loading = !companyId || !pulse;
@@ -66,15 +66,15 @@ export default function OutlookPage() {
           {/* 버티는 기간 + 자금부족 경고 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: TONE[rTone] }} />버티는 기간 <span className="text-[var(--text-dim)] font-normal">(지금 속도 기준)</span></span>
+              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: TONE[rTone] }} />운영 가능 기간 <span className="text-[var(--text-dim)] font-normal">(현재 지출 기준)</span></span>
               <span className="text-[28px] leading-9 font-extrabold mono-number" style={{ color: TONE[rTone] }}>{runwayTxt}</span>
-              <span className="text-[11px] text-[var(--text-dim)]">통장 {fmt(balance)} · 한 달 약 {fmt(burn)} 나감</span>
+              <span className="text-[11px] text-[var(--text-dim)]">가용 현금 {fmt(balance)} · 월 지출 약 {fmt(burn)}</span>
             </div>
             <div className="glass-card p-5 flex flex-col gap-2">
               <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: shortfall ? "var(--danger)" : "var(--success)" }} />자금 부족 예상</span>
               {shortfall ? (
                 <>
-                  <span className="text-[22px] leading-8 font-extrabold text-[var(--danger)]">{shortfall.label} 무렵 마이너스</span>
+                  <span className="text-[22px] leading-8 font-extrabold text-[var(--danger)]">{shortfall.label} 무렵 현금 부족</span>
                   <span className="text-[11px] text-[var(--text-dim)]">그 시점 예상 잔액 {fmt(shortfall.balance)} — 미리 자금 계획이 필요합니다.</span>
                 </>
               ) : (
@@ -88,7 +88,7 @@ export default function OutlookPage() {
 
           {/* 통장 잔액 예측(오늘~D+90) */}
           <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-4">통장 잔액이 어떻게 될까 <span className="text-[var(--text-dim)] text-xs font-normal">(예측)</span></div>
+            <div className="text-sm font-bold text-[var(--text)] mb-4">현금 잔액 전망 <span className="text-[var(--text-dim)] text-xs font-normal">(향후 90일)</span></div>
             <div className="flex items-end gap-3 h-36">
               {points.map((p) => {
                 const neg = p.balance < 0;
@@ -106,7 +106,7 @@ export default function OutlookPage() {
 
           {/* 시나리오 */}
           <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-3">이대로 가면? <span className="text-[var(--text-dim)] text-xs font-normal">(간단 시나리오 — 버티는 기간 변화)</span></div>
+            <div className="text-sm font-bold text-[var(--text)] mb-3">시나리오 분석 <span className="text-[var(--text-dim)] text-xs font-normal">(지출 변동 시 운영 가능 기간)</span></div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {scen.map((s) => (
                 <div key={s.label} className="stat-tile">

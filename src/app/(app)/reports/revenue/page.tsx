@@ -79,7 +79,7 @@ export default function RevenuePage() {
           {/* 이번 달 매출 + 올해 누적 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--success)]" />이번 달 매출 <span className="text-[var(--text-dim)] font-normal">(번 돈)</span></span>
+              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--success)]" />이번 달 매출</span>
               <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--success)]">{fmt(sales)}</span>
               <Delta cur={sales} prev={lastSales} />
             </div>
@@ -99,7 +99,7 @@ export default function RevenuePage() {
           {/* 어디서 벌었나 — 거래처 TOP */}
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-bold text-[var(--text)]">어디서 벌었나 <span className="text-[var(--text-dim)] text-xs font-normal">(올해 거래처 TOP)</span></div>
+              <div className="text-sm font-bold text-[var(--text)]">거래처별 매출 <span className="text-[var(--text-dim)] text-xs font-normal">(올해 상위)</span></div>
               <Link href="/partners" className="text-xs text-[var(--primary)] font-semibold hover:underline">거래처 관리 →</Link>
             </div>
             {top.length === 0 ? (
@@ -121,19 +121,19 @@ export default function RevenuePage() {
 
           {/* 아직 못 받은 돈 (미수금) */}
           <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-3">아직 못 받은 돈 <span className="text-[var(--text-dim)] text-xs font-normal">(미수금)</span></div>
+            <div className="text-sm font-bold text-[var(--text)] mb-3">미수금 <span className="text-[var(--text-dim)] text-xs font-normal">(회수 예정)</span></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="stat-tile">
-                <div className="stat-tile-label">받을 돈 합계</div>
+                <div className="stat-tile-label">미수금 합계</div>
                 <div className="stat-tile-value mono-number text-[var(--text)]">{fmt(salesData?.arTotal ?? 0)}</div>
               </div>
               <Link href="/partners/ledger" className="stat-tile no-underline hover:border-[var(--primary)] transition" style={{ borderColor: (salesData?.arOver30 ?? 0) > 0 ? "color-mix(in srgb, var(--danger) 30%, transparent)" : undefined }}>
-                <div className="stat-tile-label">30일 넘게 못 받음</div>
+                <div className="stat-tile-label">30일 이상 경과</div>
                 <div className="stat-tile-value mono-number" style={{ color: (salesData?.arOver30 ?? 0) > 0 ? "var(--danger)" : "var(--text)" }}>{fmt(salesData?.arOver30 ?? 0)}</div>
               </Link>
             </div>
             {(salesData?.arOver30 ?? 0) > 0 && (
-              <div className="text-[11px] text-[var(--danger)] mt-2">30일 넘게 못 받은 돈이 있습니다 — 거래처 원장에서 회수를 챙기세요.</div>
+              <div className="text-[11px] text-[var(--danger)] mt-2">30일 이상 경과한 미수금이 있습니다 — 거래처 원장에서 회수를 관리하세요.</div>
             )}
           </div>
         </>

@@ -2,7 +2,7 @@
 
 // 경영 요약 — "지금 우리 회사 괜찮나?"에 한 화면으로 답하는 대표용 진입 화면(2026-07-08).
 //   회계 용어 없이: 규칙 기반 한 줄 요약 + 신호등 3카드(이번 달 손익·통장 잔액·버티는 기간)
-//   + 번 돈/쓴 돈/남은 돈 요약 + 앞으로 챙길 것. 기존 계산(cash-pulse·budget·VAT·미수금) 재조합.
+//   + 번 돈/쓴 돈/남은 돈 요약 + 주요 예정 항목. 기존 계산(cash-pulse·budget·VAT·미수금) 재조합.
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -127,7 +127,7 @@ export default function ManagementSummaryPage() {
 
   // 규칙 기반 한 줄 요약
   const profitTxt = profit >= 0 ? `이번 달 ${fmtMan(profit)} 흑자` : `이번 달 ${fmtMan(-profit)} 적자`;
-  const summaryLine = `${profitTxt}, 통장 잔액 ${fmtMan(balance)} — 지금 속도면 ${runwayTxt} 버틸 수 있습니다.`;
+  const summaryLine = `${profitTxt}, 통장 잔액 ${fmtMan(balance)} — 현재 지출 속도라면 ${runwayTxt} 운영 가능합니다.`;
   const bannerTone = profit < 0 && runwayTone === "danger" ? "danger" : runwayTone === "danger" ? "danger" : runwayTone === "warning" ? "warning" : "success";
   const TONE_BG: Record<string, string> = { success: "var(--success)", warning: "var(--warning)", danger: "var(--danger)" };
 
@@ -161,7 +161,7 @@ export default function ManagementSummaryPage() {
             <div className="glass-card p-5 flex flex-col gap-2">
               <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: profit >= 0 ? "var(--success)" : "var(--danger)" }} />
-                이번 달 손익 <span className="text-[var(--text-dim)] font-normal">(번 돈 − 쓴 돈)</span>
+                이번 달 손익 <span className="text-[var(--text-dim)] font-normal">(매출 − 비용)</span>
               </span>
               <span className="text-[26px] leading-8 font-extrabold mono-number" style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
                 {profit >= 0 ? "+" : "−"}{fmt(Math.abs(profit))}
@@ -171,15 +171,15 @@ export default function ManagementSummaryPage() {
             <div className="glass-card p-5 flex flex-col gap-2">
               <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full shrink-0 bg-[var(--primary)]" />
-                통장 잔액 <span className="text-[var(--text-dim)] font-normal">(지금 쓸 수 있는 돈)</span>
+                통장 잔액 <span className="text-[var(--text-dim)] font-normal">(가용 현금)</span>
               </span>
               <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmt(balance)}</span>
-              <span className="text-[11px] text-[var(--text-dim)]">한 달 나가는 돈 약 {fmt(burn)}</span>
+              <span className="text-[11px] text-[var(--text-dim)]">월 평균 지출 약 {fmt(burn)}</span>
             </div>
             <div className="glass-card p-5 flex flex-col gap-2">
               <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: toneColor(runwayTone) }} />
-                버티는 기간 <span className="text-[var(--text-dim)] font-normal">(통장으로 갈 수 있는 개월)</span>
+                운영 가능 기간 <span className="text-[var(--text-dim)] font-normal">(현재 현금 기준)</span>
               </span>
               <span className="text-[26px] leading-8 font-extrabold mono-number" style={{ color: toneColor(runwayTone) }}>{runwayTxt}</span>
               <span className="text-[11px] text-[var(--text-dim)]">{runwayTone === "danger" ? "자금 계획이 필요합니다" : runwayTone === "warning" ? "여유가 넉넉하진 않습니다" : "당장은 안정적입니다"}</span>
@@ -188,29 +188,29 @@ export default function ManagementSummaryPage() {
 
           {/* 번 돈 / 쓴 돈 / 남은 돈 */}
           <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-4">이번 달 돈 흐름</div>
+            <div className="text-sm font-bold text-[var(--text)] mb-4">이번 달 손익 요약</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Link href="/reports/revenue" className="stat-tile no-underline hover:border-[var(--primary)] transition">
-                <div className="stat-tile-label">번 돈 (매출)</div>
+                <div className="stat-tile-label">매출</div>
                 <div className="stat-tile-value mono-number text-[var(--success)]">{fmt(sales)}</div>
                 <Delta cur={sales} prev={lastSales} />
               </Link>
               <Link href="/reports/expense" className="stat-tile no-underline hover:border-[var(--primary)] transition">
-                <div className="stat-tile-label">쓴 돈 (비용)</div>
+                <div className="stat-tile-label">비용</div>
                 <div className="stat-tile-value mono-number text-[var(--warning)]">{fmt(expense)}</div>
                 <Delta cur={expense} prev={lastExpense} invert />
               </Link>
               <div className="stat-tile">
-                <div className="stat-tile-label">남은 돈 (손익)</div>
+                <div className="stat-tile-label">손익</div>
                 <div className="stat-tile-value mono-number" style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>{profit >= 0 ? "+" : "−"}{fmt(Math.abs(profit))}</div>
                 <Delta cur={profit} prev={lastProfit} />
               </div>
             </div>
           </div>
 
-          {/* 앞으로 챙길 것 */}
+          {/* 주요 예정 항목 */}
           <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-3">앞으로 챙길 것</div>
+            <div className="text-sm font-bold text-[var(--text)] mb-3">주요 예정 항목</div>
             <div className="space-y-2">
               {nextVat && vatDday !== null && (
                 <Link href="/tax-invoices" className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] no-underline hover:border-[var(--primary)] transition">
@@ -219,18 +219,18 @@ export default function ManagementSummaryPage() {
                 </Link>
               )}
               <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                <span className="text-sm text-[var(--text)]">🔁 매달 고정으로 나가는 돈</span>
+                <span className="text-sm text-[var(--text)]">🔁 월 고정비</span>
                 <span className="mono-number font-bold text-[var(--text)]">{fmt(mBudget?.fixedCosts ?? 0)}</span>
               </div>
               {(receivable?.over30 ?? 0) > 0 && (
                 <Link href="/partners/ledger" className="flex items-center justify-between px-4 py-3 rounded-xl no-underline transition hover:opacity-90"
                   style={{ background: "color-mix(in srgb, var(--danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--danger) 25%, transparent)" }}>
-                  <span className="text-sm font-semibold text-[var(--danger)]">💰 30일 넘게 못 받은 돈 — 회수 필요</span>
+                  <span className="text-sm font-semibold text-[var(--danger)]">💰 30일 이상 미수금 — 회수 필요</span>
                   <span className="mono-number font-bold text-[var(--danger)]">{fmt(receivable!.over30)}</span>
                 </Link>
               )}
               {!nextVat && (receivable?.over30 ?? 0) === 0 && (
-                <div className="text-xs text-[var(--text-dim)] px-1">당장 챙길 큰 지출·회수는 없습니다.</div>
+                <div className="text-xs text-[var(--text-dim)] px-1">당장 예정된 지출·회수 항목이 없습니다.</div>
               )}
             </div>
           </div>

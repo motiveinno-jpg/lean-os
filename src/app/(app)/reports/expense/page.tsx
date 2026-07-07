@@ -62,12 +62,12 @@ export default function ExpensePage() {
           {/* 이번 달 비용 + 고정/변동 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--warning)]" />이번 달 비용 <span className="text-[var(--text-dim)] font-normal">(쓴 돈)</span></span>
+              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--warning)]" />이번 달 비용</span>
               <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--warning)]">{fmt(expense)}</span>
               <Delta cur={expense} prev={lastExpense} invert />
             </div>
             <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">고정비 vs 변동비 <span className="text-[var(--text-dim)] font-normal">(매달 나가는 돈 비중)</span></span>
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">고정비 · 변동비 <span className="text-[var(--text-dim)] font-normal">(구성 비중)</span></span>
               <div className="flex h-3 rounded-full overflow-hidden mt-1 bg-[var(--bg-surface)]">
                 <div style={{ width: `${fixedPct}%`, background: "var(--primary)" }} title={`고정비 ${fixedPct}%`} />
                 <div style={{ width: `${100 - fixedPct}%`, background: "var(--warning)" }} title={`변동비 ${100 - fixedPct}%`} />
@@ -88,7 +88,7 @@ export default function ExpensePage() {
           {/* 어디에 썼나 — 카테고리 */}
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-bold text-[var(--text)]">어디에 썼나 <span className="text-[var(--text-dim)] text-xs font-normal">(올해 비용 항목 TOP)</span></div>
+              <div className="text-sm font-bold text-[var(--text)]">비용 항목별 구성 <span className="text-[var(--text-dim)] text-xs font-normal">(올해 상위)</span></div>
               <Link href="/reports/costs" className="text-xs text-[var(--primary)] font-semibold hover:underline">상세 비용 분석 →</Link>
             </div>
             {cats.length === 0 ? (
