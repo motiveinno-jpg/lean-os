@@ -402,7 +402,12 @@ export default function BankPage() {
           )}
           <button
             type="button"
-            onClick={() => bankCd.run(handleSyncBank)}
+            onClick={() => {
+              // 직원 QA — 기간 미선택 등 동기화가 실제로 시작 안 되면 쿨타임을 걸지 않음
+              //   (run 은 fn 실행 전에 쿨타임을 기록하므로, 사전 검증을 run 밖에서 먼저 한다)
+              if (!bankTxFrom || !bankTxTo) { toast("통장 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요", "error"); return; }
+              bankCd.run(handleSyncBank);
+            }}
             disabled={syncing || !companyId || bankCd.disabled}
             className={`btn-primary ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
             title={bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
