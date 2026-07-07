@@ -358,20 +358,26 @@ export default function VoucherEntryPage() {
         onFocus={(e) => setPicker({ kind: "acct", rowId, q: "", anchor: anchorOf(e.currentTarget) })}
         onBlur={() => setTimeout(() => setPicker((p) => (p?.rowId === rowId && p.kind === "acct" ? null : p)), 150)}
         onKeyDown={(e) => {
-          // 검색어 친 상태에서 Enter → 첫 결과 선택(이후 다음 칸 이동은 컨테이너가 처리)
-          if (e.key !== "Enter" || !(picker?.kind === "acct" && picker.rowId === rowId && picker.q.trim())) return;
-          const first = acctMatches(picker.q)[0];
-          if (first) { update({ account: first }); setPicker(null); }
+          // 거래처 셀과 동일한 키보드 탐색 — ArrowUp/Down 이동 + Enter 선택 (직원 QA #1)
+          if (!(picker?.kind === "acct" && picker.rowId === rowId)) return;
+          const list = acctMatches(picker.q);
+          if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
+          else if (e.key === "Enter") { const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ account: sel }); setPicker(null); } }
+          else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setPicker(null); }
         }}
         placeholder={withName ? "코드" : "103 / 보통예금..."} className={`${IN} ${withName ? "mono-number" : ""}`} />
       {picker?.kind === "acct" && picker.rowId === rowId && (
         <CellDropdown anchor={picker.anchor} width={240} maxHeight={196}>
-          {acctMatches(picker.q).map((a, i) => (
+          {acctMatches(picker.q).map((a, i) => {
+            const active = i === (picker.idx ?? 0);
+            return (
             <button key={a.id} onMouseDown={(e) => { e.preventDefault(); update({ account: a }); setPicker(null); }}
-              className={`w-full flex justify-between px-2 py-1 rounded text-[11px] text-[var(--text)] ${i === 0 && picker.q.trim() ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
-              <span>{a.name}{i === 0 && picker.q.trim() && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span>
+              className={`w-full flex justify-between px-2 py-1 rounded text-[11px] text-[var(--text)] ${active ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
+              <span>{a.name}{active && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span>
             </button>
-          ))}
+            );
+          })}
           {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{dbReady ? "검색 결과 없음" : "계정과목 마스터 미적용"}</div>}
         </CellDropdown>
       )}

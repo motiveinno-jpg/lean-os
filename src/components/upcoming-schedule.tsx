@@ -88,7 +88,8 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
       title: "원천세 납부",
       date: fmtDateKey(wht),
       daysLeft: daysBetween(today, wht),
-      href: "/tax-invoices",
+      // 원천세는 급여 원천징수분 — 세금계산서가 아니라 급여(명세) 페이지로 연결 (직원 QA #12)
+      href: "/employees?tab=payroll",
     });
   }
 
