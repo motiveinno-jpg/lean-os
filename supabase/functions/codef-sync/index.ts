@@ -481,9 +481,13 @@ async function syncBankTransactions(
         const outAmt = Number(tx.resAccountOut || 0);
         // 잔액/금액 모두 0인 의미 없는 row (예: 신규 개설 표시) 는 skip
         if (inAmt === 0 && outAmt === 0) { acctSkipNoDate++; continue; }
-        // CODEF descriptions: resAccountDesc1~4. 거래처/메모로 분리.
+        // CODEF descriptions: resAccountDesc1~4 — 은행별로 배치가 달라(적요/거래구분/거래점 등) 특정 칸만
+        //   쓰면 실제 거래내용이 누락됨(직원 QA). counterparty(예금주명)는 기존 그대로 유지해 external_id 안정,
+        //   description(거래내용)은 모든 desc 를 합쳐 실제 내용을 보존하고 raw_data 에도 원본 4칸을 저장.
         const counterparty = tx.resAccountDesc1 || tx.resAccountDesc3 || tx.resAccountDesc || "";
-        const memo = [tx.resAccountDesc2, tx.resAccountDesc4].filter(Boolean).join(" / ");
+        const _descs = [tx.resAccountDesc1, tx.resAccountDesc2, tx.resAccountDesc3, tx.resAccountDesc4]
+          .map((d: any) => (d == null ? "" : String(d).trim())).filter(Boolean);
+        const memo = _descs.join(" · ");
 
         const _amt = inAmt > 0 ? inAmt : outAmt;
         const _type = inAmt > 0 ? "income" : "expense";
@@ -505,7 +509,7 @@ async function syncBankTransactions(
           source: "codef_bank",
           mapping_status: "unmapped",
           external_id: externalId,
-          raw_data: { accountNo, organization: org, trDate: tStr, trTime: _trTime, counterAccount: tx.resCounterAccount || "" },
+          raw_data: { accountNo, organization: org, trDate: tStr, trTime: _trTime, counterAccount: tx.resCounterAccount || "", descs: _descs },
         }, { onConflict: "external_id", ignoreDuplicates: true });
 
         if (!error) totalSynced++;
