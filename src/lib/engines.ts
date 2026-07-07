@@ -23,7 +23,8 @@ export interface SixPack {
   runwayMonths: number;       // 생존 가능 개월
   arTotal: number;            // 미수금 총액
   arOver30: number;           // 미수금 30일 이상
-  pendingApprovals: number;   // 승인 대기 비용 총액
+  pendingApprovals: number;   // 승인 대기 비용 총액(금액)
+  pendingApprovalsCount: number; // 승인 대기 건수 (payables 개수 — "N건" 표시용)
   monthlyBurn: number;        // 월 고정비(월 burn)
 }
 
@@ -257,6 +258,7 @@ export function buildFounderDashboard(
     arTotal,
     arOver30,
     pendingApprovals,
+    pendingApprovalsCount: payables.length,
     monthlyBurn,
   };
 

@@ -25,11 +25,11 @@ const SEV_DOT: Record<Sev, string> = {
 };
 
 export function ActionInbox({
-  pendingApprovals,
+  pendingApprovalsCount,
   arOver30,
   arTotal,
 }: {
-  pendingApprovals: number;
+  pendingApprovalsCount: number;
   arOver30: number;
   arTotal: number;
 }) {
@@ -51,10 +51,10 @@ export function ActionInbox({
       href: "/tax-invoices", cta: "현황",
     });
   }
-  if (pendingApprovals > 0) {
+  if (pendingApprovalsCount > 0) {
     items.push({
       key: "approvals", sev: 0,
-      text: `전자결재 ${pendingApprovals}건 대기`,
+      text: `전자결재 ${pendingApprovalsCount}건 대기`,
       href: "/approvals", cta: "검토",
     });
   }

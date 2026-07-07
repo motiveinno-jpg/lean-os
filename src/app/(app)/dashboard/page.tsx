@@ -521,7 +521,7 @@ export default function DashboardPage() {
               const nearestTax = getUpcomingTaxDeadlines(30)[0];
               const acts: { key: string; href: string; label: string; primary?: boolean }[] = [];
               if (dashboard.sixPack.arOver30 > 0) acts.push({ key: "ar", href: "/tax-invoices", label: "미수금 회수 관리 →", primary: true });
-              if (dashboard.sixPack.pendingApprovals > 0) acts.push({ key: "appr", href: "/approvals", label: `결재 ${dashboard.sixPack.pendingApprovals}건 처리` });
+              if (dashboard.sixPack.pendingApprovalsCount > 0) acts.push({ key: "appr", href: "/approvals", label: `결재 ${dashboard.sixPack.pendingApprovalsCount}건 처리` });
               if (nearestTax) acts.push({ key: nearestTax.id, href: nearestTax.href, label: `${nearestTax.title} ${nearestTax.daysLeft === 0 ? "D-Day" : `D-${nearestTax.daysLeft}`}` });
               if (acts.length === 0) return null;
               return (
@@ -558,7 +558,7 @@ export default function DashboardPage() {
               {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
               {/* 처리 대기 큐(액션 인박스) — 미수금 지연·결재·세금 마감을 심각도순 + 진입 버튼 */}
               <ActionInbox
-                pendingApprovals={dashboard.sixPack.pendingApprovals}
+                pendingApprovalsCount={dashboard.sixPack.pendingApprovalsCount}
                 arOver30={dashboard.sixPack.arOver30}
                 arTotal={dashboard.sixPack.arTotal}
               />
@@ -2091,8 +2091,8 @@ function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
   if (sp.arOver30 > 0) {
     actions.push({ priority: 'critical', text: `미수금 30일+ ₩${fmtW(sp.arOver30)} — 독촉 필요` });
   }
-  if (sp.pendingApprovals > 0) {
-    actions.push({ priority: 'high', text: `승인대기 ${sp.pendingApprovals}건 — 검토/승인 필요` });
+  if (sp.pendingApprovalsCount > 0) {
+    actions.push({ priority: 'high', text: `승인대기 ${sp.pendingApprovalsCount}건 — 검토/승인 필요` });
   }
   if (dashboard.riskCounts.LOW_MARGIN > 0) {
     actions.push({ priority: 'high', text: `마진위험 프로젝트 ${dashboard.riskCounts.LOW_MARGIN}건 — 구조 재검토`, href: '/projects' });
