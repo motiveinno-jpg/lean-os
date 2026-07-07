@@ -2,7 +2,7 @@
 //   행 구성·잔액 계산은 PartnerLedgerSheet(shared.tsx)의 시트/CSV 로직과 동일하게 유지할 것
 //   (발생=홈택스 발행 세금계산서, 회수/지급=확정 정산, 수동 전표 AR/AP 라인, 전기이월/월계/합계 행).
 
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { supabase } from "@/lib/supabase";
 import { ADJ_REASON_LABEL } from "./shared";
 
@@ -91,7 +91,8 @@ async function buildSheetRows(companyId: string, t: LedgerExportTarget, yStart: 
   const opening = before.reduce((s, e) => s + dir(e), 0);
 
   const rows: (string | number)[][] = [
-    [`거래처원장 — ${t.name} (${isSales ? "매출처" : "매입처"})`, `${yStart} ~ ${yEnd}`, "", "", ""],
+    [`거래처원장 — ${t.name} (${isSales ? "매출처" : "매입처"})`, "", "", "", ""],
+    [`${yStart} ~ ${yEnd}`, "", "", "", ""],
     ["일자", "적요", "차변", "대변", "잔액"],
     [yStart, "[전기이월]", "", "", Math.round(opening)],
   ];
@@ -132,10 +133,41 @@ export async function exportPartnerLedgersXlsx(
 ): Promise<void> {
   const wb = XLSX.utils.book_new();
   const used = new Set<string>();
+  // 직원 QA B-11 — 이미지처럼 보기좋은 서식(제목·회색 헤더·테두리·우측정렬·천단위·합계 강조)
+  const B = { style: "thin", color: { rgb: "D5D9E5" } };
+  const borders = { top: B, bottom: B, left: B, right: B };
   for (const t of targets) {
     const rows = await buildSheetRows(companyId, t, yStart, yEnd);
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws["!cols"] = [{ wch: 11 }, { wch: 34 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+    ws["!cols"] = [{ wch: 12 }, { wch: 36 }, { wch: 15 }, { wch: 15 }, { wch: 16 }];
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // 제목
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // 기간
+    ];
+    const range = XLSX.utils.decode_range(ws["!ref"] as string);
+    for (let R = range.s.r; R <= range.e.r; R++) {
+      const label = String(rows[R]?.[1] ?? "");
+      const isTotal = /\[(합계|월계|전기이월)\]/.test(label);
+      for (let C = range.s.c; C <= range.e.c; C++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+        if (!cell) continue;
+        if (R === 0) {
+          cell.s = { font: { bold: true, sz: 15 }, alignment: { horizontal: "center", vertical: "center" } };
+        } else if (R === 1) {
+          cell.s = { font: { sz: 10, color: { rgb: "6B7280" } }, alignment: { horizontal: "center" } };
+        } else if (R === 2) {
+          cell.s = { font: { bold: true, color: { rgb: "1F2937" } }, fill: { fgColor: { rgb: "E9ECF5" } }, alignment: { horizontal: "center", vertical: "center" }, border: borders };
+        } else {
+          cell.s = {
+            border: borders,
+            font: { bold: isTotal, color: { rgb: isTotal ? "1F2937" : "374151" } },
+            ...(isTotal ? { fill: { fgColor: { rgb: "F4F6FB" } } } : {}),
+            alignment: { horizontal: C >= 2 ? "right" : (C === 0 ? "center" : "left"), vertical: "center" },
+          };
+          if (C >= 2 && typeof cell.v === "number") cell.z = "#,##0";
+        }
+      }
+    }
     XLSX.utils.book_append_sheet(wb, ws, sheetName(t.name, used));
   }
   XLSX.writeFile(wb, `거래처원장_${tabLabel}_${yStart}_${yEnd}.xlsx`);
