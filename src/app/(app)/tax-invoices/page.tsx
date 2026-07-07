@@ -1072,7 +1072,7 @@ export default function TaxInvoicesPage() {
       </div>
 
       {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치 */}
-      <div className="mb-6 no-print rounded-lg overflow-hidden border border-[var(--border)]" style={{ borderTop: "3px solid var(--primary)" }}>
+      <div className="mb-6 no-print rounded-lg overflow-hidden border border-[var(--border)]">
         <div className="px-4 py-2 text-[12px] font-bold text-[var(--text)] border-b border-[var(--border)]" style={{ background: "color-mix(in srgb, var(--primary) 8%, var(--bg-surface))" }}>
           전자(세금)계산서 조회
         </div>
