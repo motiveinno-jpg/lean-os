@@ -757,7 +757,11 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
 }
 
 // ── SVG 트리 조직도 ──
-const ORG_DEPT_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899", "#14b8a6"];
+// 부서 구분색 — 원색(꽉 찬 채도)을 그대로 칠하면 촌스러워, 각 색을 "은은한 틴트 배경 + 색 텍스트"로만
+// 사용한다(아래 렌더링 참조). 팔레트 자체도 브랜드 인디고를 첫 색으로 둔 차분한 조화 톤.
+const ORG_DEPT_COLORS = ["#4F46E5", "#0EA5E9", "#0D9488", "#D97706", "#DB2777", "#7C3AED", "#059669", "#DC2626"];
+// 16진 색 + 알파(00~FF) 헬퍼 — 틴트 배경/보더/서브텍스트에 사용
+const withAlpha = (hex: string, alpha: string) => `${hex}${alpha}`;
 
 function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id: string) => void }) {
   const active = employees.filter((e: any) => e.status === "active" || e.status === "joined" || e.status === "contract_pending");
@@ -825,40 +829,52 @@ function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id:
           ⬇ SVG 다운로드
         </button>
       </div>
-      <div className="overflow-auto" style={{ maxHeight: "70vh" }}>
-        <svg id="orgchart-svg" xmlns="http://www.w3.org/2000/svg" width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} style={{ background: "transparent" }}>
+      {/* 화면 폭에 맞춰 자동 축소(가로 스크롤 없이 항상 한눈에). 자연 크기(svgW)보다 넓은 컨테이너에서는
+          자연 크기로 중앙 정렬, 좁으면 비율 유지하며 축소. */}
+      <div className="overflow-y-auto px-4 py-4" style={{ maxHeight: "70vh" }}>
+        <svg
+          id="orgchart-svg"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox={`0 0 ${svgW} ${svgH}`}
+          preserveAspectRatio="xMidYMin meet"
+          style={{ width: "100%", maxWidth: svgW, height: "auto", display: "block", margin: "0 auto", background: "transparent" }}
+        >
           <defs>
             <style>{`
               .org-node { cursor: pointer; }
-              .org-node:hover rect { filter: brightness(1.08); }
-              .org-name { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 600; font-size: 13px; fill: #fff; }
-              .org-pos { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: rgba(255,255,255,0.85); }
-              .dept-name { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 700; font-size: 13px; fill: #fff; }
-              .dept-count { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: rgba(255,255,255,0.85); }
-              .member-name { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; font-weight: 500; fill: var(--text, #e5e7eb); }
-              .member-pos { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: var(--text-muted, #9ca3af); }
+              .org-node rect { transition: filter 0.15s ease; }
+              .org-node:hover rect { filter: brightness(0.98) drop-shadow(0 4px 10px rgba(0,0,0,0.10)); }
+              .org-ceo-rect { fill: var(--primary, #4F46E5); }
+              .ceo-name { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 700; font-size: 13px; fill: #fff; }
+              .ceo-pos { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: rgba(255,255,255,0.82); }
+              .org-link { stroke: var(--border, #d8dce8); stroke-width: 1.5; fill: none; }
+              .dept-name { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 700; font-size: 13px; }
+              .dept-count { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; font-weight: 600; }
+              .member-card { fill: var(--bg-card, #ffffff); stroke: var(--border, #e5e8f0); stroke-width: 1; }
+              .member-name { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; font-weight: 600; fill: var(--text, #18181b); }
+              .member-pos { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: var(--text-muted, #52525b); }
             `}</style>
           </defs>
 
-          {/* CEO */}
+          {/* CEO — 브랜드 인디고 솔리드(계층 최상단 강조) */}
           {ceo.length > 0 && (
             <g className="org-node" onClick={() => onSelect(ceo[0].id)} transform={`translate(${ceoX - NODE_W / 2}, ${ceoY})`}>
-              <rect width={NODE_W} height={NODE_H} rx={12} fill="#1d4ed8" stroke="#3b82f6" strokeWidth={2} />
-              <circle cx={28} cy={NODE_H / 2} r={18} fill="rgba(255,255,255,0.18)" />
-              <text x={28} y={NODE_H / 2 + 5} textAnchor="middle" className="org-name" fontSize={16}>{(ceo[0].name || "?")[0]}</text>
-              <text x={56} y={26} className="org-name">{ceo[0].name}</text>
-              <text x={56} y={44} className="org-pos">{ceo[0].position || "대표"}</text>
+              <rect className="org-ceo-rect" width={NODE_W} height={NODE_H} rx={14} />
+              <circle cx={30} cy={NODE_H / 2} r={18} fill="rgba(255,255,255,0.20)" />
+              <text x={30} y={NODE_H / 2 + 5} textAnchor="middle" className="ceo-name" fontSize={16}>{(ceo[0].name || "?")[0]}</text>
+              <text x={58} y={27} className="ceo-name">{ceo[0].name}</text>
+              <text x={58} y={44} className="ceo-pos">{ceo[0].position || "대표"}</text>
             </g>
           )}
 
           {/* CEO -> 버스 수직선 */}
           {ceo.length > 0 && deptEntries.length > 0 && (
-            <line x1={ceoX} y1={ceoY + NODE_H} x2={ceoX} y2={busY} stroke="#475569" strokeWidth={1.5} />
+            <line className="org-link" x1={ceoX} y1={ceoY + NODE_H} x2={ceoX} y2={busY} />
           )}
 
           {/* 수평 버스 */}
           {deptEntries.length > 1 && (
-            <line x1={deptCenters[0]} y1={busY} x2={deptCenters[deptCenters.length - 1]} y2={busY} stroke="#475569" strokeWidth={1.5} />
+            <line className="org-link" x1={deptCenters[0]} y1={busY} x2={deptCenters[deptCenters.length - 1]} y2={busY} />
           )}
 
           {/* 부서별 */}
@@ -872,16 +888,17 @@ function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id:
             return (
               <g key={dept}>
                 {/* 버스 -> 부서 헤더 */}
-                <line x1={cx} y1={busY} x2={cx} y2={deptHeaderY} stroke="#475569" strokeWidth={1.5} />
-                {/* 부서 헤더 */}
+                <line className="org-link" x1={cx} y1={busY} x2={cx} y2={deptHeaderY} />
+                {/* 부서 헤더 — 원색 솔리드 대신 은은한 틴트 배경 + 색 텍스트 */}
                 <g>
-                  <rect x={headX} y={deptHeaderY} width={NODE_W} height={NODE_H} rx={10} fill={color} />
-                  <text x={cx} y={deptHeaderY + 26} textAnchor="middle" className="dept-name">{dept}</text>
-                  <text x={cx} y={deptHeaderY + 46} textAnchor="middle" className="dept-count">{members.length}명</text>
+                  <rect x={headX} y={deptHeaderY} width={NODE_W} height={NODE_H} rx={12} fill={withAlpha(color, "14")} stroke={withAlpha(color, "40")} strokeWidth={1.5} />
+                  <rect x={headX} y={deptHeaderY} width={4} height={NODE_H} rx={2} fill={color} />
+                  <text x={cx} y={deptHeaderY + 27} textAnchor="middle" className="dept-name" fill={color}>{dept}</text>
+                  <text x={cx} y={deptHeaderY + 46} textAnchor="middle" className="dept-count" fill={withAlpha(color, "B0")}>{members.length}명</text>
                 </g>
                 {/* 헤더 -> 멤버 그룹 수직선 */}
                 {ordered.length > 0 && (
-                  <line x1={cx} y1={deptHeaderY + NODE_H} x2={cx} y2={memberStartY + ordered.length * (MEMBER_H + MEMBER_GAP_Y) - MEMBER_GAP_Y - MEMBER_H / 2} stroke={`${color}66`} strokeWidth={1.2} strokeDasharray="3,3" />
+                  <line x1={cx} y1={deptHeaderY + NODE_H} x2={cx} y2={memberStartY + ordered.length * (MEMBER_H + MEMBER_GAP_Y) - MEMBER_GAP_Y - MEMBER_H / 2} stroke={withAlpha(color, "40")} strokeWidth={1.2} />
                 )}
                 {/* 멤버 카드 */}
                 {ordered.map((m: any, mi: number) => {
@@ -889,12 +906,12 @@ function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id:
                   const mx = headX;
                   return (
                     <g key={m.id} className="org-node" onClick={() => onSelect(m.id)}>
-                      <line x1={cx} y1={my + MEMBER_H / 2} x2={mx + 4} y2={my + MEMBER_H / 2} stroke={`${color}66`} strokeWidth={1.2} strokeDasharray="3,3" />
-                      <rect x={mx} y={my} width={NODE_W} height={MEMBER_H} rx={8} fill="var(--bg-surface, #1f2937)" stroke={`${color}55`} strokeWidth={1} />
-                      <circle cx={mx + 22} cy={my + MEMBER_H / 2} r={14} fill={`${color}22`} />
-                      <text x={mx + 22} y={my + MEMBER_H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill={color}>{(m.name || "?")[0]}</text>
-                      <text x={mx + 44} y={my + 19} className="member-name">{m.name}</text>
-                      <text x={mx + 44} y={my + 36} className="member-pos">{m.position || "—"}</text>
+                      <line x1={cx} y1={my + MEMBER_H / 2} x2={mx + 4} y2={my + MEMBER_H / 2} stroke={withAlpha(color, "40")} strokeWidth={1.2} />
+                      <rect className="member-card" x={mx} y={my} width={NODE_W} height={MEMBER_H} rx={10} />
+                      <circle cx={mx + 24} cy={my + MEMBER_H / 2} r={14} fill={withAlpha(color, "1F")} />
+                      <text x={mx + 24} y={my + MEMBER_H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill={color}>{(m.name || "?")[0]}</text>
+                      <text x={mx + 46} y={my + 19} className="member-name">{m.name}</text>
+                      <text x={mx + 46} y={my + 36} className="member-pos">{m.position || "—"}</text>
                     </g>
                   );
                 })}
