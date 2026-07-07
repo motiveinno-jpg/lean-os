@@ -189,6 +189,10 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                         <input value={(f.options || []).join(", ")} onChange={(e) => setField(i, { options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
                           placeholder="옵션1, 옵션2" className="flex-1 min-w-[100px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
                       )}
+                      {f.type === "fixed" && (
+                        <input value={f.default_value || ""} onChange={(e) => setField(i, { default_value: e.target.value })}
+                          placeholder="고정으로 표시할 값" className="flex-1 min-w-[100px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
+                      )}
                       <label className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
                         <input type="checkbox" checked={!!f.required} onChange={(e) => setField(i, { required: e.target.checked })} className="accent-[var(--primary)]" /> 필수
                       </label>

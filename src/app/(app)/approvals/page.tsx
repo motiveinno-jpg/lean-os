@@ -1153,7 +1153,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     if (!selectedForm || descriptionInited === form.requestType) return;
     setForm((prev) => ({ ...prev, description: selectedForm.content_template || "" }));
     setDescriptionInited(form.requestType);
-    setCustomFieldValues({});
+    // 직원 QA #11 — 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
+    const initFields: Record<string, string> = {};
+    for (const fd of selectedForm.fields || []) if (fd.type === "fixed") initFields[fd.key] = fd.default_value || "";
+    setCustomFieldValues(initFields);
     const approvers: { userId: string; name: string }[] = [];
     for (const st of selectedForm.stages || []) {
       if (st.approver_type === "user") {
@@ -1494,6 +1497,18 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                             <option value="">선택</option>
                             {(fd.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
                           </select>
+                        ) : fd.type === "fixed" ? (
+                          /* 직원 QA #11 — 직접입력 고정값: 양식이 지정한 값 그대로(작성자 수정 불가) */
+                          <input type="text" value={fd.default_value || ""} readOnly disabled
+                            className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-muted)]" />
+                        ) : fd.type === "amount" ? (
+                          /* 직원 QA #11 — 금액: ₩ + 천단위 콤마 */
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] text-sm">₩</span>
+                            <input inputMode="numeric" value={customFieldValues[fd.key] || ""}
+                              onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ""); setCustomFieldValues((s) => ({ ...s, [fd.key]: raw ? Number(raw).toLocaleString("ko-KR") : "" })); }}
+                              placeholder="0" className="w-full pl-7 pr-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mono-number text-right" />
+                          </div>
                         ) : (
                           <input type={fd.type === "number" ? "number" : fd.type === "date" ? "date" : "text"} value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
                         )}
@@ -1693,6 +1708,30 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               {matchedPolicy.auto_approve_below > 0 && effectiveAmount > 0 && effectiveAmount < matchedPolicy.auto_approve_below && (
                 <div className="kpi-callout success mt-3">이 금액은 <b>자동 승인</b> 대상이에요</div>
               )}
+            </div>
+          ) : selectedApprovers.length > 0 ? (
+            /* 직원 QA #11 — 양식 결재선이 지정돼 있으면 그걸 미리보기에 반영(대표/CEO 강제 표시 제거).
+               실제 라우팅은 이미 customApprovers(양식 결재선)로 처리됨 — 미리보기만 정합화. */
+            <div className="text-xs text-[var(--text-muted)]">
+              <div className="kpi-callout mb-4">이 양식의 <b>결재선</b>이 적용돼요 — 지정한 승인자에서 종료(대표 결재 없음)</div>
+              <div className="space-y-0">
+                <div className="relative pl-8 pb-4">
+                  <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />
+                  <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full bg-[var(--primary)] text-white flex items-center justify-center">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  </div>
+                  <div className="text-xs font-bold pt-1">요청 제출</div>
+                  <div className="text-[11px] text-[var(--text-dim)]">나</div>
+                </div>
+                {selectedApprovers.map((a, idx) => (
+                  <div key={a.userId} className="relative pl-8 pb-4 last:pb-0">
+                    {idx < selectedApprovers.length - 1 && <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />}
+                    <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full border-2 border-[var(--primary)]/40 bg-[var(--primary)]/8 flex items-center justify-center text-[11px] font-extrabold text-[var(--primary)]">{idx + 1}</div>
+                    <div className="text-xs font-bold pt-1">{idx + 1}차 승인</div>
+                    <div className="text-[11px] text-[var(--text-dim)]">{a.name}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="text-xs text-[var(--text-muted)]">
