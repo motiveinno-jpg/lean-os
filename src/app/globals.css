@@ -417,43 +417,16 @@ input, textarea, [contenteditable="true"] {
 
 /* 2026-05-28 페이지 헤더 sticky — AppShell main pt-14(Topbar) 아래 고정.
    각 페이지의 첫 헤더 div/header 에 className="page-sticky-header" 추가하면 동작. */
+/* 2026-07-08 사장님 요청 — (1) 스크롤 시 고정되어 따라오지 않도록 sticky 제거(static, 콘텐츠와 함께 스크롤).
+   (2) 상단 헤더 바와 동일하게 라운드 20px + 콘텐츠 폭 가득(엣지 블리드 margin 제거) + 유리 카드 재질로 통일. */
 .page-sticky-header {
-  position: sticky;
-  /* 2026-07-08 라운드13 — main 의 자연 정지 위치(pt-[80px])와 sticky 임계값(기존 4rem=64px)
-     사이에 16px 슬랙이 있어, 스크롤 시작 시 그만큼 실제로 딸려 움직이다 뒤늦게 고정되는 게
-     "따라오다 멈춤"으로 보이던 문제(가독성 저하로 지적됨). main 의 pt 값과 top 을 정확히
-     맞춰 슬랙을 0으로 — scroll=0 시점부터 이미 고정 위치라 스크롤해도 전혀 움직이지 않음. */
-  top: 80px; /* main pt-[80px] (모바일) 과 동일 */
-  z-index: 20;
-  margin-left: -1rem;
-  margin-right: -1rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-  /* 2026-07-08 라운드12 — chrome-glass(blur18+saturate1.5) 의존을 걷어냄. 이 바는 셸 크롬(헤더·
-     사이드바)과 달리 페이지 콘텐츠와 함께 스크롤되는 요소라 position:sticky + backdrop-filter 조합이
-     브라우저에 따라 블러가 아예 안 먹혀 완전 불투명 흰 바처럼 보이는 사례가 실측 확인됨(스크린샷).
-     검증 없이 backdrop-filter 에 의존하는 대신, 앱 전체 300여 곳에서 이미 확실히 동작 중인
-     .glass-card 레시피(반투명 배경 + 인셋 하이라이트, 블러 불필요)로 교체 — 항상 보장되는 통일.
-     2026-07-08 라운드13 추가 — 페이지 맨 위(앰비언트 캔버스가 옅은 구간)에서는 순수 반투명 흰색이
-     뒤에 섞일 색이 거의 없어 그냥 흰 바처럼 보임. 은은한 프라이머리 틴트를 직접 섞어 스크롤 위치와
-     무관하게 항상 눈에 띄게 "디자인 적용됨"으로 보이도록 보강. */
+  position: static;
+  border-radius: 20px;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid var(--glass-border);
   background: color-mix(in srgb, var(--primary) 5%, var(--glass-bg));
-  box-shadow: inset 0 -1px 0 var(--glass-border);
-}
-@media (min-width: 640px) {
-  .page-sticky-header {
-    margin-left: -1.5rem;
-    margin-right: -1.5rem;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-}
-@media (min-width: 768px) {
-  .page-sticky-header {
-    top: 88px; /* main md:pt-[88px] 과 동일 (데스크톱은 헤더 top-3 인셋만큼 더 낮음) */
-  }
+  box-shadow: 0 8px 32px -10px rgba(31,38,75,0.13), 0 2px 8px -3px rgba(31,38,75,0.05),
+              inset 0 1px 0 var(--glass-inner);
 }
 @media print {
   .page-sticky-header {
