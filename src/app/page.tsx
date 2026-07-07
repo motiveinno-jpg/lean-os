@@ -149,7 +149,7 @@ const ENGINES = [
     desc: "은행 통장·법인카드를 실계좌로 연동하면 잔고와 거래내역이 하루 2회 자동 동기화됩니다. 현금 소진 시점 예측, 생존 개월 수 자동 계산. 현금이 바닥나기 전에 먼저 경고합니다.",
     replaces: "CFO 1명",
     replacesCost: "연 6,000만원",
-    color: "#3B82F6",
+    color: "#818CF8",
     metrics: [
       { label: "현금 잔고", value: "₩8.2억", sub: "+12%" },
       { label: "생존 개월", value: "4.6개월", sub: "+0.8" },
@@ -178,7 +178,7 @@ const ENGINES = [
     desc: "프로젝트가 성사되면? 견적서→계약서 원클릭 생성→서명 요청 발송→매출 등록·세금계산서 연결→입금 매칭. 수작업 12단계가 원클릭 1단계로.",
     replaces: "영업관리자 + 경리",
     replacesCost: "연 8,000만원",
-    color: "#8B5CF6",
+    color: "#818CF8",
     metrics: [
       { label: "진행 프로젝트", value: "12건", sub: "활성" },
       { label: "자동화율", value: "94%", sub: "수동→자동" },
@@ -207,7 +207,7 @@ const ENGINES = [
     desc: "국민연금 4.5%, 건보 3.545%, 고용 0.9%, 소득세 간이세액표 — 전부 자동 산출. 급여명세서 생성부터 전 직원 이메일 발송까지. 경비 영수증도 OCR로 자동 인식·분류.",
     replaces: "회계 + 인사 담당자",
     replacesCost: "연 4,500만원",
-    color: "#10B981",
+    color: "#818CF8",
     metrics: [
       { label: "급여 처리", value: "자동", sub: "매월 25일" },
       { label: "4대보험", value: "자동계산", sub: "2026 요율" },
@@ -236,7 +236,7 @@ const ENGINES = [
     desc: "견적 1건만 보내도 거래처 자동 등록. 거래 이력, 계약서, 채팅, 매출 — 모든 상호작용이 자산으로 축적. 휴면 거래처는 자동 감지해 담당자에게 알립니다.",
     replaces: "CRM + 명함관리 구독",
     replacesCost: "연 200만원+",
-    color: "#F59E0B",
+    color: "#818CF8",
     metrics: [
       { label: "거래처", value: "47개", sub: "자동 등록" },
       { label: "이력 추적", value: "자동", sub: "견적·계약·매출" },
@@ -1108,11 +1108,11 @@ export default function LandingPage() {
       <section className="py-24 px-6 bg-[#0A0E1A]" id="engines">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-20">
-            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold mb-6 border border-purple-500/30 bg-purple-500/10 text-purple-300">
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold mb-6 border border-[#818CF8]/30 bg-[#818CF8]/10 text-[#818CF8]">
               다른 SaaS와 근본이 다릅니다
             </div>
             <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight">
-              기능이 아닙니다.<br /><span className="text-blue-400">4개의 엔진</span>입니다.
+              기능이 아닙니다.<br /><span className="text-[#818CF8]">4개의 엔진</span>입니다.
             </h2>
             <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
               공공 API + AI + 한국 특화 로직을 조합해<br className="hidden md:block" />
@@ -1125,7 +1125,7 @@ export default function LandingPage() {
               return (
               <div key={engine.num} className="group relative">
                 {/* Engine card */}
-                <div className="bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-3xl overflow-hidden hover:border-white/15 transition-all duration-500">
+                <div className="bg-white/[0.04] border border-white/10 rounded-[20px] overflow-hidden hover:border-white/20 transition-all duration-500 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]">
                   {/* Accent bar */}
                   <div className="h-1" style={{ background: engine.color }} />
 
