@@ -624,8 +624,8 @@ export default function CardsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        <p className="text-sm sm:text-base font-bold text-[var(--text)] mono-number">
-                          -₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}
+                        <p className={`text-sm sm:text-base font-bold mono-number ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>
+                          {Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}
                         </p>
                         <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}</span>
                         {tx.journal_entry_id ? (
@@ -762,7 +762,7 @@ export default function CardsPage() {
                         </td>
                         <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{cat}</td>
                         <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
-                        <td className="px-6 py-3.5 font-semibold mono-number text-[var(--text)]">-₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
+                        <td className={`px-6 py-3.5 font-semibold mono-number ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
                         <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] mono-number">
                           {tx.transaction_date}
                           {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">전표처리됨</span>}
@@ -837,7 +837,7 @@ export default function CardsPage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">전표처리</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{postCard.merchant_name || "(가맹점 미상)"} · {postCard.transaction_date} · ₩{Math.abs(Number(postCard.amount || 0)).toLocaleString("ko-KR")}</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{postCard.merchant_name || "(가맹점 미상)"} · {postCard.transaction_date} · {Number(postCard.amount || 0) < 0 ? <span className="text-[var(--success)]">+₩{Math.abs(Number(postCard.amount || 0)).toLocaleString("ko-KR")} (취소/환불)</span> : `₩${Math.abs(Number(postCard.amount || 0)).toLocaleString("ko-KR")}`}</div>
             </div>
             <div className="p-5 space-y-3">
               <div>
