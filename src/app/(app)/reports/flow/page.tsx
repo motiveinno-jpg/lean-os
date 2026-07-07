@@ -388,8 +388,13 @@ export default function BusinessFlowPage() {
           {(receivable?.over30 ?? 0) > 0 && (
             <Link
               href="/partners/ledger"
-              className="block rounded-xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-85"
-              style={{ background: "color-mix(in srgb, var(--danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--danger) 25%, transparent)", color: "var(--danger)" }}
+              className="block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90"
+              style={{
+                background: "color-mix(in srgb, var(--danger) 8%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--danger) 25%, transparent)",
+                color: "var(--danger)",
+                boxShadow: "0 6px 20px -8px color-mix(in srgb, var(--danger) 35%, transparent), inset 0 1px 0 color-mix(in srgb, var(--danger) 10%, white)",
+              }}
             >
               30일 넘은 미수금 ₩{fmtKrw(receivable!.over30)} — 거래처 원장에서 확인·독촉하세요 →
             </Link>
@@ -397,8 +402,13 @@ export default function BusinessFlowPage() {
           {monthGap > 0 && (
             <Link
               href="/partners/reconciliation"
-              className="block rounded-xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-85"
-              style={{ background: "color-mix(in srgb, var(--warning) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 25%, transparent)", color: "var(--warning)" }}
+              className="block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90"
+              style={{
+                background: "color-mix(in srgb, var(--warning) 8%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--warning) 25%, transparent)",
+                color: "var(--warning)",
+                boxShadow: "0 6px 20px -8px color-mix(in srgb, var(--warning) 35%, transparent), inset 0 1px 0 color-mix(in srgb, var(--warning) 10%, white)",
+              }}
             >
               {monthLabel} 발행액 중 ₩{fmtKrw(monthGap)} 아직 수금 확인 안 됨 — 입금 매칭으로 확인하세요 →
             </Link>
@@ -406,8 +416,13 @@ export default function BusinessFlowPage() {
           {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && (
             <Link
               href="/tax-invoices"
-              className="block rounded-xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-85"
-              style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 25%, transparent)", color: "var(--primary)" }}
+              className="block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90"
+              style={{
+                background: "color-mix(in srgb, var(--primary) 8%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--primary) 25%, transparent)",
+                color: "var(--primary)",
+                boxShadow: "0 6px 20px -8px color-mix(in srgb, var(--primary) 35%, transparent), inset 0 1px 0 color-mix(in srgb, var(--primary) 10%, white)",
+              }}
             >
               부가세 신고 D-{vatDday} ({monthVat!.dueDate}) — 예상 납부 ₩{fmtKrw(monthVat!.netVAT)} 현금 준비 →
             </Link>

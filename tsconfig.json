@@ -39,6 +39,7 @@
     "node_modules",
     "supabase",
     "codef-sync-rollback.ts",
-    "scripts"
+    "scripts",
+    "handoff"
   ]
 }
