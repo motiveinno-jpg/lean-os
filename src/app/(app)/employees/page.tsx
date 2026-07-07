@@ -2893,20 +2893,20 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   const its = preview.items;
                   const sum = (f: (x: any) => number) => its.reduce((s, x) => s + Number(f(x) || 0), 0);
                   return (
-                    <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-semibold">
-                      <td className="px-4 py-3 text-sm">합계 ({its.length}명)</td>
-                      <td className="px-4 py-3 text-sm text-right">{fmtKRW(sum((x) => x.baseSalary))}</td>
-                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.nonTaxableAmount || 0))}</td>
-                      <td className="px-4 py-3 text-sm text-right">{fmtKRW(preview.totalGross)}</td>
-                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.nationalPension))}</td>
-                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.healthInsurance))}</td>
-                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.longTermCareInsurance || 0))}</td>
-                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.employmentInsurance))}</td>
-                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.incomeTax))}</td>
-                      <td className="px-4 py-3 text-xs text-right">{fmtKRW(sum((x) => x.localIncomeTax))}</td>
-                      <td className="px-4 py-3 text-sm text-right text-[var(--danger)]">-{fmtKRW(preview.totalDeductions)}</td>
-                      <td className="px-4 py-3 text-sm text-right text-[var(--success)]">{fmtKRW(preview.totalNet)}</td>
-                      <td className="px-4 py-3"></td>
+                    <tr className="border-t-[3px] border-[var(--primary)]/40 bg-[var(--primary)]/10 font-bold">
+                      <td className="px-4 py-3.5 text-sm font-extrabold text-[var(--primary)]">합계 ({its.length}명)</td>
+                      <td className="px-4 py-3.5 text-sm text-right font-bold">{fmtKRW(sum((x) => x.baseSalary))}</td>
+                      <td className="px-4 py-3.5 text-xs text-right">{fmtKRW(sum((x) => x.nonTaxableAmount || 0))}</td>
+                      <td className="px-4 py-3.5 text-sm text-right font-bold text-[var(--text)]">{fmtKRW(preview.totalGross)}</td>
+                      <td className="px-4 py-3.5 text-xs text-right">{fmtKRW(sum((x) => x.nationalPension))}</td>
+                      <td className="px-4 py-3.5 text-xs text-right">{fmtKRW(sum((x) => x.healthInsurance))}</td>
+                      <td className="px-4 py-3.5 text-xs text-right">{fmtKRW(sum((x) => x.longTermCareInsurance || 0))}</td>
+                      <td className="px-4 py-3.5 text-xs text-right">{fmtKRW(sum((x) => x.employmentInsurance))}</td>
+                      <td className="px-4 py-3.5 text-xs text-right">{fmtKRW(sum((x) => x.incomeTax))}</td>
+                      <td className="px-4 py-3.5 text-xs text-right">{fmtKRW(sum((x) => x.localIncomeTax))}</td>
+                      <td className="px-4 py-3.5 text-sm text-right font-bold text-[var(--danger)]">-{fmtKRW(preview.totalDeductions)}</td>
+                      <td className="px-4 py-3.5 text-[15px] text-right font-extrabold text-[var(--success)]">{fmtKRW(preview.totalNet)}</td>
+                      <td className="px-4 py-3.5"></td>
                     </tr>
                   );
                 })()}
