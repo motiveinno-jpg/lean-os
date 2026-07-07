@@ -45,7 +45,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
 
   "/bank": { group: "자산관리", title: "통장" },
   "/cards": { group: "자산관리", title: "카드" },
-  "/payments": { group: "자산관리", title: "정기결제·구독" },
+  "/payments": { group: "자산관리", title: "정기 지출" },
   "/subscriptions": { group: "자산관리", title: "구독 관리" },
   "/loans": { group: "자산관리", title: "대출" },
   "/vault": { group: "자산관리", title: "자산" },

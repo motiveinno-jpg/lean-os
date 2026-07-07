@@ -69,8 +69,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
-      // 정기결제·구독 통합(2026-06-29) — 구독은 하위 항목으로
-      { href: "/payments", label: "정기결제·구독", icon: "clock", roles: ["owner", "admin"], children: [
+      // 2026-07-08 "정기 지출" 재편 — 자동 추천 중심. 지출결의→결재관리, 급여→인사(예정). 구독은 하위(Phase2 흡수 예정)
+      { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"], children: [
         { href: "/subscriptions", label: "구독 관리", icon: "sparkles", roles: ["owner", "admin"] },
       ] },
       { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },

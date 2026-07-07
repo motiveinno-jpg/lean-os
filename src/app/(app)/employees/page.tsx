@@ -257,7 +257,7 @@ export default function EmployeesPage() {
           <div className="flex-skin"><ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} /></div>
         </>
       )}
-      {/* 경비청구 탭은 구성원에서 제거(2026-06-29) — 경비는 결제(/payments?tab=expenses)에서 처리. 미결 경비 요약 카드는 상단 유지. 휴가 탭은 근태관리로 이동. */}
+      {/* 경비청구 탭은 구성원에서 제거(2026-06-29) — 경비/지출결의는 결재관리(/approvals)에서 처리(2026-07-08 이관). 미결 경비 요약 카드는 상단 유지. 휴가 탭은 근태관리로 이동. */}
       {effectiveTab === "certificates" && (
         <>
           <CertificatesHero companyId={companyId} />

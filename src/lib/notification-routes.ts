@@ -31,7 +31,7 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   overtime_request: () => `/attendance?section=overtime`,
   project_checkin: (id) => `/projecthub/${id}?tab=performance`,
   attendance_edit_request: () => `/attendance?view=records`,
-  expense_request: () => `/payments?tab=expenses`,
+  expense_request: () => `/approvals`,
   quote_approval: () => `/projects`,
 };
 
@@ -41,7 +41,7 @@ export const TYPE_HREF: Record<string, (id: string | null) => string> = {
   signature_request: (id) => id ? `/contracts/signed/${id}` : `/signatures`,
   deal_update: (id) => id ? `/projects/${id}` : `/projects`,
   payment_due: () => `/payments`,
-  expense_request: () => `/payments?tab=expenses`,
+  expense_request: () => `/approvals`,
   contract_expiry: (id) => id ? `/documents?id=${id}` : `/documents`,
   approval: () => `/approvals`,
   chat: () => `/chat`,

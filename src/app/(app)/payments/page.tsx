@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,23 +21,30 @@ import { AccessDenied } from "@/components/access-denied";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { supabase } from "@/lib/supabase";
 
-type Tab = 'queue' | 'payroll' | 'fixed' | 'recurring' | 'expenses';
+// 2026-07-08 "정기 지출" 재편 — 자동 추천을 첫 화면으로. 지출결의/품의는 결재관리(/approvals)로 이관.
+type Tab = 'recommend' | 'recurring' | 'fixed' | 'payroll' | 'queue';
 
 export default function PaymentsPage() {
   const { role } = useUser();
+  const router = useRouter();
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/payments");
+  // 지출결의/품의는 결재관리로 이관 — 옛 ?tab=expenses 딥링크는 /approvals 로 보냄
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('tab') === 'expenses') router.replace('/approvals');
+  }, [router]);
   if (tabLoading) return null;
   if (!tabAllowed) {
-    return <AccessDenied detail="정기결제 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
+    return <AccessDenied detail="정기 지출 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
   }
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(() => {
-    if (typeof window === 'undefined') return 'queue';
+    if (typeof window === 'undefined') return 'recommend';
     const t = new URLSearchParams(window.location.search).get('tab');
-    const valid: Tab[] = ['queue', 'payroll', 'fixed', 'recurring', 'expenses'];
-    return (valid as string[]).includes(t || '') ? (t as Tab) : 'queue';
+    const valid: Tab[] = ['recommend', 'recurring', 'fixed', 'payroll', 'queue'];
+    return (valid as string[]).includes(t || '') ? (t as Tab) : 'recommend';
   });
   const [filter, setFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
@@ -70,11 +78,11 @@ export default function PaymentsPage() {
   };
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'queue', label: '결제 큐' },
-    { key: 'expenses', label: '지출결의/품의' },
+    { key: 'recommend', label: '자동 추천' },
+    { key: 'recurring', label: '정기결제' },
+    { key: 'fixed', label: '고정비' },
     { key: 'payroll', label: '급여 일괄' },
-    { key: 'fixed', label: '고정비 일괄' },
-    { key: 'recurring', label: '반복 결제 설정' },
+    { key: 'queue', label: '결제 내역' },
   ];
 
   if (isInitLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
@@ -98,26 +106,22 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {/* Smart Setup Banner + Pipeline + Automation */}
-      {companyId && (
+      {/* 자동 추천 (핵심) — 통장·카드에서 2개월↑ 반복거래(동일 거래처·금액) 감지 → 정기결제 등록 추천 */}
+      {tab === 'recommend' && companyId && (
         <SmartSetupBanner companyId={companyId} invalidate={invalidate} onRegistered={() => setTab('recurring')} />
       )}
-
-      {tab === 'queue' && companyId && userId && (
-        <PaymentQueueTab companyId={companyId} userId={userId} filter={filter} setFilter={setFilter}
-          showForm={showForm} setShowForm={setShowForm} form={form} setForm={setForm} invalidate={invalidate} />
-      )}
-      {tab === 'expenses' && companyId && userId && (
-        <ExpenseTab companyId={companyId} userId={userId} invalidate={invalidate} />
-      )}
-      {tab === 'payroll' && companyId && userId && (
-        <PayrollBatchTab companyId={companyId} userId={userId} invalidate={invalidate} />
+      {tab === 'recurring' && companyId && (
+        <RecurringPaymentsTab companyId={companyId} invalidate={invalidate} />
       )}
       {tab === 'fixed' && companyId && userId && (
         <FixedCostBatchTab companyId={companyId} userId={userId} invalidate={invalidate} />
       )}
-      {tab === 'recurring' && companyId && (
-        <RecurringPaymentsTab companyId={companyId} invalidate={invalidate} />
+      {tab === 'payroll' && companyId && userId && (
+        <PayrollBatchTab companyId={companyId} userId={userId} invalidate={invalidate} />
+      )}
+      {tab === 'queue' && companyId && userId && (
+        <PaymentQueueTab companyId={companyId} userId={userId} filter={filter} setFilter={setFilter}
+          showForm={showForm} setShowForm={setShowForm} form={form} setForm={setForm} invalidate={invalidate} />
       )}
     </div>
   );
