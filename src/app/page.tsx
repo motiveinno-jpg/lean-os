@@ -257,6 +257,17 @@ const ENGINES = [
   },
 ];
 
+// 엔진 아이콘 — 이모지 대신 앱(사이드바·리포트)과 동일한 SVG 라인 아이콘 (사장님: 오너뷰엔 이모지 없음)
+function EngineGlyph({ num }: { num: string }) {
+  const p = { fill: "none" as const, stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, viewBox: "0 0 24 24", width: 26, height: 26 };
+  switch (num) {
+    case "01": return <svg {...p}><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>;
+    case "02": return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>;
+    case "03": return <svg {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>;
+    default: return <svg {...p}><path d="M3 21h18M6 21V4h9v17M9 8h3M9 12h3M9 16h3M18 21V9h-3" /></svg>;
+  }
+}
+
 // ═══════════════════════════════════════════
 // SIMULATION COMPONENTS
 // ═══════════════════════════════════════════
@@ -1132,8 +1143,8 @@ export default function LandingPage() {
                   <div className="p-6 md:p-10">
                     {/* Header — Icon + Name + Badge */}
                     <div className="flex items-center gap-4 mb-5">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: `${engine.color}15` }}>
-                        {engine.icon}
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${engine.color}15`, color: engine.color }}>
+                        <EngineGlyph num={engine.num} />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 flex-wrap">
@@ -1195,7 +1206,9 @@ export default function LandingPage() {
                         <div className="grid grid-cols-2 gap-2.5 mb-6">
                           {engine.features.map((f) => (
                             <div key={f.name} className="flex items-start gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-2xl p-3 hover:bg-white/[0.06] hover:border-white/12 transition-colors">
-                              <span className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: `${engine.color}1a`, boxShadow: `inset 0 0 0 1px ${engine.color}22` }}>{f.icon}</span>
+                              <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${engine.color}1a`, boxShadow: `inset 0 0 0 1px ${engine.color}22`, color: engine.color }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                              </span>
                               <div className="min-w-0">
                                 <div className="text-xs font-bold text-white mb-0.5 leading-tight">{f.name}</div>
                                 <div className="text-[10px] text-slate-400 leading-snug">{f.desc}</div>
