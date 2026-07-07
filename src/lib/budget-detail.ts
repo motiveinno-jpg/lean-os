@@ -12,6 +12,9 @@ export interface BudgetDetailItem {
   label: string;
   sub?: string;   // 날짜/부가정보
   amount: number;
+  // 직원 QA #9 — 산출 모달에서 직접 삭제/해제 가능하게 출처·id (고정비 행에만 채움)
+  refType?: "recurring" | "fixed_cost" | "bank";
+  refId?: string;
 }
 
 // 이 행들만 개별 레코드 조회 대상
@@ -66,7 +69,7 @@ export async function getBudgetCellDetail(
     const [recRes, fcRes, btRes] = await Promise.all([
       db.from("recurring_payments").select("*").eq("company_id", companyId).eq("is_active", true),
       db.from("fixed_costs").select("*").eq("company_id", companyId).eq("is_recurring", true),
-      db.from("bank_transactions").select("counterparty, description, transaction_date, amount")
+      db.from("bank_transactions").select("id, counterparty, description, transaction_date, amount")
         .eq("company_id", companyId).eq("type", "expense").eq("is_fixed_cost", true)
         .gte("transaction_date", start).lt("transaction_date", next)
         .order("transaction_date", { ascending: true }),
@@ -75,13 +78,14 @@ export async function getBudgetCellDetail(
       label: pick(r, ["name", "memo", "description", "category"], "정기지출"),
       sub: r.day_of_month ? `매월 ${r.day_of_month}일` : (r.category ?? undefined),
       amount: Number(r.amount || 0),
+      refType: "recurring" as const, refId: r.id,
     }));
     const mm = String(month).padStart(2, "0");
     const lastDay = new Date(year, month, 0).getDate();
     for (const fc of (fcRes.data ?? [])) {
       if (fc.start_date && fc.start_date > `${year}-${mm}-${String(lastDay).padStart(2, "0")}`) continue;
       if (fc.end_date && fc.end_date < `${year}-${mm}-01`) continue;
-      items.push({ label: pick(fc, ["name", "memo", "description", "category"], "고정비"), sub: fc.category ?? undefined, amount: Number(fc.amount || 0) });
+      items.push({ label: pick(fc, ["name", "memo", "description", "category"], "고정비"), sub: fc.category ?? undefined, amount: Number(fc.amount || 0), refType: "fixed_cost", refId: fc.id });
     }
     // 통장 거래 중 '고정비' 체크(전표처리/매핑) — 당월 실적
     for (const t of (btRes.data ?? [])) {
@@ -89,6 +93,7 @@ export async function getBudgetCellDetail(
         label: pick(t, ["counterparty", "description"], "통장 지출"),
         sub: `${t.transaction_date ?? ""} · 통장 고정비 체크`,
         amount: Math.abs(Number(t.amount || 0)),
+        refType: "bank", refId: t.id,
       });
     }
     return items;

@@ -5,9 +5,10 @@
 //   파생행(수입/지출 총액·순이익·누적·차액·부가세 등)은 FlowMatrix 가 계산해 clientItems 로 전달.
 //   .glass-card backdrop-filter + 테이블 overflow 회피 위해 document.body 로 포털.
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { getBudgetCellDetail, RECORD_BACKED_KEYS, type BudgetDetailItem } from "@/lib/budget-detail";
 
 const won = (n: number) => `${n < 0 ? "-" : ""}${Math.round(Math.abs(n)).toLocaleString("ko-KR")}`;
@@ -33,6 +34,26 @@ export function CellDetail({
 
   const items = isRecord ? (data ?? []) : (clientItems ?? []);
   const total = items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+
+  // 직원 QA #9 — 고정비 중복 정리: 등록 고정비(정기결제/고정비)는 삭제, 통장 고정비 체크는 해제
+  const queryClient = useQueryClient();
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const removeItem = async (it: BudgetDetailItem) => {
+    if (!it.refId || !it.refType) return;
+    const isBank = it.refType === "bank";
+    const ok = window.confirm(isBank
+      ? `"${it.label}" 거래의 고정비 체크를 해제할까요? (거래는 유지, 고정비 집계에서만 제외)`
+      : `"${it.label}" 등록 고정비를 삭제할까요? 되돌릴 수 없습니다.`);
+    if (!ok) return;
+    setDeleting(it.refId);
+    const db = supabase as any;
+    try {
+      if (it.refType === "recurring") await db.from("recurring_payments").delete().eq("id", it.refId);
+      else if (it.refType === "fixed_cost") await db.from("fixed_costs").delete().eq("id", it.refId);
+      else if (it.refType === "bank") await db.from("bank_transactions").update({ is_fixed_cost: false }).eq("id", it.refId);
+      await queryClient.invalidateQueries();
+    } finally { setDeleting(null); }
+  };
 
   if (typeof document === "undefined") return null;
 
@@ -62,7 +83,16 @@ export function CellDetail({
                     <div className="text-sm text-[var(--text)] truncate">{it.label}</div>
                     {it.sub && <div className="text-[10px] text-[var(--text-dim)]">{it.sub}</div>}
                   </div>
-                  <div className={`text-sm mono-number whitespace-nowrap ${it.amount < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{won(it.amount)}</div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className={`text-sm mono-number whitespace-nowrap ${it.amount < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{won(it.amount)}</div>
+                    {it.refType && it.refId && (
+                      <button type="button" onClick={() => removeItem(it)} disabled={deleting === it.refId}
+                        title={it.refType === "bank" ? "이 거래의 고정비 체크 해제 (중복 정리)" : "등록 고정비 삭제 (중복 정리)"}
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 transition disabled:opacity-40">
+                        {deleting === it.refId ? "…" : it.refType === "bank" ? "해제" : "삭제"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
