@@ -47,6 +47,8 @@ export default function BankPage() {
   const queryClient = useQueryClient();
   const [mapOpenId, setMapOpenId] = useState<string | null>(null);
   const [mapCat, setMapCat] = useState("");
+  // 직원 QA — 계정과목 매핑을 전표입력처럼 검색으로 (스크롤 대신 타이핑)
+  const [mapAcctQuery, setMapAcctQuery] = useState("");
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const [syncing, setSyncing] = useState(false);
@@ -676,7 +678,7 @@ export default function BankPage() {
                       <td className="px-6 py-3.5 relative">
                         <button
                           type="button"
-                          onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); setMapFixed(!!tx.is_fixed_cost); }}
+                          onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); setMapFixed(!!tx.is_fixed_cost); setMapAcctQuery(""); }}
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${m.bg} ${m.text} cursor-pointer hover:ring-1 hover:ring-current`}
                           title="클릭해서 바로 매핑/무시 처리"
                         >{m.label}</button>
@@ -685,14 +687,26 @@ export default function BankPage() {
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setMapOpenId(null)} />
                             <div className="absolute z-50 mt-1 right-4 w-56 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-3 text-left">
-                              <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">분류 선택 후 매핑 처리</div>
-                              <select value={mapCat} onChange={(e) => setMapCat(e.target.value)}
-                                className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs mb-2 focus:outline-none focus:border-[var(--primary)]">
-                                <option value="">(분류 없음)</option>
-                                {coaAccounts.length > 0
-                                  ? coaAccounts.map((a) => <option key={a.code} value={a.name}>{a.name} ({a.code})</option>)
-                                  : BANK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                              </select>
+                              <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">계정과목 검색 후 선택</div>
+                              <input value={mapAcctQuery} onChange={(e) => setMapAcctQuery(e.target.value)} autoFocus
+                                placeholder={mapCat ? `현재: ${mapCat}` : "계정과목 검색 (이름·코드)"}
+                                className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]" />
+                              <div className="mt-1 mb-2 max-h-40 overflow-y-auto rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]/50">
+                                <button type="button" onClick={() => { setMapCat(""); setMapAcctQuery(""); }}
+                                  className={`w-full px-2 py-1 text-xs text-left hover:bg-[var(--bg-surface)] ${!mapCat ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>(분류 없음)</button>
+                                {(() => {
+                                  const opts = coaAccounts.length > 0 ? coaAccounts.map((a: any) => ({ code: String(a.code), name: a.name })) : BANK_CATEGORIES.map((c) => ({ code: c, name: c }));
+                                  const q = mapAcctQuery.trim().toLowerCase();
+                                  const filtered = opts.filter((o) => !q || o.name.toLowerCase().includes(q) || o.code.toLowerCase().includes(q)).slice(0, 60);
+                                  if (filtered.length === 0) return <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>;
+                                  return filtered.map((o) => (
+                                    <button key={o.code} type="button" onClick={() => { setMapCat(o.name); setMapAcctQuery(""); }}
+                                      className={`w-full flex justify-between gap-2 px-2 py-1 text-xs text-left hover:bg-[var(--bg-surface)] ${mapCat === o.name ? "bg-[var(--primary)]/10 text-[var(--primary)] font-semibold" : "text-[var(--text)]"}`}>
+                                      <span className="truncate">{o.name}</span>{o.code !== o.name && <span className="text-[var(--text-dim)] mono-number shrink-0">{o.code}</span>}
+                                    </button>
+                                  ));
+                                })()}
+                              </div>
                               <label className="flex items-center gap-1.5 mb-2 text-[11px] text-[var(--text)] cursor-pointer" title="매월 반복되는 지출이면 체크 — 경영흐름·고정비 리포트에 고정비로 집계되고, 같은 거래처는 다음부터 자동 체크됩니다">
                                 <input type="checkbox" checked={mapFixed} onChange={(e) => setMapFixed(e.target.checked)} className="accent-[var(--warning)]" />
                                 고정비로 표시 <span className="text-[var(--text-dim)]">(매월 반복 지출)</span>

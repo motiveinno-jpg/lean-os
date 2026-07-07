@@ -69,7 +69,7 @@ export async function getBudgetCellDetail(
     const [recRes, fcRes, btRes] = await Promise.all([
       db.from("recurring_payments").select("*").eq("company_id", companyId).eq("is_active", true),
       db.from("fixed_costs").select("*").eq("company_id", companyId).eq("is_recurring", true),
-      db.from("bank_transactions").select("id, counterparty, description, transaction_date, amount")
+      db.from("bank_transactions").select("id, counterparty, description, category, classification, transaction_date, amount")
         .eq("company_id", companyId).eq("type", "expense").eq("is_fixed_cost", true)
         .gte("transaction_date", start).lt("transaction_date", next)
         .order("transaction_date", { ascending: true }),
@@ -87,11 +87,12 @@ export async function getBudgetCellDetail(
       if (fc.end_date && fc.end_date < `${year}-${mm}-01`) continue;
       items.push({ label: pick(fc, ["name", "memo", "description", "category"], "고정비"), sub: fc.category ?? undefined, amount: Number(fc.amount || 0), refType: "fixed_cost", refId: fc.id });
     }
-    // 통장 거래 중 '고정비' 체크(전표처리/매핑) — 당월 실적
+    // 통장 거래 중 '고정비' 체크(전표처리/매핑) — 당월 실적. 매핑한 분류(계정과목)를 함께 표시(직원 QA)
     for (const t of (btRes.data ?? [])) {
+      const cat = t.category || t.classification || "";
       items.push({
         label: pick(t, ["counterparty", "description"], "통장 지출"),
-        sub: `${t.transaction_date ?? ""} · 통장 고정비 체크`,
+        sub: `${t.transaction_date ?? ""}${cat ? ` · ${cat}` : ""} · 통장 고정비 체크`,
         amount: Math.abs(Number(t.amount || 0)),
         refType: "bank", refId: t.id,
       });
