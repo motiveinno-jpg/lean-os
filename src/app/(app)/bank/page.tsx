@@ -62,6 +62,21 @@ export default function BankPage() {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
+  // 직원 QA — 탭 전환 시 히스토리 쌓기: 거래내역에서 뒤로가기 하면 이전 탭(통장)으로 돌아감(카드페이지로 안 나감).
+  const goTab = (t: Tab) => {
+    setTab(t);
+    if (typeof window !== "undefined") window.history.pushState({ bankTab: t }, "");
+  };
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const t = (e.state && (e.state as any).bankTab) as Tab | undefined;
+      const next: Tab = t || "accounts";
+      setTab(next);
+      if (next !== "transactions") { setSelectedAccountNo(""); setSelectedAccountLabel(""); }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   // 같은 key 재더블클릭 시 방향 토글, 다른 key 면 key 설정 + 기본 방향(날짜·금액=desc, 그 외=asc).
   const onSortTx = (key: string) => {
     setSortKey((prev) => {
@@ -380,7 +395,7 @@ export default function BankPage() {
             <button
               key={t.key}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => goTab(t.key)}
               className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}
             >
               {t.label}
@@ -500,8 +515,8 @@ export default function BankPage() {
                 key={a.accountNo}
                 role="button"
                 tabIndex={0}
-                onClick={() => { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); setTab("transactions"); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); setTab("transactions"); } }}
+                onClick={() => { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); goTab("transactions"); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); goTab("transactions"); } }}
                 className="glass-card card-hover p-5 transition-all cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-2 gap-2">
