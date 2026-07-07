@@ -1312,7 +1312,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               <>
                 {/* Leave balance info */}
                 {leaveForm.leaveType === "annual" && (
-                  <div className="flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20 shadow-sm">
                     <div className="text-2xl font-extrabold text-blue-500">
                       {remainingLeave !== null ? remainingLeave : "-"}
                     </div>

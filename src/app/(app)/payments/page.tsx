@@ -550,7 +550,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                 <textarea value={refundReason} onChange={(e) => setRefundReason(e.target.value)} rows={3} placeholder="환불 사유 (필수) - 예: 서비스 취소, 중복결제, 고객 요청"
                   className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none mb-4" />
               ) : (
-                <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 mb-4">
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 mb-4 shadow-sm">
                   <div className="text-xs text-[var(--text-dim)] mb-1">환불 사유</div>
                   <div className="text-sm">{refundReason}</div>
                 </div>
@@ -738,7 +738,7 @@ function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string;
 
       {/* Last generated preview */}
       {lastResult && (
-        <div className="bg-green-500/5 border border-green-500/20 rounded-2xl p-4 mb-6">
+        <div className="bg-green-500/5 border border-green-500/20 rounded-2xl p-4 mb-6 shadow-md">
           <div className="text-sm font-bold text-green-500 mb-3">급여 배치가 생성되었습니다 ({lastResult.items.length}명)</div>
           <div className="space-y-1">
             {lastResult.items.map((item, i) => (
@@ -1282,7 +1282,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
     <>
       {/* Detected recurring from bank tx */}
       {newDetected.length > 0 && (
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 mb-6">
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 mb-6 shadow-md">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-bold text-blue-500">
               이체내역에서 고정비 {newDetected.length}건 감지됨
@@ -1724,7 +1724,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
 
       {/* Automation result */}
       {result && (
-        <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3">
+        <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3 shadow-sm">
           <div className="text-xs font-bold text-green-500 mb-2">자동화 실행 완료</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
             {result.recurringExpense.created > 0 && (
@@ -1791,7 +1791,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
 
       {/* Detected patterns from bank tx — 건별 등록/미등록 (반복 이체 ≠ 전부 정기결제) */}
       {detected.length > 0 && (
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3">
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 shadow-sm">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <div className="text-xs font-bold text-blue-500">
               이체내역에서 {freshDetected.length}건 신규 감지 / {detected.filter(d => d.alreadyRegistered).length}건 기등록

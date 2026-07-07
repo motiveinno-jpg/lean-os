@@ -1271,7 +1271,7 @@ export default function TaxInvoicesPage() {
 
       {/* Duplicate Invoice Warning Banner */}
       {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).length > 0 && (
-        <div className="no-print mb-6 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl px-5 py-4">
+        <div className="no-print mb-6 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl px-5 py-4 shadow-md">
           <div className="flex items-start gap-3">
             <svg className="w-5 h-5 text-[var(--warning)] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -1431,7 +1431,7 @@ export default function TaxInvoicesPage() {
         if (unmatched > 0) must.push(`미매칭 ${unmatched}건 회수·매칭 확인`);
         return (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 no-print">
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 shadow-md">
               <div className="flex items-start gap-3">
                 <span className="p-2 rounded-lg bg-amber-500/15 text-amber-500 shrink-0 text-base leading-none">⚠️</span>
                 <div className="min-w-0">
@@ -1442,7 +1442,7 @@ export default function TaxInvoicesPage() {
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-5">
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-5 shadow-md">
               <div className="flex items-start gap-3">
                 <span className="p-2 rounded-lg bg-rose-500/15 text-rose-500 shrink-0 text-base leading-none">📌</span>
                 <div className="min-w-0">
@@ -2139,7 +2139,7 @@ export default function TaxInvoicesPage() {
         <div className="space-y-4">
           {/* 미연결 상태 — 등록 가이드 */}
           {!isHometaxConnected && (
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-5">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-5 shadow-md">
               <div className="flex items-start gap-3">
                 <div className="text-2xl">💡</div>
                 <div className="flex-1">
@@ -2173,7 +2173,7 @@ export default function TaxInvoicesPage() {
 
           {/* 연결됨 + 첫 동기화 전 — 시작 안내 */}
           {isHometaxConnected && syncLogs.length === 0 && (
-            <div className="bg-emerald-500/10 border border-green-500/30 rounded-2xl p-5">
+            <div className="bg-emerald-500/10 border border-green-500/30 rounded-2xl p-5 shadow-md">
               <div className="flex items-start gap-3">
                 <div className="text-2xl">✅</div>
                 <div className="flex-1">

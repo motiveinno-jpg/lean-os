@@ -419,7 +419,7 @@ function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () =>
   const friendlyMain = item.hint || item.message || "동기화에 실패했습니다.";
 
   return (
-    <li className="p-3 rounded-xl bg-red-500/8 border border-red-500/15">
+    <li className="p-3 rounded-xl bg-red-500/8 border border-red-500/15 shadow-sm">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-red-500/70 font-mono mb-0.5">
@@ -799,7 +799,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
 
         {isConnected ? (
           <div className="space-y-3">
-            <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/20">
+            <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/20 shadow-sm">
               <p className="text-xs text-green-600 font-semibold">
                 {hasCodefConnection && hasHometaxConnection
                   ? "은행/카드 + 홈택스가 모두 연결되었습니다. 거래내역과 세금계산서가 자동으로 수집됩니다."
@@ -883,7 +883,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                   </ul>
                 )}
                 {syncResult.notes && syncResult.notes.length > 0 && (
-                  <div className="mt-3 p-2.5 rounded-xl bg-blue-500/8 border border-blue-500/15">
+                  <div className="mt-3 p-2.5 rounded-xl bg-blue-500/8 border border-blue-500/15 shadow-sm">
                     <div className="text-xs font-semibold text-blue-600 dark:text-blue-300 mb-1.5">
                       💡 CODEF 설정 안내 {syncResult.notes.length}건
                     </div>

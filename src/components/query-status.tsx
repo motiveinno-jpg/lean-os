@@ -8,7 +8,7 @@
 export function QueryErrorBanner({ error, onRetry }: { error: Error | null; onRetry?: () => void }) {
   if (!error) return null;
   return (
-    <div className="mb-4 p-3 rounded-xl bg-[var(--danger)]/10 border border-[var(--danger)]/20 flex items-center justify-between gap-3">
+    <div className="mb-4 p-3 rounded-xl bg-[var(--danger)]/10 border border-[var(--danger)]/20 shadow-sm flex items-center justify-between gap-3">
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-[var(--danger)] flex-shrink-0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -238,7 +238,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
 
       {/* 합류 요청 — 가입 시 우리 회사 사업자번호를 입력한 사용자의 승인 대기 (승인 시 멤버로 연결) */}
       {joinRequests.length > 0 && (
-        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/30 mb-4">
+        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/30 mb-4 shadow-sm">
           <div className="text-xs font-bold text-amber-600 mb-2">📨 합류 요청 {joinRequests.length}건 — 승인하면 우리 회사 멤버로 연결됩니다</div>
           <div className="space-y-2">
             {joinRequests.map((r: any) => (

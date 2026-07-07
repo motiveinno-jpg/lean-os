@@ -519,7 +519,7 @@ export default function OnboardingPage() {
         {/* Error banner */}
         {error && (
           <div
-            className="mb-4 px-4 py-3 rounded-xl text-sm flex items-start gap-2 bg-[var(--danger)]/10 border border-[var(--danger)]/20"
+            className="mb-4 px-4 py-3 rounded-xl text-sm flex items-start gap-2 bg-[var(--danger)]/10 border border-[var(--danger)]/20 shadow-sm"
             role="alert"
           >
             <svg className="w-4 h-4 text-[var(--danger)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -1130,7 +1130,7 @@ function StepHeader({
 
 function CompletedBadge({ message }: { message: string }) {
   return (
-    <div className="px-3 py-2.5 rounded-xl flex items-start gap-2 bg-[var(--success)]/10 border border-[var(--success)]/20">
+    <div className="px-3 py-2.5 rounded-xl flex items-start gap-2 bg-[var(--success)]/10 border border-[var(--success)]/20 shadow-sm">
       <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--success)" }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
         <polyline points="22 4 12 14.01 9 11.01" />

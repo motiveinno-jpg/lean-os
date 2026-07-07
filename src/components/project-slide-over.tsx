@@ -808,7 +808,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
 
       {/* 위험 영역 — owner/admin 만 노출 */}
       {canDelete && (
-        <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+        <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/5 p-4 shadow-sm">
           <div className="text-[10px] font-bold uppercase tracking-wider text-red-500 mb-1">⚠ 위험 영역</div>
           <div className="text-[11px] text-[var(--text-muted)] mb-3">
             프로젝트를 삭제하면 칸반·리스트·활동 어디에서도 보이지 않게 됩니다.

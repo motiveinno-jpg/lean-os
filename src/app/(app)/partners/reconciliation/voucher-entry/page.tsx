@@ -510,7 +510,7 @@ export default function VoucherEntryPage() {
       </div>
 
       {acctFetched && !dbReady && (
-        <div className="px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/25 text-xs text-amber-600 font-semibold">
+        <div className="px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/25 text-xs text-amber-600 font-semibold shadow-sm">
           ⚠️ 전표 시스템 DB(계정과목 마스터)가 아직 적용되지 않았습니다 — 적용 후 사용할 수 있습니다.
         </div>
       )}

@@ -247,7 +247,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
   return (
     <div className="space-y-6">
       {/* 경고 배너 */}
-      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6">
+      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 shadow-md">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg shrink-0">
             <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -324,7 +324,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
 
         {step === "confirm" && (
           <div className="space-y-4">
-            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 shadow-sm">
               <p className="text-sm font-bold text-red-500 mb-2">
                 정말 모든 데이터를 삭제하시겠습니까?
               </p>

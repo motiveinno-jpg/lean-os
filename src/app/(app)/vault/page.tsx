@@ -620,7 +620,7 @@ export default function VaultPage() {
 
       {/* 미사용 구독 경고 */}
       {tab === "accounts" && unusedAccounts.length > 0 && (
-        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 mb-6">
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 mb-6 shadow-sm">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <span className="text-base">💤</span>
@@ -1189,7 +1189,7 @@ export default function VaultPage() {
       {/* ═══ Discovery Tab ═══ */}
       {tab === "discovery" && (
         <>
-        <div className="mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/5 p-4 text-[11px] text-[var(--text-muted)]">
+        <div className="mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/5 p-4 text-[11px] text-[var(--text-muted)] shadow-sm">
           반복 결제 패턴(카드·자동이체)에서 미등록 구독을 자동으로 찾습니다. 수락하면{" "}
           <Link href="/subscriptions" className="text-[var(--primary)] font-semibold hover:underline">구독 목록</Link>
           에 추가됩니다.

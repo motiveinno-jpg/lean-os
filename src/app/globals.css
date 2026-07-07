@@ -427,10 +427,16 @@ input, textarea, [contenteditable="true"] {
   padding-right: 1rem;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
-  background-color: color-mix(in srgb, var(--bg) 90%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  /* 2026-07-07 라운드11 — 메인 헤더/사이드바(.chrome-glass)와 동일한 유리 크롬으로 통일.
+     예전 blur(12px)+캔버스색 90% 조합이 셸의 crome-glass(blur18+saturate1.5)와 달라
+     "이 부분만 디자인 미적용"처럼 보이던 문제. */
+  background-color: var(--chrome-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
   border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+@supports (not (backdrop-filter: blur(1px))) and (not (-webkit-backdrop-filter: blur(1px))) {
+  .page-sticky-header { background-color: var(--bg-card); }
 }
 @media (min-width: 640px) {
   .page-sticky-header {

@@ -231,7 +231,7 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-4">
               {/* 연동 통장 합산 (자동, read-only) */}
-              <div className="p-4 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20">
+              <div className="p-4 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <div className="text-[11px] font-semibold text-[var(--primary)] uppercase tracking-wider">🔗 연동 통장 합산</div>

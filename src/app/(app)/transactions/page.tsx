@@ -2619,11 +2619,11 @@ function MonthlyChart({ data }: { data: MonthlyIncomeExpense[] }) {
 
       {expanded && (
         <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-4 py-2.5">
+          <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-4 py-2.5 shadow-sm">
             <div className="text-[10px] text-emerald-500 font-semibold uppercase tracking-wider">6개월 입금</div>
             <div className="text-base font-black mt-0.5 text-emerald-500 mono-number">₩{totalIncome.toLocaleString()}</div>
           </div>
-          <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl px-4 py-2.5">
+          <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl px-4 py-2.5 shadow-sm">
             <div className="text-[10px] text-rose-500 font-semibold uppercase tracking-wider">6개월 출금</div>
             <div className="text-base font-black mt-0.5 text-rose-500 mono-number">₩{totalExpense.toLocaleString()}</div>
           </div>

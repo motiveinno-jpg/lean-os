@@ -527,7 +527,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
   return (
     <div className="space-y-6">
       {/* 안내 */}
-      <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
+      <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 shadow-sm">
         <div className="text-sm font-semibold text-[var(--text)] mb-1">인증서 & 자동화 설정</div>
         <p className="text-xs text-[var(--text-muted)]">
           은행, 홈택스, 카드 로그인 정보를 등록하면 거래내역과 세금계산서가 자동으로 수집됩니다.

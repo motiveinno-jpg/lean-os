@@ -783,7 +783,7 @@ export function OrgBulkWizard({
                     </div>
                   </div>
                 )}
-                <div className="p-3 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 text-xs text-[var(--text)]">
+                <div className="p-3 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 text-xs text-[var(--text)] shadow-sm">
                   총 <b>{selectedPartners.length}곳</b>에 발송됩니다. (이메일 미등록 거래처는 자동 스킵)
                 </div>
 

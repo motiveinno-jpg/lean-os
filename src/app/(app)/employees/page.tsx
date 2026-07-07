@@ -484,14 +484,14 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       </div>
 
       {inviteMsg && (
-        <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${inviteMsg.ok ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" : "bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20"}`}>
+        <div className={`mb-4 p-3 rounded-xl text-sm font-medium shadow-sm ${inviteMsg.ok ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" : "bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20"}`}>
           {inviteMsg.msg}
         </div>
       )}
 
       {/* 4대보험 취득신고 EDI 생성 패널 */}
       {showAcqEdi && acqEdiData && (
-        <div className="mb-4 bg-[var(--info)]/5 border border-[var(--info)]/20 rounded-2xl p-5">
+        <div className="mb-4 bg-[var(--info)]/5 border border-[var(--info)]/20 rounded-2xl p-5 shadow-md">
           <div className="flex items-center justify-between mb-3">
             <div>
               <div className="text-sm font-bold text-[var(--info)] flex items-center gap-2">
@@ -2082,7 +2082,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             </div>
             {/* 퇴근 미입력 안내 — 연장/야간/휴일 산정 불가 사유 + 입력 진입 CTA */}
             {isAdminForAllowance && missingCheckOutCount > 0 && (
-              <div className="mb-3 px-4 py-3 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-300 text-xs flex items-center justify-between gap-3">
+              <div className="mb-3 px-4 py-3 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-300 text-xs flex items-center justify-between gap-3 shadow-sm">
                 <span>
                   <span className="font-semibold">⚠️ 퇴근 미입력 {missingCheckOutCount}건</span>
                   {" — "}
@@ -3323,7 +3323,7 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
 
         {/* 아직 연차 미설정 직원 — 자동 부여 안내 (자동부여 모드 전용) */}
         {!isEmployee && grantMethod === "auto" && employeesWithoutBalance.length > 0 && (
-          <div className="mb-3 bg-[var(--warning)]/5 border border-[var(--warning)]/20 rounded-xl p-3">
+          <div className="mb-3 bg-[var(--warning)]/5 border border-[var(--warning)]/20 rounded-xl p-3 shadow-sm">
             <div className="text-xs text-[var(--warning)] font-medium mb-2">연차 미설정 {employeesWithoutBalance.length}명</div>
             <div className="flex flex-wrap gap-2">
               {employeesWithoutBalance.map((e: any) => {

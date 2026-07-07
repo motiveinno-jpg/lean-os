@@ -217,7 +217,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
       </div>
 
       {/* CSV Format Guide */}
-      <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 space-y-1.5">
+      <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 space-y-1.5 shadow-sm">
         <p className="font-semibold">CSV 형식 안내</p>
         <p>
           열 순서: <code className="bg-blue-500/20 px-1 rounded">email,name,role</code>
