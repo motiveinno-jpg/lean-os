@@ -1,6 +1,6 @@
 "use client";
 
-// 나갈 돈 — "앞으로 낼 돈은?"에 답하는 대표용 화면(2026-07-08).
+// 예정 지출 — "앞으로 낼 돈은?"에 답하는 대표용 화면(2026-07-08).
 //   세금(부가세)·대출 상환·매달 고정비·미지급금 (매입)을 모아, 다음 30일 예상 지출과
 //   통장으로 감당되는지 신호로. 읽기 전용 소스만(스냅샷 쓰기 부수효과 없는 헬퍼).
 
@@ -53,7 +53,7 @@ export default function UpcomingPage() {
   });
 
   if (role === "partner" || role === "employee") {
-    return <AccessDenied detail="나갈 돈은 대표·관리자 전용입니다." />;
+    return <AccessDenied detail="예정 지출은 대표·관리자 전용입니다." />;
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -97,7 +97,7 @@ export default function UpcomingPage() {
             </div>
           </div>
 
-          {/* 앞으로 나갈 돈 목록 */}
+          {/* 예정 지출 목록 */}
           <div className="glass-card p-5">
             <div className="text-sm font-bold text-[var(--text)] mb-3">예정 지출 항목</div>
             {items.length === 0 ? (
