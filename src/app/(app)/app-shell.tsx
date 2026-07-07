@@ -274,7 +274,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <Sidebar />
       {/* 라운드6.5 TeamHub 헤더바 — 좌: 브레드크럼+타이틀 / 우: 검색 필·알림 벨·도움말·프로필 칩 */}
       <header
-        className={`chrome-glass fixed top-0 md:top-3 right-0 md:right-3 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b md:border border-[var(--border)]/60 md:rounded-[20px] transition-all duration-200 ${
+        className={`chrome-glass absolute top-0 md:top-3 right-0 md:right-3 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b md:border border-[var(--border)]/60 md:rounded-[20px] transition-all duration-200 ${
           collapsed ? "md:left-[92px]" : "md:left-[264px]"
         } left-0`}
       >
