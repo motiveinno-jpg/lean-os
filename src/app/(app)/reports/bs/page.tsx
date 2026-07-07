@@ -81,12 +81,11 @@ function formatKrw(value: number): string {
 /*  Data fetching                                                      */
 /* ------------------------------------------------------------------ */
 /* Fetch B/S data for a specific cutoff date (or current if not provided) */
-async function fetchBsData(companyId: string, cutoffDate?: string, arApMonths = 6): Promise<BsData> {
-  // 2026-06-10 AR/AP 기간 하한 — 최근 arApMonths 개월 송장만 미수금/미지급금으로 집계.
-  //   매칭 워크플로우 미유지 시 1년치 송장이 통째로 미수/미지급으로 부풀려지던 문제 보정.
-  //   그 이전(fromDate 미만)은 이미 정산된 것으로 간주.
+async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
+  // 2026-07-08 직원 QA #5 — AR/AP 집계 시작일을 해당연도 1월1일 고정(회계연도 누적).
+  //   시작일 = 기준일이 속한 해의 1/1, 종료 = 기준일. 기준일만 사용자 선택.
   const cutoff = cutoffDate || new Date().toISOString().slice(0, 10);
-  const fromDate = (() => { const d = new Date(cutoff); d.setMonth(d.getMonth() - arApMonths); return d.toISOString().slice(0, 10); })();
+  const fromDate = `${cutoff.slice(0, 4)}-01-01`;
   // 큰 테이블(tax_invoices) 은 페이지네이션 — PostgREST 1000건 제약 회피
   const [bankRes, loanRes, invoices, vaultRes, companyRes, settlements] = await Promise.all([
     supabase
@@ -393,7 +392,6 @@ export default function BalanceSheetPage() {
   // 기준일 — 빈 값이면 오늘, 사용자가 지정하면 그 시점 BS 조회
   const [cutoffInput, setCutoffInput] = useState<string>('');
   // 2026-06-10 매출채권/미지급금 집계 기간(개월) — 최근 N개월 송장만 outstanding 으로 간주
-  const [arApMonths, setArApMonths] = useState<number>(6);
   const [showPayableDrill, setShowPayableDrill] = useState(false);
   const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
   // 통합 세부 모달: 자산/부채 항목 클릭 시 열림
@@ -418,8 +416,8 @@ export default function BalanceSheetPage() {
     const prevCutoff = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-${String(new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
 
     Promise.all([
-      fetchBsData(companyId, cutoffInput || undefined, arApMonths),
-      fetchBsData(companyId, prevCutoff, arApMonths),
+      fetchBsData(companyId, cutoffInput || undefined),
+      fetchBsData(companyId, prevCutoff),
       fetchBsTrend(companyId, 6),
     ])
       .then(([current, prev, trendData]) => {
@@ -429,7 +427,7 @@ export default function BalanceSheetPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
-  }, [companyId, cutoffInput, arApMonths]);
+  }, [companyId, cutoffInput]);
 
   /* ---------------------------------------------------------------- */
   /*  CSV Export                                                       */
@@ -650,15 +648,7 @@ export default function BalanceSheetPage() {
           <div className="h-5 w-px bg-[var(--border)] hidden sm:block" />
           <div className="flex items-center gap-2 flex-wrap">
             <label className="text-xs font-semibold text-[var(--text-dim)]">채권·채무</label>
-            <div className="seg-bar">
-              {[3, 6, 12].map((m) => (
-                <button key={m} type="button" onClick={() => setArApMonths(m)}
-                  className={`seg-item ${arApMonths === m ? "seg-item-active" : ""}`}>
-                  {m}개월
-                </button>
-              ))}
-            </div>
-            <span className="text-[11px] text-[var(--text-dim)]">이내 미매칭 세금계산서만 집계</span>
+            <span className="text-[11px] text-[var(--text-dim)]">해당연도 <b className="text-[var(--text-muted)]">1/1 ~ 기준일</b> 누적 미매칭 세금계산서 집계</span>
           </div>
         </div>
         <div className="no-print flex items-center gap-1.5 flex-wrap">
