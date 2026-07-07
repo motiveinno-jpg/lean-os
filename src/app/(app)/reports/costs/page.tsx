@@ -9,6 +9,7 @@ import { getMonthlyBudgetOverview, getCostBreakdown, getCostCategoryDetail, type
 import { CellDetail } from "../flow/_components/CellDetail";
 import CostsChart from "./costs-chart";
 import { ReportsTabs } from "../_components/ReportsTabs";
+import { StatementsTabs } from "../_components/StatementsTabs";
 
 /* ------------------------------------------------------------------ */
 /*  회계 › 고정비 · 변동비                                              */
@@ -103,6 +104,7 @@ export default function CostsPage() {
   return (
     <div>
       <ReportsTabs />
+      <StatementsTabs />
       {/* 툴바 — 연도 필터. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
       <div className="page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
         <select

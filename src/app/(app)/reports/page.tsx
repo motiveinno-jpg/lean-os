@@ -15,7 +15,7 @@ export default function ReportsHubRedirect() {
 
   useEffect(() => {
     if (role === "partner") return;
-    router.replace("/reports/flow");
+    router.replace("/reports/summary");
   }, [role, router]);
 
   if (role === "partner") {

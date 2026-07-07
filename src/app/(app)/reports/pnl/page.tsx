@@ -10,6 +10,7 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import PnlChart from "./pnl-chart";
 import { ReportsTabs } from "../_components/ReportsTabs";
+import { StatementsTabs } from "../_components/StatementsTabs";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -598,6 +599,7 @@ export default function PnlPage() {
     <div id="pnl-printable">
       <style>{PRINT_CSS}</style>
       <ReportsTabs />
+      <StatementsTabs />
       {/* 툴바 — 기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
       <div className="page-sticky-header no-print-sticky mb-6 flex flex-wrap items-center justify-between gap-2">
         {/* 조회 기간 — 월 범위. 다른 페이지 달력과 동일한 단일 컨트롤 스타일(h-9·rounded-lg). 2026-06-30 테두리 중첩 제거 */}
