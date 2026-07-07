@@ -667,7 +667,9 @@ export default function BankPage() {
                               <select value={mapCat} onChange={(e) => setMapCat(e.target.value)}
                                 className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs mb-2 focus:outline-none focus:border-[var(--primary)]">
                                 <option value="">(분류 없음)</option>
-                                {BANK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                                {coaAccounts.length > 0
+                                  ? coaAccounts.map((a) => <option key={a.code} value={a.name}>{a.name} ({a.code})</option>)
+                                  : BANK_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                               </select>
                               <label className="flex items-center gap-1.5 mb-2 text-[11px] text-[var(--text)] cursor-pointer" title="매월 반복되는 지출이면 체크 — 경영흐름·고정비 리포트에 고정비로 집계되고, 같은 거래처는 다음부터 자동 체크됩니다">
                                 <input type="checkbox" checked={mapFixed} onChange={(e) => setMapFixed(e.target.checked)} className="accent-[var(--warning)]" />
