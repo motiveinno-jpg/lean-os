@@ -424,11 +424,15 @@ export default function PnlPage() {
       isTotal?: boolean;
       indent?: boolean;
       prevTotal?: number;
+      tone?: "revenue" | "profit";  // 직원 QA 손익 스타일 — 표준 양식 색 구획
       drill?: { source: "sales" | "purchase" | "opex" | "computed"; category?: string; breakdown?: { label: string; amount: number }[] };
     },
   ) => {
     const total = months.reduce((s, m) => s + (row[m] || 0), 0);
     const isHighlight = options?.isSubtotal || options?.isTotal;
+    const toneBg = options?.tone === "revenue" ? "color-mix(in srgb, var(--info) 9%, var(--bg-card))"
+      : options?.tone === "profit" ? "color-mix(in srgb, var(--success) 10%, var(--bg-card))"
+      : isHighlight ? "var(--bg-surface)" : "var(--bg-card)";
     const delta = options?.prevTotal !== undefined ? total - options.prevTotal : undefined;
 
     return (
@@ -449,7 +453,7 @@ export default function PnlPage() {
             whiteSpace: "nowrap",
             position: "sticky",
             left: 0,
-            background: isHighlight ? "var(--bg-surface)" : "var(--bg-card)",
+            background: toneBg,
             zIndex: 2,
           }}
         >
@@ -472,7 +476,7 @@ export default function PnlPage() {
             fontWeight: 600,
             textAlign: "right",
             color: total < 0 ? "var(--danger)" : "var(--text)",
-            background: isHighlight ? "var(--bg-surface)" : "var(--bg-card)",
+            background: toneBg,
             whiteSpace: "nowrap",
             position: "sticky",
             right: isCompareMode ? 120 : 0,
@@ -492,7 +496,7 @@ export default function PnlPage() {
               color: delta === undefined || delta === 0
                 ? "var(--text-dim)"
                 : delta > 0 ? "var(--success)" : "var(--danger)",
-              background: isHighlight ? "var(--bg-surface)" : "var(--bg-card)",
+              background: toneBg,
               position: "sticky",
               right: 0,
               zIndex: 2,
@@ -799,7 +803,7 @@ export default function PnlPage() {
           <tbody>
             {/* Revenue Section — 2026-05-22 세금계산서(sales) 공급가액 기준. 기타수익 분리 제거. */}
             {renderSectionHeader("매출 (Revenue)", months)}
-            {renderRow("매출 (세금계산서 기준)", data.revenue, months, { isSubtotal: true, isBold: true, prevTotal: isCompareMode ? prevSum(data.revenue) : undefined, drill: { source: "sales" } })}
+            {renderRow("매출 (세금계산서 기준)", data.revenue, months, { isSubtotal: true, isBold: true, tone: "revenue", prevTotal: isCompareMode ? prevSum(data.revenue) : undefined, drill: { source: "sales" } })}
 
             {renderDivider(months, "div-1")}
 
@@ -813,6 +817,7 @@ export default function PnlPage() {
             {renderRow("매출총이익 (Gross Profit)", computed.grossProfit, months, {
               isTotal: true,
               isBold: true,
+              tone: "profit",
               prevTotal: isCompareMode ? computed.prevTotals.grossProfit : undefined,
               drill: { source: "computed", breakdown: [
                 { label: "매출 (세금계산서 기준)", amount: months.reduce((s, m) => s + (data.revenue[m] || 0), 0) },
@@ -847,6 +852,7 @@ export default function PnlPage() {
             {renderRow("영업이익 (Operating Income)", computed.operatingIncome, months, {
               isTotal: true,
               isBold: true,
+              tone: "profit",
               prevTotal: isCompareMode ? computed.prevTotals.operatingIncome : undefined,
               drill: { source: "computed", breakdown: [
                 { label: "매출총이익", amount: months.reduce((s, m) => s + (computed.grossProfit[m] || 0), 0) },
@@ -858,6 +864,7 @@ export default function PnlPage() {
 
             {/* Net Income */}
             {renderRow("당기순이익 (Net Income)", computed.netIncome, months, {
+              tone: "profit",
               isTotal: true,
               isBold: true,
               prevTotal: isCompareMode ? computed.prevTotals.netIncome : undefined,
