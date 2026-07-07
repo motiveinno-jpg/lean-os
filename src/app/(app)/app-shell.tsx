@@ -294,7 +294,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <Sidebar />
       {/* 라운드6.5 TeamHub 헤더바 — 좌: 브레드크럼+타이틀 / 우: 검색 필·알림 벨·도움말·프로필 칩 */}
       <header
-        className={`chrome-glass fixed top-0 md:top-3 right-0 md:right-3 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b md:border border-[var(--border)]/60 md:rounded-[20px] transition-all duration-200 ${
+        className={`chrome-glass fixed top-0 md:top-3 right-0 md:right-3 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b md:border border-[var(--border)]/60 md:rounded-[20px] md:max-w-[1400px] md:mx-auto transition-all duration-200 ${
           collapsed ? "md:left-[92px]" : "md:left-[264px]"
         } left-0`}
       >
@@ -408,7 +408,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <main
         className={`flex-1 min-w-0 transition-[margin] duration-200 pt-[80px] md:pt-[88px] ${
           collapsed ? "md:ml-[92px]" : "md:ml-[264px]"
-        } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pr-3 md:pb-3" : role === "owner" ? "p-6 pb-20 md:pb-3 md:pr-3" : "p-6 md:pr-3 md:pb-3"}`}
+        } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pl-0 md:pr-3 md:pb-3" : role === "owner" ? "p-6 pb-20 md:pb-3 md:pr-3 md:pl-0" : "p-6 md:pr-3 md:pb-3 md:pl-0"}`}
       >
         {/* 라운드7: 콘텐츠 폭 상한 — 초광폭 모니터에서 표·폼이 가장자리까지 늘어져 휑하던 문제.
             1400px 이하 화면은 변화 없음. 좁아야 하는 페이지(폼·문서)는 페이지 내 --content-max 로 추가 제한. */}
