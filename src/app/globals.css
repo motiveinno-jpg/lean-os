@@ -725,3 +725,21 @@ body::before {
   font-weight: 600;
   box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--primary) 55%, transparent);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   2026-07-07 라운드9 — 잔존 솔리드 카드 일괄 흡수 (전 화면 통일, 파일 개별수정 없이 토큰단)
+   36개 파일·71곳이 .glass-card 클래스 대신 rounded-2xl + bg-[var(--bg-card)] 조합(과거 표준
+   솔리드 카드 시그니처)을 직접 써서 리퀴드글래스가 반쪽만 적용된 것처럼 보이던 문제.
+   해당 조합을 쓰는 모든 요소를 유리 표면으로 강제 흡수 — 마크업 변경 없이 CSS 셀렉터로 일괄 전환.
+   드롭다운/팝오버(rounded-xl·rounded-lg 사용, 이 조합 안 씀)는 대상 밖 → 가독성 영향 없음.
+   ══════════════════════════════════════════════════════════════════ */
+[class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
+  background: var(--glass-bg) !important;
+  border-color: var(--glass-border) !important;
+  box-shadow: 0 8px 32px -10px rgba(31,38,75,0.13), 0 2px 8px -3px rgba(31,38,75,0.05),
+              inset 0 1px 0 var(--glass-inner) !important;
+}
+[data-theme="dark"] [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
+  box-shadow: 0 8px 32px -10px rgba(0,0,0,0.55), 0 2px 8px -3px rgba(0,0,0,0.4),
+              inset 0 1px 0 var(--glass-inner) !important;
+}
