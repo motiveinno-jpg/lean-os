@@ -587,7 +587,7 @@ export default function TaxInvoicesPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("tax_invoices")
-        .select("*, deals(name), label, revenue_schedule_id, partners(business_type, business_item)")
+        .select("*, deals(name), label, revenue_schedule_id, partners(business_type, business_item, representative, contact_email, address)")
         .eq("company_id", companyId!)
         .gte("issue_date", startDate)
         .lte("issue_date", endDate)
@@ -2612,23 +2612,27 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
   //   매출: 공급자=우리회사, 공급받는자=거래처. 매입: 반대.
   const isSales = inv.type === 'sales';
   const issuedToNts = !!inv.nts_confirm_no; // 국세청 승인번호 보유 = 전송(발행)됨
+  // 직원 QA 세금계산서2 — 사업자번호 XXX-XX-XXXXX 포맷 + 상호 "+"(공백 인코딩) → 공백 정규화
+  const fmtBizNo = (b: string) => { const d = (b || '').replace(/[^0-9]/g, ''); return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : (b || ''); };
+  const cleanNm = (s: string) => (s || '').replace(/\+/g, ' ').trim();
+  const cpRep = inv.partners?.representative || inv.counterparty_representative || '';
   const supplier = {
-    bizNo: isSales ? myBizNo : (inv.counterparty_bizno || ''),
-    name: isSales ? myCompany : (inv.counterparty_name || ''),
-    rep: isSales ? myRep : '',
-    addr: isSales ? (companyInfo?.address || '') : '',
+    bizNo: fmtBizNo(isSales ? myBizNo : (inv.counterparty_bizno || '')),
+    name: cleanNm(isSales ? myCompany : (inv.counterparty_name || '')),
+    rep: isSales ? myRep : cpRep,
+    addr: isSales ? (companyInfo?.address || '') : (inv.partners?.address || ''),
     bizType: isSales ? myBizType : (inv.partners?.business_type || ''),
     bizCat: isSales ? myBizCat : (inv.partners?.business_item || ''),
-    email: isSales ? (companyInfo?.email || '') : (inv.counterparty_email || inv.partners?.email || ''),
+    email: isSales ? (companyInfo?.email || '') : (inv.counterparty_email || inv.partners?.contact_email || inv.partners?.email || ''),
   };
   const buyer = {
-    bizNo: !isSales ? myBizNo : (inv.counterparty_bizno || ''),
-    name: !isSales ? myCompany : (inv.counterparty_name || ''),
-    rep: !isSales ? myRep : '',
-    addr: !isSales ? (companyInfo?.address || '') : '',
+    bizNo: fmtBizNo(!isSales ? myBizNo : (inv.counterparty_bizno || '')),
+    name: cleanNm(!isSales ? myCompany : (inv.counterparty_name || '')),
+    rep: !isSales ? myRep : cpRep,
+    addr: !isSales ? (companyInfo?.address || '') : (inv.partners?.address || ''),
     bizType: !isSales ? myBizType : (inv.partners?.business_type || ''),
     bizCat: !isSales ? myBizCat : (inv.partners?.business_item || ''),
-    email: !isSales ? (companyInfo?.email || '') : (inv.counterparty_email || inv.partners?.email || ''),
+    email: !isSales ? (companyInfo?.email || '') : (inv.counterparty_email || inv.partners?.contact_email || inv.partners?.email || ''),
   };
   // 실제 세금계산서 관행: 매출(공급자 보관용)=적색, 매입=청색. 은은한 톤으로 공식 느낌만.
   const formColor = isSales ? '#C0392B' : '#1D6AA8';
