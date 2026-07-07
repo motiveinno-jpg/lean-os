@@ -228,7 +228,14 @@ export default function BankPage() {
       const { data } = await q;
       const rows = (data || []) as any[];
       const filtered = selectedAccountNo ? rows.filter((r) => r.raw_data?.accountNo === selectedAccountNo) : rows;
-      return hasTxRange ? filtered : filtered.slice(0, 50);
+      // 직원 QA #통장거래내역2 — 같은 날짜 거래는 시간(raw_data.trTime, HHMMSS)까지 반영해 최신순 정렬.
+      //   날짜만으로 정렬하면 같은 날 거래 순서가 뒤섞여 잔액·마지막 거래가 안 맞던 문제.
+      const sorted = [...filtered].sort((a, b) => {
+        const ka = `${a.transaction_date || ""} ${String(a.raw_data?.trTime || "").padStart(6, "0")}`;
+        const kb = `${b.transaction_date || ""} ${String(b.raw_data?.trTime || "").padStart(6, "0")}`;
+        return kb.localeCompare(ka); // 최신(날짜+시간) 먼저
+      });
+      return hasTxRange ? sorted : sorted.slice(0, 50);
     },
     enabled: !!companyId && tab === "transactions",
   });

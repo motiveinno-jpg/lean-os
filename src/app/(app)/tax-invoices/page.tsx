@@ -1096,9 +1096,9 @@ export default function TaxInvoicesPage() {
           전자(세금)계산서 조회
         </div>
         <div className="bg-[var(--bg-card)] p-3 flex flex-wrap items-stretch gap-x-0 gap-y-2">
-          <div className="flex items-stretch border border-[var(--border)] rounded-md overflow-hidden">
+          <div className="flex flex-wrap items-stretch border border-[var(--border)] rounded-md overflow-hidden min-w-0 max-w-full">
             <div className="px-3 flex items-center text-[11px] font-bold text-[var(--text-muted)]" style={{ background: "color-mix(in srgb, var(--primary) 6%, var(--bg-surface))" }}>조회기간</div>
-            <div className="px-3 py-2 flex items-center gap-2 flex-wrap">
+            <div className="px-3 py-2 flex items-center gap-2 flex-wrap min-w-0">
               <MonthField
                 value={viewFromMonth}
                 onChange={(e) => {

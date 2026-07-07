@@ -47,6 +47,9 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
   const [showForm, setShowForm] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<TaskStatus | null>(null);
+  // 직원 QA #프로젝트 테스크 검색 — 제목·담당자·라벨 검색 + 담당자 필터
+  const [search, setSearch] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState("");
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["project-tasks", dealId],
@@ -66,14 +69,28 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
     return m;
   }, [users]);
 
+  const filteredTasks = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (tasks as any[]).filter((t) => {
+      if (assigneeFilter) {
+        const ids = [t.assignee_id, ...(t.assignee_ids || [])].filter(Boolean);
+        if (!ids.includes(assigneeFilter)) return false;
+      }
+      if (!q) return true;
+      const names = [t.assignee_id, ...(t.assignee_ids || [])].filter(Boolean).map((id: string) => userName[id] || "");
+      const hay = [t.title, t.description, ...(t.labels || []), ...names].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [tasks, search, assigneeFilter, userName]);
+
   const byStatus = useMemo(() => {
     const m: Record<TaskStatus, any[]> = { todo: [], doing: [], review: [], done: [] };
-    for (const t of tasks as any[]) {
+    for (const t of filteredTasks) {
       const s = (["todo", "doing", "review", "done"].includes(t.status) ? t.status : "todo") as TaskStatus;
       m[s].push(t);
     }
     return m;
-  }, [tasks]);
+  }, [filteredTasks]);
 
   const total = (tasks as any[]).length;
   const doneCount = (tasks as any[]).filter((t) => t.status === "done").length;
@@ -106,7 +123,14 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
           <div className="text-xs text-[var(--text-muted)]">진행률 <b className="text-[var(--text)] mono-number">{pct}%</b> <span className="text-[var(--text-dim)]">({doneCount}/{total})</span></div>
           {delayedCount > 0 && <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 font-semibold">지연 {delayedCount}</span>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="제목·담당자·라벨 검색"
+            className="h-8 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs w-36 sm:w-44" />
+          <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}
+            className="h-8 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs">
+            <option value="">담당자 전체</option>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
           <div className="seg-bar">
             <button onClick={() => setView("kanban")} className={`seg-item ${view === "kanban" ? "seg-item-active" : ""}`}>칸반</button>
             <button onClick={() => setView("gantt")} className={`seg-item ${view === "gantt" ? "seg-item-active" : ""}`}>간트</button>
