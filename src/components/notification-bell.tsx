@@ -67,6 +67,7 @@ export function NotificationBell() {
         .from("notifications")
         .select("id, type, title, message, entity_type, entity_id, is_read, created_at")
         .eq("user_id", u.id)
+        .eq("is_read", false)
         .order("created_at", { ascending: false })
         .limit(RECENT_LIMIT);
       const list = (nRows || []) as NotificationRow[];
@@ -109,6 +110,9 @@ export function NotificationBell() {
   const goTo = async (n: NotificationRow) => {
     if (!n.is_read) {
       await (supabase as any).from("notifications").update({ is_read: true }).eq("id", n.id);
+      // 읽음 처리된 항목은 목록에서 즉시 사라지도록 (안읽은 알림만 보여주는 목록이라 유지 안 함)
+      setRows((prev) => prev?.filter((r) => r.id !== n.id) ?? prev);
+      setUnread((v) => Math.max(0, v - 1));
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
     }
     setOpen(false);
@@ -151,20 +155,18 @@ export function NotificationBell() {
             {rows === null ? (
               <div className="px-4 py-8 text-center text-xs text-[var(--text-dim)]">불러오는 중...</div>
             ) : rows.length === 0 ? (
-              <div className="px-4 py-8 text-center text-xs text-[var(--text-dim)]">새 알림이 없습니다.</div>
+              <div className="px-4 py-8 text-center text-xs text-[var(--text-dim)]">읽지 않은 알림이 없습니다.</div>
             ) : (
               <div className="divide-y divide-[var(--border)]">
                 {rows.map((n) => (
                   <button
                     key={n.id}
                     onClick={() => goTo(n)}
-                    className={`w-full flex items-start gap-2.5 px-4 py-3 text-left transition ${
-                      n.is_read ? "hover:bg-[var(--bg-surface)]/60" : "bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10"
-                    }`}
+                    className="w-full flex items-start gap-2.5 px-4 py-3 text-left transition bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10"
                   >
                     <span className="flex-1 min-w-0">
-                      <span className={`block text-[13px] font-semibold ${n.is_read ? "text-[var(--text-muted)]" : "text-[var(--text)]"}`}>
-                        {!n.is_read && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--primary)] mr-1.5 align-middle" />}
+                      <span className="block text-[13px] font-semibold text-[var(--text)]">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--primary)] mr-1.5 align-middle" />
                         {n.title}
                       </span>
                       {n.message && (
