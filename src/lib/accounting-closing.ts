@@ -127,3 +127,20 @@ export function computeSyncFloor(closingDate: string | null): string {
   const max = floors.reduce((a, b) => (a > b ? a : b));
   return max.toISOString().slice(0, 10);
 }
+
+// ── PDF 자동 채우기 (2026-07-08) ──
+//   회계 마감 자료 PDF → pdfjs 래스터화 → parse-closing-pdf 엣지(Claude Vision) → 계정별 차변/대변.
+//   수동입력과 투트랙: 추출 결과로 마감 폼을 미리 채우고, 사용자가 검토·수정 후 저장한다.
+export interface ClosingPdfLine { account_name: string; account_code: string; debit: number; credit: number; }
+
+export async function parseClosingPdf(
+  file: File,
+  accounts: { code?: string; name: string }[],
+): Promise<ClosingPdfLine[]> {
+  const { rasterizePdf } = await import("@/lib/form-templates");
+  const { pages } = await rasterizePdf(file);
+  if (!pages.length) throw new Error("PDF 페이지를 읽지 못했습니다.");
+  const { data, error } = await db.functions.invoke("parse-closing-pdf", { body: { pages, accounts } });
+  if (error) throw new Error(error.message || "PDF 인식 요청 실패");
+  return (data?.lines || []) as ClosingPdfLine[];
+}

@@ -7,7 +7,7 @@
 //     · 계정별 인라인 '거래처별' 확장 → 통장·카드·등록거래처로 세분화(차변/대변)
 //   세무자동화(tax) 탭에서 렌더.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DateField } from "@/components/date-field";
 import { useToast } from "@/components/toast";
@@ -17,7 +17,7 @@ import { getChartOfAccounts, type ChartOfAccount } from "@/lib/ledger";
 import { getCorporateCards } from "@/lib/card-transactions";
 import { getPartners } from "@/lib/partners";
 import {
-  getAccountingClosing, saveAccountingClosing, computeSyncFloor,
+  getAccountingClosing, saveAccountingClosing, computeSyncFloor, parseClosingPdf,
   lineDebit, lineCredit, openingDebit, openingCredit,
   PARTY_TYPE_LABEL, ACCOUNT_TYPE_LABEL, ACCOUNT_TYPE_ORDER,
   type OpeningLine, type OpeningParty, type PartyType, type AccountType,
@@ -45,6 +45,51 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
   const [search, setSearch] = useState("");
   const [byKey, setByKey] = useState<Record<string, OpeningLine>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // PDF 자동 채우기
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfResult, setPdfResult] = useState<{ recognized: number; matched: number; unmatched: string[] } | null>(null);
+
+  const normCode = (s: string | null | undefined) => String(s || "").replace(/[^0-9a-zA-Z]/g, "").replace(/^0+/, "").toLowerCase();
+  const normName = (s: string | null | undefined) => String(s || "").replace(/\s+/g, "").toLowerCase();
+
+  async function handlePdfUpload(file: File) {
+    if (!companyId) return;
+    setPdfLoading(true);
+    setPdfResult(null);
+    try {
+      const list = coa as ChartOfAccount[];
+      const lines = await parseClosingPdf(file, list.map((a) => ({ code: a.code, name: a.name })));
+      if (lines.length === 0) { toast("PDF에서 계정 금액을 찾지 못했습니다. 표가 선명한 자료인지 확인하세요.", "error"); setPdfLoading(false); return; }
+      const byCode = new Map(list.filter((a) => a.code).map((a) => [normCode(a.code), a]));
+      const byName = new Map(list.map((a) => [normName(a.name), a]));
+      let matched = 0; const unmatched: string[] = [];
+      const touchedTypes: Record<string, boolean> = {};
+      setByKey((prev) => {
+        const next = { ...prev };
+        for (const ln of lines) {
+          const acc = (ln.account_code && byCode.get(normCode(ln.account_code))) || byName.get(normName(ln.account_name));
+          if (acc) {
+            const base = next[acc.id] ?? { id: uid(), account_id: acc.id, code: acc.code, name: acc.name, account_type: acc.account_type as AccountType, mode: "account" as const, debit: 0, credit: 0, parties: [] };
+            next[acc.id] = { ...base, mode: "account", debit: ln.debit || base.debit, credit: ln.credit || base.credit };
+            if (acc.account_type) touchedTypes[acc.account_type] = true;
+            matched++;
+          } else {
+            const id = uid();
+            next[id] = { id, account_id: null, code: ln.account_code || "", name: ln.account_name || "(미상)", account_type: null, mode: "account", debit: ln.debit || 0, credit: ln.credit || 0, parties: [] };
+            unmatched.push(ln.account_name);
+          }
+        }
+        return next;
+      });
+      setOpenGroups((prev) => ({ ...prev, ...touchedTypes }));
+      setPdfResult({ recognized: lines.length, matched, unmatched });
+      toast(`PDF에서 ${lines.length}건 인식 — ${matched}건 계정 매칭${unmatched.length ? `, ${unmatched.length}건 직접입력으로 추가` : ""}. 금액을 검토한 뒤 저장하세요.`, "success");
+    } catch (e: any) {
+      toast("PDF 인식 실패: " + friendlyError(e, "알 수 없는 오류"), "error");
+    }
+    setPdfLoading(false);
+  }
 
   useEffect(() => {
     if (closing) {
@@ -179,6 +224,40 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
         <DateField value={closingDate} onChange={(e) => setClosingDate(e.target.value)}
           className="field-input" />
         <p className="text-[10px] text-[var(--text-dim)] mt-1">비워두면 마감일 없음 — 이 경우 최대 <b>2년 전</b>까지만 수집합니다.</p>
+      </div>
+
+      {/* PDF 자동 채우기 — 수동입력과 투트랙. 마감 자료 PDF를 올리면 계정별 금액을 읽어 아래 폼을 채움 */}
+      <div className="rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/5 p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="p-2 rounded-lg bg-[var(--primary)]/12 text-[var(--primary)] shrink-0 text-base leading-none">📄</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-[var(--text)]">PDF로 자동 채우기 <span className="text-[10px] font-normal text-[var(--text-dim)] ml-1">(수동 입력과 자유롭게 병행)</span></div>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
+              세무사 결산자료(합계잔액시산표·재무상태표·계정별 잔액명세 등) PDF를 올리면 계정별 차변/대변 금액을 자동으로 읽어 아래 표를 채웁니다.
+              인식 후 <b>금액을 검토·수정</b>한 뒤 저장하세요.
+            </p>
+            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+              <input ref={pdfInputRef} type="file" accept="application/pdf" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdfUpload(f); e.currentTarget.value = ""; }} />
+              <button onClick={() => pdfInputRef.current?.click()} disabled={pdfLoading || !hasCoa}
+                className="btn-primary btn-sm disabled:opacity-50">
+                {pdfLoading ? "인식 중… (10~30초)" : "PDF 업로드"}
+              </button>
+              {!hasCoa && <span className="text-[10px] text-[var(--warning)]">계정과목을 먼저 등록해야 자동 매칭됩니다.</span>}
+              {pdfResult && (
+                <span className="text-[11px] text-[var(--text-muted)]">
+                  ✓ {pdfResult.recognized}건 인식 · <b className="text-[var(--success)]">{pdfResult.matched}건 매칭</b>
+                  {pdfResult.unmatched.length > 0 && <> · <b className="text-[var(--warning)]">{pdfResult.unmatched.length}건 직접입력 추가</b></>}
+                </span>
+              )}
+            </div>
+            {pdfResult && pdfResult.unmatched.length > 0 && (
+              <div className="mt-2 text-[10px] text-[var(--text-dim)] leading-relaxed">
+                계정 미매칭(맨 아래 “직접 추가” 목록에 들어감): {pdfResult.unmatched.slice(0, 12).join(", ")}{pdfResult.unmatched.length > 12 ? " …" : ""}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 계정별 기초잔액 — 유형별 그룹 접기 + 검색 + 차변/대변 */}
