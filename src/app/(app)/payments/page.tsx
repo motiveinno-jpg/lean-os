@@ -12,6 +12,7 @@ import { createFixedCostBatch, approveBatch, triggerBatchExecution, getBatchWith
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
 import { createExpenseRequest, getExpenseRequests, approveExpense, rejectExpense, markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS } from "@/lib/expenses";
+import { SubscriptionsPanel } from "@/components/subscriptions-panel"; // 구독 흡수(2026-07-08)
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
@@ -21,8 +22,8 @@ import { AccessDenied } from "@/components/access-denied";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { supabase } from "@/lib/supabase";
 
-// 2026-07-08 "정기 지출" 재편 — 자동 추천을 첫 화면으로. 지출결의/품의→결재관리, 급여 일괄→인사/급여 이관.
-type Tab = 'recommend' | 'recurring' | 'fixed' | 'queue';
+// 2026-07-08 "정기 지출" 재편 — 자동 추천을 첫 화면으로. 지출결의→결재관리, 급여→인사, 구독 흡수(구독 탭).
+type Tab = 'recommend' | 'recurring' | 'subscriptions' | 'fixed' | 'queue';
 
 export default function PaymentsPage() {
   const { role } = useUser();
@@ -45,7 +46,7 @@ export default function PaymentsPage() {
   const [tab, setTab] = useState<Tab>(() => {
     if (typeof window === 'undefined') return 'recommend';
     const t = new URLSearchParams(window.location.search).get('tab');
-    const valid: Tab[] = ['recommend', 'recurring', 'fixed', 'queue'];
+    const valid: Tab[] = ['recommend', 'recurring', 'subscriptions', 'fixed', 'queue'];
     return (valid as string[]).includes(t || '') ? (t as Tab) : 'recommend';
   });
   const [filter, setFilter] = useState<string>("all");
@@ -82,6 +83,7 @@ export default function PaymentsPage() {
   const TABS: { key: Tab; label: string }[] = [
     { key: 'recommend', label: '자동 추천' },
     { key: 'recurring', label: '정기결제' },
+    { key: 'subscriptions', label: '구독' },
     { key: 'fixed', label: '고정비' },
     { key: 'queue', label: '결제 내역' },
   ];
@@ -113,6 +115,9 @@ export default function PaymentsPage() {
       )}
       {tab === 'recurring' && companyId && (
         <RecurringPaymentsTab companyId={companyId} invalidate={invalidate} />
+      )}
+      {tab === 'subscriptions' && (
+        <SubscriptionsPanel />
       )}
       {tab === 'fixed' && companyId && userId && (
         <FixedCostBatchTab companyId={companyId} userId={userId} invalidate={invalidate} />
