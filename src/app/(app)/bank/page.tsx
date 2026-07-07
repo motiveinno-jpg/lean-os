@@ -434,7 +434,8 @@ export default function BankPage() {
         />
       </div>
 
-      {/* 기간설정 — 카드 페이지와 통일 위치(제목 헤더 아래). 통장 연동 sync 범위 + 거래내역 표 필터 공통 적용 */}
+      {/* 기간설정 — 직원 QA #2: 통장(연동 sync 범위) 탭에만 노출. 거래내역 필터용은 거래내역 탭 안에 별도 배치. */}
+      {tab === "accounts" && (
       <div className="no-print flex items-center gap-2 mb-6 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
         <span className="text-xs font-semibold text-[var(--text-muted)]">통장 거래 기간</span>
         <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="시작일"
@@ -445,6 +446,7 @@ export default function BankPage() {
         {(bankTxFrom || bankTxTo) && <button onClick={() => { setBankTxFrom(""); setBankTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
         <span className="text-[10px] text-[var(--text-dim)] ml-auto hidden sm:block">통장 연동 시 이 기간의 거래를 불러오고, 거래내역 표에도 적용됩니다</span>
       </div>
+      )}
 
       {/* 개요 — 자동이체 예정·자동이체 내역·이번달 큰 지출 (실데이터 read-only 카드, 시안의 차트 영역은 데이터 부족으로 숨김) */}
       {tab === "overview" && (
@@ -528,6 +530,17 @@ export default function BankPage() {
       {/* 거래내역 — 시안 표 (거래/분류/금액/날짜/상태) 최근 50건. selectedAccountNo 있으면 그 통장만. */}
       {tab === "transactions" && (
         <>
+          {/* 직원 QA #2 — 거래내역 탭에서 조회기간 직접 설정 (표 필터). 통장 탭의 sync 범위와 동일 상태 공유 */}
+          <div className="no-print flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <span className="text-xs font-semibold text-[var(--text-muted)]">조회기간</span>
+            <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="시작일"
+              className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+            <span className="text-[var(--text-dim)] text-xs">~</span>
+            <DateField value={bankTxTo} min={bankTxFrom || undefined} onChange={(e) => setBankTxTo(e.target.value)} title="종료일"
+              className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
+            {(bankTxFrom || bankTxTo) && <button onClick={() => { setBankTxFrom(""); setBankTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
+            <span className="text-[10px] text-[var(--text-dim)] ml-auto hidden sm:block">미설정 시 최근 50건</span>
+          </div>
           {selectedAccountNo && (
             <div className="mb-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
               <span className="text-sm text-[var(--text)]">
