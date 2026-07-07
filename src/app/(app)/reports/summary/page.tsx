@@ -144,7 +144,7 @@ export default function ManagementSummaryPage() {
       ) : (
         <>
           {/* 한 줄 요약 배너 */}
-          <div className="glass-card p-5 flex items-start gap-3" style={{ borderLeft: `4px solid ${toneColor(bannerTone)}` }}>
+          <div className="glass-card p-5 flex items-start gap-3">
             <span className="text-xl leading-none mt-0.5">{bannerTone === "success" ? "🟢" : bannerTone === "warning" ? "🟡" : "🔴"}</span>
             <div>
               <div className="text-[15px] font-bold text-[var(--text)] leading-relaxed">{summaryLine}</div>
@@ -156,22 +156,31 @@ export default function ManagementSummaryPage() {
             </div>
           </div>
 
-          {/* 신호등 3카드 */}
+          {/* 신호등 3카드 — 순수 글래스 카드(색줄 없음), 신호는 라벨 앞 점 + 큰 숫자 색으로 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="glass-card p-5 flex flex-col gap-2" style={{ borderTop: `3px solid ${profit >= 0 ? "var(--success)" : "var(--danger)"}` }}>
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번 달 손익 <span className="text-[var(--text-dim)] font-normal">(번 돈 − 쓴 돈)</span></span>
+            <div className="glass-card p-5 flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: profit >= 0 ? "var(--success)" : "var(--danger)" }} />
+                이번 달 손익 <span className="text-[var(--text-dim)] font-normal">(번 돈 − 쓴 돈)</span>
+              </span>
               <span className="text-[26px] leading-8 font-extrabold mono-number" style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
                 {profit >= 0 ? "+" : "−"}{fmt(Math.abs(profit))}
               </span>
               <Delta cur={profit} prev={lastProfit} />
             </div>
-            <div className="glass-card p-5 flex flex-col gap-2" style={{ borderTop: "3px solid var(--primary)" }}>
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">통장 잔액 <span className="text-[var(--text-dim)] font-normal">(지금 쓸 수 있는 돈)</span></span>
+            <div className="glass-card p-5 flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full shrink-0 bg-[var(--primary)]" />
+                통장 잔액 <span className="text-[var(--text-dim)] font-normal">(지금 쓸 수 있는 돈)</span>
+              </span>
               <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmt(balance)}</span>
               <span className="text-[11px] text-[var(--text-dim)]">한 달 나가는 돈 약 {fmt(burn)}</span>
             </div>
-            <div className="glass-card p-5 flex flex-col gap-2" style={{ borderTop: `3px solid ${toneColor(runwayTone)}` }}>
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">버티는 기간 <span className="text-[var(--text-dim)] font-normal">(통장으로 갈 수 있는 개월)</span></span>
+            <div className="glass-card p-5 flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: toneColor(runwayTone) }} />
+                버티는 기간 <span className="text-[var(--text-dim)] font-normal">(통장으로 갈 수 있는 개월)</span>
+              </span>
               <span className="text-[26px] leading-8 font-extrabold mono-number" style={{ color: toneColor(runwayTone) }}>{runwayTxt}</span>
               <span className="text-[11px] text-[var(--text-dim)]">{runwayTone === "danger" ? "자금 계획이 필요합니다" : runwayTone === "warning" ? "여유가 넉넉하진 않습니다" : "당장은 안정적입니다"}</span>
             </div>

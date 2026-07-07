@@ -61,8 +61,8 @@ export default function ExpensePage() {
         <>
           {/* 이번 달 비용 + 고정/변동 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="glass-card p-5 flex flex-col gap-2" style={{ borderTop: "3px solid var(--warning)" }}>
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번 달 비용 <span className="text-[var(--text-dim)] font-normal">(쓴 돈)</span></span>
+            <div className="glass-card p-5 flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--warning)]" />이번 달 비용 <span className="text-[var(--text-dim)] font-normal">(쓴 돈)</span></span>
               <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--warning)]">{fmt(expense)}</span>
               <Delta cur={expense} prev={lastExpense} invert />
             </div>

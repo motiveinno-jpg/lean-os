@@ -78,8 +78,8 @@ export default function RevenuePage() {
         <>
           {/* 이번 달 매출 + 올해 누적 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="glass-card p-5 flex flex-col gap-2" style={{ borderTop: "3px solid var(--success)" }}>
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번 달 매출 <span className="text-[var(--text-dim)] font-normal">(번 돈)</span></span>
+            <div className="glass-card p-5 flex flex-col gap-2">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--success)]" />이번 달 매출 <span className="text-[var(--text-dim)] font-normal">(번 돈)</span></span>
               <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--success)]">{fmt(sales)}</span>
               <Delta cur={sales} prev={lastSales} />
             </div>
