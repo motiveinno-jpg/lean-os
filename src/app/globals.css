@@ -743,3 +743,28 @@ body::before {
   box-shadow: 0 8px 32px -10px rgba(0,0,0,0.55), 0 2px 8px -3px rgba(0,0,0,0.4),
               inset 0 1px 0 var(--glass-inner) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   2026-07-07 라운드10 — 팝업/모달 패널은 유리 재질 예외(불투명 유지)
+   배경: 라운드9의 유리 전환이 모달 패널(bg-[var(--bg-card)]+rounded-2xl, .glass-card 공용)까지
+   반투명하게 만들어, 뒤에 깔린 페이지 콘텐츠(숫자·텍스트)가 비쳐 보여 가독성이 떨어짐
+   — 드릴다운 상세내역 등에서 실측 확인. 상시 떠 있는 페이지 카드는 배경이 정적 캔버스뿐이라
+   유리가 자연스럽지만, 모달은 이미 렌더된 복잡한 콘텐츠 위에 뜨는 레이어라 불투명이 맞음.
+   구조 시그니처: 이 코드베이스의 모달은 전부 `fixed + inset-0(백드롭)` 의 직계 자식으로 패널을
+   둔다(z-index/배경 불투명도 값은 제각각이라 값 매칭 없이 fixed+inset-0 존재만 확인) → 자식 패널을
+   .glass-card 여부와 무관하게 불투명 --bg-card 로 강제. 특이도가 라운드9 규칙보다 높아 자동 우선.
+   ══════════════════════════════════════════════════════════════════ */
+[class*="fixed"][class*="inset-0"] > .glass-card,
+[class*="fixed"][class*="inset-0"] > [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
+  background: var(--bg-card) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 20px 48px -12px rgba(0,0,0,0.22), 0 8px 20px -8px rgba(0,0,0,0.12) !important;
+}
+[data-theme="dark"] [class*="fixed"][class*="inset-0"] > .glass-card,
+[data-theme="dark"] [class*="fixed"][class*="inset-0"] > [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
+  box-shadow: 0 20px 48px -12px rgba(0,0,0,0.6), 0 8px 20px -8px rgba(0,0,0,0.4) !important;
+}
+/* 모달 패널 내부에 중첩된 카드(예: 상세내역 안의 소계 박스)는 여전히 유리 유지 — 바깥 패널이 이미
+   불투명해 가독성 문제가 재발하지 않음. > 로 "직계 자식"만 한정한 이유. */
