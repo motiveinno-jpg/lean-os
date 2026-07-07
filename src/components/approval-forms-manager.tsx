@@ -134,7 +134,13 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
       {/* 빌더 모달 */}
       {editing && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => {
+          // 직원 QA #11 — 실수로 배경 클릭 시 작성 중인 양식이 날아가지 않도록 확인 (내용 있을 때만)
+          const e = editing;
+          const dirty = !!(e && ((e.name || "").trim() || (e.fields || []).length > 0 || (e.content_template || "").trim() || (e.description || "").trim()));
+          if (dirty && !window.confirm("양식 추가를 취소하시겠습니까? 작성 중인 내용이 사라집니다.")) return;
+          setEditing(null);
+        }}>
           <div className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2.5 mb-4">
               <span className="w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
