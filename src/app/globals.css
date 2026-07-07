@@ -733,26 +733,34 @@ body::before {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   2026-07-07 라운드10 — 팝업/모달 패널은 유리 재질 예외(불투명 유지)
+   2026-07-07 라운드10 → 2026-07-08 라운드14 — 팝업/모달 패널 불투명 강제 (유리 재질 예외)
    배경: 라운드9의 유리 전환이 모달 패널(bg-[var(--bg-card)]+rounded-2xl, .glass-card 공용)까지
-   반투명하게 만들어, 뒤에 깔린 페이지 콘텐츠(숫자·텍스트)가 비쳐 보여 가독성이 떨어짐
-   — 드릴다운 상세내역 등에서 실측 확인. 상시 떠 있는 페이지 카드는 배경이 정적 캔버스뿐이라
-   유리가 자연스럽지만, 모달은 이미 렌더된 복잡한 콘텐츠 위에 뜨는 레이어라 불투명이 맞음.
-   구조 시그니처: 이 코드베이스의 모달은 전부 `fixed + inset-0(백드롭)` 의 직계 자식으로 패널을
-   둔다(z-index/배경 불투명도 값은 제각각이라 값 매칭 없이 fixed+inset-0 존재만 확인) → 자식 패널을
-   .glass-card 여부와 무관하게 불투명 --bg-card 로 강제. 특이도가 라운드9 규칙보다 높아 자동 우선.
-   ══════════════════════════════════════════════════════════════════ */
-[class*="fixed"][class*="inset-0"] > .glass-card,
-[class*="fixed"][class*="inset-0"] > [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
+   반투명하게 만들어, 뒤에 깔린 페이지 콘텐츠(숫자·텍스트)가 비쳐 보여 가독성이 떨어짐.
+   라운드10은 `fixed+inset-0 > 직계자식` 만 노렸는데, 구성원 상세 등 일부 모달은 (1) 크기조정용
+   래퍼 div 가 껴 있거나 (2) 패널이 하위 컴포넌트(EmployeeDetailPanel 등)로 렌더돼 패널이 손자·
+   증손자 깊이라 규칙에 안 걸려 여전히 반투명했음(스크린샷 확인).
+   라운드14 수정: 직계자식 한정을 버리고 **하위 전체(descendant)** 로 확대 — 모달 백드롭
+   (fixed+inset-0) 안의 모든 .glass-card / rounded-2xl+bg-card 를 깊이 무관 불투명화.
+   전수 확인 결과 이 앱의 fixed+inset-0 은 전부 모달/다이얼로그라(유리 유지가 필요한 전면 오버레이
+   없음) 하위 전체로 넓혀도 안전. 중첩된 소계 박스까지 불투명해지지만 가독성만 좋아질 뿐 부작용 없음. */
+[class*="fixed"][class*="inset-0"] .glass-card,
+[class*="fixed"][class*="inset-0"] [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
   background: var(--bg-card) !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   border-color: var(--border) !important;
+}
+/* 큰 모달 그림자는 바깥 패널(직계 자식 또는 사이징 래퍼 한 겹 아래)에만 — 작은 중첩 카드에 과한
+   드롭섀도가 붙는 것 방지. */
+[class*="fixed"][class*="inset-0"] > .glass-card,
+[class*="fixed"][class*="inset-0"] > [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"],
+[class*="fixed"][class*="inset-0"] > * > .glass-card,
+[class*="fixed"][class*="inset-0"] > * > [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
   box-shadow: 0 20px 48px -12px rgba(0,0,0,0.22), 0 8px 20px -8px rgba(0,0,0,0.12) !important;
 }
 [data-theme="dark"] [class*="fixed"][class*="inset-0"] > .glass-card,
-[data-theme="dark"] [class*="fixed"][class*="inset-0"] > [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
+[data-theme="dark"] [class*="fixed"][class*="inset-0"] > [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"],
+[data-theme="dark"] [class*="fixed"][class*="inset-0"] > * > .glass-card,
+[data-theme="dark"] [class*="fixed"][class*="inset-0"] > * > [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
   box-shadow: 0 20px 48px -12px rgba(0,0,0,0.6), 0 8px 20px -8px rgba(0,0,0,0.4) !important;
 }
-/* 모달 패널 내부에 중첩된 카드(예: 상세내역 안의 소계 박스)는 여전히 유리 유지 — 바깥 패널이 이미
-   불투명해 가독성 문제가 재발하지 않음. > 로 "직계 자식"만 한정한 이유. */
