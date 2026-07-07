@@ -14,6 +14,7 @@ const REPORT_TABS: { href: string; label: string; match?: string[] }[] = [
   { href: "/reports/summary", label: "경영 요약" },
   { href: "/reports/revenue", label: "매출 현황" },
   { href: "/reports/expense", label: "비용 현황" },
+  { href: "/reports/monthly", label: "월별 상세" },
   { href: "/reports/upcoming", label: "예정 지출" },
   // 미래 대비 = 대표용 런웨이 요약. 상세 현금흐름(경영 흐름/flow)은 그 하위 상세라 같은 탭으로 묶어 활성.
   { href: "/reports/outlook", label: "미래 대비", match: ["/reports/outlook", "/reports/flow"] },
