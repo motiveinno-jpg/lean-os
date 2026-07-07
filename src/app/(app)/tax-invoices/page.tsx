@@ -622,6 +622,19 @@ export default function TaxInvoicesPage() {
     enabled: !!companyId, staleTime: 300_000,
   });
 
+  // 직원 QA 손익계산서 — 매입 세금계산서에 손익 계정과목(expense_category) 일괄 지정.
+  //   지정하면 손익계산서에서 매출원가(COGS) 대신 그 판관비 항목으로 집계됨.
+  const [bulkExpenseCat, setBulkExpenseCat] = useState("");
+  const applyBulkExpenseCat = async () => {
+    if (!bulkExpenseCat || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const { error } = await (supabase as any).from("tax_invoices").update({ expense_category: bulkExpenseCat }).in("id", ids);
+    if (error) { toast("계정과목 지정 실패: " + error.message, "error"); return; }
+    toast(`매입 세금계산서 ${ids.length}건에 '${bulkExpenseCat}' 지정 — 손익계산서에서 매출원가 대신 판관비로 반영됩니다`, "success");
+    setBulkExpenseCat(""); setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+  };
+
   // Deals for linking
   const { data: dealsForLink = [] } = useQuery({
     queryKey: ["deals-for-invoice", companyId],
@@ -1822,6 +1835,17 @@ export default function TaxInvoicesPage() {
             >
               전표처리 {selectedVoucherable.length}건
             </button>
+          )}
+          {tab === "purchase" && (
+            <div className="flex items-center gap-1.5">
+              <select value={bulkExpenseCat} onChange={(e) => setBulkExpenseCat(e.target.value)}
+                className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs" title="손익계산서 계정과목 — 지정하면 매출원가 대신 판관비로 집계">
+                <option value="">손익 계정과목 지정…</option>
+                {coaAccounts.map((a: any) => <option key={a.code} value={a.name}>{a.name} ({a.code})</option>)}
+              </select>
+              <button disabled={!bulkExpenseCat} onClick={applyBulkExpenseCat}
+                className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-40 transition hover:brightness-110">적용</button>
+            </div>
           )}
           {selectedDeletable.length > 0 && (
             <button

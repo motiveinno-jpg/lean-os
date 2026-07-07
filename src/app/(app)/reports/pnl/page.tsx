@@ -180,7 +180,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     fetchAllPaginated<any>((from, to) =>
       supabase
         .from("tax_invoices")
-        .select("type, supply_amount, tax_amount, total_amount, issue_date, status")
+        .select("type, supply_amount, tax_amount, total_amount, issue_date, status, expense_category")
         .eq("company_id", companyId)
         .gte("issue_date", startDate)
         // 2026-05-22 무효(void) 세금계산서는 매출/매입에서 제외 (발생주의 — matched 등 나머지는 모두 인식)
@@ -241,7 +241,11 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     if (ti.type === "sales" || ti.type === "매출") {
       salesRevenue[month] += ti.supply_amount;
     } else if (ti.type === "purchase" || ti.type === "매입") {
-      purchaseCost[month] += ti.supply_amount;
+      // 직원 QA 손익계산서 — 매입 세금계산서에 계정과목(expense_category)을 지정하면 그 판관비로,
+      //   미지정이면 매출원가(COGS)로. "매입세금계산서라도 비용으로 빠질 건 빠지게".
+      const cat = (ti.expense_category && String(ti.expense_category).trim()) || "";
+      if (cat) ensureOpex(cat)[month] += ti.supply_amount;
+      else purchaseCost[month] += ti.supply_amount;
     }
   }
 
