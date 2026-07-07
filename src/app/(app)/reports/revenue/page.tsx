@@ -13,7 +13,8 @@ import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget"
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
-import { fmt, ymNow, prevMonthStr, Delta, MiniBars } from "../_components/kit";
+import { fmt, ymNow, prevMonthStr, Delta, MonthlyCompareCard } from "../_components/kit";
+import { CellDetail } from "../flow/_components/CellDetail";
 
 const db = supabase as any;
 
@@ -22,12 +23,19 @@ export default function RevenuePage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const { year, month } = ymNow();
   const lastMonth = prevMonthStr(month);
+  const monthNum = Number(month.slice(5, 7));
+  const [detailMonth, setDetailMonth] = useState<number | null>(null);
 
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
 
   const { data: budget = [] } = useQuery<MonthlyBudget[]>({
     queryKey: ["revenue-budget", companyId, year],
     queryFn: () => getMonthlyBudgetOverview(companyId!, year),
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const { data: prevBudget = [] } = useQuery<MonthlyBudget[]>({
+    queryKey: ["revenue-budget-prev", companyId, year - 1],
+    queryFn: () => getMonthlyBudgetOverview(companyId!, year - 1),
     enabled: !!companyId, staleTime: 60_000,
   });
 
@@ -63,7 +71,13 @@ export default function RevenuePage() {
 
   const sales = budget.find((b) => b.month === month)?.salesRevenue ?? 0;
   const lastSales = budget.find((b) => b.month === lastMonth)?.salesRevenue ?? 0;
-  const trend = budget.filter((b) => b.month <= month).slice(-6).map((b) => ({ label: b.month.slice(5) + "월", value: b.salesRevenue || 0 }));
+  const prevYearSameMonth = prevBudget.find((b) => Number(b.month.slice(5, 7)) === monthNum)?.salesRevenue ?? 0;
+  const prevByMonthNum: Record<number, number> = {};
+  prevBudget.forEach((b) => { prevByMonthNum[Number(b.month.slice(5, 7))] = b.salesRevenue || 0; });
+  const compareRows = budget.filter((b) => b.month <= month).slice(-6).map((b) => {
+    const mn = Number(b.month.slice(5, 7));
+    return { monthNum: mn, label: `${mn}월`, cur: b.salesRevenue || 0, prev: prevByMonthNum[mn] ?? null };
+  });
   const ytd = budget.filter((b) => b.month <= month).reduce((s, b) => s + (b.salesRevenue || 0), 0);
   const top = salesData?.topPartners || [];
   const topMax = Math.max(1, ...top.map((t) => t.amt));
@@ -81,7 +95,10 @@ export default function RevenuePage() {
             <div className="glass-card p-5 flex flex-col gap-2">
               <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--success)]" />이번 달 매출</span>
               <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--success)]">{fmt(sales)}</span>
-              <Delta cur={sales} prev={lastSales} />
+              <div className="flex items-center gap-3 flex-wrap">
+                <Delta cur={sales} prev={lastSales} />
+                <span className="text-[11px] text-[var(--text-dim)]">작년 동월 <Delta cur={sales} prev={prevYearSameMonth} /></span>
+              </div>
             </div>
             <div className="glass-card p-5 flex flex-col gap-2">
               <span className="text-[13px] font-semibold text-[var(--text-muted)]">올해 누적 매출 <span className="text-[var(--text-dim)] font-normal">({year}년 1월~이번 달)</span></span>
@@ -90,11 +107,8 @@ export default function RevenuePage() {
             </div>
           </div>
 
-          {/* 월별 추세 */}
-          <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-4">최근 매출 추세</div>
-            <MiniBars data={trend} color="var(--success)" />
-          </div>
+          {/* 월별 매출 · 전년 비교 (행 클릭 → 거래처별 구성 드릴다운) */}
+          <MonthlyCompareCard title="월별 매출 · 전년 비교" rows={compareRows} accent="var(--success)" onRowClick={(mn) => setDetailMonth(mn)} />
 
           {/* 어디서 벌었나 — 거래처 TOP */}
           <div className="glass-card p-5">
@@ -137,6 +151,12 @@ export default function RevenuePage() {
             )}
           </div>
         </>
+      )}
+
+      {detailMonth != null && companyId && (
+        <CellDetail companyId={companyId} year={year} month={detailMonth} rowKey="salesRevenue"
+          title="매출" subtitle={`${year}년 ${detailMonth}월 · 거래처별 매출 구성`} clientItems={null}
+          onClose={() => setDetailMonth(null)} />
       )}
     </div>
   );

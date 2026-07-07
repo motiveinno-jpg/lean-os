@@ -21,6 +21,13 @@ const CELL_MODES: { key: CellMode; label: string }[] = [
   { key: "ytd", label: "누계" },
   { key: "ratio", label: "구성비" },
 ];
+const MODE_HINT: Record<CellMode, string> = {
+  amount: "각 달의 실제 금액입니다. 금액을 클릭하면 어떤 거래로 구성됐는지 볼 수 있습니다.",
+  mom: "바로 전월 대비 증감액입니다.",
+  yoy: "작년 같은 달 대비 증감액입니다.",
+  ytd: "1월부터 그 달까지 누적 합계입니다.",
+  ratio: "그 달 수입/지출 대비 구성 비중(%)입니다.",
+};
 
 const won = (n: number) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}`;
 const fmtCell = (n: number | null, fmt: "won" | "pct") => {
@@ -196,75 +203,85 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
   const sections: Row["section"][] = ["income", "expense", "vat", "summary"];
 
   return (
-    <div className="glass-card p-4 space-y-3 overflow-hidden">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <button onClick={() => setYear((y) => y - 1)} className="px-2 py-1 text-xs rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]">←</button>
-          <span className="text-sm font-bold text-[var(--text)] mono-number">{year}년</span>
-          <button onClick={() => setYear((y) => y + 1)} disabled={year >= curYear} className="px-2 py-1 text-xs rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] disabled:opacity-30">→</button>
+    <div className="space-y-3">
+      {/* 컨트롤 바 — 연도(좌) + 표시 방식 세그먼트(우) + 현재 모드 설명 */}
+      <div className="glass-card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1">
+          <button onClick={() => setYear((y) => y - 1)} className="w-8 h-8 flex items-center justify-center text-sm rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]">←</button>
+          <span className="text-sm font-bold text-[var(--text)] mono-number min-w-[64px] text-center">{year}년</span>
+          <button onClick={() => setYear((y) => y + 1)} disabled={year >= curYear} className="w-8 h-8 flex items-center justify-center text-sm rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] disabled:opacity-30">→</button>
         </div>
-        <div className="seg-bar flex-wrap">
-          {CELL_MODES.map((m) => (
-            <button key={m.key} onClick={() => setMode(m.key)}
-              className={`seg-item ${mode === m.key ? "seg-item-active" : ""}`}>
-              {m.label}
-            </button>
-          ))}
+        <div className="flex flex-col gap-1.5 sm:items-end">
+          <div className="inline-flex rounded-xl bg-[var(--bg-surface)] p-1 border border-[var(--border)] overflow-x-auto scrollbar-hide">
+            {CELL_MODES.map((m) => (
+              <button key={m.key} onClick={() => setMode(m.key)}
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap transition ${mode === m.key ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-[11px] text-[var(--text-dim)] leading-snug">{MODE_HINT[mode]}</span>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="border-collapse text-xs" style={{ minWidth: 900 }}>
-          <thead>
-            <tr>
-              <th className="sticky left-0 z-10 bg-[var(--bg-card)] px-2 py-1.5 text-left font-bold text-[var(--text-muted)] border-b border-[var(--border)]" style={{ minWidth: 150 }}>지표</th>
-              {months.map((mo) => {
-                const isActual = year < curYear || (year === curYear && mo <= curMonthNum);
+      {/* 표 */}
+      <div className="glass-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="border-collapse text-[12px] w-full" style={{ minWidth: 920 }}>
+            <thead>
+              <tr className="bg-[var(--bg-surface)]">
+                <th className="sticky left-0 z-10 bg-[var(--bg-surface)] px-3 py-2.5 text-left font-bold text-[var(--text-muted)] border-b border-[var(--border)]" style={{ minWidth: 168, boxShadow: "1px 0 0 var(--border)" }}>계정</th>
+                {months.map((mo) => {
+                  const isActual = year < curYear || (year === curYear && mo <= curMonthNum);
+                  return (
+                    <th key={mo} className="px-2.5 py-2 text-right font-bold border-b border-[var(--border)] whitespace-nowrap" style={{ minWidth: 82 }}>
+                      <div className={`text-[12px] ${isActual ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{mo}월</div>
+                      <div className="mt-0.5">
+                        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[8.5px] font-bold ${isActual ? "bg-[var(--success)]/12 text-[var(--success)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>{isActual ? "실적" : "예측"}</span>
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {sections.map((sec) => {
+                const rows = ROWS.filter((r) => r.section === sec);
+                if (rows.length === 0) return null;
                 return (
-                  <th key={mo} className="px-2 py-1.5 text-right font-bold border-b border-[var(--border)] whitespace-nowrap" style={{ minWidth: 78 }}>
-                    <div className={isActual ? "text-[var(--text)]" : "text-[var(--text-dim)]"}>{mo}월</div>
-                    <div className={`text-[8px] font-semibold ${isActual ? "text-[var(--success)]" : "text-[var(--warning)]"}`}>{isActual ? "실적" : "예측"}</div>
-                  </th>
+                  <Fragment key={`sec-${sec}`}>
+                    <tr>
+                      <td colSpan={13} className="sticky left-0 bg-[var(--bg-surface)]/70 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)] border-b border-[var(--border)]/40" style={{ boxShadow: "1px 0 0 var(--border)" }}>{SECTION_LABEL[sec]}</td>
+                    </tr>
+                    {rows.map((row) => (
+                      <tr key={row.key} className={`transition-colors hover:bg-[var(--primary)]/[0.04] ${row.strong ? "bg-[var(--bg-surface)]/40" : ""}`}>
+                        <td className={`sticky left-0 z-10 px-3 py-2 border-b border-[var(--border)]/30 whitespace-nowrap ${row.strong ? "font-bold text-[var(--text)] bg-[var(--bg-surface)]/40" : row.indent ? "pl-6 text-[var(--text-muted)] bg-[var(--bg-card)]" : "text-[var(--text-muted)] bg-[var(--bg-card)]"}`} style={{ boxShadow: "1px 0 0 var(--border)" }}>{row.label}<MetricInfo rowKey={row.key} /></td>
+                        {months.map((mo) => {
+                          const v = cellValue(row, mo);
+                          const neg = v != null && v < 0;
+                          const clickable = canDetail(row, v);
+                          return (
+                            <td key={mo}
+                              onClick={clickable ? () => setDetail({ rowKey: row.key, label: row.label, mo }) : undefined}
+                              title={clickable ? "클릭하면 구성 내역을 봅니다" : undefined}
+                              className={`px-2.5 py-2 text-right mono-number border-b border-[var(--border)]/30 ${row.strong ? "font-bold" : ""} ${neg ? "text-[var(--danger)]" : "text-[var(--text)]"} ${clickable ? "cursor-pointer hover:bg-[var(--primary)]/10 hover:underline decoration-dotted underline-offset-2" : ""}`}>
+                              {fmtCell(v, cellFmt(row))}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </Fragment>
                 );
               })}
-            </tr>
-          </thead>
-          <tbody>
-            {sections.map((sec) => {
-              const rows = ROWS.filter((r) => r.section === sec);
-              if (rows.length === 0) return null;
-              return (
-                <Fragment key={`sec-${sec}`}>
-                  <tr>
-                    <td colSpan={13} className="sticky left-0 bg-[var(--bg-surface)] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--text-dim)]">{SECTION_LABEL[sec]}</td>
-                  </tr>
-                  {rows.map((row) => (
-                    <tr key={row.key} className="hover:bg-[var(--bg-surface)]/40">
-                      <td className={`sticky left-0 z-10 bg-[var(--bg-card)] px-2 py-1.5 border-b border-[var(--border)]/40 whitespace-nowrap ${row.strong ? "font-bold text-[var(--text)]" : row.indent ? "pl-5 text-[var(--text-muted)]" : "text-[var(--text-muted)]"}`}>{row.label}<MetricInfo rowKey={row.key} /></td>
-                      {months.map((mo) => {
-                        const v = cellValue(row, mo);
-                        const neg = v != null && v < 0;
-                        const clickable = canDetail(row, v);
-                        return (
-                          <td key={mo}
-                            onClick={clickable ? () => setDetail({ rowKey: row.key, label: row.label, mo }) : undefined}
-                            title={clickable ? "클릭하면 산출 내역" : undefined}
-                            className={`px-2 py-1.5 text-right mono-number border-b border-[var(--border)]/40 ${row.strong ? "font-bold" : ""} ${neg ? "text-[var(--danger)]" : "text-[var(--text)]"} ${clickable ? "cursor-pointer hover:bg-[var(--primary)]/10 hover:underline decoration-dotted underline-offset-2" : ""}`}>
-                            {fmtCell(v, cellFmt(row))}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <div className="text-[10px] text-[var(--text-dim)] leading-relaxed">
-        과거 월=실적 자동집계(cash-budget·세금계산서, 다른 화면과 동일), 미래 월=예측/예산. 부가세=분기 매출세액−매입세액을 신고월(4·7·10·익1)에 표기.
-        계정과목 전수(예수금·4대보험·임차료 등)는 분개·계정과목 데이터가 입력되면 자동으로 행이 추가됩니다.
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-3 text-[10px] text-[var(--text-dim)] leading-relaxed border-t border-[var(--border)]/40">
+          <span className="inline-block px-1.5 py-0.5 rounded-full bg-[var(--success)]/12 text-[var(--success)] font-bold mr-1">실적</span> 과거 월=자동집계(다른 화면과 동일 소스) ·
+          <span className="inline-block px-1.5 py-0.5 rounded-full bg-[var(--warning)]/12 text-[var(--warning)] font-bold mx-1">예측</span> 미래 월=예산/예측. 부가세=분기 매출세액−매입세액을 신고월(4·7·10·익1)에 표기.
+          금액 모드에서 셀을 클릭하면 구성 내역이 열립니다.
+        </div>
       </div>
 
       {detail && companyId && (() => {

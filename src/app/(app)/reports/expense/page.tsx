@@ -12,19 +12,27 @@ import { getMonthlyBudgetOverview, getCostBreakdown, type MonthlyBudget, type Co
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
-import { fmt, ymNow, prevMonthStr, Delta, MiniBars } from "../_components/kit";
+import { fmt, ymNow, prevMonthStr, Delta, MonthlyCompareCard } from "../_components/kit";
+import { CellDetail } from "../flow/_components/CellDetail";
 
 export default function ExpensePage() {
   const { role } = useUser();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const { year, month } = ymNow();
   const lastMonth = prevMonthStr(month);
+  const monthNum = Number(month.slice(5, 7));
+  const [detailMonth, setDetailMonth] = useState<number | null>(null);
 
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
 
   const { data: budget = [] } = useQuery<MonthlyBudget[]>({
     queryKey: ["expense-budget", companyId, year],
     queryFn: () => getMonthlyBudgetOverview(companyId!, year),
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const { data: prevBudget = [] } = useQuery<MonthlyBudget[]>({
+    queryKey: ["expense-budget-prev", companyId, year - 1],
+    queryFn: () => getMonthlyBudgetOverview(companyId!, year - 1),
     enabled: !!companyId, staleTime: 60_000,
   });
   const { data: breakdown } = useQuery<CostBreakdown>({
@@ -43,7 +51,14 @@ export default function ExpensePage() {
   const fixed = mBudget?.fixedCosts ?? 0;
   const variable = mBudget?.variableCosts ?? 0;
   const fixedPct = expense > 0 ? Math.round((fixed / expense) * 100) : 0;
-  const trend = budget.filter((b) => b.month <= month).slice(-6).map((b) => ({ label: b.month.slice(5) + "월", value: b.expenseTotal || 0 }));
+  const prevYearSameMonth = prevBudget.find((b) => Number(b.month.slice(5, 7)) === monthNum)?.expenseTotal ?? 0;
+  const prevByMonthNum: Record<number, number> = {};
+  prevBudget.forEach((b) => { prevByMonthNum[Number(b.month.slice(5, 7))] = b.expenseTotal || 0; });
+  const compareRows = budget.filter((b) => b.month <= month).slice(-6).map((b) => {
+    const mn = Number(b.month.slice(5, 7));
+    return { monthNum: mn, label: `${mn}월`, cur: b.expenseTotal || 0, prev: prevByMonthNum[mn] ?? null };
+  });
+  const detailBudget = detailMonth != null ? budget.find((b) => Number(b.month.slice(5, 7)) === detailMonth) : null;
 
   // 카테고리(고정+변동 합쳐 연간 금액 큰 순 TOP)
   const cats = [...(breakdown?.fixed || []), ...(breakdown?.variable || [])]
@@ -64,7 +79,10 @@ export default function ExpensePage() {
             <div className="glass-card p-5 flex flex-col gap-2">
               <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--warning)]" />이번 달 비용</span>
               <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--warning)]">{fmt(expense)}</span>
-              <Delta cur={expense} prev={lastExpense} invert />
+              <div className="flex items-center gap-3 flex-wrap">
+                <Delta cur={expense} prev={lastExpense} invert />
+                <span className="text-[11px] text-[var(--text-dim)]">작년 동월 <Delta cur={expense} prev={prevYearSameMonth} invert /></span>
+              </div>
             </div>
             <div className="glass-card p-5 flex flex-col gap-2">
               <span className="text-[13px] font-semibold text-[var(--text-muted)]">고정비 · 변동비 <span className="text-[var(--text-dim)] font-normal">(구성 비중)</span></span>
@@ -79,11 +97,8 @@ export default function ExpensePage() {
             </div>
           </div>
 
-          {/* 월별 추세 */}
-          <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-4">최근 비용 추세</div>
-            <MiniBars data={trend} color="var(--warning)" />
-          </div>
+          {/* 월별 비용 · 전년 비교 (행 클릭 → 고정/변동 구성 드릴다운) */}
+          <MonthlyCompareCard title="월별 비용 · 전년 비교" rows={compareRows} accent="var(--warning)" onRowClick={(mn) => setDetailMonth(mn)} />
 
           {/* 어디에 썼나 — 카테고리 */}
           <div className="glass-card p-5">
@@ -108,6 +123,16 @@ export default function ExpensePage() {
             )}
           </div>
         </>
+      )}
+
+      {detailMonth != null && companyId && (
+        <CellDetail companyId={companyId} year={year} month={detailMonth} rowKey="expenseTotal"
+          title="비용" subtitle={`${year}년 ${detailMonth}월 · 고정비·변동비 구성`}
+          clientItems={[
+            { label: "고정비", amount: Number(detailBudget?.fixedCosts || 0) },
+            { label: "변동비", amount: Number(detailBudget?.variableCosts || 0) },
+          ].filter((i) => i.amount)}
+          onClose={() => setDetailMonth(null)} />
       )}
     </div>
   );
