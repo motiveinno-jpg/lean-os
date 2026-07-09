@@ -286,6 +286,28 @@ export default function CardsPage() {
       toast(m.includes("ALREADY_POSTED") ? "이미 전표처리된 거래입니다" : m.includes("NO_CASH_ACCOUNT") ? "보통예금(101) 계정과목이 없습니다" : m.includes("INVALID_ACCOUNT") ? "계정과목을 선택하세요" : m || "전표처리 실패", "error");
     } finally { setPosting(false); }
   };
+  // 직원 QA 카드(그랜터) — 같은 가맹점 미처리 거래 전체에 같은 계정·사유·태그·사용직원 일괄 적용
+  const doPostSameMerchant = async () => {
+    if (!postCard || !postAccountId || posting) return;
+    const targets = (cardTx as any[]).filter((t) => (t.merchant_name || "") === (postCard.merchant_name || "") && !t.journal_entry_id);
+    if (targets.length === 0) return;
+    setPosting(true);
+    try {
+      const tags = postTags.split(",").map((s: string) => s.trim()).filter(Boolean);
+      let ok = 0;
+      for (const t of targets) {
+        const { error } = await db.rpc("post_card_voucher", { p_card_tx_id: t.id, p_account_id: postAccountId, p_remember: postRemember });
+        if (error) continue;
+        try { await db.from("card_transactions").update({ is_fixed_cost: postFixed, memo: postMemo || null, tags, used_by_employee_id: postEmployee || null }).eq("id", t.id); } catch { /* best-effort */ }
+        ok++;
+      }
+      toast(`같은 가맹점 ${ok}건 전표처리 완료`, ok > 0 ? "success" : "error");
+      setPostCard(null); setPostAccountId("");
+      queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] });
+      queryClient.invalidateQueries({ queryKey: ["cards-page-mappings"] });
+      queryClient.invalidateQueries({ queryKey: ["cards-page-recent-tx"] });
+    } catch { toast("일괄 처리 중 오류", "error"); } finally { setPosting(false); }
+  };
 
   // 일괄 전표처리 — 선택된 미처리 카드거래를 비용계정 1개로 순차 post_card_voucher
   const [showBulkPost, setShowBulkPost] = useState(false);
@@ -944,8 +966,17 @@ export default function CardsPage() {
               </div>
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 전표가 생성됩니다. 카드 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
             </div>
-            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2 flex-wrap">
               <button onClick={() => setPostCard(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              {(() => {
+                const sameCnt = (cardTx as any[]).filter((t) => (t.merchant_name || "") === (postCard.merchant_name || "") && !t.journal_entry_id).length;
+                return sameCnt > 1 ? (
+                  <button onClick={doPostSameMerchant} disabled={posting || !postAccountId} title="같은 가맹점의 미처리 거래 전체에 같은 계정·사유·태그·사용직원을 적용합니다"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-50">
+                    같은 가맹점 {sameCnt}건 일괄
+                  </button>
+                ) : null;
+              })()}
               <button onClick={doPostVoucher} disabled={posting || !postAccountId}
                 className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
                 {posting ? "처리 중..." : "전표 생성"}
