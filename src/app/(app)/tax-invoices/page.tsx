@@ -41,6 +41,7 @@ import { useCanAccessTab } from "@/lib/tab-access";
 import { generateTaxInvoicePdf } from "@/lib/document-generator";
 import type { TaxInvoicePdfParams } from "@/lib/document-generator";
 import { SortToolbar } from "@/components/sort-toolbar";
+import { getThreeWayCandidates, confirmThreeWayMatch, unmatchInvoice } from "@/lib/three-way-match";
 
 // ── Print Styles ──
 const PRINT_STYLE_ID = "tax-invoice-print-style";
@@ -499,6 +500,8 @@ export default function TaxInvoicesPage() {
   }
   // matchFilter state 는 3-way 매칭 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
   const [matchDealPopup, setMatchDealPopup] = useState<any>(null);
+  // 거래매칭 — 목록에서 통장 입출금 거래를 바로 연결 (인라인 팝업)
+  const [linkInvoice, setLinkInvoice] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [expandedDupKey, setExpandedDupKey] = useState<string | null>(null);
@@ -1981,16 +1984,36 @@ export default function TaxInvoicesPage() {
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${sc.bg} ${sc.text}`}>{sc.label}</span>
                           </td>
                           <td className="px-3 py-2 text-center border-l border-[var(--border)]/40" onClick={(e) => e.stopPropagation()}>
-                            {canIssue && (
-                              <button
-                                onClick={() => handleSingleIssue(inv.id)}
-                                className="px-2.5 py-1 rounded text-[11px] font-bold text-white transition hover:brightness-110"
-                                style={{ background: "var(--primary)" }}
-                                title="홈택스 전자발행"
-                              >
-                                발행
-                              </button>
-                            )}
+                            <div className="flex items-center justify-center gap-1">
+                              {canIssue && (
+                                <button
+                                  onClick={() => handleSingleIssue(inv.id)}
+                                  className="px-2.5 py-1 rounded text-[11px] font-bold text-white transition hover:brightness-110"
+                                  style={{ background: "var(--primary)" }}
+                                  title="홈택스 전자발행"
+                                >
+                                  발행
+                                </button>
+                              )}
+                              {/* 거래매칭 — 통장 입출금 거래에 바로 연결 */}
+                              {inv.status === "matched" ? (
+                                <button
+                                  onClick={() => setLinkInvoice(inv)}
+                                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded text-[11px] font-semibold bg-green-500/12 text-green-600 hover:bg-green-500/20 transition"
+                                  title="통장 거래에 연결됨 — 클릭해 확인/해제"
+                                >
+                                  ✓ 연결됨
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setLinkInvoice(inv)}
+                                  className="px-2 py-1 rounded text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
+                                  title="통장 입출금 거래에 연결"
+                                >
+                                  연결
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -2077,6 +2100,16 @@ export default function TaxInvoicesPage() {
             setModifyReason("");
             setShowModifyModal(true);
           }}
+        />
+      )}
+
+      {/* 거래매칭 — 통장 입출금 거래 인라인 연결 팝업 */}
+      {linkInvoice && companyId && (
+        <LinkTxPopup
+          invoice={linkInvoice}
+          companyId={companyId}
+          onClose={() => setLinkInvoice(null)}
+          onDone={() => { invalidate(); setLinkInvoice(null); }}
         />
       )}
 
@@ -2590,6 +2623,102 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
             })}
           </tbody>
         </table></div>
+      </div>
+    </div>
+  );
+}
+
+// ── 통장 거래 인라인 연결 팝업 (거래매칭) ──
+//   목록의 '연결' 버튼 → 금액(±10%)·거래처가 맞는 미연결 입출금 거래를 골라 즉시 연결.
+//   bank_transactions.tax_invoice_id 로 매칭(three-way-match 재사용). 매출=입금, 매입=출금 대응.
+function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; companyId: string; onClose: () => void; onDone: () => void }) {
+  const { toast } = useToast();
+  const isSales = invoice.type === "sales";
+  const isMatched = invoice.status === "matched";
+  const [busy, setBusy] = useState(false);
+
+  const { data: candidates = [], isLoading } = useQuery({
+    queryKey: ["tx-link-candidates", invoice.id],
+    queryFn: () => getThreeWayCandidates(companyId, {
+      id: invoice.id, type: invoice.type, counterparty_name: invoice.counterparty_name,
+      total_amount: Number(invoice.total_amount || 0), supply_amount: Number(invoice.supply_amount || 0),
+      issue_date: invoice.issue_date, status: invoice.status, partner_id: invoice.partner_id ?? null,
+    } as any),
+    enabled: !isMatched,
+  });
+
+  // 이미 연결된 경우 — 현재 연결 거래 조회(해제용)
+  const { data: linkedTx } = useQuery({
+    queryKey: ["tx-linked", invoice.id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("bank_transactions")
+        .select("id, counterparty, amount, transaction_date, description, memo")
+        .eq("company_id", companyId).eq("tax_invoice_id", invoice.id).limit(1).maybeSingle();
+      return data;
+    },
+    enabled: isMatched,
+  });
+
+  const doLink = async (bankTxId: string) => {
+    setBusy(true);
+    try {
+      await confirmThreeWayMatch(bankTxId, invoice.id);
+      toast("통장 거래에 연결했습니다", "success");
+      onDone();
+    } catch (e: any) { toast(friendlyError(e, "연결 실패"), "error"); setBusy(false); }
+  };
+  const doUnlink = async () => {
+    if (!linkedTx) return;
+    setBusy(true);
+    try {
+      await unmatchInvoice(linkedTx.id, invoice.id);
+      toast("연결을 해제했습니다", "success");
+      onDone();
+    } catch (e: any) { toast(friendlyError(e, "해제 실패"), "error"); setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="glass-card w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+          <div className="min-w-0">
+            <div className="text-sm font-bold">통장 거래 연결</div>
+            <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
+              {invoice.counterparty_name} · ₩{Number(invoice.total_amount || 0).toLocaleString()} · {invoice.issue_date} · {isSales ? "입금" : "출금"} 대응
+            </div>
+          </div>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl shrink-0">&times;</button>
+        </div>
+        <div className="p-5 space-y-2">
+          {isMatched ? (
+            linkedTx ? (
+              <div className="rounded-xl border border-green-500/30 bg-green-500/8 p-3">
+                <div className="text-[11px] text-green-600 font-semibold mb-1">✓ 연결된 거래</div>
+                <div className="text-sm text-[var(--text)]">{linkedTx.counterparty || "(상대 미상)"} · ₩{Number(linkedTx.amount || 0).toLocaleString()}</div>
+                <div className="text-[11px] text-[var(--text-muted)]">{linkedTx.transaction_date} · {linkedTx.description || linkedTx.memo || ""}</div>
+                <button onClick={doUnlink} disabled={busy} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50">연결 해제</button>
+              </div>
+            ) : (
+              <div className="text-xs text-[var(--text-muted)] py-6 text-center">연결된 거래 정보를 찾을 수 없습니다 (이미 해제됨).</div>
+            )
+          ) : isLoading ? (
+            <div className="text-xs text-[var(--text-muted)] py-8 text-center">후보 거래 조회 중...</div>
+          ) : candidates.length === 0 ? (
+            <div className="text-xs text-[var(--text-muted)] py-8 text-center leading-relaxed">
+              금액(±10%)·거래처가 맞는 미연결 {isSales ? "입금" : "출금"} 거래가 없습니다.<br />통장 연동 후 다시 시도하세요.
+            </div>
+          ) : candidates.map((c: any) => (
+            <div key={c.bankTxId} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-3 py-2.5 hover:border-[var(--primary)]/40 transition">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-[var(--text)] truncate">{c.bankCounterparty || "(상대 미상)"} · ₩{Number(c.bankAmount || 0).toLocaleString()}</div>
+                <div className="text-[11px] text-[var(--text-muted)] truncate">{c.bankDate} · {c.reasons.join(" · ")}</div>
+              </div>
+              <button onClick={() => doLink(c.bankTxId)} disabled={busy}
+                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[var(--primary)] hover:brightness-110 disabled:opacity-50">연결</button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
