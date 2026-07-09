@@ -6,7 +6,7 @@
 //   견적/계약과 달리 '활성 1개' 개념 없음 → setActiveTemplate 미사용, doc_type='hr_form' 로 다중 저장.
 //   활용: 저장한 양식에 값을 직접 입력해 채워 출력하거나, 빈 양식을 내려받아 손으로 작성.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
@@ -14,8 +14,20 @@ import FormTemplateEditor from "@/components/form-template-editor";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
 import {
   rasterizePdf, uploadTemplateFile, saveFormTemplate, updateFormTemplateFields, listFormTemplates, deleteFormTemplate,
-  downloadTemplateFile, type OverlayField, type PdfFormTemplate,
+  downloadTemplateFile, extractPdfText, templateTextToHtml, fillTextTemplate, wrapTemplatePrintHtml,
+  type OverlayField, type PdfFormTemplate,
 } from "@/lib/form-templates";
+
+const HR_VARS = ["{{성명}}", "{{주민번호}}", "{{부서}}", "{{직급}}", "{{입사일}}", "{{연봉}}", "{{연락처}}", "{{주소}}", "{{작성일자}}"];
+// content_html 의 {{키}} 목록 추출
+function contentVarKeys(html: string): string[] {
+  return [...new Set([...html.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)].map((m) => m[1].trim()))];
+}
+async function renderHtmlPdf(html: string): Promise<Blob> {
+  const res = await fetch("/api/html-pdf", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ html }) });
+  if (!res.ok) throw new Error("PDF 렌더 실패");
+  return res.blob();
+}
 
 function downloadPdf(bytes: Uint8Array | ArrayBuffer, filename: string) {
   const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
@@ -37,6 +49,10 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
     initialFields?: OverlayField[]; editId?: string;
   }>(null);
   const [filling, setFilling] = useState<null | { tpl: PdfFormTemplate; values: Record<string, string> }>(null);
+  // 텍스트변환 양식(직원 QA — 인사도 지원)
+  const [textEditing, setTextEditing] = useState<null | { filePath: string; pageCount: number }>(null);
+  const [textVal, setTextVal] = useState("");
+  const textRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: templates = [] } = useQuery({
     queryKey: ["hr-form-templates", companyId],
@@ -60,6 +76,41 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
     } catch (e: any) {
       toast("처리 실패: " + (e?.message || ""), "error");
     } finally { setBusy(false); }
+  };
+
+  // 텍스트변환 업로드 → 평문 추출 → 편집 모달
+  const onFileText = async (file: File) => {
+    if (!companyId) return;
+    if (!name.trim()) { toast("양식 이름을 먼저 입력하세요", "error"); return; }
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    if (!isPdf) { toast("PDF 파일만 업로드할 수 있습니다", "error"); return; }
+    setBusy(true);
+    try {
+      const text = await extractPdfText(file);
+      const filePath = await uploadTemplateFile(companyId, file);
+      setTextVal(text);
+      setTextEditing({ filePath, pageCount: text.split("페이지 구분").length });
+      toast("PDF 텍스트를 추출했습니다 — 내용을 다듬고 {{변수}}를 넣으세요", "info");
+    } catch (e: any) { toast("텍스트 추출 실패: " + (e?.message || ""), "error"); }
+    finally { setBusy(false); }
+  };
+  const insertVar = (v: string) => {
+    const ta = textRef.current;
+    const s = ta?.selectionStart ?? textVal.length, e = ta?.selectionEnd ?? textVal.length;
+    setTextVal(textVal.slice(0, s) + v + textVal.slice(e));
+    requestAnimationFrame(() => { if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = s + v.length; } });
+  };
+  const onSaveText = async () => {
+    if (!companyId || !textEditing) return;
+    try {
+      await saveFormTemplate({
+        companyId, name: name.trim(), docType: "hr_form", filePath: textEditing.filePath,
+        pageCount: textEditing.pageCount, pageSizes: [], fields: [],
+        contentHtml: templateTextToHtml(textVal), templateMode: "text",
+      });
+      toast(`'${name.trim()}' 텍스트 양식을 저장했습니다`, "success");
+      setTextEditing(null); setName(""); refresh();
+    } catch (e: any) { toast("저장 실패: " + (e?.message || ""), "error"); }
   };
 
   const onSaveFields = async (fields: OverlayField[]) => {
@@ -113,13 +164,25 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
 
   // 채우기 대상 필드(서명·품목표 제외 — 손서명/미해당)
   const fillableFields = (t: PdfFormTemplate) => (t.fields || []).filter((f) => f.kind !== "signature" && f.kind !== "items_table");
+  // 채우기 모달에 표시할 입력 키 — 텍스트양식이면 content_html 의 {{변수}}, 아니면 오버레이 필드
+  const fillKeys = (t: PdfFormTemplate): { key: string; label: string }[] =>
+    t.template_mode === "text" && t.content_html
+      ? contentVarKeys(t.content_html).map((k) => ({ key: k, label: k }))
+      : fillableFields(t).map((f) => ({ key: f.key, label: f.label || f.key }));
 
   const exportFilled = async () => {
     if (!filling) return;
     try {
-      const bytes = await downloadTemplateFile(filling.tpl.file_path);
-      const out = await fillFormTemplate(bytes, filling.tpl.fields || [], { values: filling.values });
-      downloadPdf(out, `${filling.tpl.name}_작성본`);
+      const t = filling.tpl;
+      if (t.template_mode === "text" && t.content_html) {
+        const blob = await renderHtmlPdf(wrapTemplatePrintHtml(fillTextTemplate(t.content_html, filling.values)));
+        downloadPdf(await blob.arrayBuffer(), `${t.name}_작성본`);
+        setFilling(null);
+        return;
+      }
+      const bytes = await downloadTemplateFile(t.file_path);
+      const out = await fillFormTemplate(bytes, t.fields || [], { values: filling.values });
+      downloadPdf(out, `${t.name}_작성본`);
       setFilling(null);
     } catch (e: any) { toast("출력 실패: " + (e?.message || ""), "error"); }
   };
@@ -142,10 +205,15 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 표준 근로계약서"
             className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         </div>
-        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`}>
-          {busy ? "처리 중…" : "PDF 업로드"}
+        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF 배경 위에 채울 필드 위치를 지정(원본 그대로)">
+          {busy ? "처리 중…" : "PDF 업로드 (오버레이)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
+        </label>
+        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer border ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="PDF를 편집 가능한 텍스트로 변환 — 내용을 고치고 {{변수}}를 넣습니다">
+          {busy ? "처리 중…" : "텍스트로 변환"}
+          <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileText(f); e.target.value = ""; }} />
         </label>
       </div>
 
@@ -191,13 +259,13 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setFilling(null)}>
           <div className="bg-[var(--bg-card)] rounded-xl max-w-md w-full max-h-[85vh] overflow-auto p-5" onClick={(e) => e.stopPropagation()}>
             <div className="text-sm font-bold text-[var(--text)] mb-3">{filling.tpl.name} — 값 입력</div>
-            {fillableFields(filling.tpl).length === 0 ? (
+            {fillKeys(filling.tpl).length === 0 ? (
               <div className="text-xs text-[var(--text-dim)] mb-3">채울 수 있는 필드가 없습니다. 빈 양식을 내려받아 손으로 작성하세요.</div>
             ) : (
               <div className="space-y-2 mb-4">
-                {fillableFields(filling.tpl).map((f, i) => (
+                {fillKeys(filling.tpl).map((f, i) => (
                   <div key={i}>
-                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">{f.label || f.key}</label>
+                    <label className="block text-[11px] text-[var(--text-muted)] mb-1">{f.label}</label>
                     <input
                       value={filling.values[f.key] ?? ""}
                       onChange={(e) => setFilling((s) => s && ({ ...s, values: { ...s.values, [f.key]: e.target.value } }))}
@@ -210,6 +278,40 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
             <div className="flex gap-2">
               <button onClick={() => setFilling(null)} className="flex-1 py-2 rounded-lg border border-[var(--border)] text-sm text-[var(--text-muted)]">취소</button>
               <button onClick={exportFilled} className="flex-1 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold">채워서 PDF 출력</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* 텍스트변환 편집 모달 */}
+      {textEditing && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setTextEditing(null)}>
+          <div className="bg-[var(--bg-card)] rounded-xl max-w-[820px] w-full max-h-[92vh] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="text-sm font-bold text-[var(--text)] mb-1">텍스트 양식 편집 — 인사 · {name}</div>
+            <p className="text-[11px] text-[var(--text-muted)] mb-2">PDF에서 뽑은 텍스트입니다. 내용을 고치고 값이 채워질 자리에 <code>{"{{변수}}"}</code>를 넣으세요.</p>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {HR_VARS.map((v) => (
+                <button key={v} type="button" onClick={() => insertVar(v)}
+                  className="text-[11px] px-2 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--primary)] hover:bg-[var(--primary)]/10 font-medium">{v}</button>
+              ))}
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">편집</div>
+                <textarea ref={textRef} value={textVal} onChange={(e) => setTextVal(e.target.value)}
+                  className="w-full h-[52vh] px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] font-mono leading-relaxed focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">미리보기 <span className="text-[var(--text-dim)]">(변수는 채우기 시 값으로)</span></div>
+                <div className="w-full h-[52vh] px-4 py-3 rounded-lg bg-white text-black border border-[var(--border)] overflow-auto text-sm leading-relaxed"
+                  style={{ fontFamily: "'Pretendard', system-ui, sans-serif" }}
+                  dangerouslySetInnerHTML={{ __html: fillTextTemplate(templateTextToHtml(textVal), {}, { highlightMissing: true }) }} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={() => setTextEditing(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={onSaveText} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">텍스트 양식 저장</button>
             </div>
           </div>
         </div>,
