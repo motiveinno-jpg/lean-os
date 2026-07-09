@@ -11,6 +11,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
+import { getSyncPausedUntil, setSyncPause, clearSyncPause } from "@/lib/data-sync";
 import { DateField } from "@/components/date-field";
 import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
@@ -56,6 +57,25 @@ export default function BankPage() {
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const [syncing, setSyncing] = useState(false);
+  // 연동 일시정지(중복 로그인 방지) — company_settings.settings.sync_paused_until.
+  const { data: syncPausedUntil } = useQuery({
+    queryKey: ["bank-sync-paused", companyId],
+    queryFn: () => getSyncPausedUntil(companyId!),
+    enabled: !!companyId,
+    refetchInterval: 30000,
+  });
+  const isSyncPaused = !!syncPausedUntil;
+  const pauseMut = useMutation({
+    mutationFn: async () => {
+      if (isSyncPaused) { await clearSyncPause(companyId!); return false; }
+      await setSyncPause(companyId!, 30); return true;
+    },
+    onSuccess: (paused) => {
+      queryClient.invalidateQueries({ queryKey: ["bank-sync-paused", companyId] });
+      toast(paused ? "연동을 30분간 정지했습니다 — 은행에 직접 로그인해도 강제 로그아웃되지 않습니다" : "연동 정지를 해제했습니다", "success");
+    },
+    onError: (e: any) => toast(friendlyError(e, "정지 처리 실패"), "error"),
+  });
   // 통장 카드 클릭 시 거래내역 필터 — accountNo + 표시 이름 동시 보관.
   const [selectedAccountNo, setSelectedAccountNo] = useState<string>("");
   const [selectedAccountLabel, setSelectedAccountLabel] = useState<string>("");
@@ -450,17 +470,34 @@ export default function BankPage() {
               {(bankTxFrom || bankTxTo) && <button onClick={() => { setBankTxFrom(""); setBankTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1" title="기간 해제">해제</button>}
             </div>
           )}
+          {/* 연동 일시정지 — 은행에 직접 로그인할 때 우리 앱 동기화가 겹쳐 강제 로그아웃(W98010) 되는 것 방지 */}
+          <button
+            type="button"
+            onClick={() => pauseMut.mutate()}
+            disabled={!companyId || pauseMut.isPending}
+            className={`bank-sync-pause no-print inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition disabled:opacity-50 ${
+              isSyncPaused
+                ? "bg-amber-500/15 border-amber-500/40 text-amber-600 hover:bg-amber-500/25"
+                : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+            }`}
+            title="데이터 연동 잠시 멈추기 (30분간 중복 로그인 방지) — 은행 사이트에 직접 로그인할 때 우리 앱의 자동 동기화가 겹쳐 강제 로그아웃되는 것을 막습니다"
+          >
+            {isSyncPaused
+              ? <>▶ 정지 해제 ({new Date(syncPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)</>
+              : <>⏸ 연동 정지</>}
+          </button>
           <button
             type="button"
             onClick={() => {
               // 직원 QA — 기간 미선택 등 동기화가 실제로 시작 안 되면 쿨타임을 걸지 않음
               //   (run 은 fn 실행 전에 쿨타임을 기록하므로, 사전 검증을 run 밖에서 먼저 한다)
+              if (isSyncPaused) { toast("연동이 일시정지 중입니다. 정지 해제 후 연동하세요.", "info"); return; }
               if (!bankTxFrom || !bankTxTo) { toast("통장 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요", "error"); return; }
               bankCd.run(handleSyncBank);
             }}
-            disabled={syncing || !companyId || bankCd.disabled}
-            className={`btn-primary ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
+            disabled={syncing || !companyId || bankCd.disabled || isSyncPaused}
+            className={`btn-primary ${bankCd.disabled || isSyncPaused ? "!opacity-40 cursor-not-allowed" : ""}`}
+            title={isSyncPaused ? "연동 일시정지 중 — 정지 해제 후 연동" : bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
           >
             {syncing ? (
               <>

@@ -785,6 +785,46 @@ export async function listCodefAccounts(
   }
 }
 
+// ── 은행/카드 연동 일시정지 (중복 로그인 방지) ──
+//   사용자가 직접 은행 사이트에 로그인하는 동안, 우리 앱의 CODEF 자동/수동 동기화가
+//   같은 계정으로 로그인해 단일세션 은행(IBK 등)에서 강제 로그아웃(W98010) 되는 것을 막는다.
+//   company_settings.settings.sync_paused_until (ISO) 에 만료시각 저장 → 지나면 자동 해제.
+//   ⚠️ 서버 cron(edge)까지 막으려면 codef-sync 은행 cron 분기에도 같은 체크 추가 필요(후속·배포).
+
+/** 현재 유효한 일시정지 만료시각(ISO) 반환, 정지 아니면 null (만료분은 자동 무효). */
+export async function getSyncPausedUntil(companyId: string): Promise<string | null> {
+  try {
+    const { data } = await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle();
+    const until = (data?.settings as any)?.sync_paused_until as string | undefined;
+    if (!until) return null;
+    return new Date(until).getTime() > Date.now() ? until : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 연동을 minutes 분간 일시정지. 만료시각(ISO) 반환. */
+export async function setSyncPause(companyId: string, minutes = 30): Promise<string> {
+  const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+  const { data } = await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle();
+  const settings = { ...((data?.settings as any) || {}), sync_paused_until: until };
+  if (data) {
+    await db.from('company_settings').update({ settings }).eq('company_id', companyId);
+  } else {
+    await db.from('company_settings').insert({ company_id: companyId, settings });
+  }
+  return until;
+}
+
+/** 일시정지 해제(즉시 재개). */
+export async function clearSyncPause(companyId: string): Promise<void> {
+  const { data } = await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle();
+  if (!data) return;
+  const settings = { ...((data.settings as any) || {}) };
+  delete settings.sync_paused_until;
+  await db.from('company_settings').update({ settings }).eq('company_id', companyId);
+}
+
 // ── CODEF API Sync ──
 
 export type CodefSyncError = {
@@ -815,6 +855,15 @@ export async function syncCodefData(
   if (isDev && !devCodefEnabled) {
     const msg = "개발 환경에서는 외부 연동(CODEF)이 비활성화돼 있습니다.";
     return { success: false, status: "error", error: msg, message: msg, errors: [], notes: [], bankSynced: 0, cardSynced: 0 };
+  }
+  // 연동 일시정지(중복 로그인 방지) 중이면 은행/카드 sync skip — 홈택스는 무관.
+  if (syncType !== 'hometax') {
+    const pausedUntil = await getSyncPausedUntil(companyId);
+    if (pausedUntil) {
+      const t = new Date(pausedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      const msg = `연동 일시정지 중 (${t}까지) — 은행 중복 로그인 방지. 정지 해제 후 다시 시도하세요.`;
+      return { success: false, status: "error", error: msg, message: msg, errors: [], notes: [], bankSynced: 0, cardSynced: 0 };
+    }
   }
   try {
     const { data: { session } } = await supabase.auth.getSession();
