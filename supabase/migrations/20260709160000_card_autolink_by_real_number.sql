@@ -15,10 +15,12 @@ declare
   v_last4 text;
 begin
   if new.card_id is null then
-    -- 1) 실제 카드번호(raw_data) 끝4 우선 — 이름과 무관하게 올바른 카드로 연결
+    -- 1) 실제 카드번호(raw_data) 끝4 우선 — 이름과 무관하게 올바른 카드로 연결.
+    --    청구내역은 charge.resUsedCard 에 전체 마스킹 카드번호("5298****6953")가 들어있음(가장 신뢰).
     v_last4 := right(regexp_replace(coalesce(
+      nullif(new.raw_data->'charge'->>'resUsedCard', ''),
+      nullif(new.raw_data->'approval'->>'resCardNo', ''),
       nullif(new.raw_data->>'cardNo', ''),
-      new.raw_data->'approval'->>'resCardNo',
       new.raw_data->'charge'->>'resCardNo', ''), '[^0-9]', '', 'g'), 4);
     if v_last4 is not null and length(v_last4) = 4 then
       select id into new.card_id
