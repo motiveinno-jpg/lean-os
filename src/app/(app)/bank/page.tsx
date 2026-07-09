@@ -282,6 +282,8 @@ export default function BankPage() {
     },
     enabled: !!companyId, staleTime: 300_000,
   });
+  const bankEmpById: Record<string, string> = {};
+  for (const e of bankEmployees as any[]) bankEmpById[e.id] = e.name;
 
   // 일괄 전표처리 — 선택된 미처리 통장거래를 계정 1개로 순차 post_bank_voucher(방향 자동 분기).
   const [showBulkPost, setShowBulkPost] = useState(false);
@@ -701,7 +703,16 @@ export default function BankPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? "M7 17l9-9m0 0H9m7 0v7" : "M17 7l-9 9m0 0h7m-7 0V9"} />
                             </svg>
                           </div>
-                          <span className="font-medium text-[var(--text)] truncate">{tx.counterparty || "—"}</span>
+                          <div className="min-w-0">
+                            <span className="block font-medium text-[var(--text)] truncate">{tx.counterparty || "—"}</span>
+                            {(tx.memo || (tx.tags && tx.tags.length) || tx.used_by_employee_id) && (
+                              <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                {tx.used_by_employee_id && bankEmpById[tx.used_by_employee_id] && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium">👤 {bankEmpById[tx.used_by_employee_id]}</span>}
+                                {(tx.tags || []).map((t: string) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">#{t}</span>)}
+                                {tx.memo && <span className="text-[10px] text-[var(--text-dim)] truncate max-w-[160px]" title={tx.memo}>📝 {tx.memo}</span>}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] max-w-[240px]"><span className="block truncate" title={tx.description || undefined}>{tx.description || "—"}</span></td>
