@@ -89,6 +89,21 @@ export function fillTextTemplate(
   });
 }
 
+/** 텍스트변환 양식 본문(content_html, 변수 치환됨) → 인쇄용 A4 HTML. 한글은 Pretendard(CDN, headless CSP 미적용). */
+export function wrapTemplatePrintHtml(bodyHtml: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Pretendard', sans-serif; color: #111827; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tpl-body { padding: 18mm 16mm; font-size: 13px; line-height: 1.75; }
+  .tpl-body p { margin: 2px 0; }
+  .tpl-body hr.tpl-page-break { border: none; page-break-after: always; margin: 0; }
+</style></head>
+<body><div class="tpl-body">${bodyHtml}</div></body></html>`;
+}
+
 /** 편집한 평문 텍스트(줄바꿈+{{변수}}) → content_html 로 변환. 페이지 구분선은 <hr>. */
 export function templateTextToHtml(text: string): string {
   return text.split("\n").map((line) => {

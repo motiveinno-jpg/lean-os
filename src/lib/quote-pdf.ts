@@ -4,7 +4,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { generateQuotePDF } from "@/lib/document-generator";
-import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib/form-templates";
+import { getActiveTemplate, downloadTemplateFile, buildQuoteValues, fillTextTemplate, wrapTemplatePrintHtml } from "@/lib/form-templates";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
 
 const db = supabase as any;
@@ -38,12 +38,31 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
   const cpName = cj.counterpartyName || cj.partnerName || cj.header?.partnerName || "";
   const cpId = cj.header?.partnerId || null;
   let partnerRow: any = null;
-  const pcols = "name, representative, contact_name, contact_phone, contact_email, address";
+  const pcols = "name, representative, contact_name, contact_phone, contact_email, address, business_number";
   if (cpId) partnerRow = (await db.from("partners").select(pcols).eq("id", cpId).maybeSingle()).data;
   else if (cpName) partnerRow = (await db.from("partners").select(pcols).eq("company_id", companyId).eq("name", cpName).limit(1).maybeSingle()).data;
 
-  // 활성 견적 양식 오버레이 우선
+  // 활성 견적 양식 — 텍스트변환 양식이면 content_html 에 값 치환 → HTML→PDF (직원 QA)
   const quoteTpl = await getActiveTemplate(companyId, "quote").catch(() => null);
+  if (quoteTpl && quoteTpl.template_mode === "text" && quoteTpl.content_html) {
+    const values: Record<string, string> = {
+      거래처명: cpName,
+      사업자번호: partnerRow?.business_number || "",
+      대표자: partnerRow?.representative || "",
+      작성일자: new Date().toISOString().slice(0, 10),
+      품목: items.map((i) => i.name).filter(Boolean).join(", "),
+      수량: items.map((i) => String(i.qty)).join(", "),
+      단가: items.map((i) => i.unitPrice.toLocaleString("ko-KR")).join(", "),
+      공급가액: supplyAmt.toLocaleString("ko-KR"),
+      세액: taxAmt.toLocaleString("ko-KR"),
+      합계금액: (supplyAmt + taxAmt).toLocaleString("ko-KR"),
+    };
+    const filledHtml = wrapTemplatePrintHtml(fillTextTemplate(quoteTpl.content_html, values));
+    try {
+      const res = await fetch("/api/html-pdf", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ html: filledHtml }) });
+      if (res.ok) return await res.blob();
+    } catch { /* 실패 시 아래 폴백으로 진행 */ }
+  }
   if (quoteTpl) {
     const bytes = await downloadTemplateFile(quoteTpl.file_path);
     const filled = await fillFormTemplate(bytes, quoteTpl.fields, {
