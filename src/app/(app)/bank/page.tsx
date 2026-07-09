@@ -290,8 +290,14 @@ export default function BankPage() {
   const displayMemo = (tx: any): string => {
     const descs = tx?.raw_data?.descs;
     if (Array.isArray(descs) && descs.length) {
-      const m = descs.map((d: any) => String(d).trim()).filter((d: string) => d && d !== (tx.counterparty || "") && !TR_TYPES.includes(d)).join(" ");
-      if (m) return m;
+      // descs 가 있으면 예금주명·거래구분·중복을 제외한 '거래내용'만. 남는 게 없으면 빈값(→ "—").
+      //   ※ 폴백으로 tx.description(합쳐진 원본)을 쓰면 "A · 타행이체 · A" 처럼 다시 섞여 나오므로 폴백 금지.
+      const cp = String(tx.counterparty || "").trim();
+      const seen = new Set<string>();
+      return descs.map((d: any) => String(d).trim()).filter((d: string) => {
+        if (!d || d === cp || TR_TYPES.includes(d) || seen.has(d)) return false;
+        seen.add(d); return true;
+      }).join(" ");
     }
     return tx.description || "";
   };
