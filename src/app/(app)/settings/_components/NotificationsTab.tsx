@@ -142,7 +142,21 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
     setPushPermission(result);
     if (result === "granted") {
       setPrefs((p) => ({ ...p, push: { ...p.push, enabled: true } }));
-      toast("푸시 알림 권한 허용됨", "success");
+      // 백그라운드 푸시 구독 — 탭을 닫아도 알림을 받도록 PushManager 구독 + DB 저장.
+      try {
+        const [{ subscribeWebPush }, { getCurrentUser }] = await Promise.all([
+          import("@/lib/web-push"),
+          import("@/lib/queries"),
+        ]);
+        const u = await getCurrentUser();
+        const ok = u ? await subscribeWebPush(companyId, u.id) : false;
+        toast(
+          ok ? "브라우저 푸시 켜짐 — 창을 닫아도 알림을 받습니다" : "권한은 허용됐지만 구독에 실패했습니다. 다시 시도해주세요",
+          ok ? "success" : "error",
+        );
+      } catch {
+        toast("푸시 알림 권한 허용됨 (백그라운드 구독은 실패 — 다시 시도)", "info");
+      }
     } else {
       toast("푸시 알림 권한 거부됨 — 브라우저 설정에서 허용해주세요", "error");
     }

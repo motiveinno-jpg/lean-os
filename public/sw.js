@@ -5,7 +5,7 @@
 //   조치: precache 제거, fetch no-op(브라우저 기본 네트워크=항상 최신 해시 자산),
 //   activate 에서 모든 캐시 삭제 + claim + 열린 window 자동 navigate(=강제 새로고침, SW 버전당 1회).
 //   → 사용자가 사이트를 한 번만 열면, 새 SW 가 활성화되며 탭을 최신으로 자동 재로드.
-const SW_VERSION = "v45";
+const SW_VERSION = "v46";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -31,4 +31,35 @@ self.addEventListener("activate", (event) => {
 // fetch 가로채지 않음 → 브라우저 기본 네트워크 경로(항상 최신). SW 가 stale 자산을 절대 서빙하지 않음.
 self.addEventListener("fetch", () => {
   // no-op
+});
+
+// ── 웹 푸시 (백그라운드 알림) — 2026-07-09 ──
+//   탭이 닫혀 있어도 서버(send-web-push 엣지)가 보낸 푸시를 받아 알림 표시.
+//   기존 캐시/새로고침 로직과 독립(추가만) — 실패해도 앱 로딩엔 영향 없음.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch (e) { data = { body: event.data ? event.data.text() : "" }; }
+  const title = data.title || "OwnerView 알림";
+  const options = {
+    body: data.body || "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: data.tag || undefined,
+    data: { url: data.url || "/" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of all) {
+      // 이미 열린 탭이 있으면 그 탭을 해당 화면으로 이동 + 포커스
+      if ("focus" in c) { try { c.navigate(url); } catch (e) { /* noop */ } return c.focus(); }
+    }
+    if (self.clients.openWindow) return self.clients.openWindow(url);
+  })());
 });
