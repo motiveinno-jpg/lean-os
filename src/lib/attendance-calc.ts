@@ -206,14 +206,20 @@ export function calcDailyAttendance(input: DailyInput): DailyResult {
   const is_late = !is_holiday && ciDayMin > lateThreshold;
   const late_minutes = is_late ? ciDayMin - workStartTarget : 0;
 
-  // 총 근무(분) = check_out - check_in - lunch
-  const grossMin = Math.max(0, coMin - ciMin);
+  // 이른 출근(지정 출근시간 전)은 근무·연장으로 계산하지 않음 — 유효 출근시각을 지정 출근시간으로 clamp.
+  //   (사장님 요청 2026-07-09: 일찍 와도 9:30 기준, 이른 시간은 연장 미반영. 실제 태그시각은
+  //    attendance-checkin 엣지가 check_in 을 지정시간으로 고정 + note 에 실제시각 보존.)
+  const workStartAbs = (ciMin - ciDayMin) + workStartTarget; // 그 날의 지정 출근시각(절대분)
+  const effCiMin = Math.max(ciMin, workStartAbs);
+
+  // 총 근무(분) = check_out - (clamp된)check_in - lunch
+  const grossMin = Math.max(0, coMin - effCiMin);
   const lunch = Math.max(0, settings.lunch_minutes || 0);
   // 점심은 work_minutes >= lunch 일 때만 차감 (반차 등 짧은 근무 시 음수 방지)
   const work_minutes = grossMin > lunch ? grossMin - lunch : grossMin;
 
-  // 야간 (work 구간 안에서 야간시간대와 겹친 분)
-  const night_minutes = calcNightMinutes(ciMin, coMin, settings.night_start_time, settings.night_end_time);
+  // 야간 (work 구간 안에서 야간시간대와 겹친 분) — 이른 출근분 제외 위해 clamp된 출근시각 사용
+  const night_minutes = calcNightMinutes(effCiMin, coMin, settings.night_start_time, settings.night_end_time);
 
   let regular_minutes = 0;
   let overtime_minutes = 0;

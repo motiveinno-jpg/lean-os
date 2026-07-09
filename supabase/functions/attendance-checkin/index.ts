@@ -61,27 +61,33 @@ serve(async (req) => {
       // 회귀픽스 (2026-05-21): INSERT 시 is_late / late_minutes 컬럼을 함께 채워
       //   "출근 누를 때마다 행 재생성 → late 컬럼 0" 회귀 차단. KST 분 단위 비교.
       //   클라이언트 hr.ts mark_attendance_late RPC 도 유지 (이중 안전망).
+      // work_start_time 은 지각판정 + 이른출근 clamp 공용으로 항상 조회.
+      const csRes = await admin.from("company_settings")
+        .select("work_start_time")
+        .eq("company_id", companyId)
+        .maybeSingle();
+      let wst = "09:00";
+      if (csRes.data && typeof csRes.data.work_start_time === "string" && /^\d{2}:\d{2}/.test(csRes.data.work_start_time)) {
+        wst = csRes.data.work_start_time.slice(0, 5);
+      }
+      const wparts = wst.split(":");
+      const workStartMin = (Number(wparts[0]) || 0) * 60 + (Number(wparts[1]) || 0);
+      const kstDate = new Date(new Date(now).getTime() + 9 * 3600 * 1000);
+      const ciKstMin = kstDate.getUTCHours() * 60 + kstDate.getUTCMinutes();
+
       const isLateFlag = status === "late";
-      let lateMinutes = 0;
-      if (isLateFlag) {
-        const csRes = await admin.from("company_settings")
-          .select("work_start_time")
-          .eq("company_id", companyId)
-          .maybeSingle();
-        const cs = csRes.data;
-        let wst = "09:00";
-        if (cs && typeof cs.work_start_time === "string") {
-          wst = cs.work_start_time;
-        }
-        const parts = wst.split(":");
-        const wh = Number(parts[0]) || 0;
-        const wm = Number(parts[1]) || 0;
-        const workStartMin = wh * 60 + wm;
-        const ciDate = new Date(now);
-        const kstMs = ciDate.getTime() + 9 * 3600 * 1000;
-        const kstDate = new Date(kstMs);
-        const ciKstMin = kstDate.getUTCHours() * 60 + kstDate.getUTCMinutes();
-        lateMinutes = Math.max(0, ciKstMin - workStartMin);
+      const lateMinutes = isLateFlag ? Math.max(0, ciKstMin - workStartMin) : 0;
+
+      // 이른 출근(지정 출근시간 전) — check_in 을 지정 출근시각으로 고정(찍힘).
+      //   실제 태그시각은 note 에 "실제 출근 HH:MM" 로 보존. 연장·근무시간은 지정시각부터 계산.
+      //   (사장님 요청 2026-07-09: 일찍 와도 9:30 로 찍히고, 이른 시간은 연장 미반영.)
+      let effectiveCheckIn = now;
+      let earlyNote: string | null = null;
+      if (ciKstMin < workStartMin) {
+        effectiveCheckIn = new Date(`${today}T${wst}:00+09:00`).toISOString();
+        const ah = String(Math.floor(ciKstMin / 60)).padStart(2, "0");
+        const am = String(ciKstMin % 60).padStart(2, "0");
+        earlyNote = `실제 출근 ${ah}:${am}`;
       }
 
       // overtime_request_id: 클라이언트가 check_can_clock_in_after_hours 게이트 통과 시 전달.
@@ -93,10 +99,11 @@ serve(async (req) => {
           company_id: companyId,
           employee_id: employeeId,
           date: today,
-          check_in: now,
+          check_in: effectiveCheckIn,
           status: status || "present",
           is_late: isLateFlag,
           late_minutes: lateMinutes,
+          note: earlyNote,
           work_hours: 0,
           overtime_hours: 0,
           overtime_request_id: otReqId,
