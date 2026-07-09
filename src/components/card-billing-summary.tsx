@@ -185,7 +185,11 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     const newCards = (codefCards as any[]).filter((cc: any) => {
       if (!cc.card_name || registeredNames.has(cc.card_name)) return false;
       const num = parseCardName(cc.card_name).lastFour;
-      return !(num && registeredNumbers.has(num));
+      // 카드번호(끝4)가 없는 이름(카드사명만 — "BC카드"/"롯데카드" 등 CODEF resCardName 결손 시 fallback)은
+      //   번호 없는 '껍데기 카드'가 되고 여러 실제 카드 거래가 이름으로 몰려 섞이므로 자동 등록하지 않는다.
+      //   이런 거래는 autolink 트리거가 raw_data 의 실제 카드번호로 올바른 카드에 연결한다.
+      if (!num) return false;
+      return !registeredNumbers.has(num);
     });
     if (newCards.length === 0) {
       autoRegRef.current = true; // 추가 등록할 카드 없음 — 다음에 또 시도 안 함
