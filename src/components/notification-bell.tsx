@@ -119,6 +119,26 @@ export function NotificationBell() {
     router.push(resolveNotificationHref(n, quoteMap));
   };
 
+  // 개별 읽음 — 이동하지 않고 그 알림만 읽음 처리
+  const markRead = async (n: NotificationRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (n.is_read) return;
+    await (supabase as any).from("notifications").update({ is_read: true }).eq("id", n.id);
+    setRows((prev) => prev?.filter((r) => r.id !== n.id) ?? prev);
+    setUnread((v) => Math.max(0, v - 1));
+    window.dispatchEvent(new Event("sidebar-refresh-badges"));
+  };
+
+  // 모두 읽음 — 이 사용자의 안읽은 알림 전체 읽음 처리
+  const markAllRead = async () => {
+    const u = await getCurrentUser();
+    if (!u) return;
+    await (supabase as any).from("notifications").update({ is_read: true }).eq("user_id", u.id).eq("is_read", false);
+    setRows([]);
+    setUnread(0);
+    window.dispatchEvent(new Event("sidebar-refresh-badges"));
+  };
+
   return (
     <>
       <button
@@ -149,7 +169,12 @@ export function NotificationBell() {
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] sticky top-0 bg-[var(--bg-card)]">
               <span className="text-sm font-bold text-[var(--text)]">알림</span>
-              <button onClick={() => setOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg leading-none px-1" aria-label="닫기">✕</button>
+              <div className="flex items-center gap-2">
+                {rows && rows.length > 0 && (
+                  <button onClick={markAllRead} className="text-[11px] font-semibold text-[var(--primary)] hover:underline" title="모든 알림 읽음 처리">모두 읽음</button>
+                )}
+                <button onClick={() => setOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg leading-none px-1" aria-label="닫기">✕</button>
+              </div>
             </div>
 
             {rows === null ? (
@@ -159,10 +184,13 @@ export function NotificationBell() {
             ) : (
               <div className="divide-y divide-[var(--border)]">
                 {rows.map((n) => (
-                  <button
+                  <div
                     key={n.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => goTo(n)}
-                    className="w-full flex items-start gap-2.5 px-4 py-3 text-left transition bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10"
+                    onKeyDown={(e) => { if (e.key === "Enter") goTo(n); }}
+                    className="w-full flex items-start gap-2.5 px-4 py-3 text-left transition bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 cursor-pointer"
                   >
                     <span className="flex-1 min-w-0">
                       <span className="block text-[13px] font-semibold text-[var(--text)]">
@@ -173,8 +201,15 @@ export function NotificationBell() {
                         <span className="block text-[11px] text-[var(--text-dim)] mt-0.5 line-clamp-2">{n.message}</span>
                       )}
                     </span>
-                    <span className="text-[10px] text-[var(--text-dim)] shrink-0 mt-0.5 whitespace-nowrap">{timeAgo(n.created_at)}</span>
-                  </button>
+                    <span className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">{timeAgo(n.created_at)}</span>
+                      <button
+                        onClick={(e) => markRead(n, e)}
+                        className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] whitespace-nowrap"
+                        title="이 알림만 읽음 처리 (이동 안 함)"
+                      >읽음</button>
+                    </span>
+                  </div>
                 ))}
               </div>
             )}

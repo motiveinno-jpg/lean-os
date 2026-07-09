@@ -15,6 +15,12 @@ import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
 import { EmptyState } from "@/components/empty-state";
 
+// 사업자등록번호 000-00-00000 형식 정규화 (하이픈 없이 저장된 값도 표시 시 구분)
+function fmtBizNo(b?: string | null): string {
+  const d = (b || "").replace(/[^0-9]/g, "");
+  return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : (b || "");
+}
+
 const TYPE_OPTIONS = [
   { value: "", label: "전체" },
   { value: "vendor", label: "공급업체" },
@@ -911,7 +917,7 @@ export default function PartnersPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
                         <div className="flex items-center gap-1.5">
-                          <span>{p.business_number || "—"}</span>
+                          <span>{fmtBizNo(p.business_number) || "—"}</span>
                           {p.business_number && (() => {
                             const cleaned = (p.business_number as string).replace(/[^0-9]/g, "");
                             const vr = bizVerifyResults[cleaned];
@@ -1049,7 +1055,7 @@ export default function PartnersPage() {
                     )}
                     {detailPartner.business_number && (
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-[var(--text-dim)]">{detailPartner.business_number}</span>
+                        <span className="text-xs text-[var(--text-dim)]">{fmtBizNo(detailPartner.business_number)}</span>
                         {(() => {
                           const cleaned = (detailPartner.business_number as string).replace(/[^0-9]/g, "");
                           const vr = bizVerifyResults[cleaned];

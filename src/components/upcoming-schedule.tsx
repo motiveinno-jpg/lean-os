@@ -76,7 +76,7 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
       title: "부가세 신고/납부",
       date: fmtDateKey(vat),
       daysLeft: daysBetween(today, vat),
-      href: "/tax-invoices",
+      href: "/tax-invoices?tab=vat",
     });
   }
 
