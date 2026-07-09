@@ -126,6 +126,10 @@ export default function CardsPage() {
   // 거래내역 탭 표 — 헤더 더블클릭 정렬 + 행 체크박스 다중선택 (UI 전용, DB 변경 없음)
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // 직원 QA 카드(그랜터) — 카드 선택 후 기간 거래(cardTx) 뷰의 검색·정렬
+  const [cardTxSearch, setCardTxSearch] = useState("");
+  const [cardSortKey, setCardSortKey] = useState<string>("transaction_date");
+  const [cardSortDir, setCardSortDir] = useState<"asc" | "desc">("desc");
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
   const onSortTx = (key: string) => {
     setSortKey((prev) => {
@@ -362,6 +366,24 @@ export default function CardsPage() {
   const activeCards = cards.filter((c: any) => c.is_active !== false).length;
   const hasLimits = cards.some((c: any) => Number(c.monthly_limit || 0) > 0);
   const totalLimit = hasLimits ? cards.reduce((s: number, c: any) => s + Number(c.monthly_limit || 0), 0) : 0;
+
+  // 직원 QA 카드(그랜터) — 사용직원 id→이름 + cardTx 검색·정렬 적용
+  const empNameById = useMemo(() => { const m: Record<string, string> = {}; for (const e of cardEmployees as any[]) m[e.id] = e.name; return m; }, [cardEmployees]);
+  const shownCardTx = useMemo(() => {
+    const q = cardTxSearch.trim().toLowerCase();
+    let list = (cardTx as any[]).filter((tx) => !q
+      || (tx.merchant_name || "").toLowerCase().includes(q)
+      || (tx.category || tx.classification || "").toLowerCase().includes(q)
+      || (tx.memo || "").toLowerCase().includes(q)
+      || (tx.tags || []).join(" ").toLowerCase().includes(q)
+      || (empNameById[tx.used_by_employee_id] || "").toLowerCase().includes(q));
+    const dir = cardSortDir === "asc" ? 1 : -1;
+    list = [...list].sort((a, b) => {
+      if (cardSortKey === "amount") return (Math.abs(Number(a.amount) || 0) - Math.abs(Number(b.amount) || 0)) * dir;
+      return String(a[cardSortKey] ?? "").localeCompare(String(b[cardSortKey] ?? "")) * dir;
+    });
+    return list;
+  }, [cardTx, cardTxSearch, cardSortKey, cardSortDir, empNameById]);
 
   // 거래내역 검색 클라이언트 필터
   const filteredTx = recentTx.filter((tx: any) => {
@@ -614,6 +636,8 @@ export default function CardsPage() {
                     {selectedCardLabel} 거래내역 <span className="text-sm font-normal text-[var(--text-dim)]">({cardTx.length}건)</span>
                   </h3>
                   <div className="flex items-center gap-1.5 flex-wrap">
+                    <input value={cardTxSearch} onChange={(e) => setCardTxSearch(e.target.value)} placeholder="가맹점·계정·사유·태그·직원 검색"
+                      className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs w-52 outline-none focus:border-[var(--primary)]" />
                     <button
                       type="button"
                       onClick={() => { setSelectedCardId(""); setSelectedCardName(""); setCardTxFrom(""); setCardTxTo(""); }}
@@ -623,15 +647,29 @@ export default function CardsPage() {
                     </button>
                   </div>
                 </div>
+                <div className="mb-2">
+                  <SortToolbar
+                    options={[
+                      { key: "transaction_date", label: "날짜" },
+                      { key: "merchant_name", label: "가맹점" },
+                      { key: "category", label: "계정과목" },
+                      { key: "card_name", label: "카드" },
+                      { key: "amount", label: "금액" },
+                    ]}
+                    sortKey={cardSortKey}
+                    sortDir={cardSortDir}
+                    onSort={(k) => { if (cardSortKey === k) setCardSortDir((d) => (d === "asc" ? "desc" : "asc")); else { setCardSortKey(k); setCardSortDir(k === "transaction_date" || k === "amount" ? "desc" : "asc"); } }}
+                  />
+                </div>
                 <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
-                  {cardTx.length === 0 ? (
+                  {shownCardTx.length === 0 ? (
                     <EmptyState
                       card
                       icon="🧾"
                       title={(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다" : "이 카드의 거래내역이 없습니다"}
                       desc="기간을 조정하거나 상단의 카드 연동으로 거래를 불러오세요"
                     />
-                  ) : cardTx.map((tx: any) => (
+                  ) : shownCardTx.map((tx: any) => (
                     <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
@@ -640,6 +678,13 @@ export default function CardsPage() {
                         <div className="min-w-0">
                           <p className="font-semibold text-sm text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</p>
                           <p className="text-xs text-[var(--text-muted)] truncate">{(classificationLabel(tx.classification) || tx.category || "미분류")} · {tx.card_name || "카드"}</p>
+                          {(tx.memo || (tx.tags && tx.tags.length) || tx.used_by_employee_id) && (
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              {tx.used_by_employee_id && empNameById[tx.used_by_employee_id] && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium shrink-0">👤 {empNameById[tx.used_by_employee_id]}</span>}
+                              {(tx.tags || []).map((t: string) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">#{t}</span>)}
+                              {tx.memo && <span className="text-[10px] text-[var(--text-dim)] truncate max-w-[220px]" title={tx.memo}>📝 {tx.memo}</span>}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
