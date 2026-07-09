@@ -284,6 +284,17 @@ export default function BankPage() {
   });
   const bankEmpById: Record<string, string> = {};
   for (const e of bankEmployees as any[]) bankEmpById[e.id] = e.name;
+  // 직원 QA — 거래내용은 '거래내용'만: 예금주명(=counterparty)·거래구분 토큰을 제외하고 표시.
+  //   raw_data.descs(원본 4칸)가 있으면 그걸로 계산(기존 재동기화분도 즉시 반영), 없으면 description 폴백.
+  const TR_TYPES = ["타행이체", "당행이체", "인터넷", "자동이체", "대체", "펌뱅킹", "펌뱅크", "CD", "ATM", "체크카드", "급여", "이자", "스마트뱅킹", "폰뱅킹", "창구", "지로", "전자금융", "모바일뱅킹", "모바일", "송금", "이체", "출금", "입금", "카드", "공과금"];
+  const displayMemo = (tx: any): string => {
+    const descs = tx?.raw_data?.descs;
+    if (Array.isArray(descs) && descs.length) {
+      const m = descs.map((d: any) => String(d).trim()).filter((d: string) => d && d !== (tx.counterparty || "") && !TR_TYPES.includes(d)).join(" ");
+      if (m) return m;
+    }
+    return tx.description || "";
+  };
 
   // 일괄 전표처리 — 선택된 미처리 통장거래를 계정 1개로 순차 post_bank_voucher(방향 자동 분기).
   const [showBulkPost, setShowBulkPost] = useState(false);
@@ -715,7 +726,7 @@ export default function BankPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] max-w-[240px]"><span className="block truncate" title={tx.description || undefined}>{tx.description || "—"}</span></td>
+                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] max-w-[240px]"><span className="block truncate" title={displayMemo(tx) || undefined}>{displayMemo(tx) || "—"}</span></td>
                       <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{tx.classification || tx.category || "—"}</td>
                       <td className={`px-6 py-3.5 font-semibold mono-number ${isIncome ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                         {isIncome ? "+" : "-"}{fmtW(Math.abs(Number(tx.amount || 0)))}

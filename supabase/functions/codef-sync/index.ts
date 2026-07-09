@@ -481,13 +481,14 @@ async function syncBankTransactions(
         const outAmt = Number(tx.resAccountOut || 0);
         // 잔액/금액 모두 0인 의미 없는 row (예: 신규 개설 표시) 는 skip
         if (inAmt === 0 && outAmt === 0) { acctSkipNoDate++; continue; }
-        // CODEF descriptions: resAccountDesc1~4 — 은행별로 배치가 달라(적요/거래구분/거래점 등) 특정 칸만
-        //   쓰면 실제 거래내용이 누락됨(직원 QA). counterparty(예금주명)는 기존 그대로 유지해 external_id 안정,
-        //   description(거래내용)은 모든 desc 를 합쳐 실제 내용을 보존하고 raw_data 에도 원본 4칸을 저장.
+        // CODEF descriptions: resAccountDesc1~4 — 은행별 배치가 달라(예금주명/거래구분/거래내용 등).
+        //   descs 예: [예금주명, 거래구분(타행이체·인터넷 등), 거래내용]. 사용자는 '거래내용'만 원함(직원 QA).
+        //   → counterparty(예금주명)와 거래구분 토큰을 제외한 나머지만 description 으로. raw_data 에 원본 보존.
+        const TR_TYPES = ["타행이체", "당행이체", "인터넷", "자동이체", "대체", "펌뱅킹", "펌뱅크", "CD", "ATM", "체크카드", "급여", "이자", "스마트뱅킹", "폰뱅킹", "창구", "지로", "전자금융", "모바일뱅킹", "모바일", "송금", "이체", "출금", "입금", "카드", "공과금"];
         const counterparty = tx.resAccountDesc1 || tx.resAccountDesc3 || tx.resAccountDesc || "";
         const _descs = [tx.resAccountDesc1, tx.resAccountDesc2, tx.resAccountDesc3, tx.resAccountDesc4]
           .map((d: any) => (d == null ? "" : String(d).trim())).filter(Boolean);
-        const memo = _descs.join(" · ");
+        const memo = _descs.filter((d) => d !== counterparty && !TR_TYPES.includes(d)).join(" ");
 
         const _amt = inAmt > 0 ? inAmt : outAmt;
         const _type = inAmt > 0 ? "income" : "expense";
