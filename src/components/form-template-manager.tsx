@@ -3,15 +3,23 @@
 // 회사 양식 PDF 관리 (2026-06-29, P2 진입점) — 업로드 → 자동인식 → 매핑 보정 → 저장·활성.
 //   견적/계약 생성 시 활성 양식이 있으면 오버레이로 회사 실제 디자인 재현(없으면 현행 폴백).
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import FormTemplateEditor from "@/components/form-template-editor";
 import {
   rasterizePdf, detectFields, uploadTemplateFile, saveFormTemplate, setActiveTemplate,
-  listFormTemplates, deleteFormTemplate, type DocType, type OverlayField, type PdfFormTemplate,
+  listFormTemplates, deleteFormTemplate, extractPdfText, templateTextToHtml,
+  type DocType, type OverlayField, type PdfFormTemplate,
 } from "@/lib/form-templates";
+
+// 텍스트변환 양식에서 클릭 삽입할 변수 목록 (문서 종류별)
+const TEMPLATE_VARS: Record<DocType, string[]> = {
+  quote: ["{{거래처명}}", "{{사업자번호}}", "{{대표자}}", "{{작성일자}}", "{{품목}}", "{{수량}}", "{{단가}}", "{{공급가액}}", "{{세액}}", "{{합계금액}}"],
+  contract: ["{{거래처명}}", "{{사업자번호}}", "{{대표자}}", "{{계약일자}}", "{{계약금액}}", "{{서명}}"],
+  hr_form: ["{{성명}}", "{{주민번호}}", "{{부서}}", "{{직급}}", "{{입사일}}", "{{연봉}}", "{{작성일자}}"],
+};
 
 const DOC_LABEL: Record<DocType, string> = { quote: "견적서", contract: "전자계약", hr_form: "인사 양식" };
 
@@ -25,6 +33,9 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
   const [editing, setEditing] = useState<null | {
     pageImages: string[]; pageSizes: { w: number; h: number }[]; fields: OverlayField[]; filePath: string; pageCount: number;
   }>(null);
+  // 텍스트변환 양식(직원 QA) — 추출한 평문을 편집 + {{변수}} 삽입
+  const [textEditing, setTextEditing] = useState<null | { text: string; filePath: string; pageCount: number }>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: templates = [] } = useQuery({
     queryKey: ["form-templates", companyId],
@@ -52,6 +63,46 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
     } catch (e: any) {
       toast("처리 실패: " + (e?.message || ""), "error");
     } finally { setBusy(false); }
+  };
+
+  // 텍스트변환 업로드 → 평문 추출 → 편집 모달
+  const onFileText = async (file: File) => {
+    if (!companyId) return;
+    if (!name.trim()) { toast("양식 이름을 먼저 입력하세요", "error"); return; }
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    if (!isPdf) { toast("PDF 파일만 업로드할 수 있습니다", "error"); return; }
+    setBusy(true);
+    try {
+      const text = await extractPdfText(file);
+      const filePath = await uploadTemplateFile(companyId, file);
+      const pageCount = text.split("페이지 구분").length;
+      setTextEditing({ text, filePath, pageCount });
+      toast("PDF 텍스트를 추출했습니다 — 내용을 다듬고 {{변수}}를 넣으세요", "info");
+    } catch (e: any) {
+      toast("텍스트 추출 실패: " + (e?.message || ""), "error");
+    } finally { setBusy(false); }
+  };
+
+  const insertVar = (v: string) => {
+    const ta = textRef.current; if (!ta) return;
+    const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? ta.value.length;
+    ta.value = ta.value.slice(0, s) + v + ta.value.slice(e);
+    ta.focus(); ta.selectionStart = ta.selectionEnd = s + v.length;
+  };
+
+  const onSaveText = async () => {
+    if (!companyId || !textEditing) return;
+    const text = textRef.current?.value ?? textEditing.text;
+    try {
+      const t = await saveFormTemplate({
+        companyId, name: name.trim(), docType, filePath: textEditing.filePath,
+        pageCount: textEditing.pageCount, pageSizes: [], fields: [],
+        contentHtml: templateTextToHtml(text), templateMode: "text",
+      });
+      await setActiveTemplate(companyId, docType, t.id);
+      toast(`'${name.trim()}' 텍스트 양식을 저장·활성화했습니다`, "success");
+      setTextEditing(null); setName(""); refresh();
+    } catch (e: any) { toast("저장 실패: " + (e?.message || ""), "error"); }
   };
 
   const onSaveFields = async (fields: OverlayField[]) => {
@@ -98,10 +149,15 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">양식 이름</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 2026 표준 견적서" className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         </div>
-        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`}>
-          {busy ? "처리 중…" : "PDF 업로드"}
+        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF 디자인을 배경으로 두고 변수 위치만 지정(원본 그대로)">
+          {busy ? "처리 중…" : "PDF 업로드 (오버레이)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
+        </label>
+        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer border ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="PDF를 편집 가능한 텍스트로 변환 — 내용을 직접 고치고 {{변수}}를 넣습니다">
+          {busy ? "처리 중…" : "텍스트로 변환"}
+          <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileText(f); e.target.value = ""; }} />
         </label>
       </div>
 
@@ -142,6 +198,29 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
               onSave={onSaveFields}
               onCancel={() => setEditing(null)}
             />
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* 텍스트변환 편집 모달 — 추출한 평문을 다듬고 {{변수}} 삽입 */}
+      {textEditing && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setTextEditing(null)}>
+          <div className="bg-[var(--bg-card)] rounded-xl max-w-[820px] w-full max-h-[92vh] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="text-sm font-bold text-[var(--text)] mb-1">텍스트 양식 편집 — {DOC_LABEL[docType]} · {name}</div>
+            <p className="text-[11px] text-[var(--text-muted)] mb-2">PDF에서 뽑은 텍스트입니다. 내용을 자유롭게 고치고, 값이 채워질 자리에 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으세요. 발급 시 그 자리에 실제 값이 채워집니다.</p>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {TEMPLATE_VARS[docType].map((v) => (
+                <button key={v} type="button" onClick={() => insertVar(v)}
+                  className="text-[11px] px-2 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--primary)] hover:bg-[var(--primary)]/10 font-medium">{v}</button>
+              ))}
+            </div>
+            <textarea ref={textRef} defaultValue={textEditing.text}
+              className="w-full h-[52vh] px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] font-mono leading-relaxed focus:outline-none focus:border-[var(--primary)]" />
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={() => setTextEditing(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={onSaveText} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">텍스트 양식 저장·활성화</button>
+            </div>
           </div>
         </div>,
         document.body,

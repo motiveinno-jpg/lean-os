@@ -24,6 +24,9 @@ export interface PdfFormTemplate {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  // 텍스트변환 양식(직원 QA) — template_mode='text' 이면 content_html(변수 {{키}} 포함)을 렌더
+  content_html?: string | null;
+  template_mode?: "overlay" | "text";
 }
 
 const BUCKET = "form-templates";
@@ -65,6 +68,53 @@ export async function rasterizePdf(
     pages.push(dataUrl.split(",")[1]); // base64 본문만
   }
   return { pages, pageSizes };
+}
+
+export function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** 편집한 평문 텍스트(줄바꿈+{{변수}}) → content_html 로 변환. 페이지 구분선은 <hr>. */
+export function templateTextToHtml(text: string): string {
+  return text.split("\n").map((line) => {
+    if (/^─{3,}.*─{3,}$/.test(line.trim()) || line.trim() === "") {
+      return line.trim() === "" ? "<p><br/></p>" : '<hr class="tpl-page-break"/>';
+    }
+    return `<p>${escapeHtml(line)}</p>`;
+  }).join("\n");
+}
+
+/** PDF File 을 pdfjs 로 페이지별 편집 가능한 평문 텍스트로 추출 — 텍스트변환 양식용.
+ *  y좌표로 줄을 묶고 x순 정렬해 원문 레이아웃을 최대한 보존. 페이지는 구분선으로 나눔. */
+export async function extractPdfText(file: File): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfjs: any = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+  ).toString();
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: buf }).promise;
+  const pageHtml: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    // y좌표(반올림)로 줄 그룹핑 → 각 줄은 x순 정렬 후 합침
+    const lines = new Map<number, { x: number; s: string }[]>();
+    for (const it of content.items as any[]) {
+      const s = String(it.str || "");
+      if (!s.trim()) continue;
+      const y = Math.round(it.transform[5]);
+      lines.has(y) || lines.set(y, []);
+      lines.get(y)!.push({ x: it.transform[4], s });
+    }
+    const ys = [...lines.keys()].sort((a, b) => b - a); // y 큰 값이 위 → 위에서 아래로
+    const rows = ys
+      .map((y) => lines.get(y)!.sort((a, b) => a.x - b.x).map((t) => t.s).join(" ").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    pageHtml.push(rows.join("\n"));
+  }
+  return pageHtml.join("\n\n──────── 페이지 구분 ────────\n\n");
 }
 
 /** parse-form-template edge 호출 → 자동 인식 필드(초안). 실패해도 빈 배열로(매핑은 사람이 보정). */
@@ -147,6 +197,8 @@ export async function saveFormTemplate(input: {
   pageCount: number;
   pageSizes: { w: number; h: number }[];
   fields: OverlayField[];
+  contentHtml?: string;                    // 텍스트변환 양식 본문(변수 {{키}} 포함)
+  templateMode?: "overlay" | "text";       // 기본 overlay
 }): Promise<PdfFormTemplate> {
   const { data, error } = await db
     .from("pdf_form_templates")
@@ -159,11 +211,22 @@ export async function saveFormTemplate(input: {
       page_sizes: input.pageSizes,
       fields: input.fields,
       is_active: false,
+      content_html: input.contentHtml ?? null,
+      template_mode: input.templateMode ?? "overlay",
     })
     .select()
     .single();
   if (error) throw error;
   return data as PdfFormTemplate;
+}
+
+/** 텍스트변환 양식 본문 갱신 */
+export async function updateFormTemplateContent(id: string, contentHtml: string): Promise<void> {
+  const { error } = await db
+    .from("pdf_form_templates")
+    .update({ content_html: contentHtml, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 export async function updateFormTemplateFields(
