@@ -1035,6 +1035,8 @@ async function syncHometaxInvoices(
     if (invoices.length > 0) {
       const f = invoices[0];
       debug.push(`${direction} sample resApprovalNo='${f.resApprovalNo}' resIssueDate='${f.resIssueDate}' resReportingDate='${f.resReportingDate}' resSendDate='${f.resSendDate}'`);
+      // 대표자·이메일 필드 확인용(재동기화 시 실제 응답에 어떤 이메일 키가 있는지 파악)
+      debug.push(`${direction} sample rep/email fields: [${Object.keys(f).filter((k) => /Name$|Email/i.test(k)).join(",")}]`);
     }
 
     const isSales = direction === "매출";
@@ -1072,6 +1074,14 @@ async function syncHometaxInvoices(
       const counterpartyBizItem = isSales
         ? (inv.resContractorBusinessItems || "")
         : (inv.resSupplierBusinessItems || "");
+      // 대표자명 — 상호(CompanyName)와 별개 필드(resContractor/SupplierName = 대표자/성명).
+      const counterpartyRep = isSales
+        ? (inv.resContractorName || "")
+        : (inv.resSupplierName || "");
+      // 이메일 — CODEF 목록 응답에 없을 수 있음(있으면 저장, 없으면 null). 여러 필드명 대비 coalesce.
+      const counterpartyEmail = isSales
+        ? (inv.resContractorEmail || inv.resContractorEmail1 || inv.resContractorEmailId || "")
+        : (inv.resSupplierEmail || inv.resSupplierEmail1 || inv.resSupplierEmailId || "");
 
       rowsToUpsert.push({
         company_id: companyId,
@@ -1084,6 +1094,8 @@ async function syncHometaxInvoices(
         counterparty_bizno: counterpartyBizno,
         counterparty_business_type: counterpartyBizType,
         counterparty_business_item: counterpartyBizItem,
+        counterparty_representative: counterpartyRep || null,
+        counterparty_email: counterpartyEmail || null,
         supply_amount: Number(inv.resSupplyValue || 0),
         tax_amount: Number(inv.resTaxAmt || 0),
         total_amount: Number(inv.resTotalAmount || 0),
