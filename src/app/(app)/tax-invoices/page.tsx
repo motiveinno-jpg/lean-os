@@ -200,6 +200,13 @@ function fmt(n: number) {
   return "₩" + Math.round(n).toLocaleString("ko");
 }
 
+// label 앞에 붙은 영수/청구 토큰 제거 → 적요/품목엔 순수 내용만 표시.
+//   (영수/청구 구분은 홈택스 전자계산서 데이터에 없어 label 토큰으로 보관 — 상세에서 수동 지정 가능)
+function stripPurposeToken(label?: string | null) {
+  if (!label) return "";
+  return label.replace(/^\s*(영수|청구)\s*(\|\s*)?/, "").trim();
+}
+
 // ── 비목 (Expense Categories) ──
 const EXPENSE_CATEGORIES = [
   { value: "", label: "선택하세요" },
@@ -603,7 +610,7 @@ export default function TaxInvoicesPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("partners")
-        .select("id, name, business_number, contact_email, business_type, business_item")
+        .select("id, name, business_number, contact_email, business_type, business_item, representative, address")
         .eq("company_id", companyId!)
         .eq("is_active", true)
         .order("name");
@@ -1957,8 +1964,8 @@ export default function TaxInvoicesPage() {
                               {inv.original_invoice_id && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400">수정</span>}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/40 whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px]" title={inv.label || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || (inv as any).deals?.name || ""}>
-                            {inv.label || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || (inv as any).deals?.name || "—"}
+                          <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/40 whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px]" title={stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || (inv as any).deals?.name || ""}>
+                            {stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || (inv as any).deals?.name || "—"}
                           </td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.supply_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] border-l border-[var(--border)]/40">{Number(inv.tax_amount).toLocaleString("ko")}</td>
@@ -2062,6 +2069,7 @@ export default function TaxInvoicesPage() {
         <InvoiceDetailModal
           invoice={selectedInvoice}
           companyInfo={companyInfo}
+          partners={partners}
           onClose={() => setSelectedInvoice(null)}
           onModify={(inv: any) => {
             setSelectedInvoice(null);
@@ -2588,7 +2596,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
 }
 
 // ── Invoice Detail Modal (세금계산서 상세) ──
-function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoice: any; companyInfo?: any; onClose: () => void; onModify: (inv: any) => void }) {
+function InvoiceDetailModal({ invoice, companyInfo, partners, onClose, onModify }: { invoice: any; companyInfo?: any; partners?: any[]; onClose: () => void; onModify: (inv: any) => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const inv = invoice;
@@ -2615,50 +2623,84 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
   // 직원 QA 세금계산서2 — 사업자번호 XXX-XX-XXXXX 포맷 + 상호 "+"(공백 인코딩) → 공백 정규화
   const fmtBizNo = (b: string) => { const d = (b || '').replace(/[^0-9]/g, ''); return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : (b || ''); };
   const cleanNm = (s: string) => (s || '').replace(/\+/g, ' ').trim();
-  const cpRep = inv.partners?.representative || inv.counterparty_representative || '';
+  // 거래처 정보 보강: FK 조인(inv.partners)이 없으면(홈택스 동기화 건은 partner_id=null 다수)
+  //   사업자번호로 거래처 명부에서 찾아 대표자명·업태·종목·이메일·주소를 복원한다.
+  const cpBizDigits = (inv.counterparty_bizno || '').replace(/[^0-9]/g, '');
+  const cpPartner = inv.partners
+    || (cpBizDigits.length === 10
+      ? (partners || []).find((p: any) => (p.business_number || '').replace(/[^0-9]/g, '') === cpBizDigits)
+      : null);
+  // 거래처(공급받는자/공급자) 필드 — 계산서에 저장된 값 우선, 없으면 명부(cpPartner)에서 폴백.
+  const cpRep = cpPartner?.representative || inv.counterparty_representative || '';
+  const cpBizType = inv.counterparty_business_type || cpPartner?.business_type || '';
+  const cpBizCat = inv.counterparty_business_item || cpPartner?.business_item || '';
+  const cpEmail = inv.counterparty_email || cpPartner?.contact_email || cpPartner?.email || '';
+  const cpAddr = cpPartner?.address || inv.counterparty_address || '';
   const supplier = {
     bizNo: fmtBizNo(isSales ? myBizNo : (inv.counterparty_bizno || '')),
     name: cleanNm(isSales ? myCompany : (inv.counterparty_name || '')),
     rep: isSales ? myRep : cpRep,
-    addr: isSales ? (companyInfo?.address || '') : (inv.partners?.address || ''),
-    bizType: isSales ? myBizType : (inv.partners?.business_type || ''),
-    bizCat: isSales ? myBizCat : (inv.partners?.business_item || ''),
-    email: isSales ? (companyInfo?.email || '') : (inv.counterparty_email || inv.partners?.contact_email || inv.partners?.email || ''),
+    addr: isSales ? (companyInfo?.address || '') : cpAddr,
+    bizType: isSales ? myBizType : cpBizType,
+    bizCat: isSales ? myBizCat : cpBizCat,
+    email: isSales ? (companyInfo?.email || '') : cpEmail,
   };
   const buyer = {
     bizNo: fmtBizNo(!isSales ? myBizNo : (inv.counterparty_bizno || '')),
     name: cleanNm(!isSales ? myCompany : (inv.counterparty_name || '')),
     rep: !isSales ? myRep : cpRep,
-    addr: !isSales ? (companyInfo?.address || '') : (inv.partners?.address || ''),
-    bizType: !isSales ? myBizType : (inv.partners?.business_type || ''),
-    bizCat: !isSales ? myBizCat : (inv.partners?.business_item || ''),
-    email: !isSales ? (companyInfo?.email || '') : (inv.counterparty_email || inv.partners?.contact_email || inv.partners?.email || ''),
+    addr: !isSales ? (companyInfo?.address || '') : cpAddr,
+    bizType: !isSales ? myBizType : cpBizType,
+    bizCat: !isSales ? myBizCat : cpBizCat,
+    email: !isSales ? (companyInfo?.email || '') : cpEmail,
   };
   // 실제 세금계산서 관행: 매출(공급자 보관용)=적색, 매입=청색. 은은한 톤으로 공식 느낌만.
   const formColor = isSales ? '#C0392B' : '#1D6AA8';
   const formTint = isSales ? '#FBEEEC' : '#EAF2FA';
   const docTitle = issuedToNts ? '전자세금계산서' : '미전송 전자세금계산서';
-  const isBilled = !inv.label?.includes('영수'); // 영수/청구 구분
+  // 영수/청구 — 홈택스 전자계산서 데이터엔 없는 필드(종이계산서 잔재)라 자동으론 못 불러옴.
+  //   label 앞 토큰("영수 |"/"청구 |")으로 보관하고, 상세에서 사용자가 직접 지정(수정 저장).
+  const [billedState, setBilledState] = useState<boolean>(() => !inv.label?.includes('영수'));
+  const [savingReceipt, setSavingReceipt] = useState(false);
+  const isBilled = billedState; // true=청구, false=영수
+  const setReceipt = async (billed: boolean) => {
+    if (savingReceipt || billed === billedState) return;
+    setSavingReceipt(true);
+    const token = billed ? '청구' : '영수';
+    const rest = stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, ' ').trim() : '');
+    const newLabel = rest ? `${token} | ${rest}` : token;
+    try {
+      const { error } = await (supabase as any).from('tax_invoices').update({ label: newLabel }).eq('id', inv.id);
+      if (error) throw error;
+      inv.label = newLabel; // 로컬 반영 (목록 재조회 전까지)
+      setBilledState(billed);
+      queryClient.invalidateQueries({ queryKey: ['tax-invoices-full'] });
+      toast(`영수/청구를 '${token}'(으)로 저장했습니다`, 'success');
+    } catch (e: any) {
+      toast(`영수/청구 저장 실패: ${e.message}`, 'error');
+    }
+    setSavingReceipt(false);
+  };
 
   const buildPdfParams = (): TaxInvoicePdfParams => ({
     invoiceNumber: `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase()}`,
     issueDate: inv.issue_date || new Date().toISOString().split('T')[0],
     type: inv.type,
     supplier: {
-      name: inv.type === 'sales' ? myCompany : inv.counterparty_name,
-      businessNumber: inv.type === 'sales' ? myBizNo : (inv.counterparty_bizno || ''),
-      representative: inv.type === 'sales' ? myRep : '',
-      address: inv.type === 'sales' ? (companyInfo?.address || '') : '',
-      businessType: inv.type === 'sales' ? myBizType : (inv.partners?.business_type || ''),
-      businessCategory: inv.type === 'sales' ? myBizCat : (inv.partners?.business_item || ''),
+      name: supplier.name,
+      businessNumber: supplier.bizNo,
+      representative: supplier.rep,
+      address: supplier.addr,
+      businessType: supplier.bizType,
+      businessCategory: supplier.bizCat,
     },
     buyer: {
-      name: inv.type === 'purchase' ? myCompany : inv.counterparty_name,
-      businessNumber: inv.type === 'purchase' ? myBizNo : (inv.counterparty_bizno || ''),
-      representative: inv.type === 'purchase' ? myRep : '',
-      address: inv.type === 'purchase' ? (companyInfo?.address || '') : '',
-      businessType: inv.type === 'purchase' ? myBizType : (inv.partners?.business_type || ''),
-      businessCategory: inv.type === 'purchase' ? myBizCat : (inv.partners?.business_item || ''),
+      name: buyer.name,
+      businessNumber: buyer.bizNo,
+      representative: buyer.rep,
+      address: buyer.addr,
+      businessType: buyer.bizType,
+      businessCategory: buyer.bizCat,
     },
     supplyAmount: supplyAmt,
     taxAmount: taxAmt,
@@ -2858,7 +2900,7 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
                 <tr className="text-[11px]" style={{ color: "#1a1a1a" }}>
                   <td className="py-2 px-1 text-center font-mono" style={{ borderRight: "1px solid #eee" }}>{inv.issue_date?.slice(5) || "—"}</td>
                   <td className="py-2 px-2" style={{ borderRight: "1px solid #eee" }}>
-                    {inv.label || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || EXPENSE_CATEGORIES.find((c: any) => c.value === inv.expense_category)?.label || "—"}
+                    {stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || EXPENSE_CATEGORIES.find((c: any) => c.value === inv.expense_category)?.label || "—"}
                   </td>
                   <td className="py-2 px-1 text-center font-mono" style={{ borderRight: "1px solid #eee" }}>{inv.item_quantity || 1}</td>
                   <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{Number(inv.item_unit_price || supplyAmt).toLocaleString()}</td>
@@ -2874,7 +2916,25 @@ function InvoiceDetailModal({ invoice, companyInfo, onClose, onModify }: { invoi
               <div className="px-3 py-2 flex-1 font-black font-mono text-[14px] flex items-center" style={{ color: formColor }}>₩{totalAmt.toLocaleString()}</div>
               <div className="px-4 py-2 flex items-center gap-1.5 font-semibold" style={{ borderLeft: "1px solid #ddd", color: "#333" }}>
                 이 금액을
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: formTint, color: formColor }}>{isBilled ? "청구" : "영수"}</span>
+                {/* 영수/청구 — 클릭해서 지정(홈택스 동기화 건은 이 필드가 없어 기본 '청구', 여기서 실제값으로 수정) */}
+                {/* 인쇄 시엔 버튼이 숨겨지므로 선택값만 정적 표기 */}
+                <span className="hidden print:inline px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: formTint, color: formColor }}>{isBilled ? "청구" : "영수"}</span>
+                <span className="inline-flex print:hidden rounded-full overflow-hidden border" style={{ borderColor: formColor }}>
+                  <button
+                    type="button"
+                    disabled={savingReceipt}
+                    onClick={() => setReceipt(false)}
+                    className="px-2 py-0.5 text-[10px] font-bold transition disabled:opacity-50"
+                    style={!isBilled ? { background: formColor, color: "#fff" } : { background: "#fff", color: "#999" }}
+                  >영수</button>
+                  <button
+                    type="button"
+                    disabled={savingReceipt}
+                    onClick={() => setReceipt(true)}
+                    className="px-2 py-0.5 text-[10px] font-bold transition disabled:opacity-50"
+                    style={isBilled ? { background: formColor, color: "#fff" } : { background: "#fff", color: "#999" }}
+                  >청구</button>
+                </span>
                 함
               </div>
             </div>
