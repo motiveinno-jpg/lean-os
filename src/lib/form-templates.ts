@@ -74,6 +74,21 @@ export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** content_html 의 {{키}} 를 values 로 치환. 값이 없으면 강조 표시(미리보기용) 또는 빈칸(발급용). */
+export function fillTextTemplate(
+  contentHtml: string,
+  values: Record<string, string | number | null | undefined>,
+  opts?: { highlightMissing?: boolean }
+): string {
+  return contentHtml.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_m, key: string) => {
+    const v = values[key.trim()];
+    if (v !== undefined && v !== null && String(v) !== "") return escapeHtml(String(v));
+    return opts?.highlightMissing
+      ? `<mark style="background:rgba(99,102,241,.15);color:#6366f1;padding:0 2px;border-radius:3px">{{${escapeHtml(key.trim())}}}</mark>`
+      : "";
+  });
+}
+
 /** 편집한 평문 텍스트(줄바꿈+{{변수}}) → content_html 로 변환. 페이지 구분선은 <hr>. */
 export function templateTextToHtml(text: string): string {
   return text.split("\n").map((line) => {
