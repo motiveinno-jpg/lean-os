@@ -42,6 +42,7 @@ import { generateTaxInvoicePdf } from "@/lib/document-generator";
 import type { TaxInvoicePdfParams } from "@/lib/document-generator";
 import { SortToolbar } from "@/components/sort-toolbar";
 import { getThreeWayCandidates, confirmThreeWayMatch, unmatchInvoice } from "@/lib/three-way-match";
+import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 
 // ── Print Styles ──
 const PRINT_STYLE_ID = "tax-invoice-print-style";
@@ -247,6 +248,7 @@ export default function TaxInvoicesPage() {
   }
   const { toast } = useToast();
   const { confirm: confirmDialog, confirmElement } = useConfirm();
+  const { guard: formGuard, confirmEl: formGuardEl } = useUnsavedGuard();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const hometaxCd = useSyncCooldown(companyId, "hometax");
@@ -1512,7 +1514,8 @@ export default function TaxInvoicesPage() {
 
       {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
       {showForm && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => formGuard(() => setShowForm(false), rows.some((r) => r.counterpartyName.trim() || r.supplyAmount || r.itemName.trim() || r.counterpartyBizno.trim() || !!r.issueDate))}>
+        {formGuardEl}
         <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-[96vw] max-w-[1240px] max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] shrink-0">

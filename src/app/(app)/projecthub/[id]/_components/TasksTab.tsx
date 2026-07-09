@@ -12,6 +12,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
 import { uploadTaskAttachment, taskAttachmentUrl, taskAttachmentDownloadUrl, removeTaskAttachment, isImageAtt, type TaskAttachment } from "@/lib/task-attachments";
+import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 
 const db = supabase as any;
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -522,12 +523,25 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
 
   const IN = "w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]";
   const LB = "block text-xs text-[var(--text-muted)] mb-1";
+  // 바깥 클릭/✕ 로 닫을 때 입력분이 있으면 확인 (실수로 닫혀 작성분 날아가는 것 방지)
+  const { guard, confirmEl } = useUnsavedGuard();
+  const dirty = editing && (
+    isEdit
+      ? (title !== (task?.title || "") || desc !== (task?.description || "")
+         || status !== ((task?.status as TaskStatus) || "todo")
+         || start !== (task?.start_date || "").slice(0, 10) || due !== (task?.due_date || "").slice(0, 10)
+         || labels.length !== (Array.isArray(task?.labels) ? task.labels.filter((l: any) => l && l.text).length : 0)
+         || atts.length !== (Array.isArray(task?.attachments) ? task.attachments.length : 0))
+      : (title.trim() !== "" || desc.trim() !== "" || assignees.length > 0 || labels.length > 0 || atts.length > 0 || start !== "" || due !== "")
+  );
+  const closeGuarded = () => guard(onClose, dirty);
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={closeGuarded}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        {confirmEl}
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <div className="text-sm font-bold text-[var(--text)]">{!isEdit ? "+ 태스크 추가" : editing ? "태스크 수정" : "태스크"}</div>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
+          <button onClick={closeGuarded} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
 
         {/* ── 보기 모드 — 저장된 태스크 클릭 시 기본. 넓은 설명 영역으로 가독성 우선 ── */}
