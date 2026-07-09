@@ -10,7 +10,7 @@ import { useToast } from "@/components/toast";
 import FormTemplateEditor from "@/components/form-template-editor";
 import {
   rasterizePdf, detectFields, uploadTemplateFile, saveFormTemplate, setActiveTemplate,
-  listFormTemplates, deleteFormTemplate, extractPdfText, templateTextToHtml,
+  listFormTemplates, deleteFormTemplate, extractPdfText, templateTextToHtml, fillTextTemplate,
   type DocType, type OverlayField, type PdfFormTemplate,
 } from "@/lib/form-templates";
 
@@ -34,7 +34,8 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
     pageImages: string[]; pageSizes: { w: number; h: number }[]; fields: OverlayField[]; filePath: string; pageCount: number;
   }>(null);
   // 텍스트변환 양식(직원 QA) — 추출한 평문을 편집 + {{변수}} 삽입
-  const [textEditing, setTextEditing] = useState<null | { text: string; filePath: string; pageCount: number }>(null);
+  const [textEditing, setTextEditing] = useState<null | { filePath: string; pageCount: number }>(null);
+  const [textVal, setTextVal] = useState("");
   const textRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: templates = [] } = useQuery({
@@ -76,7 +77,8 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
       const text = await extractPdfText(file);
       const filePath = await uploadTemplateFile(companyId, file);
       const pageCount = text.split("페이지 구분").length;
-      setTextEditing({ text, filePath, pageCount });
+      setTextVal(text);
+      setTextEditing({ filePath, pageCount });
       toast("PDF 텍스트를 추출했습니다 — 내용을 다듬고 {{변수}}를 넣으세요", "info");
     } catch (e: any) {
       toast("텍스트 추출 실패: " + (e?.message || ""), "error");
@@ -84,15 +86,16 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
   };
 
   const insertVar = (v: string) => {
-    const ta = textRef.current; if (!ta) return;
-    const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? ta.value.length;
-    ta.value = ta.value.slice(0, s) + v + ta.value.slice(e);
-    ta.focus(); ta.selectionStart = ta.selectionEnd = s + v.length;
+    const ta = textRef.current;
+    const s = ta?.selectionStart ?? textVal.length, e = ta?.selectionEnd ?? textVal.length;
+    const next = textVal.slice(0, s) + v + textVal.slice(e);
+    setTextVal(next);
+    requestAnimationFrame(() => { if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = s + v.length; } });
   };
 
   const onSaveText = async () => {
     if (!companyId || !textEditing) return;
-    const text = textRef.current?.value ?? textEditing.text;
+    const text = textVal;
     try {
       const t = await saveFormTemplate({
         companyId, name: name.trim(), docType, filePath: textEditing.filePath,
@@ -215,8 +218,19 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
                   className="text-[11px] px-2 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--primary)] hover:bg-[var(--primary)]/10 font-medium">{v}</button>
               ))}
             </div>
-            <textarea ref={textRef} defaultValue={textEditing.text}
-              className="w-full h-[52vh] px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] font-mono leading-relaxed focus:outline-none focus:border-[var(--primary)]" />
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">편집</div>
+                <textarea ref={textRef} value={textVal} onChange={(e) => setTextVal(e.target.value)}
+                  className="w-full h-[52vh] px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] font-mono leading-relaxed focus:outline-none focus:border-[var(--primary)]" />
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">미리보기 <span className="text-[var(--text-dim)]">(변수는 발급 시 값으로 채워짐)</span></div>
+                <div className="w-full h-[52vh] px-4 py-3 rounded-lg bg-white text-black border border-[var(--border)] overflow-auto text-sm leading-relaxed"
+                  style={{ fontFamily: "'Pretendard', system-ui, sans-serif" }}
+                  dangerouslySetInnerHTML={{ __html: fillTextTemplate(templateTextToHtml(textVal), {}, { highlightMissing: true }) }} />
+              </div>
+            </div>
             <div className="flex justify-end gap-2 mt-3">
               <button onClick={() => setTextEditing(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
               <button onClick={onSaveText} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">텍스트 양식 저장·활성화</button>
