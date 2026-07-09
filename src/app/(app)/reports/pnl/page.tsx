@@ -733,6 +733,15 @@ export default function PnlPage() {
         })}
       </div>
 
+      {/* 스타일 범례 — 색·굵기 기준 명시 (직원 QA: 기준이 불명확하다는 피드백) */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-2 px-1 text-[11px] text-[var(--text-muted)]">
+        <span className="font-semibold text-[var(--text)]">표기 기준</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3.5 h-3.5 rounded" style={{ background: "color-mix(in srgb, var(--info) 9%, var(--bg-card))", border: "1px solid var(--border)" }} />파랑 = 매출(수익)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3.5 h-3.5 rounded" style={{ background: "color-mix(in srgb, var(--success) 10%, var(--bg-card))", border: "1px solid var(--border)" }} />초록 = 이익 지표(매출총이익·영업이익·당기순이익)</span>
+        <span className="inline-flex items-center gap-1.5"><b className="text-[var(--text)]">굵은 글씨</b> = 소계·합계 행</span>
+        <span>들여쓴 일반 글씨 = 세부 항목</span>
+      </div>
+
       {/* Table — 대시보드 글래스카드 (2026-06-10) */}
       <div className="glass-card" style={{ overflow: "auto" }}>
         <table
