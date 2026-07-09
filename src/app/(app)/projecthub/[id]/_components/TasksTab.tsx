@@ -78,7 +78,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
       }
       if (!q) return true;
       const names = [t.assignee_id, ...(t.assignee_ids || [])].filter(Boolean).map((id: string) => userName[id] || "");
-      const hay = [t.title, t.description, ...(t.labels || []), ...names].filter(Boolean).join(" ").toLowerCase();
+      const hay = [t.title, t.description, ...taskLabels(t).map((l) => l.text), ...names].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     });
   }, [tasks, search, assigneeFilter, userName]);
