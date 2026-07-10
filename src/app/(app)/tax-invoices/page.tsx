@@ -2750,6 +2750,8 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, onClose, onModify 
   const [registerLoading, setRegisterLoading] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(false);
+  // 계정과목(비목) — 상세에서 직접 지정, 손익계산서 매출원가/판관비 분류 기준
+  const [expenseCat, setExpenseCat] = useState<string>(inv.expense_category || "");
   const myCompany = companyInfo?.name || '(주)우리회사';
   const myBizNo = companyInfo?.business_number || '';
   const myRep = companyInfo?.representative || '';
@@ -3080,10 +3082,32 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, onClose, onModify 
             </div>
           </div>
 
-          {/* 내부 참고 정보(양식 밖) — 프로젝트/비목 */}
-          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[var(--text-muted)]">
+          {/* 내부 참고 정보(양식 밖) — 프로젝트/비목. 비목(계정과목)은 여기서 직접 지정 가능:
+              매입 계산서에 지정하면 손익계산서에서 매출원가 대신 그 판관비 항목으로 반영 (사장님 QA 2026-07-10) */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px] text-[var(--text-muted)]">
             <span>프로젝트: <b className="text-[var(--text)]">{inv.deals?.name || "—"}</b></span>
-            <span>비목: <b className="text-[var(--text)]">{EXPENSE_CATEGORIES.find(c => c.value === inv.expense_category)?.label || inv.label || "—"}</b></span>
+            <span className="inline-flex items-center gap-1.5">계정과목:
+              <select
+                value={expenseCat}
+                onChange={async (e) => {
+                  const v = e.target.value;
+                  setExpenseCat(v);
+                  const { error } = await (supabase as any).from("tax_invoices").update({ expense_category: v || null }).eq("id", inv.id);
+                  if (error) { toast("계정과목 저장 실패: " + error.message, "error"); return; }
+                  inv.expense_category = v || null;
+                  queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+                  toast(v
+                    ? `'${EXPENSE_CATEGORIES.find((c) => c.value === v)?.label || v}' 지정 — 손익계산서에서 매출원가 대신 판관비로 반영됩니다`
+                    : "계정과목 해제 — 매입 계산서는 매출원가로 집계됩니다", "success");
+                }}
+                className="px-2 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text)]"
+                title="매입 계산서에 계정과목을 지정하면 손익계산서에서 매출원가 대신 그 판관비 항목으로 반영됩니다"
+              >
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.value === "" ? (inv.type === "purchase" ? "미지정 (매출원가)" : "미지정") : c.label}</option>
+                ))}
+              </select>
+            </span>
           </div>
 
           {/* Actions */}

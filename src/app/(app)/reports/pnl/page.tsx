@@ -18,6 +18,16 @@ import { StatementsTabs } from "../_components/StatementsTabs";
 // 매출원가 분류 (운영비/판매관리비 와 분리 — 회계 의미상 별도)
 const COGS_KEYWORDS = ["외주", "인프라", "서버", "호스팅", "AWS", "클라우드", "도메인"];
 
+// 세금계산서 expense_category(영문 키) → 한글 계정과목 라벨 — tax-invoices EXPENSE_CATEGORIES 와 동일 키.
+//   미매핑 시 영문 키가 판관비 행 이름으로 노출되고 통장 분류(한글)와 분리 집계되던 버그 수정 (2026-07-10).
+const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
+  goods: "상품매입", service: "용역/서비스", rent: "임대료", commission: "수수료",
+  advertising: "광고선전비", consumables: "소모품비", transport: "운반비", maintenance: "수선유지비",
+  insurance: "보험료", utilities: "수도광열비", communication: "통신비", travel: "여비교통비",
+  education: "교육훈련비", other: "기타",
+};
+const expenseCategoryLabel = (key: string): string => EXPENSE_CATEGORY_LABELS[key] || key;
+
 // 거래 category 가 비어있을 때만 사용하는 키워드 기반 fallback 라벨
 const FALLBACK_KEYWORDS: Array<[string, string[]]> = [
   ["급여", ["급여", "인건비", "상여", "보너스"]],
@@ -243,8 +253,9 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     } else if (ti.type === "purchase" || ti.type === "매입") {
       // 직원 QA 손익계산서 — 매입 세금계산서에 계정과목(expense_category)을 지정하면 그 판관비로,
       //   미지정이면 매출원가(COGS)로. "매입세금계산서라도 비용으로 빠질 건 빠지게".
-      const cat = (ti.expense_category && String(ti.expense_category).trim()) || "";
-      if (cat) ensureOpex(cat)[month] += ti.supply_amount;
+      //   영문 키는 한글 라벨로 변환해 통장 분류(한글 카테고리)와 같은 행으로 합산.
+      const rawCat = (ti.expense_category && String(ti.expense_category).trim()) || "";
+      if (rawCat) ensureOpex(expenseCategoryLabel(rawCat))[month] += ti.supply_amount;
       else purchaseCost[month] += ti.supply_amount;
     }
   }
@@ -424,30 +435,34 @@ export default function PnlPage() {
       isTotal?: boolean;
       indent?: boolean;
       prevTotal?: number;
-      tone?: "revenue" | "profit";  // 직원 QA 손익 스타일 — 표준 양식 색 구획
+      // 표기 규칙(단순화 2026-07-10): 초록 배경 = 이익 소계 딱 3줄(매출총이익·영업이익·당기순이익).
+      //   굵은 글씨 = Ⅰ~Ⅵ 주요 계정. 들여쓴 일반 글씨 = 세부 항목. 그 외 색 없음.
+      profit?: boolean;
+      big?: boolean;
       drill?: { source: "sales" | "purchase" | "opex" | "computed"; category?: string; breakdown?: { label: string; amount: number }[] };
     },
   ) => {
     const total = months.reduce((s, m) => s + (row[m] || 0), 0);
-    const isHighlight = options?.isSubtotal || options?.isTotal;
-    const toneBg = options?.tone === "revenue" ? "color-mix(in srgb, var(--info) 9%, var(--bg-card))"
-      : options?.tone === "profit" ? "color-mix(in srgb, var(--success) 10%, var(--bg-card))"
-      : isHighlight ? "var(--bg-surface)" : "var(--bg-card)";
+    const isHighlight = options?.isSubtotal || options?.isTotal || options?.profit;
+    const toneBg = options?.profit
+      ? "color-mix(in srgb, var(--success) 9%, var(--bg-card))"
+      : "var(--bg-card)";
+    const fontSize = options?.big ? 14.5 : 13;
     const delta = options?.prevTotal !== undefined ? total - options.prevTotal : undefined;
 
     return (
       <tr
         key={label}
         style={{
-          borderTop: options?.isSubtotal ? "1px solid var(--border)" : undefined,
+          borderTop: options?.isSubtotal || options?.profit ? "1px solid var(--border)" : undefined,
           borderBottom: options?.isTotal ? "2px solid var(--text)" : undefined,
         }}
       >
         <td
           style={{
-            padding: "10px 16px",
-            fontSize: 13,
-            fontWeight: options?.isBold || isHighlight ? 600 : 400,
+            padding: options?.big ? "12px 16px" : "10px 16px",
+            fontSize,
+            fontWeight: options?.isBold || isHighlight ? 700 : 400,
             color: isHighlight ? "var(--text)" : "var(--text-muted)",
             paddingLeft: options?.indent ? 36 : 16,
             whiteSpace: "nowrap",
@@ -471,9 +486,9 @@ export default function PnlPage() {
         </td>
         <td
           style={{
-            padding: "10px 16px",
-            fontSize: 13,
-            fontWeight: 600,
+            padding: options?.big ? "12px 16px" : "10px 16px",
+            fontSize,
+            fontWeight: isHighlight ? 700 : 600,
             textAlign: "right",
             color: total < 0 ? "var(--danger)" : "var(--text)",
             background: toneBg,
@@ -510,39 +525,6 @@ export default function PnlPage() {
       </tr>
     );
   };
-
-  const getColCount = (_monthsArr: string[]) => 2 + (isCompareMode ? 1 : 0);
-
-  const renderSectionHeader = (label: string, months: string[]) => (
-    <tr key={`header-${label}`}>
-      <td
-        colSpan={getColCount(months)}
-        style={{
-          padding: "14px 16px 6px",
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          color: "var(--primary)",
-          background: "var(--bg-card)",
-          position: "sticky",
-          left: 0,
-          zIndex: 2,
-        }}
-      >
-        {label}
-      </td>
-    </tr>
-  );
-
-  const renderDivider = (months: string[], key: string) => (
-    <tr key={key}>
-      <td
-        colSpan={getColCount(months)}
-        style={{ padding: 0, height: 1, background: "var(--border)" }}
-      />
-    </tr>
-  );
 
   /* ---------------------------------------------------------------- */
   /*  Main render                                                      */
@@ -733,13 +715,12 @@ export default function PnlPage() {
         })}
       </div>
 
-      {/* 스타일 범례 — 색·굵기 기준 명시 (직원 QA: 기준이 불명확하다는 피드백) */}
+      {/* 표기 규칙 — 단 한 가지: 초록 배경 = 이익 소계 3줄. 나머지는 표준 양식의 위계(굵은 Ⅰ~Ⅵ / 들여쓴 세부). */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-2 px-1 text-[11px] text-[var(--text-muted)]">
-        <span className="font-semibold text-[var(--text)]">표기 기준</span>
-        <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3.5 h-3.5 rounded" style={{ background: "color-mix(in srgb, var(--info) 9%, var(--bg-card))", border: "1px solid var(--border)" }} />파랑 = 매출(수익)</span>
-        <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3.5 h-3.5 rounded" style={{ background: "color-mix(in srgb, var(--success) 10%, var(--bg-card))", border: "1px solid var(--border)" }} />초록 = 이익 지표(매출총이익·영업이익·당기순이익)</span>
-        <span className="inline-flex items-center gap-1.5"><b className="text-[var(--text)]">굵은 글씨</b> = 소계·합계 행</span>
-        <span>들여쓴 일반 글씨 = 세부 항목</span>
+        <span className="font-semibold text-[var(--text)]">표기 규칙</span>
+        <span className="inline-flex items-center gap-1.5"><b className="text-[var(--text)]">굵은 Ⅰ~Ⅵ</b> = 주요 계정</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3.5 h-3.5 rounded" style={{ background: "color-mix(in srgb, var(--success) 9%, var(--bg-card))", border: "1px solid var(--border)" }} />초록 배경 = 이익 소계(Ⅲ·Ⅴ·Ⅵ)</span>
+        <span>들여쓴 항목 = 판관비 세부 내역 · 항목명 클릭 = 원천 내역</span>
       </div>
 
       {/* Table — 대시보드 글래스카드 (2026-06-10) */}
@@ -810,72 +791,54 @@ export default function PnlPage() {
             </tr>
           </thead>
           <tbody>
-            {/* Revenue Section — 2026-05-22 세금계산서(sales) 공급가액 기준. 기타수익 분리 제거. */}
-            {renderSectionHeader("매출 (Revenue)", months)}
-            {renderRow("매출 (세금계산서 기준)", data.revenue, months, { isSubtotal: true, isBold: true, tone: "revenue", prevTotal: isCompareMode ? prevSum(data.revenue) : undefined, drill: { source: "sales" } })}
-
-            {renderDivider(months, "div-1")}
-
-            {/* Cost of Revenue — 발생주의: 매입 세금계산서 기준 (2026-06-10) */}
-            {renderSectionHeader("매출원가 (COGS · 매입 세금계산서)", months)}
-            {renderRow("매입원가", data.purchaseCost, months, { indent: true, prevTotal: isCompareMode ? prevSum(data.purchaseCost) : undefined, drill: { source: "purchase" } })}
-
-            {renderDivider(months, "div-2")}
-
-            {/* Gross Profit */}
-            {renderRow("매출총이익 (Gross Profit)", computed.grossProfit, months, {
-              isTotal: true,
+            {/* 표준 손익계산서 양식(Ⅰ~Ⅵ) — 주요 계정은 굵은 로마숫자 행에 금액, 세부는 들여쓰기 (2026-07-10) */}
+            {renderRow("Ⅰ. 매출액", data.revenue, months, {
               isBold: true,
-              tone: "profit",
+              prevTotal: isCompareMode ? prevSum(data.revenue) : undefined,
+              drill: { source: "sales" },
+            })}
+            {renderRow("Ⅱ. 매출원가", data.purchaseCost, months, {
+              isBold: true,
+              prevTotal: isCompareMode ? prevSum(data.purchaseCost) : undefined,
+              drill: { source: "purchase" },
+            })}
+            {renderRow("Ⅲ. 매출총이익 (Ⅰ−Ⅱ)", computed.grossProfit, months, {
+              profit: true, isBold: true,
               prevTotal: isCompareMode ? computed.prevTotals.grossProfit : undefined,
               drill: { source: "computed", breakdown: [
-                { label: "매출 (세금계산서 기준)", amount: months.reduce((s, m) => s + (data.revenue[m] || 0), 0) },
-                { label: "매입원가", amount: -months.reduce((s, m) => s + (data.purchaseCost[m] || 0), 0) },
+                { label: "매출액", amount: months.reduce((s, m) => s + (data.revenue[m] || 0), 0) },
+                { label: "매출원가", amount: -months.reduce((s, m) => s + (data.purchaseCost[m] || 0), 0) },
               ] },
             })}
 
-            {renderDivider(months, "div-3")}
-
-            {/* 판매관리비 — 사용자 category 동적 그룹 (사용자가 직접 입력한 카테고리도 자동 표시) */}
-            {renderSectionHeader("판매관리비 (Sales & Admin Expenses)", months)}
+            {renderRow("Ⅳ. 판매비와관리비", computed.totalOpex, months, {
+              isBold: true,
+              prevTotal: isCompareMode ? computed.prevTotals.totalOpex : undefined,
+            })}
             {Object.entries(data.opexByCategory)
               .sort((a, b) => {
                 const sa = months.reduce((s, m) => s + (a[1][m] || 0), 0);
                 const sb = months.reduce((s, m) => s + (b[1][m] || 0), 0);
                 return sb - sa;
               })
+              .filter(([, row]) => months.reduce((s, m) => s + (row[m] || 0), 0) !== 0)
               .map(([name, row]) => renderRow(name, row, months, {
                 indent: true,
                 prevTotal: isCompareMode ? data.prevMonths.reduce((s, m) => s + (row[m] || 0), 0) : undefined,
                 drill: { source: "opex", category: name },
               }))}
-            {renderRow("판매관리비 합계", computed.totalOpex, months, {
-              isSubtotal: true,
-              isBold: true,
-              prevTotal: isCompareMode ? computed.prevTotals.totalOpex : undefined,
-            })}
 
-            {renderDivider(months, "div-4")}
-
-            {/* Operating Income */}
-            {renderRow("영업이익 (Operating Income)", computed.operatingIncome, months, {
-              isTotal: true,
-              isBold: true,
-              tone: "profit",
+            {renderRow("Ⅴ. 영업이익 (Ⅲ−Ⅳ)", computed.operatingIncome, months, {
+              profit: true, isBold: true,
               prevTotal: isCompareMode ? computed.prevTotals.operatingIncome : undefined,
               drill: { source: "computed", breakdown: [
                 { label: "매출총이익", amount: months.reduce((s, m) => s + (computed.grossProfit[m] || 0), 0) },
-                { label: "판매관리비 합계", amount: -months.reduce((s, m) => s + (computed.totalOpex[m] || 0), 0) },
+                { label: "판매비와관리비", amount: -months.reduce((s, m) => s + (computed.totalOpex[m] || 0), 0) },
               ] },
             })}
 
-            {renderDivider(months, "div-5")}
-
-            {/* Net Income */}
-            {renderRow("당기순이익 (Net Income)", computed.netIncome, months, {
-              tone: "profit",
-              isTotal: true,
-              isBold: true,
+            {renderRow("Ⅵ. 당기순이익", computed.netIncome, months, {
+              profit: true, isBold: true, big: true, isTotal: true,
               prevTotal: isCompareMode ? computed.prevTotals.netIncome : undefined,
               drill: { source: "computed", breakdown: [
                 { label: "영업이익 (영업외손익·법인세 미반영)", amount: months.reduce((s, m) => s + (computed.operatingIncome[m] || 0), 0) },
@@ -919,11 +882,11 @@ export default function PnlPage() {
           <svg className="w-4 h-4 text-[var(--text-dim)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" /></svg>
         </summary>
         <div className="px-4 pb-4 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-[11.5px] leading-relaxed text-[var(--text-dim)] border-t border-[var(--border)] pt-3">
-          <div>· <b className="text-[var(--text-muted)]">매출</b> = 매출 세금계산서 공급가액(발생주의)</div>
-          <div>· <b className="text-[var(--text-muted)]">매출원가</b> = 매입 세금계산서 공급가액</div>
-          <div>· <b className="text-[var(--text-muted)]">판매관리비</b> = 카테고리 분류된 출금(자금이동·미분류 제외)</div>
-          <div>· <b className="text-[var(--text-muted)]">급여</b> = 등록 직원 월급여, <b className="text-[var(--text-muted)]">4대보험</b> = 급여×약 10.55%(사업주 부담 추정)</div>
-          <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">당기순이익</b> = 영업이익 (영업외손익·법인세 미반영)</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅰ. 매출액</b> = 매출 세금계산서 공급가액(발생주의)</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅱ. 매출원가</b> = <b className="text-[var(--text-muted)]">계정과목 미지정</b> 매입 세금계산서 공급가액 — 매입 계산서에 계정과목을 지정하면 그 항목의 판관비로 이동(Ⅱ 클릭 → 건별 지정 가능)</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅳ. 판매비와관리비</b> = ① 카테고리 분류된 통장 출금(AI 자동분류 포함 — 직접 선택 안 해도 자동 분류분이 반영됨) + ② 계정과목 지정한 매입 세금계산서</div>
+          <div>· <b className="text-[var(--text-muted)]">급여</b> = 등록 직원 월급여 자동 반영, <b className="text-[var(--text-muted)]">4대보험</b> = 급여×약 10.55%(사업주 부담 추정) — 거래가 없어도 직원 등록만으로 자동 계상</div>
+          <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">Ⅵ. 당기순이익</b> = 영업이익 (영업외손익·법인세 미반영) · 자금이동(이체·대출·카드대금 등)과 미분류 출금은 비용에서 제외</div>
         </div>
       </details>
 
@@ -937,6 +900,7 @@ export default function PnlPage() {
           start={months[0]}
           end={months[months.length - 1]}
           onClose={() => setDrill(null)}
+          onChanged={() => setRefreshKey((k) => k + 1)}
         />
       )}
     </div>
@@ -944,7 +908,8 @@ export default function PnlPage() {
 }
 
 // 손익 항목 드릴다운 모달 — 클릭한 줄의 원천 내역(매출/매입 세금계산서 · 판관비 분류 거래)을 기간으로 조회.
-function PnlDrillModal({ companyId, source, category, label, start, end, breakdown, onClose }: {
+//   매출원가(purchase) 드릴다운에선 건별로 계정과목을 바로 지정 가능 — 지정하면 그 판관비로 이동(손익 즉시 반영).
+function PnlDrillModal({ companyId, source, category, label, start, end, breakdown, onClose, onChanged }: {
   companyId: string;
   source: "sales" | "purchase" | "opex" | "computed";
   category?: string;
@@ -953,9 +918,11 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
   end: string;
   breakdown?: { label: string; amount: number }[];
   onClose: () => void;
+  onChanged?: () => void;
 }) {
-  const [rows, setRows] = useState<{ date: string; name: string; amount: number }[] | null>(null);
+  const [rows, setRows] = useState<{ id?: string; date: string; name: string; amount: number; expenseCategory?: string }[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
     if (source === "computed") return;
     const startDate = `${start}-01`;
@@ -964,28 +931,52 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
     (async () => {
       try {
         if (source === "opex") {
-          const { data, error } = await (supabase as any)
-            .from("bank_transactions")
-            .select("transaction_date, counterparty, description, amount, category")
-            .eq("company_id", companyId).in("type", ["expense", "출금"]).eq("category", category)
-            .gte("transaction_date", startDate).lt("transaction_date", endExclusive)
-            .order("transaction_date", { ascending: true }).limit(2000);
-          if (error) throw error;
-          setRows((data || []).map((r: any) => ({ date: r.transaction_date, name: r.counterparty || r.description || "—", amount: Math.abs(Number(r.amount || 0)) })));
+          // ① 그 카테고리로 분류된 통장 출금 + ② 그 계정과목을 지정한 매입 세금계산서 (같은 행에 합산되므로 둘 다 표시)
+          const catKeys = Object.entries(EXPENSE_CATEGORY_LABELS).filter(([, l]) => l === category).map(([k]) => k);
+          const [txRes, tiRes] = await Promise.all([
+            (supabase as any)
+              .from("bank_transactions")
+              .select("transaction_date, counterparty, description, amount, category")
+              .eq("company_id", companyId).in("type", ["expense", "출금"]).eq("category", category)
+              .gte("transaction_date", startDate).lt("transaction_date", endExclusive)
+              .order("transaction_date", { ascending: true }).limit(2000),
+            (supabase as any)
+              .from("tax_invoices")
+              .select("issue_date, counterparty_name, supply_amount, expense_category, status")
+              .eq("company_id", companyId).in("type", ["purchase", "매입"]).neq("status", "void")
+              .in("expense_category", [...catKeys, category])
+              .gte("issue_date", startDate).lt("issue_date", endExclusive)
+              .order("issue_date", { ascending: true }).limit(2000),
+          ]);
+          if (txRes.error) throw txRes.error;
+          const txRows = (txRes.data || []).map((r: any) => ({ date: r.transaction_date, name: r.counterparty || r.description || "—", amount: Math.abs(Number(r.amount || 0)) }));
+          const tiRows = (tiRes.data || []).map((r: any) => ({ date: r.issue_date, name: `${r.counterparty_name || "—"} (매입계산서)`, amount: Number(r.supply_amount || 0) }));
+          setRows([...txRows, ...tiRows].sort((a, b) => a.date.localeCompare(b.date)));
         } else {
           const types = source === "sales" ? ["sales", "매출"] : ["purchase", "매입"];
-          const { data, error } = await (supabase as any)
+          let q = (supabase as any)
             .from("tax_invoices")
-            .select("issue_date, counterparty_name, supply_amount, type, status")
+            .select("id, issue_date, counterparty_name, supply_amount, type, status, expense_category")
             .eq("company_id", companyId).in("type", types).neq("status", "void")
             .gte("issue_date", startDate).lt("issue_date", endExclusive)
             .order("issue_date", { ascending: true }).limit(2000);
+          // 매출원가 드릴 = 계정과목 미지정 매입 계산서만 (Ⅱ와 동일 기준)
+          if (source === "purchase") q = q.is("expense_category", null);
+          const { data, error } = await q;
           if (error) throw error;
-          setRows((data || []).map((r: any) => ({ date: r.issue_date, name: r.counterparty_name || "—", amount: Number(r.supply_amount || 0) })));
+          setRows((data || []).map((r: any) => ({ id: r.id, date: r.issue_date, name: r.counterparty_name || "—", amount: Number(r.supply_amount || 0), expenseCategory: r.expense_category || "" })));
         }
       } catch (e: any) { setErr(e?.message || "불러오기 실패"); }
     })();
-  }, [companyId, source, category, start, end]);
+  }, [companyId, source, category, start, end, reloadKey]);
+
+  // 매입 계산서 건별 계정과목 지정 → 매출원가에서 그 판관비로 이동 (손익 재계산은 onChanged)
+  const assignCategory = async (invoiceId: string, key: string) => {
+    const { error } = await (supabase as any).from("tax_invoices").update({ expense_category: key || null }).eq("id", invoiceId);
+    if (error) { setErr(error.message); return; }
+    setReloadKey((k) => k + 1);
+    onChanged?.();
+  };
 
   const bd = breakdown || [];
   const total = source === "computed" ? bd.reduce((s, b) => s + b.amount, 0) : (rows || []).reduce((s, r) => s + r.amount, 0);
@@ -1026,14 +1017,30 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
                   <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">일자</th>
                   <th className="text-left px-4 py-2 font-semibold">{source === "opex" ? "거래처 / 적요" : "거래처"}</th>
                   <th className="text-right px-4 py-2 font-semibold whitespace-nowrap">금액</th>
+                  {source === "purchase" && <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">계정과목 지정</th>}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={i} className="border-t border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
+                  <tr key={r.id || i} className="border-t border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
                     <td className="px-4 py-2 text-[var(--text-muted)] mono-number whitespace-nowrap align-top">{r.date}</td>
                     <td className="px-4 py-2 text-[var(--text)]">{r.name}</td>
                     <td className="px-4 py-2 text-right mono-number text-[var(--text)] whitespace-nowrap align-top">{formatKrw(r.amount)}</td>
+                    {source === "purchase" && (
+                      <td className="px-4 py-1.5 align-top" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={r.expenseCategory || ""}
+                          onChange={(e) => r.id && assignCategory(r.id, e.target.value)}
+                          className="w-full max-w-[150px] px-2 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text)]"
+                          title="계정과목을 지정하면 매출원가에서 빠져 그 판관비 항목으로 이동합니다"
+                        >
+                          <option value="">매출원가 (미지정)</option>
+                          {Object.entries(EXPENSE_CATEGORY_LABELS).map(([k, l]) => (
+                            <option key={k} value={k}>{l}</option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
