@@ -30,6 +30,55 @@ Deno.serve(async (req) => {
   const { userId, title, body, url, tag } = payload || {};
   if (!userId || !title) return new Response("missing userId/title", { status: 400 });
 
+  // ── 사용자 알림 설정(notification_prefs) 존중 — 설정>알림의 푸시 마스터/이벤트별 토글·방해금지 ──
+  //   prefs 행이 없으면 발송(구독 존재 자체가 opt-in 신호). notifications.type → 설정 이벤트 키 매핑,
+  //   미매핑 타입(signature_request 등)은 마스터 토글만 따름.
+  const TYPE_TO_EVENT: Record<string, string> = {
+    approval: "approval_pending",
+    overtime_request: "approval_pending",
+    overtime_approved: "approval_pending",
+    overtime_rejected: "approval_pending",
+    chat: "chat_mention",
+    system: "system_alert",
+    overtime_auto_clockout: "system_alert",
+    payment: "payment_due",
+    payment_due: "payment_due",
+    tax_invoice: "tax_invoice",
+    deal: "deal_status",
+    deal_status: "deal_status",
+    project: "deal_status",
+    weekly_report: "weekly_report",
+  };
+  try {
+    const { data: prefRow } = await admin
+      .from("notification_prefs")
+      .select("prefs")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const push = prefRow?.prefs?.push;
+    if (push) {
+      if (push.enabled === false) {
+        return new Response(JSON.stringify({ sent: 0, removed: 0, skipped: "push_disabled" }), { headers: { "Content-Type": "application/json" } });
+      }
+      const eventKey = tag ? TYPE_TO_EVENT[String(tag)] : undefined;
+      if (eventKey && push.events && push.events[eventKey] === false) {
+        return new Response(JSON.stringify({ sent: 0, removed: 0, skipped: `event_off:${eventKey}` }), { headers: { "Content-Type": "application/json" } });
+      }
+    }
+    // 방해금지 시간 (KST) — 켜져 있으면 그 시간대엔 발송 안 함 (자정 넘김 지원)
+    const q = prefRow?.prefs?.quietHours;
+    if (q?.enabled && typeof q.start === "string" && typeof q.end === "string") {
+      const kst = new Date(Date.now() + 9 * 3600 * 1000);
+      const nowMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+      const toMin = (s: string) => { const [h, m] = s.split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+      const s = toMin(q.start), e = toMin(q.end);
+      const inQuiet = s <= e ? (nowMin >= s && nowMin < e) : (nowMin >= s || nowMin < e);
+      if (inQuiet) {
+        return new Response(JSON.stringify({ sent: 0, removed: 0, skipped: "quiet_hours" }), { headers: { "Content-Type": "application/json" } });
+      }
+    }
+  } catch { /* prefs 조회 실패 시 발송 계속 (fail-open) */ }
+
   const { data: subs } = await admin
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth")

@@ -85,6 +85,8 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState<NotificationPermission | "unknown">("unknown");
   const [telegramTesting, setTelegramTesting] = useState(false);
+  // iOS(사파리)는 '홈 화면에 추가'한 standalone 앱에서만 백그라운드 푸시 지원 — 안내용
+  const [iosNeedsA2HS, setIosNeedsA2HS] = useState(false);
 
   useEffect(() => {
     try {
@@ -99,6 +101,10 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
     if (typeof window !== "undefined" && "Notification" in window) {
       setPushSupported(true);
       setPushPermission(Notification.permission);
+    }
+    if (typeof window !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent)
+        && !window.matchMedia("(display-mode: standalone)").matches) {
+      setIosNeedsA2HS(true);
     }
 
     // Try to load user email
@@ -136,31 +142,66 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
     }
   }
 
-  async function requestPushPermission() {
+  // 푸시 켜기 — 권한이 이미 허용돼 있어도 항상 구독을 만든다(기존엔 granted 면 구독을 안 만들어
+  //   push_subscriptions 0건 → 백그라운드 알림이 영영 안 오던 원인).
+  async function enablePush() {
     if (!pushSupported) return;
     const result = await Notification.requestPermission();
     setPushPermission(result);
-    if (result === "granted") {
-      setPrefs((p) => ({ ...p, push: { ...p.push, enabled: true } }));
-      // 백그라운드 푸시 구독 — 탭을 닫아도 알림을 받도록 PushManager 구독 + DB 저장.
+    if (result !== "granted") {
+      toast("푸시 알림 권한 거부됨 — 브라우저 설정에서 허용해주세요", "error");
+      return;
+    }
+    setPrefs((p) => ({ ...p, push: { ...p.push, enabled: true } }));
+    try {
+      const [{ subscribeWebPush, webPushSupported }, { getCurrentUser }] = await Promise.all([
+        import("@/lib/web-push"),
+        import("@/lib/queries"),
+      ]);
+      if (!webPushSupported()) {
+        toast("이 브라우저는 백그라운드 푸시를 지원하지 않습니다 — 아이폰은 '홈 화면에 추가' 후 홈 화면 앱에서 켜주세요", "info");
+        return;
+      }
+      const u = await getCurrentUser();
+      const ok = u ? await subscribeWebPush(companyId, u.id) : false;
+      toast(
+        ok ? "브라우저 푸시 켜짐 — 창을 닫아도 알림을 받습니다" : "권한은 허용됐지만 구독에 실패했습니다. 다시 시도해주세요",
+        ok ? "success" : "error",
+      );
+    } catch {
+      toast("푸시 알림 권한 허용됨 (백그라운드 구독은 실패 — 다시 시도)", "info");
+    }
+  }
+
+  // 푸시 끄기 — 구독 해제 + DB 정리(서버가 더 이상 이 브라우저로 발송 안 함).
+  async function disablePush() {
+    setPrefs((p) => ({ ...p, push: { ...p.push, enabled: false } }));
+    try {
+      const { unsubscribeWebPush } = await import("@/lib/web-push");
+      await unsubscribeWebPush();
+    } catch { /* best-effort */ }
+    toast("브라우저 푸시를 껐습니다", "info");
+  }
+
+  // 자동 복구 — 설정상 켜져 있고 권한도 허용인데 이 브라우저에 구독이 없으면 조용히 재구독.
+  //   (토글 버그로 구독 없이 '켜짐'으로 저장된 기존 사용자 자동 치유)
+  useEffect(() => {
+    if (!loaded || !prefs.push.enabled) return;
+    if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
+    (async () => {
       try {
-        const [{ subscribeWebPush }, { getCurrentUser }] = await Promise.all([
+        const [{ subscribeWebPush, isWebPushSubscribed, webPushSupported }, { getCurrentUser }] = await Promise.all([
           import("@/lib/web-push"),
           import("@/lib/queries"),
         ]);
+        if (!webPushSupported()) return;
+        if (await isWebPushSubscribed()) return;
         const u = await getCurrentUser();
-        const ok = u ? await subscribeWebPush(companyId, u.id) : false;
-        toast(
-          ok ? "브라우저 푸시 켜짐 — 창을 닫아도 알림을 받습니다" : "권한은 허용됐지만 구독에 실패했습니다. 다시 시도해주세요",
-          ok ? "success" : "error",
-        );
-      } catch {
-        toast("푸시 알림 권한 허용됨 (백그라운드 구독은 실패 — 다시 시도)", "info");
-      }
-    } else {
-      toast("푸시 알림 권한 거부됨 — 브라우저 설정에서 허용해주세요", "error");
-    }
-  }
+        if (u) await subscribeWebPush(companyId, u.id);
+      } catch { /* silent */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, prefs.push.enabled, companyId]);
 
   async function testTelegram() {
     if (!prefs.telegram.chatId.trim()) {
@@ -251,18 +292,18 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         title="🔔 브라우저 푸시"
         desc="실시간 데스크톱 알림 — 채팅 멘션/긴급 알림에 적합"
         enabled={prefs.push.enabled}
-        onToggle={(v) => {
-          if (v && pushPermission !== "granted") {
-            requestPushPermission();
-          } else {
-            setPrefs((p) => ({ ...p, push: { ...p.push, enabled: v } }));
-          }
-        }}
+        onToggle={(v) => (v ? enablePush() : disablePush())}
         disabled={!pushSupported}
       >
         {!pushSupported && (
           <div className="text-xs text-[var(--warning)] mb-3">
             현재 브라우저에서 푸시 알림을 지원하지 않습니다.
+          </div>
+        )}
+        {iosNeedsA2HS && (
+          <div className="text-xs text-[var(--warning)] mb-3 leading-relaxed">
+            📱 아이폰/아이패드는 Safari <b>공유 → &lsquo;홈 화면에 추가&rsquo;</b> 후, 홈 화면의 오너뷰 앱에서 켜야
+            창을 닫아도 알림이 옵니다 (iOS 정책).
           </div>
         )}
         {pushSupported && pushPermission === "denied" && (
@@ -272,7 +313,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         )}
         {pushSupported && pushPermission !== "granted" && pushPermission !== "denied" && (
           <button
-            onClick={requestPushPermission}
+            onClick={enablePush}
             className="mb-3 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition"
           >
             푸시 권한 요청
