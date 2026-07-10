@@ -32,23 +32,87 @@ function monthLabel(m: string): string {
 const YEAR_NOW = new Date().getFullYear();
 
 // 산출 기준 설명 — 팝업 상단 note (집계 함수와 동일 소스 명시)
-const FIXED_NOTE = "고정비 = 정기결제(활성) + 고정비 등록 항목 + 통장 거래 중 '고정비' 체크(전표처리·매핑에서 체크)된 지출의 합입니다. 같은 지출을 정기결제로도 등록하면 중복될 수 있으니 한 가지 방식만 사용하세요.";
+const FIXED_NOTE = "고정비 = 정기결제(활성) + 고정비 등록 항목 + 통장 거래 중 '고정비' 체크(전표처리·매핑에서 체크)된 지출의 합입니다. 같은 지출이 정기결제와 통장 체크 거래에 모두 있으면(이름·금액 매칭) 통장 거래는 자동 제외돼 중복 집계되지 않습니다.";
 const VARIABLE_NOTE = "변동비 = 법인카드 사용액 + 일회성 지출(결제 대기)의 합입니다.";
 
 // 세부내역(카테고리) 행 클릭 → 산출 내역 팝업. getCostCategoryDetail 로 개별 레코드 조회 후 CellDetail 재사용.
-function CategoryDetailModal({ companyId, year, kind, category, label, onClose }: {
-  companyId: string; year: number; kind: "fixed" | "variable"; category: string; label: string; onClose: () => void;
+//   정기결제 항목(recurringId 보유)은 여기서 바로 '제거'(비활성화) 가능 — 예전 등록 건 정리 (사장님 QA 2026-07-10).
+function CategoryDetailModal({ companyId, year, kind, category, label, onClose, onChanged }: {
+  companyId: string; year: number; kind: "fixed" | "variable"; category: string; label: string; onClose: () => void; onChanged?: () => void;
 }) {
-  const { data } = useQuery({
+  const { data, refetch } = useQuery({
     queryKey: ["cost-category-detail", companyId, year, kind, category],
     queryFn: () => getCostCategoryDetail(companyId, year, kind, category),
   });
+  const items = data ?? [];
+  const hasRemovable = items.some((i) => i.recurringId);
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  const removeRecurring = async (id: string) => {
+    setRemoving(id);
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const { error } = await (supabase as any).from("recurring_payments").update({ is_active: false }).eq("id", id);
+      if (error) throw error;
+      await refetch();
+      onChanged?.();
+    } catch { /* 표시 유지 */ }
+    finally { setRemoving(null); }
+  };
+
+  // 정기결제 항목이 있으면 제거 버튼 있는 자체 모달, 아니면 기존 CellDetail 재사용
+  if (hasRemovable) {
+    const total = items.reduce((s, i) => s + i.amount, 0);
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div>
+              <div className="text-sm font-bold text-[var(--text)]">{label} — 고정비 산출 내역</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{year}년 · 정기결제 등록 항목은 여기서 바로 제거할 수 있습니다</div>
+            </div>
+            <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+          </div>
+          <div className="flex-1 overflow-auto">
+            <table className="w-full text-xs">
+              <tbody>
+                {items.map((it, i) => (
+                  <tr key={i} className="border-t border-[var(--border)]/40 first:border-t-0">
+                    <td className="px-4 py-2.5">
+                      <div className="text-[var(--text)] font-medium">{it.label}</div>
+                      {it.sub && <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{it.sub}</div>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right mono-number text-[var(--text)] whitespace-nowrap">{fmtKrw(it.amount)}</td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                      {it.recurringId && (
+                        <button
+                          onClick={() => removeRecurring(it.recurringId!)}
+                          disabled={removing === it.recurringId}
+                          className="text-[10px] px-2 py-1 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10 disabled:opacity-50"
+                          title="이 정기결제를 고정비에서 제거합니다(비활성화 — 결제 이력은 유지)"
+                        >{removing === it.recurringId ? "제거 중…" : "제거"}</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between">
+            <span className="text-[10px] text-[var(--text-dim)] leading-relaxed max-w-[70%]">{FIXED_NOTE}</span>
+            <span className="text-sm font-bold mono-number text-[var(--text)]">{fmtKrw(total)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <CellDetail
       companyId={companyId} year={year} month={0} rowKey="__category"
       title={`${label} — ${kind === "fixed" ? "고정비" : "변동비"}`}
       subtitle={`${year}년 · 산출 내역`}
-      clientItems={data ?? []}
+      clientItems={items}
       note={kind === "variable" ? VARIABLE_NOTE : category === "bank_fixed" ? FIXED_NOTE : `표의 '올해 누계'는 아래 월액 합계 × 경과월입니다. ${FIXED_NOTE}`}
       onClose={onClose}
     />
@@ -68,6 +132,7 @@ export default function CostsPage() {
   // 금액 클릭 → 산출 내역 팝업 (월별 셀 = budget-detail 재사용 / 카테고리 행 = getCostCategoryDetail)
   const [monthDetail, setMonthDetail] = useState<{ month: string; rowKey: "fixedCosts" | "variableCosts"; title: string } | null>(null);
   const [catDetail, setCatDetail] = useState<{ kind: "fixed" | "variable"; category: string; label: string } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // 정기결제 제거 후 집계 재조회
 
   useEffect(() => {
     if (blocked) return;
@@ -88,7 +153,7 @@ export default function CostsPage() {
       .then(([ov, bd]) => { setRows(ov); setBreakdown(bd); })
       .catch((e) => setError(e?.message || "데이터를 불러오지 못했습니다"))
       .finally(() => setIsLoading(false));
-  }, [companyId, year, blocked]);
+  }, [companyId, year, blocked, refreshKey]);
 
   const totals = useMemo(() => {
     if (!rows) return { fixed: 0, variable: 0, total: 0 };
@@ -351,6 +416,7 @@ export default function CostsPage() {
               companyId={companyId} year={year}
               kind={catDetail.kind} category={catDetail.category} label={catDetail.label}
               onClose={() => setCatDetail(null)}
+              onChanged={() => setRefreshKey((k) => k + 1)}
             />
           )}
         </>

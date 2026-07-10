@@ -364,6 +364,30 @@ export async function upsertLoan(
 // Monthly Budget Overview (12-month)
 // ═══════════════════════════════════════════════════════════════════════
 
+// 정기결제(recurring_payments) ↔ 통장 '고정비' 체크 거래 중복 제거 매처 (2026-07-10 사장님 QA).
+//   이름(정규화 부분일치) + 금액(±10%, 정기결제 금액 있을 때) 이 모두 맞으면 같은 지출로 간주 →
+//   통장 체크 거래를 고정비 합산에서 제외(정기결제 월액이 이미 대표). 이름 2자 미만은 오탐 방지 위해 미매칭.
+function buildRecurringTxMatcher(
+  recs: Array<{ name?: string | null; amount?: number | null }>,
+): (counterparty?: string | null, description?: string | null, amount?: number | null) => boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
+  const rules = (recs || [])
+    .map((r) => ({ name: norm(String(r.name || '')), amount: Math.abs(Number(r.amount || 0)) }))
+    .filter((r) => r.name.length >= 2);
+  if (rules.length === 0) return () => false;
+  return (counterparty, description, amount) => {
+    const t = norm([counterparty, description].filter(Boolean).join(' '));
+    if (!t) return false;
+    const amt = Math.abs(Number(amount || 0));
+    return rules.some((r) => {
+      const nameHit = t.includes(r.name) || (t.length >= 2 && r.name.includes(t));
+      if (!nameHit) return false;
+      if (r.amount > 0 && amt > 0) return Math.abs(amt - r.amount) / r.amount <= 0.1;
+      return true;
+    });
+  };
+}
+
 export async function getMonthlyBudgetOverview(
   companyId: string,
   year: number,
@@ -387,9 +411,9 @@ export async function getMonthlyBudgetOverview(
       .select('balance')
       .eq('company_id', companyId),
 
-    // Recurring payments (for fixed cost estimates)
+    // Recurring payments (for fixed cost estimates) — name 은 통장 고정비 체크 거래와의 중복 제거 매칭용
     db.from('recurring_payments')
-      .select('amount, category, is_active, day_of_month')
+      .select('name, amount, category, is_active, day_of_month')
       .eq('company_id', companyId)
       .eq('is_active', true),
 
@@ -429,9 +453,10 @@ export async function getMonthlyBudgetOverview(
   ]);
 
   // 통장 거래 중 '고정비' 체크(is_fixed_cost — 전표처리/매핑에서 체크)된 지출 — 고정비 실적으로 합산.
-  //   ※ 같은 지출을 정기결제(recurring_payments)로도 등록하면 중복 집계될 수 있음 — 한 가지 방식만 사용 권장.
+  //   2026-07-10: 같은 지출이 정기결제(recurring_payments)로도 등록돼 있으면(이름+금액 매칭) 그 거래는
+  //   자동 제외해 중복 집계를 차단 — "통장 고정비 체크 + 예전 등록 항목이 중복으로 나온다" (사장님 QA).
   const bankFixedRes = await db.from('bank_transactions')
-    .select('amount, transaction_date')
+    .select('amount, transaction_date, counterparty, description')
     .eq('company_id', companyId)
     .eq('type', 'expense')
     .eq('is_fixed_cost', true)
@@ -445,7 +470,11 @@ export async function getMonthlyBudgetOverview(
   const payments = paymentsRes.data || [];
   const ownerInjections = ownerInjectionsRes.data || [];
   const cardTxns = cardTransactionsRes.data || [];
-  const bankFixedTxns = bankFixedRes.data || [];
+  // 정기결제와 매칭되는 고정비 체크 거래 제외(중복 차단) — 정기결제(월액 추정)가 이미 그 지출을 대표
+  const matchesRecurring = buildRecurringTxMatcher(recurring);
+  const bankFixedTxns = (bankFixedRes.data || []).filter(
+    (t: any) => !matchesRecurring(t.counterparty, t.description, t.amount),
+  );
 
   // Build per-month budget
   let cumulativeNet = 0;
@@ -601,7 +630,7 @@ export async function getCostBreakdown(
 
   const [recurringRes, salaryTotal, cardRes, bankFixedRes] = await Promise.all([
     db.from('recurring_payments')
-      .select('amount, category, is_active')
+      .select('name, amount, category, is_active')
       .eq('company_id', companyId)
       .eq('is_active', true),
     getMonthlyTotalSalary(companyId).catch(() => 0),
@@ -610,9 +639,9 @@ export async function getCostBreakdown(
       .eq('company_id', companyId)
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate),
-    // 통장 '고정비' 체크 거래 (전표처리/매핑에서 체크) — YTD 실적
+    // 통장 '고정비' 체크 거래 (전표처리/매핑에서 체크) — YTD 실적. 정기결제와 매칭되는 건 제외(중복 차단)
     db.from('bank_transactions')
-      .select('amount, transaction_date')
+      .select('amount, transaction_date, counterparty, description')
       .eq('company_id', companyId)
       .eq('type', 'expense')
       .eq('is_fixed_cost', true)
@@ -647,8 +676,11 @@ export async function getCostBreakdown(
   const fixed: CostCategoryRow[] = FIXED_COST_CATEGORIES
     .map((f) => ({ category: f.value, label: f.label, monthly: fixedMonthly[f.value] || 0, amount: (fixedMonthly[f.value] || 0) * monthsElapsed }))
     .filter((r) => r.amount > 0);
-  // 통장 고정비 체크 거래 — YTD 실적 그대로 (월 평균 = 누계 ÷ 경과월)
-  const bankFixedTotal = (bankFixedRes.data || []).reduce((s: number, t: any) => s + Math.abs(Number(t.amount || 0)), 0);
+  // 통장 고정비 체크 거래 — YTD 실적 그대로 (월 평균 = 누계 ÷ 경과월). 정기결제와 매칭 = 제외(중복 차단)
+  const matchesRec = buildRecurringTxMatcher(recurringRes.data || []);
+  const bankFixedTotal = (bankFixedRes.data || [])
+    .filter((t: any) => !matchesRec(t.counterparty, t.description, t.amount))
+    .reduce((s: number, t: any) => s + Math.abs(Number(t.amount || 0)), 0);
   if (bankFixedTotal > 0) {
     fixed.push({ category: 'bank_fixed', label: '통장 고정비(체크 거래)', amount: bankFixedTotal, monthly: Math.round(bankFixedTotal / Math.max(1, monthsElapsed)) });
   }
@@ -677,6 +709,7 @@ export interface CostDetailItem {
   label: string;
   sub?: string;
   amount: number;
+  recurringId?: string; // 정기결제 항목이면 그 id — 고정비 확인 화면에서 바로 제거(비활성) 가능
 }
 
 export async function getCostCategoryDetail(
@@ -703,32 +736,39 @@ export async function getCostCategoryDetail(
   }
 
   if (category === 'bank_fixed') {
-    // 통장 '고정비' 체크 거래 — YTD 개별 내역
-    const { data } = await db.from('bank_transactions')
-      .select('counterparty, description, transaction_date, amount')
-      .eq('company_id', companyId)
-      .eq('type', 'expense')
-      .eq('is_fixed_cost', true)
-      .gte('transaction_date', startDate)
-      .lte('transaction_date', endDate)
-      .order('transaction_date', { ascending: false })
-      .limit(2000);
-    return (data || []).map((t: any) => ({
-      label: t.counterparty || t.description || '통장 지출',
-      sub: t.transaction_date ?? undefined,
-      amount: Math.abs(Number(t.amount || 0)),
-    }));
+    // 통장 '고정비' 체크 거래 — YTD 개별 내역. 합산과 동일하게 정기결제 매칭 건 제외 +
+    //   통장매핑에서 분류한 계정(category)·메모를 함께 표시 (사장님 QA 2026-07-10).
+    const [{ data }, { data: recs }] = await Promise.all([
+      db.from('bank_transactions')
+        .select('counterparty, description, transaction_date, amount, category, memo')
+        .eq('company_id', companyId)
+        .eq('type', 'expense')
+        .eq('is_fixed_cost', true)
+        .gte('transaction_date', startDate)
+        .lte('transaction_date', endDate)
+        .order('transaction_date', { ascending: false })
+        .limit(2000),
+      db.from('recurring_payments').select('name, amount').eq('company_id', companyId).eq('is_active', true),
+    ]);
+    const matches = buildRecurringTxMatcher(recs || []);
+    return (data || [])
+      .filter((t: any) => !matches(t.counterparty, t.description, t.amount))
+      .map((t: any) => ({
+        label: t.counterparty || t.description || '통장 지출',
+        sub: [t.transaction_date, t.category ? `분류: ${t.category}` : '미분류', t.memo || null].filter(Boolean).join(' · '),
+        amount: Math.abs(Number(t.amount || 0)),
+      }));
   }
 
-  // 고정비 카테고리 — recurring_payments(월액) (+salary 는 직원 급여 합산)
+  // 고정비 카테고리 — recurring_payments(월액) (+salary 는 직원 급여 합산). id 포함 → 화면에서 바로 제거 가능.
   const items: CostDetailItem[] = [];
   const { data: recs } = await db.from('recurring_payments')
-    .select('name, amount, category, day_of_month')
+    .select('id, name, amount, category, day_of_month')
     .eq('company_id', companyId)
     .eq('is_active', true);
   for (const rp of (recs || [])) {
     if (mapRecurringCategory(rp.category) !== category) continue;
-    items.push({ label: rp.name || '정기지출', sub: rp.day_of_month ? `매월 ${rp.day_of_month}일 · 월액` : '월액', amount: Number(rp.amount || 0) });
+    items.push({ label: rp.name || '정기지출', sub: rp.day_of_month ? `매월 ${rp.day_of_month}일 · 월액` : '월액', amount: Number(rp.amount || 0), recurringId: rp.id });
   }
   if (category === 'salary') {
     const { data: emps } = await db.from('employees')
