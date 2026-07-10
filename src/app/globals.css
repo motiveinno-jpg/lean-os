@@ -118,6 +118,14 @@
   --radius-card: 20px;
 }
 
+/* 모바일 첫 로그인 비율 가드 (2026-07-10 사장님 QA) — 어느 페이지에 뷰포트보다 넓은 요소가
+   있어도 iOS Safari 가 초기 화면을 축소(fit-zoom)해 "비율이 이상하게" 보이지 않도록 페이지
+   가로 오버플로우를 원천 차단. clip 은 hidden 과 달리 스크롤 컨테이너를 만들지 않아
+   position:sticky(.page-sticky-header 등) 무영향. 내부 표의 overflow-x-auto 스크롤은 그대로. */
+html, body {
+  overflow-x: clip;
+}
+
 body {
   /* 2026-07-03 TeamHub 라운드 — 오로라 제거, 플랫 소프트 틴트 캔버스(흰 카드가 떠 보이는 배경). */
   background: var(--bg);
