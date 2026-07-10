@@ -34,8 +34,15 @@ export async function POST(req: NextRequest) {
     const browser = await getBrowser();
     const page = await browser.newPage();
     try {
-      await page.setContent(html, { waitUntil: "networkidle0", timeout: 30000 });
-      try { await page.evaluate(async () => { await (document as any).fonts?.ready; }); } catch { /* noop */ }
+      // domcontentloaded + 폰트 대기(최대 6초). networkidle0 은 외부 폰트 CDN(jsDelivr)이 느리거나
+      //   막힌 서버리스 환경에서 30초 hang → 500 오류의 원인이었음. 폰트가 늦으면 시스템 폰트로 렌더.
+      await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 30000 });
+      try {
+        await Promise.race([
+          page.evaluate(async () => { await (document as any).fonts?.ready; }),
+          new Promise((resolve) => setTimeout(resolve, 6000)),
+        ]);
+      } catch { /* noop */ }
       const pdf = await page.pdf({ format: "A4", printBackground: true });
       return new NextResponse(Buffer.from(pdf), {
         status: 200,

@@ -76,10 +76,11 @@ export function escapeHtml(s: string): string {
 
 /** content_html 의 {{키}} 를 values 로 치환. 값이 없으면 강조 표시(미리보기용) 또는 빈칸(발급용). */
 export function fillTextTemplate(
-  contentHtml: string,
+  contentHtml: string | null | undefined,
   values: Record<string, string | number | null | undefined>,
   opts?: { highlightMissing?: boolean }
 ): string {
+  if (!contentHtml) return "";
   return contentHtml.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_m, key: string) => {
     const v = values[key.trim()];
     if (v !== undefined && v !== null && String(v) !== "") return escapeHtml(String(v));
@@ -96,7 +97,7 @@ export function wrapTemplatePrintHtml(bodyHtml: string): string {
 <style>
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; }
-  body { font-family: 'Pretendard', sans-serif; color: #111827; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Noto Sans CJK KR', sans-serif; color: #111827; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .tpl-body { padding: 18mm 16mm; font-size: 13px; line-height: 1.75; }
   .tpl-body p { margin: 2px 0; }
   .tpl-body hr.tpl-page-break { border: none; page-break-after: always; margin: 0; }
