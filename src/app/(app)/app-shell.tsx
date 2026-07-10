@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { GlobalModalGuard } from "@/components/global-modal-guard";
 import { supabase } from "@/lib/supabase";
 import { Sidebar } from "@/components/sidebar";
 import { GlobalSearch, openGlobalSearch } from "@/components/global-search";
@@ -263,6 +264,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
     //   fixed/-z-10/pointer-events-none 레이어라 스크롤·클릭·레이아웃 무영향, 39개 전 페이지 공통.
     //   카드(bg-card 솔리드)가 이 배경 위에 떠 보이는 granter/시안 룩을 일괄 부여.
     <div className="relative flex min-h-screen">
+      {/* 전역 모달 가드 — 어떤 모달이든 바깥 클릭 시 입력값 있으면 '취소하시겠습니까?' 확인 */}
+      <GlobalModalGuard />
       {/* dev 환경 표시 — 운영(owner-view.com)과 혼동 방지. NEXT_PUBLIC_APP_ENV=development 일 때만. */}
       {isDev && (
         <div className="fixed bottom-2 left-2 z-[100] px-2.5 py-1 rounded-full bg-amber-500 text-black text-[10px] font-extrabold shadow-lg pointer-events-none select-none tracking-wide">

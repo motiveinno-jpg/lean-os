@@ -93,7 +93,13 @@ export function NotificationBell() {
     if (!open) return;
     const reposition = () => {
       const r = btnRef.current?.getBoundingClientRect();
-      if (r) setPos({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) });
+      if (!r) return;
+      // 패널 폭(min(92vw,380))을 고려해 왼쪽으로 화면 밖을 넘지 않도록 right 를 클램프.
+      //   (모바일에서 벨 기준 right 만 쓰면 패널이 화면 왼쪽으로 삐져나가 잘렸음 — IMG_0573)
+      const panelW = Math.min(window.innerWidth * 0.92, 380);
+      const desiredRight = Math.max(8, window.innerWidth - r.right);
+      const maxRight = Math.max(8, window.innerWidth - panelW - 8);
+      setPos({ top: r.bottom + 8, right: Math.min(desiredRight, maxRight) });
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     reposition();

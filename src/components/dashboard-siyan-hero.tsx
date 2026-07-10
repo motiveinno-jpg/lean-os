@@ -49,7 +49,15 @@ export function DashboardSiyanHero({
   void pendingApprovals; // 결재는 액션 인박스가 담당 — prop 시그니처는 보존
 
   const fixedPct = expense > 0 ? Math.round((fixedCost / expense) * 100) : 0;
-  const valueCls = "text-[22px] sm:text-[26px] leading-8 font-extrabold mono-number tracking-tight truncate";
+  // 금액 길이에 따라 폰트 크기 조절 — 큰 금액(억 단위)이 모바일 2열 카드에서 잘리거나 삐져나오지 않게.
+  //   truncate(…) 대신 길이 기반 축소로 전체 금액이 항상 보이도록.
+  const valueBase = "leading-tight font-extrabold mono-number tracking-tight whitespace-nowrap";
+  const fitSize = (s: string) =>
+    s.length >= 15 ? "text-[13px] sm:text-[20px]"
+    : s.length >= 13 ? "text-[15px] sm:text-[22px]"
+    : s.length >= 11 ? "text-[18px] sm:text-[24px]"
+    : "text-[22px] sm:text-[26px]";
+  const valueCls = (s: string) => `${valueBase} ${fitSize(s)}`;
 
   // ── KPI 4카드 — 공통 골격: [라벨 + 우측 칩/버튼] / [값] / [보조 한 줄] ──
   return (
@@ -73,7 +81,7 @@ export function DashboardSiyanHero({
             </Link>
           </div>
         </div>
-        <p className={`${valueCls} text-[var(--text)]`} title={showBalance ? won(bal) : undefined}>
+        <p className={`${valueCls(showBalance ? won(bal) : "••••••")} text-[var(--text)]`} title={showBalance ? won(bal) : undefined}>
           {showBalance ? won(bal) : "••••••"}
         </p>
         <p className="text-[11px] truncate">
@@ -92,7 +100,7 @@ export function DashboardSiyanHero({
             <span className={`delta-chip ${perfPct >= 100 ? "delta-up" : "delta-flat"}`}>목표 {perfPct}%</span>
           )}
         </div>
-        <p className={`${valueCls} text-[var(--text)]`} title={won(monthRevenue)}>{won(monthRevenue)}</p>
+        <p className={`${valueCls(won(monthRevenue))} text-[var(--text)]`} title={won(monthRevenue)}>{won(monthRevenue)}</p>
         <p className="text-[11px] truncate text-[var(--text-dim)]">
           {perfPct != null ? `목표 ${wonM(monthTarget)} · ` : ""}세금계산서 공급가액 기준
         </p>
@@ -104,7 +112,7 @@ export function DashboardSiyanHero({
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">월 운영비</span>
           <span className="delta-chip delta-flat">고정 {fixedPct}%</span>
         </div>
-        <p className={`${valueCls} text-[var(--text)]`} title={won(expense)}>{won(expense)}</p>
+        <p className={`${valueCls(won(expense))} text-[var(--text)]`} title={won(expense)}>{won(expense)}</p>
         <p className="text-[11px] truncate text-[var(--text-dim)]">고정 {wonM(fixedCost)} · 변동 {wonM(variableCost)}</p>
       </div>
 
@@ -114,7 +122,7 @@ export function DashboardSiyanHero({
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">미수금</span>
           <span className={`delta-chip ${arOver30 > 0 ? "delta-down" : "delta-up"}`}>{arOver30 > 0 ? "▼ 지연" : "▲ 정상"}</span>
         </div>
-        <p className={`${valueCls} ${arOver30 > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`} title={won(arTotal)}>{won(arTotal)}</p>
+        <p className={`${valueCls(won(arTotal))} ${arOver30 > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`} title={won(arTotal)}>{won(arTotal)}</p>
         <p className="text-[11px] truncate">
           <Link href="/tax-invoices" className={`font-semibold hover:underline ${arOver30 > 0 ? "text-[var(--danger)]" : "text-[var(--primary)]"}`}>
             {arOver30 > 0 ? `30일+ ${wonM(arOver30)} · 회수 관리 →` : "정상 회수 중 · 현황 보기 →"}

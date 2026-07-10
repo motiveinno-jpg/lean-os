@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
-import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -489,7 +488,6 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   companyId: string; userId: string; invalidate: () => void;
 }) {
   const { toast } = useToast();
-  const { guard: actionGuard, confirmEl: actionGuardEl } = useUnsavedGuard();
   const [actionModal, setActionModal] = useState<{ stepId: string; action: "approve" | "reject"; title: string } | null>(null);
   const [comment, setComment] = useState("");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
@@ -622,8 +620,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
 
       {/* Approve/Reject Modal */}
       {actionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => actionGuard(() => setActionModal(null), comment.trim() !== "")}>
-          {actionGuardEl}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setActionModal(null)}>
           <div className="glass-card p-6 w-full max-w-md shadow-xl animate-count-up" onClick={(e) => e.stopPropagation()}>
             <div className={`w-12 h-12 mb-4 rounded-2xl flex items-center justify-center ${actionModal.action === "approve" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--danger-dim)] text-[var(--danger)]"}`}>
               {actionModal.action === "approve" ? (
