@@ -1064,16 +1064,18 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
     queryKey: ["overdue-invoices", companyId],
     queryFn: async () => {
       // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단) — 요약 위젯과 동일 조건
-      const { data } = await (supabase as any).from('tax_invoices').select('counterparty_name, total_amount, issue_date, due_date, status').eq('company_id', companyId).eq('type', 'sales').in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20);
+      // 2026-07-10 QA: due_date 컬럼 부재로 쿼리 전체 400 → 위젯 항상 0 표시되던 버그.
+      //   연체 기준 = 발행 후 30일 경과(다른 미수 화면·AI 브리핑과 동일 기준).
+      const { data } = await (supabase as any).from('tax_invoices').select('counterparty_name, total_amount, issue_date, status').eq('company_id', companyId).eq('type', 'sales').in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20);
       return data || [];
     },
     enabled: !!companyId,
   });
 
-  const now = new Date();
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
   const overdue = invoices.filter((inv: any) => {
-    if (!inv.due_date) return false;
-    return new Date(inv.due_date) < now;
+    if (!inv.issue_date) return false;
+    return new Date(inv.issue_date) < thirtyDaysAgo;
   });
   const totalOverdue = overdue.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0);
   const totalPending = invoices.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0);
@@ -1098,7 +1100,7 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
       {overdue.length > 0 && (
         <div className="space-y-2">
           {overdue.slice(0, 5).map((inv: any, i: number) => {
-            const days = Math.floor((now.getTime() - new Date(inv.due_date).getTime()) / 86400000);
+            const days = Math.floor((Date.now() - new Date(inv.issue_date).getTime()) / 86400000) - 30;
             return (
               <div key={i} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
                 <span className="text-[var(--text)]">{inv.counterparty_name}</span>
@@ -3334,19 +3336,18 @@ function PartnerDashboard({ companyId, userId }: {
         });
       }
 
-      // 최근 문서 변경
+      // 최근 문서 변경 — QA 2026-07-10: doc_templates 에 title/updated_at/status 없음(400) → name/created_at 기준
       const { data: docs } = await db
         .from("doc_templates")
-        .select("title, updated_at, status")
+        .select("name, created_at")
         .eq("company_id", companyId!)
-        .order("updated_at", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(3);
       for (const d of docs || []) {
-        const statusLabel = d.status === "pending_signature" ? "서명 대기" : d.status === "approved" ? "승인됨" : "수정됨";
         activities.push({
           type: "doc",
-          text: `${d.title || "문서"} — ${statusLabel}`,
-          time: d.updated_at,
+          text: `${d.name || "문서"} — 양식 등록`,
+          time: d.created_at,
           href: "/documents",
         });
       }

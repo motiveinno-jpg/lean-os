@@ -946,7 +946,7 @@ export async function revertLastPipelineStage(params: {
   const lastCompleted = completed[completed.length - 1];
 
   if (lastCompleted.stage === 'payment_received') {
-    const { data: schedules } = await db.from('deal_revenue_schedule').select('id, status').eq('deal_id', dealId).eq('status', 'received').order('updated_at', { ascending: false }).limit(1);
+    const { data: schedules } = await db.from('deal_revenue_schedule').select('id, status').eq('deal_id', dealId).eq('status', 'received').order('received_at', { ascending: false }).limit(1);
     if (schedules?.[0]) {
       await db.from('deal_revenue_schedule').update({ status: 'expected' }).eq('id', schedules[0].id);
     }

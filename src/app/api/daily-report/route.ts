@@ -58,8 +58,10 @@ async function buildDailyReport(companyId: string): Promise<DailyReport> {
     db.from('companies').select('name').eq('id', companyId).single(),
     db.from('bank_accounts').select('balance').eq('company_id', companyId),
     db.from('transactions').select('amount, type').eq('company_id', companyId).gte('transaction_date', yStr).lt('transaction_date', new Date().toISOString().split('T')[0]),
-    db.from('deals').select('id, contract_amount, status').eq('company_id', companyId).in('status', ['active', 'in_progress', 'negotiation', 'proposal']),
-    db.from('deal_revenue_schedule').select('amount, due_date, deal_id').eq('company_id', companyId).eq('status', 'pending'),
+    // QA 2026-07-10: contract_amount→contract_total(실컬럼), status 실값은 active/pending
+    db.from('deals').select('id, contract_total, status').eq('company_id', companyId).in('status', ['active', 'pending']),
+    // QA 2026-07-10: deal_revenue_schedule 엔 company_id 없음(400) → 미수금은 매출 세금계산서 기준(타 화면과 동일)
+    db.from('tax_invoices').select('total_amount, issue_date').eq('company_id', companyId).eq('type', 'sales').not('status', 'in', '(matched,void,draft)'),
     db.from('ai_pending_actions').select('id').eq('company_id', companyId).eq('status', 'pending'),
   ]);
 
@@ -70,12 +72,12 @@ async function buildDailyReport(companyId: string): Promise<DailyReport> {
   const yesterdayExpense = txs.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
 
   const deals = dealsRes.data || [];
-  const pipelineValue = deals.reduce((s: number, d: any) => s + Number(d.contract_amount || 0), 0);
+  const pipelineValue = deals.reduce((s: number, d: any) => s + Number(d.contract_total || 0), 0);
 
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const overdue = (arRes.data || []).filter((r: any) => r.due_date && r.due_date < thirtyDaysAgo);
-  const arOver30 = overdue.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+  const overdue = (arRes.data || []).filter((r: any) => r.issue_date && r.issue_date < thirtyDaysAgo);
+  const arOver30 = overdue.reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
 
   const monthlyBurn = yesterdayExpense * 30;
   const runwayMonths = monthlyBurn > 0 ? Math.round(cashBalance / monthlyBurn) : 99;

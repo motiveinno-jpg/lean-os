@@ -38,7 +38,7 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
     queryFn: async () => {
       const [appr, proj, tasks, mention, sign] = await Promise.all([
         db.from("doc_approvals").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("approver_id", userId).eq("status", "pending"),
-        db.from("deals").select("id, name").eq("company_id", companyId).eq("owner_id", userId).is("archived_at", null),
+        db.from("deals").select("id, name").eq("company_id", companyId).eq("internal_manager_id", userId).is("archived_at", null),
         db.from("project_tasks").select("id", { count: "exact", head: true }).eq("assignee_id", userId).is("archived_at", null).neq("status", "done"),
         db.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_read", false).in("entity_type", MENTION_ENTITIES),
         db.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_read", false).in("type", SIGN_TYPES),

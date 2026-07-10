@@ -254,9 +254,10 @@ export async function autoMatchLoanPayments(companyId: string): Promise<LoanMatc
     .from('bank_transactions')
     .select('*')
     .eq('company_id', companyId)
-    .eq('type', 'outgoing')
+    // QA 2026-07-10: type 값은 'expense'(출금), 컬럼은 transaction_date — 'outgoing'/'date' 는 0건+400 이었음
+    .eq('type', 'expense')
     .or('mapping_status.is.null,mapping_status.neq.matched')
-    .order('date', { ascending: false })
+    .order('transaction_date', { ascending: false })
     .limit(200);
 
   if (!transactions || transactions.length === 0) return [];
@@ -290,7 +291,7 @@ export async function autoMatchLoanPayments(companyId: string): Promise<LoanMatc
       if (usedTxIds.has(tx.id)) continue;
 
       const txAmount = Math.abs(Number(tx.amount));
-      const txDate = new Date(tx.date);
+      const txDate = new Date(tx.transaction_date);
       const txDay = txDate.getDate();
       const reasons: string[] = [];
       let score = 0;
@@ -338,7 +339,7 @@ export async function autoMatchLoanPayments(companyId: string): Promise<LoanMatc
           loan,
           transaction: {
             id: tx.id,
-            date: tx.date,
+            date: tx.transaction_date,
             counterparty: tx.counterparty || tx.description || '',
             amount: txAmount,
             description: tx.description || '',

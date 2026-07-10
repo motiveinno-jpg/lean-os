@@ -297,11 +297,12 @@ export async function autoVerifyChecklist(
       reason = passed ? '미매핑 0건' : `미매핑 ${unmapped}건 (은행 ${bankUn || 0} + 카드 ${cardUn || 0})`;
     }
     else if (title.includes('세금계산서')) {
+      // QA 2026-07-10: type 값은 'sales'(영문), matched_transaction_id 컬럼 부재 → status 기준으로 교정
       const { count: unmatchedSales } = await db.from('tax_invoices')
         .select('id', { count: 'exact', head: true })
-        .eq('company_id', companyId).eq('type', '매출')
+        .eq('company_id', companyId).eq('type', 'sales')
         .gte('issue_date', startDate).lt('issue_date', endDate)
-        .is('matched_transaction_id', null);
+        .not('status', 'in', '(matched,void,draft)');
       passed = (unmatchedSales || 0) === 0;
       reason = passed ? '매출 대사 완료' : `미매칭 매출 세금계산서 ${unmatchedSales}건`;
     }
@@ -309,9 +310,9 @@ export async function autoVerifyChecklist(
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
       const { count } = await db.from('tax_invoices')
         .select('id', { count: 'exact', head: true })
-        .eq('company_id', companyId).eq('type', '매출')
+        .eq('company_id', companyId).eq('type', 'sales')
         .lt('issue_date', thirtyDaysAgo)
-        .is('matched_transaction_id', null);
+        .not('status', 'in', '(matched,void,draft)');
       passed = (count || 0) === 0;
       reason = passed ? '30일+ 미수금 0건' : `30일+ 미수금 ${count}건`;
     }

@@ -160,7 +160,8 @@ export async function autoMatchTransactions(companyId: string) {
     .select('id, counterparty, amount, transaction_date, type')
     .eq('company_id', companyId)
     .eq('mapping_status', 'unmapped')
-    .eq('type', 'deposit');
+    // QA 2026-07-10: type 실값은 'income'(입금) — 'deposit' 은 존재하지 않는 값이라 자동매칭이 항상 0건이었음
+    .eq('type', 'income');
 
   // Get unmatched invoices
   const { data: invoices } = await db

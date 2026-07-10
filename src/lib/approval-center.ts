@@ -515,14 +515,14 @@ export async function refreshRecurringAmounts(companyId: string): Promise<Refres
     .from('bank_transactions')
     .select('id, counterparty, amount, transaction_date, description')
     .eq('company_id', companyId)
-    .eq('type', 'withdrawal')
+    .eq('type', 'expense')
     .gte('transaction_date', cutoff)
     .order('transaction_date', { ascending: false });
 
   // 3. Get recent card transactions
   const { data: cardTxs } = await db
     .from('card_transactions')
-    .select('id, merchant_name, amount, transaction_date, description')
+    .select('id, merchant_name, amount, transaction_date, memo')
     .eq('company_id', companyId)
     .gte('transaction_date', cutoff)
     .order('transaction_date', { ascending: false });
@@ -551,7 +551,7 @@ export async function refreshRecurringAmounts(companyId: string): Promise<Refres
     if (!matchedTx && cardTxs) {
       const cardMatch = cardTxs.find((tx: any) => {
         const mn = (tx.merchant_name || '').toLowerCase();
-        const desc = (tx.description || '').toLowerCase();
+        const desc = (tx.memo || '').toLowerCase();
         return mn.includes(rpName) || desc.includes(rpName) ||
                (recipientName && mn.includes(recipientName));
       });
