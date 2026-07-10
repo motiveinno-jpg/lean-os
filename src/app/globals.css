@@ -764,3 +764,11 @@ body::before {
 [data-theme="dark"] [class*="fixed"][class*="inset-0"] > * > [class*="rounded-2xl"][class*="bg-[var(--bg-card)]"] {
   box-shadow: 0 20px 48px -12px rgba(0,0,0,0.6), 0 8px 20px -8px rgba(0,0,0,0.4) !important;
 }
+
+/* 가로 스크롤 표 — 대각선 스크롤 방지 (2026-07-10 사장님 요청).
+   가로 전용 스크롤 컨테이너(overflow-x-auto, 세로 스크롤 아님)는 touch-action:pan-x 로 고정 →
+   가로 제스처는 표를 좌우 스크롤, 세로 제스처는 페이지 스크롤. 대각선 이동 방지.
+   내부 세로 스크롤(overflow-auto/overflow-y-auto)엔 적용 안 함(양방향 유지). */
+.overflow-x-auto:not(.overflow-y-auto):not(.overflow-y-scroll):not(.overflow-auto) {
+  touch-action: pan-x;
+}

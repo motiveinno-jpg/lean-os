@@ -259,18 +259,18 @@ export default function PartnerLedgerPage() {
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="glass-card p-5 flex flex-col gap-3">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</span>
-          <span className="text-[26px] leading-8 font-extrabold mono-number tracking-tight" style={{ color: pal.main }}>{won(total)}</span>
+          <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight" style={{ color: pal.main }}>{won(total)}</span>
         </div>
         <div className="glass-card p-5 flex flex-col gap-3">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">{pal.label}</span>
-          <span className="text-[26px] leading-8 font-extrabold mono-number tracking-tight text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></span>
+          <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></span>
         </div>
         {/* 반대편 미니 요약 — 클릭하면 탭 전환 */}
         <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
           className="glass-card p-5 flex flex-col gap-3 text-left hover:bg-[var(--bg-surface)]/60 transition col-span-2 lg:col-span-1"
           title="클릭하여 전환">
           <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1">{other.arrow} {other.label}</span>
-          <span className={`text-[26px] leading-8 font-extrabold mono-number tracking-tight ${other.tintText}`}>{won(otherTotal)}</span>
+          <span className={`text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight ${other.tintText}`}>{won(otherTotal)}</span>
         </button>
       </div>
       <p className="text-[11px] text-[var(--text-dim)]">잔액 = 전기이월 + 당기 잔액 · 확정된 매칭(거래 매칭)만 정산으로 반영</p>
