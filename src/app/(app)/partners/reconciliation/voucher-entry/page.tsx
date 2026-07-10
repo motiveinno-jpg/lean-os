@@ -530,10 +530,10 @@ export default function VoucherEntryPage() {
           <span className="hidden sm:inline text-[11px] text-[var(--text-dim)]">{VTYPES.find((t) => t.id === vtype)?.desc}</span>
           <span className="ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-dim)]">전표번호: 자동(일자별 순번)</span>
         </div>
-        {/* 입력 영역은 가로 스크롤 컨테이너를 쓰지 않음 — overflow-x-auto 면 거래처 자동완성 드롭다운이
-            세로로도 잘려(CSS상 overflow-y 도 auto 강제) 가로 스크롤해야 보였음. 폭에 맞춰 한눈에 표시. */}
-        <div className="overflow-visible">
-          <table className="w-full text-xs border-collapse table-fixed">
+        {/* 데스크톱: 가로 스크롤 없이 폭에 맞춤(overflow-x-auto 면 거래처 자동완성 드롭다운이 잘림).
+            모바일: min-width + 가로 스크롤 — 없으면 유연 컬럼이 짓눌려 글자당 줄바꿈(사장님 QA 2026-07-10 IMG_0577). */}
+        <div className="overflow-x-auto sm:overflow-visible">
+          <table className="w-full min-w-[620px] sm:min-w-0 text-xs border-collapse table-fixed">
             <thead>
               <tr className="border-b border-[var(--border)]">
                 <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">No</th>
@@ -631,10 +631,10 @@ export default function VoucherEntryPage() {
             className="ml-auto btn-danger btn-sm">
             선택 삭제{selected.size ? ` (${selected.size})` : ""}</button>
         </div>
-        {/* 전표목록도 가로 스크롤 제거 — 폭에 맞춰(w-full) 표시하고 페이지가 세로로 스크롤되게.
-            (overflow-y 컨테이너로 만들면 overflow-x 도 auto 강제돼 거래처 드롭다운이 잘림 → overflow-visible 유지) */}
-        <div className="overflow-visible">
-          <table className="w-full text-xs border-collapse table-fixed">
+        {/* 전표목록 — 데스크톱은 폭에 맞춤(overflow-visible, 드롭다운 잘림 방지),
+            모바일은 min-width + 가로 스크롤(컬럼 짓눌림·글자당 줄바꿈 방지). */}
+        <div className="overflow-x-auto sm:overflow-visible">
+          <table className="w-full min-w-[640px] sm:min-w-0 text-xs border-collapse table-fixed">
             <thead>
               <tr className="border-b border-[var(--border)]">
                 <th className="px-2 py-2.5 w-8 text-center font-semibold">

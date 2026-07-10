@@ -785,6 +785,11 @@ body::before {
 .tpl-preview ul, .tpl-preview ol { margin: 2px 0; padding-left: 22px; }
 .tpl-preview blockquote { border-left: 3px solid #d1d5db; margin: 4px 0; padding-left: 10px; color: #4b5563; }
 
+/* 표 헤더 모바일 짓눌림 방지 (2026-07-10 사장님 QA IMG_0577) — 좁은 화면에서 컬럼이 짓눌리면
+   한글 헤더가 글자당 줄바꿈(세로 파쇄)되던 것을 전 화면 공통 차단. 헤더는 짧은 라벨이라 nowrap 이
+   안전하고, 표가 넓어지면 감싼 overflow-x-auto 가 가로 스크롤로 흡수(앱 관례). */
+thead th { white-space: nowrap; word-break: keep-all; }
+
 /* 가로 스크롤 표 — 대각선 스크롤 방지 (2026-07-10 사장님 요청).
    가로 전용 스크롤 컨테이너(overflow-x-auto, 세로 스크롤 아님)는 touch-action:pan-x 로 고정 →
    가로 제스처는 표를 좌우 스크롤, 세로 제스처는 페이지 스크롤. 대각선 이동 방지.
