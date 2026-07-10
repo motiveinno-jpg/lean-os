@@ -23,35 +23,7 @@ import { EmptyState } from "@/components/empty-state";
 const db = supabase as any;
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 
-// 카드사 → 그라데이션 매핑. 2026-05-28 OwnerView 메인색(인디고 #4F46E5) 통일 — 인디고/블루/퍼플 계열 변주.
-//   그라데이션 효과 자체는 유지(시각적 구분), 빨강/노랑/녹색/회색은 브랜드 외 색이라 제거.
-const CARD_GRADIENTS: Record<string, string> = {
-  "삼성": "from-indigo-600 via-blue-600 to-blue-500",
-  "신한": "from-blue-600 via-indigo-600 to-indigo-700",
-  "KB":   "from-indigo-500 via-indigo-600 to-purple-600",
-  "국민": "from-indigo-500 via-indigo-600 to-purple-600",
-  "현대": "from-indigo-800 via-indigo-700 to-blue-700",
-  "롯데": "from-indigo-600 via-purple-600 to-indigo-700",
-  "BC":   "from-indigo-700 via-purple-600 to-indigo-600",
-  "하나": "from-indigo-500 via-blue-600 to-indigo-700",
-  "우리": "from-blue-600 via-indigo-500 to-purple-600",
-  "NH":   "from-indigo-600 via-blue-600 to-indigo-500",
-  "농협": "from-indigo-600 via-blue-600 to-indigo-500",
-  "카카오": "from-indigo-400 via-indigo-500 to-blue-500",
-  "토스": "from-indigo-400 via-blue-500 to-indigo-500",
-  "씨티": "from-blue-500 via-indigo-500 to-indigo-700",
-};
-const DEFAULT_CARD_GRADIENT = "from-indigo-500 via-indigo-600 to-indigo-700";
-// 체크·직불은 종류 색 통일(한눈에 구분), 신용카드는 카드사별 색 매핑.
-function getCardGradient(company: string | null | undefined, cardType?: string | null): string {
-  if (cardType === "check") return "from-emerald-600 via-emerald-500 to-teal-500";
-  if (cardType === "debit") return "from-fuchsia-600 via-purple-500 to-violet-500";
-  if (!company) return DEFAULT_CARD_GRADIENT;
-  for (const key in CARD_GRADIENTS) {
-    if (company.includes(key)) return CARD_GRADIENTS[key];
-  }
-  return DEFAULT_CARD_GRADIENT;
-}
+// (대형 CARD HOLDER 히어로 제거로 카드사 그라데이션 매핑도 함께 제거 — 2026-07-10 직원 QA)
 
 // 카드 종류 배지 색 — 카드 헤더의 종류 라벨을 더 눈에 띄게.
 function cardTypeBadgeClass(cardType?: string | null): string {
@@ -605,28 +577,31 @@ export default function CardsPage() {
           />
         ) : (
           <div className="space-y-6">
-            {/* 큰 카드 + 사용현황 패널 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <BigCard card={currentCard} />
+            {/* 컴팩트 카드 요약 스트립 — 대형 CARD HOLDER 히어로 제거 (직원 QA 2026-07-10: 카드홀더 불필요·상단 공간 절약).
+                같은 정보(카드명·종류·끝번호·결제일·이번달 사용·거래수)를 한 줄로. */}
+            {currentCard && (
+              <div className="card-summary-strip glass-card px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                <span className="text-sm font-bold text-[var(--text)] truncate max-w-[200px]">{currentCard.card_name || "카드"}</span>
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${cardTypeBadgeClass(currentCard.card_type)}`}>
+                  {cardTypeLabel(currentCard.card_type)}
+                </span>
+                <span className="text-xs text-[var(--text-muted)] mono-number">•••• {(currentCard.card_number || "").slice(-4) || "----"}</span>
+                <span className="text-xs text-[var(--text-muted)]">결제일 {currentCard.payment_day ? `매월 ${currentCard.payment_day}일` : "—"}</span>
+                <span className="ml-auto inline-flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                  이번 달 <b className="text-sm text-[var(--text)] mono-number">{showBalance ? fmtW(currentSpend) : "••••••"}</b> · {currentTxCount}건
+                  {Number(currentCard.monthly_limit || 0) > 0 && showBalance && (
+                    <span className="text-[11px] text-[var(--text-dim)]">/ 한도 {fmtW(Number(currentCard.monthly_limit))}</span>
+                  )}
+                  <button type="button" onClick={() => setShowBalance((v) => !v)} className="p-1 rounded-lg hover:bg-[var(--bg-surface)]" aria-label="금액 표시 토글">
+                    {showBalance ? (
+                      <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={2} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" strokeWidth={2} /></svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M3 3l18 18M10.6 10.6a3 3 0 004.2 4.2M6.6 6.6A17 17 0 002 11.5s3.5 7 10 7a9.7 9.7 0 004-.9" /></svg>
+                    )}
+                  </button>
+                </span>
               </div>
-              {/* 우측 사이드 패널 — 좌측 BigCard(h-44 sm:h-52)와 동일 높이.
-                  내부: UsagePanel 이 늘어나고 거래수는 슬림한 라인 카드. */}
-              <div className="h-44 sm:h-52 flex flex-col gap-2">
-                <div className="flex-1 min-h-0">
-                  <UsagePanel
-                    card={currentCard}
-                    monthSpend={currentSpend}
-                    showBalance={showBalance}
-                    onToggle={() => setShowBalance((v) => !v)}
-                  />
-                </div>
-                <div className="glass-card px-3 py-2 shrink-0 flex items-center justify-between">
-                  <p className="text-xs text-[var(--text-muted)]">이번 달 거래</p>
-                  <p className="text-base font-bold text-[var(--text)] mono-number">{currentTxCount}건</p>
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* 카드 미니 그리드 — 클릭 시 그 카드 거래내역 영역으로 스크롤+필터 */}
             <div>
@@ -1023,89 +998,6 @@ export default function CardsPage() {
 
 // ============================================================================
 // 내부 컴포넌트
-
-function BigCard({ card }: { card: any | null }) {
-  if (!card) return null;
-  const last4 = (card.card_number || "").slice(-4);
-  const last4Display = last4 || "----";
-  const gradient = getCardGradient(card.card_company, card.card_type);
-  const badgeClass = cardTypeBadgeClass(card.card_type);
-  return (
-    <div className={`relative h-44 sm:h-52 bg-gradient-to-br ${gradient} rounded-2xl shadow-xl p-5 sm:p-6 text-white overflow-hidden`}>
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white rounded-full blur-3xl" />
-      </div>
-      <div className="relative z-10 h-full flex flex-col justify-between">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <div>
-              <p className="text-white/70 text-xs mb-1">CARD HOLDER</p>
-              <p className="text-base sm:text-lg font-semibold">{(card.card_company || "법인").toUpperCase()}</p>
-            </div>
-            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}>
-              {cardTypeLabel(card.card_type)}
-            </span>
-          </div>
-          <span className="text-3xl">💳</span>
-        </div>
-        <div>
-          <p className="text-white/70 text-xs mb-2">Card Number</p>
-          <p className="text-xl sm:text-2xl font-mono tracking-wider">•••• •••• •••• {last4Display}</p>
-        </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-white/70 text-xs mb-1">결제일</p>
-            <p className="text-sm font-semibold">{card.payment_day ? `매월 ${card.payment_day}일` : "—"}</p>
-          </div>
-          <p className="text-sm font-semibold opacity-90 truncate max-w-[50%]">{card.card_name}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function UsagePanel({ card, monthSpend, showBalance, onToggle }: { card: any; monthSpend: number; showBalance: boolean; onToggle: () => void }) {
-  if (!card) return null;
-  const limit = Number(card.monthly_limit || 0);
-  const remaining = Math.max(0, limit - monthSpend);
-  const pct = limit > 0 ? Math.min(100, (monthSpend / limit) * 100) : 0;
-
-  if (limit > 0) {
-    return (
-      <div className="glass-card p-4 sm:p-5 h-full flex flex-col">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="stat-tile-label">사용 가능 금액</h3>
-          <button type="button" onClick={onToggle} className="p-1 rounded-lg hover:bg-[var(--bg-surface)]" aria-label="잔액 표시 토글">
-            {showBalance ? (
-              <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={2} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" strokeWidth={2} /></svg>
-            ) : (
-              <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M3 3l18 18M10.6 10.6a3 3 0 004.2 4.2M6.6 6.6A17 17 0 002 11.5s3.5 7 10 7a9.7 9.7 0 004-.9" /></svg>
-            )}
-          </button>
-        </div>
-        <p className="stat-tile-value mono-number mb-2">
-          {showBalance ? fmtW(remaining) : "••••••"}
-        </p>
-        <div className="text-[11px] text-[var(--text-muted)] mb-1.5 flex justify-between mono-number">
-          <span>사용 {fmtW(monthSpend)}</span>
-          <span>한도 {fmtW(limit)}</span>
-        </div>
-        <div className="w-full bg-[var(--bg-surface)] rounded-full h-1.5 overflow-hidden mt-auto">
-          <div className="bg-[var(--primary)] h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-    );
-  }
-  // 한도 정보 없음 — 이번 달 사용액만 표시(가짜 한도 진행률 금지)
-  return (
-    <div className="glass-card p-4 sm:p-5 h-full flex flex-col justify-center">
-      <h3 className="stat-tile-label mb-2">이번 달 사용액</h3>
-      <p className="stat-tile-value mono-number">{fmtW(monthSpend)}</p>
-      <p className="text-[11px] text-[var(--text-dim)] mt-1">{card.card_type === "credit" ? "한도 미설정" : "체크/직불 — 한도 개념 없음"}</p>
-    </div>
-  );
-}
 
 function MiniCard({
   card, selected, onClick,

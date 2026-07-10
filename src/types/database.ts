@@ -7632,6 +7632,9 @@ export type Database = {
           counterparty_bizno: string | null
           counterparty_business_item: string | null
           counterparty_business_type: string | null
+          counterparty_representative: string | null
+          counterparty_email: string | null
+          tax_kind: string | null
           counterparty_name: string
           created_at: string | null
           deal_id: string | null
@@ -7668,6 +7671,9 @@ export type Database = {
           counterparty_bizno?: string | null
           counterparty_business_item?: string | null
           counterparty_business_type?: string | null
+          counterparty_representative?: string | null
+          counterparty_email?: string | null
+          tax_kind?: string | null
           counterparty_name: string
           created_at?: string | null
           deal_id?: string | null
@@ -7704,6 +7710,9 @@ export type Database = {
           counterparty_bizno?: string | null
           counterparty_business_item?: string | null
           counterparty_business_type?: string | null
+          counterparty_representative?: string | null
+          counterparty_email?: string | null
+          tax_kind?: string | null
           counterparty_name?: string
           created_at?: string | null
           deal_id?: string | null

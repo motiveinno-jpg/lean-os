@@ -536,6 +536,7 @@ export default function TaxInvoicesPage() {
     expenseCategory: string;
     dealId: string;
     purpose: "영수" | "청구";
+    taxKind: "taxable" | "zero_rated" | "exempt"; // 과세/영세율/면세 — 영세율·면세는 세액 0
     itemName: string;
     itemSpec: string;
     itemQty: string;
@@ -556,6 +557,7 @@ export default function TaxInvoicesPage() {
     expenseCategory: "",
     dealId: "",
     purpose: "청구",
+    taxKind: "taxable",
     itemName: "",
     itemSpec: "",
     itemQty: "1",
@@ -885,6 +887,7 @@ export default function TaxInvoicesPage() {
           expenseCategory: r.expenseCategory || undefined,
           dealId: r.dealId || undefined,
           partnerId: r.partnerId || undefined,
+          taxKind: r.taxKind,
           label: [r.purpose, r.itemName].filter(Boolean).join(' | ') || undefined,
         });
       }
@@ -977,7 +980,7 @@ export default function TaxInvoicesPage() {
     (a, r) => {
       const s = Number(r.supplyAmount) || 0;
       a.supply += s;
-      a.tax += Math.round(s * 0.1);
+      a.tax += r.taxKind === "taxable" ? Math.round(s * 0.1) : 0; // 영세율·면세 = 세액 0
       return a;
     },
     { supply: 0, tax: 0 },
@@ -1121,12 +1124,9 @@ export default function TaxInvoicesPage() {
           </button>
       </div>
 
-      {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치 */}
-      <div className="mb-6 no-print rounded-lg overflow-hidden border border-[var(--border)]">
-        <div className="px-4 py-2 text-[12px] font-bold text-[var(--text)] border-b border-[var(--border)]" style={{ background: "color-mix(in srgb, var(--primary) 8%, var(--bg-surface))" }}>
-          전자(세금)계산서 조회
-        </div>
-        <div className="bg-[var(--bg-card)] p-3 flex flex-wrap items-stretch gap-x-0 gap-y-2">
+      {/* 기간설정 — 상단 공간 압축(직원 QA 2026-07-10): 중복 타이틀 행 제거 + 여백 축소 */}
+      <div className="mb-3 no-print rounded-lg overflow-hidden border border-[var(--border)]">
+        <div className="bg-[var(--bg-card)] p-2.5 flex flex-wrap items-stretch gap-x-0 gap-y-2">
           <div className="flex flex-wrap items-stretch border border-[var(--border)] rounded-md overflow-hidden min-w-0 max-w-full">
             <div className="px-3 flex items-center text-[11px] font-bold text-[var(--text-muted)]" style={{ background: "color-mix(in srgb, var(--primary) 6%, var(--bg-surface))" }}>조회기간</div>
             <div className="px-3 py-2 flex items-center gap-2 flex-wrap min-w-0">
@@ -1178,8 +1178,8 @@ export default function TaxInvoicesPage() {
         </div>
       </div>
 
-      {/* Sync bar */}
-      <div className="flex items-center justify-between glass-card px-4 py-2.5 mb-6">
+      {/* Sync bar — 상단 압축: mb-6→mb-2 */}
+      <div className="flex items-center justify-between glass-card px-4 py-2.5 mb-2">
         <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1258,7 +1258,7 @@ export default function TaxInvoicesPage() {
           )}
         </div>
       </div>
-      <p className="-mt-4 mb-6 text-[10px] text-[var(--text-muted)]">
+      <p className="mb-4 text-[10px] text-[var(--text-muted)]">
         ※ 이 버튼은 홈택스에 <b>이미 발행된</b> 세금계산서를 가져오는 조회 동작입니다. 새 세금계산서 발행은 매출 탭에서 "발행" 버튼 또는 매출 스케줄 자동 발행으로 진행됩니다.
       </p>
 
@@ -1665,6 +1665,18 @@ export default function TaxInvoicesPage() {
                           <option value="영수">영수</option>
                         </select>
 
+                        {/* 과세유형 — 영세율·면세는 세액 0, 문서 제목도 영세율세금계산서/계산서로 */}
+                        <select
+                          value={row.taxKind}
+                          onChange={(e) => patchRow(row.key, { taxKind: e.target.value as FormRow["taxKind"] })}
+                          title="과세=세액 10% · 영세율/면세=세액 0 (문서 제목도 영세율전자세금계산서/전자계산서로 표시)"
+                          className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition"
+                        >
+                          <option value="taxable">과세</option>
+                          <option value="zero_rated">영세율</option>
+                          <option value="exempt">면세</option>
+                        </select>
+
                         {/* 연결 프로젝트 */}
                         <select
                           value={row.dealId}
@@ -1708,10 +1720,11 @@ export default function TaxInvoicesPage() {
                         </button>
                       </div>
 
-                      {/* 행별 인라인 계산 결과 */}
+                      {/* 행별 인라인 계산 결과 — 과세유형별 세액 반영 */}
                       {sa > 0 && (
                         <div className="mt-1 pl-1 text-[10px] text-[var(--text-dim)]">
-                          {row.counterpartyName || "(거래처 미입력)"} — 세액 <span className="font-mono text-[var(--text-muted)]">₩{Math.round(sa * 0.1).toLocaleString("ko-KR")}</span> · 합계 <span className="font-mono font-semibold text-[var(--primary)]">₩{Math.round(sa * 1.1).toLocaleString("ko-KR")}</span>
+                          {row.counterpartyName || "(거래처 미입력)"} — 세액 <span className="font-mono text-[var(--text-muted)]">₩{(row.taxKind === "taxable" ? Math.round(sa * 0.1) : 0).toLocaleString("ko-KR")}</span> · 합계 <span className="font-mono font-semibold text-[var(--primary)]">₩{(row.taxKind === "taxable" ? Math.round(sa * 1.1) : Math.round(sa)).toLocaleString("ko-KR")}</span>
+                          {row.taxKind !== "taxable" && <span className="ml-1 text-[var(--warning)]">({row.taxKind === "zero_rated" ? "영세율" : "면세"} — 세액 0)</span>}
                         </div>
                       )}
                     </div>
@@ -2799,7 +2812,11 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, onClose, onModify 
   // 실제 세금계산서 관행: 매출(공급자 보관용)=적색, 매입=청색. 은은한 톤으로 공식 느낌만.
   const formColor = isSales ? '#C0392B' : '#1D6AA8';
   const formTint = isSales ? '#FBEEEC' : '#EAF2FA';
-  const docTitle = issuedToNts ? '전자세금계산서' : '미전송 전자세금계산서';
+  // 과세유형별 문서 제목 — 영세율=영세율전자세금계산서, 면세=전자계산서 (직원 QA 그랜터)
+  const baseTitle = inv.tax_kind === 'zero_rated' ? '영세율전자세금계산서'
+    : inv.tax_kind === 'exempt' ? '전자계산서'
+    : '전자세금계산서';
+  const docTitle = issuedToNts ? baseTitle : `미전송 ${baseTitle}`;
   // 영수/청구 — 홈택스 전자계산서 데이터엔 없는 필드(종이계산서 잔재)라 자동으론 못 불러옴.
   //   label 앞 토큰("영수 |"/"청구 |")으로 보관하고, 상세에서 사용자가 직접 지정(수정 저장).
   const [billedState, setBilledState] = useState<boolean>(() => !inv.label?.includes('영수'));

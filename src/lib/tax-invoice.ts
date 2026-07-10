@@ -47,8 +47,11 @@ export async function createTaxInvoice(params: {
   preferredDate?: string;
   expenseCategory?: string;
   partnerId?: string;
+  // 과세유형(직원 QA 그랜터) — taxable(과세)/zero_rated(영세율)/exempt(면세). 영세율·면세는 세액 0.
+  taxKind?: 'taxable' | 'zero_rated' | 'exempt';
 }): Promise<TaxInvoice | null> {
-  const taxAmount = Math.round(params.supplyAmount * DEFAULT_VAT_RATE);
+  const taxKind = params.taxKind || 'taxable';
+  const taxAmount = taxKind === 'taxable' ? Math.round(params.supplyAmount * DEFAULT_VAT_RATE) : 0;
   const totalAmount = params.supplyAmount + taxAmount;
 
   // 파이프라인에서 자동 생성 시 status: 'draft' 강제
@@ -74,6 +77,7 @@ export async function createTaxInvoice(params: {
       partner_id: params.partnerId || null,
       counterparty_business_type: params.counterpartyBusinessType || null,
       counterparty_business_item: params.counterpartyBusinessItem || null,
+      tax_kind: taxKind,
       source: 'manual',
     })
     .select()
