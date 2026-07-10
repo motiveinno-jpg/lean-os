@@ -1133,12 +1133,18 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     enabled: !!companyId,
   });
 
-  // Find matching policy for preview
+  // Find matching policy for preview — 요청자 전용 정책 우선, 없으면 회사 공통(requester_id null).
   const matchedPolicy = useMemo(() => {
-    const byType = policies.find((p: ApprovalPolicy) => p.document_type === form.requestType && p.is_active);
-    if (byType) return byType;
-    return policies.find((p: ApprovalPolicy) => p.document_type === "default" && p.is_active) || null;
-  }, [policies, form.requestType]);
+    const active = policies.filter((p: ApprovalPolicy) => p.is_active);
+    const pick = (docType: string) => {
+      const cands = active.filter((p: ApprovalPolicy) => p.document_type === docType);
+      return (userId ? cands.find((p: ApprovalPolicy) => p.requester_id === userId) : undefined)
+        || cands.find((p: ApprovalPolicy) => !p.requester_id) || null;
+    };
+    return pick(form.requestType) || pick("default");
+  }, [policies, form.requestType, userId]);
+  // 승인라인 변경 허용 여부 — 정책이 불허면 요청자는 승인자 지정 불가.
+  const canEditLine = matchedPolicy?.allow_line_edit !== false;
 
   // 요청 유형 변경 시 설명란 자동 입력 — 정책의 설명 템플릿 우선, 없으면 내장 템플릿.
   useEffect(() => {
@@ -1205,7 +1211,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         amount: effectiveAmount,
         description: finalDesc || undefined,
         attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
-        customApprovers: selectedApprovers.length > 0 ? selectedApprovers : undefined,
+        customApprovers: (canEditLine && selectedApprovers.length > 0) ? selectedApprovers : undefined,
         formId: selectedForm?.id,
         customFields: selectedForm ? customFieldValues : undefined,
       });
@@ -1519,7 +1525,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               </>
             )}
 
-            {/* Approver Selection — 아바타 칩 결재선 */}
+            {/* Approver Selection — 정책이 승인라인 변경을 불허하면 잠금 안내 */}
+            {!canEditLine ? (
+            <div>
+              <label className="field-label">승인자 지정</label>
+              <p className="text-[11px] text-[var(--text-dim)] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">이 양식은 결재 정책의 승인라인을 그대로 사용합니다 (요청자 변경 불가).</p>
+            </div>
+            ) : (
             <div>
               <label className="field-label">승인자 지정 (선택)</label>
               <div className="space-y-2">
@@ -1568,6 +1580,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 )}
               </div>
             </div>
+            )}
 
             {/* File upload — 드롭존 스타일 */}
             <div>
@@ -1766,6 +1779,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     label: "",
     descriptionTemplate: "",
     autoApproveBelow: "",
+    allowLineEdit: true,
+    requesterId: "",
     stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }] as ApprovalStageConfig[],
   });
 
@@ -1796,6 +1811,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         description_template: form.descriptionTemplate.trim() || undefined,
         stages: form.stages,
         auto_approve_below: Number(form.autoApproveBelow) || 0,
+        allow_line_edit: form.allowLineEdit,
+        requester_id: form.requesterId || null,
         is_active: true,
       }),
     onSuccess: () => {
@@ -1821,6 +1838,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       label: "",
       descriptionTemplate: "",
       autoApproveBelow: "",
+      allowLineEdit: true,
+      requesterId: "",
       stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }],
     });
   }
@@ -1835,6 +1854,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       label: policy.label || "",
       descriptionTemplate: policy.description_template || "",
       autoApproveBelow: policy.auto_approve_below ? String(policy.auto_approve_below) : "",
+      allowLineEdit: policy.allow_line_edit !== false,
+      requesterId: policy.requester_id || "",
       stages: policy.stages as ApprovalStageConfig[],
     });
     setShowForm(true);
@@ -1952,6 +1973,25 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                 rows={3}
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-y"
               />
+            </div>
+            {/* 요청자별 정책 + 승인라인 변경 허용 (2026-07-10) */}
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">적용 대상 요청자 (선택)</label>
+              <select value={form.requesterId} onChange={(e) => setForm({ ...form, requesterId: e.target.value })} className="field-input">
+                <option value="">회사 전체 (기본)</option>
+                {orgUsers.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">특정 요청자를 고르면 그 사람 요청에만 이 정책이 우선 적용됩니다.</p>
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">승인라인 변경</label>
+              <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
+                <input type="checkbox" checked={form.allowLineEdit} onChange={(e) => setForm({ ...form, allowLineEdit: e.target.checked })} className="w-4 h-4 accent-[var(--primary)]" />
+                <span className="text-sm text-[var(--text)]">요청자가 승인자(승인라인)를 바꿀 수 있음</span>
+              </label>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">해제 시 요청자는 정책의 승인라인을 그대로 사용해야 합니다.</p>
             </div>
           </div>
 
