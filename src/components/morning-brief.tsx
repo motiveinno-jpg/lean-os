@@ -13,7 +13,8 @@
 // Pure display component — 데이터는 부모가 넘겨준다.
 
 import { useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getTodos } from "@/lib/schedule";
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
@@ -30,6 +31,38 @@ interface MorningBriefProps {
   yesterdayTx?: YesterdayTxSummary | null;
   userId?: string;
 }
+
+// AI 브리핑 2.0 구조(액션 플랜) — 엣지가 json_schema 강제 출력으로 생성 (구버전 캐시는 평문 폴백)
+interface AiBriefPlan {
+  headline: string;
+  summary: string;
+  actions: Array<{ title: string; detail: string; priority: "긴급" | "중요" | "권장"; link: string }>;
+  risks: string[];
+  wins: string[];
+}
+function parseBriefPlan(content: string): AiBriefPlan | null {
+  try {
+    const p = JSON.parse(content);
+    if (p && typeof p.headline === "string" && Array.isArray(p.actions)) return p as AiBriefPlan;
+  } catch { /* 구버전 평문 브리핑 */ }
+  return null;
+}
+// 액션 링크 키 → 실행 화면
+const ACTION_HREF: Record<string, { href: string; label: string }> = {
+  ar: { href: "/partners/ledger", label: "회수 관리" },
+  approvals: { href: "/approvals", label: "결재 처리" },
+  tax: { href: "/tax-invoices?tab=vat", label: "부가세 확인" },
+  todo: { href: "/schedule", label: "할 일 보기" },
+  bank: { href: "/bank", label: "통장 보기" },
+  payments: { href: "/payments", label: "지급 관리" },
+  pnl: { href: "/reports/pnl", label: "손익 보기" },
+  invoices: { href: "/tax-invoices", label: "계산서 보기" },
+};
+const PRIORITY_STYLE: Record<string, string> = {
+  긴급: "bg-[var(--danger-dim)] text-[var(--danger)]",
+  중요: "bg-[var(--warning-dim)] text-[var(--warning)]",
+  권장: "bg-[var(--bg-surface)] text-[var(--text-muted)]",
+};
 
 // AI 브리핑의 톤 태그(<neg>/<pos>/<key>)를 색상 강조 span 으로 변환 (예전 규칙 브리핑의 hl 색상 재사용)
 function renderTagged(text: string): ReactNode[] {
@@ -103,49 +136,74 @@ export function MorningBrief({
   // 기본은 축약(line1, line2, line4만), 펼치면 전체
   const [expanded, setExpanded] = useState(false);
 
-  // AI 브리핑 (진짜 Claude) — 회사당 하루 1회 서버 캐시. 실패/미생성 시 아래 규칙 브리핑으로 폴백.
+  // AI 브리핑 2.0 (액션 플랜) — 회사당 하루 1회 서버 캐시. 실패/미생성 시 아래 규칙 브리핑으로 폴백.
   //   훅 순서 보존을 위해 early return 앞에 선언, enabled 로 데이터 있을 때만 호출.
+  const queryClient = useQueryClient();
+  const [regenerating, setRegenerating] = useState(false);
+  const briefKey = ["ai-briefing", formatTodayKorean(now)];
+
+  // 요청 페이로드 조립 — 최초 생성과 '다시 생성' 공용
+  const buildBriefPayload = async () => {
+    if (!cashPulse) return null;
+    const nums = {
+      balance: cashPulse.currentBalance,
+      forecast30: cashPulse.forecast30d,
+      forecast90: cashPulse.forecast90d,
+      runwayMonths: dashboard?.sixPack.runwayMonths ?? 0,
+      monthlyBurn: cashPulse.monthlyBurn,
+      arOver30: dashboard?.sixPack.arOver30 ?? 0,
+      pendingApprovals: cashPulse.pendingApprovalCount,
+      riskCount: dashboard?.risks.length ?? 0,
+      monthRevenue: dashboard?.growth.monthRevenue ?? 0,
+      monthTarget: dashboard?.growth.monthTarget ?? 0,
+    };
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const taxDeadlines = getUpcomingTaxDeadlines(30).slice(0, 4).map((t) => ({ title: t.title, daysLeft: t.daysLeft }));
+    let todos: Array<{ title: string; priority: number; dueDate: string | null; overdue: boolean }> = [];
+    if (userId) {
+      try {
+        const rows = await getTodos(userId, { includeDone: false });
+        todos = rows.slice(0, 8).map((t) => ({
+          title: t.title,
+          priority: t.priority,
+          dueDate: t.due_date,
+          overdue: !!t.due_date && t.due_date < todayStr,
+        }));
+      } catch { /* 할 일 조회 실패는 무시 — 브리핑은 재무만으로도 생성 */ }
+    }
+    return { nums, actions: { taxDeadlines, todos }, companyName };
+  };
+
   const aiBrief = useQuery({
-    queryKey: ["ai-briefing", formatTodayKorean(now)],
+    queryKey: briefKey,
     enabled: hasData && !!cashPulse,
     staleTime: 6 * 60 * 60 * 1000,
     retry: false,
     queryFn: async (): Promise<string | null> => {
-      if (!cashPulse) return null;
-      const nums = {
-        balance: cashPulse.currentBalance,
-        forecast30: cashPulse.forecast30d,
-        forecast90: cashPulse.forecast90d,
-        runwayMonths: dashboard?.sixPack.runwayMonths ?? 0,
-        monthlyBurn: cashPulse.monthlyBurn,
-        arOver30: dashboard?.sixPack.arOver30 ?? 0,
-        pendingApprovals: cashPulse.pendingApprovalCount,
-        riskCount: dashboard?.risks.length ?? 0,
-        monthRevenue: dashboard?.growth.monthRevenue ?? 0,
-        monthTarget: dashboard?.growth.monthTarget ?? 0,
-      };
-      // 처리 대기·할 일 — AI 가 우선순위로 정리하도록 함께 전달 (세금 마감은 순수 계산, 할 일은 본인 것만)
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const taxDeadlines = getUpcomingTaxDeadlines(30).slice(0, 4).map((t) => ({ title: t.title, daysLeft: t.daysLeft }));
-      let todos: Array<{ title: string; priority: number; dueDate: string | null; overdue: boolean }> = [];
-      if (userId) {
-        try {
-          const rows = await getTodos(userId, { includeDone: false });
-          todos = rows.slice(0, 8).map((t) => ({
-            title: t.title,
-            priority: t.priority,
-            dueDate: t.due_date,
-            overdue: !!t.due_date && t.due_date < todayStr,
-          }));
-        } catch { /* 할 일 조회 실패는 무시 — 브리핑은 재무만으로도 생성 */ }
-      }
+      const payload = await buildBriefPayload();
+      if (!payload) return null;
       try {
-        const { data, error } = await supabase.functions.invoke("ai-briefing", { body: { nums, actions: { taxDeadlines, todos }, companyName } });
+        const { data, error } = await supabase.functions.invoke("ai-briefing", { body: payload });
         if (error) return null;
         return (data?.content as string) || null;
       } catch { return null; }
     },
   }).data ?? null;
+
+  // '다시 생성' — 캐시 무시하고 최신 데이터로 재생성 (오후에 상황이 바뀌었을 때)
+  const regenerateBrief = async () => {
+    if (regenerating) return;
+    setRegenerating(true);
+    try {
+      const payload = await buildBriefPayload();
+      if (!payload) return;
+      const { data, error } = await supabase.functions.invoke("ai-briefing", { body: { ...payload, force: true } });
+      if (!error && data?.content) queryClient.setQueryData(briefKey, data.content as string);
+    } catch { /* 실패 시 기존 브리핑 유지 */ }
+    finally { setRegenerating(false); }
+  };
+
+  const briefPlan = aiBrief ? parseBriefPlan(aiBrief) : null;
 
   // 데이터 없음 — 온보딩 톤
   if (!hasData || !cashPulse) {
@@ -285,7 +343,59 @@ export function MorningBrief({
       </p>
 
       <div className="space-y-1.5 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.6] sm:leading-[1.85] tracking-[-0.01em] break-keep">
-        {aiBrief ? (
+        {briefPlan ? (
+          /* ── AI 브리핑 2.0: 오늘의 액션 플랜 ── */
+          <div className="brief-plan">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]">✦ AI 액션 플랜</span>
+              <button type="button" onClick={regenerateBrief} disabled={regenerating}
+                className="text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] font-semibold disabled:opacity-50"
+                title="지금 데이터로 브리핑을 다시 생성합니다">
+                {regenerating ? "생성 중…" : "↻ 다시 생성"}
+              </button>
+            </div>
+            <p className="text-base sm:text-lg font-extrabold leading-snug mb-1.5">{briefPlan.headline}</p>
+            <p className="text-[13px] sm:text-[15px] text-[var(--text-muted)] leading-relaxed">{renderTagged(briefPlan.summary)}</p>
+
+            {briefPlan.actions.length > 0 && (
+              <ol className="mt-3 space-y-2">
+                {briefPlan.actions.map((a, i) => {
+                  const lk = ACTION_HREF[a.link];
+                  return (
+                    <li key={i} className="flex items-start gap-2.5 rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/60 px-3 py-2.5">
+                      <span className={`shrink-0 mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE["권장"]}`}>{a.priority}</span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[13px] sm:text-[14px] font-bold leading-snug">{i + 1}. {a.title}</span>
+                        <span className="block text-[11px] sm:text-[12px] text-[var(--text-dim)] mt-0.5 leading-relaxed">{a.detail}</span>
+                      </span>
+                      {lk && (
+                        <Link href={lk.href} className="shrink-0 self-center text-[11px] font-semibold text-[var(--primary)] hover:underline whitespace-nowrap">
+                          {lk.label} →
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+
+            {(briefPlan.risks.length > 0 || briefPlan.wins.length > 0) && (
+              <div className="mt-3 flex flex-col gap-1">
+                {briefPlan.risks.slice(0, 3).map((r, i) => (
+                  <p key={`r${i}`} className="text-[11px] sm:text-[12px] text-[var(--text-muted)] leading-relaxed">
+                    <span className="font-bold" style={{ color: "var(--danger)" }}>⚠ </span>{renderTagged(r)}
+                  </p>
+                ))}
+                {briefPlan.wins.slice(0, 2).map((w, i) => (
+                  <p key={`w${i}`} className="text-[11px] sm:text-[12px] text-[var(--text-muted)] leading-relaxed">
+                    <span className="font-bold" style={{ color: "var(--success)" }}>✓ </span>{renderTagged(w)}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : aiBrief ? (
+          /* 구버전 캐시(평문 단락) 호환 */
           <>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]">✦ AI 브리핑</span>
             {aiBrief.split(/\n+/).map((s) => s.trim()).filter(Boolean).map((s, i) => (
