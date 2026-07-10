@@ -765,6 +765,18 @@ body::before {
   box-shadow: 0 20px 48px -12px rgba(0,0,0,0.6), 0 8px 20px -8px rgba(0,0,0,0.4) !important;
 }
 
+/* 텍스트변환 양식 미리보기(.tpl-preview) — 발급 PDF(wrapTemplatePrintHtml)와 동일한 표·이미지 룩.
+   흰 배경 고정 패널이라 색상 리터럴 사용(다크 보정 불필요). (2026-07-10) */
+.tpl-preview p { margin: 2px 0; }
+.tpl-preview table { border-collapse: collapse; width: 100%; margin: 6px 0; table-layout: fixed; }
+.tpl-preview th, .tpl-preview td { border: 1px solid #9ca3af; padding: 4px 8px; vertical-align: top; word-break: break-word; }
+.tpl-preview th { background: #f3f4f6; font-weight: 700; }
+.tpl-preview img { max-width: 100%; height: auto; }
+.tpl-preview h2 { font-size: 20px; margin: 8px 0 4px; font-weight: 700; }
+.tpl-preview h3 { font-size: 16px; margin: 6px 0 3px; font-weight: 700; }
+.tpl-preview ul, .tpl-preview ol { margin: 2px 0; padding-left: 22px; }
+.tpl-preview blockquote { border-left: 3px solid #d1d5db; margin: 4px 0; padding-left: 10px; color: #4b5563; }
+
 /* 가로 스크롤 표 — 대각선 스크롤 방지 (2026-07-10 사장님 요청).
    가로 전용 스크롤 컨테이너(overflow-x-auto, 세로 스크롤 아님)는 touch-action:pan-x 로 고정 →
    가로 제스처는 표를 좌우 스크롤, 세로 제스처는 페이지 스크롤. 대각선 이동 방지.

@@ -101,6 +101,16 @@ export function wrapTemplatePrintHtml(bodyHtml: string): string {
   .tpl-body { padding: 18mm 16mm; font-size: 13px; line-height: 1.75; }
   .tpl-body p { margin: 2px 0; }
   .tpl-body hr.tpl-page-break { border: none; page-break-after: always; margin: 0; }
+  /* 리치에디터(TipTap) 산출물 — 표·이미지·제목이 발급 PDF에 그대로 보이도록 (2026-07-10) */
+  .tpl-body table { border-collapse: collapse; width: 100%; margin: 6px 0; table-layout: fixed; page-break-inside: avoid; }
+  .tpl-body th, .tpl-body td { border: 1px solid #9ca3af; padding: 4px 8px; vertical-align: top; word-break: break-word; }
+  .tpl-body th { background: #f3f4f6; font-weight: 700; }
+  .tpl-body img { max-width: 100%; height: auto; }
+  .tpl-body h2 { font-size: 20px; margin: 8px 0 4px; }
+  .tpl-body h3 { font-size: 16px; margin: 6px 0 3px; }
+  .tpl-body ul, .tpl-body ol { margin: 2px 0; padding-left: 22px; }
+  .tpl-body blockquote { border-left: 3px solid #d1d5db; margin: 4px 0; padding-left: 10px; color: #4b5563; }
+  .tpl-body hr:not(.tpl-page-break) { border: none; border-top: 1px solid #d1d5db; margin: 8px 0; }
 </style></head>
 <body><div class="tpl-body">${bodyHtml}</div></body></html>`;
 }

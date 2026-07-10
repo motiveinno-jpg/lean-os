@@ -3,14 +3,15 @@
 // 회사 양식 PDF 관리 (2026-06-29, P2 진입점) — 업로드 → 자동인식 → 매핑 보정 → 저장·활성.
 //   견적/계약 생성 시 활성 양식이 있으면 오버레이로 회사 실제 디자인 재현(없으면 현행 폴백).
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import FormTemplateEditor from "@/components/form-template-editor";
+import { TextTemplateEditorModal } from "@/components/text-template-editor-modal";
 import {
   rasterizePdf, detectFields, uploadTemplateFile, saveFormTemplate, setActiveTemplate,
-  listFormTemplates, deleteFormTemplate, extractPdfText, templateTextToHtml, fillTextTemplate,
+  listFormTemplates, deleteFormTemplate, extractPdfText, templateTextToHtml, updateFormTemplateContent,
   type DocType, type OverlayField, type PdfFormTemplate,
 } from "@/lib/form-templates";
 
@@ -33,10 +34,10 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
   const [editing, setEditing] = useState<null | {
     pageImages: string[]; pageSizes: { w: number; h: number }[]; fields: OverlayField[]; filePath: string; pageCount: number;
   }>(null);
-  // 텍스트변환 양식(직원 QA) — 추출한 평문을 편집 + {{변수}} 삽입
-  const [textEditing, setTextEditing] = useState<null | { filePath: string; pageCount: number }>(null);
-  const [textVal, setTextVal] = useState("");
-  const textRef = useRef<HTMLTextAreaElement>(null);
+  // 텍스트변환 양식 — 리치에디터(표·서식)로 content_html 직접 편집. editId 있으면 기존 양식 재편집.
+  const [textEditing, setTextEditing] = useState<null | {
+    filePath: string; pageCount: number; initialHtml: string; editId?: string; editName?: string; editDocType?: DocType;
+  }>(null);
 
   const { data: templates = [] } = useQuery({
     queryKey: ["form-templates", companyId],
@@ -77,34 +78,38 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
       const text = await extractPdfText(file);
       const filePath = await uploadTemplateFile(companyId, file);
       const pageCount = text.split("페이지 구분").length;
-      setTextVal(text);
-      setTextEditing({ filePath, pageCount });
+      setTextEditing({ filePath, pageCount, initialHtml: templateTextToHtml(text) });
       toast("PDF 텍스트를 추출했습니다 — 내용을 다듬고 {{변수}}를 넣으세요", "info");
     } catch (e: any) {
       toast("텍스트 추출 실패: " + (e?.message || ""), "error");
     } finally { setBusy(false); }
   };
 
-  const insertVar = (v: string) => {
-    const ta = textRef.current;
-    const s = ta?.selectionStart ?? textVal.length, e = ta?.selectionEnd ?? textVal.length;
-    const next = textVal.slice(0, s) + v + textVal.slice(e);
-    setTextVal(next);
-    requestAnimationFrame(() => { if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = s + v.length; } });
+  // 기존 텍스트 양식 재편집 — 저장된 content_html 을 리치에디터로 다시 열기
+  const startEditText = (t: PdfFormTemplate) => {
+    setTextEditing({
+      filePath: t.file_path, pageCount: t.page_count || 1,
+      initialHtml: t.content_html || "", editId: t.id, editName: t.name, editDocType: t.doc_type,
+    });
   };
 
-  const onSaveText = async () => {
+  const onSaveText = async (html: string) => {
     if (!companyId || !textEditing) return;
-    const text = textVal;
     try {
-      const t = await saveFormTemplate({
-        companyId, name: name.trim(), docType, filePath: textEditing.filePath,
-        pageCount: textEditing.pageCount, pageSizes: [], fields: [],
-        contentHtml: templateTextToHtml(text), templateMode: "text",
-      });
-      await setActiveTemplate(companyId, docType, t.id);
-      toast(`'${name.trim()}' 텍스트 양식을 저장·활성화했습니다`, "success");
-      setTextEditing(null); setName(""); refresh();
+      if (textEditing.editId) {
+        await updateFormTemplateContent(textEditing.editId, html);
+        toast(`'${textEditing.editName || "양식"}' 내용을 수정했습니다`, "success");
+      } else {
+        const t = await saveFormTemplate({
+          companyId, name: name.trim(), docType, filePath: textEditing.filePath,
+          pageCount: textEditing.pageCount, pageSizes: [], fields: [],
+          contentHtml: html, templateMode: "text",
+        });
+        await setActiveTemplate(companyId, docType, t.id);
+        toast(`'${name.trim()}' 텍스트 양식을 저장·활성화했습니다`, "success");
+        setName("");
+      }
+      setTextEditing(null); refresh();
     } catch (e: any) { toast("저장 실패: " + (e?.message || ""), "error"); }
   };
 
@@ -152,15 +157,16 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">양식 이름</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 2026 표준 견적서" className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         </div>
-        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF 디자인을 배경으로 두고 변수 위치만 지정(원본 그대로)">
-          {busy ? "처리 중…" : "PDF 업로드 (오버레이)"}
-          <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
-        </label>
-        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer border ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="PDF를 편집 가능한 텍스트로 변환 — 내용을 직접 고치고 {{변수}}를 넣습니다">
-          {busy ? "처리 중…" : "텍스트로 변환"}
+        {/* 텍스트변환이 기본(권장) — 내용 수정·표·서식·{{변수}} 가능. 오버레이는 디자인 100% 보존용 보조. */}
+        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF를 편집 가능한 텍스트로 변환 — 내용을 직접 고치고 표·서식·{{변수}}를 넣습니다 (권장)">
+          {busy ? "처리 중…" : "PDF 업로드 (텍스트 변환·권장)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileText(f); e.target.value = ""; }} />
+        </label>
+        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer border ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="PDF 디자인을 배경 이미지로 두고 변수 위치만 지정(원본 100% 보존, 내용 수정 불가)">
+          {busy ? "처리 중…" : "디자인 그대로 (오버레이)"}
+          <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
         </label>
       </div>
 
@@ -175,8 +181,13 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
               {byType(dt).map((t) => (
                 <div key={t.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
                   <span className="flex-1 text-sm text-[var(--text)] font-medium truncate">{t.name}
-                    <span className="ml-1 text-[10px] text-[var(--text-dim)]">{t.page_count}p · 필드 {t.fields?.length || 0}</span>
+                    <span className="ml-1 text-[10px] text-[var(--text-dim)]">
+                      {t.template_mode === "text" ? "텍스트" : `${t.page_count}p · 필드 ${t.fields?.length || 0}`}
+                    </span>
                   </span>
+                  {t.template_mode === "text" && (
+                    <button onClick={() => startEditText(t)} className="text-xs px-2 py-1 rounded text-[var(--text)] font-medium hover:bg-[var(--bg-card)]">편집</button>
+                  )}
                   {t.is_active
                     ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">활성</span>
                     : <button onClick={() => activate(t)} className="text-xs px-2 py-1 rounded text-[var(--primary)] hover:bg-[var(--primary)]/10">활성화</button>}
@@ -206,38 +217,16 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
         document.body,
       )}
 
-      {/* 텍스트변환 편집 모달 — 추출한 평문을 다듬고 {{변수}} 삽입 */}
-      {textEditing && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setTextEditing(null)}>
-          <div className="bg-[var(--bg-card)] rounded-xl max-w-[820px] w-full max-h-[92vh] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="text-sm font-bold text-[var(--text)] mb-1">텍스트 양식 편집 — {DOC_LABEL[docType]} · {name}</div>
-            <p className="text-[11px] text-[var(--text-muted)] mb-2">PDF에서 뽑은 텍스트입니다. 내용을 자유롭게 고치고, 값이 채워질 자리에 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으세요. 발급 시 그 자리에 실제 값이 채워집니다.</p>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {TEMPLATE_VARS[docType].map((v) => (
-                <button key={v} type="button" onClick={() => insertVar(v)}
-                  className="text-[11px] px-2 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--primary)] hover:bg-[var(--primary)]/10 font-medium">{v}</button>
-              ))}
-            </div>
-            <div className="grid md:grid-cols-2 gap-3">
-              <div>
-                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">편집</div>
-                <textarea ref={textRef} value={textVal} onChange={(e) => setTextVal(e.target.value)}
-                  className="w-full h-[52vh] px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] font-mono leading-relaxed focus:outline-none focus:border-[var(--primary)]" />
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">미리보기 <span className="text-[var(--text-dim)]">(변수는 발급 시 값으로 채워짐)</span></div>
-                <div className="w-full h-[52vh] px-4 py-3 rounded-lg bg-white text-black border border-[var(--border)] overflow-auto text-sm leading-relaxed"
-                  style={{ fontFamily: "'Pretendard', system-ui, sans-serif" }}
-                  dangerouslySetInnerHTML={{ __html: fillTextTemplate(templateTextToHtml(textVal), {}, { highlightMissing: true }) }} />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-3">
-              <button onClick={() => setTextEditing(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-              <button onClick={onSaveText} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90">텍스트 양식 저장·활성화</button>
-            </div>
-          </div>
-        </div>,
-        document.body,
+      {/* 텍스트변환 편집 모달 — 리치에디터(표·굵기·정렬·크기) + {{변수}} 삽입 + 실시간 미리보기 */}
+      {textEditing && (
+        <TextTemplateEditorModal
+          title={`${DOC_LABEL[textEditing.editDocType || docType]} · ${textEditing.editName || name}`}
+          vars={TEMPLATE_VARS[textEditing.editDocType || docType]}
+          initialHtml={textEditing.initialHtml}
+          saveLabel={textEditing.editId ? "수정 저장" : "텍스트 양식 저장·활성화"}
+          onSave={onSaveText}
+          onClose={() => setTextEditing(null)}
+        />
       )}
     </div>
   );
