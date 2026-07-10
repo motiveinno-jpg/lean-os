@@ -22,10 +22,12 @@ export interface CashReceipt {
   identity_type: 'phone' | 'bizno' | 'card' | null;
   purpose: 'expenditure_proof' | 'income_deduction' | null;
   status: 'issued' | 'cancelled' | 'void';
-  source: 'manual' | 'hometax_sync' | 'pos';
+  source: 'manual' | 'hometax_sync' | 'pos' | 'codef';
   deal_id: string | null;
   memo: string | null;
   created_at: string;
+  document_key?: string | null;   // 팝빌 발행 문서번호 (CODEF 실발행 건)
+  nts_state_code?: string | null; // 300 발행완료 / 301~303 전송전 / 304 전송완료 / 305 전송실패 / 400 취소
 }
 
 export const PURPOSE_LABELS: Record<string, string> = {
@@ -109,6 +111,52 @@ export async function cancelCashReceipt(receiptId: string) {
     .update({ status: 'cancelled' })
     .eq('id', receiptId);
   if (error) throw error;
+}
+
+// ── 국세청 실발행 (CODEF ↔ 팝빌) — cashbill-issue 엣지 ──
+
+async function callCashbillEdge(body: Record<string, unknown>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('로그인이 필요합니다');
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error('Supabase URL 미설정');
+  const res = await fetch(`${supabaseUrl}/functions/v1/cashbill-issue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+    body: JSON.stringify(body),
+  });
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(result.error || `현금영수증 처리 실패 (HTTP ${res.status})`);
+    (err as any).hint = result.hint;
+    throw err;
+  }
+  return result as { success: boolean; receipt?: CashReceipt; documentKey?: string; message?: string };
+}
+
+// 국세청 즉시발행 (승인거래) — 성공 시 서버가 cash_receipts 행 생성
+export async function issueCashReceiptNts(params: {
+  amount: number;
+  identityNum: string;
+  identityType: 'phone' | 'bizno' | 'card';
+  purpose: 'expenditure_proof' | 'income_deduction';
+  taxationType?: '과세' | '비과세';
+  counterpartyName?: string;
+  itemName?: string;
+  email?: string;
+  memo?: string;
+}) {
+  return callCashbillEdge({ action: 'issue', ...params });
+}
+
+// 국세청 승인번호·전송상태 조회 (발행 당일 밤 24시 국세청 일괄 전송 후 부여)
+export async function refreshCashReceiptNts(receiptId: string) {
+  return callCashbillEdge({ action: 'refresh', receipt_id: receiptId });
+}
+
+// 발행취소 (취소거래 국세청 신고 — 승인번호 필요)
+export async function cancelCashReceiptNts(receiptId: string, memo?: string) {
+  return callCashbillEdge({ action: 'cancel', receipt_id: receiptId, memo });
 }
 
 // ── 집계 ──

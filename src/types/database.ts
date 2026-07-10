@@ -1541,11 +1541,14 @@ export type Database = {
           counterparty_name: string | null
           created_at: string | null
           deal_id: string | null
+          document_key: string | null
           id: string
           identity_number: string | null
           identity_type: string | null
           issue_date: string
+          issue_response: Json | null
           memo: string | null
+          nts_state_code: string | null
           purpose: string | null
           source: string | null
           status: string | null
@@ -1562,11 +1565,14 @@ export type Database = {
           counterparty_name?: string | null
           created_at?: string | null
           deal_id?: string | null
+          document_key?: string | null
           id?: string
           identity_number?: string | null
           identity_type?: string | null
           issue_date: string
+          issue_response?: Json | null
           memo?: string | null
+          nts_state_code?: string | null
           purpose?: string | null
           source?: string | null
           status?: string | null
@@ -1583,11 +1589,14 @@ export type Database = {
           counterparty_name?: string | null
           created_at?: string | null
           deal_id?: string | null
+          document_key?: string | null
           id?: string
           identity_number?: string | null
           identity_type?: string | null
           issue_date?: string
+          issue_response?: Json | null
           memo?: string | null
+          nts_state_code?: string | null
           purpose?: string | null
           source?: string | null
           status?: string | null

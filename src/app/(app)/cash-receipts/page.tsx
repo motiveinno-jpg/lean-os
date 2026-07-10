@@ -13,6 +13,9 @@ import {
   getCashReceiptSummary,
   bulkImportCashReceipts,
   parseHomeTaxCashReceipts,
+  issueCashReceiptNts,
+  refreshCashReceiptNts,
+  cancelCashReceiptNts,
   STATUS_LABELS,
   PURPOSE_LABELS,
 } from "@/lib/cash-receipts";
@@ -53,6 +56,63 @@ export default function CashReceiptsPage() {
   const [uploading, setUploading] = useState(false);
   const [partnerSearch, setPartnerSearch] = useState("");
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
+
+  // ─── 국세청 실발행 (CODEF ↔ 팝빌) ───
+  const INITIAL_ISSUE_FORM = {
+    amount: "",
+    purpose: "income_deduction" as "expenditure_proof" | "income_deduction",
+    identityNumber: "",
+    identityType: "phone" as "phone" | "bizno" | "card",
+    taxationType: "과세" as "과세" | "비과세",
+    counterpartyName: "",
+    itemName: "",
+    memo: "",
+  };
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [issueForm, setIssueForm] = useState(INITIAL_ISSUE_FORM);
+  const [issuing, setIssuing] = useState(false);
+  const [ntsBusyId, setNtsBusyId] = useState<string | null>(null); // 행별 조회/취소 진행 중
+
+  const handleNtsIssue = async () => {
+    if (issuing) return;
+    const amount = Number(issueForm.amount);
+    if (!amount || amount <= 0) { toast("금액을 입력하세요", "error"); return; }
+    const idDigits = issueForm.identityNumber.replace(/\D/g, "");
+    if (idDigits.length < 10) { toast("식별번호(휴대폰/사업자/카드번호)를 확인하세요", "error"); return; }
+    setIssuing(true);
+    try {
+      const result = await issueCashReceiptNts({
+        amount,
+        identityNum: issueForm.identityNumber,
+        identityType: issueForm.identityType,
+        purpose: issueForm.purpose,
+        taxationType: issueForm.taxationType,
+        counterpartyName: issueForm.counterpartyName || undefined,
+        itemName: issueForm.itemName || undefined,
+        memo: issueForm.memo || undefined,
+      });
+      toast(result.message || "현금영수증 발행 완료", "success");
+      setShowIssueModal(false);
+      setIssueForm(INITIAL_ISSUE_FORM);
+      setTab("income");
+      queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
+    } catch (err: any) {
+      toast(`발행 실패: ${err.message}${err.hint ? ` — ${err.hint}` : ""}`, "error");
+    } finally { setIssuing(false); }
+  };
+
+  const handleNtsRefresh = async (receipt: CashReceipt) => {
+    if (ntsBusyId) return;
+    setNtsBusyId(receipt.id);
+    try {
+      const result = await refreshCashReceiptNts(receipt.id);
+      toast(result.message || "상태 갱신 완료", "success");
+      queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
+    } catch (err: any) {
+      toast(`조회 실패: ${err.message}`, "error");
+    } finally { setNtsBusyId(null); }
+  };
 
   // ─── 홈택스 sync (현금영수증 매출) ───
   // 동기화 기간 = 헤더 조회기간(startDate~endDate) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
@@ -379,15 +439,32 @@ export default function CashReceiptsPage() {
   };
 
   const handleCancel = async (receipt: CashReceipt) => {
-    const { ok } = await confirmDialog({ title: "현금영수증 취소", desc: `${receipt.counterparty_name || "현금영수증"} ₩${Number(receipt.amount).toLocaleString()} 을(를) 취소합니다.`, confirmLabel: "취소 확정", danger: true });
+    const isNts = receipt.source === "codef";
+    const { ok } = await confirmDialog({
+      title: isNts ? "현금영수증 발행취소 (국세청)" : "현금영수증 취소",
+      desc: isNts
+        ? `${receipt.counterparty_name || "현금영수증"} ₩${Number(receipt.amount).toLocaleString()} 을(를) 취소거래로 국세청에 신고합니다. 취소 후 되돌릴 수 없습니다.`
+        : `${receipt.counterparty_name || "현금영수증"} ₩${Number(receipt.amount).toLocaleString()} 을(를) 취소합니다.`,
+      confirmLabel: "취소 확정", danger: true,
+    });
     if (!ok) return;
     try {
+      if (isNts) {
+        setNtsBusyId(receipt.id);
+        const result = await cancelCashReceiptNts(receipt.id);
+        toast(result.message || "발행취소 완료", "success");
+        queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
+        queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
+        return;
+      }
       await cancelCashReceipt(receipt.id);
       toast("현금영수증이 취소되었습니다", "success");
       queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
       queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
     } catch (err: any) {
       toast(`취소 실패: ${err.message}`, "error");
+    } finally {
+      setNtsBusyId(null);
     }
   };
 
@@ -441,6 +518,17 @@ export default function CashReceiptsPage() {
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
+            className="cashbill-issue-open btn-primary text-xs"
+            title="CODEF·팝빌 연동으로 현금영수증을 국세청에 실제 발행합니다"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            국세청 발행
+          </button>
           <button
               onClick={startSync}
               disabled={syncStarting || !!activeJobId}
@@ -898,14 +986,36 @@ export default function CashReceiptsPage() {
                           >
                             {st.label}
                           </span>
+                          {r.source === "codef" && r.status === "issued" && (
+                            <div className={`mt-1 text-[9px] font-semibold ${
+                              r.nts_state_code === "304" ? "text-emerald-500"
+                                : r.nts_state_code === "305" ? "text-red-400"
+                                : "text-[var(--text-dim)]"
+                            }`}>
+                              {r.nts_state_code === "304" ? "국세청 전송완료"
+                                : r.nts_state_code === "305" ? "국세청 전송실패"
+                                : "국세청 전송대기"}
+                            </div>
+                          )}
                         </td>
-                        <td className="px-5 py-3 text-center">
+                        <td className="px-5 py-3 text-center whitespace-nowrap">
+                          {r.source === "codef" && r.status === "issued" && !r.approval_number && (
+                            <button
+                              onClick={() => handleNtsRefresh(r)}
+                              disabled={ntsBusyId === r.id}
+                              className="mr-1.5 text-[10px] font-semibold px-2 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition disabled:opacity-50"
+                              title="국세청 승인번호는 발행 당일 밤 24시 일괄 전송 후 부여됩니다"
+                            >
+                              {ntsBusyId === r.id ? "조회 중..." : "승인번호 조회"}
+                            </button>
+                          )}
                           {r.status === "issued" && (
                             <button
                               onClick={() => handleCancel(r)}
-                              className="text-[10px] font-semibold px-2 py-1 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition"
+                              disabled={ntsBusyId === r.id}
+                              className="text-[10px] font-semibold px-2 py-1 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition disabled:opacity-50"
                             >
-                              취소
+                              {r.source === "codef" ? "발행취소" : "취소"}
                             </button>
                           )}
                         </td>
@@ -956,6 +1066,92 @@ export default function CashReceiptsPage() {
           )
         )}
       </div>
+
+      {/* 국세청 실발행 모달 — CODEF·팝빌 연동 즉시발행 */}
+      {showIssueModal && (
+        <div className="cashbill-issue-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => !issuing && setShowIssueModal(false)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">발행 즉시 효력이 생기며, 당일 밤 24시에 국세청으로 일괄 전송됩니다. 승인번호는 전송 후 부여됩니다.</div>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="flex gap-2">
+                {([["income_deduction", "소득공제 (개인)"], ["expenditure_proof", "지출증빙 (사업자)"]] as const).map(([v, label]) => (
+                  <button key={v} type="button"
+                    onClick={() => setIssueForm((f) => ({ ...f, purpose: v, identityType: v === "income_deduction" ? "phone" : "bizno", identityNumber: "" }))}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition ${issueForm.purpose === v ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">합계금액 (VAT포함) *</label>
+                <CurrencyInput
+                  value={issueForm.amount}
+                  onValueChange={(raw) => setIssueForm((f) => ({ ...f, amount: raw }))}
+                  placeholder="110,000"
+                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]"
+                />
+                {issueForm.amount && Number(issueForm.amount) > 0 && issueForm.taxationType === "과세" && (
+                  <div className="text-[10px] text-[var(--text-dim)] mt-1">
+                    공급가액 ₩{Math.round(Number(issueForm.amount) / 1.1).toLocaleString()} / 부가세 ₩{(Number(issueForm.amount) - Math.round(Number(issueForm.amount) / 1.1)).toLocaleString()}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">과세형태</label>
+                  <select value={issueForm.taxationType} onChange={(e) => setIssueForm((f) => ({ ...f, taxationType: e.target.value as any }))} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
+                    <option value="과세">과세</option>
+                    <option value="비과세">비과세</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">식별번호 유형</label>
+                  <select value={issueForm.identityType} onChange={(e) => setIssueForm((f) => ({ ...f, identityType: e.target.value as any }))} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
+                    <option value="phone">휴대폰번호</option>
+                    <option value="bizno">사업자번호</option>
+                    <option value="card">카드번호</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">
+                  식별번호 * {issueForm.purpose === "income_deduction" ? "(소비자 휴대폰/카드번호)" : "(거래처 사업자번호)"}
+                </label>
+                <input value={issueForm.identityNumber}
+                  onChange={(e) => setIssueForm((f) => ({ ...f, identityNumber: e.target.value }))}
+                  placeholder={issueForm.purpose === "income_deduction" ? "010-0000-0000" : "000-00-00000"}
+                  className="field-input" />
+                {issueForm.purpose === "income_deduction" && (
+                  <div className="text-[10px] text-[var(--text-dim)] mt-1">자진발급(번호 미확보 소비자)은 010-000-1234 입력</div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">{issueForm.purpose === "income_deduction" ? "고객명" : "거래처명"}</label>
+                  <input value={issueForm.counterpartyName} onChange={(e) => setIssueForm((f) => ({ ...f, counterpartyName: e.target.value }))} placeholder="선택" className="field-input" />
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">상품명</label>
+                  <input value={issueForm.itemName} onChange={(e) => setIssueForm((f) => ({ ...f, itemName: e.target.value }))} placeholder="선택" className="field-input" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-1">메모</label>
+                <input value={issueForm.memo} onChange={(e) => setIssueForm((f) => ({ ...f, memo: e.target.value }))} placeholder="관리용 메모 (선택)" className="field-input" />
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <button onClick={() => setShowIssueModal(false)} disabled={issuing} className="btn-ghost text-xs">닫기</button>
+              <button onClick={handleNtsIssue} disabled={issuing} className="btn-primary text-xs">
+                {issuing ? "발행 중..." : "국세청 발행"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 일괄 전표처리 모달 — 선택된 미처리 현금영수증을 계정 1개로 일괄 생성 */}
       {showBulkPost && (
