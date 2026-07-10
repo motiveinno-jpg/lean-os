@@ -259,6 +259,14 @@ export default function TaxInvoicesPage() {
     }
     return "sales";
   });
+  // ?tab= 딥링크는 마운트 시에만 반영됐음 — 이미 이 페이지에 있는 상태에서 대시보드의
+  //   '부가세 납부'(?tab=vat) 링크를 눌러도 탭이 안 바뀌던 문제. searchParams 변경도 동기화.
+  useEffect(() => {
+    const t = searchParams?.get("tab");
+    if (t === "sales" || t === "purchase" || t === "vat" || t === "summary" || t === "queue" || t === "sync") {
+      setTab(t);
+    }
+  }, [searchParams]);
   // 보기 범위 — localStorage 에 저장해 새로고침해도 유지. default 는 1년 전 ~ 현재 월.
   const [viewFromMonth, setViewFromMonth] = useState(() => {
     if (typeof window !== "undefined") {
@@ -1450,7 +1458,10 @@ export default function TaxInvoicesPage() {
             {unmatched > 0 ? `전체 ${invoices.length}건 중 딜 자동연결 안 됨` : "모든 계산서 딜 연결 완료"}
           </div>
         </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
+        {/* 예상 부가세 카드 클릭 → VAT 미리보기 탭 (사장님 QA 2026-07-10) */}
+        <div className="glass-card card-hover p-5 flex flex-col gap-3 cursor-pointer" role="button" tabIndex={0}
+          onClick={() => setTab("vat")} onKeyDown={(e) => { if (e.key === "Enter") setTab("vat"); }}
+          title="클릭하면 VAT 미리보기(분기별 납부 예상)로 이동">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">예상 부가세 납부액</span>
             <span className="kpi-icon text-base leading-none">🧾</span>

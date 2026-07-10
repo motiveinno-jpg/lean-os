@@ -81,6 +81,13 @@ export async function getPartner(id: string) {
 
 // ── Create or update partner ──
 
+// 사업자등록번호 표준 표기 000-00-00000 — 10자리 숫자면 하이픈 포맷으로 저장(사장님 QA 2026-07-10).
+export function normalizeBizNo(b?: string | null): string | null {
+  if (b === undefined || b === null) return b ?? null;
+  const d = String(b).replace(/[^0-9]/g, '');
+  return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : (String(b).trim() || null);
+}
+
 export async function upsertPartner(params: UpsertPartnerParams) {
   const row: Record<string, unknown> = {
     company_id: params.companyId,
@@ -89,7 +96,7 @@ export async function upsertPartner(params: UpsertPartnerParams) {
 
   if (params.type !== undefined) row.type = params.type;
   if (params.classification !== undefined) row.classification = params.classification;
-  if (params.businessNumber !== undefined) row.business_number = params.businessNumber;
+  if (params.businessNumber !== undefined) row.business_number = normalizeBizNo(params.businessNumber);
   if (params.representative !== undefined) row.representative = params.representative;
   if (params.contactName !== undefined) row.contact_name = params.contactName;
   if (params.contactEmail !== undefined) row.contact_email = params.contactEmail;
