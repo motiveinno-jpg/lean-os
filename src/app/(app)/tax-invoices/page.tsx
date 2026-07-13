@@ -1341,89 +1341,7 @@ export default function TaxInvoicesPage() {
 
       {/* 매출·매입 목록의 요약·경고 — 이 두 탭에서만 노출 (집계·자동발행 탭엔 중복이라 숨김) */}
       {(tab === "sales" || tab === "purchase") && (<>
-      {/* Duplicate Invoice Warning Banner */}
-      {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).length > 0 && (
-        <div className="no-print mb-6 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl px-5 py-4 shadow-md">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-[var(--warning)] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-            <div className="flex-1">
-              <div className="text-sm font-bold text-[var(--warning)]">중복 의심 세금계산서 감지</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1 space-y-1">
-                {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).map((dup) => (
-                  <div key={dup.key}>
-                    <button type="button" onClick={() => setExpandedDupKey(expandedDupKey === dup.key ? null : dup.key)}
-                      className="text-left hover:underline">
-                      <span className="font-medium text-[var(--text)]">{dup.counterpartyName}</span>
-                      {" / "}
-                      {fmt(dup.amount)}
-                      {" / "}
-                      {dup.date}
-                      {" — "}
-                      <span className="text-[var(--warning)] font-semibold">{dup.count}건 동일</span>
-                      <span className="text-[var(--primary)] ml-1 text-[10px]">(클릭하여 확인)</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="caption mt-1.5">
-                클릭하면 해당 세금계산서를 확인할 수 있습니다. 중복이 아닌 경우 &quot;확인&quot;을 눌러주세요.
-              </div>
-            </div>
-          </div>
-          {expandedDupKey && (() => {
-            const dup = duplicateInvoices.find(d => d.key === expandedDupKey);
-            if (!dup) return null;
-            const dupInvs = invoices.filter((inv: any) => dup.ids.includes(inv.id));
-            return (
-              <div className="mt-3 border-t border-[var(--warning)]/20 pt-3">
-                <div className="text-xs font-semibold text-[var(--text)] mb-2">
-                  {dup.counterpartyName} — {fmt(dup.amount)} — {dup.date} ({dup.count}건)
-                </div>
-                <div className="space-y-2">
-                  {dupInvs.map((inv: any) => (
-                    <div key={inv.id} className="flex items-center gap-3 bg-[var(--bg-card)] rounded-lg px-3 py-2 border border-[var(--border)]">
-                      <div className="flex-1 text-xs">
-                        <span className="font-medium">{inv.counterparty_name}</span>
-                        <span className="text-[var(--text-muted)] mx-2">|</span>
-                        <span className="font-mono">₩{Number(inv.supply_amount).toLocaleString("ko-KR")}</span>
-                        <span className="text-[var(--text-dim)] ml-2">{inv.issue_date}</span>
-                        <span className="text-[var(--text-dim)] ml-2">({invoiceStatusMeta(inv.status, inv.type).label})</span>
-                      </div>
-                      <button type="button" onClick={() => setSelectedInvoice(inv)}
-                        className="text-[10px] px-2 py-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition">
-                        상세
-                      </button>
-                      <button type="button" onClick={async () => {
-                        const { ok: rowOk } = await confirmDialog({ title: "세금계산서 삭제", desc: `${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString()}`, danger: true });
-                        if (!rowOk) return;
-                        await supabase.from("tax_invoices").delete().eq("id", inv.id);
-                        invalidate();
-                        toast("세금계산서가 삭제되었습니다", "success");
-                      }}
-                        className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">
-                        삭제
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button type="button" onClick={() => {
-                  setDismissedDups(prev => {
-                    const next = new Set([...prev, expandedDupKey!]);
-                    try { localStorage.setItem(`tax-dup-dismissed-${companyId}`, JSON.stringify([...next])); } catch { /* noop */ }
-                    return next;
-                  });
-                  setExpandedDupKey(null);
-                }}
-                  className="mt-2 text-[10px] px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition font-semibold">
-                  ✓ 확인 완료 (중복 아님 — 이 경고 숨기기)
-                </button>
-              </div>
-            );
-          })()}
-        </div>
-      )}
+      {/* 중복의심·주의할계산서·필수확인 3블록 → 아래 「점검 리포트」 카드로 통합(2026-07-13) */}
 
       {/* Summary Cards — TeamHub KPI 카드 패턴: [라벨 + kpi-icon] / [큰 값] / [실데이터 보조행] */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" data-print-area>
@@ -1494,40 +1412,105 @@ export default function TaxInvoicesPage() {
         </div>
       </div>
 
-      {/* 시안 알림 2박스 — 실데이터 파생(가짜 텍스트 없음) */}
+      {/* 점검 리포트 — 중복의심·딜 미연결·작성중·홈택스 미발행을 한 카드로 통합(2026-07-13, 3블록 압축).
+          예상 부가세는 위 KPI 카드에 이미 있어 제외(중복 방지). */}
       {(() => {
+        const dups = duplicateInvoices.filter((d) => !dismissedDups.has(d.key));
         const draftCount = invoices.filter((i: any) => i.status === "draft").length;
         const unissued = invoices.filter((i: any) => i.type === "sales" && i.status !== "draft" && !i.nts_confirm_no).length;
-        const warn: string[] = [];
-        if (unmatched > 0) warn.push(`미매칭 ${unmatched}건 — 거래/입금 매칭 필요`);
-        if (draftCount > 0) warn.push(`작성 중(미발행) ${draftCount}건 — 발행 권장`);
-        if (unissued > 0) warn.push(`홈택스 미발행 ${unissued}건 — 국세청 승인번호 없음`);
-        const must: string[] = [`예상 부가세 ${vatEstimate >= 0 ? "납부" : "환급"}액 ${fmt(Math.abs(vatEstimate))}`];
-        if (unmatched > 0) must.push(`미매칭 ${unmatched}건 회수·매칭 확인`);
+        const items = [
+          { key: "dup", label: "중복 의심", count: dups.length, tone: "warning" as const, hint: "동일 거래처·금액·일자", expandable: true },
+          { key: "unmatched", label: "딜 미연결", count: unmatched, tone: "danger" as const, hint: "거래/입금 매칭 필요" },
+          { key: "draft", label: "작성 중 (미발행)", count: draftCount, tone: "warning" as const, hint: "홈택스 발행 권장" },
+          { key: "unissued", label: "홈택스 미발행", count: unissued, tone: "warning" as const, hint: "국세청 승인번호 없음" },
+        ].filter((it) => it.count > 0);
+        const totalIssues = items.reduce((s, it) => s + it.count, 0);
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 no-print">
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 shadow-md">
-              <div className="flex items-start gap-3">
-                <span className="p-2 rounded-lg bg-amber-500/15 text-amber-500 shrink-0 text-base leading-none">⚠️</span>
-                <div className="min-w-0">
-                  <p className="font-bold text-[var(--text)] mb-1.5">주의할 계산서</p>
-                  <ul className="space-y-1 text-sm text-[var(--text-muted)]">
-                    {warn.length > 0 ? warn.map((w, i) => <li key={i} className="flex gap-2"><span className="text-amber-500 shrink-0">•</span><span>{w}</span></li>) : <li className="text-[var(--text-dim)]">주의 항목 없음 — 이상 없음</li>}
-                  </ul>
-                </div>
+          <div className="tax-check-report glass-card p-5 mb-6 no-print">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="kpi-icon text-base leading-none">🔎</span>
+                <span className="text-[15px] font-bold text-[var(--text)]">점검 리포트</span>
               </div>
+              <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${totalIssues > 0 ? "bg-[var(--warning)]/12 text-[var(--warning)]" : "bg-[var(--success)]/12 text-[var(--success)]"}`}>
+                {totalIssues > 0 ? `확인 필요 ${totalIssues}건` : "이상 없음"}
+              </span>
             </div>
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-5 shadow-md">
-              <div className="flex items-start gap-3">
-                <span className="p-2 rounded-lg bg-rose-500/15 text-rose-500 shrink-0 text-base leading-none">📌</span>
-                <div className="min-w-0">
-                  <p className="font-bold text-[var(--text)] mb-1.5">필수 확인사항</p>
-                  <ul className="space-y-1 text-sm text-[var(--text-muted)]">
-                    {must.map((m, i) => <li key={i} className="flex gap-2"><span className="text-rose-500 shrink-0">•</span><span>{m}</span></li>)}
-                  </ul>
-                </div>
+            {items.length === 0 ? (
+              <div className="text-sm text-[var(--text-dim)] flex items-center gap-2 py-1.5">
+                <span className="text-[var(--success)]">✓</span> 확인할 항목이 없습니다 — 모두 정상입니다.
               </div>
-            </div>
+            ) : (
+              <div className="divide-y divide-[var(--border)]">
+                {items.map((it) => (
+                  <div key={it.key}>
+                    <div className="flex items-center gap-3 py-2.5">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${it.tone === "danger" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"}`} />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm font-semibold text-[var(--text)]">{it.label}</span>
+                        <span className="text-xs text-[var(--text-dim)] ml-2">{it.hint}</span>
+                      </div>
+                      <span className={`text-sm font-bold mono-number ${it.tone === "danger" ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{it.count}건</span>
+                      {it.expandable && (
+                        <button type="button" onClick={() => setExpandedDupKey(expandedDupKey ? null : (dups[0]?.key ?? null))}
+                          className="text-[11px] px-2 py-1 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] transition shrink-0">
+                          {expandedDupKey ? "접기" : "펼치기"}
+                        </button>
+                      )}
+                    </div>
+                    {/* 중복 의심 상세 — 그룹별 계산서 리스트 + 상세/삭제/중복아님 */}
+                    {it.key === "dup" && expandedDupKey && dups.length > 0 && (
+                      <div className="pb-3 pl-4 space-y-3">
+                        {dups.map((dup) => {
+                          const dupInvs = invoices.filter((inv: any) => dup.ids.includes(inv.id));
+                          return (
+                            <div key={dup.key} className="rounded-lg border border-[var(--warning)]/25 bg-[var(--warning)]/5 p-3">
+                              <div className="text-xs font-semibold text-[var(--text)] mb-2">
+                                {dup.counterpartyName} — {fmt(dup.amount)} — {dup.date} <span className="text-[var(--warning)]">({dup.count}건 동일)</span>
+                              </div>
+                              <div className="space-y-2">
+                                {dupInvs.map((inv: any) => (
+                                  <div key={inv.id} className="flex items-center gap-3 bg-[var(--bg-card)] rounded-lg px-3 py-2 border border-[var(--border)]">
+                                    <div className="flex-1 text-xs min-w-0">
+                                      <span className="font-medium">{inv.counterparty_name}</span>
+                                      <span className="text-[var(--text-muted)] mx-2">|</span>
+                                      <span className="font-mono">₩{Number(inv.supply_amount).toLocaleString("ko-KR")}</span>
+                                      <span className="text-[var(--text-dim)] ml-2">{inv.issue_date}</span>
+                                      <span className="text-[var(--text-dim)] ml-2">({invoiceStatusMeta(inv.status, inv.type).label})</span>
+                                    </div>
+                                    <button type="button" onClick={() => setSelectedInvoice(inv)}
+                                      className="text-[10px] px-2 py-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition shrink-0">상세</button>
+                                    <button type="button" onClick={async () => {
+                                      const { ok: rowOk } = await confirmDialog({ title: "세금계산서 삭제", desc: `${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString()}`, danger: true });
+                                      if (!rowOk) return;
+                                      await supabase.from("tax_invoices").delete().eq("id", inv.id);
+                                      invalidate();
+                                      toast("세금계산서가 삭제되었습니다", "success");
+                                    }}
+                                      className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition shrink-0">삭제</button>
+                                  </div>
+                                ))}
+                              </div>
+                              <button type="button" onClick={() => {
+                                setDismissedDups((prev) => {
+                                  const next = new Set([...prev, dup.key]);
+                                  try { localStorage.setItem(`tax-dup-dismissed-${companyId}`, JSON.stringify([...next])); } catch { /* noop */ }
+                                  return next;
+                                });
+                                setExpandedDupKey(null);
+                              }}
+                                className="mt-2 text-[10px] px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition font-semibold">
+                                ✓ 중복 아님 (이 그룹 숨기기)
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       })()}
