@@ -9,7 +9,7 @@ import { supabase } from './supabase';
 const db = supabase as any;
 
 // ── 플랜 타입 정의 ──
-export type PlanSlug = 'free' | 'starter' | 'business' | 'enterprise';
+export type PlanSlug = 'free' | 'starter' | 'basic' | 'business' | 'ultra' | 'pro' | 'enterprise';
 
 export interface PlanInfo {
   id: string;
@@ -622,7 +622,7 @@ export interface UsageLimits {
 }
 
 // 플랜별 기본 제한 (DB에 없을 경우 폴백)
-const PLAN_LIMITS: Record<PlanSlug, UsageLimits> = {
+const PLAN_LIMITS: Partial<Record<PlanSlug, UsageLimits>> = {
   free: {
     maxSeats: 3,
     maxProjects: 2,
@@ -657,7 +657,67 @@ export async function getUsageLimits(companyId: string): Promise<UsageLimits> {
   const subscription = await getCurrentSubscription(companyId);
   const planSlug = subscription?.planSlug || 'free';
 
-  return PLAN_LIMITS[planSlug] || PLAN_LIMITS.free;
+  return PLAN_LIMITS[planSlug] || PLAN_LIMITS.free!;
+}
+
+// ── 14.5 세금계산서 / 현금영수증 국세청 발행 월간 한도 조회 (요금제별 차등, NULL=무제한) ──
+export interface IssuanceLimitStatus {
+  limit: number | null; // null = 무제한
+  used: number;
+  remaining: number | null;
+  planName: string | null;
+}
+
+export async function getTaxInvoiceIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
+  const { data: subRow } = await db
+    .from('subscriptions')
+    .select('subscription_plans(name, monthly_tax_invoice_limit)')
+    .eq('company_id', companyId)
+    .in('status', ['active', 'trialing', 'paused', 'past_due'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const limit = subRow?.subscription_plans?.monthly_tax_invoice_limit ?? null;
+  const planName = subRow?.subscription_plans?.name ?? null;
+  if (limit === null) return { limit: null, used: 0, remaining: null, planName };
+
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const { count } = await db
+    .from('tax_invoices')
+    .select('id', { count: 'exact', head: true })
+    .eq('company_id', companyId)
+    .eq('nts_issue_status', 'issued')
+    .gte('nts_issued_at', monthStart.toISOString());
+  const used = count || 0;
+  return { limit, used, remaining: Math.max(0, limit - used), planName };
+}
+
+export async function getCashReceiptIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
+  const { data: subRow } = await db
+    .from('subscriptions')
+    .select('subscription_plans(name, monthly_cashbill_limit)')
+    .eq('company_id', companyId)
+    .in('status', ['active', 'trialing', 'paused', 'past_due'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const limit = subRow?.subscription_plans?.monthly_cashbill_limit ?? null;
+  const planName = subRow?.subscription_plans?.name ?? null;
+  if (limit === null) return { limit: null, used: 0, remaining: null, planName };
+
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const { count } = await db
+    .from('cash_receipts')
+    .select('id', { count: 'exact', head: true })
+    .eq('company_id', companyId)
+    .eq('source', 'codef')
+    .neq('status', 'cancelled')
+    .gte('issue_date', monthStart);
+  const used = count || 0;
+  return { limit, used, remaining: Math.max(0, limit - used), planName };
 }
 
 // ── 15. Stripe Checkout 세션 생성 요청 (클라이언트에서 API route 호출) ──

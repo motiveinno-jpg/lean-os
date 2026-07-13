@@ -151,6 +151,34 @@ serve(async (req) => {
         return json({ error: `회사 정보가 비어 있습니다: ${missing.join(", ")} — 설정 → 회사 정보에서 입력하세요.` }, 400);
       }
 
+      // 요금제 발행 한도 확인 (monthly_cashbill_limit NULL=무제한)
+      const { data: subRow } = await admin
+        .from("subscriptions")
+        .select("subscription_plans(name, monthly_cashbill_limit)")
+        .eq("company_id", companyId)
+        .in("status", ["active", "trialing", "paused", "past_due"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const planLimit = subRow?.subscription_plans?.monthly_cashbill_limit;
+      if (typeof planLimit === "number") {
+        const monthStart = todayKst().slice(0, 7) + "-01";
+        const { count } = await admin
+          .from("cash_receipts")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", companyId)
+          .eq("source", "codef")
+          .neq("status", "cancelled")
+          .gte("issue_date", monthStart);
+        if ((count || 0) >= planLimit) {
+          return json({
+            error: `이번 달 현금영수증 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
+            hint: `${subRow?.subscription_plans?.name || "현재 요금제"}는 월 ${planLimit}건까지 발행 가능합니다. 울트라로 업그레이드하면 무제한 발행할 수 있습니다.`,
+            code: "PLAN_LIMIT_EXCEEDED",
+          }, 429);
+        }
+      }
+
       // 팝빌 제휴사 회원가입 (멱등 — 이미 가입이면 무시하고 진행)
       try {
         await codefRequest(token, JOIN_PATH, {

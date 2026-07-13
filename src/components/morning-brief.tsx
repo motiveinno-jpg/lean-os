@@ -30,6 +30,7 @@ interface MorningBriefProps {
   hasData: boolean;
   yesterdayTx?: YesterdayTxSummary | null;
   userId?: string;
+  aiBriefingEnabled?: boolean;
 }
 
 // AI 브리핑 2.0 구조(액션 플랜) — 엣지가 json_schema 강제 출력으로 생성 (구버전 캐시는 평문 폴백)
@@ -129,6 +130,7 @@ export function MorningBrief({
   hasData,
   yesterdayTx,
   userId,
+  aiBriefingEnabled = false,
 }: MorningBriefProps) {
   const now = new Date();
   const today = formatTodayKorean(now);
@@ -176,7 +178,7 @@ export function MorningBrief({
 
   const aiBrief = useQuery({
     queryKey: briefKey,
-    enabled: hasData && !!cashPulse,
+    enabled: hasData && !!cashPulse && aiBriefingEnabled,
     staleTime: 6 * 60 * 60 * 1000,
     retry: false,
     queryFn: async (): Promise<string | null> => {
@@ -494,6 +496,13 @@ export function MorningBrief({
             }}
           >
             {line4}
+          </p>
+        )}
+
+        {!aiBrief && !aiBriefingEnabled && (
+          <p className="morning-brief-upsell text-[11px] text-[var(--text-dim)] mt-1">
+            ✦ 매일 아침 AI가 오늘의 우선순위를 액션 플랜으로 정리해 드리는 <b>AI 브리핑</b>은 울트라 요금제 전용입니다.{" "}
+            <Link href="/billing" className="text-[var(--primary)] font-semibold hover:underline">업그레이드 →</Link>
           </p>
         )}
 

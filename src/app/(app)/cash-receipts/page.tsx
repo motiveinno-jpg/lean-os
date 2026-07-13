@@ -20,6 +20,7 @@ import {
   PURPOSE_LABELS,
 } from "@/lib/cash-receipts";
 import type { CashReceipt } from "@/lib/cash-receipts";
+import { getCashReceiptIssuanceStatus } from "@/lib/billing";
 import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
@@ -260,6 +261,15 @@ export default function CashReceiptsPage() {
     queryFn: () => getCashReceiptSummary(companyId!, startDate, endDate),
     enabled: !!companyId,
   });
+
+  // 요금제별 현금영수증 국세청 발행 월간 한도 (기본요금제=10건, 울트라=무제한)
+  const { data: issuanceStatus } = useQuery({
+    queryKey: ["cashbill-issuance-status", companyId],
+    queryFn: () => getCashReceiptIssuanceStatus(companyId!),
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+  const issuanceLimitReached = !!issuanceStatus && issuanceStatus.limit !== null && (issuanceStatus.remaining ?? 0) <= 0;
 
   const { data: partners = [] } = useQuery({
     queryKey: ["partners-for-cash", companyId],
@@ -518,16 +528,30 @@ export default function CashReceiptsPage() {
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {issuanceStatus && issuanceStatus.limit !== null && (
+            <span
+              className="cash-receipt-issuance-badge px-2.5 py-1 rounded-md text-[11px] font-semibold border"
+              style={{
+                background: issuanceLimitReached ? "color-mix(in srgb, #ef4444 12%, transparent)" : "var(--bg-surface)",
+                borderColor: issuanceLimitReached ? "#ef4444" : "var(--border)",
+                color: issuanceLimitReached ? "#ef4444" : "var(--text-muted)",
+              }}
+              title={`${issuanceStatus.planName || "현재 요금제"} — 국세청 발행은 월 ${issuanceStatus.limit}건까지 가능합니다`}
+            >
+              국세청 발행 이번 달 {issuanceStatus.used}/{issuanceStatus.limit}건
+            </span>
+          )}
           <button
             type="button"
             onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
-            className="cashbill-issue-open btn-primary text-xs"
-            title="CODEF·팝빌 연동으로 현금영수증을 국세청에 실제 발행합니다"
+            disabled={issuanceLimitReached}
+            title={issuanceLimitReached ? `${issuanceStatus?.planName || '현재 요금제'}의 이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다. 울트라로 업그레이드하면 무제한 발행할 수 있습니다.` : "CODEF·팝빌 연동으로 현금영수증을 국세청에 실제 발행합니다"}
+            className="cashbill-issue-open btn-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            국세청 발행
+            {issuanceLimitReached ? "발행 한도 소진" : "국세청 발행"}
           </button>
           <button
               onClick={startSync}

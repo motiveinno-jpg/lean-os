@@ -28,6 +28,7 @@ import {
   issueTaxInvoice,
   registerHometaxIssuer,
 } from "@/lib/tax-invoice";
+import { getTaxInvoiceIssuanceStatus } from "@/lib/billing";
 import type { PeriodType } from "@/lib/tax-invoice";
 import { getCardDeductionSummary } from "@/lib/card-transactions";
 import * as XLSX from "xlsx";
@@ -710,6 +711,14 @@ export default function TaxInvoicesPage() {
     enabled: !!companyId,
   });
 
+  // 요금제별 세금계산서 국세청 발행 월간 한도 (기본요금제=10건, 울트라=무제한)
+  const { data: issuanceStatus } = useQuery({
+    queryKey: ["tax-invoice-issuance-status", companyId],
+    queryFn: () => getTaxInvoiceIssuanceStatus(companyId!),
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+
   // Invoice queue (자동발행 대기)
   const { data: queueItems = [], isLoading: queueLoading } = useQuery({
     queryKey: ["invoice-queue", companyId],
@@ -1149,9 +1158,22 @@ export default function TaxInvoicesPage() {
             </div>
           </div>
           )}
+          {issuanceStatus && issuanceStatus.limit !== null && (
+            <span
+              className="tax-invoice-issuance-badge ml-auto self-center px-2.5 py-1 rounded-md text-[11px] font-semibold border"
+              style={{
+                background: issuanceStatus.remaining === 0 ? "color-mix(in srgb, #ef4444 12%, transparent)" : "var(--bg-surface)",
+                borderColor: issuanceStatus.remaining === 0 ? "#ef4444" : "var(--border)",
+                color: issuanceStatus.remaining === 0 ? "#ef4444" : "var(--text-muted)",
+              }}
+              title={`${issuanceStatus.planName || "현재 요금제"} — 국세청 발행은 월 ${issuanceStatus.limit}건까지 가능합니다`}
+            >
+              국세청 발행 이번 달 {issuanceStatus.used}/{issuanceStatus.limit}건
+            </span>
+          )}
           <button
             onClick={() => setShowForm(true)}
-            className="ml-auto self-center btn-primary"
+            className={issuanceStatus && issuanceStatus.limit === null ? "ml-auto self-center btn-primary" : "self-center btn-primary"}
             title="세금계산서를 등록합니다"
           >
             + 세금계산서 등록
@@ -2078,6 +2100,7 @@ export default function TaxInvoicesPage() {
           invoice={selectedInvoice}
           companyInfo={companyInfo}
           partners={partners}
+          issuanceStatus={issuanceStatus}
           onClose={() => setSelectedInvoice(null)}
           onModify={(inv: any) => {
             setSelectedInvoice(null);
@@ -2710,7 +2733,8 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
 }
 
 // ── Invoice Detail Modal (세금계산서 상세) ──
-function InvoiceDetailModal({ invoice, companyInfo, partners, onClose, onModify }: { invoice: any; companyInfo?: any; partners?: any[]; onClose: () => void; onModify: (inv: any) => void }) {
+function InvoiceDetailModal({ invoice, companyInfo, partners, issuanceStatus, onClose, onModify }: { invoice: any; companyInfo?: any; partners?: any[]; issuanceStatus?: { limit: number | null; used: number; remaining: number | null; planName: string | null }; onClose: () => void; onModify: (inv: any) => void }) {
+  const issuanceLimitReached = !!issuanceStatus && issuanceStatus.limit !== null && (issuanceStatus.remaining ?? 0) <= 0;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const inv = invoice;
@@ -3111,23 +3135,30 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, onClose, onModify 
                   </button>
                   <button
                     onClick={handleIssue}
-                    disabled={issueLoading}
+                    disabled={issueLoading || issuanceLimitReached}
+                    title={issuanceLimitReached ? `${issuanceStatus?.planName || '현재 요금제'}의 이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다` : undefined}
                     className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition disabled:opacity-50"
                   >
-                    {issueLoading ? '발행 중...' : '② 지금 홈택스 발행'}
+                    {issueLoading ? '발행 중...' : issuanceLimitReached ? '이번 달 발행 한도 소진' : '② 지금 홈택스 발행'}
                   </button>
                   <span className="text-[10px] text-red-400/80">또는 홈택스에서 직접 발행</span>
                 </div>
+                {issuanceLimitReached && (
+                  <div className="mt-2 text-[10px] text-amber-500">
+                    {issuanceStatus?.planName || '현재 요금제'}는 월 {issuanceStatus?.limit}건까지 국세청 발행이 가능합니다. 울트라로 업그레이드하면 무제한으로 발행할 수 있습니다. (설정 → 요금제)
+                  </div>
+                )}
               </div>
             )}
             <div className="flex items-center gap-2 flex-wrap">
               {inv.status === 'draft' && (
                 <button
                   onClick={handleIssue}
-                  disabled={issueLoading}
+                  disabled={issueLoading || issuanceLimitReached}
+                  title={issuanceLimitReached ? `${issuanceStatus?.planName || '현재 요금제'}의 이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다` : undefined}
                   className="px-4 py-2 bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] rounded-lg text-sm font-semibold transition disabled:opacity-50"
                 >
-                  {issueLoading ? '발행 중...' : '발행 처리'}
+                  {issueLoading ? '발행 중...' : issuanceLimitReached ? '이번 달 발행 한도 소진' : '발행 처리'}
                 </button>
               )}
               <button

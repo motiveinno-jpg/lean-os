@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getCurrentUser, getFounderData, saveExcelData, getFinancialDashboardData, getDrillDownLevel2, getDrillDownLevel3, getDrillDownLevel4, getCashPulseData } from "@/lib/queries";
+import { getCurrentSubscription } from "@/lib/billing";
 import { buildCashPulse, getPulseLevel, type CashPulseResult } from "@/lib/cash-pulse";
 import { buildFounderDashboard, buildFinancialDashboard as buildFinDash, type FounderDashboardData, type FinancialDashboardData, type RiskLabel, type RiskItem, getRunwayLevel } from "@/lib/engines";
 import { parseExcel, type ParsedExcelData } from "@/lib/excel-parser";
@@ -258,6 +259,15 @@ export default function DashboardPage() {
     enabled: !!companyId,
     refetchInterval: 60_000,
   });
+
+  // 요금제 — AI 브리핑은 울트라/엔터프라이즈 전용
+  const { data: subscription } = useQuery({
+    queryKey: ["subscription-plan-dashboard", companyId],
+    queryFn: () => getCurrentSubscription(companyId!),
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
+  });
+  const aiBriefingEnabled = subscription?.planSlug === "ultra" || subscription?.planSlug === "enterprise";
 
   // 현금 상태 data
   const { data: pulseRaw } = useQuery({
@@ -514,6 +524,7 @@ export default function DashboardPage() {
               dashboard={dashboard}
               hasData={hasData}
               userId={userId ?? undefined}
+              aiBriefingEnabled={aiBriefingEnabled}
             />
             {(() => {
               const nearestTax = getUpcomingTaxDeadlines(30)[0];

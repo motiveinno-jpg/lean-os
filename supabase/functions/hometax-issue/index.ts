@@ -287,6 +287,35 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // 3.5) 요금제 발행 한도 확인 (기본요금제 등 유한 플랜 — monthly_tax_invoice_limit NULL=무제한)
+    const { data: subRow } = await supabase
+      .from("subscriptions")
+      .select("subscription_plans(name, monthly_tax_invoice_limit)")
+      .eq("company_id", invoice.company_id)
+      .in("status", ["active", "trialing", "paused", "past_due"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const planLimit = subRow?.subscription_plans?.monthly_tax_invoice_limit;
+    if (typeof planLimit === "number") {
+      const monthStart = new Date();
+      monthStart.setUTCDate(1);
+      monthStart.setUTCHours(0, 0, 0, 0);
+      const { count } = await supabase
+        .from("tax_invoices")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", invoice.company_id)
+        .eq("nts_issue_status", "issued")
+        .gte("nts_issued_at", monthStart.toISOString());
+      if ((count || 0) >= planLimit) {
+        return new Response(JSON.stringify({
+          error: `이번 달 세금계산서 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
+          hint: `${subRow?.subscription_plans?.name || "현재 요금제"}는 월 ${planLimit}건까지 발행 가능합니다. 울트라로 업그레이드하면 무제한 발행할 수 있습니다.`,
+          code: "PLAN_LIMIT_EXCEEDED",
+        }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // 4) company + connected_id + credentials
     const [{ data: company }, { data: settings }] = await Promise.all([
       supabase.from("companies").select("*").eq("id", invoice.company_id).maybeSingle(),

@@ -7331,6 +7331,8 @@ export type Database = {
           is_active: boolean | null
           max_employees: number | null
           max_seats: number | null
+          monthly_cashbill_limit: number | null
+          monthly_tax_invoice_limit: number | null
           name: string
           per_seat_price: number
           semiannual_discount: number | null
@@ -7350,6 +7352,8 @@ export type Database = {
           is_active?: boolean | null
           max_employees?: number | null
           max_seats?: number | null
+          monthly_cashbill_limit?: number | null
+          monthly_tax_invoice_limit?: number | null
           name: string
           per_seat_price?: number
           semiannual_discount?: number | null
@@ -7369,6 +7373,8 @@ export type Database = {
           is_active?: boolean | null
           max_employees?: number | null
           max_seats?: number | null
+          monthly_cashbill_limit?: number | null
+          monthly_tax_invoice_limit?: number | null
           name?: string
           per_seat_price?: number
           semiannual_discount?: number | null
