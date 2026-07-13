@@ -898,7 +898,7 @@ export default function ProjectHubDetailPage() {
 
       {/* 탭 — 유형별 노출 탭(typeCfg.tabs). 세부 프로젝트(캠페인) 화면에서는 '세부 프로젝트'(2단계 제한)·'프로젝트 운영' 숨김 */}
       <div className="seg-bar overflow-x-auto max-w-full">
-        {typeCfg.tabs.filter((k) => !(deal.parent_deal_id && (k === "subprojects" || k === "pnl"))).map((k) => (
+        {typeCfg.tabs.map((k) => (
           <button key={k} onClick={() => setTab(k)}
             className={`seg-item whitespace-nowrap ${tab === k ? "seg-item-active" : ""}`}>
             {TAB_LABEL[k]}
@@ -1029,7 +1029,7 @@ export default function ProjectHubDetailPage() {
             <span className="text-[11px] text-[var(--text-dim)]">매출·매입 항목 · 마진 산정 기준</span>
           </div>
           <SubDealsTab dealId={dealId} companyId={companyId}
-            campaignInherit={deal.parent_deal_id ? null : { partnerId: deal?.partner_id || null, managerId: deal?.internal_manager_id || null, classification: deal?.classification || null }} />
+            campaignInherit={{ partnerId: deal?.partner_id || null, managerId: deal?.internal_manager_id || null, classification: deal?.classification || null }} />
         </div>
       )}
 
@@ -1216,7 +1216,7 @@ export default function ProjectHubDetailPage() {
           <div className="text-xs font-bold text-[var(--text-muted)] mb-2 mt-1">{pipelineDir === "sales" ? "매출 항목 관리" : "매입 항목 관리"}</div>
           {/* 최상위 프로젝트에서만 '캠페인으로도 생성' 허용 (세부 프로젝트 2단계 제한) */}
           <SubDealsTab dealId={dealId} companyId={companyId} direction={pipelineDir}
-            campaignInherit={deal.parent_deal_id ? null : { partnerId: deal?.partner_id || null, managerId: deal?.internal_manager_id || null, classification: deal?.classification || null }} />
+            campaignInherit={{ partnerId: deal?.partner_id || null, managerId: deal?.internal_manager_id || null, classification: deal?.classification || null }} />
         </div>
       )}
 
@@ -1224,13 +1224,9 @@ export default function ProjectHubDetailPage() {
       {tab === "subprojects" && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-xs text-[var(--text-muted)]">이 프로젝트 안의 세부 프로젝트(캠페인)입니다. <span className="text-[var(--text-dim)]">행을 클릭하면 해당 캠페인의 개요·견적서·전자계약으로 이동합니다.</span></p>
-            {deal.parent_deal_id ? (
-              <span className="text-[11px] text-[var(--text-dim)]">세부 프로젝트는 2단계까지만 — 캠페인 안에는 추가할 수 없습니다.</span>
-            ) : (
-              <button onClick={() => { resetChildForm(); setChildName(`${deal.name || "프로젝트"} 캠페인`); setShowChildForm(true); }}
-                className="btn-primary text-xs hover:opacity-90">+ 세부 프로젝트 추가</button>
-            )}
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트 안의 세부 프로젝트입니다. <span className="text-[var(--text-dim)]">행을 클릭하면 해당 세부 프로젝트의 개요·거래·문서로 이동합니다(상위와 동일 구조).</span></p>
+            <button onClick={() => { resetChildForm(); setChildName(`${deal.name || "프로젝트"} 세부`); setShowChildForm(true); }}
+              className="btn-primary text-xs hover:opacity-90">+ 세부 프로젝트 추가</button>
           </div>
 
           {showChildForm && (
@@ -1273,7 +1269,7 @@ export default function ProjectHubDetailPage() {
           )}
 
           {(children as any[]).length === 0 ? (
-            <Empty text={deal.parent_deal_id ? "이 캠페인에는 세부 프로젝트가 없습니다." : "세부 프로젝트(캠페인)가 없습니다. 위 “+ 세부 프로젝트 추가”로 캠페인을 만들어 보세요."} />
+            <Empty text="세부 프로젝트가 없습니다. 위 “+ 세부 프로젝트 추가”로 만들어 보세요. 세부 프로젝트도 상위와 동일하게 거래·문서·정산을 갖습니다." />
           ) : (
             <div className="glass-card overflow-x-auto">
               <table className="w-full text-sm border-collapse">
@@ -1323,8 +1319,8 @@ export default function ProjectHubDetailPage() {
               </table>
             </div>
           )}
-          {!deal.parent_deal_id && (
-            <p className="text-[11px] text-[var(--text-dim)]">※ 상위 프로젝트의 개요·운영 탭 금액·손익은 자기 자신 + 모든 세부 프로젝트를 <b className="text-[var(--text-muted)]">합산(롤업)</b>해 표시됩니다.</p>
+          {hasChildren && (
+            <p className="text-[11px] text-[var(--text-dim)]">※ 이 프로젝트의 개요·운영 금액·손익은 자기 자신 + <b className="text-[var(--text-muted)]">직속 세부 프로젝트</b>를 합산(롤업)해 표시됩니다.</p>
           )}
 
           {/* 캠페인 수정 모달 */}
