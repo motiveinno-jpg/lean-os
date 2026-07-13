@@ -1105,6 +1105,8 @@ export default function TaxInvoicesPage() {
       {/* 기간설정 + 등록 — 한 줄로 통합(2026-07-13 정리). 인쇄·조회하기 제거(월 변경 시 자동 반영). */}
       <div className="mb-3 no-print rounded-lg overflow-hidden border border-[var(--border)]">
         <div className="bg-[var(--bg-card)] p-2.5 flex flex-wrap items-stretch gap-x-0 gap-y-2">
+          {/* 조회기간은 목록(매출·매입)에서만 — 집계/부가세 탭은 자체 기간(월별·분기·연간) 사용(중복 제거) */}
+          {(tab === "sales" || tab === "purchase") && (
           <div className="flex flex-wrap items-stretch border border-[var(--border)] rounded-md overflow-hidden min-w-0 max-w-full">
             <div className="px-3 flex items-center text-[11px] font-bold text-[var(--text-muted)]" style={{ background: "color-mix(in srgb, var(--primary) 6%, var(--bg-surface))" }}>조회기간</div>
             <div className="px-3 py-2 flex items-center gap-2 flex-wrap min-w-0">
@@ -1146,6 +1148,7 @@ export default function TaxInvoicesPage() {
               ))}
             </div>
           </div>
+          )}
           <button
             onClick={() => setShowForm(true)}
             className="ml-auto self-center btn-primary"
