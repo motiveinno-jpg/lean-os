@@ -1103,19 +1103,8 @@ export default function TaxInvoicesPage() {
     <div className="" data-print-area>
       {confirmElement}
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* 툴바 — 액션 버튼 (타이틀은 공통 헤더바가 담당) */}
+      {/* 툴바 — 액션 버튼 (타이틀은 공통 헤더바가 담당). 인쇄 제거(개별 인쇄는 상세에서). */}
       <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2 mb-6">
-          <button
-            onClick={() => window.print()}
-            className="no-print btn-secondary cursor-pointer"
-            title="현재 페이지 인쇄"
-            aria-label="인쇄"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            인쇄
-          </button>
           <button
             onClick={() => setShowForm(!showForm)}
             className="no-print btn-primary"
@@ -1773,25 +1762,28 @@ export default function TaxInvoicesPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
+        {/* 주 탭 — 매출·매입만. 나머지(자동발행·집계·부가세·동기화)는 아래 보조 버튼으로 이동(정리). */}
         <div className="seg-bar flex-wrap">
           {[
             { key: "sales" as const, label: "매출", count: salesInvoices.length },
             { key: "purchase" as const, label: "매입", count: purchaseInvoices.length },
-            { key: "queue" as const, label: "자동발행" },
-            // "3-Way 매칭" 탭은 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21)
-            { key: "summary" as const, label: "기간별 집계" },
-            { key: "vat" as const, label: "VAT 미리보기" },
-            { key: "sync" as const, label: "홈택스 동기화" },
           ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key as any)}
-              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}
-            >
+            <button key={t.key} onClick={() => setTab(t.key)} className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
+              {t.label}<span className="text-xs opacity-70 ml-1">({t.count})</span>
+            </button>
+          ))}
+        </div>
+        {/* 보조 — 자동발행·집계·부가세·홈택스 동기화(작게, 필요할 때만) */}
+        <div className="flex items-center gap-0.5 flex-wrap">
+          {([
+            { key: "queue", label: "자동발행" },
+            { key: "summary", label: "기간별 집계" },
+            { key: "vat", label: "부가세" },
+            { key: "sync", label: "홈택스 동기화" },
+          ] as const).map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`px-2.5 py-1 rounded-lg text-[13px] font-medium transition ${tab === t.key ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
               {t.label}
-              {"count" in t && t.count !== undefined && (
-                <span className="text-xs opacity-70 ml-1">({t.count})</span>
-              )}
             </button>
           ))}
         </div>
