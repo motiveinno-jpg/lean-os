@@ -105,7 +105,7 @@ const TAB_LABEL: Record<TabKey, string> = {
   subprojects: "세부 프로젝트(캠페인)",
   pnl: "프로젝트 운영",
   performance: "성과",
-  tasks: "태스크",
+  tasks: "실행",
   workflow: "워크플로우",
 };
 const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "transactions", "issues", "sales_pipeline", "purchase_pipeline", "subprojects", "pnl", "performance", "tasks", "workflow"];

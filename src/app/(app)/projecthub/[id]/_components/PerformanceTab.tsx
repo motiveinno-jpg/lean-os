@@ -345,13 +345,15 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
 
   const amAssigned = !!user?.id && assignedIds.has(user.id);
   const showCheckinPrompt = cadence !== "none" && !mySubmittedThisPeriod && (isManager || amAssigned);
+  // 성과 하위 탭 — 자주 쓰는 입력(체크인·실적)을 앞으로, 설정(KPI·주기·멤버)은 뒤로.
+  const [subTab, setSubTab] = useState<"checkin" | "entries" | "setup">("checkin");
 
   return (
     <div className="space-y-5">
       {/* 이번 주 체크인 프롬프트 — 배정 멤버/관리자가 이번 주기 미제출 시 */}
       {showCheckinPrompt && (
         <button
-          onClick={() => document.getElementById("checkin-form")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+          onClick={() => { setSubTab("checkin"); setTimeout(() => document.getElementById("checkin-form")?.scrollIntoView({ behavior: "smooth", block: "center" }), 50); }}
           className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30 text-left hover:bg-[var(--primary)]/15 transition"
         >
           <div className="flex items-center gap-3">
@@ -365,9 +367,17 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
         </button>
       )}
 
-      {/* ⓪ 성과 운영 — 체크인 주기 + 멤버 배정 */}
+      {/* 성과 하위 탭 */}
+      <div className="seg-bar">
+        {([["checkin", "성과 체크인"], ["entries", "실적 입력"], ["setup", "설정"]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setSubTab(k)} className={`seg-item ${subTab === k ? "seg-item-active" : ""}`}>{l}</button>
+        ))}
+      </div>
+
+      {subTab === "setup" && (<>
+      {/* 성과 운영 — 체크인 주기 + 멤버 배정 */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold text-[var(--text)]">⓪ 성과 운영 <span className="font-normal text-[var(--text-dim)] text-xs">(체크인 주기 · 멤버 배정)</span></h3>
+        <h3 className="text-sm font-bold text-[var(--text)]">성과 운영 <span className="font-normal text-[var(--text-dim)] text-xs">(체크인 주기 · 멤버 배정)</span></h3>
         <div className="glass-card p-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* 체크인 주기 */}
           <div>
@@ -427,7 +437,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
 
       {/* ① KPI 관리 */}
       <section className="space-y-3">
-        <h3 className="text-sm font-bold text-[var(--text)]">① KPI 관리</h3>
+        <h3 className="text-sm font-bold text-[var(--text)]">KPI 관리 <span className="font-normal text-[var(--text-dim)] text-xs">(목표 정의)</span></h3>
         <div className="glass-card p-4">
           <div className="text-xs font-bold text-[var(--text-muted)] mb-3">{kpiForm.id ? "KPI 수정" : "+ KPI 추가"}</div>
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
@@ -516,9 +526,11 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
         )}
       </section>
 
-      {/* ② KPI 실적 입력 (수동 KPI) */}
+      </>)}
+
+      {subTab === "entries" && (
       <section className="space-y-3">
-        <h3 className="text-sm font-bold text-[var(--text)]">② 실적 입력 <span className="font-normal text-[var(--text-dim)] text-xs">(수동 KPI · 매출 자동은 세금계산서에서 집계)</span></h3>
+        <h3 className="text-sm font-bold text-[var(--text)]">실적 입력 <span className="font-normal text-[var(--text-dim)] text-xs">(수동 KPI · 매출 자동은 세금계산서에서 집계)</span></h3>
         {manualKpis.length === 0 ? (
           <div className="glass-card p-6 text-center text-sm text-[var(--text-muted)]">
             수동 입력 KPI가 없습니다. 위에서 실적 출처 <b className="text-[var(--text)]">‘수동 입력’</b> KPI를 추가하면 여기서 실적을 기록할 수 있습니다.
@@ -597,9 +609,11 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
         )}
       </section>
 
-      {/* ③ 성과 체크인 타임라인 */}
+      )}
+
+      {subTab === "checkin" && (
       <section className="space-y-3">
-        <h3 className="text-sm font-bold text-[var(--text)]">③ 성과 체크인 <span className="font-normal text-[var(--text-dim)] text-xs">(신호등 + 3문항 · 작성 시점 KPI 달성률 자동 기록)</span></h3>
+        <h3 className="text-sm font-bold text-[var(--text)]">성과 체크인 <span className="font-normal text-[var(--text-dim)] text-xs">(신호등 + 3문항 · 작성 시점 KPI 달성률 자동 기록)</span></h3>
         <div id="checkin-form" className="glass-card p-4 space-y-3 scroll-mt-24">
           {cadence !== "none" && (
             <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs ${mySubmittedThisPeriod ? "bg-green-500/10 text-green-600" : "bg-amber-500/10 text-amber-600"}`}>
@@ -700,6 +714,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }
