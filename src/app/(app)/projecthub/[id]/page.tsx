@@ -566,14 +566,35 @@ export default function ProjectHubDetailPage() {
     },
     enabled: !!companyId && !!dealId,
   });
-  const childIds = useMemo(() => (children as any[]).map((c) => c.id), [children]);
-  // 손익 집계 대상 = 자기 자신 + 모든 세부 프로젝트 (롤업)
-  const costDealIds = useMemo(() => [dealId, ...childIds], [dealId, childIds]);
+  // 회사 전체 deals 트리(경량 2컬럼) — 재귀 자손 집계용. prod DB 변경 없이 클라이언트에서 관통 합산.
+  const { data: allDeals = [] } = useQuery({
+    queryKey: ["projecthub-all-deals", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("deals").select("id, parent_deal_id").eq("company_id", companyId).is("archived_at", null);
+      return (data || []) as { id: string; parent_deal_id: string | null }[];
+    },
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+  const childrenMap = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    for (const d of allDeals as any[]) { if (d.parent_deal_id) (m[d.parent_deal_id] ||= []).push(d.id); }
+    return m;
+  }, [allDeals]);
+  // dealId 의 모든 자손(직속 + 그 아래 전부). 최상위가 전 하위를 관통해 합산.
+  const descendantIds = useMemo(() => {
+    const out: string[] = []; const seen = new Set<string>();
+    const stack = [...(childrenMap[dealId] || [])];
+    while (stack.length) { const id = stack.pop()!; if (seen.has(id)) continue; seen.add(id); out.push(id); for (const c of childrenMap[id] || []) stack.push(c); }
+    return out;
+  }, [childrenMap, dealId]);
+  // 손익 집계 대상 = 자기 자신 + 모든 자손(재귀 롤업)
+  const costDealIds = useMemo(() => [dealId, ...descendantIds], [dealId, descendantIds]);
 
   // 매출/매입 관리(sub_deals) — 자기 + 모든 캠페인 롤업. 개요=약정 마진 산출, 캠페인 목록=항목별 합.
   //   금액은 '입력 총액'으로 저장되고 vat_type 플래그를 가짐 → 마진은 공급가액(net)으로 환산(inclusive ÷1.1).
   const { data: subDeals = [] } = useQuery({
-    queryKey: ["projecthub-subdeals-roll", dealId, childIds.length],
+    queryKey: ["projecthub-subdeals-roll", dealId, descendantIds.length],
     queryFn: async () => {
       const { data } = await db.from("sub_deals")
         .select("id, parent_deal_id, type, contract_amount, vat_type")
@@ -587,17 +608,26 @@ export default function ProjectHubDetailPage() {
   const hasInclusiveSub = useMemo(() => (subDeals as any[]).some((s) => s.vat_type === "inclusive"), [subDeals]);
   const subSalesSum = useMemo(() => (subDeals as any[]).filter((s) => s.type === "sales").reduce((a, s) => a + subNet(s), 0), [subDeals]);
   const subPurchaseSum = useMemo(() => (subDeals as any[]).filter((s) => s.type === "purchase").reduce((a, s) => a + subNet(s), 0), [subDeals]);
-  // 캠페인(자식 deal)별 매출/매입 합 — 캠페인 목록 표시용 (공급가액 기준)
+  // 세부 프로젝트별 매출/매입 합 — 각 직속 자식의 '전체 하위 트리'를 관통 합산(공급가액 기준).
   const subByDeal = useMemo(() => {
-    const m: Record<string, { sales: number; purchase: number }> = {};
+    // 1) deal 별 자기 sub_deals 합
+    const own: Record<string, { sales: number; purchase: number }> = {};
     for (const s of subDeals as any[]) {
       const pid = s.parent_deal_id;
-      if (!m[pid]) m[pid] = { sales: 0, purchase: 0 };
-      if (s.type === "sales") m[pid].sales += subNet(s);
-      else if (s.type === "purchase") m[pid].purchase += subNet(s);
+      if (!own[pid]) own[pid] = { sales: 0, purchase: 0 };
+      if (s.type === "sales") own[pid].sales += subNet(s);
+      else if (s.type === "purchase") own[pid].purchase += subNet(s);
     }
+    // 2) 각 직속 자식 → 그 서브트리(자기 + 자손) 합으로 롤업
+    const subtree = (rootId: string) => {
+      let sales = 0, purchase = 0; const seen = new Set<string>(); const stack = [rootId];
+      while (stack.length) { const id = stack.pop()!; if (seen.has(id)) continue; seen.add(id); sales += own[id]?.sales || 0; purchase += own[id]?.purchase || 0; for (const c of childrenMap[id] || []) stack.push(c); }
+      return { sales, purchase };
+    };
+    const m: Record<string, { sales: number; purchase: number }> = {};
+    for (const c of children as any[]) m[c.id] = subtree(c.id);
     return m;
-  }, [subDeals]);
+  }, [subDeals, children, childrenMap]);
 
   // 상위 프로젝트 (이 deal 이 세부 프로젝트일 때) — 브레드크럼·복귀 링크
   const { data: parentDeal } = useQuery({
@@ -768,7 +798,7 @@ export default function ProjectHubDetailPage() {
   //   수익형(margin) 개요에서만 — 목표형/실행형은 자체 히어로 사용.
   const costEnabled = (tab === "overview") && !!dealId && normalizeProjectType(deal?.project_type) === "margin";
   const { data: costInvoices = [] } = useQuery({
-    queryKey: ["projecthub-cost-inv", dealId, childIds.length],
+    queryKey: ["projecthub-cost-inv", dealId, descendantIds.length],
     queryFn: async () => {
       const { data } = await db.from("tax_invoices").select("id, issue_date, counterparty_name, supply_amount, total_amount").in("deal_id", costDealIds).eq("type", "purchase").neq("status", "void").order("issue_date", { ascending: false });
       return (data || []) as any[];
@@ -776,7 +806,7 @@ export default function ProjectHubDetailPage() {
     enabled: costEnabled,
   });
   const { data: costCash = [] } = useQuery({
-    queryKey: ["projecthub-cost-cash", dealId, childIds.length],
+    queryKey: ["projecthub-cost-cash", dealId, descendantIds.length],
     queryFn: async () => {
       const { data } = await db.from("cash_receipts").select("id, issue_date, counterparty_name, amount, supply_amount").in("deal_id", costDealIds).order("issue_date", { ascending: false });
       return (data || []) as any[];
@@ -784,7 +814,7 @@ export default function ProjectHubDetailPage() {
     enabled: costEnabled,
   });
   const { data: costCards = [] } = useQuery({
-    queryKey: ["projecthub-cost-card", dealId, childIds.length],
+    queryKey: ["projecthub-cost-card", dealId, descendantIds.length],
     queryFn: async () => {
       const { data } = await db.from("card_transactions").select("id, transaction_date, merchant_name, amount, card_name").in("deal_id", costDealIds).is("journal_entry_id", null).order("transaction_date", { ascending: false });
       return (data || []) as any[];
@@ -792,7 +822,7 @@ export default function ProjectHubDetailPage() {
     enabled: costEnabled,
   });
   const { data: costVouchers = [] } = useQuery({
-    queryKey: ["projecthub-cost-voucher", dealId, childIds.length],
+    queryKey: ["projecthub-cost-voucher", dealId, descendantIds.length],
     queryFn: async () => {
       const { data } = await db.from("journal_entries").select("id, entry_date, description, journal_lines(debit, chart_of_accounts(code, name, account_type))").in("deal_id", costDealIds).eq("source", "manual").eq("status", "confirmed").order("entry_date", { ascending: false });
       return (data || []) as any[];
@@ -802,7 +832,7 @@ export default function ProjectHubDetailPage() {
 
   // 파이프라인 리본(개요) — 견적▶계약▶계산서▶정산 단계별 금액·상태 경량 집계. 수익형 개요에서만.
   const { data: pipe } = useQuery({
-    queryKey: ["projecthub-pipe-summary", dealId, childIds.length],
+    queryKey: ["projecthub-pipe-summary", dealId, descendantIds.length],
     queryFn: async () => {
       const { data: docsData } = await db.from("documents").select("id, content_type, content_json, contract_amount, status, source_document_id, created_at").eq("deal_id", dealId).order("created_at", { ascending: false });
       const list = (docsData || []) as any[];
