@@ -572,7 +572,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                         </svg>
                       </div>
                       {item.description && (
-                        <div className="mt-1 text-xs text-[var(--text-muted)] line-clamp-2 whitespace-pre-wrap">{item.description}</div>
+                        <div className="mt-1 text-xs text-[var(--text-muted)] whitespace-pre-wrap">{item.description}</div>
                       )}
                       <div className="mt-3">
                         <StageProgress current={item.currentStage} total={item.totalStages} status="pending" />
