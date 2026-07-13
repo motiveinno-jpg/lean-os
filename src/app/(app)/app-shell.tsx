@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { Sidebar } from "@/components/sidebar";
 import { GlobalSearch, openGlobalSearch } from "@/components/global-search";
 import { getRouteCrumb } from "@/lib/route-labels";
+import { PageHeader } from "@/components/report-kit";
 import { FloatingMessenger } from "@/components/floating-messenger";
 import { MenuGuide } from "@/components/menu-guide";
 import { NotificationBell } from "@/components/notification-bell";
@@ -371,6 +372,10 @@ function AppContent({ children }: { children: React.ReactNode }) {
             사이드바 오른쪽~화면 오른쪽 12px 구간을 콘텐츠가 헤더와 동일하게 가득 채움.
             좁아야 하는 페이지(폼·문서)는 페이지 내 --content-max 로 자체 제한하므로 영향 없음. */}
         <div className="w-full">
+          {/* 리포트형 표준 헤더 — desc 있는 라우트에 자동 주입(제목+설명). self-헤더 화면은 desc 없어 생략. */}
+          {crumb?.desc && (
+            <div className="mb-5"><PageHeader title={crumb.title} desc={crumb.desc} /></div>
+          )}
           {/* 유료 출시 게이트(2026-06-11): trial D-N 배너 + 만료/해지 페이월. 운영자·레거시(구독행 없음) 비차단. */}
           <RouteGuard>
             <SubscriptionGate>{children}</SubscriptionGate>
