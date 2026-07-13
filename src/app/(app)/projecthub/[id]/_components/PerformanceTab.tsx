@@ -34,7 +34,7 @@ const STATUS_META: Record<string, { dot: string; text: string; label: string }> 
   red: { dot: "bg-red-500", text: "text-red-500", label: "위험" },
 };
 
-export function PerformanceTab({ dealId, companyId, deal, onGoTab }: { dealId: string; companyId: string; deal: any; onGoTab?: (t: string) => void }) {
+export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }: { dealId: string; companyId: string; deal: any; users?: any[]; onGoTab?: (t: string) => void }) {
   const { user, role } = useUser();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -354,8 +354,8 @@ export function PerformanceTab({ dealId, companyId, deal, onGoTab }: { dealId: s
 
   const amAssigned = !!user?.id && assignedIds.has(user.id);
   const showCheckinPrompt = cadence !== "none" && !mySubmittedThisPeriod && (isManager || amAssigned);
-  // 성과 하위 탭 — 자주 쓰는 입력(체크인·실적)을 앞으로, 설정(KPI·주기·멤버)은 뒤로.
-  const [subTab, setSubTab] = useState<"checkin" | "entries" | "setup">("checkin");
+  // 성과 하위 탭 — 체크인·실행 계획·실적을 앞으로, 설정(KPI·주기·멤버)은 뒤로.
+  const [subTab, setSubTab] = useState<"checkin" | "plan" | "entries" | "setup">("checkin");
 
   return (
     <div className="space-y-5">
@@ -378,7 +378,7 @@ export function PerformanceTab({ dealId, companyId, deal, onGoTab }: { dealId: s
 
       {/* 성과 하위 탭 */}
       <div className="seg-bar">
-        {([["checkin", "성과 체크인"], ["entries", "실적 입력"], ["setup", "설정"]] as const).map(([k, l]) => (
+        {([["checkin", "성과 체크인"], ["plan", "실행 계획"], ["entries", "실적 입력"], ["setup", "설정"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setSubTab(k)} className={`seg-item ${subTab === k ? "seg-item-active" : ""}`}>{l}</button>
         ))}
       </div>
@@ -684,7 +684,7 @@ export function PerformanceTab({ dealId, companyId, deal, onGoTab }: { dealId: s
             <div className="rounded-lg border border-[var(--border)] p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-[var(--text-muted)]">➡️ 진행/예정 과제 <span className="text-[var(--primary)]">{(chkOpenTasks as any[]).length}</span></span>
-                <button onClick={() => onGoTab?.("tasks")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ 과제 등록 →</button>
+                <button onClick={() => setSubTab("plan")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ 실행 계획 →</button>
               </div>
               {(chkOpenTasks as any[]).length === 0 ? (
                 <div className="text-[11px] text-[var(--text-dim)]">예정 과제 없음</div>
@@ -694,7 +694,7 @@ export function PerformanceTab({ dealId, companyId, deal, onGoTab }: { dealId: s
                     const overdue = t.due_date && t.due_date < todayStr();
                     return <div key={t.id} className="text-[11px] text-[var(--text)] truncate flex items-center gap-1.5">· <span className="flex-1 truncate">{t.title}</span>{t.due_date && <span className={`text-[10px] mono-number ${overdue ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>{String(t.due_date).slice(5, 10)}{overdue ? "⚠" : ""}</span>}</div>;
                   })}
-                  {(chkOpenTasks as any[]).length > 4 && <button onClick={() => onGoTab?.("tasks")} className="text-[10px] text-[var(--text-dim)] hover:underline">외 {(chkOpenTasks as any[]).length - 4}건 →</button>}
+                  {(chkOpenTasks as any[]).length > 4 && <button onClick={() => setSubTab("plan")} className="text-[10px] text-[var(--text-dim)] hover:underline">외 {(chkOpenTasks as any[]).length - 4}건 →</button>}
                 </div>
               )}
             </div>
@@ -750,6 +750,103 @@ export function PerformanceTab({ dealId, companyId, deal, onGoTab }: { dealId: s
         )}
       </section>
       )}
+
+      {subTab === "plan" && (
+        <ExecutionPlan dealId={dealId} companyId={companyId} users={users} userId={user?.id || null} />
+      )}
     </div>
+  );
+}
+
+// 실행 계획 — 목표 달성을 위한 할 일 체크리스트(칸반 대신). project_tasks 재사용(완료=status done).
+function ExecutionPlan({ dealId, companyId, users, userId }: { dealId: string; companyId: string; users: any[]; userId: string | null }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [title, setTitle] = useState("");
+  const [assignee, setAssignee] = useState("");
+  const [due, setDue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const today = todayStr();
+
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ["project-tasks", dealId],
+    queryFn: async () => {
+      const { data } = await db.from("project_tasks").select("id, title, status, assignee_id, assignee_ids, due_date, position").eq("deal_id", dealId).is("archived_at", null).order("position", { ascending: true }).order("created_at", { ascending: true });
+      return (data || []) as any[];
+    },
+    enabled: !!dealId,
+  });
+  const nameOf = (id: string | null) => (id ? users.find((u) => u.id === id)?.name || "—" : "");
+  const refresh = () => { qc.invalidateQueries({ queryKey: ["project-tasks", dealId] }); qc.invalidateQueries({ queryKey: ["project-tasks-open", dealId] }); qc.invalidateQueries({ queryKey: ["goal-overview-overdue-tasks", dealId] }); };
+
+  const add = async () => {
+    if (!title.trim() || busy) return;
+    setBusy(true);
+    try {
+      const { error } = await db.from("project_tasks").insert({ company_id: companyId, deal_id: dealId, title: title.trim(), status: "todo", assignee_id: assignee || null, assignee_ids: assignee ? [assignee] : [], due_date: due || null, progress: 0, position: (tasks as any[]).length + 1, created_by: userId });
+      if (error) throw new Error(error.message);
+      setTitle(""); setAssignee(""); setDue(""); refresh();
+    } catch (e: any) { toast(e?.message || "추가 실패", "error"); } finally { setBusy(false); }
+  };
+  const toggle = async (t: any) => {
+    const done = t.status !== "done";
+    const { error } = await db.from("project_tasks").update({ status: done ? "done" : "todo", progress: done ? 100 : 0, updated_at: new Date().toISOString() }).eq("id", t.id);
+    if (error) { toast(error.message, "error"); return; }
+    refresh();
+  };
+  const del = async (t: any) => {
+    if (!confirm(`'${t.title}' 삭제할까요?`)) return;
+    const { error } = await db.from("project_tasks").update({ archived_at: new Date().toISOString() }).eq("id", t.id);
+    if (error) { toast(error.message, "error"); return; }
+    refresh();
+  };
+
+  const sorted = useMemo(() => [...(tasks as any[])].sort((a, b) => {
+    const da = a.status === "done" ? 1 : 0, db2 = b.status === "done" ? 1 : 0;
+    if (da !== db2) return da - db2; // 미완료 먼저
+    return (a.due_date || "9999").localeCompare(b.due_date || "9999");
+  }), [tasks]);
+  const doneN = (tasks as any[]).filter((t) => t.status === "done").length;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-bold text-[var(--text)]">실행 계획 <span className="font-normal text-[var(--text-dim)] text-xs">목표 달성을 위한 할 일 · 체크로 완료</span></h3>
+        {(tasks as any[]).length > 0 && <span className="text-[11px] text-[var(--text-muted)] mono-number">{doneN}/{(tasks as any[]).length}</span>}
+      </div>
+      <div className="glass-card divide-y divide-[var(--border)]/40">
+        {isLoading ? (
+          <div className="p-6 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>
+        ) : sorted.length === 0 ? (
+          <div className="p-6 text-center text-sm text-[var(--text-muted)]">할 일이 없습니다. 아래에서 바로 추가하세요.</div>
+        ) : sorted.map((t) => {
+          const overdue = t.due_date && t.status !== "done" && String(t.due_date).slice(0, 10) < today;
+          const aid = Array.isArray(t.assignee_ids) && t.assignee_ids[0] ? t.assignee_ids[0] : t.assignee_id;
+          return (
+            <div key={t.id} className="flex items-center gap-2.5 px-3 py-2.5">
+              <button onClick={() => toggle(t)} className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${t.status === "done" ? "bg-[var(--success)] border-[var(--success)] text-white" : "border-[var(--border)] hover:border-[var(--primary)]"}`} title={t.status === "done" ? "완료 해제" : "완료로 표시"}>
+                {t.status === "done" && <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+              </button>
+              <span className={`flex-1 text-sm ${t.status === "done" ? "text-[var(--text-dim)] line-through" : "text-[var(--text)]"}`}>{t.title}</span>
+              {aid && <span className="text-[11px] text-[var(--text-muted)] shrink-0">{nameOf(aid)}</span>}
+              {t.due_date && <span className={`text-[11px] mono-number shrink-0 ${overdue ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>{String(t.due_date).slice(5, 10)}{overdue ? "⚠" : ""}</span>}
+              <button onClick={() => del(t)} className="text-[var(--text-dim)] hover:text-[var(--danger)] text-xs shrink-0" title="삭제">✕</button>
+            </div>
+          );
+        })}
+        {/* 인라인 추가 */}
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-[var(--bg-surface)]/30">
+          <span className="w-5 h-5 rounded-md border border-dashed border-[var(--border)] shrink-0" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder="＋ 할 일 입력…"
+            className="flex-1 h-8 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
+          <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="h-8 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-muted)] focus:outline-none shrink-0">
+            <option value="">담당</option>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+          <DateField value={due} onChange={(e) => setDue(e.target.value)} className="h-8 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs mono-number focus:outline-none shrink-0 w-[130px]" />
+          <button onClick={add} disabled={busy || !title.trim()} className="btn-primary text-xs disabled:opacity-40 shrink-0">추가</button>
+        </div>
+      </div>
+    </section>
   );
 }

@@ -62,8 +62,8 @@ export const PROJECT_TYPES: Record<ProjectType, ProjectTypeConfig> = {
     icon: "🎯",
     desc: "여러 KPI(매출·건수 등)와 정성 성과 체크인으로 목표 달성을 관리하는 성과관리 프로젝트.",
     hero: "달성률",
-    // 실행(tasks)=실행 과제·일정, 이슈=문제점 트래커(project_issues). 목표설정→실행→이슈해결→분석 한 흐름.
-    tabs: ["overview", "performance", "tasks", "issues"],
+    // 목표형은 성과 중심 — 무거운 칸반 대신 성과 탭 안 '실행 계획'(체크리스트)으로. 이슈=문제 트래커.
+    tabs: ["overview", "performance", "issues"],
   },
   delivery: {
     type: "delivery",
