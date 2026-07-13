@@ -106,9 +106,8 @@ function buildIssuePayload(args: {
   const invoiceeType = buyerNumDigits.length === 13 ? "개인" : "사업자";
 
   const myCorpNum = (company.business_number || "").replace(/\D/g, "");
+  void connectedId; // QA 2026-07-13: connectedId 는 발행 API 공식 명세에 없는 필드 — payload 에 넣으면 CF-05001(API 처리 오류) 유발 확인. 제거.
   return {
-    // 발행 주체 인증 보강: connectedId(홈택스 연결) 동봉 — 명세 외지만 CODEF 가 인증에 사용할 수 있음.
-    ...(connectedId ? { connectedId } : {}),
     corpNum: myCorpNum,         // 회원가입 완료 사업자번호 (CODEF 필수) = 발행 주체
     issueType: "정발행",
     taxType: "과세",            // 영세/면세는 추후 invoice 유형 컬럼 연동
