@@ -2907,13 +2907,19 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, onClose, onModify 
   };
 
   // 발행 등록(최초 1회): CODEF 제휴사 회원가입 + 공동인증서 등록 URL → 새 창
+  // 주의: certURL 은 응답 후(await 이후) window.open 하면 브라우저가 "사용자 제스처 아님"으로 판단해 팝업을 무음 차단함
+  // (30초 유효 URL이라 재시도도 못 함) → 클릭 즉시(동기) 빈 창을 먼저 열고, 응답이 오면 그 창을 이동시킨다.
   const handleRegisterIssuer = async () => {
     setRegisterLoading(true);
+    const popup = window.open('', '_blank');
+    if (popup) popup.document.write('<p style="font-family:sans-serif;padding:24px;color:#555">인증서 등록 페이지를 불러오는 중입니다…</p>');
     try {
       const { certURL, message } = await registerHometaxIssuer(inv.company_id);
-      window.open(certURL, '_blank', 'noopener');
+      if (popup && !popup.closed) popup.location.href = certURL;
+      else window.open(certURL, '_blank');
       toast(message || '인증서 등록 페이지를 열었습니다. 등록 후 다시 발행하세요.', 'success');
     } catch (err: any) {
+      popup?.close();
       toast(`발행 등록 실패: ${err.message}`, 'error');
     }
     setRegisterLoading(false);
