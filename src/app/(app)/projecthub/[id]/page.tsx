@@ -218,6 +218,7 @@ export default function ProjectHubDetailPage() {
   // 견적/계약 문서 삭제 — deleteDocument RPC(연관 정리)로 삭제. 발행된 계산서(deal 참조)는 영향 없음.
   const [delDoc, setDelDoc] = useState<any | null>(null);
   const [deletingDoc, setDeletingDoc] = useState(false);
+  const [tplManagerKind, setTplManagerKind] = useState<"quote" | "contract" | null>(null); // 양식 관리 모달
   const removeDoc = async () => {
     if (!delDoc || deletingDoc) return;
     setDeletingDoc(true);
@@ -1020,19 +1021,10 @@ export default function ProjectHubDetailPage() {
 
       {(tab === "quote" || pipelineDir) && (
         <div className="space-y-3">
-          {/* 회사 견적 양식 PDF 업로드 → AI 인식 (접힘 기본 — 견적 목록을 가리지 않도록) */}
-          {companyId && (
-            <details className="form-tpl-fold glass-card group">
-              <summary className="px-4 py-2.5 cursor-pointer list-none flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)]">
-                <span className="text-[10px] text-[var(--text-dim)] group-open:rotate-90 transition-transform">▶</span>
-                📄 견적서 양식 관리 <span className="font-normal text-[var(--text-dim)]">— 회사 양식 PDF 업로드 → 자동 인식</span>
-              </summary>
-              <div className="px-3 pb-3 pt-1"><FormTemplateManager companyId={companyId} only="quote" /></div>
-            </details>
-          )}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
             <div className="flex items-center gap-2 relative">
+              {companyId && <button onClick={() => setTplManagerKind("quote")} className="btn-secondary text-xs">📄 양식 관리</button>}
               <button onClick={() => setShowColSettings((v) => !v)}
                 className="btn-secondary text-xs">⚙ 열 설정</button>
               <button onClick={pipelineDir === "purchase" ? createInboundQuote : createQuoteInstant} disabled={creatingQuote}
@@ -1125,19 +1117,10 @@ export default function ProjectHubDetailPage() {
       {/* 계약 */}
       {(tab === "contract" || pipelineDir) && (
         <div className="space-y-3">
-          {/* 회사 계약 양식 PDF 업로드 → AI 인식 (접힘 기본 — 계약 문서 목록을 가리지 않도록) */}
-          {companyId && (
-            <details className="form-tpl-fold glass-card group">
-              <summary className="px-4 py-2.5 cursor-pointer list-none flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)]">
-                <span className="text-[10px] text-[var(--text-dim)] group-open:rotate-90 transition-transform">▶</span>
-                📄 계약서 양식 관리 <span className="font-normal text-[var(--text-dim)]">— 회사 양식 PDF 업로드 → 자동 인식</span>
-              </summary>
-              <div className="px-3 pb-3 pt-1"><FormTemplateManager companyId={companyId} only="contract" /></div>
-            </details>
-          )}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
             <div className="flex items-center gap-2">
+              {companyId && <button onClick={() => setTplManagerKind("contract")} className="btn-secondary text-xs">📄 양식 관리</button>}
               <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setPayMode("full"); setPayAdv(30); setPayMid(30); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
                 className="btn-primary text-xs hover:opacity-90">+ 계약서 작성</button>
               <Link href="/signatures?bulk=1" className="btn-secondary text-xs">📤 단체 일괄 발송</Link>
@@ -1405,6 +1388,19 @@ export default function ProjectHubDetailPage() {
       )}
 
       {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
+      {/* 양식 관리 모달 — 회사 견적/계약 양식 PDF 업로드·인식(버튼으로 열기, 화면 상단 점유 제거) */}
+      {tplManagerKind && companyId && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setTplManagerKind(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold">{tplManagerKind === "quote" ? "견적서" : "계약서"} 양식 관리 <span className="font-normal text-xs text-[var(--text-dim)]">회사 양식 PDF 업로드 → 자동 인식</span></h3>
+              <button onClick={() => setTplManagerKind(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+            </div>
+            <FormTemplateManager companyId={companyId} only={tplManagerKind} />
+          </div>
+        </div>
+      )}
+
       {/* 견적/계약 문서 삭제 확인 */}
       {delDoc && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setDelDoc(null)}>
