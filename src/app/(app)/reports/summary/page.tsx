@@ -16,7 +16,7 @@ import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
-import { ReportShell, PageHeader, IntroCard, StatCard, Section } from "../_components/report-kit";
+import { ReportShell, IntroCard, StatCard, Section } from "@/components/report-kit";
 
 const db = supabase as any;
 const fmt = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
@@ -144,12 +144,6 @@ export default function ManagementSummaryPage() {
         </div>
       ) : (
         <div className="space-y-5 mt-1">
-          <PageHeader
-            title="경영 요약"
-            desc="회계 용어 없이, 지금 회사가 괜찮은지 한 화면으로 봅니다. 이번 달 손익·통장 잔액·운영 가능 기간과 다가오는 지출을 요약합니다."
-            tags={["통장 잔액", "세금계산서", "월 예산"]}
-          />
-
           <IntroCard
             eyebrow="이번 달 상태"
             title={summaryLine}
