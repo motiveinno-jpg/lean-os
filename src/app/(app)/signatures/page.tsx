@@ -36,7 +36,7 @@ import { uniquePdfName, downloadBlob } from "./_components/pdf-utils";
 import { FailurePanel } from "./_components/FailurePanel";
 import { InviteModal } from "./_components/InviteModal";
 import { OrgBulkWizard } from "./_components/OrgBulkWizard";
-import { DocumentTemplatesPanel } from "./_components/DocumentTemplatesPanel";
+import { DocumentTemplatesPanel } from "@/components/document-templates-panel";
 
 export default function SignaturesDashboardPage() {
   const { role } = useUser();
