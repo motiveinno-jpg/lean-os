@@ -16,6 +16,7 @@ import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
+import { ReportShell, PageHeader, IntroCard, StatCard, Section } from "../_components/report-kit";
 
 const db = supabase as any;
 const fmt = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
@@ -128,13 +129,13 @@ export default function ManagementSummaryPage() {
   // 규칙 기반 한 줄 요약
   const profitTxt = profit >= 0 ? `이번 달 ${fmtMan(profit)} 흑자` : `이번 달 ${fmtMan(-profit)} 적자`;
   const summaryLine = `${profitTxt}, 통장 잔액 ${fmtMan(balance)} — 현재 지출 속도라면 ${runwayTxt} 운영 가능합니다.`;
-  const bannerTone = profit < 0 && runwayTone === "danger" ? "danger" : runwayTone === "danger" ? "danger" : runwayTone === "warning" ? "warning" : "success";
-  const TONE_BG: Record<string, string> = { success: "var(--success)", warning: "var(--warning)", danger: "var(--danger)" };
 
-  const toneColor = (t: string) => TONE_BG[t] || "var(--primary)";
+  // 최근 6개월 손익 미니 추이
+  const recent = budget.slice(-6).map((b) => ({ m: b.month.slice(5), profit: (b.salesRevenue ?? 0) - (b.expenseTotal ?? 0) }));
+  const maxAbs = Math.max(1, ...recent.map((r) => Math.abs(r.profit)));
 
   return (
-    <div className="space-y-6">
+    <ReportShell>
       <ReportsTabs />
 
       {loading ? (
@@ -142,100 +143,99 @@ export default function ManagementSummaryPage() {
           <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <>
-          {/* 한 줄 요약 배너 */}
-          <div className="glass-card p-5 flex items-start gap-3">
-            <span className="text-xl leading-none mt-0.5">{bannerTone === "success" ? "🟢" : bannerTone === "warning" ? "🟡" : "🔴"}</span>
-            <div>
-              <div className="text-[15px] font-bold text-[var(--text)] leading-relaxed">{summaryLine}</div>
-              {nextVat && vatDday !== null && (
-                <div className="text-xs text-[var(--text-muted)] mt-1">
-                  다가오는 부가세 {fmt(Math.abs(nextVat.netVAT))} · 납부 D-{Math.max(0, vatDday)} ({nextVat.dueDate})
+        <div className="space-y-5 mt-1">
+          <PageHeader
+            title="경영 요약"
+            desc="회계 용어 없이, 지금 회사가 괜찮은지 한 화면으로 봅니다. 이번 달 손익·통장 잔액·운영 가능 기간과 다가오는 지출을 요약합니다."
+            tags={["통장 잔액", "세금계산서", "월 예산"]}
+          />
+
+          <IntroCard
+            eyebrow="이번 달 상태"
+            title={summaryLine}
+            desc="아래 지표는 통장·세금계산서·예산 데이터를 규칙 기반으로 재조합해 자동 계산됩니다."
+            callout={{
+              label: "운영 가능 기간 (현재 현금 기준)",
+              value: runwayTxt,
+              sub: runwayTone === "danger" ? "자금 계획이 필요합니다" : runwayTone === "warning" ? "여유가 넉넉하진 않습니다" : "당장은 안정적입니다",
+              tone: runwayTone,
+            }}
+            box={nextVat && vatDday !== null ? { label: `다가오는 부가세 · D-${Math.max(0, vatDday)}`, value: fmt(Math.abs(nextVat.netVAT)), sub: nextVat.dueDate, tone: "warning" } : undefined}
+          />
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="이번 달 손익" value={`${profit >= 0 ? "+" : "−"}${fmt(Math.abs(profit))}`} caption="매출 − 비용" tone={profit >= 0 ? "success" : "danger"} icon="📊" />
+            <StatCard label="이번 달 매출" value={fmt(sales)} caption="세금계산서 기준" tone="success" icon="💰" href="/reports/revenue" />
+            <StatCard label="이번 달 비용" value={fmt(expense)} caption="지출 합계" tone="warning" icon="⚡" href="/reports/expense" />
+            <StatCard label="통장 잔액" value={fmt(balance)} caption={`월 평균 지출 ${fmtMan(burn)}`} tone="primary" icon="🏦" />
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            <Section title="이번 달 손익 요약" desc="매출에서 비용을 뺀 이번 달 손익입니다." className="lg:col-span-2">
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                {[
+                  { l: "매출", v: fmt(sales), c: "var(--success)", cur: sales, prev: lastSales, invert: false, href: "/reports/revenue" },
+                  { l: "비용", v: fmt(expense), c: "var(--warning)", cur: expense, prev: lastExpense, invert: true, href: "/reports/expense" },
+                  { l: "손익", v: `${profit >= 0 ? "+" : "−"}${fmt(Math.abs(profit))}`, c: profit >= 0 ? "var(--success)" : "var(--danger)", cur: profit, prev: lastProfit, invert: false, href: null },
+                ].map((x) => {
+                  const inner = (
+                    <>
+                      <div className="text-[11px] text-[var(--text-muted)]">{x.l}</div>
+                      <div className="text-lg font-extrabold mono-number mt-0.5" style={{ color: x.c }}>{x.v}</div>
+                      <div className="mt-0.5"><Delta cur={x.cur} prev={x.prev} invert={x.invert} /></div>
+                    </>
+                  );
+                  return x.href
+                    ? <Link key={x.l} href={x.href} className="rounded-xl bg-[var(--bg-surface)] p-3 block no-underline hover:ring-1 hover:ring-[var(--primary)]/30 transition">{inner}</Link>
+                    : <div key={x.l} className="rounded-xl bg-[var(--bg-surface)] p-3">{inner}</div>;
+                })}
+              </div>
+              {recent.length > 1 && (
+                <div>
+                  <div className="text-[11px] text-[var(--text-dim)] mb-2">최근 손익 추이</div>
+                  <div className="flex items-end gap-2">
+                    {recent.map((r, i) => (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <div className="w-full flex items-end justify-center" style={{ height: 48 }}>
+                          <div className="w-6 rounded-t" style={{ height: `${Math.max(4, (Math.abs(r.profit) / maxAbs) * 44)}px`, background: r.profit >= 0 ? "var(--success)" : "var(--danger)" }} title={fmt(r.profit)} />
+                        </div>
+                        <span className="text-[9px] text-[var(--text-dim)] mono-number">{r.m}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
+            </Section>
 
-          {/* 신호등 3카드 — 순수 글래스 카드(색줄 없음), 신호는 라벨 앞 점 + 큰 숫자 색으로 */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: profit >= 0 ? "var(--success)" : "var(--danger)" }} />
-                이번 달 손익 <span className="text-[var(--text-dim)] font-normal">(매출 − 비용)</span>
-              </span>
-              <span className="text-[26px] leading-8 font-extrabold mono-number" style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
-                {profit >= 0 ? "+" : "−"}{fmt(Math.abs(profit))}
-              </span>
-              <Delta cur={profit} prev={lastProfit} />
-            </div>
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full shrink-0 bg-[var(--primary)]" />
-                통장 잔액 <span className="text-[var(--text-dim)] font-normal">(가용 현금)</span>
-              </span>
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmt(balance)}</span>
-              <span className="text-[11px] text-[var(--text-dim)]">월 평균 지출 약 {fmt(burn)}</span>
-            </div>
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: toneColor(runwayTone) }} />
-                운영 가능 기간 <span className="text-[var(--text-dim)] font-normal">(현재 현금 기준)</span>
-              </span>
-              <span className="text-[26px] leading-8 font-extrabold mono-number" style={{ color: toneColor(runwayTone) }}>{runwayTxt}</span>
-              <span className="text-[11px] text-[var(--text-dim)]">{runwayTone === "danger" ? "자금 계획이 필요합니다" : runwayTone === "warning" ? "여유가 넉넉하진 않습니다" : "당장은 안정적입니다"}</span>
-            </div>
-          </div>
-
-          {/* 번 돈 / 쓴 돈 / 남은 돈 */}
-          <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-4">이번 달 손익 요약</div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Link href="/reports/revenue" className="stat-tile no-underline hover:border-[var(--primary)] transition">
-                <div className="stat-tile-label">매출</div>
-                <div className="stat-tile-value mono-number text-[var(--success)]">{fmt(sales)}</div>
-                <Delta cur={sales} prev={lastSales} />
-              </Link>
-              <Link href="/reports/expense" className="stat-tile no-underline hover:border-[var(--primary)] transition">
-                <div className="stat-tile-label">비용</div>
-                <div className="stat-tile-value mono-number text-[var(--warning)]">{fmt(expense)}</div>
-                <Delta cur={expense} prev={lastExpense} invert />
-              </Link>
-              <div className="stat-tile">
-                <div className="stat-tile-label">손익</div>
-                <div className="stat-tile-value mono-number" style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>{profit >= 0 ? "+" : "−"}{fmt(Math.abs(profit))}</div>
-                <Delta cur={profit} prev={lastProfit} />
+            <Section title="주요 예정 항목" desc="곧 나갈 돈·받을 돈을 미리 챙깁니다.">
+              <div className="space-y-2">
+                {nextVat && vatDday !== null && (
+                  <Link href="/tax-invoices" className="flex items-center justify-between px-3.5 py-3 rounded-xl bg-[var(--bg-surface)] no-underline hover:ring-1 hover:ring-[var(--primary)]/30 transition">
+                    <span className="text-sm text-[var(--text)]">🧾 부가세 납부 <span className="text-[var(--text-dim)] text-xs">D-{Math.max(0, vatDday)}</span></span>
+                    <span className="mono-number font-bold text-[var(--text)]">{fmt(Math.abs(nextVat.netVAT))}</span>
+                  </Link>
+                )}
+                <div className="flex items-center justify-between px-3.5 py-3 rounded-xl bg-[var(--bg-surface)]">
+                  <span className="text-sm text-[var(--text)]">🔁 월 고정비</span>
+                  <span className="mono-number font-bold text-[var(--text)]">{fmt(mBudget?.fixedCosts ?? 0)}</span>
+                </div>
+                {(receivable?.over30 ?? 0) > 0 && (
+                  <Link href="/partners/ledger" className="flex items-center justify-between px-3.5 py-3 rounded-xl no-underline transition hover:opacity-90"
+                    style={{ background: "color-mix(in srgb, var(--danger) 8%, transparent)" }}>
+                    <span className="text-sm font-semibold text-[var(--danger)]">💰 30일+ 미수금</span>
+                    <span className="mono-number font-bold text-[var(--danger)]">{fmt(receivable!.over30)}</span>
+                  </Link>
+                )}
+                {!nextVat && (receivable?.over30 ?? 0) === 0 && (
+                  <div className="text-xs text-[var(--text-dim)] px-1 py-2">당장 예정된 지출·회수 항목이 없습니다.</div>
+                )}
               </div>
-            </div>
+            </Section>
           </div>
 
-          {/* 주요 예정 항목 */}
-          <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-3">주요 예정 항목</div>
-            <div className="space-y-2">
-              {nextVat && vatDday !== null && (
-                <Link href="/tax-invoices" className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] no-underline hover:border-[var(--primary)] transition">
-                  <span className="text-sm text-[var(--text)]">🧾 부가세 납부 <span className="text-[var(--text-dim)] text-xs">D-{Math.max(0, vatDday)} ({nextVat.dueDate})</span></span>
-                  <span className="mono-number font-bold text-[var(--text)]">{fmt(Math.abs(nextVat.netVAT))}</span>
-                </Link>
-              )}
-              <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                <span className="text-sm text-[var(--text)]">🔁 월 고정비</span>
-                <span className="mono-number font-bold text-[var(--text)]">{fmt(mBudget?.fixedCosts ?? 0)}</span>
-              </div>
-              {(receivable?.over30 ?? 0) > 0 && (
-                <Link href="/partners/ledger" className="flex items-center justify-between px-4 py-3 rounded-xl no-underline transition hover:opacity-90"
-                  style={{ background: "color-mix(in srgb, var(--danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--danger) 25%, transparent)" }}>
-                  <span className="text-sm font-semibold text-[var(--danger)]">💰 30일 이상 미수금 — 회수 필요</span>
-                  <span className="mono-number font-bold text-[var(--danger)]">{fmt(receivable!.over30)}</span>
-                </Link>
-              )}
-              {!nextVat && (receivable?.over30 ?? 0) === 0 && (
-                <div className="text-xs text-[var(--text-dim)] px-1">당장 예정된 지출·회수 항목이 없습니다.</div>
-              )}
-            </div>
-          </div>
-        </>
+          <p className="text-[11px] text-[var(--text-dim)] text-center pt-1">※ 파일럿 — 리포트형 새 디자인 미리보기. 확정되면 전 화면으로 확산합니다.</p>
+        </div>
       )}
-    </div>
+    </ReportShell>
   );
 }
