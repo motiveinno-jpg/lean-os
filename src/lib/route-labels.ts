@@ -7,7 +7,7 @@ export type RouteCrumb = { group: string | null; title: string; desc?: string };
 const ROUTE_LABELS: Record<string, RouteCrumb> = {
   // desc 가 있으면 리포트형 표준 헤더(제목+설명)가 화면 상단에 자동 표시됨(app-shell 주입).
   //   self-헤더 있는 화면(/dashboard·/reports/*·/projecthub·/settings·/chat)은 desc 생략 → 중복 방지.
-  "/dashboard": { group: "홈", title: "대시보드" },
+  "/dashboard": { group: "홈", title: "대시보드", desc: "오늘 챙길 것을 한눈에 — 내 업무·자금·일정·전자결재 현황을 봅니다." },
   "/notifications": { group: "홈", title: "알림", desc: "받은 알림을 모아 봅니다." },
 
   "/reports/flow": { group: "파이낸스", title: "경영 흐름" },
@@ -28,7 +28,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
 
   "/schedule": { group: "워크스페이스", title: "일정 / 할 일", desc: "일정과 할 일을 관리합니다." },
   "/projecthub/quotes": { group: "워크스페이스", title: "견적 수취함", desc: "협력사에서 받은 견적을 모아 봅니다." },
-  "/projecthub": { group: "워크스페이스", title: "프로젝트" },
+  "/projecthub": { group: "워크스페이스", title: "프로젝트", desc: "프로젝트를 유형별로 관리합니다." },
   "/projects": { group: "워크스페이스", title: "워크플로우", desc: "전사 작업 보드를 봅니다." },
   "/deals": { group: "워크스페이스", title: "프로젝트", desc: "프로젝트를 관리합니다." },
   "/approvals": { group: "워크스페이스", title: "결재관리", desc: "결재 요청을 승인·관리합니다." },
@@ -52,7 +52,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/loans": { group: "자산관리", title: "대출", desc: "대출 현황을 관리합니다." },
   "/vault": { group: "자산관리", title: "자산", desc: "회사 자산을 관리합니다." },
 
-  "/settings": { group: "설정·도움말", title: "회사 설정" },
+  "/settings": { group: "설정·도움말", title: "회사 설정", desc: "회사 기본·회계·인사 설정을 관리합니다." },
   "/announcements": { group: "설정·도움말", title: "공지사항", desc: "공지사항을 관리합니다." },
   "/mypage": { group: "설정·도움말", title: "마이페이지", desc: "내 계정 정보를 관리합니다." },
   "/billing": { group: "설정·도움말", title: "요금제", desc: "요금제와 결제를 관리합니다." },
