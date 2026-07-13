@@ -185,6 +185,10 @@ export default function ProjectHubDetailPage() {
   const [quoteSubDealId, setQuoteSubDealId] = useState(""); // 세부 프로젝트 연결(선택, 견적서 전용)
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [creatingContractFrom, setCreatingContractFrom] = useState<string | null>(null);
+  // 계약 결제조건 못박기 — 전액(분할 없음) vs 선금·잔금 분할. 계약 content_json.paymentRatio 로 저장.
+  const [contractSplit, setContractSplit] = useState(false);
+  const [contractAdvPct, setContractAdvPct] = useState(30);
+  const [payModalQuote, setPayModalQuote] = useState<any | null>(null); // 견적→계약 시 결제조건 모달
   const [issuingInvoiceFrom, setIssuingInvoiceFrom] = useState<string | null>(null);
   // 계산서 발행 모달 — 전액 vs 선금/잔금 분할. 계약서 content_json.paymentRatio 있으면 그대로 기본값.
   const [invoiceModal, setInvoiceModal] = useState<any | null>(null); // 발행 대상 계약 문서
@@ -277,6 +281,13 @@ export default function ProjectHubDetailPage() {
         if (error) throw error;
         newId = data?.id || null;
       }
+      // 계약서면 결제조건(선금/잔금) 못박기 — 분할이면 비율, 아니면 null(전액). 양식/기본 양쪽 커버.
+      if (formKind === "contract" && newId) {
+        const pr = contractSplit ? { advance: contractAdvPct, balance: 100 - contractAdvPct } : null;
+        const { data: cur } = await db.from("documents").select("content_json").eq("id", newId).maybeSingle();
+        const cj = { ...((cur?.content_json as any) || {}), paymentRatio: pr };
+        await db.from("documents").update({ content_json: cj }).eq("id", newId);
+      }
       qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
       setShowQuoteForm(false);
       setQuoteName("");
@@ -307,6 +318,8 @@ export default function ProjectHubDetailPage() {
       const contractContent = {
         ...CONTRACT_CONTENT,
         direction: q.direction,            // 방향(매출/매입) 유지 — 파이프라인 필터용
+        // 결제조건 못박기 — 분할이면 비율, 아니면 null(전액). 계산서 발행이 이 값을 기본값으로 따름.
+        paymentRatio: contractSplit ? { advance: contractAdvPct, balance: 100 - contractAdvPct } : null,
         header: { ...(q.header || {}) },   // 거래처·담당자·금액 이월
         items: q.items || [],              // 견적 품목 이월(참조)
         sections: [
@@ -1027,7 +1040,7 @@ export default function ProjectHubDetailPage() {
                         })}
                         <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
                           <button
-                            onClick={(e) => { e.stopPropagation(); createContractFromQuote(doc); }}
+                            onClick={(e) => { e.stopPropagation(); setContractSplit(false); setContractAdvPct(30); setPayModalQuote(doc); }}
                             disabled={creatingContractFrom === doc.id}
                             className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap"
                             title="이 견적서 내용으로 계약서를 생성합니다">
@@ -1060,7 +1073,7 @@ export default function ProjectHubDetailPage() {
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
             <div className="flex items-center gap-2">
-              <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
+              <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setContractSplit(false); setContractAdvPct(30); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
                 className="btn-primary text-xs hover:opacity-90">+ 계약서 작성</button>
               <Link href="/signatures?bulk=1" className="btn-secondary text-xs">📤 단체 일괄 발송</Link>
               <Link href="/signatures" className="btn-secondary text-xs">전자계약 메뉴 →</Link>
@@ -1079,6 +1092,12 @@ export default function ProjectHubDetailPage() {
                     return <Link href={`/documents?id=${doc.source_document_id}`} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] shrink-0 hover:underline" title="이 계약의 원본 견적서">← 견적 {src ? fmtNo(src) : "원본"}</Link>;
                   })()}
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{doc.status || "draft"}</span>
+                  {(() => {
+                    const pr = (doc.content_json as any)?.paymentRatio;
+                    if (pr && typeof pr.advance === "number") return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold shrink-0" title="이 계약의 결제 조건">선금 {pr.advance}%·잔금 {100 - pr.advance}%</span>;
+                    if (pr === null) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0" title="이 계약의 결제 조건">전액</span>;
+                    return null;
+                  })()}
                   <span className="text-[11px] text-[var(--text-dim)] shrink-0 mono-number">{fmtDate(doc.created_at)}</span>
                   {pipelineDir !== "purchase" && (
                     <button onClick={() => openInvoiceModal(doc)} disabled={issuingInvoiceFrom === doc.id}
@@ -1316,6 +1335,32 @@ export default function ProjectHubDetailPage() {
       )}
 
       {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
+      {/* 견적 → 계약 생성 시 결제조건(선금/잔금) 못박기 모달 */}
+      {payModalQuote && (() => {
+        const supply = quoteAmount(payModalQuote);
+        return (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setPayModalQuote(null)}>
+            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold">계약 생성 — 결제 조건</h3>
+                <button onClick={() => setPayModalQuote(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+              </div>
+              <div className="flex items-baseline justify-between mb-4 text-sm">
+                <span className="text-[var(--text-muted)]">견적금액(공급가)</span>
+                <span className="mono-number font-bold text-[var(--text)]">{won(supply)}</span>
+              </div>
+              <PaymentTermsField split={contractSplit} onSplit={setContractSplit} adv={contractAdvPct} onAdv={setContractAdvPct} supply={supply} />
+              <p className="text-[11px] text-[var(--text-dim)] mt-3">이 결제 조건이 계약서에 저장되고, 계산서 발행 시 기본값으로 사용됩니다. 나중에 변경할 수 있습니다.</p>
+              <div className="flex items-center justify-end gap-2.5 mt-5">
+                <button onClick={() => setPayModalQuote(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                <button onClick={() => { const d = payModalQuote; setPayModalQuote(null); createContractFromQuote(d); }} disabled={!!creatingContractFrom}
+                  className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">계약 생성</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 계산서 발행 모달 — 전액 또는 선금/잔금 분할. 계약서에 비율 있으면 그대로 기본값. */}
       {invoiceModal && (() => {
         const supply = quoteAmount(invoiceModal) || Number(deal?.contract_total || 0);
@@ -1421,6 +1466,11 @@ export default function ProjectHubDetailPage() {
               className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
             />
             <p className="text-[11px] text-[var(--text-dim)] mt-2">{formKind === "quote" ? "견적서(품목·단가·부가세 표)로 생성되며, 생성 즉시 견적서 입력 화면으로 이동합니다." : "계약서(본문 텍스트)로 생성됩니다. 발송·서명은 ‘단체 일괄 발송 / 전자계약 메뉴’에서 진행하세요. 생성 후 목록의 ‘열기/편집’으로 작성하세요."}</p>
+            {formKind === "contract" && (
+              <div className="mt-4">
+                <PaymentTermsField split={contractSplit} onSplit={setContractSplit} adv={contractAdvPct} onAdv={setContractAdvPct} supply={Number(deal?.contract_total || 0)} />
+              </div>
+            )}
             <div className="flex items-center justify-end gap-2.5 mt-5">
               <button onClick={() => setShowQuoteForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
               <button onClick={createDoc} disabled={creatingQuote} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingQuote ? "생성 중..." : (formKind === "quote" ? "작성하기" : "생성")}</button>
@@ -1466,6 +1516,35 @@ export default function ProjectHubDetailPage() {
           </div>
         </div>,
         document.body,
+      )}
+    </div>
+  );
+}
+
+// 결제 조건 입력 — 전액(선금/잔금 없음) vs 선금·잔금 분할. 계약 작성·발행에서 공용.
+function PaymentTermsField({ split, onSplit, adv, onAdv, supply }: { split: boolean; onSplit: (v: boolean) => void; adv: number; onAdv: (v: number) => void; supply: number }) {
+  const a = Math.min(100, Math.max(0, Math.round(adv || 0)));
+  const advAmt = Math.round((supply * a) / 100);
+  return (
+    <div className="payment-terms-field">
+      <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">결제 조건 <span className="font-normal text-[var(--text-dim)]">(선금/잔금)</span></div>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => onSplit(false)}
+          className={`h-10 rounded-xl text-[13px] font-semibold border transition ${!split ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>선금/잔금 없음(전액)</button>
+        <button type="button" onClick={() => onSplit(true)}
+          className={`h-10 rounded-xl text-[13px] font-semibold border transition ${split ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>선금·잔금 분할</button>
+      </div>
+      {split && (
+        <div className="flex items-center gap-2 mt-2.5">
+          <span className="text-xs text-[var(--text-muted)] w-9 shrink-0">선금</span>
+          <input type="number" min={0} max={100} value={adv}
+            onChange={(e) => onAdv(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+            className="w-20 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
+          <span className="text-xs text-[var(--text-muted)]">%</span>
+          {supply > 0
+            ? <span className="ml-auto text-[11px] text-[var(--text-dim)]">선금 {won(advAmt)} · 잔금 {won(supply - advAmt)}</span>
+            : <span className="ml-auto text-[11px] text-[var(--text-dim)]">잔금 {100 - a}%</span>}
+        </div>
       )}
     </div>
   );
