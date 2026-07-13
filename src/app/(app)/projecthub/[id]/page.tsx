@@ -149,12 +149,12 @@ export default function ProjectHubDetailPage() {
   const [childName, setChildName] = useState("");
   const [creatingChild, setCreatingChild] = useState(false);
   // 세부 프로젝트(캠페인) 생성 시 매출/매입(개요) — 저장 시 sub_deals 로 seed. 개요(참고)에만 반영, 총비용/마진(실적)엔 미반영.
-  const [childSalesPlan, setChildSalesPlan] = useState("");
-  const [childSalesVat, setChildSalesVat] = useState<"exclude" | "include">("exclude");
-  const [childPurchasePlan, setChildPurchasePlan] = useState("");
-  const [childPurchaseVat, setChildPurchaseVat] = useState<"exclude" | "include">("exclude");
+  // 세부 프로젝트 초기 금액 — 매출/매입 하나를 선택해 한 줄로 입력(거래 원장과 동일 방식). 상세는 생성 후 거래 탭에서.
+  const [childKind, setChildKind] = useState<"sales" | "purchase">("sales");
+  const [childAmt, setChildAmt] = useState("");
+  const [childVat, setChildVat] = useState<"exclude" | "include">("exclude");
   const numComma = (s: string) => { const n = Number(String(s).replace(/[^0-9]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
-  const resetChildForm = () => { setChildName(""); setChildSalesPlan(""); setChildPurchasePlan(""); setChildSalesVat("exclude"); setChildPurchaseVat("exclude"); };
+  const resetChildForm = () => { setChildName(""); setChildAmt(""); setChildKind("sales"); setChildVat("exclude"); };
   // 캠페인 목록 수정/삭제
   const [editChild, setEditChild] = useState<any | null>(null);
   const [editChildName, setEditChildName] = useState("");
@@ -658,12 +658,14 @@ export default function ProjectHubDetailPage() {
       // 매출/매입(개요) → 새 캠페인의 sub_deals 로 seed. (개요 마진에만, 실적 비용/마진엔 미반영)
       const newChildId = data?.id;
       if (newChildId) {
-        const sp = Number(String(childSalesPlan).replace(/[^0-9]/g, "")) || 0;
-        const pp = Number(String(childPurchasePlan).replace(/[^0-9]/g, "")) || 0;
-        const seeds: any[] = [];
-        if (sp > 0) seeds.push({ parent_deal_id: newChildId, name: "매출", type: "sales", partner_id: deal?.partner_id || null, contract_amount: sp, vat_type: childSalesVat === "include" ? "inclusive" : "exclusive", status: "estimate" });
-        if (pp > 0) seeds.push({ parent_deal_id: newChildId, name: "매입", type: "purchase", partner_id: deal?.partner_id || null, contract_amount: pp, vat_type: childPurchaseVat === "include" ? "inclusive" : "exclusive", status: "estimate" });
-        if (seeds.length) { const { error: seedErr } = await db.from("sub_deals").insert(seeds); if (seedErr) throw new Error(seedErr.message); }
+        const amt = Number(String(childAmt).replace(/[^0-9]/g, "")) || 0;
+        if (amt > 0) {
+          const { error: seedErr } = await db.from("sub_deals").insert({
+            parent_deal_id: newChildId, name: childKind === "sales" ? "매출" : "매입", type: childKind,
+            partner_id: deal?.partner_id || null, contract_amount: amt, vat_type: childVat === "include" ? "inclusive" : "exclusive", status: "estimate",
+          });
+          if (seedErr) throw new Error(seedErr.message);
+        }
       }
       qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
       qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
@@ -1272,26 +1274,19 @@ export default function ProjectHubDetailPage() {
                 <input autoFocus value={childName} onChange={(e) => setChildName(e.target.value)}
                   placeholder="예: 봄 시즌 캠페인"
                   className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-                <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">매출/매입 <span className="font-normal text-[var(--text-dim)]">(개요 · 선택)</span></div>
-                <div className="space-y-2 mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-9 text-[11px] text-[var(--text-muted)] shrink-0">매출</span>
-                    <input value={childSalesPlan} onChange={(e) => setChildSalesPlan(numComma(e.target.value))} inputMode="numeric" placeholder="받을 돈 0"
-                      className="flex-1 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
-                    <select value={childSalesVat} onChange={(e) => setChildSalesVat(e.target.value as "exclude" | "include")} className="px-2 h-10 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[11px] text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]">
-                      <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
-                    </select>
+                <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">초기 금액 <span className="font-normal text-[var(--text-dim)]">(선택 · 매출 또는 매입 하나)</span></div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex rounded-lg overflow-hidden border border-[var(--border)] shrink-0">
+                    <button type="button" onClick={() => setChildKind("sales")} className={`px-3 h-10 text-xs font-bold transition ${childKind === "sales" ? "bg-[var(--success)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매출</button>
+                    <button type="button" onClick={() => setChildKind("purchase")} className={`px-3 h-10 text-xs font-bold border-l border-[var(--border)] transition ${childKind === "purchase" ? "bg-[var(--danger)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매입</button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-9 text-[11px] text-[var(--text-muted)] shrink-0">매입</span>
-                    <input value={childPurchasePlan} onChange={(e) => setChildPurchasePlan(numComma(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") createChild(); }} inputMode="numeric" placeholder="줄 돈 0"
-                      className="flex-1 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
-                    <select value={childPurchaseVat} onChange={(e) => setChildPurchaseVat(e.target.value as "exclude" | "include")} className="px-2 h-10 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[11px] text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]">
-                      <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
-                    </select>
-                  </div>
+                  <input value={childAmt} onChange={(e) => setChildAmt(numComma(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") createChild(); }} inputMode="numeric" placeholder={childKind === "sales" ? "받을 돈 0" : "줄 돈 0"}
+                    className={`flex-1 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)] ${childKind === "sales" ? "text-[var(--success)]" : "text-[var(--danger)]"}`} />
+                  <select value={childVat} onChange={(e) => setChildVat(e.target.value as "exclude" | "include")} className="px-2 h-10 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[11px] text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] shrink-0">
+                    <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
+                  </select>
                 </div>
-                <p className="text-[11px] text-[var(--text-dim)] mt-2">입력한 매출/매입은 <b className="text-[var(--text-muted)]">개요</b>에 저장돼 상위 프로젝트 개요 마진에 반영됩니다. <b className="text-[var(--text-muted)]">총 비용·마진(실적)</b>에는 실제 전표만 반영됩니다. 비우면 생성 후 ‘매출/매입 관리’에서 입력 가능. 거래처·담당자는 상위 프로젝트({partner?.name || "미지정"})에서 상속됩니다.</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-2">비워도 됩니다 — 생성 후 <b className="text-[var(--text-muted)]">거래</b> 탭에서 매출·매입을 자유롭게 입력하세요. 거래처·담당자는 상위 프로젝트({partner?.name || "미지정"})에서 상속됩니다.</p>
                 <div className="flex items-center justify-end gap-2.5 mt-5">
                   <button onClick={() => setShowChildForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
                   <button onClick={createChild} disabled={creatingChild || !childName.trim()} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingChild ? "생성 중..." : "생성"}</button>
