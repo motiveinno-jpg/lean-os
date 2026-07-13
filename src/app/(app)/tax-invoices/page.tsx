@@ -40,7 +40,6 @@ import { AccessDenied } from "@/components/access-denied";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { generateTaxInvoicePdf } from "@/lib/document-generator";
 import type { TaxInvoicePdfParams } from "@/lib/document-generator";
-import { SortToolbar } from "@/components/sort-toolbar";
 import { getThreeWayCandidates, confirmThreeWayMatch, unmatchInvoice } from "@/lib/three-way-match";
 
 // ── Print Styles ──
@@ -1770,13 +1769,11 @@ export default function TaxInvoicesPage() {
             </button>
           ))}
         </div>
-        {/* 보조 — 자동발행·집계·부가세·홈택스 동기화(작게, 필요할 때만) */}
+        {/* 보조 — 자동발행·집계만(작게). 부가세는 위 예상부가세 카드, 홈택스 동기화는 상단 접이식 바로 접근(중복 제거). */}
         <div className="flex items-center gap-0.5 flex-wrap">
           {([
             { key: "queue", label: "자동발행" },
             { key: "summary", label: "기간별 집계" },
-            { key: "vat", label: "부가세" },
-            { key: "sync", label: "홈택스 동기화" },
           ] as const).map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-2.5 py-1 rounded-lg text-[13px] font-medium transition ${tab === t.key ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
@@ -1819,23 +1816,7 @@ export default function TaxInvoicesPage() {
         </div>
       </div>
 
-      {/* 정렬 버튼 툴바 — 헤더 클릭 정렬과 동일 invSortKey/invSortDir 공유 */}
-      {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
-        <div className="mb-3">
-          <SortToolbar
-            options={[
-              { key: "issue_date", label: "작성일자" },
-              { key: "counterparty_name", label: "거래처" },
-              { key: "supply_amount", label: "공급가액" },
-              { key: "total_amount", label: "합계금액" },
-              { key: "status", label: "상태" },
-            ]}
-            sortKey={invSortKey}
-            sortDir={invSortDir}
-            onSort={(k) => toggleInvSort(k as any)}
-          />
-        </div>
-      )}
+      {/* 정렬 — 별도 버튼 툴바 제거(2026-07-13). 표 헤더(작성일자·거래처·품목·공급가액…)를 클릭하면 정렬됩니다. */}
 
       {/* Batch Actions */}
       {(tab === "sales" || tab === "purchase") && selectedRows.length > 0 && (
