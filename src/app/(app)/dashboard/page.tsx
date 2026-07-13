@@ -39,6 +39,7 @@ import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { ActionInbox } from "@/components/action-inbox";
 import { MyWorkSection } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
+import { PageHeader } from "@/components/report-kit"; // 리포트형 표준 헤더(전 화면 확산)
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
@@ -498,6 +499,11 @@ export default function DashboardPage() {
       {/* ═══ [배너] 체크리스트 — 접힌 상태 기본 ═══ */}
       {!showOnboarding && companyId && (
         <GettingStartedChecklist companyId={companyId} initialDealCount={dealCount ?? 0} />
+      )}
+
+      {/* 리포트형 표준 헤더 */}
+      {(role === "owner" || role === "admin") && companyId && (
+        <div className="mb-5"><PageHeader title="대시보드" desc="오늘 챙길 것을 한눈에 — 내 업무·자금·일정·전자결재 현황을 모아 봅니다." /></div>
       )}
 
       {/* ═══ 시안 메인 (라운드6.5 레퍼런스 골격) — KPI 4카드 행 → 본문 2/3+1/3 그리드 → 하단 풀폭.
