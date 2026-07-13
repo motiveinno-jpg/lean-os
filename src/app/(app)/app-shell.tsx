@@ -319,7 +319,6 @@ function AppContent({ children }: { children: React.ReactNode }) {
                 </div>
               )}
               <div className="text-[15px] md:text-base font-bold text-[var(--text)] leading-5 truncate">{crumb.title}</div>
-              {crumb.desc && <div className="hidden md:block text-xs text-[var(--text-muted)] leading-4 truncate mt-0.5">{crumb.desc}</div>}
             </>
           ) : (
             <div className="text-[15px] md:text-base font-bold text-[var(--text)] truncate">
