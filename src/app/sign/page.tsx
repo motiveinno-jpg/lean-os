@@ -533,7 +533,9 @@ function SignContent() {
                   "을_대표자": String(partner.representative || ""),
                 }
               : null,
-            items: filledDocuments ? [{ id: sigReq.id, title: filledDocuments.name || sigReq.title, status: sigReq.status === 'signed' ? 'signed' : 'pending', documents: filledDocuments, sort_order: 0 }] : [],
+            // QA 2026-07-13: signature_data/signed_at 누락으로 완료화면 ContractSignatureFooter 의
+            //   {sig && signedAt && ...} 조건이 항상 false → 을(거래처) 서명/도장이 아예 안 그려지던 버그.
+            items: filledDocuments ? [{ id: sigReq.id, title: filledDocuments.name || sigReq.title, status: sigReq.status === 'signed' ? 'signed' : 'pending', documents: filledDocuments, sort_order: 0, signature_data: sigReq.signature_data ?? null, signed_at: sigReq.signed_at ?? null }] : [],
             _isGeneralDoc: true,
             _signatureRequestId: sigReq.id,
           } as any);
