@@ -189,7 +189,7 @@ export default function ProjectHubPage() {
   // 유형 필터 — 전체(기본) + 수익형/목표형/실행형. 2026-07-13 개편: 전체 뷰 + 검색 + 내담당 + 카드형.
   const [typeFilter, setTypeFilter] = useState<"all" | ProjectType>("all");
   const [search, setSearch] = useState("");
-  const [mineOnly, setMineOnly] = useState(false);
+  const [mineOnly, setMineOnly] = useState(true); // 내 담당 우선(기본) — '전체'로 전환 가능
   const userId = user?.id ?? null;
 
   const partnerName = useMemo(() => {
@@ -297,10 +297,16 @@ export default function ProjectHubPage() {
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="프로젝트·거래처·담당 검색"
               className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--primary)]" />
           </div>
-          <button onClick={() => setMineOnly((v) => !v)}
-            className={`px-3 h-9 rounded-lg text-[13px] font-semibold whitespace-nowrap transition ${mineOnly ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-            내 담당
-          </button>
+          <div className="mine-scope-toggle flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden text-[13px] font-semibold shrink-0">
+            <button onClick={() => setMineOnly(true)}
+              className={`px-3 h-full whitespace-nowrap transition ${mineOnly ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+              내 담당
+            </button>
+            <button onClick={() => setMineOnly(false)}
+              className={`px-3 h-full whitespace-nowrap transition border-l border-[var(--border)] ${!mineOnly ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+              전체
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
@@ -436,9 +442,11 @@ export default function ProjectHubPage() {
         <div className="glass-card py-14 flex flex-col items-center justify-center text-center gap-2">
           <div className="text-4xl">{typeFilter === "all" ? "📁" : PROJECT_TYPES[typeFilter].icon}</div>
           <div className="text-sm font-semibold text-[var(--text)]">
-            {search || mineOnly ? "조건에 맞는 프로젝트가 없습니다." : typeFilter === "all" ? "아직 프로젝트가 없습니다." : `${PROJECT_TYPES[typeFilter].label} 프로젝트가 없습니다.`}
+            {search ? "조건에 맞는 프로젝트가 없습니다." : mineOnly ? "내가 담당한 프로젝트가 없습니다." : typeFilter === "all" ? "아직 프로젝트가 없습니다." : `${PROJECT_TYPES[typeFilter].label} 프로젝트가 없습니다.`}
           </div>
-          {!(search || mineOnly) && <>
+          {mineOnly && !search ? (
+            <button onClick={() => setMineOnly(false)} className="btn-secondary btn-sm mt-2">전체 프로젝트 보기 →</button>
+          ) : !search && <>
             <div className="text-xs text-[var(--text-muted)]">‘+ 프로젝트 생성’으로 추가하세요.</div>
             <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 프로젝트 생성</button>
           </>}
