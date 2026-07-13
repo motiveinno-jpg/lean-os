@@ -186,12 +186,17 @@ export default function ProjectHubDetailPage() {
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [creatingContractFrom, setCreatingContractFrom] = useState<string | null>(null);
   const [issuingInvoiceFrom, setIssuingInvoiceFrom] = useState<string | null>(null);
+  const [invoiceConfirm, setInvoiceConfirm] = useState<any | null>(null); // 중복 발행 확인 대기 계약 문서
   // ★ 계약 → 계산서 발행 등록 (P2) — 계약금액을 이월해 매출 세금계산서(발행·미전송) 생성.
   //   status='issued'=매출 발행(리포트 매출 집계 기준). 홈택스 실전송은 세금계산서 메뉴 소관(여기선 DB 기록만).
-  const createInvoiceFromContract = async (contractDoc: any) => {
+  //   P4 안전장치: 이미 발행된 매출 계산서가 있으면 확인 모달로 이중 청구 방지.
+  const createInvoiceFromContract = async (contractDoc: any, force = false) => {
     if (!companyId || issuingInvoiceFrom) return;
     const supply = quoteAmount(contractDoc) || Number(deal?.contract_total || 0);
     if (supply <= 0) { toast("계약 금액이 없습니다. 계약서에 금액을 먼저 입력하세요.", "error"); return; }
+    const existing = ((pipe?.invoices || []) as any[]).length;
+    if (existing > 0 && !force) { setInvoiceConfirm(contractDoc); return; }
+    setInvoiceConfirm(null);
     setIssuingInvoiceFrom(contractDoc.id);
     try {
       const today = new Date().toISOString().slice(0, 10);
@@ -840,6 +845,12 @@ export default function ProjectHubDetailPage() {
             rolled={hasChildren ? (children as any[]).length : 0}
             stage={stage}
           />
+          {confirmedRevenue > 0 && planRevenue > 0 && Math.abs(confirmedRevenue - planRevenue) > Math.max(1000, planRevenue * 0.01) && (
+            <div className="amount-mismatch-warning glass-card p-3 border border-[var(--warning)]/40 bg-[var(--warning)]/5 flex items-start gap-2 text-[12px] text-[var(--warning)]">
+              <span className="shrink-0">⚠</span>
+              <span>계약·약정 매출 <b className="mono-number">{won(planRevenue)}</b> 과 계산서 발행액 <b className="mono-number">{won(confirmedRevenue)}</b> 이 다릅니다. 중간에 금액이 바뀌었다면 계약 금액 또는 발행 계산서를 확인·수정하세요.</span>
+            </div>
+          )}
           <PipelineRibbon pipe={pipe} contractTotal={ownContract} onOpen={setTab} />
           <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
           {hasInclusiveSub && (
@@ -1276,6 +1287,21 @@ export default function ProjectHubDetailPage() {
       )}
 
       {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
+      {/* P4 — 계산서 중복 발행 확인(이중 청구 방지) */}
+      {invoiceConfirm && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setInvoiceConfirm(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold mb-2">계산서를 추가 발행할까요?</h3>
+            <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1">이 프로젝트에 이미 발행된 매출 계산서가 <b className="text-[var(--text)]">{((pipe?.invoices || []) as any[]).length}건</b> 있습니다.</p>
+            <p className="text-[11px] text-[var(--text-dim)] mb-5">추가로 발행하면 매출이 <b className="text-[var(--warning)]">이중 계상</b>될 수 있습니다. 계약을 분할 청구하는 경우에만 진행하세요.</p>
+            <div className="flex items-center justify-end gap-2.5">
+              <button onClick={() => setInvoiceConfirm(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+              <button onClick={() => createInvoiceFromContract(invoiceConfirm, true)} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold hover:brightness-110 transition">추가 발행</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showQuoteForm && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQuoteForm(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
