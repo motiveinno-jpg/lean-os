@@ -26,6 +26,7 @@ import { GoalOverviewTab } from "./_components/GoalOverviewTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
 import { createTaxInvoice } from "@/lib/tax-invoice";
+import { deleteDocument } from "@/lib/queries";
 import { TasksTab } from "./_components/TasksTab";
 import { MondayBoard } from "@/components/monday-board";
 
@@ -214,6 +215,25 @@ export default function ProjectHubDetailPage() {
   const [payMid, setPayMid] = useState(30); // 중도금 %
   const [payModalQuote, setPayModalQuote] = useState<any | null>(null); // 견적→계약 시 결제조건 모달
   const [issuingInvoiceFrom, setIssuingInvoiceFrom] = useState<string | null>(null);
+  // 견적/계약 문서 삭제 — deleteDocument RPC(연관 정리)로 삭제. 발행된 계산서(deal 참조)는 영향 없음.
+  const [delDoc, setDelDoc] = useState<any | null>(null);
+  const [deletingDoc, setDeletingDoc] = useState(false);
+  const removeDoc = async () => {
+    if (!delDoc || deletingDoc) return;
+    setDeletingDoc(true);
+    try {
+      await deleteDocument(delDoc.id);
+      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-pipe-summary", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-quotes", dealId] });
+      toast("문서를 삭제했습니다.", "success");
+      setDelDoc(null);
+    } catch (e: any) {
+      toast(e?.message || "삭제 실패", "error");
+    } finally {
+      setDeletingDoc(false);
+    }
+  };
   // 계산서 발행 모달 — 계약서의 결제조건(paymentSchedule)을 기본값으로. payMode/payAdv/payMid 공용.
   const [invoiceModal, setInvoiceModal] = useState<any | null>(null); // 발행 대상 계약 문서
   const openInvoiceModal = (contractDoc: any) => {
@@ -1000,8 +1020,16 @@ export default function ProjectHubDetailPage() {
 
       {(tab === "quote" || pipelineDir) && (
         <div className="space-y-3">
-          {/* 회사 견적 양식 PDF 업로드 → AI 인식 → 견적 생성 시 그 디자인으로 자동 작성 */}
-          {companyId && <FormTemplateManager companyId={companyId} only="quote" />}
+          {/* 회사 견적 양식 PDF 업로드 → AI 인식 (접힘 기본 — 견적 목록을 가리지 않도록) */}
+          {companyId && (
+            <details className="form-tpl-fold glass-card group">
+              <summary className="px-4 py-2.5 cursor-pointer list-none flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)]">
+                <span className="text-[10px] text-[var(--text-dim)] group-open:rotate-90 transition-transform">▶</span>
+                📄 견적서 양식 관리 <span className="font-normal text-[var(--text-dim)]">— 회사 양식 PDF 업로드 → 자동 인식</span>
+              </summary>
+              <div className="px-3 pb-3 pt-1"><FormTemplateManager companyId={companyId} only="quote" /></div>
+            </details>
+          )}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
             <div className="flex items-center gap-2 relative">
@@ -1036,7 +1064,7 @@ export default function ProjectHubDetailPage() {
                     {cols.map((c) => (
                       <th key={c.key} className={`px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] ${c.align === "r" ? "text-right" : c.align === "c" ? "text-center" : "text-left"}`}>{c.label}</th>
                     ))}
-                    <th className="px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] text-center">계약</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] text-center">관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1062,13 +1090,19 @@ export default function ProjectHubDetailPage() {
                           return <td key={c.key} className={cellCls(c)}>—</td>;
                         })}
                         <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setPayMode("full"); setPayAdv(30); setPayMid(30); setPayModalQuote(doc); }}
-                            disabled={creatingContractFrom === doc.id}
-                            className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap"
-                            title="이 견적서 내용으로 계약서를 생성합니다">
-                            {creatingContractFrom === doc.id ? "생성 중…" : "📄 계약 생성"}
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setPayMode("full"); setPayAdv(30); setPayMid(30); setPayModalQuote(doc); }}
+                              disabled={creatingContractFrom === doc.id}
+                              className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap"
+                              title="이 견적서 내용으로 계약서를 생성합니다">
+                              {creatingContractFrom === doc.id ? "생성 중…" : "📄 계약 생성"}
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); router.push(`/documents?id=${doc.id}`); }}
+                              className="text-[11px] px-2 py-1 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition" title="견적서 수정">수정</button>
+                            <button onClick={(e) => { e.stopPropagation(); setDelDoc(doc); }}
+                              className="text-[11px] px-2 py-1 rounded-md text-[var(--danger)] hover:bg-[var(--danger)]/10 transition" title="견적서 삭제">삭제</button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1091,8 +1125,16 @@ export default function ProjectHubDetailPage() {
       {/* 계약 */}
       {(tab === "contract" || pipelineDir) && (
         <div className="space-y-3">
-          {/* 회사 계약 양식 PDF 업로드 → AI 인식 → 서명완료 계약 PDF를 그 디자인+서명칸으로 자동 생성 */}
-          {companyId && <FormTemplateManager companyId={companyId} only="contract" />}
+          {/* 회사 계약 양식 PDF 업로드 → AI 인식 (접힘 기본 — 계약 문서 목록을 가리지 않도록) */}
+          {companyId && (
+            <details className="form-tpl-fold glass-card group">
+              <summary className="px-4 py-2.5 cursor-pointer list-none flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)]">
+                <span className="text-[10px] text-[var(--text-dim)] group-open:rotate-90 transition-transform">▶</span>
+                📄 계약서 양식 관리 <span className="font-normal text-[var(--text-dim)]">— 회사 양식 PDF 업로드 → 자동 인식</span>
+              </summary>
+              <div className="px-3 pb-3 pt-1"><FormTemplateManager companyId={companyId} only="contract" /></div>
+            </details>
+          )}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
             <div className="flex items-center gap-2">
@@ -1133,6 +1175,8 @@ export default function ProjectHubDetailPage() {
                     </button>
                   )}
                   <Link href={`/documents?id=${doc.id}&print=1`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline shrink-0">인쇄</Link>
+                  <Link href={`/documents?id=${doc.id}`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:underline shrink-0">수정</Link>
+                  <button onClick={() => setDelDoc(doc)} className="text-[11px] font-semibold text-[var(--danger)]/80 hover:text-[var(--danger)] shrink-0" title="계약서 삭제">삭제</button>
                 </div>
               ))}
             </div>
@@ -1361,6 +1405,21 @@ export default function ProjectHubDetailPage() {
       )}
 
       {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
+      {/* 견적/계약 문서 삭제 확인 */}
+      {delDoc && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setDelDoc(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold mb-2">{docKind(delDoc) === "quote" ? "견적서" : "계약서"} 삭제</h3>
+            <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{delDoc.name || fmtNo(delDoc) || "문서"}</b> 를 삭제할까요?</p>
+            <p className="text-[11px] text-[var(--text-dim)] mb-5">문서와 연결된 추적·승인·서명요청 기록이 함께 삭제됩니다. <b className="text-[var(--text-muted)]">이미 발행된 세금계산서는 삭제되지 않습니다.</b> 되돌릴 수 없습니다.</p>
+            <div className="flex items-center justify-end gap-2.5">
+              <button onClick={() => setDelDoc(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+              <button onClick={removeDoc} disabled={deletingDoc} className="px-6 h-10 bg-[var(--danger)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{deletingDoc ? "삭제 중..." : "삭제"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 견적 → 계약 생성 시 결제조건(선금/잔금) 못박기 모달 */}
       {payModalQuote && (() => {
         const supply = quoteAmount(payModalQuote);
