@@ -16,7 +16,7 @@ const won = (n: number) => Math.round(Number(n || 0)).toLocaleString("ko-KR");
 const fmtNum = (n: number, unit: string) => `${won(n)}${unit || ""}`;
 
 type Kpi = { id: string; label: string; unit: string; target_value: number; direction: "up" | "down"; source: KpiSource; sort_order: number };
-type Entry = { id: string; kpi_id: string; entry_date: string; value: number; department_id?: string | null };
+type Entry = { id: string; kpi_id: string; entry_date: string; value: number; department_id?: string | null; created_by?: string | null };
 type Inv = { deal_id: string; partner_id: string | null; issue_date: string | null; supply_amount: number };
 
 const STATUS_META: Record<string, { dot: string; label: string }> = {
@@ -31,6 +31,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   const companyId = deal.company_id as string;
   const [trendKpiId, setTrendKpiId] = useState<string>("");
   const [breakdown, setBreakdown] = useState<"channel" | "campaign" | "manager">("channel");
+  const [contribDim, setContribDim] = useState<"dept" | "member">("dept"); // 성과 기여 다각도(부서/개인)
 
   const { data: kpis = [] } = useQuery({
     queryKey: ["project-kpis", dealId],
@@ -39,7 +40,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   });
   const { data: entries = [] } = useQuery({
     queryKey: ["project-kpi-entries-all", dealId],
-    queryFn: async () => (await db.from("project_kpi_entries").select("id, kpi_id, entry_date, value, department_id").eq("deal_id", dealId).order("entry_date", { ascending: true })).data || [],
+    queryFn: async () => (await db.from("project_kpi_entries").select("id, kpi_id, entry_date, value, department_id, created_by").eq("deal_id", dealId).order("entry_date", { ascending: true })).data || [],
     enabled: !!dealId,
   });
   const { data: departments = [] } = useQuery({
@@ -65,6 +66,11 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   const { data: openIssues = [] } = useQuery({
     queryKey: ["project-issues-open", dealId],
     queryFn: async () => (await db.from("project_issues").select("id, title, severity, status, due_date, assignee_id").eq("deal_id", dealId).neq("status", "resolved").order("created_at", { ascending: false })).data || [],
+    enabled: !!dealId,
+  });
+  const { data: overdueTasks = [] } = useQuery({
+    queryKey: ["goal-overview-overdue-tasks", dealId],
+    queryFn: async () => (await db.from("project_tasks").select("id, title, due_date, status, assignee_id").eq("deal_id", dealId).is("archived_at", null).neq("status", "done").not("due_date", "is", null).lt("due_date", new Date().toISOString().slice(0, 10)).order("due_date", { ascending: true })).data || [],
     enabled: !!dealId,
   });
   const { data: children = [] } = useQuery({
@@ -152,14 +158,18 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoices, breakdown, dealId, children, partners, members]);
 
-  // 부서별 기여 — 선택 KPI(manual)의 entries 를 department_id 로 그룹(단위 일관). 자동 KPI 는 부서 데이터 없음.
-  const deptContribution = useMemo(() => {
+  // 성과 기여(다각도) — 선택 KPI(manual)의 entries 를 부서(department_id) 또는 개인(created_by) 으로 그룹.
+  //   자동 KPI 는 부서/개인 데이터 없음(태그 매출은 위 '매출 분해'에서 담당자별 제공).
+  const contribution = useMemo(() => {
     if (!selKpi || selKpi.source !== "manual") return null;
     const m: Record<string, number> = {};
-    for (const e of entries as Entry[]) if (e.kpi_id === selKpi.id) { const k = e.department_id || "__none"; m[k] = (m[k] || 0) + Number(e.value || 0); }
-    return Object.entries(m).map(([id, v]) => ({ label: id === "__none" ? "(미지정)" : deptName(id), value: v }));
+    for (const e of entries as Entry[]) if (e.kpi_id === selKpi.id) {
+      const k = (contribDim === "member" ? e.created_by : e.department_id) || "__none";
+      m[k] = (m[k] || 0) + Number(e.value || 0);
+    }
+    return Object.entries(m).map(([id, v]) => ({ label: id === "__none" ? "(미지정)" : contribDim === "member" ? nameOf(id) : deptName(id), value: v }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selKpi, entries, departments]);
+  }, [selKpi, entries, departments, members, contribDim]);
 
   // ④ 체크인 타임라인
   const checkinPoints = (updates as any[]).map((u) => ({ label: String(u.period_start || u.update_date || "").slice(5, 10), status: u.status }));
@@ -280,6 +290,25 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
         )}
       </section>
 
+      {/* 지연 과제 — 마감 지난 실행 과제(지금 볼 것). '실행' 탭과 연동. */}
+      {(overdueTasks as any[]).length > 0 && (
+        <section className="glass-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-[var(--text)]">지연 과제 <span className="font-normal text-[var(--text-dim)] text-xs">마감 초과</span></h3>
+            <span className="text-xs font-bold text-[var(--danger)]">{(overdueTasks as any[]).length}건</span>
+          </div>
+          <div className="space-y-1.5">
+            {(overdueTasks as any[]).slice(0, 6).map((t) => (
+              <div key={t.id} className="flex items-center gap-2 text-xs">
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: DANGER, flexShrink: 0 }} />
+                <span className="flex-1 truncate text-[var(--text)]">{t.title}</span>
+                <span className="mono-number text-[10px] text-[var(--danger)] font-semibold">{String(t.due_date).slice(5, 10)}⚠</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ③ 분해 */}
       <section className="glass-card p-4">
         <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
@@ -293,11 +322,18 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
         <BarList items={breakdownItems} unit="원" emptyText="태깅된 매출이 없습니다. 세금계산서를 이 프로젝트에 태깅하면 자동 반영됩니다." />
       </section>
 
-      {/* 부서별 기여 (수동 KPI) — 매출 분해(tax_invoices)와 별개 소스(entries) */}
+      {/* 성과 기여(다각도) — 수동 KPI 실적을 부서/개인 관점으로. 매출 분해(tax_invoices)와 별개 소스(entries) */}
       {selKpi && selKpi.source === "manual" && (
         <section className="glass-card p-4">
-          <h3 className="text-sm font-bold text-[var(--text)] mb-4">부서별 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label} · 수동 KPI 실적 입력 기준</span></h3>
-          <BarList items={deptContribution || []} unit={selKpi.unit} emptyText="부서별 실적 입력이 없습니다. ‘성과’ 탭 실적 입력에서 부서를 지정하면 표시됩니다." />
+          <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+            <h3 className="text-sm font-bold text-[var(--text)]">성과 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label}</span></h3>
+            <div className="seg-bar">
+              {([["dept", "부서"], ["member", "개인"]] as const).map(([k, l]) => (
+                <button key={k} onClick={() => setContribDim(k)} className={`seg-item ${contribDim === k ? "seg-item-active" : ""}`}>{l}</button>
+              ))}
+            </div>
+          </div>
+          <BarList items={contribution || []} unit={selKpi.unit} emptyText={contribDim === "member" ? "개인별 실적 입력이 없습니다. ‘성과’ 탭에서 실적을 입력하면 입력자별로 표시됩니다." : "부서별 실적 입력이 없습니다. ‘성과’ 탭 실적 입력에서 부서를 지정하면 표시됩니다."} />
         </section>
       )}
 
