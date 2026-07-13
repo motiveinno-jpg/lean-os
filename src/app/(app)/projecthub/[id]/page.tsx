@@ -676,6 +676,24 @@ export default function ProjectHubDetailPage() {
     enabled: costEnabled,
   });
 
+  // 파이프라인 리본(개요) — 견적▶계약▶계산서▶정산 단계별 금액·상태 경량 집계. 수익형 개요에서만.
+  const { data: pipe } = useQuery({
+    queryKey: ["projecthub-pipe-summary", dealId, childIds.length],
+    queryFn: async () => {
+      const { data: docsData } = await db.from("documents").select("id, content_type, content_json, contract_amount, status, source_document_id, created_at").eq("deal_id", dealId).order("created_at", { ascending: false });
+      const list = (docsData || []) as any[];
+      const quotes = list.filter((d) => docKind(d) === "quote");
+      const contracts = list.filter((d) => docKind(d) === "contract");
+      const ids = list.map((d) => d.id);
+      const [sigsRes, invRes] = await Promise.all([
+        ids.length ? db.from("signature_requests").select("id, status, signed_at, document_id").in("document_id", ids) : Promise.resolve({ data: [] as any[] }),
+        db.from("tax_invoices").select("id, supply_amount, total_amount, status, issue_date").in("deal_id", costDealIds).eq("type", "sales").neq("status", "void"),
+      ]);
+      return { quotes, contracts, sigs: (sigsRes.data || []) as any[], invoices: (invRes.data || []) as any[] };
+    },
+    enabled: costEnabled,
+  });
+
   // 접근 권한은 RouteGuard(user_tab_access grant)가 처리 — 여기서 role 하드코딩 차단 제거(담당자 직원 접근 허용)
   if (isLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
   if (!deal) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">프로젝트를 찾을 수 없습니다. <Link href="/projecthub" className="text-[var(--primary)] hover:underline">목록으로</Link></div>;
@@ -786,6 +804,7 @@ export default function ProjectHubDetailPage() {
             rolled={hasChildren ? (children as any[]).length : 0}
             stage={stage}
           />
+          <PipelineRibbon pipe={pipe} contractTotal={ownContract} onOpen={setTab} />
           <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
           {hasInclusiveSub && (
             <p className="text-[11px] text-[var(--text-dim)]">※ VAT <b className="text-[var(--text-muted)]">포함</b>으로 입력한 매출/매입 항목은 <b className="text-[var(--text-muted)]">공급가액(VAT 제외)</b> 기준으로 환산해 계산됩니다.</p>
@@ -1358,13 +1377,55 @@ function MarginCockpit({ revenue, planCost, actualCost, hasActual, rolled, stage
   );
 }
 
-// 진행 단계 — 파이프라인 스텝과 동일 언어(pill + ▶). 클릭해 deals.stage 변경.
+// 파이프라인 리본 — 견적▶계약▶계산서▶정산 단계별 금액·상태 한 줄. 개요의 흐름 시각화(읽기).
+function PipelineRibbon({ pipe, contractTotal, onOpen }: { pipe: any; contractTotal: number; onOpen: (t: TabKey) => void }) {
+  const quotes = (pipe?.quotes || []) as any[];
+  const contracts = (pipe?.contracts || []) as any[];
+  const sigs = (pipe?.sigs || []) as any[];
+  const invoices = (pipe?.invoices || []) as any[];
+  const quoteAmt = quotes.length ? quoteAmount(quotes[0]) : 0;
+  const contractAmt = contracts.length ? (quoteAmount(contracts[0]) || contractTotal) : contractTotal;
+  const signed = sigs.some((s) => s.signed_at);
+  const invAmt = invoices.reduce((a, i) => a + Number(i.supply_amount || i.total_amount || 0), 0);
+  const stages = [
+    { key: "quote", label: "견적", amt: quoteAmt, done: quotes.length > 0, sub: quotes.length ? `${quotes.length}건 작성` : "미작성" },
+    { key: "contract", label: "계약", amt: contractAmt, done: contracts.length > 0, sub: contracts.length ? (signed ? "서명완료" : "미서명") : "미작성" },
+    { key: "invoice", label: "계산서", amt: invAmt, done: invoices.length > 0, sub: invoices.length ? `발행 ${invoices.length}건` : "미발행" },
+    { key: "settle", label: "정산", amt: 0, done: false, sub: "미수금" },
+  ];
+  return (
+    <div className="pipeline-ribbon glass-card p-4">
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <h3 className="text-sm font-bold text-[var(--text)]">진행 파이프라인 <span className="text-[var(--text-dim)] font-normal text-xs">견적 → 계약 → 계산서 → 정산</span></h3>
+        <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">수주(매출) 열기 →</button>
+      </div>
+      <div className="flex items-stretch gap-1 overflow-x-auto pb-1">
+        {stages.map((st, i) => (
+          <div key={st.key} className="flex items-stretch shrink-0">
+            <button onClick={() => onOpen("sales_pipeline")}
+              className={`min-w-[124px] text-left px-3 py-2.5 rounded-xl border transition ${st.done ? "border-[var(--primary)]/40 bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10" : "border-[var(--border)] bg-[var(--bg-surface)]/40 hover:bg-[var(--bg-surface)]"}`}>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${st.done ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-dim)] border border-[var(--border)]"}`}>{st.done ? "✓" : i + 1}</span>
+                <span className="text-[12px] font-bold text-[var(--text)]">{st.label}</span>
+              </div>
+              <div className={`text-sm font-black mono-number mt-1 ${st.done ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{st.amt > 0 ? won(st.amt) : "—"}</div>
+              <div className={`text-[10px] mt-0.5 ${st.done ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>{st.sub}</div>
+            </button>
+            {i < stages.length - 1 && <span className="self-center mx-0.5 text-[var(--text-dim)]">▶</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 영업 단계 — deals.stage(대시보드·위험 판정 기준). pill + ▶ 언어.
 function StageStepper({ stage, onPick, pending }: { stage: ProjectStage; onPick: (s: ProjectStage) => void; pending: boolean }) {
   const idx = STAGE_ORDER.indexOf(stage);
   return (
     <div className="stage-stepper glass-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold text-[var(--text)]">진행 단계</h3>
+        <h3 className="text-sm font-bold text-[var(--text)]">영업 단계 <span className="text-[var(--text-dim)] font-normal text-xs">대시보드·위험 판정 기준</span></h3>
         <span className="text-[11px] text-[var(--text-dim)]">단계를 클릭해 변경</span>
       </div>
       <div className="flex items-center gap-0.5 overflow-x-auto pb-1">
