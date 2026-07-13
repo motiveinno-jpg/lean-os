@@ -186,34 +186,63 @@ export default function ProjectHubDetailPage() {
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [creatingContractFrom, setCreatingContractFrom] = useState<string | null>(null);
   const [issuingInvoiceFrom, setIssuingInvoiceFrom] = useState<string | null>(null);
-  const [invoiceConfirm, setInvoiceConfirm] = useState<any | null>(null); // 중복 발행 확인 대기 계약 문서
-  // ★ 계약 → 계산서 발행 등록 (P2) — 계약금액을 이월해 매출 세금계산서(발행·미전송) 생성.
-  //   status='issued'=매출 발행(리포트 매출 집계 기준). 홈택스 실전송은 세금계산서 메뉴 소관(여기선 DB 기록만).
-  //   P4 안전장치: 이미 발행된 매출 계산서가 있으면 확인 모달로 이중 청구 방지.
-  const createInvoiceFromContract = async (contractDoc: any, force = false) => {
-    if (!companyId || issuingInvoiceFrom) return;
+  // 계산서 발행 모달 — 전액 vs 선금/잔금 분할. 계약서 content_json.paymentRatio 있으면 그대로 기본값.
+  const [invoiceModal, setInvoiceModal] = useState<any | null>(null); // 발행 대상 계약 문서
+  const [invoiceMode, setInvoiceMode] = useState<"full" | "split">("full");
+  const [advancePct, setAdvancePct] = useState(30); // 선금 %
+  const openInvoiceModal = (contractDoc: any) => {
+    const pr = (contractDoc.content_json as any)?.paymentRatio;
+    setAdvancePct(typeof pr?.advance === "number" ? pr.advance : 30);
+    setInvoiceMode(pr ? "split" : "full");
+    setInvoiceModal(contractDoc);
+  };
+  // ★ 계약 → 계산서 발행 (P2 + 선금/잔금). 전액=1건 발행. 분할=선금(즉시 발행)+잔금(초안, 선금 입금 후 발행).
+  //   status='issued'=매출 발행(리포트 매출 집계). 홈택스 실전송은 세금계산서 메뉴 소관(여기선 DB 기록만).
+  const issueInvoices = async () => {
+    const contractDoc = invoiceModal;
+    if (!companyId || !contractDoc || issuingInvoiceFrom) return;
     const supply = quoteAmount(contractDoc) || Number(deal?.contract_total || 0);
     if (supply <= 0) { toast("계약 금액이 없습니다. 계약서에 금액을 먼저 입력하세요.", "error"); return; }
-    const existing = ((pipe?.invoices || []) as any[]).length;
-    if (existing > 0 && !force) { setInvoiceConfirm(contractDoc); return; }
-    setInvoiceConfirm(null);
     setIssuingInvoiceFrom(contractDoc.id);
     try {
       const today = new Date().toISOString().slice(0, 10);
-      await createTaxInvoice({
-        companyId,
-        dealId,
-        type: "sales",
-        counterpartyName: partner?.name || (contractDoc.content_json as any)?.header?.partnerName || "거래처",
-        counterpartyBizno: partner?.business_number || undefined,
-        supplyAmount: supply,
-        issueDate: today,
-        status: "issued",
-        partnerId: deal?.partner_id || undefined,
-        label: `${deal?.name || "프로젝트"} 계약 기반`,
-      });
+      const cpName = partner?.name || (contractDoc.content_json as any)?.header?.partnerName || "거래처";
+      const cpBizno = partner?.business_number || undefined;
+      if (invoiceMode === "split") {
+        const adv = Math.min(100, Math.max(0, Math.round(advancePct)));
+        const advAmt = Math.round((supply * adv) / 100);
+        const terms = [
+          { label: "선금", ratio: adv, amount: advAmt, condition: "계약 후 7일 이내", status: "issued" as const, dueOffset: 7 },
+          { label: "잔금", ratio: 100 - adv, amount: supply - advAmt, condition: "납품 완료 후 14일 이내", status: "draft" as const, dueOffset: 60 },
+        ].filter((t) => t.amount > 0);
+        for (const t of terms) {
+          const due = new Date(Date.now() + t.dueOffset * 86400000).toISOString().slice(0, 10);
+          const { data: sched } = await db.from("deal_revenue_schedule").insert({
+            deal_id: dealId, label: `${t.label} (${t.ratio}%)`, amount: t.amount, due_date: due, status: "expected", condition_text: t.condition,
+          }).select("id").single();
+          await createTaxInvoice({
+            companyId, dealId, type: "sales", counterpartyName: cpName, counterpartyBizno: cpBizno,
+            supplyAmount: t.amount, issueDate: today, status: t.status, partnerId: deal?.partner_id || undefined,
+            label: `${deal?.name || "프로젝트"} ${t.label} 계산서`, revenueScheduleId: sched?.id || null,
+          });
+        }
+        // 계약서에 선금/잔금 비율 기억(다음 발행 기본값 · 계약서 내용 반영)
+        try {
+          const cj = { ...((contractDoc.content_json as any) || {}), paymentRatio: { advance: adv, balance: 100 - adv } };
+          await db.from("documents").update({ content_json: cj }).eq("id", contractDoc.id);
+          qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+        } catch { /* 비율 저장 실패는 무시 */ }
+        toast(`선금 ${won(advAmt)}(발행) · 잔금 ${won(supply - advAmt)}(초안)으로 계산서를 발행했습니다.`, "success");
+      } else {
+        await createTaxInvoice({
+          companyId, dealId, type: "sales", counterpartyName: cpName, counterpartyBizno: cpBizno,
+          supplyAmount: supply, issueDate: today, status: "issued", partnerId: deal?.partner_id || undefined,
+          label: `${deal?.name || "프로젝트"} 계약 기반`,
+        });
+        toast(`매출 세금계산서를 발행 등록했습니다 (${won(supply)} · 미전송). 세금계산서 메뉴에서 국세청 전송하세요.`, "success");
+      }
       qc.invalidateQueries({ queryKey: ["projecthub-pipe-summary", dealId] });
-      toast(`매출 세금계산서를 발행 등록했습니다 (${won(supply)} · 미전송). 세금계산서 메뉴에서 국세청 전송하세요.`, "success");
+      setInvoiceModal(null);
     } catch (e: any) {
       toast(e?.message || "계산서 생성 실패", "error");
     } finally {
@@ -1052,9 +1081,9 @@ export default function ProjectHubDetailPage() {
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{doc.status || "draft"}</span>
                   <span className="text-[11px] text-[var(--text-dim)] shrink-0 mono-number">{fmtDate(doc.created_at)}</span>
                   {pipelineDir !== "purchase" && (
-                    <button onClick={() => createInvoiceFromContract(doc)} disabled={issuingInvoiceFrom === doc.id}
+                    <button onClick={() => openInvoiceModal(doc)} disabled={issuingInvoiceFrom === doc.id}
                       className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap shrink-0"
-                      title="이 계약금액으로 매출 세금계산서를 발행 등록합니다(미전송)">
+                      title="이 계약금액으로 매출 세금계산서를 발행합니다(전액 또는 선금/잔금 분할)">
                       {issuingInvoiceFrom === doc.id ? "발행 중…" : "🧾 계산서 발행"}
                     </button>
                   )}
@@ -1287,20 +1316,67 @@ export default function ProjectHubDetailPage() {
       )}
 
       {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
-      {/* P4 — 계산서 중복 발행 확인(이중 청구 방지) */}
-      {invoiceConfirm && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setInvoiceConfirm(null)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold mb-2">계산서를 추가 발행할까요?</h3>
-            <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1">이 프로젝트에 이미 발행된 매출 계산서가 <b className="text-[var(--text)]">{((pipe?.invoices || []) as any[]).length}건</b> 있습니다.</p>
-            <p className="text-[11px] text-[var(--text-dim)] mb-5">추가로 발행하면 매출이 <b className="text-[var(--warning)]">이중 계상</b>될 수 있습니다. 계약을 분할 청구하는 경우에만 진행하세요.</p>
-            <div className="flex items-center justify-end gap-2.5">
-              <button onClick={() => setInvoiceConfirm(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-              <button onClick={() => createInvoiceFromContract(invoiceConfirm, true)} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold hover:brightness-110 transition">추가 발행</button>
+      {/* 계산서 발행 모달 — 전액 또는 선금/잔금 분할. 계약서에 비율 있으면 그대로 기본값. */}
+      {invoiceModal && (() => {
+        const supply = quoteAmount(invoiceModal) || Number(deal?.contract_total || 0);
+        const adv = Math.min(100, Math.max(0, Math.round(advancePct || 0)));
+        const advAmt = Math.round((supply * adv) / 100);
+        const balAmt = supply - advAmt;
+        const existingCount = ((pipe?.invoices || []) as any[]).length;
+        return (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setInvoiceModal(null)}>
+            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold">계산서 발행</h3>
+                <button onClick={() => setInvoiceModal(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+              </div>
+              <div className="flex items-baseline justify-between mb-4 text-sm">
+                <span className="text-[var(--text-muted)]">계약금액(공급가)</span>
+                <span className="mono-number font-bold text-[var(--text)]">{won(supply)}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <button onClick={() => setInvoiceMode("full")}
+                  className={`h-10 rounded-xl text-sm font-semibold border transition ${invoiceMode === "full" ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>전액 발행</button>
+                <button onClick={() => setInvoiceMode("split")}
+                  className={`h-10 rounded-xl text-sm font-semibold border transition ${invoiceMode === "split" ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>선금·잔금 분할</button>
+              </div>
+              {invoiceMode === "split" ? (
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[var(--text-muted)] w-9 shrink-0">선금</span>
+                    <input type="number" min={0} max={100} value={advancePct}
+                      onChange={(e) => setAdvancePct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-20 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
+                    <span className="text-xs text-[var(--text-muted)]">%</span>
+                    <span className="ml-auto text-[11px] text-[var(--text-dim)]">잔금 {100 - adv}%</span>
+                  </div>
+                  <div className="rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50 divide-y divide-[var(--border)]/40">
+                    <div className="flex items-center justify-between px-3 py-2.5">
+                      <span className="text-sm text-[var(--text)]">선금 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold ml-1">즉시 발행</span></span>
+                      <span className="mono-number font-bold text-[var(--text)]">{won(advAmt)}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-2.5">
+                      <span className="text-sm text-[var(--text)]">잔금 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] font-semibold ml-1">초안(입금 후 발행)</span></span>
+                      <span className="mono-number font-bold text-[var(--text)]">{won(balAmt)}</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-dim)]">잔금은 <b className="text-[var(--text-muted)]">초안</b>으로 생성되며, 선금 입금이 확인되면 세금계산서 메뉴에서 발행합니다.</p>
+                </div>
+              ) : (
+                <p className="text-[12px] text-[var(--text-muted)] mb-4">계약금액 전액을 매출 세금계산서 1건으로 발행합니다(미전송).</p>
+              )}
+              {existingCount > 0 && (
+                <p className="text-[11px] text-[var(--warning)] mb-3">⚠ 이 프로젝트에 이미 발행된 매출 계산서가 {existingCount}건 있습니다. 중복 발행 시 매출이 이중 계상될 수 있습니다.</p>
+              )}
+              <div className="flex items-center justify-end gap-2.5">
+                <button onClick={() => setInvoiceModal(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                <button onClick={issueInvoices} disabled={!!issuingInvoiceFrom || supply <= 0}
+                  className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{issuingInvoiceFrom ? "발행 중…" : "발행"}</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {showQuoteForm && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQuoteForm(false)}>
@@ -1456,15 +1532,19 @@ function PipelineRibbon({ pipe, contractTotal, onOpen }: { pipe: any; contractTo
   const contractAmt = contracts.length ? (quoteAmount(contracts[0]) || contractTotal) : contractTotal;
   const signed = sigs.some((s) => s.signed_at);
   const invAmt = invoices.reduce((a, i) => a + Number(i.supply_amount || i.total_amount || 0), 0);
-  // 정산(수금) — 미수 상태(issued/sent/pending/overdue) 외 = 수금 완료. (queries.ts 미수금 조건과 동일)
-  const UNPAID = ["issued", "sent", "pending", "overdue"];
-  const unpaidCount = invoices.filter((i) => UNPAID.includes(i.status)).length;
-  const paidAmt = invoices.filter((i) => !UNPAID.includes(i.status)).reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
+  // 상태 구분 — 미수(발행됐으나 미입금) / 미청구(초안·무효) / 수금(그 외)
+  const OUTSTANDING = ["issued", "sent", "pending", "overdue"];
+  const NOT_BILLED = ["draft", "void"];
+  const issuedCount = invoices.filter((i) => !NOT_BILLED.includes(i.status)).length;
+  const draftCount = invoices.filter((i) => i.status === "draft").length;
+  const unpaidCount = invoices.filter((i) => OUTSTANDING.includes(i.status)).length;
+  const paidAmt = invoices.filter((i) => !OUTSTANDING.includes(i.status) && !NOT_BILLED.includes(i.status)).reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
+  const pending = unpaidCount + draftCount; // 아직 수금 안 된 건(미수 + 잔금 초안)
   const stages = [
     { key: "quote", label: "견적", amt: quoteAmt, done: quotes.length > 0, sub: quotes.length ? `${quotes.length}건 작성` : "미작성" },
     { key: "contract", label: "계약", amt: contractAmt, done: contracts.length > 0, sub: contracts.length ? (signed ? "서명완료" : "미서명") : "미작성" },
-    { key: "invoice", label: "계산서", amt: invAmt, done: invoices.length > 0, sub: invoices.length ? `발행 ${invoices.length}건` : "미발행" },
-    { key: "settle", label: "정산", amt: paidAmt, done: invoices.length > 0 && unpaidCount === 0, sub: invoices.length === 0 ? "미수금" : unpaidCount > 0 ? `미수 ${unpaidCount}건` : "수금완료" },
+    { key: "invoice", label: "계산서", amt: invAmt, done: issuedCount > 0, sub: invoices.length === 0 ? "미발행" : draftCount > 0 ? `발행 ${issuedCount}·초안 ${draftCount}` : `발행 ${issuedCount}건` },
+    { key: "settle", label: "정산", amt: paidAmt, done: invoices.length > 0 && pending === 0, sub: invoices.length === 0 ? "미수금" : pending > 0 ? `미수 ${pending}건` : "수금완료" },
   ];
   return (
     <div className="pipeline-ribbon glass-card p-4">
