@@ -1,21 +1,21 @@
 "use client";
 
-// 리포트형 UI 킷 — "하나의 보고서" 느낌(솔리드 카드·중앙 컬럼·표준 헤더/KPI/섹션).
-//   파일럿(경영 요약)에서 검증 후 전역 표준으로 승격 예정. 글래스/반투명 대신 불투명 카드.
+// 리포트형 UI 킷 — "하나의 보고서" 정보구조(표준 헤더/KPI/섹션)를 오너뷰 글래스 비주얼로.
+//   구조는 리포트형, 비주얼은 글래스 유지 + 풀폭(중앙 여백 없음). 사장님 피드백 반영(2026-07-13).
 
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-// 공용 카드 — 불투명 흰 카드 + 얇은 보더 + 큰 라운드 + 소프트 섀도(리포트 톤)
-export const REPORT_CARD = "bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.06)]";
+// 공용 카드 — 오너뷰 글래스 카드 유지(반투명). 리포트 구조만 표준화.
+export const REPORT_CARD = "glass-card";
 
 const toneColor = (tone?: string) =>
   tone === "success" ? "var(--success)" : tone === "danger" ? "var(--danger)" : tone === "warning" ? "var(--warning)" : tone === "primary" ? "var(--primary)" : "var(--text)";
 const soft = (c: string, pct = 12) => `color-mix(in srgb, ${c} ${pct}%, transparent)`;
 
-// 중앙 정렬 리포트 컬럼
+// 리포트 컬럼 — 풀폭(중앙 여백 없음). 여백 때문에 붕 뜨는 느낌 제거.
 export function ReportShell({ children }: { children: ReactNode }) {
-  return <div className="report-shell mx-auto w-full max-w-[1080px]">{children}</div>;
+  return <div className="report-shell w-full">{children}</div>;
 }
 
 // 페이지 헤더 — 제목 + 한 줄 설명 + 출처 칩
