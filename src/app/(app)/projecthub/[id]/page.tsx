@@ -25,6 +25,7 @@ import { PerformanceTab } from "./_components/PerformanceTab";
 import { GoalOverviewTab } from "./_components/GoalOverviewTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
+import { createTaxInvoice } from "@/lib/tax-invoice";
 import { TasksTab } from "./_components/TasksTab";
 import { MondayBoard } from "@/components/monday-board";
 
@@ -184,6 +185,36 @@ export default function ProjectHubDetailPage() {
   const [quoteSubDealId, setQuoteSubDealId] = useState(""); // 세부 프로젝트 연결(선택, 견적서 전용)
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [creatingContractFrom, setCreatingContractFrom] = useState<string | null>(null);
+  const [issuingInvoiceFrom, setIssuingInvoiceFrom] = useState<string | null>(null);
+  // ★ 계약 → 계산서 발행 등록 (P2) — 계약금액을 이월해 매출 세금계산서(발행·미전송) 생성.
+  //   status='issued'=매출 발행(리포트 매출 집계 기준). 홈택스 실전송은 세금계산서 메뉴 소관(여기선 DB 기록만).
+  const createInvoiceFromContract = async (contractDoc: any) => {
+    if (!companyId || issuingInvoiceFrom) return;
+    const supply = quoteAmount(contractDoc) || Number(deal?.contract_total || 0);
+    if (supply <= 0) { toast("계약 금액이 없습니다. 계약서에 금액을 먼저 입력하세요.", "error"); return; }
+    setIssuingInvoiceFrom(contractDoc.id);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await createTaxInvoice({
+        companyId,
+        dealId,
+        type: "sales",
+        counterpartyName: partner?.name || (contractDoc.content_json as any)?.header?.partnerName || "거래처",
+        counterpartyBizno: partner?.business_number || undefined,
+        supplyAmount: supply,
+        issueDate: today,
+        status: "issued",
+        partnerId: deal?.partner_id || undefined,
+        label: `${deal?.name || "프로젝트"} 계약 기반`,
+      });
+      qc.invalidateQueries({ queryKey: ["projecthub-pipe-summary", dealId] });
+      toast(`매출 세금계산서를 발행 등록했습니다 (${won(supply)} · 미전송). 세금계산서 메뉴에서 국세청 전송하세요.`, "success");
+    } catch (e: any) {
+      toast(e?.message || "계산서 생성 실패", "error");
+    } finally {
+      setIssuingInvoiceFrom(null);
+    }
+  };
   const createDoc = async () => {
     if (!companyId || !userId || creatingQuote) return;
     setCreatingQuote(true);
@@ -1004,6 +1035,13 @@ export default function ProjectHubDetailPage() {
                   })()}
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{doc.status || "draft"}</span>
                   <span className="text-[11px] text-[var(--text-dim)] shrink-0 mono-number">{fmtDate(doc.created_at)}</span>
+                  {pipelineDir !== "purchase" && (
+                    <button onClick={() => createInvoiceFromContract(doc)} disabled={issuingInvoiceFrom === doc.id}
+                      className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap shrink-0"
+                      title="이 계약금액으로 매출 세금계산서를 발행 등록합니다(미전송)">
+                      {issuingInvoiceFrom === doc.id ? "발행 중…" : "🧾 계산서 발행"}
+                    </button>
+                  )}
                   <Link href={`/documents?id=${doc.id}&print=1`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline shrink-0">인쇄</Link>
                 </div>
               ))}
