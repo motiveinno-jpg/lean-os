@@ -83,6 +83,21 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["project-issues", dealId] }); qc.invalidateQueries({ queryKey: ["project-issues-open", dealId] }); toast("이슈를 삭제했습니다", "info"); },
     onError: (e: any) => toast(e?.message || "삭제 실패", "error"),
   });
+  // 이슈 → 실행 과제 생성 ('실행' 탭 project_tasks). 제목·상세·담당·기한 이월.
+  const taskMut = useMutation({
+    mutationFn: async (iss: Issue) => {
+      const { count } = await db.from("project_tasks").select("id", { count: "exact", head: true }).eq("deal_id", dealId).eq("status", "todo");
+      const desc = [iss.description, `※ 이슈에서 생성 · 심각도 ${sevMeta(iss.severity).label}`].filter(Boolean).join("\n\n");
+      const { error } = await db.from("project_tasks").insert({
+        company_id: companyId, deal_id: dealId, title: iss.title, description: desc, status: "todo",
+        assignee_id: iss.assignee_id || null, assignee_ids: iss.assignee_id ? [iss.assignee_id] : [],
+        due_date: iss.due_date || null, progress: 0, position: (count || 0) + 1, created_by: user?.id || null,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["project-tasks", dealId] }); qc.invalidateQueries({ queryKey: ["goal-overview-overdue-tasks", dealId] }); toast("실행 과제를 생성했습니다. ‘실행’ 탭에서 확인하세요.", "success"); },
+    onError: (e: any) => toast(e?.message || "과제 생성 실패", "error"),
+  });
   // 상태 빠른 변경(행에서)
   const quickStatus = async (iss: Issue, status: string) => {
     const patch: any = { status, updated_at: new Date().toISOString() };
@@ -145,7 +160,7 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
                 <th className="px-3 py-2.5 text-left text-[11px] font-semibold border-b border-[var(--border)] w-[110px]">담당</th>
                 <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[110px]">기한</th>
                 <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[150px]">상태</th>
-                <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[90px]">관리</th>
+                <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[150px]">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -167,8 +182,9 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
                       </select>
                     </td>
                     <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
+                      <button onClick={() => taskMut.mutate(iss)} disabled={taskMut.isPending} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-50" title="이 이슈로 실행 과제 생성">→과제</button>
                       <button onClick={() => openEdit(iss)} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]">수정</button>
-                      <button onClick={() => { if (confirm(`'${iss.title}' 이슈를 삭제할까요?`)) delMut.mutate(iss.id); }} className="ml-1 px-2 py-1 text-[11px] font-semibold rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
+                      <button onClick={() => { if (confirm(`'${iss.title}' 이슈를 삭제할까요?`)) delMut.mutate(iss.id); }} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
                     </td>
                   </tr>
                 );
@@ -230,9 +246,15 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-end gap-2.5 mt-5">
-              <button onClick={() => setShowForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)]">취소</button>
-              <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !form.title.trim()} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110">{saveMut.isPending ? "저장 중…" : "저장"}</button>
+            <div className="flex items-center justify-between gap-2.5 mt-5">
+              {form.id ? (
+                <button onClick={() => { const iss = (issues as Issue[]).find((x) => x.id === form.id); if (iss) taskMut.mutate(iss); }} disabled={taskMut.isPending}
+                  className="text-[13px] font-semibold text-[var(--primary)] hover:underline disabled:opacity-50" title="이 이슈로 실행 과제 생성">→ 실행 과제로 만들기</button>
+              ) : <span />}
+              <div className="flex items-center gap-2.5">
+                <button onClick={() => setShowForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)]">취소</button>
+                <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !form.title.trim()} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110">{saveMut.isPending ? "저장 중…" : "저장"}</button>
+              </div>
             </div>
           </div>
         </div>
