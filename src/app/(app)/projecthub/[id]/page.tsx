@@ -744,8 +744,12 @@ export default function ProjectHubDetailPage() {
     (v.journal_lines || []).filter((l: any) => l.chart_of_accounts?.account_type === "expense").reduce((s: number, l: any) => s + Number(l.debit || 0), 0));
   const totalCost = costInvoiceSum + costCashSum + costCardSum + costVoucherSum;
   // 개요 마진 — 매출은 단일 산식(자체 계약 + 매출형 sub_deals, 캠페인 롤업). 비용은 예상(매입형)↔확정(태그전표).
-  const planRevenue = ownContract + subSalesSum;   // 매출(단일)
+  const planRevenue = ownContract + subSalesSum;   // 계약·약정 기준 매출
   const planCost = subPurchaseSum;                 // 예상 비용 = 매입형 sub_deals
+  // 매출 SoT(최고 확정단계) — 계산서 발행분이 있으면 그 금액, 없으면 계약·약정 금액. (P3)
+  const confirmedRevenue = ((pipe?.invoices || []) as any[]).reduce((a, i) => a + Number(i.supply_amount || 0), 0);
+  const salesSoT = confirmedRevenue > 0 ? confirmedRevenue : planRevenue;
+  const revenueBasis = confirmedRevenue > 0 ? "계산서 발행 기준" : planRevenue > 0 ? "계약·약정 기준" : "미입력";
   const COST_SOURCES = [
     { key: "invoice", label: "세금계산서(매입)", total: costInvoiceSum, count: costInvoices.length, items: costInvoices as any[] },
     { key: "cash", label: "현금영수증", total: costCashSum, count: costCash.length, items: costCash as any[] },
@@ -828,7 +832,8 @@ export default function ProjectHubDetailPage() {
         ) : (
         <div className="space-y-5">
           <MarginCockpit
-            revenue={planRevenue}
+            revenue={salesSoT}
+            revenueBasis={revenueBasis}
             planCost={planCost}
             actualCost={totalCost}
             hasActual={totalCost > 0}
@@ -1365,8 +1370,8 @@ export default function ProjectHubDetailPage() {
 }
 
 // 마진 콕핏 — 예상→확정 한 축. 매출은 단일 산식, 비용만 예상(약정)↔확정(실적)으로 진행.
-function MarginCockpit({ revenue, planCost, actualCost, hasActual, rolled, stage }: {
-  revenue: number; planCost: number; actualCost: number; hasActual: boolean; rolled: number; stage: ProjectStage;
+function MarginCockpit({ revenue, revenueBasis, planCost, actualCost, hasActual, rolled, stage }: {
+  revenue: number; revenueBasis: string; planCost: number; actualCost: number; hasActual: boolean; rolled: number; stage: ProjectStage;
 }) {
   const planMargin = revenue - planCost;
   const actualMargin = revenue - actualCost;
@@ -1407,7 +1412,7 @@ function MarginCockpit({ revenue, planCost, actualCost, hasActual, rolled, stage
         <div className="mt-3 text-[11px] text-[var(--text-dim)]">예상(계획) 기준입니다. 비용을 프로젝트에 태그하면 <b className="text-[var(--text-muted)]">확정 마진</b>이 채워집니다.</div>
       )}
       <div className="mt-4 pt-3 border-t border-[var(--border)]/40 flex flex-wrap gap-x-6 gap-y-1.5 text-[12px]">
-        <span className="text-[var(--text-muted)]">매출 <b className="mono-number text-[var(--text)]">{won(revenue)}</b></span>
+        <span className="text-[var(--text-muted)]">매출 <b className="mono-number text-[var(--text)]">{won(revenue)}</b> <span className="text-[10px] text-[var(--text-dim)]">({revenueBasis})</span></span>
         <span className="text-[var(--text-muted)]">예상 비용 <b className="mono-number text-[var(--text)]">{won(planCost)}</b></span>
         <span className="text-[var(--text-muted)]">확정 비용 <b className="mono-number text-[var(--text)]">{won(actualCost)}</b></span>
       </div>
@@ -1425,11 +1430,15 @@ function PipelineRibbon({ pipe, contractTotal, onOpen }: { pipe: any; contractTo
   const contractAmt = contracts.length ? (quoteAmount(contracts[0]) || contractTotal) : contractTotal;
   const signed = sigs.some((s) => s.signed_at);
   const invAmt = invoices.reduce((a, i) => a + Number(i.supply_amount || i.total_amount || 0), 0);
+  // 정산(수금) — 미수 상태(issued/sent/pending/overdue) 외 = 수금 완료. (queries.ts 미수금 조건과 동일)
+  const UNPAID = ["issued", "sent", "pending", "overdue"];
+  const unpaidCount = invoices.filter((i) => UNPAID.includes(i.status)).length;
+  const paidAmt = invoices.filter((i) => !UNPAID.includes(i.status)).reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
   const stages = [
     { key: "quote", label: "견적", amt: quoteAmt, done: quotes.length > 0, sub: quotes.length ? `${quotes.length}건 작성` : "미작성" },
     { key: "contract", label: "계약", amt: contractAmt, done: contracts.length > 0, sub: contracts.length ? (signed ? "서명완료" : "미서명") : "미작성" },
     { key: "invoice", label: "계산서", amt: invAmt, done: invoices.length > 0, sub: invoices.length ? `발행 ${invoices.length}건` : "미발행" },
-    { key: "settle", label: "정산", amt: 0, done: false, sub: "미수금" },
+    { key: "settle", label: "정산", amt: paidAmt, done: invoices.length > 0 && unpaidCount === 0, sub: invoices.length === 0 ? "미수금" : unpaidCount > 0 ? `미수 ${unpaidCount}건` : "수금완료" },
   ];
   return (
     <div className="pipeline-ribbon glass-card p-4">
