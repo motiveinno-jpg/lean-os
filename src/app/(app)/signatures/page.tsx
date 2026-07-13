@@ -580,10 +580,12 @@ export default function SignaturesDashboardPage() {
           companyId={companyId}
           userId={userId}
           documents={documents as any[]}
+          docTemplates={docTemplates as any[]}
           onClose={() => setShowInviteModal(false)}
           onCreated={() => {
             setShowInviteModal(false);
             qc.invalidateQueries({ queryKey: ["signature-requests"] });
+            qc.invalidateQueries({ queryKey: ["documents-for-sign", companyId] });
           }}
         />
       )}
@@ -593,10 +595,12 @@ export default function SignaturesDashboardPage() {
           companyId={companyId}
           userId={userId}
           documents={documents as any[]}
+          docTemplates={docTemplates as any[]}
           onClose={() => setShowOrgBulkWizard(false)}
           onCreated={() => {
             setShowOrgBulkWizard(false);
             qc.invalidateQueries({ queryKey: ["signature-requests"] });
+            qc.invalidateQueries({ queryKey: ["documents-for-sign", companyId] });
           }}
         />
       )}

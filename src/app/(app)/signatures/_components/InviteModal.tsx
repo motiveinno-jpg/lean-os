@@ -1,28 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createBulkSignatureRequests } from "@/lib/signatures";
+import { materializeDocTemplate } from "@/lib/documents";
+import { isHrType } from "@/components/templates-tab";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 
 type Signer = { name: string; email: string; phone: string };
+
+const TPL_PREFIX = "tpl:";
 
 // ── Invite Modal ──
 export function InviteModal({
   companyId,
   userId,
   documents,
+  docTemplates = [],
   onClose,
   onCreated,
 }: {
   companyId: string;
   userId: string;
   documents: any[];
+  docTemplates?: any[];
   onClose: () => void;
   onCreated: () => void;
 }) {
   const { toast } = useToast();
   const [docId, setDocId] = useState<string>("");
+  // 양식 관리(doc_templates)에 등록된 것도 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
+  const bizTemplates = useMemo(() => docTemplates.filter((t: any) => !isHrType(t.type)), [docTemplates]);
   const [title, setTitle] = useState("");
   const [signers, setSigners] = useState<Signer[]>([{ name: "", email: "", phone: "" }]);
   const [sendNow, setSendNow] = useState(true);
@@ -54,10 +62,17 @@ export function InviteModal({
     }
     setSubmitting(true);
     try {
-      const doc = documents.find((d) => d.id === docId);
+      let realDocId = docId;
+      let doc = documents.find((d) => d.id === docId);
+      if (!doc && docId.startsWith(TPL_PREFIX)) {
+        const tpl = bizTemplates.find((t: any) => `${TPL_PREFIX}${t.id}` === docId);
+        if (!tpl) throw new Error("선택한 양식을 찾을 수 없습니다");
+        doc = await materializeDocTemplate(companyId, tpl);
+        realDocId = doc.id;
+      }
       const r = await createBulkSignatureRequests({
         companyId,
-        documentId: docId,
+        documentId: realDocId,
         title: title.trim() || doc?.name || "서명 요청",
         signers: validSigners.map((s) => ({ name: s.name.trim(), email: s.email.trim(), phone: s.phone.trim() })),
         createdBy: userId,
@@ -93,17 +108,31 @@ export function InviteModal({
               value={docId}
               onChange={(e) => {
                 setDocId(e.target.value);
-                const d = documents.find((x) => x.id === e.target.value);
+                const raw = e.target.value;
+                const d = documents.find((x) => x.id === raw) || bizTemplates.find((t: any) => `${TPL_PREFIX}${t.id}` === raw);
                 if (d && !title) setTitle(d.name || "");
               }}
               className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]"
             >
               <option value="">— 선택 —</option>
-              {documents.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} ({d.status})
-                </option>
-              ))}
+              {documents.length > 0 && (
+                <optgroup label="문서">
+                  {documents.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.status})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {bizTemplates.length > 0 && (
+                <optgroup label="양식 (선택 시 문서로 생성)">
+                  {bizTemplates.map((t: any) => (
+                    <option key={t.id} value={`${TPL_PREFIX}${t.id}`}>
+                      {t.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
 

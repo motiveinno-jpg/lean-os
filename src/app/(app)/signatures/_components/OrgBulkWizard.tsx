@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import Link from "next/link";
 import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, buildOrgContractSnapshotHtml, type PartnerVarColumn } from "@/lib/signatures";
+import { materializeDocTemplate } from "@/lib/documents";
+import { isHrType } from "@/components/templates-tab";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -77,12 +79,14 @@ export function OrgBulkWizard({
   companyId,
   userId,
   documents,
+  docTemplates = [],
   onClose,
   onCreated,
 }: {
   companyId: string;
   userId: string;
   documents: any[];
+  docTemplates?: any[];
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -92,9 +96,32 @@ export function OrgBulkWizard({
   // 100개+ 대량 발송 진행률 (chunk 완료마다 갱신)
   const [progress, setProgress] = useState<{ done: number; total: number; sent: number; failed: number } | null>(null);
 
+  // 양식 관리(doc_templates)에 등록된 것도 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
+  const bizTemplates = useMemo(() => docTemplates.filter((t: any) => !isHrType(t.type)), [docTemplates]);
+  const [materializedDocs, setMaterializedDocs] = useState<any[]>([]);
+  const [materializing, setMaterializing] = useState(false);
+  const allDocuments = useMemo(() => [...documents, ...materializedDocs], [documents, materializedDocs]);
+
   // Step 1: 계약서 선택
   const [docId, setDocId] = useState<string>("");
-  const selectedDoc = useMemo(() => documents.find((d) => d.id === docId), [documents, docId]);
+  const selectedDoc = useMemo(() => allDocuments.find((d) => d.id === docId), [allDocuments, docId]);
+
+  const selectTemplate = async (tpl: any) => {
+    if (materializing) return;
+    // 이미 실체화된 적 있으면(같은 이름 문서 존재) 재사용 — 매번 새 문서로 중복 생성 방지.
+    const already = allDocuments.find((d) => d.name === tpl.name);
+    if (already) { setDocId(already.id); return; }
+    setMaterializing(true);
+    try {
+      const doc = await materializeDocTemplate(companyId, tpl);
+      setMaterializedDocs((prev) => [...prev, doc]);
+      setDocId(doc.id);
+    } catch (e: any) {
+      toast(friendlyError(e, "양식을 문서로 만들지 못했습니다"), "error");
+    } finally {
+      setMaterializing(false);
+    }
+  };
 
   // Step 2: 거래처
   const [partners, setPartners] = useState<OrgPartner[]>([]);
@@ -389,42 +416,72 @@ export function OrgBulkWizard({
           <div className="space-y-3">
             <div className="text-sm font-semibold text-[var(--text)]">발송할 계약서를 선택하세요</div>
             <div className="text-xs text-[var(--text-muted)]">
-              이미 작성된 계약서만 선택할 수 있습니다. 새 계약서가 필요하면 먼저{" "}
-              <Link href="/documents" className="text-[var(--primary)] hover:underline">문서함</Link>
-              에서 양식(서비스/공급/컨설팅 등) 기반으로 작성해 주세요.
+              기존 문서 또는 "양식 관리"에 등록된 양식 중에서 고르세요. 양식을 고르면 자동으로 문서로 만들어 발송합니다.
               <br />
               <span className="caption">
                 💡 변수 토큰 <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> / <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> / <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> / <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 는 거래처별 자동 치환됩니다. <code className="text-[var(--primary)]">{`{{갑_*}}`}</code> 는 회사 공통값.
               </span>
             </div>
             <div className="border border-[var(--border)] rounded-lg max-h-[360px] overflow-y-auto">
-              {documents.length === 0 ? (
-                <div className="p-6 text-center text-sm text-[var(--text-muted)]">작성된 문서가 없습니다.</div>
+              {documents.length === 0 && bizTemplates.length === 0 ? (
+                <div className="p-6 text-center text-sm text-[var(--text-muted)]">작성된 문서·양식이 없습니다.</div>
               ) : (
-                documents.map((d) => (
-                  <label
-                    key={d.id}
-                    className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
-                      docId === d.id ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="docId"
-                      value={d.id}
-                      checked={docId === d.id}
-                      onChange={() => setDocId(d.id)}
-                    />
-                    <div className="flex-1">
-                      <div className="text-sm text-[var(--text)]">{d.name}</div>
-                      <div className="text-[10px] text-[var(--text-muted)]">
-                        {d.doc_templates?.name || d.doc_templates?.type || "—"} · 상태 {d.status}
+                <>
+                  {documents.length > 0 && (
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">문서</div>
+                  )}
+                  {documents.map((d) => (
+                    <label
+                      key={d.id}
+                      className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
+                        docId === d.id ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="docId"
+                        value={d.id}
+                        checked={docId === d.id}
+                        onChange={() => setDocId(d.id)}
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm text-[var(--text)]">{d.name}</div>
+                        <div className="text-[10px] text-[var(--text-muted)]">
+                          {d.doc_templates?.name || d.doc_templates?.type || "—"} · 상태 {d.status}
+                        </div>
                       </div>
-                    </div>
-                  </label>
-                ))
+                    </label>
+                  ))}
+                  {bizTemplates.length > 0 && (
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리</div>
+                  )}
+                  {bizTemplates.map((t: any) => {
+                    const materialized = allDocuments.find((d) => d.name === t.name);
+                    const checked = !!materialized && docId === materialized.id;
+                    return (
+                      <label
+                        key={t.id}
+                        className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
+                          checked ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
+                        } ${materializing ? "opacity-60 pointer-events-none" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="docId"
+                          checked={checked}
+                          onChange={() => selectTemplate(t)}
+                        />
+                        <div className="flex-1">
+                          <div className="text-sm text-[var(--text)]">{t.name}</div>
+                          <div className="text-[10px] text-[var(--text-muted)]">양식 · 선택 시 문서로 생성</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </>
               )}
             </div>
+            {materializing && <div className="text-xs text-[var(--text-muted)]">양식을 문서로 만드는 중...</div>}
           </div>
         )}
 

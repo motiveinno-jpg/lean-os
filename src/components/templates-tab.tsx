@@ -22,7 +22,7 @@ export const HR_TYPES = [
 
 type TemplatesScope = "business" | "hr";
 
-const isHrType = (type?: string) => HR_TYPES.includes(type || "");
+export const isHrType = (type?: string) => HR_TYPES.includes(type || "");
 
 // ── Templates Tab (공용) ──
 //   scope="business" → 전자계약 양식(계약서·견적서 등), scope="hr" → 인사 양식(근로계약서 등).

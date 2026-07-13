@@ -185,6 +185,56 @@ export function fillVariables(
   return JSON.parse(filled);
 }
 
+// ── doc_templates(섹션형 양식) → documents(재사용 계약서 문서) 변환 ──
+//   전자계약 발송 플로우(InviteModal/OrgBulkWizard)는 documents 테이블만 읽는다.
+//   "양식 관리"(doc_templates)에 등록해도 발송 목록엔 안 뜨던 문제(2026-07-13) 해결책 —
+//   선택 시 최초 1회 실제 documents 행으로 변환("실체화")하고, 이후엔 동일 이름 문서를 재사용.
+function escapeHtml(s: string): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+export function docTemplateToHtml(tpl: { name: string; content_json?: any }): string {
+  const cj = tpl.content_json || {};
+  const title = cj.title || tpl.name;
+  let html = `<p style="text-align: center;"><strong><span style="font-size: 18pt;">${escapeHtml(title)}</span></strong></p><p>&nbsp;</p>`;
+  for (const sec of (cj.sections || []) as { title?: string; content?: string }[]) {
+    if (sec.title) html += `<p><strong>${escapeHtml(sec.title)}</strong></p>`;
+    const lines = String(sec.content || "").split("\n");
+    for (const line of lines) html += `<p>${line.trim() ? escapeHtml(line) : "&nbsp;"}</p>`;
+    html += "<p>&nbsp;</p>";
+  }
+  return html;
+}
+
+// 같은 회사에 동일 이름 documents 행이 이미 있으면 재사용(중복 생성 방지), 없으면 신규 생성.
+export async function materializeDocTemplate(companyId: string, tpl: { name: string; type?: string; content_json?: any }) {
+  const { data: existing } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("company_id", companyId)
+    .eq("name", tpl.name)
+    .maybeSingle();
+  if (existing) return existing;
+
+  const body = docTemplateToHtml(tpl);
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      company_id: companyId,
+      name: tpl.name,
+      content_json: { body } as unknown as Json,
+      auto_classified_type: "contract",
+      status: "draft",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 // ── Save document revision ──
 export async function saveRevision(params: {
   documentId: string;
