@@ -211,13 +211,56 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
         </div>
       </div>
 
-      {/* 본문 — 좌 2/3(스코어카드·추세) + 우 1/3 보조 위젯(분해·부서별·체크인) */}
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-5">
-      {/* ① KPI 스코어카드 */}
+      {/* 지금 볼 것 — 열린 이슈 · 지연 과제 (개선 유도), 전체 폭 2열로 상단 배치 */}
+      <div className="grid gap-5 sm:grid-cols-2">
+        <section className="glass-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-[var(--text)]">열린 이슈 <span className="font-normal text-[var(--text-dim)] text-xs">문제점·리스크</span></h3>
+            <span className={`text-xs font-bold ${(openIssues as any[]).length ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{(openIssues as any[]).length}건</span>
+          </div>
+          {(openIssues as any[]).length === 0 ? (
+            <div className="text-xs text-[var(--text-dim)]">열린 이슈가 없습니다. 👍</div>
+          ) : (
+            <div className="space-y-1.5">
+              {(openIssues as any[]).slice(0, 6).map((i) => {
+                const sevColor = i.severity === "critical" ? DANGER : i.severity === "high" ? AMBER : i.severity === "medium" ? "var(--primary)" : "var(--text-dim)";
+                const overdue = i.due_date && i.due_date < new Date().toISOString().slice(0, 10);
+                return (
+                  <div key={i.id} className="flex items-center gap-2 text-xs">
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: sevColor, flexShrink: 0 }} />
+                    <span className="flex-1 truncate text-[var(--text)]">{i.title}</span>
+                    {i.due_date && <span className={`mono-number text-[10px] ${overdue ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>{String(i.due_date).slice(5, 10)}{overdue ? "⚠" : ""}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+        <section className="glass-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-[var(--text)]">지연 과제 <span className="font-normal text-[var(--text-dim)] text-xs">마감 초과</span></h3>
+            <span className={`text-xs font-bold ${(overdueTasks as any[]).length ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{(overdueTasks as any[]).length}건</span>
+          </div>
+          {(overdueTasks as any[]).length === 0 ? (
+            <div className="text-xs text-[var(--text-dim)]">마감 지난 과제가 없습니다. 👍</div>
+          ) : (
+            <div className="space-y-1.5">
+              {(overdueTasks as any[]).slice(0, 6).map((t) => (
+                <div key={t.id} className="flex items-center gap-2 text-xs">
+                  <span style={{ width: 7, height: 7, borderRadius: 999, background: DANGER, flexShrink: 0 }} />
+                  <span className="flex-1 truncate text-[var(--text)]">{t.title}</span>
+                  <span className="mono-number text-[10px] text-[var(--danger)] font-semibold">{String(t.due_date).slice(5, 10)}⚠</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* KPI 현황 — 전체 폭, 3열 그리드 */}
       <section>
         <h3 className="text-sm font-bold text-[var(--text)] mb-2">KPI 현황</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {rows.map(({ k, actual, pct }) => {
             const sp = sparkOf(k);
             return (
@@ -241,7 +284,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
         </div>
       </section>
 
-      {/* ② 추세 */}
+      {/* 추세 — 전체 폭(차트 가독성) */}
       <section className="glass-card p-4">
         <div className="flex items-center justify-between gap-2 mb-4">
           <h3 className="text-sm font-bold text-[var(--text)]">누적 실적 vs 목표 페이스</h3>
@@ -262,95 +305,47 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
           />
         ) : null}
       </section>
-        </div>
 
-        <div className="space-y-5">
-      {/* 열린 이슈 — 지금 볼 것(개선 유도). '이슈' 탭과 연동. */}
-      <section className="glass-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-[var(--text)]">열린 이슈 <span className="font-normal text-[var(--text-dim)] text-xs">문제점·리스크</span></h3>
-          <span className={`text-xs font-bold ${(openIssues as any[]).length ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{(openIssues as any[]).length}건</span>
-        </div>
-        {(openIssues as any[]).length === 0 ? (
-          <div className="text-xs text-[var(--text-dim)]">열린 이슈가 없습니다. 👍</div>
-        ) : (
-          <div className="space-y-1.5">
-            {(openIssues as any[]).slice(0, 6).map((i) => {
-              const sevColor = i.severity === "critical" ? DANGER : i.severity === "high" ? AMBER : i.severity === "medium" ? "var(--primary)" : "var(--text-dim)";
-              const overdue = i.due_date && i.due_date < new Date().toISOString().slice(0, 10);
-              return (
-                <div key={i.id} className="flex items-center gap-2 text-xs">
-                  <span style={{ width: 7, height: 7, borderRadius: 999, background: sevColor, flexShrink: 0 }} />
-                  <span className="flex-1 truncate text-[var(--text)]">{i.title}</span>
-                  {i.due_date && <span className={`mono-number text-[10px] ${overdue ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>{String(i.due_date).slice(5, 10)}{overdue ? "⚠" : ""}</span>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* 지연 과제 — 마감 지난 실행 과제(지금 볼 것). '실행' 탭과 연동. */}
-      {(overdueTasks as any[]).length > 0 && (
-        <section className="glass-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-[var(--text)]">지연 과제 <span className="font-normal text-[var(--text-dim)] text-xs">마감 초과</span></h3>
-            <span className="text-xs font-bold text-[var(--danger)]">{(overdueTasks as any[]).length}건</span>
-          </div>
-          <div className="space-y-1.5">
-            {(overdueTasks as any[]).slice(0, 6).map((t) => (
-              <div key={t.id} className="flex items-center gap-2 text-xs">
-                <span style={{ width: 7, height: 7, borderRadius: 999, background: DANGER, flexShrink: 0 }} />
-                <span className="flex-1 truncate text-[var(--text)]">{t.title}</span>
-                <span className="mono-number text-[10px] text-[var(--danger)] font-semibold">{String(t.due_date).slice(5, 10)}⚠</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ③ 분해 */}
-      <section className="glass-card p-4">
-        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-          <h3 className="text-sm font-bold text-[var(--text)]">매출 분해</h3>
-          <div className="seg-bar flex-wrap max-w-full">
-            {([["channel", "채널(거래처)"], ["campaign", "세부프로젝트"], ["manager", "담당자"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setBreakdown(k)} className={`seg-item ${breakdown === k ? "seg-item-active" : ""}`}>{l}</button>
-            ))}
-          </div>
-        </div>
-        <BarList items={breakdownItems} unit="원" emptyText="태깅된 매출이 없습니다. 세금계산서를 이 프로젝트에 태깅하면 자동 반영됩니다." />
-      </section>
-
-      {/* 성과 기여(다각도) — 수동 KPI 실적을 부서/개인 관점으로. 매출 분해(tax_invoices)와 별개 소스(entries) */}
-      {selKpi && selKpi.source === "manual" && (
+      {/* 분석 — 매출 분해 · 성과 기여 · 체크인 (하단 3열) */}
+      <div className="grid gap-5 lg:grid-cols-3">
         <section className="glass-card p-4">
           <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-            <h3 className="text-sm font-bold text-[var(--text)]">성과 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label}</span></h3>
-            <div className="seg-bar">
-              {([["dept", "부서"], ["member", "개인"]] as const).map(([k, l]) => (
-                <button key={k} onClick={() => setContribDim(k)} className={`seg-item ${contribDim === k ? "seg-item-active" : ""}`}>{l}</button>
+            <h3 className="text-sm font-bold text-[var(--text)]">매출 분해</h3>
+            <div className="seg-bar flex-wrap max-w-full">
+              {([["channel", "채널"], ["campaign", "세부"], ["manager", "담당자"]] as const).map(([k, l]) => (
+                <button key={k} onClick={() => setBreakdown(k)} className={`seg-item ${breakdown === k ? "seg-item-active" : ""}`}>{l}</button>
               ))}
             </div>
           </div>
-          <BarList items={contribution || []} unit={selKpi.unit} emptyText={contribDim === "member" ? "개인별 실적 입력이 없습니다. ‘성과’ 탭에서 실적을 입력하면 입력자별로 표시됩니다." : "부서별 실적 입력이 없습니다. ‘성과’ 탭 실적 입력에서 부서를 지정하면 표시됩니다."} />
+          <BarList items={breakdownItems} unit="원" emptyText="태깅된 매출이 없습니다. 세금계산서를 이 프로젝트에 태깅하면 자동 반영됩니다." />
         </section>
-      )}
 
-      {/* ④ 성과 체크인 추이 */}
-      <section className="glass-card p-4">
-        <h3 className="text-sm font-bold text-[var(--text)] mb-4">성과 체크인 추이</h3>
-        <StatusTimeline points={checkinPoints} />
-        {latestUpdate && (latestUpdate.did || latestUpdate.issues || latestUpdate.next_plan) && (
-          <div className="mt-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)] pt-2 space-y-0.5">
-            <div className="text-[10px] text-[var(--text-dim)]">최근 체크인 · {nameOf(latestUpdate.created_by)} · {String(latestUpdate.update_date || "").slice(0, 10)}</div>
-            {latestUpdate.did && <div>✅ {latestUpdate.did}</div>}
-            {latestUpdate.issues && <div className="text-amber-600">🚧 {latestUpdate.issues}</div>}
-            {latestUpdate.next_plan && <div>➡️ {latestUpdate.next_plan}</div>}
-          </div>
+        {selKpi && selKpi.source === "manual" && (
+          <section className="glass-card p-4">
+            <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+              <h3 className="text-sm font-bold text-[var(--text)]">성과 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label}</span></h3>
+              <div className="seg-bar">
+                {([["dept", "부서"], ["member", "개인"]] as const).map(([k, l]) => (
+                  <button key={k} onClick={() => setContribDim(k)} className={`seg-item ${contribDim === k ? "seg-item-active" : ""}`}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <BarList items={contribution || []} unit={selKpi.unit} emptyText={contribDim === "member" ? "개인별 실적 입력이 없습니다. ‘성과’ 탭에서 실적을 입력하면 입력자별로 표시됩니다." : "부서별 실적 입력이 없습니다. ‘성과’ 탭 실적 입력에서 부서를 지정하면 표시됩니다."} />
+          </section>
         )}
-      </section>
-        </div>
+
+        <section className="glass-card p-4">
+          <h3 className="text-sm font-bold text-[var(--text)] mb-4">성과 체크인 추이</h3>
+          <StatusTimeline points={checkinPoints} />
+          {latestUpdate && (latestUpdate.did || latestUpdate.issues || latestUpdate.next_plan) && (
+            <div className="mt-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)] pt-2 space-y-0.5">
+              <div className="text-[10px] text-[var(--text-dim)]">최근 체크인 · {nameOf(latestUpdate.created_by)} · {String(latestUpdate.update_date || "").slice(0, 10)}</div>
+              {latestUpdate.did && <div>✅ {latestUpdate.did}</div>}
+              {latestUpdate.issues && <div className="text-amber-600">🚧 {latestUpdate.issues}</div>}
+              {latestUpdate.next_plan && <div>➡️ {latestUpdate.next_plan}</div>}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
