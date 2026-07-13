@@ -9,7 +9,8 @@ import { Sidebar } from "@/components/sidebar";
 import { GlobalSearch, openGlobalSearch } from "@/components/global-search";
 import { getRouteCrumb } from "@/lib/route-labels";
 import { FloatingMessenger } from "@/components/floating-messenger";
-import { MenuGuide } from "@/components/menu-guide";
+import { MenuGuide, MenuGuideDrawer } from "@/components/menu-guide";
+import { GuideProvider, useGuide } from "@/components/guide-context";
 import { NotificationBell } from "@/components/notification-bell";
 import { AccountChip } from "@/components/account-chip";
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
@@ -181,6 +182,7 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 
 function AppContent({ children }: { children: React.ReactNode }) {
   const { collapsed, setMobileOpen } = useSidebar();
+  const { open: guideOpen } = useGuide();
   const { role, user } = useUser();
   const pathname = usePathname();
   const isLimitedRole = role === "partner" || role === "employee";
@@ -277,9 +279,9 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <Sidebar />
       {/* 라운드6.5 TeamHub 헤더바 — 좌: 브레드크럼+타이틀 / 우: 검색 필·알림 벨·도움말·프로필 칩 */}
       <header
-        className={`chrome-glass absolute top-0 md:top-3 right-0 md:right-3 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b md:border border-[var(--border)]/60 md:rounded-[20px] transition-all duration-200 ${
+        className={`chrome-glass absolute top-0 md:top-3 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b md:border border-[var(--border)]/60 md:rounded-[20px] transition-all duration-200 ${
           collapsed ? "md:left-[92px]" : "md:left-[264px]"
-        } left-0`}
+        } left-0 right-0 ${guideOpen ? "md:right-[412px]" : "md:right-3"}`}
       >
         {/* Left: Mobile hamburger — hide for limited roles on mobile (they use bottom nav) */}
         <div className={`${isLimitedRole ? "hidden" : "md:hidden"} relative shrink-0`}>
@@ -365,7 +367,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <main
         className={`flex-1 min-w-0 transition-[margin] duration-200 pt-[80px] md:pt-[88px] ${
           collapsed ? "md:ml-[92px]" : "md:ml-[264px]"
-        } ml-0 ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pl-0 md:pr-3 md:pb-3" : role === "owner" ? "p-6 pb-20 md:pb-3 md:pr-3 md:pl-0" : "p-6 md:pr-3 md:pb-3 md:pl-0"}`}
+        } ml-0 ${guideOpen ? "md:mr-[412px]" : ""} ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pl-0 md:pr-3 md:pb-3" : role === "owner" ? "p-6 pb-20 md:pb-3 md:pr-3 md:pl-0" : "p-6 md:pr-3 md:pb-3 md:pl-0"}`}
       >
         {/* 2026-07-07 콘텐츠 폭 상한 제거 — 떠 있는 헤더 바(전체폭)와 콘텐츠 폭을 일치시키기 위함.
             사이드바 오른쪽~화면 오른쪽 12px 구간을 콘텐츠가 헤더와 동일하게 가득 채움.
@@ -378,6 +380,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
           </RouteGuard>
         </div>
       </main>
+      {/* 우측 상세 메뉴 가이드 드로어 — '?' 토글 시 본문이 밀리고 여기 열림 */}
+      <MenuGuideDrawer />
       <MobileBottomNav />
       <GlobalSearch />
       {/* 플로팅 팝업 메신저 — 영속 셸 마운트(페이지 이동에도 유지). 데스크톱 전용, /chat 에선 숨김. */}
@@ -420,7 +424,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <UserProvider>
       <SidebarProvider>
         <BoardProvider>
-          <AppContent>{children}</AppContent>
+          <GuideProvider>
+            <AppContent>{children}</AppContent>
+          </GuideProvider>
           {/* 페이지 무관 백그라운드 sync chain — 어떤 페이지에서든 작동 */}
           <HometaxBackgroundChain />
         </BoardProvider>
