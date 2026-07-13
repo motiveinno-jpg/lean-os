@@ -18,6 +18,7 @@ export type AuditAction =
   | 'document_viewed'
   | 'signature_drawn'
   | 'signature_typed'
+  | 'signature_uploaded'
   | 'signature_submitted'
   | 'document_completed'
   | 'document_locked';
@@ -39,6 +40,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   document_viewed: '문서 확인',
   signature_drawn: '서명 입력 (직접 그리기)',
   signature_typed: '서명 입력 (텍스트)',
+  signature_uploaded: '서명 입력 (도장/직인 첨부)',
   signature_submitted: '서명 제출',
   document_completed: '서명 완료',
   document_locked: '문서 잠금',

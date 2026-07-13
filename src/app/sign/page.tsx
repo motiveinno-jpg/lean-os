@@ -340,10 +340,13 @@ function SignContent() {
   const [invalid, setInvalid] = useState(false);
   const [pkg, setPkg] = useState<PackageData | null>(null);
   const [activeItem, setActiveItem] = useState<number>(0);
-  const [signMode, setSignMode] = useState<"draw" | "saved" | null>(null);
+  const [signMode, setSignMode] = useState<"draw" | "saved" | "upload" | null>(null);
   const [signing, setSigning] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [savedSignature, setSavedSignature] = useState<{ type: string; data: string } | null>(null);
+  // 기업 간 계약 — 서명자가 직접 회사 도장/직인 이미지를 첨부하는 방식 (마우스 서명 대신)
+  const [uploadedSeal, setUploadedSeal] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   // 2026-05-28 본문 라디오/조건부 텍스트 토큰 입력값 — fieldKey -> 입력 문자열
   const [signerInputs, setSignerInputs] = useState<Record<string, string>>({});
 
@@ -725,10 +728,10 @@ function SignContent() {
     const item = pkg.items[activeItem];
     if (!item || item.status === "signed") return;
 
-    let sigData: { type: "draw" | "type"; data: string };
+    let sigData: { type: "draw" | "type" | "upload"; data: string };
 
     if (signMode === "saved" && savedSignature) {
-      sigData = savedSignature as { type: "draw" | "type"; data: string };
+      sigData = savedSignature as { type: "draw" | "type" | "upload"; data: string };
     } else if (signMode === "draw") {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -737,6 +740,12 @@ function SignContent() {
         return;
       }
       sigData = { type: "draw", data: canvas.toDataURL("image/png") };
+    } else if (signMode === "upload") {
+      if (!uploadedSeal) {
+        toast("도장/직인 이미지를 첨부해주세요", "error");
+        return;
+      }
+      sigData = { type: "upload", data: uploadedSeal };
     } else {
       return;
     }
@@ -800,10 +809,10 @@ function SignContent() {
       // Audit: signature_submitted
       try {
         logAuditTrail(pkg.id, {
-          action: sigData.type === 'draw' ? 'signature_drawn' : 'signature_typed',
+          action: sigData.type === 'draw' ? 'signature_drawn' : sigData.type === 'upload' ? 'signature_uploaded' : 'signature_typed',
           timestamp: new Date().toISOString(),
           actor: pkg.employees?.name || 'unknown',
-          details: `서명 방식: ${sigData.type === 'draw' ? '직접 그리기' : '텍스트 입력'}`,
+          details: `서명 방식: ${sigData.type === 'draw' ? '직접 그리기' : sigData.type === 'upload' ? '도장/직인 첨부' : '텍스트 입력'}`,
         });
       } catch (e) {
         console.error('Audit log error:', e);
@@ -882,6 +891,7 @@ function SignContent() {
         setActiveItem(nextUnsigned);
         setSignMode(null);
         clearCanvas();
+        setUploadedSeal(null);
       }
     } catch (err: any) {
       toast("서명 처리 중 오류: " + (friendlyError(err, "알 수 없는 오류")), "error");
@@ -1291,22 +1301,34 @@ function SignContent() {
                         </svg>
                         <span className="text-sm font-semibold text-blue-700">저장된 서명 사용</span>
                       </div>
-                      {savedSignature.type === "draw" ? (
-                        <img src={savedSignature.data} alt="저장된 서명" className="h-12 mx-auto opacity-60" />
-                      ) : (
+                      {savedSignature.type === "type" ? (
                         <span className="text-xl italic text-blue-800" style={{ fontFamily: "cursive, serif" }}>{savedSignature.data}</span>
+                      ) : (
+                        <img src={savedSignature.data} alt="저장된 서명" className="h-12 mx-auto opacity-60" />
                       )}
                     </button>
                   )}
-                  <button
-                    onClick={() => setSignMode("draw")}
-                    className="w-full py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-[var(--info)] hover:bg-[var(--info-dim)] transition text-center"
-                  >
-                    <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                      <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
-                    </svg>
-                    <span className="text-xs font-medium text-gray-600">직접 그리기</span>
-                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setSignMode("draw")}
+                      className="py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-[var(--info)] hover:bg-[var(--info-dim)] transition text-center"
+                    >
+                      <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                      </svg>
+                      <span className="text-xs font-medium text-gray-600">직접 그리기</span>
+                    </button>
+                    <button
+                      onClick={() => { setUploadError(null); setSignMode("upload"); }}
+                      className="py-4 rounded-xl border-2 border-dashed border-gray-300 hover:border-[var(--info)] hover:bg-[var(--info-dim)] transition text-center"
+                    >
+                      <svg className="w-6 h-6 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      <span className="text-xs font-medium text-gray-600">도장/직인 첨부</span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-400 text-center">기업 간 계약은 회사 직인(도장) 이미지 첨부를 권장합니다.</p>
                 </div>
               )}
 
@@ -1314,10 +1336,10 @@ function SignContent() {
                 <div>
                   <div className="p-6 bg-[var(--bg-surface)] rounded-xl border-2 border-[var(--info)]/30 text-center mb-4">
                     <p className="text-xs text-gray-500 mb-2">저장된 서명</p>
-                    {savedSignature.type === "draw" ? (
-                      <img src={savedSignature.data} alt="서명" className="h-16 mx-auto" />
-                    ) : (
+                    {savedSignature.type === "type" ? (
                       <p className="text-3xl italic text-gray-800" style={{ fontFamily: "cursive, serif" }}>{savedSignature.data}</p>
+                    ) : (
+                      <img src={savedSignature.data} alt="서명" className="h-16 mx-auto" />
                     )}
                   </div>
                   <div className="flex gap-2">
@@ -1398,6 +1420,76 @@ function SignContent() {
                     <button
                       onClick={handleSign}
                       disabled={signing || !hasInk || !inputsOk}
+                      className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-40"
+                    >
+                      {signing ? "처리 중..." : "서명 완료"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {signMode === "upload" && (
+                <div>
+                  {uploadedSeal ? (
+                    <div className="p-6 bg-[var(--bg-surface)] rounded-xl border-2 border-[var(--info)]/30 text-center mb-4">
+                      <p className="text-xs text-gray-500 mb-2">첨부한 도장/직인</p>
+                      <img src={uploadedSeal} alt="도장/직인" className="h-24 mx-auto object-contain bg-white" />
+                      <button
+                        type="button"
+                        onClick={() => setUploadedSeal(null)}
+                        className="mt-3 text-xs text-gray-500 hover:text-red-500"
+                      >
+                        다시 선택
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="block border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-[var(--info)] hover:bg-[var(--info-dim)] transition mb-3">
+                      <svg className="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      <span className="text-sm text-gray-600 font-medium">도장/직인 이미지 파일 선택</span>
+                      <p className="text-[11px] text-gray-400 mt-1">PNG·JPG, 5MB 이하 — 배경이 투명한 도장 이미지 권장</p>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!file) return;
+                          if (file.size > 5 * 1024 * 1024) {
+                            setUploadError("파일이 너무 큽니다 (5MB 이하)");
+                            return;
+                          }
+                          setUploadError(null);
+                          const reader = new FileReader();
+                          reader.onload = () => setUploadedSeal(reader.result as string);
+                          reader.onerror = () => setUploadError("파일을 읽지 못했습니다");
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                  )}
+                  {uploadError && <p className="text-xs text-red-500 mb-3">{uploadError}</p>}
+                  <label className="flex items-center gap-2 text-xs text-gray-500 mb-4 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={saveAsDefault}
+                      onChange={(e) => setSaveAsDefault(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded"
+                    />
+                    기본 서명으로 저장 (다음 문서에서 자동 재사용)
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setSignMode(null); setUploadedSeal(null); setUploadError(null); }}
+                      className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={handleSign}
+                      disabled={signing || !uploadedSeal || !inputsOk}
                       className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-40"
                     >
                       {signing ? "처리 중..." : "서명 완료"}
