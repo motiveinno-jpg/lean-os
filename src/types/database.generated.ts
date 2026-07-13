@@ -8862,6 +8862,114 @@ export type Database = {
           },
         ]
       }
+      project_sprints: {
+        Row: {
+          company_id: string
+          completed_at: string | null
+          completed_points: number | null
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          end_date: string | null
+          goal: string | null
+          id: string
+          name: string
+          sort_order: number
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          completed_at?: string | null
+          completed_points?: number | null
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          end_date?: string | null
+          goal?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          completed_at?: string | null
+          completed_points?: number | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          end_date?: string | null
+          goal?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_sprints_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_sprints_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
       project_subitems: {
         Row: {
           column_values: Json
@@ -8969,8 +9077,10 @@ export type Database = {
           parent_task_id: string | null
           position: number
           progress: number
+          sprint_id: string | null
           start_date: string | null
           status: string
+          story_points: number | null
           title: string
           updated_at: string
         }
@@ -8990,8 +9100,10 @@ export type Database = {
           parent_task_id?: string | null
           position?: number
           progress?: number
+          sprint_id?: string | null
           start_date?: string | null
           status?: string
+          story_points?: number | null
           title: string
           updated_at?: string
         }
@@ -9011,8 +9123,10 @@ export type Database = {
           parent_task_id?: string | null
           position?: number
           progress?: number
+          sprint_id?: string | null
           start_date?: string | null
           status?: string
+          story_points?: number | null
           title?: string
           updated_at?: string
         }
@@ -9085,6 +9199,13 @@ export type Database = {
             columns: ["parent_task_id"]
             isOneToOne: false
             referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "project_sprints"
             referencedColumns: ["id"]
           },
         ]
