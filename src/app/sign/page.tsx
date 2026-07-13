@@ -218,7 +218,7 @@ function ContractSignatureFooter(props: {
   signerCompanyName?: string;
   signerBusinessNumber?: string | null;
   signerRepresentative?: string;
-  signature?: { type: "draw" | "type"; data: string } | null;
+  signature?: { type: "draw" | "type" | "upload"; data: string } | null;
 }) {
   const { contractDate, companyName, representative, businessNumber, sealUrl, sealAppliedAt, employeeName, birthDate, signerCompanyName, signerBusinessNumber, signerRepresentative, signature } = props;
   const signerIsCompany = !!(signerCompanyName && signerCompanyName.trim());
@@ -256,7 +256,7 @@ function ContractSignatureFooter(props: {
               <div>사업자등록번호: {signerBusinessNumber || "—"}</div>
               <div className="flex items-center gap-3 mt-1">
                 <span>대표자: {signerRepresentative || "—"} (인)</span>
-                {signature?.type === "draw" && typeof signature.data === "string" ? (
+                {(signature?.type === "draw" || signature?.type === "upload") && typeof signature.data === "string" ? (
                   <img src={signature.data} alt="서명" className="h-12 inline-block" />
                 ) : signature?.type === "type" ? (
                   <span className="text-2xl italic text-gray-900" style={{ fontFamily: "cursive, serif" }}>{signature.data}</span>
@@ -272,7 +272,7 @@ function ContractSignatureFooter(props: {
           <div>생년월일: {fmtDate(birthDate) || "—"}</div>
           <div className="flex items-center gap-3 mt-1">
             <span>서명 (인)</span>
-            {signature?.type === "draw" && typeof signature.data === "string" ? (
+            {(signature?.type === "draw" || signature?.type === "upload") && typeof signature.data === "string" ? (
               <img src={signature.data} alt="서명" className="h-12 inline-block" />
             ) : signature?.type === "type" ? (
               <span className="text-2xl italic text-gray-900" style={{ fontFamily: "cursive, serif" }}>{signature.data}</span>
@@ -1071,7 +1071,7 @@ function SignContent() {
                     signerCompanyName={pkg.contract_meta?.["을_회사명"] || pkg.contract_meta?.["거래처명"] || pkg.contract_meta?.["거래처 회사명"] || undefined}
                     signerBusinessNumber={pkg.contract_meta?.["을_사업자번호"] || pkg.contract_meta?.["을_사업자등록번호"] || pkg.contract_meta?.["거래처 사업자번호"]}
                     signerRepresentative={pkg.contract_meta?.["을_대표자"] || pkg.contract_meta?.["거래처 대표자"]}
-                    signature={sig as { type: 'draw' | 'type'; data: string }}
+                    signature={sig as { type: 'draw' | 'type' | 'upload'; data: string }}
                   />
                 )}
               </div>
