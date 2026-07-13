@@ -100,7 +100,8 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
           const user = session?.user;
           if (!user) return;
           const db = supabase as any;
-          const { data: userData } = await db.from("users").select("company_id").eq("id", user.id).single();
+          // QA 2026-07-10: auth uid 는 auth_id 컬럼과 비교 (id 와 다른 계정 존재 → 저장 조용히 실패했음)
+          const { data: userData } = await db.from("users").select("company_id").eq("auth_id", user.id).maybeSingle();
           if (!userData?.company_id) return;
           await db
             .from("user_preferences")
