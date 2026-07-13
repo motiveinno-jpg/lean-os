@@ -42,7 +42,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
   const { user } = useUser();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [view, setView] = useState<"kanban" | "gantt" | "report">("kanban");
+  const [view, setView] = useState<"kanban" | "gantt">("kanban");
   const [editTask, setEditTask] = useState<any | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -55,49 +55,23 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
     queryKey: ["project-tasks", dealId],
     queryFn: async () => {
       const { data } = await db.from("project_tasks")
-        .select("id, title, description, status, assignee_id, assignee_ids, start_date, due_date, progress, position, attachments, labels, sprint_id, story_points, updated_at, parent_task_id")
+        .select("id, title, description, status, assignee_id, assignee_ids, start_date, due_date, progress, position, attachments, labels")
         .eq("deal_id", dealId).is("archived_at", null)
         .order("position", { ascending: true }).order("created_at", { ascending: true });
       return (data || []) as any[];
     },
     enabled: !!dealId,
   });
-  // 스프린트 — 있으면 스크럼 모드(백로그↔스프린트 보드). 없으면 기존 단순 칸반.
-  const { data: sprints = [] } = useQuery({
-    queryKey: ["project-sprints", dealId],
-    queryFn: async () => {
-      const { data } = await db.from("project_sprints").select("id, name, goal, status, start_date, end_date, completed_points, sort_order").eq("deal_id", dealId).order("sort_order", { ascending: true }).order("created_at", { ascending: true });
-      return (data || []) as any[];
-    },
-    enabled: !!dealId,
-  });
-  const hasSprints = (sprints as any[]).length > 0;
-  const activeSprint = (sprints as any[]).find((s) => s.status === "active") || null;
-  // 보드 스코프 — "all"(스프린트 없음) | "backlog" | sprintId
-  const [scope, setScope] = useState<string>("all");
-  useEffect(() => {
-    if (!hasSprints) { setScope("all"); return; }
-    setScope((cur) => (cur === "all" ? (activeSprint?.id || "backlog") : cur));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSprints, activeSprint?.id]);
-  const [showSprintMgr, setShowSprintMgr] = useState(false);
 
   const userName = useMemo(() => {
     const m: Record<string, string> = {};
     for (const u of users) m[u.id] = u.name;
     return m;
   }, [users]);
-  // 에픽 — 다른 태스크의 parent_task_id 로 참조되는 태스크. 제목 조회용 맵.
-  const taskTitle = useMemo(() => { const m: Record<string, string> = {}; for (const t of tasks as any[]) m[t.id] = t.title; return m; }, [tasks]);
 
   const filteredTasks = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (tasks as any[]).filter((t) => {
-      // 스크럼 스코프 — 백로그(sprint 없음) / 특정 스프린트 / all(스프린트 미사용)
-      if (hasSprints) {
-        if (scope === "backlog" && t.sprint_id) return false;
-        if (scope !== "backlog" && scope !== "all" && t.sprint_id !== scope) return false;
-      }
       if (assigneeFilter) {
         const ids = [t.assignee_id, ...(t.assignee_ids || [])].filter(Boolean);
         if (!ids.includes(assigneeFilter)) return false;
@@ -107,44 +81,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
       const hay = [t.title, t.description, ...taskLabels(t).map((l) => l.text), ...names].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     });
-  }, [tasks, search, assigneeFilter, userName, hasSprints, scope]);
-
-  // 스프린트 조작 — 생성/시작(활성 1개만)/완료(미완료 백로그 복귀)/삭제
-  const invalidateSprints = () => { qc.invalidateQueries({ queryKey: ["project-sprints", dealId] }); qc.invalidateQueries({ queryKey: ["project-tasks", dealId] }); };
-  const createSprint = async (name: string, goal: string, startD: string, endD: string) => {
-    const { data, error } = await db.from("project_sprints").insert({ company_id: companyId, deal_id: dealId, name: name.trim() || `Sprint ${(sprints as any[]).length + 1}`, goal: goal.trim() || null, start_date: startD || null, end_date: endD || null, sort_order: (sprints as any[]).length, created_by: user?.id || null }).select("id").single();
-    if (error) { toast(error.message, "error"); return null; }
-    invalidateSprints(); toast("스프린트를 생성했습니다", "success");
-    if (data?.id) setScope(data.id);
-    return data?.id;
-  };
-  const startSprint = async (id: string) => {
-    // 기존 active → completed 없이, 다른 active 를 planned 로 되돌리고 이 스프린트만 active
-    if (activeSprint && activeSprint.id !== id) { await db.from("project_sprints").update({ status: "planned", updated_at: new Date().toISOString() }).eq("id", activeSprint.id); }
-    const { error } = await db.from("project_sprints").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", id);
-    if (error) { toast(error.message, "error"); return; }
-    invalidateSprints(); setScope(id); toast("스프린트를 시작했습니다", "success");
-  };
-  const completeSprint = async (id: string) => {
-    const inSprint = (tasks as any[]).filter((t) => t.sprint_id === id);
-    const donePts = inSprint.filter((t) => t.status === "done").reduce((a, t) => a + Number(t.story_points || 0), 0);
-    // 완료 스냅샷 + 미완료 태스크는 백로그로 복귀(sprint_id=null)
-    await db.from("project_sprints").update({ status: "completed", completed_points: donePts, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id);
-    const unfinished = inSprint.filter((t) => t.status !== "done").map((t) => t.id);
-    if (unfinished.length) await db.from("project_tasks").update({ sprint_id: null, updated_at: new Date().toISOString() }).in("id", unfinished);
-    invalidateSprints(); setScope("backlog"); toast(`스프린트 완료 — 완료 ${donePts}pt, 미완료 ${unfinished.length}건 백로그 복귀`, "success");
-  };
-  const deleteSprint = async (id: string) => {
-    await db.from("project_tasks").update({ sprint_id: null, updated_at: new Date().toISOString() }).eq("sprint_id", id);
-    const { error } = await db.from("project_sprints").delete().eq("id", id);
-    if (error) { toast(error.message, "error"); return; }
-    invalidateSprints(); setScope("backlog"); toast("스프린트를 삭제했습니다(태스크는 백로그로)", "info");
-  };
-  // 스프린트별 포인트 합/완료
-  const sprintPts = (id: string) => {
-    const inS = (tasks as any[]).filter((t) => t.sprint_id === id);
-    return { total: inS.reduce((a, t) => a + Number(t.story_points || 0), 0), done: inS.filter((t) => t.status === "done").reduce((a, t) => a + Number(t.story_points || 0), 0), count: inS.length };
-  };
+  }, [tasks, search, assigneeFilter, userName]);
 
   const byStatus = useMemo(() => {
     const m: Record<TaskStatus, any[]> = { todo: [], doing: [], review: [], done: [] };
@@ -197,52 +134,10 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
           <div className="seg-bar">
             <button onClick={() => setView("kanban")} className={`seg-item ${view === "kanban" ? "seg-item-active" : ""}`}>칸반</button>
             <button onClick={() => setView("gantt")} className={`seg-item ${view === "gantt" ? "seg-item-active" : ""}`}>간트</button>
-            {hasSprints && <button onClick={() => setView("report")} className={`seg-item ${view === "report" ? "seg-item-active" : ""}`}>리포트</button>}
           </div>
           <button onClick={openNew} className="btn-primary text-xs hover:opacity-90">+ 태스크</button>
         </div>
       </div>
-
-      {/* 스프린트 바 — 백로그 / 스프린트 칩 + 관리. 스프린트 없으면 '스프린트 시작' 버튼만. */}
-      {hasSprints ? (
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button onClick={() => setScope("backlog")} className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition ${scope === "backlog" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>백로그</button>
-            {(sprints as any[]).map((s) => {
-              const p = sprintPts(s.id);
-              return (
-                <button key={s.id} onClick={() => setScope(s.id)} className={`text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap transition ${scope === s.id ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-                  {s.status === "active" && <span className="text-[var(--success)]">●</span>} {s.name}
-                  {s.status === "completed" && <span className="opacity-60"> ✓</span>}
-                  <span className="ml-1 opacity-70">{p.total}pt</span>
-                </button>
-              );
-            })}
-            <button onClick={() => setShowSprintMgr(true)} className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">＋ 스프린트 관리</button>
-          </div>
-          {/* 선택 스프린트 헤더 */}
-          {scope !== "backlog" && scope !== "all" && (() => {
-            const s = (sprints as any[]).find((x) => x.id === scope); if (!s) return null;
-            const p = sprintPts(s.id); const prog = p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
-            const dLeft = s.end_date ? Math.ceil((new Date(s.end_date).getTime() - Date.now()) / 86400000) : null;
-            return (
-              <div className="glass-card p-3 flex items-center justify-between gap-3 flex-wrap">
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-[var(--text)]">{s.name} {s.goal && <span className="font-normal text-[var(--text-muted)]">· {s.goal}</span>}</div>
-                  <div className="text-[11px] text-[var(--text-dim)] mono-number">{s.start_date || "?"} ~ {s.end_date || "?"}{dLeft != null && s.status === "active" && <span className={dLeft < 0 ? "text-[var(--danger)]" : ""}> · {dLeft < 0 ? `${-dLeft}일 초과` : `D-${dLeft}`}</span>} · {p.done}/{p.total}pt ({prog}%)</div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {s.status === "planned" && <button onClick={() => startSprint(s.id)} className="btn-primary text-xs">▶ 시작</button>}
-                  {s.status === "active" && <button onClick={() => { if (confirm(`${s.name}를 완료할까요? 미완료 태스크는 백로그로 돌아갑니다.`)) completeSprint(s.id); }} className="btn-secondary text-xs">스프린트 완료</button>}
-                  {s.status === "completed" && <span className="text-[11px] text-[var(--success)] font-semibold">완료 {s.completed_points ?? p.done}pt</span>}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      ) : (
-        <button onClick={() => setShowSprintMgr(true)} className="text-xs font-semibold text-[var(--primary)] hover:underline">＋ 스프린트로 관리하기 (백로그·스프린트 보드)</button>
-      )}
 
       {view === "kanban" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -267,10 +162,8 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
                         {taskLabels(t).map((l, i) => <LabelChip key={i} l={l} />)}
                       </div>
                     )}
-                    {t.parent_task_id && taskTitle[t.parent_task_id] && <div className="text-[10px] text-[var(--text-dim)] truncate mb-0.5">🗂 {taskTitle[t.parent_task_id]}</div>}
                     <div className="text-sm font-medium text-[var(--text)] break-words">{t.title}</div>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      {t.story_points != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-bold mono-number">{t.story_points}pt</span>}
                       {taskAssignees(t).length > 0 && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]"
                           title={taskAssignees(t).map((id) => userName[id] || "담당").join(", ")}>
@@ -288,10 +181,8 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
             </div>
           ))}
         </div>
-      ) : view === "gantt" ? (
-        <GanttChart tasks={tasks as any[]} userName={userName} onTaskClick={openEdit} />
       ) : (
-        <SprintReport sprints={sprints as any[]} tasks={tasks as any[]} scope={scope} />
+        <GanttChart tasks={tasks as any[]} userName={userName} onTaskClick={openEdit} />
       )}
 
       {showForm && (
@@ -299,146 +190,10 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
           dealId={dealId} companyId={companyId} users={users}
           task={editTask} userId={user?.id || null}
           existingCount={total}
-          sprints={sprints as any[]}
-          allTasks={tasks as any[]}
-          defaultSprintId={scope !== "backlog" && scope !== "all" ? scope : null}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ["project-tasks", dealId] }); }}
         />
       )}
-
-      {showSprintMgr && (
-        <SprintManager
-          sprints={sprints as any[]} sprintPts={sprintPts}
-          onCreate={createSprint} onStart={startSprint} onComplete={completeSprint} onDelete={deleteSprint}
-          onClose={() => setShowSprintMgr(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-// 스프린트 리포트 — 번다운(선택 스프린트) + 속도(완료 스프린트별 pt).
-function SprintReport({ sprints, tasks, scope }: { sprints: any[]; tasks: any[]; scope: string }) {
-  // 대상 스프린트 — 스코프가 스프린트면 그것, 아니면 활성/최근
-  const target = sprints.find((s) => s.id === scope) || sprints.find((s) => s.status === "active") || sprints[sprints.length - 1] || null;
-  const completed = sprints.filter((s) => s.status === "completed");
-  const maxVel = Math.max(1, ...completed.map((s) => Number(s.completed_points || 0)));
-  const avgVel = completed.length ? Math.round(completed.reduce((a, s) => a + Number(s.completed_points || 0), 0) / completed.length) : null;
-
-  // 번다운 계산
-  const bd = (() => {
-    if (!target || !target.start_date || !target.end_date) return null;
-    const inS = tasks.filter((t) => t.sprint_id === target.id);
-    const total = inS.reduce((a, t) => a + Number(t.story_points || 0), 0);
-    if (total === 0) return null;
-    const days: string[] = [];
-    const d = new Date(target.start_date + "T00:00:00"); const end = new Date(target.end_date + "T00:00:00");
-    let guard = 0;
-    while (d <= end && guard < 400) { days.push(d.toISOString().slice(0, 10)); d.setDate(d.getDate() + 1); guard++; }
-    const n = days.length; if (n < 2) return null;
-    const today = todayStr();
-    const doneList = inS.filter((t) => t.status === "done").map((t) => ({ pts: Number(t.story_points || 0), date: String(t.updated_at || "").slice(0, 10) }));
-    const ideal = days.map((_, i) => (total * (n - 1 - i)) / (n - 1));
-    const actual = days.map((day) => (day > today ? null : total - doneList.filter((x) => x.date && x.date <= day).reduce((a, x) => a + x.pts, 0)));
-    return { days, ideal, actual, total };
-  })();
-
-  return (
-    <div className="space-y-5">
-      {/* 번다운 */}
-      <section className="glass-card p-4">
-        <h3 className="text-sm font-bold text-[var(--text)] mb-1">번다운 {target && <span className="font-normal text-[var(--text-dim)] text-xs">· {target.name}</span>}</h3>
-        {!bd ? (
-          <div className="text-xs text-[var(--text-dim)] py-6 text-center">번다운은 스프린트에 <b>기간(시작·종료일)</b>과 <b>스토리 포인트</b>가 있어야 표시됩니다.</div>
-        ) : (() => {
-          const W = 560, H = 180, P = 30; const n = bd.days.length;
-          const x = (i: number) => P + (i / (n - 1)) * (W - P * 2);
-          const y = (v: number) => H - P - (v / bd.total) * (H - P * 2);
-          const idealPts = bd.ideal.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-          const actualPts = bd.actual.map((v, i) => (v == null ? null : `${x(i).toFixed(1)},${y(v).toFixed(1)}`)).filter(Boolean).join(" ");
-          return (
-            <div className="overflow-x-auto">
-              <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[420px]" style={{ maxHeight: 200 }}>
-                <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="var(--border)" />
-                <line x1={P} y1={P} x2={P} y2={H - P} stroke="var(--border)" />
-                <text x={P - 4} y={y(bd.total) + 3} textAnchor="end" fontSize="9" fill="var(--text-dim)">{bd.total}</text>
-                <text x={P - 4} y={y(0) + 3} textAnchor="end" fontSize="9" fill="var(--text-dim)">0</text>
-                <polyline points={idealPts} fill="none" stroke="var(--text-dim)" strokeWidth="1.5" strokeDasharray="4 3" />
-                {actualPts && <polyline points={actualPts} fill="none" stroke="var(--primary)" strokeWidth="2" />}
-                <text x={W - P} y={P - 6} textAnchor="end" fontSize="9" fill="var(--text-dim)">— — 이상선 · <tspan fill="var(--primary)">실제 잔여</tspan></text>
-              </svg>
-              <div className="flex justify-between text-[10px] text-[var(--text-dim)] px-6 mono-number"><span>{bd.days[0]?.slice(5)}</span><span>{bd.days[n - 1]?.slice(5)}</span></div>
-            </div>
-          );
-        })()}
-      </section>
-
-      {/* 속도 */}
-      <section className="glass-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-[var(--text)]">속도 <span className="font-normal text-[var(--text-dim)] text-xs">완료 스프린트별 pt</span></h3>
-          {avgVel != null && <span className="text-xs text-[var(--text-muted)]">평균 <b className="text-[var(--text)] mono-number">{avgVel}pt</b>/스프린트</span>}
-        </div>
-        {completed.length === 0 ? (
-          <div className="text-xs text-[var(--text-dim)] py-4 text-center">완료된 스프린트가 없습니다. 스프린트를 완료하면 속도가 누적됩니다.</div>
-        ) : (
-          <div className="space-y-2">
-            {completed.map((s) => {
-              const v = Number(s.completed_points || 0);
-              return (
-                <div key={s.id} className="flex items-center gap-2">
-                  <span className="text-xs text-[var(--text-muted)] w-24 truncate shrink-0">{s.name}</span>
-                  <div className="flex-1 h-4 rounded bg-[var(--bg-surface)] overflow-hidden"><div className="h-full rounded bg-[var(--primary)]" style={{ width: `${(v / maxVel) * 100}%` }} /></div>
-                  <span className="text-xs font-bold mono-number text-[var(--text)] w-12 text-right shrink-0">{v}pt</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-// 스프린트 관리 모달 — 목록 + 생성.
-function SprintManager({ sprints, sprintPts, onCreate, onStart, onComplete, onDelete, onClose }: {
-  sprints: any[]; sprintPts: (id: string) => { total: number; done: number; count: number };
-  onCreate: (name: string, goal: string, s: string, e: string) => Promise<any>; onStart: (id: string) => void; onComplete: (id: string) => void; onDelete: (id: string) => void; onClose: () => void;
-}) {
-  const [name, setName] = useState(""); const [goal, setGoal] = useState(""); const [s, setS] = useState(""); const [e, setE] = useState(""); const [busy, setBusy] = useState(false);
-  const ST: Record<string, string> = { planned: "예정", active: "진행중", completed: "완료" };
-  const create = async () => { setBusy(true); await onCreate(name, goal, s, e); setName(""); setGoal(""); setS(""); setE(""); setBusy(false); };
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[88vh] overflow-y-auto" onClick={(ev) => ev.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4"><h3 className="text-base font-bold">스프린트 관리</h3><button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none">✕</button></div>
-        <div className="glass-card p-3 mb-4 space-y-2">
-          <div className="text-xs font-bold text-[var(--text-muted)]">+ 새 스프린트</div>
-          <input value={name} onChange={(ev) => setName(ev.target.value)} placeholder="이름 (예: Sprint 1)" className="w-full h-9 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-          <input value={goal} onChange={(ev) => setGoal(ev.target.value)} placeholder="스프린트 목표 (선택)" className="w-full h-9 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-          <div className="flex items-center gap-2">
-            <DateField value={s} onChange={(ev) => setS(ev.target.value)} className="flex-1 h-9 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-            <span className="text-xs text-[var(--text-dim)]">~</span>
-            <DateField value={e} onChange={(ev) => setE(ev.target.value)} className="flex-1 h-9 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
-            <button onClick={create} disabled={busy} className="btn-primary text-xs disabled:opacity-50 whitespace-nowrap">생성</button>
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          {sprints.length === 0 ? <div className="text-xs text-[var(--text-dim)] text-center py-4">스프린트가 없습니다. 위에서 첫 스프린트를 만드세요.</div>
-            : sprints.map((sp) => {
-              const p = sprintPts(sp.id);
-              return (
-                <div key={sp.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
-                  <span className="text-sm font-medium text-[var(--text)] flex-1 truncate">{sp.name} <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{ST[sp.status] || sp.status}</span> <span className="text-[11px] text-[var(--text-dim)] mono-number">{p.done}/{p.total}pt · {p.count}건</span></span>
-                  {sp.status === "planned" && <button onClick={() => onStart(sp.id)} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">시작</button>}
-                  {sp.status === "active" && <button onClick={() => { if (confirm(`${sp.name} 완료?`)) onComplete(sp.id); }} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)]">완료</button>}
-                  <button onClick={() => { if (confirm(`${sp.name} 삭제? 태스크는 백로그로 이동합니다.`)) onDelete(sp.id); }} className="text-[11px] font-semibold text-[var(--danger)] hover:underline">삭제</button>
-                </div>
-              );
-            })}
-        </div>
-      </div>
     </div>
   );
 }
@@ -492,39 +247,27 @@ function GanttChart({ tasks, userName, onTaskClick }: { tasks: any[]; userName: 
               <span className="absolute -top-1 -translate-x-1/2 text-[8px] text-red-500 font-bold">오늘</span>
             </div>
           )}
-          {(() => {
-            // 에픽(parent_task_id)별 그룹 — 에픽 먼저, '기타'는 마지막. 헤더 행 + 자식 막대.
-            const groups: Record<string, any[]> = {};
-            for (const t of dated) { const k = t.parent_task_id || "__none"; (groups[k] ||= []).push(t); }
-            const keys = Object.keys(groups).sort((a, b) => (a === "__none" ? 1 : b === "__none" ? -1 : 0));
-            const renderBar = (t: any) => {
-              const s = t.start_date ? new Date(String(t.start_date)).getTime() : new Date(String(t.due_date)).getTime();
-              const e = t.due_date ? new Date(String(t.due_date)).getTime() : s;
-              const left = pctOf(Math.min(s, e));
-              const width = Math.max(1.5, pctOf(Math.max(s, e)) - left);
-              const barColor = t.status === "done" ? "bg-green-500" : isDelayed(t) ? "bg-red-500" : "bg-[var(--primary)]";
-              return (
-                <div key={t.id} className="relative h-7 flex items-center">
-                  <div className="absolute inset-0 flex items-center">
-                    <div onClick={() => onTaskClick(t)}
-                      className={`absolute h-5 rounded ${barColor} opacity-85 hover:opacity-100 cursor-pointer flex items-center px-1.5 overflow-hidden`}
-                      style={{ left: `${left}%`, width: `${width}%` }}
-                      title={`${t.title} · ${t.start_date ? String(t.start_date).slice(0, 10) : "?"} ~ ${t.due_date ? String(t.due_date).slice(0, 10) : "?"}${taskAssignees(t).length > 0 ? ` · ${taskAssignees(t).map((id) => userName[id] || "").filter(Boolean).join(", ")}` : ""}`}>
-                      <span className="text-[10px] text-white font-medium truncate">{t.title}</span>
-                    </div>
+          {dated.map((t) => {
+            const s = t.start_date ? new Date(String(t.start_date)).getTime() : new Date(String(t.due_date)).getTime();
+            const e = t.due_date ? new Date(String(t.due_date)).getTime() : s;
+            const left = pctOf(Math.min(s, e));
+            const width = Math.max(1.5, pctOf(Math.max(s, e)) - left);
+            const delayed = isDelayed(t);
+            const done = t.status === "done";
+            const barColor = done ? "bg-green-500" : delayed ? "bg-red-500" : "bg-[var(--primary)]";
+            return (
+              <div key={t.id} className="relative h-7 flex items-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div onClick={() => onTaskClick(t)}
+                    className={`absolute h-5 rounded ${barColor} opacity-85 hover:opacity-100 cursor-pointer flex items-center px-1.5 overflow-hidden`}
+                    style={{ left: `${left}%`, width: `${width}%` }}
+                    title={`${t.title} · ${t.start_date ? String(t.start_date).slice(0, 10) : "?"} ~ ${t.due_date ? String(t.due_date).slice(0, 10) : "?"}${taskAssignees(t).length > 0 ? ` · ${taskAssignees(t).map((id) => userName[id] || "").filter(Boolean).join(", ")}` : ""}`}>
+                    <span className="text-[10px] text-white font-medium truncate">{t.title}</span>
                   </div>
                 </div>
-              );
-            };
-            const hasEpics = keys.some((k) => k !== "__none");
-            return keys.map((k) => (
-              <div key={k} className="space-y-1.5">
-                {k !== "__none" ? <div className="text-[11px] font-bold text-[var(--text-muted)] pt-1 relative z-[5]">🗂 {tasks.find((t) => t.id === k)?.title || "에픽"}</div>
-                  : hasEpics && <div className="text-[11px] font-bold text-[var(--text-dim)] pt-1 relative z-[5]">기타</div>}
-                {groups[k].map(renderBar)}
               </div>
-            ));
-          })()}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -626,8 +369,8 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
   );
 }
 
-function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, sprints, allTasks, defaultSprintId, onClose, onSaved }: {
-  dealId: string; companyId: string; users: any[]; task: any | null; userId: string | null; existingCount: number; sprints: any[]; allTasks: any[]; defaultSprintId: string | null; onClose: () => void; onSaved: () => void;
+function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, onClose, onSaved }: {
+  dealId: string; companyId: string; users: any[]; task: any | null; userId: string | null; existingCount: number; onClose: () => void; onSaved: () => void;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -637,9 +380,6 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const toggleAssignee = (id: string) => setAssignees((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const [status, setStatus] = useState<TaskStatus>((task?.status as TaskStatus) || "todo");
-  const [sprintId, setSprintId] = useState<string>(task ? (task.sprint_id || "") : (defaultSprintId || ""));
-  const [points, setPoints] = useState<string>(task?.story_points != null ? String(task.story_points) : "");
-  const [epicId, setEpicId] = useState<string>(task?.parent_task_id || "");
   const [start, setStart] = useState((task?.start_date || "").slice(0, 10));
   const [due, setDue] = useState((task?.due_date || "").slice(0, 10));
   const [desc, setDesc] = useState(task?.description || "");
@@ -752,8 +492,6 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
         title: title.trim(), description: desc.trim() || null, status,
         assignee_ids: assignees, assignee_id: assignees[0] || null, start_date: start || null, due_date: due || null,
         attachments: atts, labels,
-        sprint_id: sprintId || null, story_points: points.trim() === "" ? null : Number(points.replace(/[^0-9]/g, "")) || null,
-        parent_task_id: epicId || null,
         updated_at: new Date().toISOString(),
       };
       if (isEdit) {
@@ -892,26 +630,6 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
               <label className={LB}>마감일</label>
               <DateField value={due} min={start || undefined} onChange={(e) => setDue(e.target.value)} className={`${IN} mono-number`} />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LB}>스프린트</label>
-              <select value={sprintId} onChange={(e) => setSprintId(e.target.value)} className={IN}>
-                <option value="">백로그 (미배정)</option>
-                {sprints.filter((s) => s.status !== "completed").map((s) => <option key={s.id} value={s.id}>{s.name}{s.status === "active" ? " (진행중)" : ""}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={LB}>스토리 포인트 <span className="font-normal text-[var(--text-dim)]">(추정)</span></label>
-              <input value={points} onChange={(e) => setPoints(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" placeholder="예: 3" className={`${IN} text-right mono-number`} />
-            </div>
-          </div>
-          <div>
-            <label className={LB}>상위 에픽 <span className="font-normal text-[var(--text-dim)]">(선택 · 상위 작업으로 묶기)</span></label>
-            <select value={epicId} onChange={(e) => setEpicId(e.target.value)} className={IN}>
-              <option value="">없음</option>
-              {allTasks.filter((t) => t.id !== task?.id && !t.parent_task_id).map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
-            </select>
           </div>
           <div>
             <div className="flex items-center justify-between">
