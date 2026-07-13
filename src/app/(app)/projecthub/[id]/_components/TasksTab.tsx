@@ -55,7 +55,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
     queryKey: ["project-tasks", dealId],
     queryFn: async () => {
       const { data } = await db.from("project_tasks")
-        .select("id, title, description, status, assignee_id, assignee_ids, start_date, due_date, progress, position, attachments, labels, sprint_id, story_points, updated_at")
+        .select("id, title, description, status, assignee_id, assignee_ids, start_date, due_date, progress, position, attachments, labels, sprint_id, story_points, updated_at, parent_task_id")
         .eq("deal_id", dealId).is("archived_at", null)
         .order("position", { ascending: true }).order("created_at", { ascending: true });
       return (data || []) as any[];
@@ -87,6 +87,8 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
     for (const u of users) m[u.id] = u.name;
     return m;
   }, [users]);
+  // 에픽 — 다른 태스크의 parent_task_id 로 참조되는 태스크. 제목 조회용 맵.
+  const taskTitle = useMemo(() => { const m: Record<string, string> = {}; for (const t of tasks as any[]) m[t.id] = t.title; return m; }, [tasks]);
 
   const filteredTasks = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -265,6 +267,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
                         {taskLabels(t).map((l, i) => <LabelChip key={i} l={l} />)}
                       </div>
                     )}
+                    {t.parent_task_id && taskTitle[t.parent_task_id] && <div className="text-[10px] text-[var(--text-dim)] truncate mb-0.5">🗂 {taskTitle[t.parent_task_id]}</div>}
                     <div className="text-sm font-medium text-[var(--text)] break-words">{t.title}</div>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       {t.story_points != null && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-bold mono-number">{t.story_points}pt</span>}
@@ -297,6 +300,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
           task={editTask} userId={user?.id || null}
           existingCount={total}
           sprints={sprints as any[]}
+          allTasks={tasks as any[]}
           defaultSprintId={scope !== "backlog" && scope !== "all" ? scope : null}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ["project-tasks", dealId] }); }}
@@ -488,27 +492,39 @@ function GanttChart({ tasks, userName, onTaskClick }: { tasks: any[]; userName: 
               <span className="absolute -top-1 -translate-x-1/2 text-[8px] text-red-500 font-bold">오늘</span>
             </div>
           )}
-          {dated.map((t) => {
-            const s = t.start_date ? new Date(String(t.start_date)).getTime() : new Date(String(t.due_date)).getTime();
-            const e = t.due_date ? new Date(String(t.due_date)).getTime() : s;
-            const left = pctOf(Math.min(s, e));
-            const width = Math.max(1.5, pctOf(Math.max(s, e)) - left);
-            const delayed = isDelayed(t);
-            const done = t.status === "done";
-            const barColor = done ? "bg-green-500" : delayed ? "bg-red-500" : "bg-[var(--primary)]";
-            return (
-              <div key={t.id} className="relative h-7 flex items-center">
-                <div className="absolute inset-0 flex items-center">
-                  <div onClick={() => onTaskClick(t)}
-                    className={`absolute h-5 rounded ${barColor} opacity-85 hover:opacity-100 cursor-pointer flex items-center px-1.5 overflow-hidden`}
-                    style={{ left: `${left}%`, width: `${width}%` }}
-                    title={`${t.title} · ${t.start_date ? String(t.start_date).slice(0, 10) : "?"} ~ ${t.due_date ? String(t.due_date).slice(0, 10) : "?"}${taskAssignees(t).length > 0 ? ` · ${taskAssignees(t).map((id) => userName[id] || "").filter(Boolean).join(", ")}` : ""}`}>
-                    <span className="text-[10px] text-white font-medium truncate">{t.title}</span>
+          {(() => {
+            // 에픽(parent_task_id)별 그룹 — 에픽 먼저, '기타'는 마지막. 헤더 행 + 자식 막대.
+            const groups: Record<string, any[]> = {};
+            for (const t of dated) { const k = t.parent_task_id || "__none"; (groups[k] ||= []).push(t); }
+            const keys = Object.keys(groups).sort((a, b) => (a === "__none" ? 1 : b === "__none" ? -1 : 0));
+            const renderBar = (t: any) => {
+              const s = t.start_date ? new Date(String(t.start_date)).getTime() : new Date(String(t.due_date)).getTime();
+              const e = t.due_date ? new Date(String(t.due_date)).getTime() : s;
+              const left = pctOf(Math.min(s, e));
+              const width = Math.max(1.5, pctOf(Math.max(s, e)) - left);
+              const barColor = t.status === "done" ? "bg-green-500" : isDelayed(t) ? "bg-red-500" : "bg-[var(--primary)]";
+              return (
+                <div key={t.id} className="relative h-7 flex items-center">
+                  <div className="absolute inset-0 flex items-center">
+                    <div onClick={() => onTaskClick(t)}
+                      className={`absolute h-5 rounded ${barColor} opacity-85 hover:opacity-100 cursor-pointer flex items-center px-1.5 overflow-hidden`}
+                      style={{ left: `${left}%`, width: `${width}%` }}
+                      title={`${t.title} · ${t.start_date ? String(t.start_date).slice(0, 10) : "?"} ~ ${t.due_date ? String(t.due_date).slice(0, 10) : "?"}${taskAssignees(t).length > 0 ? ` · ${taskAssignees(t).map((id) => userName[id] || "").filter(Boolean).join(", ")}` : ""}`}>
+                      <span className="text-[10px] text-white font-medium truncate">{t.title}</span>
+                    </div>
                   </div>
                 </div>
+              );
+            };
+            const hasEpics = keys.some((k) => k !== "__none");
+            return keys.map((k) => (
+              <div key={k} className="space-y-1.5">
+                {k !== "__none" ? <div className="text-[11px] font-bold text-[var(--text-muted)] pt-1 relative z-[5]">🗂 {tasks.find((t) => t.id === k)?.title || "에픽"}</div>
+                  : hasEpics && <div className="text-[11px] font-bold text-[var(--text-dim)] pt-1 relative z-[5]">기타</div>}
+                {groups[k].map(renderBar)}
               </div>
-            );
-          })}
+            ));
+          })()}
         </div>
       </div>
     </div>
@@ -610,8 +626,8 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
   );
 }
 
-function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, sprints, defaultSprintId, onClose, onSaved }: {
-  dealId: string; companyId: string; users: any[]; task: any | null; userId: string | null; existingCount: number; sprints: any[]; defaultSprintId: string | null; onClose: () => void; onSaved: () => void;
+function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, sprints, allTasks, defaultSprintId, onClose, onSaved }: {
+  dealId: string; companyId: string; users: any[]; task: any | null; userId: string | null; existingCount: number; sprints: any[]; allTasks: any[]; defaultSprintId: string | null; onClose: () => void; onSaved: () => void;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -623,6 +639,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   const [status, setStatus] = useState<TaskStatus>((task?.status as TaskStatus) || "todo");
   const [sprintId, setSprintId] = useState<string>(task ? (task.sprint_id || "") : (defaultSprintId || ""));
   const [points, setPoints] = useState<string>(task?.story_points != null ? String(task.story_points) : "");
+  const [epicId, setEpicId] = useState<string>(task?.parent_task_id || "");
   const [start, setStart] = useState((task?.start_date || "").slice(0, 10));
   const [due, setDue] = useState((task?.due_date || "").slice(0, 10));
   const [desc, setDesc] = useState(task?.description || "");
@@ -736,6 +753,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
         assignee_ids: assignees, assignee_id: assignees[0] || null, start_date: start || null, due_date: due || null,
         attachments: atts, labels,
         sprint_id: sprintId || null, story_points: points.trim() === "" ? null : Number(points.replace(/[^0-9]/g, "")) || null,
+        parent_task_id: epicId || null,
         updated_at: new Date().toISOString(),
       };
       if (isEdit) {
@@ -887,6 +905,13 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
               <label className={LB}>스토리 포인트 <span className="font-normal text-[var(--text-dim)]">(추정)</span></label>
               <input value={points} onChange={(e) => setPoints(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" placeholder="예: 3" className={`${IN} text-right mono-number`} />
             </div>
+          </div>
+          <div>
+            <label className={LB}>상위 에픽 <span className="font-normal text-[var(--text-dim)]">(선택 · 상위 작업으로 묶기)</span></label>
+            <select value={epicId} onChange={(e) => setEpicId(e.target.value)} className={IN}>
+              <option value="">없음</option>
+              {allTasks.filter((t) => t.id !== task?.id && !t.parent_task_id).map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+            </select>
           </div>
           <div>
             <div className="flex items-center justify-between">
