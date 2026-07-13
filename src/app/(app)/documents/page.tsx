@@ -29,7 +29,6 @@ import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib
 import { fillFormTemplate } from "@/lib/pdf-overlay";
 import { FileUploadMulti } from "@/components/file-upload-multi";
 import { FileList } from "@/components/file-list";
-import { DocumentTemplatesPanel } from "@/components/document-templates-panel";
 import { CurrencyInput } from "@/components/currency-input";
 import { QuoteItemsTable } from "./_components/QuoteItemsTable";
 import { QuoteHeader, type QuoteHeaderData } from "./_components/QuoteHeader";
@@ -2669,14 +2668,6 @@ function DocumentsPageInner() {
             </div>
           )}
         </div>
-      )}
-
-      {/* QA 2026-07-13: 전자계약 "재사용 계약서 문서"(열기)로 들어오면 이 페이지(/documents)로
-          이동하는데, 정작 사이드바 파일보관함으로 직접 들어오면 안 보여 혼란을 줬음(파일 저장소
-          와 문서(documents) 데이터가 분리돼 있던 탓). 진입 경로 무관하게 동일하게 보이도록 여기도
-          같은 패널을 노출 — companyId 가 있으면 항상 렌더(탭 상태와 무관). */}
-      {companyId && (
-        <DocumentTemplatesPanel companyId={companyId} documents={documents as any[]} />
       )}
 
       {/* ═══ File Storage Tab (파일 보관함 전용) ═══ */}

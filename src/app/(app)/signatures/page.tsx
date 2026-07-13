@@ -333,7 +333,12 @@ export default function SignaturesDashboardPage() {
           {/* 온라인홍보사업 계약서·포기신청서 등 — "단체 일괄 발송"/"새 서명 요청"에서 실제 사용되는
               문서(documents 테이블) 원본을 여기서 바로 보고 수정. OrgBulkWizard/InviteModal 이 같은
               데이터(getDocuments)를 그대로 읽으므로 여기서 수정하면 발송 시 바로 반영됨. */}
-          <DocumentTemplatesPanel companyId={companyId} documents={documents as any[]} />
+          <DocumentTemplatesPanel
+            companyId={companyId}
+            userId={userId}
+            documents={documents as any[]}
+            onSaved={() => qc.invalidateQueries({ queryKey: ["documents-for-sign", companyId] })}
+          />
           <TemplatesTab
             scope="business"
             companyId={companyId}
