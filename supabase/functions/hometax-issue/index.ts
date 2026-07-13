@@ -200,6 +200,17 @@ serve(async (req) => {
       if (!comp?.business_number) {
         return new Response(JSON.stringify({ error: "회사 사업자등록번호가 없습니다. 설정 → 회사 정보에서 입력하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      // QA 2026-07-13: 팝빌 join-member 는 상호/대표자/주소/업태/종목/전화번호를 전부 필수로 요구.
+      //   회사 전화번호(phone) 미입력 시 빈 문자열 전송 → CF-00001(필수 파라미터 누락) → 인증서URL도 연쇄 실패.
+      const missingFields = [
+        !comp.name && "상호", !comp.representative && "대표자", !comp.address && "주소",
+        !comp.business_type && "업태", !comp.business_category && "종목", !comp.phone && "전화번호",
+      ].filter(Boolean);
+      if (missingFields.length) {
+        return new Response(JSON.stringify({
+          error: `회사 정보가 비어 있어 발행 등록을 진행할 수 없습니다: ${missingFields.join(", ")} — 설정 → 회사 정보에서 입력 후 다시 시도하세요.`,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const corpNum = String(comp.business_number).replace(/\D/g, "");
       const clientId0 = Deno.env.get("CODEF_CLIENT_ID");
       const clientSecret0 = Deno.env.get("CODEF_CLIENT_SECRET");
