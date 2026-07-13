@@ -34,7 +34,7 @@ const STATUS_META: Record<string, { dot: string; text: string; label: string }> 
   red: { dot: "bg-red-500", text: "text-red-500", label: "위험" },
 };
 
-export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; companyId: string; deal: any }) {
+export function PerformanceTab({ dealId, companyId, deal, onGoTab }: { dealId: string; companyId: string; deal: any; onGoTab?: (t: string) => void }) {
   const { user, role } = useUser();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -269,8 +269,17 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
   // ── 성과 체크인 (구조화 3문항 + 신호등 + KPI carry-forward) ──
   const [chkStatus, setChkStatus] = useState<"green" | "yellow" | "red">("green");
   const [chkDid, setChkDid] = useState("");
-  const [chkIssues, setChkIssues] = useState("");
-  const [chkNext, setChkNext] = useState("");
+  // 방향 A — 체크인은 이슈/다음계획을 '재입력'하지 않고 구조화 탭(이슈/실행)을 연결. 열린 이슈·과제 자동 표시.
+  const { data: chkOpenIssues = [] } = useQuery({
+    queryKey: ["project-issues-open", dealId],
+    queryFn: async () => (await db.from("project_issues").select("id, title, severity, status").eq("deal_id", dealId).neq("status", "resolved").order("created_at", { ascending: false })).data || [],
+    enabled: !!dealId,
+  });
+  const { data: chkOpenTasks = [] } = useQuery({
+    queryKey: ["project-tasks-open", dealId],
+    queryFn: async () => (await db.from("project_tasks").select("id, title, due_date, status").eq("deal_id", dealId).is("archived_at", null).neq("status", "done").order("due_date", { ascending: true })).data || [],
+    enabled: !!dealId,
+  });
   const [chkDate, setChkDate] = useState(todayStr());
   const [chkKpiVals, setChkKpiVals] = useState<Record<string, string>>({});
   const [savingChk, setSavingChk] = useState(false);
@@ -292,7 +301,7 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
   );
 
   const saveCheckin = async () => {
-    if (!chkDid.trim() && !chkIssues.trim() && !chkNext.trim()) { toast("최소 한 문항은 입력하세요", "error"); return; }
+    if (!chkDid.trim()) { toast("이번 기간 성과·코멘트를 한 줄 입력하세요", "error"); return; }
     setSavingChk(true);
     try {
       // carry-forward: 변동된 수동 KPI 값은 실적으로도 기록(미변동=그대로 두면 새 행 없음)
@@ -321,14 +330,14 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
       const { error } = await db.from("project_updates").insert({
         company_id: companyId, deal_id: dealId, update_date: chkDate,
         period_start: cadence === "none" ? null : curPeriod,
-        status: chkStatus, did: chkDid.trim() || null, issues: chkIssues.trim() || null, next_plan: chkNext.trim() || null,
+        status: chkStatus, did: chkDid.trim() || null, issues: null, next_plan: null,
         kpi_snapshot: snapshot, created_by: user?.id || null,
       });
       if (error) throw new Error(error.message);
       qc.invalidateQueries({ queryKey: ["project-updates", dealId] });
       qc.invalidateQueries({ queryKey: ["project-updates-latest", dealId] });
       qc.invalidateQueries({ queryKey: ["project-kpi-entries-all", dealId] });
-      setChkDid(""); setChkIssues(""); setChkNext(""); setChkStatus("green"); setChkDate(todayStr());
+      setChkDid(""); setChkStatus("green"); setChkDate(todayStr());
       toast("성과 체크인을 등록했습니다", "success");
     } catch (e: any) { toast(e?.message || "저장 실패", "error"); } finally { setSavingChk(false); }
   };
@@ -650,18 +659,44 @@ export function PerformanceTab({ dealId, companyId, deal }: { dealId: string; co
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className={LB}>✅ 이번 기간 성과</label>
-              <textarea value={chkDid} onChange={(e) => setChkDid(e.target.value)} rows={3} placeholder="한 일·달성한 것" className={`${IN} resize-y`} />
+          <div>
+            <label className={LB}>✅ 이번 기간 성과·코멘트</label>
+            <textarea value={chkDid} onChange={(e) => setChkDid(e.target.value)} rows={2} placeholder="한 일·달성한 것·특이사항 한두 줄" className={`${IN} resize-y`} />
+          </div>
+          {/* 이슈·다음 계획은 재입력하지 않고 구조화 탭(이슈/실행)을 연결 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-lg border border-[var(--border)] p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-[var(--text-muted)]">🚧 열린 이슈 <span className="text-[var(--danger)]">{(chkOpenIssues as any[]).length}</span></span>
+                <button onClick={() => onGoTab?.("issues")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ 이슈 등록 →</button>
+              </div>
+              {(chkOpenIssues as any[]).length === 0 ? (
+                <div className="text-[11px] text-[var(--text-dim)]">열린 이슈 없음 👍</div>
+              ) : (
+                <div className="space-y-1">
+                  {(chkOpenIssues as any[]).slice(0, 4).map((i) => (
+                    <div key={i.id} className="text-[11px] text-[var(--text)] truncate">· {i.title}</div>
+                  ))}
+                  {(chkOpenIssues as any[]).length > 4 && <button onClick={() => onGoTab?.("issues")} className="text-[10px] text-[var(--text-dim)] hover:underline">외 {(chkOpenIssues as any[]).length - 4}건 →</button>}
+                </div>
+              )}
             </div>
-            <div>
-              <label className={LB}>🚧 이슈·막힌 것</label>
-              <textarea value={chkIssues} onChange={(e) => setChkIssues(e.target.value)} rows={3} placeholder="리스크·블로커" className={`${IN} resize-y`} />
-            </div>
-            <div>
-              <label className={LB}>➡️ 다음 기간 계획</label>
-              <textarea value={chkNext} onChange={(e) => setChkNext(e.target.value)} rows={3} placeholder="다음 액션" className={`${IN} resize-y`} />
+            <div className="rounded-lg border border-[var(--border)] p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-[var(--text-muted)]">➡️ 진행/예정 과제 <span className="text-[var(--primary)]">{(chkOpenTasks as any[]).length}</span></span>
+                <button onClick={() => onGoTab?.("tasks")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ 과제 등록 →</button>
+              </div>
+              {(chkOpenTasks as any[]).length === 0 ? (
+                <div className="text-[11px] text-[var(--text-dim)]">예정 과제 없음</div>
+              ) : (
+                <div className="space-y-1">
+                  {(chkOpenTasks as any[]).slice(0, 4).map((t) => {
+                    const overdue = t.due_date && t.due_date < todayStr();
+                    return <div key={t.id} className="text-[11px] text-[var(--text)] truncate flex items-center gap-1.5">· <span className="flex-1 truncate">{t.title}</span>{t.due_date && <span className={`text-[10px] mono-number ${overdue ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>{String(t.due_date).slice(5, 10)}{overdue ? "⚠" : ""}</span>}</div>;
+                  })}
+                  {(chkOpenTasks as any[]).length > 4 && <button onClick={() => onGoTab?.("tasks")} className="text-[10px] text-[var(--text-dim)] hover:underline">외 {(chkOpenTasks as any[]).length - 4}건 →</button>}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex justify-end">

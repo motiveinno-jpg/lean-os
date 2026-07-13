@@ -1417,7 +1417,7 @@ export default function ProjectHubDetailPage() {
 
       {/* 목표형 — 성과(KPI 관리 · 실적 · 체크인) */}
       {tab === "performance" && companyId && (
-        <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} />
+        <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} onGoTab={(t) => setTab(t as TabKey)} />
       )}
 
       {/* 실행형 — 태스크(칸반/간트) */}
