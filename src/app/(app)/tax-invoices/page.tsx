@@ -1103,17 +1103,7 @@ export default function TaxInvoicesPage() {
     <div className="" data-print-area>
       {confirmElement}
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* 툴바 — 액션 버튼 (타이틀은 공통 헤더바가 담당). 인쇄 제거(개별 인쇄는 상세에서). */}
-      <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2 mb-6">
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="no-print btn-primary"
-          >
-            + 세금계산서 등록
-          </button>
-      </div>
-
-      {/* 기간설정 — 상단 공간 압축(직원 QA 2026-07-10): 중복 타이틀 행 제거 + 여백 축소 */}
+      {/* 기간설정 + 등록 — 한 줄로 통합(2026-07-13 정리). 인쇄·조회하기 제거(월 변경 시 자동 반영). */}
       <div className="mb-3 no-print rounded-lg overflow-hidden border border-[var(--border)]">
         <div className="bg-[var(--bg-card)] p-2.5 flex flex-wrap items-stretch gap-x-0 gap-y-2">
           <div className="flex flex-wrap items-stretch border border-[var(--border)] rounded-md overflow-hidden min-w-0 max-w-full">
@@ -1158,17 +1148,23 @@ export default function TaxInvoicesPage() {
             </div>
           </div>
           <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] })}
+            onClick={() => setShowForm(true)}
             className="ml-auto self-center btn-primary"
-            title="현재 조건으로 다시 조회합니다"
+            title="세금계산서를 등록합니다"
           >
-            조회하기
+            + 세금계산서 등록
           </button>
         </div>
       </div>
 
-      {/* Sync bar — 상단 압축: mb-6→mb-2 */}
-      <div className="flex items-center justify-between glass-card px-4 py-2.5 mb-2">
+      {/* Sync bar — 접이식(기본 접힘). 평소엔 한 줄 요약, 동기화할 때만 펼침. 로직 무변경. */}
+      <details className="tax-sync-fold glass-card mb-2 no-print group">
+        <summary className="px-4 py-2.5 cursor-pointer list-none flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)]">
+          <span className="text-[10px] text-[var(--text-dim)] group-open:rotate-90 transition-transform">▸</span>
+          ⟳ 홈택스 동기화
+          <span className="font-normal text-[var(--text-dim)] truncate">{lastSyncData ? `· 마지막 업데이트 ${new Date(lastSyncData).toLocaleDateString("ko", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : isHometaxConnected ? "· 연결됨" : "· 미연결 (설정 > 은행연동)"}</span>
+        </summary>
+      <div className="flex items-center justify-between px-4 pb-3 pt-1 gap-2 flex-wrap">
         <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1247,9 +1243,10 @@ export default function TaxInvoicesPage() {
           )}
         </div>
       </div>
-      <p className="mb-4 text-[10px] text-[var(--text-muted)]">
+      <p className="px-4 pb-3 text-[10px] text-[var(--text-muted)]">
         ※ 이 버튼은 홈택스에 <b>이미 발행된</b> 세금계산서를 가져오는 조회 동작입니다. 새 세금계산서 발행은 매출 탭에서 "발행" 버튼 또는 매출 스케줄 자동 발행으로 진행됩니다.
       </p>
+      </details>
 
       {/* 동기화 결과 패널 — 월별 응답 수 vs 저장 수 비교, 누락 월에 재시도 버튼 */}
       {syncResultDetail && syncResultDetail.length > 0 && (
