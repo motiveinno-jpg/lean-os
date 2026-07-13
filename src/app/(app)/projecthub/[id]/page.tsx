@@ -15,7 +15,7 @@ import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 import { createFromTemplate, nextQuoteNumber } from "@/lib/documents";
-import { seedDefaultDocTemplates } from "@/lib/default-doc-templates";
+import { seedDefaultDocTemplates, STANDARD_CONTRACT_CONTENT } from "@/lib/default-doc-templates";
 import { useTabParam } from "@/lib/use-tab-param";
 import { DateField } from "@/components/date-field";
 import { ProjectSlideOver } from "@/components/project-slide-over";
@@ -41,11 +41,9 @@ const QUOTE_CONTENT = {
     { title: "비고", content: "1. 본 견적서의 유효기간은 견적일로부터 {{유효기간}}입니다.\n2. 수량 및 사양 변경 시 단가가 변동될 수 있습니다.\n3. 기타 문의사항은 담당자에게 연락 바랍니다." },
   ],
 };
-// 계약서 기본 구조 — 전자계약 탭에서 생성. (견적서와 분리: 계약서는 본문 텍스트형)
-const CONTRACT_CONTENT = {
-  title: "계약서",
-  sections: [{ title: "계약 내용", content: "" }],
-};
+// 계약서 기본 구조 — 활성 양식이 없을 때의 기본값. 표준 전자계약서 본문(제1~10조)을 제공해
+//   "계약서 느낌"이 나도록 한다(구 빈 1줄 구조 대체). 업로드 양식 선택 시 그 양식으로 대체됨.
+const CONTRACT_CONTENT = STANDARD_CONTRACT_CONTENT;
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "—");
 const fmtNo = (d: any) => (d.document_number ? d.document_number : d.created_at ? String(d.created_at).slice(0, 10).replace(/-/g, "/") : "—");
@@ -341,6 +339,7 @@ export default function ProjectHubDetailPage() {
       const q = (quoteDoc.content_json as any) || {};
       const amt = quoteAmount(quoteDoc);
       const partnerName = q.header?.partnerName || partner?.name || "";
+      // 표준 전자계약서 본문 사용 + 견적 근거 조항을 앞에 추가(계약금액·거래처 이월).
       const contractContent = {
         ...CONTRACT_CONTENT,
         direction: q.direction,            // 방향(매출/매입) 유지 — 파이프라인 필터용
@@ -349,10 +348,8 @@ export default function ProjectHubDetailPage() {
         header: { ...(q.header || {}) },   // 거래처·담당자·금액 이월
         items: q.items || [],              // 견적 품목 이월(참조)
         sections: [
-          {
-            title: "계약 내용",
-            content: `본 계약은 견적서(${fmtNo(quoteDoc)})에 근거합니다.\n\n수신: ${partnerName}\n계약금액: ${amt ? amt.toLocaleString("ko-KR") + "원 (VAT 별도)" : "-"}\n\n※ 세부 조항은 편집기에서 작성해 주세요.`,
-          },
+          { title: "계약 개요", content: `본 계약은 견적서(${fmtNo(quoteDoc)})에 근거한다.\n\n수신: ${partnerName || "{{거래처명}}"}\n계약금액: ${amt ? amt.toLocaleString("ko-KR") + "원 (VAT 별도)" : "{{계약금액}}원 (VAT 별도)"}` },
+          ...CONTRACT_CONTENT.sections,
         ],
       };
       const { data, error } = await db.from("documents").insert({
