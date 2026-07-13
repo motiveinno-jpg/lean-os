@@ -5,6 +5,8 @@ import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { DOC_TYPES } from "@/lib/documents";
 import { DEFAULT_DOC_TEMPLATES } from "@/lib/default-doc-templates";
+import { useToast } from "@/components/toast";
+import { friendlyError } from "@/lib/friendly-error";
 
 // ── 인사(HR) 양식 type 집합 ──
 //   전자계약(비즈니스) 양식과 분리해 관리 화면을 나눈다. 데이터(doc_templates)는 그대로.
@@ -32,6 +34,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
   onInvalidate: () => void;
 }) {
   void userId; // doc_templates 에 created_by 없음 — 시그니처 호환용
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [seeding, setSeeding] = useState(false);
@@ -101,12 +104,12 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
 
   const saveMut = useMutation({
     mutationFn: async () => {
+      // QA 2026-07-13: doc_templates 에 updated_at 컬럼이 없음 — 포함 시 PGRST204 400 (등록/수정 항상 실패).
       const payload = {
         name: form.name,
         type: form.type,
         content_json: form.content_json,
         variables: form.variables,
-        updated_at: new Date().toISOString(),
       };
       if (editingId) {
         const { error } = await (supabase as any).from("doc_templates").update(payload).eq("id", editingId);
@@ -116,6 +119,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
           ...payload,
           company_id: companyId,
           is_active: true,
+          is_custom: true,
         });
         if (error) throw error;
       }
@@ -124,7 +128,9 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
       queryClient.invalidateQueries({ queryKey: ["doc-templates"] });
       onInvalidate();
       resetForm();
+      toast(editingId ? "양식 수정 완료" : "양식 등록 완료", "success");
     },
+    onError: (e: any) => toast(`저장 실패: ${friendlyError(e, "권한이 없거나 일시 오류")}`, "error"),
   });
 
   const deleteMut = useMutation({
@@ -135,7 +141,9 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["doc-templates"] });
       onInvalidate();
+      toast("양식 삭제 완료", "success");
     },
+    onError: (e: any) => toast(`삭제 실패: ${friendlyError(e, "권한이 없거나 일시 오류")}`, "error"),
   });
 
   const addSection = () => {
