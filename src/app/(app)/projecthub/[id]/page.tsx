@@ -108,6 +108,31 @@ const TAB_LABEL: Record<TabKey, string> = {
 };
 const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "sales_pipeline", "purchase_pipeline", "subprojects", "pnl", "performance", "tasks", "workflow"];
 
+// ── 결제 조건(선금/중도금/잔금) ──
+type PayMode = "full" | "two" | "three";
+type PayTerm = { label: string; ratio: number };
+const clampPct = (n: number) => Math.min(100, Math.max(0, Math.round(Number(n) || 0)));
+// 모드+비율 → 회차 배열(전액이면 null). 잔금은 나머지로 자동.
+function buildPaySchedule(mode: PayMode, adv: number, mid: number): PayTerm[] | null {
+  const a = clampPct(adv);
+  if (mode === "two") return [{ label: "선금", ratio: a }, { label: "잔금", ratio: 100 - a }].filter((t) => t.ratio > 0);
+  if (mode === "three") {
+    const m = clampPct(mid);
+    const bal = 100 - a - m;
+    return [{ label: "선금", ratio: a }, { label: "중도금", ratio: m }, { label: "잔금", ratio: bal }].filter((t) => t.ratio > 0);
+  }
+  return null;
+}
+// 저장된 paymentSchedule → UI 모드/비율 복원 (구 paymentRatio 2단계 하위호환).
+function readPaySchedule(cj: any): { mode: PayMode; adv: number; mid: number } {
+  const sched = cj?.paymentSchedule as PayTerm[] | undefined;
+  if (Array.isArray(sched) && sched.length >= 3) return { mode: "three", adv: sched[0]?.ratio ?? 30, mid: sched[1]?.ratio ?? 30 };
+  if (Array.isArray(sched) && sched.length === 2) return { mode: "two", adv: sched[0]?.ratio ?? 30, mid: 30 };
+  const pr = cj?.paymentRatio;
+  if (pr && typeof pr.advance === "number") return { mode: "two", adv: pr.advance, mid: 30 };
+  return { mode: "full", adv: 30, mid: 30 };
+}
+
 export default function ProjectHubDetailPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
@@ -185,40 +210,42 @@ export default function ProjectHubDetailPage() {
   const [quoteSubDealId, setQuoteSubDealId] = useState(""); // 세부 프로젝트 연결(선택, 견적서 전용)
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [creatingContractFrom, setCreatingContractFrom] = useState<string | null>(null);
-  // 계약 결제조건 못박기 — 전액(분할 없음) vs 선금·잔금 분할. 계약 content_json.paymentRatio 로 저장.
-  const [contractSplit, setContractSplit] = useState(false);
-  const [contractAdvPct, setContractAdvPct] = useState(30);
+  // 계약 결제조건 못박기 — 전액/선금·잔금/선금·중도금·잔금. 계약 content_json.paymentSchedule 로 저장.
+  const [payMode, setPayMode] = useState<PayMode>("full");
+  const [payAdv, setPayAdv] = useState(30); // 선금 %
+  const [payMid, setPayMid] = useState(30); // 중도금 %
   const [payModalQuote, setPayModalQuote] = useState<any | null>(null); // 견적→계약 시 결제조건 모달
   const [issuingInvoiceFrom, setIssuingInvoiceFrom] = useState<string | null>(null);
-  // 계산서 발행 모달 — 전액 vs 선금/잔금 분할. 계약서 content_json.paymentRatio 있으면 그대로 기본값.
+  // 계산서 발행 모달 — 계약서의 결제조건(paymentSchedule)을 기본값으로. payMode/payAdv/payMid 공용.
   const [invoiceModal, setInvoiceModal] = useState<any | null>(null); // 발행 대상 계약 문서
-  const [invoiceMode, setInvoiceMode] = useState<"full" | "split">("full");
-  const [advancePct, setAdvancePct] = useState(30); // 선금 %
   const openInvoiceModal = (contractDoc: any) => {
-    const pr = (contractDoc.content_json as any)?.paymentRatio;
-    setAdvancePct(typeof pr?.advance === "number" ? pr.advance : 30);
-    setInvoiceMode(pr ? "split" : "full");
+    const r = readPaySchedule(contractDoc.content_json);
+    setPayMode(r.mode); setPayAdv(r.adv); setPayMid(r.mid);
     setInvoiceModal(contractDoc);
   };
-  // ★ 계약 → 계산서 발행 (P2 + 선금/잔금). 전액=1건 발행. 분할=선금(즉시 발행)+잔금(초안, 선금 입금 후 발행).
+  // ★ 계약 → 계산서 발행 (P2 + 선금/중도금/잔금). 전액=1건. 분할=첫 회차(선금) 즉시 발행 + 이후 회차 초안.
   //   status='issued'=매출 발행(리포트 매출 집계). 홈택스 실전송은 세금계산서 메뉴 소관(여기선 DB 기록만).
   const issueInvoices = async () => {
     const contractDoc = invoiceModal;
     if (!companyId || !contractDoc || issuingInvoiceFrom) return;
     const supply = quoteAmount(contractDoc) || Number(deal?.contract_total || 0);
     if (supply <= 0) { toast("계약 금액이 없습니다. 계약서에 금액을 먼저 입력하세요.", "error"); return; }
+    const schedule = buildPaySchedule(payMode, payAdv, payMid);
     setIssuingInvoiceFrom(contractDoc.id);
     try {
       const today = new Date().toISOString().slice(0, 10);
       const cpName = partner?.name || (contractDoc.content_json as any)?.header?.partnerName || "거래처";
       const cpBizno = partner?.business_number || undefined;
-      if (invoiceMode === "split") {
-        const adv = Math.min(100, Math.max(0, Math.round(advancePct)));
-        const advAmt = Math.round((supply * adv) / 100);
-        const terms = [
-          { label: "선금", ratio: adv, amount: advAmt, condition: "계약 후 7일 이내", status: "issued" as const, dueOffset: 7 },
-          { label: "잔금", ratio: 100 - adv, amount: supply - advAmt, condition: "납품 완료 후 14일 이내", status: "draft" as const, dueOffset: 60 },
-        ].filter((t) => t.amount > 0);
+      if (schedule && schedule.length > 0) {
+        // 금액 산출 — 반올림 오차는 마지막 회차(잔금)에서 보정해 합계=공급가 유지.
+        const dueOffsets = [7, 30, 60, 90];
+        const conditions = ["계약 후 7일 이내", "중도 진행 시점", "납품 완료 후 14일 이내"];
+        let allocated = 0;
+        const terms = schedule.map((t, i) => {
+          const amount = i === schedule.length - 1 ? supply - allocated : Math.round((supply * t.ratio) / 100);
+          allocated += amount;
+          return { ...t, amount, condition: conditions[i] || "협의", dueOffset: dueOffsets[Math.min(i, dueOffsets.length - 1)], status: (i === 0 ? "issued" : "draft") as "issued" | "draft" };
+        }).filter((t) => t.amount > 0);
         for (const t of terms) {
           const due = new Date(Date.now() + t.dueOffset * 86400000).toISOString().slice(0, 10);
           const { data: sched } = await db.from("deal_revenue_schedule").insert({
@@ -230,13 +257,13 @@ export default function ProjectHubDetailPage() {
             label: `${deal?.name || "프로젝트"} ${t.label} 계산서`, revenueScheduleId: sched?.id || null,
           });
         }
-        // 계약서에 선금/잔금 비율 기억(다음 발행 기본값 · 계약서 내용 반영)
+        // 계약서에 결제조건 기억(다음 발행 기본값 · 계약서 내용 반영)
         try {
-          const cj = { ...((contractDoc.content_json as any) || {}), paymentRatio: { advance: adv, balance: 100 - adv } };
+          const cj = { ...((contractDoc.content_json as any) || {}), paymentSchedule: schedule };
           await db.from("documents").update({ content_json: cj }).eq("id", contractDoc.id);
           qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
-        } catch { /* 비율 저장 실패는 무시 */ }
-        toast(`선금 ${won(advAmt)}(발행) · 잔금 ${won(supply - advAmt)}(초안)으로 계산서를 발행했습니다.`, "success");
+        } catch { /* 저장 실패는 무시 */ }
+        toast(`${terms.map((t) => `${t.label} ${won(t.amount)}`).join(" · ")} — 첫 회차 발행, 이후 초안으로 생성했습니다.`, "success");
       } else {
         await createTaxInvoice({
           companyId, dealId, type: "sales", counterpartyName: cpName, counterpartyBizno: cpBizno,
@@ -281,11 +308,10 @@ export default function ProjectHubDetailPage() {
         if (error) throw error;
         newId = data?.id || null;
       }
-      // 계약서면 결제조건(선금/잔금) 못박기 — 분할이면 비율, 아니면 null(전액). 양식/기본 양쪽 커버.
+      // 계약서면 결제조건(선금/중도금/잔금) 못박기 — 회차 배열 또는 null(전액). 양식/기본 양쪽 커버.
       if (formKind === "contract" && newId) {
-        const pr = contractSplit ? { advance: contractAdvPct, balance: 100 - contractAdvPct } : null;
         const { data: cur } = await db.from("documents").select("content_json").eq("id", newId).maybeSingle();
-        const cj = { ...((cur?.content_json as any) || {}), paymentRatio: pr };
+        const cj = { ...((cur?.content_json as any) || {}), paymentSchedule: buildPaySchedule(payMode, payAdv, payMid) };
         await db.from("documents").update({ content_json: cj }).eq("id", newId);
       }
       qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
@@ -318,8 +344,8 @@ export default function ProjectHubDetailPage() {
       const contractContent = {
         ...CONTRACT_CONTENT,
         direction: q.direction,            // 방향(매출/매입) 유지 — 파이프라인 필터용
-        // 결제조건 못박기 — 분할이면 비율, 아니면 null(전액). 계산서 발행이 이 값을 기본값으로 따름.
-        paymentRatio: contractSplit ? { advance: contractAdvPct, balance: 100 - contractAdvPct } : null,
+        // 결제조건 못박기 — 선금/중도금/잔금 회차 배열(전액이면 null). 계산서 발행이 이 값을 기본값으로 따름.
+        paymentSchedule: buildPaySchedule(payMode, payAdv, payMid),
         header: { ...(q.header || {}) },   // 거래처·담당자·금액 이월
         items: q.items || [],              // 견적 품목 이월(참조)
         sections: [
@@ -1040,7 +1066,7 @@ export default function ProjectHubDetailPage() {
                         })}
                         <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
                           <button
-                            onClick={(e) => { e.stopPropagation(); setContractSplit(false); setContractAdvPct(30); setPayModalQuote(doc); }}
+                            onClick={(e) => { e.stopPropagation(); setPayMode("full"); setPayAdv(30); setPayMid(30); setPayModalQuote(doc); }}
                             disabled={creatingContractFrom === doc.id}
                             className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap"
                             title="이 견적서 내용으로 계약서를 생성합니다">
@@ -1073,7 +1099,7 @@ export default function ProjectHubDetailPage() {
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
             <div className="flex items-center gap-2">
-              <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setContractSplit(false); setContractAdvPct(30); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
+              <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setPayMode("full"); setPayAdv(30); setPayMid(30); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
                 className="btn-primary text-xs hover:opacity-90">+ 계약서 작성</button>
               <Link href="/signatures?bulk=1" className="btn-secondary text-xs">📤 단체 일괄 발송</Link>
               <Link href="/signatures" className="btn-secondary text-xs">전자계약 메뉴 →</Link>
@@ -1093,9 +1119,12 @@ export default function ProjectHubDetailPage() {
                   })()}
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{doc.status || "draft"}</span>
                   {(() => {
-                    const pr = (doc.content_json as any)?.paymentRatio;
+                    const cj = doc.content_json as any;
+                    const sched = cj?.paymentSchedule as PayTerm[] | undefined;
+                    if (Array.isArray(sched) && sched.length > 0) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold shrink-0" title="이 계약의 결제 조건">{sched.map((t) => `${t.label} ${t.ratio}%`).join("·")}</span>;
+                    const pr = cj?.paymentRatio;
                     if (pr && typeof pr.advance === "number") return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold shrink-0" title="이 계약의 결제 조건">선금 {pr.advance}%·잔금 {100 - pr.advance}%</span>;
-                    if (pr === null) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0" title="이 계약의 결제 조건">전액</span>;
+                    if (sched === null || pr === null) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0" title="이 계약의 결제 조건">전액</span>;
                     return null;
                   })()}
                   <span className="text-[11px] text-[var(--text-dim)] shrink-0 mono-number">{fmtDate(doc.created_at)}</span>
@@ -1349,11 +1378,11 @@ export default function ProjectHubDetailPage() {
                 <span className="text-[var(--text-muted)]">견적금액(공급가)</span>
                 <span className="mono-number font-bold text-[var(--text)]">{won(supply)}</span>
               </div>
-              <PaymentTermsField split={contractSplit} onSplit={setContractSplit} adv={contractAdvPct} onAdv={setContractAdvPct} supply={supply} />
+              <PaymentTermsField mode={payMode} onMode={setPayMode} adv={payAdv} onAdv={setPayAdv} mid={payMid} onMid={setPayMid} supply={supply} />
               <p className="text-[11px] text-[var(--text-dim)] mt-3">이 결제 조건이 계약서에 저장되고, 계산서 발행 시 기본값으로 사용됩니다. 나중에 변경할 수 있습니다.</p>
               <div className="flex items-center justify-end gap-2.5 mt-5">
                 <button onClick={() => setPayModalQuote(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-                <button onClick={() => { const d = payModalQuote; setPayModalQuote(null); createContractFromQuote(d); }} disabled={!!creatingContractFrom}
+                <button onClick={() => { const d = payModalQuote; setPayModalQuote(null); createContractFromQuote(d); }} disabled={!!creatingContractFrom || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)}
                   className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">계약 생성</button>
               </div>
             </div>
@@ -1361,12 +1390,17 @@ export default function ProjectHubDetailPage() {
         );
       })()}
 
-      {/* 계산서 발행 모달 — 전액 또는 선금/잔금 분할. 계약서에 비율 있으면 그대로 기본값. */}
+      {/* 계산서 발행 모달 — 전액 또는 선금/중도금/잔금 분할. 계약서 결제조건이 기본값. */}
       {invoiceModal && (() => {
         const supply = quoteAmount(invoiceModal) || Number(deal?.contract_total || 0);
-        const adv = Math.min(100, Math.max(0, Math.round(advancePct || 0)));
-        const advAmt = Math.round((supply * adv) / 100);
-        const balAmt = supply - advAmt;
+        const schedule = buildPaySchedule(payMode, payAdv, payMid);
+        // 미리보기 금액(마지막 회차 보정)
+        let allocated = 0;
+        const preview = (schedule || []).map((t, i) => {
+          const amount = i === schedule!.length - 1 ? supply - allocated : Math.round((supply * t.ratio) / 100);
+          allocated += amount;
+          return { ...t, amount };
+        });
         const existingCount = ((pipe?.invoices || []) as any[]).length;
         return (
           <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setInvoiceModal(null)}>
@@ -1379,43 +1413,26 @@ export default function ProjectHubDetailPage() {
                 <span className="text-[var(--text-muted)]">계약금액(공급가)</span>
                 <span className="mono-number font-bold text-[var(--text)]">{won(supply)}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                <button onClick={() => setInvoiceMode("full")}
-                  className={`h-10 rounded-xl text-sm font-semibold border transition ${invoiceMode === "full" ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>전액 발행</button>
-                <button onClick={() => setInvoiceMode("split")}
-                  className={`h-10 rounded-xl text-sm font-semibold border transition ${invoiceMode === "split" ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>선금·잔금 분할</button>
-              </div>
-              {invoiceMode === "split" ? (
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[var(--text-muted)] w-9 shrink-0">선금</span>
-                    <input type="number" min={0} max={100} value={advancePct}
-                      onChange={(e) => setAdvancePct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                      className="w-20 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
-                    <span className="text-xs text-[var(--text-muted)]">%</span>
-                    <span className="ml-auto text-[11px] text-[var(--text-dim)]">잔금 {100 - adv}%</span>
-                  </div>
-                  <div className="rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50 divide-y divide-[var(--border)]/40">
-                    <div className="flex items-center justify-between px-3 py-2.5">
-                      <span className="text-sm text-[var(--text)]">선금 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold ml-1">즉시 발행</span></span>
-                      <span className="mono-number font-bold text-[var(--text)]">{won(advAmt)}</span>
+              <PaymentTermsField mode={payMode} onMode={setPayMode} adv={payAdv} onAdv={setPayAdv} mid={payMid} onMid={setPayMid} supply={supply} />
+              {preview.length > 0 ? (
+                <div className="rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50 divide-y divide-[var(--border)]/40 mt-3">
+                  {preview.map((t, i) => (
+                    <div key={t.label} className="flex items-center justify-between px-3 py-2.5">
+                      <span className="text-sm text-[var(--text)]">{t.label} <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ml-1 ${i === 0 ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{i === 0 ? "즉시 발행" : "초안(입금 후 발행)"}</span></span>
+                      <span className="mono-number font-bold text-[var(--text)]">{won(t.amount)}</span>
                     </div>
-                    <div className="flex items-center justify-between px-3 py-2.5">
-                      <span className="text-sm text-[var(--text)]">잔금 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] font-semibold ml-1">초안(입금 후 발행)</span></span>
-                      <span className="mono-number font-bold text-[var(--text)]">{won(balAmt)}</span>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-[var(--text-dim)]">잔금은 <b className="text-[var(--text-muted)]">초안</b>으로 생성되며, 선금 입금이 확인되면 세금계산서 메뉴에서 발행합니다.</p>
+                  ))}
                 </div>
               ) : (
-                <p className="text-[12px] text-[var(--text-muted)] mb-4">계약금액 전액을 매출 세금계산서 1건으로 발행합니다(미전송).</p>
+                <p className="text-[12px] text-[var(--text-muted)] mt-3">계약금액 전액을 매출 세금계산서 1건으로 발행합니다(미전송).</p>
               )}
+              {preview.length > 0 && <p className="text-[11px] text-[var(--text-dim)] mt-2">첫 회차(선금)만 즉시 발행되고, 이후 회차는 <b className="text-[var(--text-muted)]">초안</b>으로 생성됩니다. 입금 확인 후 세금계산서 메뉴에서 발행하세요.</p>}
               {existingCount > 0 && (
-                <p className="text-[11px] text-[var(--warning)] mb-3">⚠ 이 프로젝트에 이미 발행된 매출 계산서가 {existingCount}건 있습니다. 중복 발행 시 매출이 이중 계상될 수 있습니다.</p>
+                <p className="text-[11px] text-[var(--warning)] mt-3">⚠ 이 프로젝트에 이미 발행된 매출 계산서가 {existingCount}건 있습니다. 중복 발행 시 매출이 이중 계상될 수 있습니다.</p>
               )}
-              <div className="flex items-center justify-end gap-2.5">
+              <div className="flex items-center justify-end gap-2.5 mt-5">
                 <button onClick={() => setInvoiceModal(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-                <button onClick={issueInvoices} disabled={!!issuingInvoiceFrom || supply <= 0}
+                <button onClick={issueInvoices} disabled={!!issuingInvoiceFrom || supply <= 0 || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)}
                   className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{issuingInvoiceFrom ? "발행 중…" : "발행"}</button>
               </div>
             </div>
@@ -1468,12 +1485,12 @@ export default function ProjectHubDetailPage() {
             <p className="text-[11px] text-[var(--text-dim)] mt-2">{formKind === "quote" ? "견적서(품목·단가·부가세 표)로 생성되며, 생성 즉시 견적서 입력 화면으로 이동합니다." : "계약서(본문 텍스트)로 생성됩니다. 발송·서명은 ‘단체 일괄 발송 / 전자계약 메뉴’에서 진행하세요. 생성 후 목록의 ‘열기/편집’으로 작성하세요."}</p>
             {formKind === "contract" && (
               <div className="mt-4">
-                <PaymentTermsField split={contractSplit} onSplit={setContractSplit} adv={contractAdvPct} onAdv={setContractAdvPct} supply={Number(deal?.contract_total || 0)} />
+                <PaymentTermsField mode={payMode} onMode={setPayMode} adv={payAdv} onAdv={setPayAdv} mid={payMid} onMid={setPayMid} supply={Number(deal?.contract_total || 0)} />
               </div>
             )}
             <div className="flex items-center justify-end gap-2.5 mt-5">
               <button onClick={() => setShowQuoteForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-              <button onClick={createDoc} disabled={creatingQuote} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingQuote ? "생성 중..." : (formKind === "quote" ? "작성하기" : "생성")}</button>
+              <button onClick={createDoc} disabled={creatingQuote || (formKind === "contract" && payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingQuote ? "생성 중..." : (formKind === "quote" ? "작성하기" : "생성")}</button>
             </div>
           </div>
         </div>
@@ -1521,29 +1538,48 @@ export default function ProjectHubDetailPage() {
   );
 }
 
-// 결제 조건 입력 — 전액(선금/잔금 없음) vs 선금·잔금 분할. 계약 작성·발행에서 공용.
-function PaymentTermsField({ split, onSplit, adv, onAdv, supply }: { split: boolean; onSplit: (v: boolean) => void; adv: number; onAdv: (v: number) => void; supply: number }) {
-  const a = Math.min(100, Math.max(0, Math.round(adv || 0)));
-  const advAmt = Math.round((supply * a) / 100);
+// 결제 조건 입력 — 전액 / 선금·잔금(2단계) / 선금·중도금·잔금(3단계). 계약 작성·발행 공용.
+function PaymentTermsField({ mode, onMode, adv, onAdv, mid, onMid, supply }: {
+  mode: PayMode; onMode: (v: PayMode) => void; adv: number; onAdv: (v: number) => void; mid: number; onMid: (v: number) => void; supply: number;
+}) {
+  const a = clampPct(adv);
+  const m = clampPct(mid);
+  const bal3 = 100 - a - m;
+  const over = mode === "three" && bal3 < 0;
+  const modes: { key: PayMode; label: string }[] = [
+    { key: "full", label: "전액" },
+    { key: "two", label: "선금·잔금" },
+    { key: "three", label: "선금·중도금·잔금" },
+  ];
+  const pctInput = (label: string, val: number, on: (v: number) => void) => (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-[var(--text-muted)] w-12 shrink-0">{label}</span>
+      <input type="number" min={0} max={100} value={val}
+        onChange={(e) => on(clampPct(Number(e.target.value)))}
+        className="w-20 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
+      <span className="text-xs text-[var(--text-muted)]">%</span>
+      {supply > 0 && <span className="ml-auto text-[11px] text-[var(--text-dim)] mono-number">{won(Math.round((supply * clampPct(val)) / 100))}</span>}
+    </div>
+  );
   return (
     <div className="payment-terms-field">
-      <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">결제 조건 <span className="font-normal text-[var(--text-dim)]">(선금/잔금)</span></div>
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => onSplit(false)}
-          className={`h-10 rounded-xl text-[13px] font-semibold border transition ${!split ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>선금/잔금 없음(전액)</button>
-        <button type="button" onClick={() => onSplit(true)}
-          className={`h-10 rounded-xl text-[13px] font-semibold border transition ${split ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>선금·잔금 분할</button>
+      <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">결제 조건 <span className="font-normal text-[var(--text-dim)]">(선금/중도금/잔금)</span></div>
+      <div className="grid grid-cols-3 gap-2">
+        {modes.map((mo) => (
+          <button key={mo.key} type="button" onClick={() => onMode(mo.key)}
+            className={`h-10 rounded-xl text-[12px] font-semibold border transition ${mode === mo.key ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>{mo.label}</button>
+        ))}
       </div>
-      {split && (
-        <div className="flex items-center gap-2 mt-2.5">
-          <span className="text-xs text-[var(--text-muted)] w-9 shrink-0">선금</span>
-          <input type="number" min={0} max={100} value={adv}
-            onChange={(e) => onAdv(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-            className="w-20 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
-          <span className="text-xs text-[var(--text-muted)]">%</span>
-          {supply > 0
-            ? <span className="ml-auto text-[11px] text-[var(--text-dim)]">선금 {won(advAmt)} · 잔금 {won(supply - advAmt)}</span>
-            : <span className="ml-auto text-[11px] text-[var(--text-dim)]">잔금 {100 - a}%</span>}
+      {mode !== "full" && (
+        <div className="space-y-2 mt-2.5">
+          {pctInput("선금", adv, onAdv)}
+          {mode === "three" && pctInput("중도금", mid, onMid)}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[var(--text-muted)] w-12 shrink-0">잔금</span>
+            <span className={`text-sm font-semibold mono-number ${over ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{mode === "three" ? bal3 : 100 - a}%</span>
+            {over && <span className="text-[11px] text-[var(--danger)]">선금+중도금이 100%를 초과합니다</span>}
+            {!over && supply > 0 && <span className="ml-auto text-[11px] text-[var(--text-dim)] mono-number">{won(supply - Math.round((supply * a) / 100) - (mode === "three" ? Math.round((supply * m) / 100) : 0))}</span>}
+          </div>
         </div>
       )}
     </div>
