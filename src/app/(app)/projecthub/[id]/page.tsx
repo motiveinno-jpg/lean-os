@@ -544,14 +544,14 @@ export default function ProjectHubDetailPage() {
     },
     enabled: !!deal?.internal_manager_id,
   });
-  // 회사 구성원 — 실행형 태스크 담당 선택용 (delivery 만 로드)
+  // 회사 구성원 — 태스크 담당 선택용 (실행형 + 목표형 실행 보드에서 로드)
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["projecthub-company-users", companyId],
     queryFn: async () => {
       const { data } = await db.from("users").select("id, name").eq("company_id", companyId).order("name", { ascending: true });
       return (data || []) as any[];
     },
-    enabled: !!companyId && normalizeProjectType(deal?.project_type) === "delivery",
+    enabled: !!companyId && ["delivery", "goal"].includes(normalizeProjectType(deal?.project_type)),
   });
 
   // 세부 프로젝트(캠페인) — 이 프로젝트를 부모로 하는 deals. 손익 롤업·목록 양쪽에 사용 → 항상 로드.
