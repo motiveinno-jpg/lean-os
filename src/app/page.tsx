@@ -9,9 +9,9 @@ import { supabase } from "@/lib/supabase";
 // CONSTANTS
 // ═══════════════════════════════════════════
 const COMPETITORS = [
-  { name: "플*스", full: "Flex", cat: "HR/급여", price: "24,000", letter: "F", color: "#6366F1" },
+  { name: "플*스", full: "Flex", cat: "HR/급여", price: "70,000", letter: "F", color: "#6366F1" },
   { name: "먼*이", full: "Monday", cat: "프로젝트", price: "16,000", letter: "M", color: "#FF3D57" },
-  { name: "모두*인", full: "Modusign", cat: "전자계약", price: "55,000", letter: "M", color: "#1A73E8" },
+  { name: "모두*인", full: "Modusign", cat: "전자계약", price: "39,900", letter: "M", color: "#1A73E8" },
   { name: "리*버", full: "Remember", cat: "CRM", price: "4,900", letter: "R", color: "#00BFA5" },
   { name: "채*톡", full: "Channel", cat: "채팅", price: "120,000", letter: "C", color: "#FFCA28" },
   { name: "시*티", full: "Shiftee", cat: "근태", price: "4,000", letter: "S", color: "#9C27B0" },
@@ -26,7 +26,7 @@ const PLANS = [
 ];
 
 const FAQS = [
-  { q: "기존 엑셀/관리파일을 가져올 수 있나요?", a: "네. 온보딩 시 기존 엑셀 파일을 업로드하면 AI가 자동으로 파싱하여 70~80%를 자동 세팅합니다." },
+  { q: "기존 엑셀/관리파일을 가져올 수 있나요?", a: "네. 거래처 목록과 은행·카드 거래내역은 엑셀/CSV 파일을 업로드하면 바로 등록됩니다. 직원 명단 등 다른 데이터는 현재 수동 등록만 지원합니다." },
   { q: "각 기능이 전문 솔루션 수준인가요?", a: "OwnerView의 각 기능은 해당 분야 전문 솔루션과 동등한 품질을 제공합니다. 차이점은 모든 기능이 유기적으로 연결된다는 것입니다." },
   { q: "무료→유료 전환 시 데이터 유지되나요?", a: "물론입니다. 모든 데이터는 100% 유지되며 추가 설정 없이 즉시 확장 기능을 사용할 수 있습니다." },
   { q: "파트너사도 함께 사용할 수 있나요?", a: "네. 링크 하나로 초대 가능하며 별도 요금 없이 프로젝트 확인, 서류 검토, 채팅에 참여할 수 있습니다." },
@@ -797,7 +797,9 @@ export default function LandingPage() {
     return () => clearInterval(t);
   }, []);
 
-  const competitorTotal = teamSize * (24000 + 16000 + 4900 + 4000) + 55000 + 120000 + 33000;
+  // 2026-07 가격 재확인: 플렉스는 10인까지 70,000원 정액(+인원당 7,000원, 여기선 10인 기준 정액으로 반영) — per-person 계산에서 제외.
+  // 모두싸인 Team 플랜 39,900원으로 정정(기존 55,000원 오기재).
+  const competitorTotal = teamSize * (16000 + 4900 + 4000) + 70000 + 39900 + 120000 + 33000;
   // 오너뷰는 인원 무관 월 55,000 정액 (50인 초과는 엔터프라이즈 별도 협의)
   const reflectTotal = teamSize <= 50 ? 55000 : null;
   const savings = competitorTotal - (reflectTotal ?? 55000);
@@ -950,7 +952,7 @@ export default function LandingPage() {
           {/* Trust badges */}
           <div className={`flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.5s" }}>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 카드 등록 없이 무료</span>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 3분 만에 세팅 완료</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 가입 즉시 세팅 완료</span>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 24시간 자동 운영</span>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> RLS 기반 데이터 보안</span>
           </div>
@@ -994,80 +996,6 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── CUSTOMER LOGOS & TESTIMONIALS ── */}
-      <section className="py-20 px-6 bg-[#0B1120] border-t border-white/5">
-        <div className="lp-container">
-          <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5 border border-blue-500/20 bg-blue-500/10 text-blue-300">
-              정부사업 참여 기업 대상 무료 배포
-            </div>
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
-              <span className="text-blue-400">4,000개사</span> 대상 무료 배포 진행중
-            </h2>
-            <p className="text-slate-400 text-lg">수출지원사업 참여 기업에 우선 배포 중입니다</p>
-          </div>
-
-          {/* Partner logos */}
-          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10 mb-16">
-            {[
-              { name: "수출지원기반활용사업", width: "w-44" },
-              { name: "중소벤처기업부", width: "w-36" },
-              { name: "KOTRA", width: "w-28" },
-              { name: "한국무역협회", width: "w-36" },
-              { name: "중소기업중앙회", width: "w-36" },
-            ].map((org) => (
-              <div
-                key={org.name}
-                className={`${org.width} h-14 flex items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.06] px-4`}
-              >
-                <span className="text-sm md:text-base font-bold text-slate-400 tracking-tight whitespace-nowrap">
-                  {org.name}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Testimonials */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {[
-              {
-                quote: "여러 SaaS를 쓰다가 오너뷰 하나로 정리했습니다. 매일 아침 브리핑이 특히 좋아요.",
-                author: "김○○ 대표",
-                company: "IT 서비스업",
-              },
-              {
-                quote: "견적부터 정산까지 한 화면에서 보이니까 실수가 줄었습니다.",
-                author: "박○○ 대표",
-                company: "제조업",
-              },
-            ].map((t) => (
-              <div
-                key={t.author}
-                className="bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-2xl p-6 md:p-8"
-              >
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i} className="text-amber-400 text-sm">★</span>
-                  ))}
-                </div>
-                <p className="text-white text-base md:text-lg leading-relaxed mb-6">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <span className="text-blue-400 font-bold text-sm">{t.author.charAt(0)}</span>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-white">{t.author}</div>
-                    <div className="text-xs text-slate-500">{t.company}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -1323,7 +1251,7 @@ export default function LandingPage() {
                   "카카오 알림톡 · Slack · 텔레그램 알림",
                   "사업자번호 가입 · 팀 합류 승인",
                   "파트너 포털 · 외부 견적 승인 링크",
-                  "엑셀 업로드 AI 자동 세팅",
+                  "거래처·거래내역 엑셀 업로드",
                   "글로벌 검색 (⌘K) · 다크 모드",
                 ],
               },
@@ -1357,7 +1285,7 @@ export default function LandingPage() {
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
               이 서비스들, <span className="text-red-400">전부 쓰고 계시죠?</span>
             </h2>
-            <p className="text-slate-400 text-lg">10인 기준 매달 <span className="text-red-400 font-bold">80만원+</span>를 7개 서비스에 분산 결제하는 대신 —</p>
+            <p className="text-slate-400 text-lg">10인 기준 매달 <span className="text-red-400 font-bold">51만원+</span>를 7개 서비스에 분산 결제하는 대신 —</p>
           </div>
 
           {/* Competitor half-logo cards */}
@@ -1476,20 +1404,19 @@ export default function LandingPage() {
         <div className="lp-container">
           <div className="text-center mb-6">
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">&quot;도입이 어렵지 않나요?&quot;</h2>
-            <p className="text-gray-500 text-lg">아닙니다. <span className="text-blue-600 font-bold">기존 엑셀만 올리면 70~80% 즉시 완성</span>됩니다.</p>
+            <p className="text-gray-500 text-lg">아닙니다. <span className="text-blue-600 font-bold">거래처 목록·거래내역은 엑셀만 올리면 바로 등록</span>됩니다.</p>
           </div>
           <div className="text-center mb-14">
             <p className="text-sm text-gray-400 max-w-2xl mx-auto">
-              지금 쓰고 있는 직원 명단, 거래처 목록, 매출 장부 — 엑셀이든 CSV든 그냥 드래그해서 올리세요.
-              AI가 컬럼을 자동 인식하고, 직원/거래처/프로젝트/거래내역을 자동으로 세팅합니다.
-              나머지 20~30%만 확인하면 바로 시작.
+              지금 쓰고 있는 거래처 목록, 은행·카드 거래내역 — 엑셀이든 CSV든 그냥 드래그해서 올리세요.
+              항목을 자동으로 인식해 등록합니다. 직원 명단 등 나머지 데이터는 대시보드에서 직접 등록하며 시작하시면 됩니다.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               { step: "01", title: "간편 가입", desc: "카카오/구글 3초, 사업자번호로 회사 개설", icon: "👤", color: "#3B82F6" },
-              { step: "02", title: "기존 파일 업로드", desc: "엑셀/CSV 드래그&드롭", icon: "📤", color: "#8B5CF6" },
-              { step: "03", title: "AI가 70~80% 세팅", desc: "직원/거래처/거래 자동 인식", icon: "🤖", color: "#10B981" },
+              { step: "02", title: "기존 파일 업로드", desc: "거래처·거래내역 엑셀/CSV 드래그&드롭", icon: "📤", color: "#8B5CF6" },
+              { step: "03", title: "자동 등록", desc: "거래처·거래내역 자동 인식·등록", icon: "✅", color: "#10B981" },
               { step: "04", title: "바로 경영 시작", desc: "대시보드에서 전체 현황 파악", icon: "🚀", color: "#F59E0B" },
             ].map((s, i) => (
               <div key={s.step} className="relative group">
@@ -1506,9 +1433,9 @@ export default function LandingPage() {
           {/* Social proof */}
           <div className="mt-10 text-center">
             <div className="inline-flex items-center gap-4 px-6 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
-              <span className="text-emerald-600 text-sm font-semibold">평균 도입 시간</span>
-              <span className="text-2xl font-extrabold text-emerald-700">3분</span>
-              <span className="text-xs text-emerald-500">가입부터 대시보드 확인까지</span>
+              <span className="text-emerald-600 text-sm font-semibold">도입 비용</span>
+              <span className="text-2xl font-extrabold text-emerald-700">0원</span>
+              <span className="text-xs text-emerald-500">카드 등록 없이 무료로 시작</span>
             </div>
           </div>
         </div>
@@ -1654,7 +1581,7 @@ export default function LandingPage() {
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
             회사 현황, 한눈에 보고 싶다면<br /><span className="text-blue-400">OwnerView를 시작하세요.</span>
           </h2>
-          <p className="text-slate-400 text-lg mb-8">기존 엑셀만 올리면 70% 즉시 완성. 카드 등록 없이 무료로 시작.</p>
+          <p className="text-slate-400 text-lg mb-8">거래처 목록·거래내역은 엑셀만 올리면 바로 등록. 카드 등록 없이 무료로 시작.</p>
           <Link href="/auth" className="inline-flex px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 active:scale-[0.98]">
             무료로 시작하기
           </Link>
@@ -1684,7 +1611,7 @@ export default function LandingPage() {
             <div className="text-center md:text-left space-y-0.5">
               <div>(주)모티브이노베이션 | 대표: 채희웅</div>
               <div>사업자등록번호: 155-88-02209 | 통신판매업신고번호: 제 2023-서울강남-04603호</div>
-              <div>서울특별시 강남구 논현로98길 28, 3층 307호</div>
+              <div>경기 화성시 동탄구 동탄첨단산업1로 27 IX타워 A동 2514호, 2515호</div>
             </div>
             <div className="flex flex-col items-center md:items-end gap-2">
               <div className="flex gap-4">
