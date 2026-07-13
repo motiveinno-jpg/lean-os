@@ -42,7 +42,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
   const { user } = useUser();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [view, setView] = useState<"kanban" | "gantt">("kanban");
+  const [view, setView] = useState<"kanban" | "gantt" | "report">("kanban");
   const [editTask, setEditTask] = useState<any | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
     queryKey: ["project-tasks", dealId],
     queryFn: async () => {
       const { data } = await db.from("project_tasks")
-        .select("id, title, description, status, assignee_id, assignee_ids, start_date, due_date, progress, position, attachments, labels, sprint_id, story_points")
+        .select("id, title, description, status, assignee_id, assignee_ids, start_date, due_date, progress, position, attachments, labels, sprint_id, story_points, updated_at")
         .eq("deal_id", dealId).is("archived_at", null)
         .order("position", { ascending: true }).order("created_at", { ascending: true });
       return (data || []) as any[];
@@ -195,6 +195,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
           <div className="seg-bar">
             <button onClick={() => setView("kanban")} className={`seg-item ${view === "kanban" ? "seg-item-active" : ""}`}>칸반</button>
             <button onClick={() => setView("gantt")} className={`seg-item ${view === "gantt" ? "seg-item-active" : ""}`}>간트</button>
+            {hasSprints && <button onClick={() => setView("report")} className={`seg-item ${view === "report" ? "seg-item-active" : ""}`}>리포트</button>}
           </div>
           <button onClick={openNew} className="btn-primary text-xs hover:opacity-90">+ 태스크</button>
         </div>
@@ -284,8 +285,10 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
             </div>
           ))}
         </div>
-      ) : (
+      ) : view === "gantt" ? (
         <GanttChart tasks={tasks as any[]} userName={userName} onTaskClick={openEdit} />
+      ) : (
+        <SprintReport sprints={sprints as any[]} tasks={tasks as any[]} scope={scope} />
       )}
 
       {showForm && (
@@ -307,6 +310,89 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
           onClose={() => setShowSprintMgr(false)}
         />
       )}
+    </div>
+  );
+}
+
+// 스프린트 리포트 — 번다운(선택 스프린트) + 속도(완료 스프린트별 pt).
+function SprintReport({ sprints, tasks, scope }: { sprints: any[]; tasks: any[]; scope: string }) {
+  // 대상 스프린트 — 스코프가 스프린트면 그것, 아니면 활성/최근
+  const target = sprints.find((s) => s.id === scope) || sprints.find((s) => s.status === "active") || sprints[sprints.length - 1] || null;
+  const completed = sprints.filter((s) => s.status === "completed");
+  const maxVel = Math.max(1, ...completed.map((s) => Number(s.completed_points || 0)));
+  const avgVel = completed.length ? Math.round(completed.reduce((a, s) => a + Number(s.completed_points || 0), 0) / completed.length) : null;
+
+  // 번다운 계산
+  const bd = (() => {
+    if (!target || !target.start_date || !target.end_date) return null;
+    const inS = tasks.filter((t) => t.sprint_id === target.id);
+    const total = inS.reduce((a, t) => a + Number(t.story_points || 0), 0);
+    if (total === 0) return null;
+    const days: string[] = [];
+    const d = new Date(target.start_date + "T00:00:00"); const end = new Date(target.end_date + "T00:00:00");
+    let guard = 0;
+    while (d <= end && guard < 400) { days.push(d.toISOString().slice(0, 10)); d.setDate(d.getDate() + 1); guard++; }
+    const n = days.length; if (n < 2) return null;
+    const today = todayStr();
+    const doneList = inS.filter((t) => t.status === "done").map((t) => ({ pts: Number(t.story_points || 0), date: String(t.updated_at || "").slice(0, 10) }));
+    const ideal = days.map((_, i) => (total * (n - 1 - i)) / (n - 1));
+    const actual = days.map((day) => (day > today ? null : total - doneList.filter((x) => x.date && x.date <= day).reduce((a, x) => a + x.pts, 0)));
+    return { days, ideal, actual, total };
+  })();
+
+  return (
+    <div className="space-y-5">
+      {/* 번다운 */}
+      <section className="glass-card p-4">
+        <h3 className="text-sm font-bold text-[var(--text)] mb-1">번다운 {target && <span className="font-normal text-[var(--text-dim)] text-xs">· {target.name}</span>}</h3>
+        {!bd ? (
+          <div className="text-xs text-[var(--text-dim)] py-6 text-center">번다운은 스프린트에 <b>기간(시작·종료일)</b>과 <b>스토리 포인트</b>가 있어야 표시됩니다.</div>
+        ) : (() => {
+          const W = 560, H = 180, P = 30; const n = bd.days.length;
+          const x = (i: number) => P + (i / (n - 1)) * (W - P * 2);
+          const y = (v: number) => H - P - (v / bd.total) * (H - P * 2);
+          const idealPts = bd.ideal.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+          const actualPts = bd.actual.map((v, i) => (v == null ? null : `${x(i).toFixed(1)},${y(v).toFixed(1)}`)).filter(Boolean).join(" ");
+          return (
+            <div className="overflow-x-auto">
+              <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[420px]" style={{ maxHeight: 200 }}>
+                <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="var(--border)" />
+                <line x1={P} y1={P} x2={P} y2={H - P} stroke="var(--border)" />
+                <text x={P - 4} y={y(bd.total) + 3} textAnchor="end" fontSize="9" fill="var(--text-dim)">{bd.total}</text>
+                <text x={P - 4} y={y(0) + 3} textAnchor="end" fontSize="9" fill="var(--text-dim)">0</text>
+                <polyline points={idealPts} fill="none" stroke="var(--text-dim)" strokeWidth="1.5" strokeDasharray="4 3" />
+                {actualPts && <polyline points={actualPts} fill="none" stroke="var(--primary)" strokeWidth="2" />}
+                <text x={W - P} y={P - 6} textAnchor="end" fontSize="9" fill="var(--text-dim)">— — 이상선 · <tspan fill="var(--primary)">실제 잔여</tspan></text>
+              </svg>
+              <div className="flex justify-between text-[10px] text-[var(--text-dim)] px-6 mono-number"><span>{bd.days[0]?.slice(5)}</span><span>{bd.days[n - 1]?.slice(5)}</span></div>
+            </div>
+          );
+        })()}
+      </section>
+
+      {/* 속도 */}
+      <section className="glass-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-[var(--text)]">속도 <span className="font-normal text-[var(--text-dim)] text-xs">완료 스프린트별 pt</span></h3>
+          {avgVel != null && <span className="text-xs text-[var(--text-muted)]">평균 <b className="text-[var(--text)] mono-number">{avgVel}pt</b>/스프린트</span>}
+        </div>
+        {completed.length === 0 ? (
+          <div className="text-xs text-[var(--text-dim)] py-4 text-center">완료된 스프린트가 없습니다. 스프린트를 완료하면 속도가 누적됩니다.</div>
+        ) : (
+          <div className="space-y-2">
+            {completed.map((s) => {
+              const v = Number(s.completed_points || 0);
+              return (
+                <div key={s.id} className="flex items-center gap-2">
+                  <span className="text-xs text-[var(--text-muted)] w-24 truncate shrink-0">{s.name}</span>
+                  <div className="flex-1 h-4 rounded bg-[var(--bg-surface)] overflow-hidden"><div className="h-full rounded bg-[var(--primary)]" style={{ width: `${(v / maxVel) * 100}%` }} /></div>
+                  <span className="text-xs font-bold mono-number text-[var(--text)] w-12 text-right shrink-0">{v}pt</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
