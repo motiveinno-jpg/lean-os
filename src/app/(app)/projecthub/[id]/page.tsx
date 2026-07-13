@@ -265,8 +265,20 @@ export default function ProjectHubDetailPage() {
         created_by: userId,
       }).select("id").single();
       if (error) throw error;
+      // P2 자동 이월 — 매출 견적이면 계약금액(매출)을 자동 반영. 비어 있고 매출형 항목도 없을 때만(이중계상 방지).
+      const isSalesQuote = q.direction !== "purchase" && (subDealOpts as any[]).find((x) => x.id === quoteDoc.sub_deal_id)?.type !== "purchase";
+      let reflected = false;
+      if (isSalesQuote && amt > 0 && !Number(deal?.contract_total || 0)) {
+        const { data: existingSales } = await db.from("sub_deals").select("id").eq("parent_deal_id", dealId).eq("type", "sales").limit(1);
+        if (!existingSales?.length) {
+          await db.from("deals").update({ contract_total: amt }).eq("id", dealId);
+          qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] });
+          qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+          reflected = true;
+        }
+      }
       qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
-      toast("견적서로 계약서를 생성했습니다. 계약 탭에서 확인·발송하세요.", "success");
+      toast(reflected ? `견적서로 계약서를 생성하고 계약금액(매출) ${won(amt)}을 개요에 반영했습니다.` : "견적서로 계약서를 생성했습니다. 계약 탭에서 확인·발송하세요.", "success");
       setTab("contract");
     } catch (e: any) {
       toast(e?.message || "계약 생성 실패", "error");
@@ -673,11 +685,8 @@ export default function ProjectHubDetailPage() {
   const projectType = normalizeProjectType(deal.project_type);
   const typeCfg = getProjectTypeConfig(deal.project_type);
   const hasChildren = (children as any[]).length > 0;
-  // 계약금액 = 자기 자신 + 세부 프로젝트 합계 (롤업). 비용도 costDealIds(자기+자식) 기준으로 이미 합산됨.
   const ownContract = Number(deal.contract_total || 0);
-  const childContractSum = (children as any[]).reduce((s, c) => s + Number(c.contract_total || 0), 0);
-  const contract = ownContract + childContractSum;
-  // 비용 = 프로젝트에 태그된 각 비용원 합 (카테고리별 — 같은 비용을 두 곳에 태그하면 중복이니 한 곳만)
+  // 확정 비용 = 프로젝트에 태그된 각 비용원 합 (카테고리별 — 같은 비용을 두 곳에 태그하면 중복이니 한 곳만)
   const sumBy = (arr: any[], f: (x: any) => number) => arr.reduce((s, x) => s + (Number(f(x)) || 0), 0);
   const costInvoiceSum = sumBy(costInvoices as any[], (i) => i.supply_amount || i.total_amount);
   const costCashSum = sumBy(costCash as any[], (c) => c.supply_amount || c.amount);
@@ -685,21 +694,9 @@ export default function ProjectHubDetailPage() {
   const costVoucherSum = sumBy(costVouchers as any[], (v) =>
     (v.journal_lines || []).filter((l: any) => l.chart_of_accounts?.account_type === "expense").reduce((s: number, l: any) => s + Number(l.debit || 0), 0));
   const totalCost = costInvoiceSum + costCashSum + costCardSum + costVoucherSum;
-  // 실적(전표 태그 기준) — '프로젝트 운영' 탭
-  const margin = contract - totalCost;
-  const marginRate = contract > 0 ? margin / contract : null;
-  const marginRatePct = marginRate == null ? "—" : `${Math.round(marginRate * 100)}%`;
-  // 개요(매출/매입 관리 입력값 기준, 캠페인까지 롤업) — '개요' 탭
-  const planRevenue = ownContract + subSalesSum;   // 매출 = 상위 자체 계약 + 매출형 sub_deals
-  const planCost = subPurchaseSum;                 // 총비용 = 매입형 sub_deals
-  const planMargin = planRevenue - planCost;
-  const planMarginRate = planRevenue > 0 ? planMargin / planRevenue : null;
-  const planMarginRatePct = planMarginRate == null ? "—" : `${Math.round(planMarginRate * 100)}%`;
-  // MarginRollup(약정·실적 병기)용 — v_project_margin 대체. 캠페인 합산 반영.
-  const marginRow = {
-    sub_sales_planned: subSalesSum, sub_purchase_planned: subPurchaseSum,
-    planned_margin: planMargin, actual_margin: contract - totalCost, actual_direct_cost: totalCost,
-  };
+  // 개요 마진 — 매출은 단일 산식(자체 계약 + 매출형 sub_deals, 캠페인 롤업). 비용은 예상(매입형)↔확정(태그전표).
+  const planRevenue = ownContract + subSalesSum;   // 매출(단일)
+  const planCost = subPurchaseSum;                 // 예상 비용 = 매입형 sub_deals
   const COST_SOURCES = [
     { key: "invoice", label: "세금계산서(매입)", total: costInvoiceSum, count: costInvoices.length, items: costInvoices as any[] },
     { key: "cash", label: "현금영수증", total: costCashSum, count: costCash.length, items: costCash as any[] },
@@ -774,51 +771,30 @@ export default function ProjectHubDetailPage() {
         <DeliveryOverview deal={deal} dealId={dealId} partner={partner} manager={manager} companyUsers={companyUsers as any[]} />
       )}
 
-      {/* 개요 — 수익형(margin, 현행) : 좌 2/3 본문(약정·실적·비용) + 우 1/3 요약 위젯(기본 정보·안내) */}
+      {/* 개요 — 수익형(margin): 마진 콕핏(예상→확정 한 축) + 단계 스텝 + 확정비용/기본정보.
+          매출은 단일 산식(자체계약+매출형, 캠페인 롤업)으로 통일 — 약정/실적 매출 불일치 제거. */}
       {tab === "overview" && projectType === "margin" && (
+        (planRevenue === 0 && totalCost === 0 && subPurchaseSum === 0) ? (
+          <MarginOnboarding onTab={setTab} />
+        ) : (
         <div className="space-y-5">
-          <p className="text-[11px] text-[var(--text-dim)]">금액·마진은 <b className="text-[var(--text-muted)]">매출/매입 관리</b> 입력값(약정) 기준입니다{hasChildren ? <> · 이 프로젝트 + 세부 프로젝트(캠페인) {(children as any[]).length}개 <b className="text-[var(--text-muted)]">합산(롤업)</b></> : null}. 실제 전표 기준 진행단계·실적·비용은 아래에 함께 표시됩니다.</p>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Metric label="매출" value={won(planRevenue)} hint={subSalesSum > 0 ? `자체 계약 ${won(ownContract)} + 매출형 ${won(subSalesSum)}` : undefined} />
-            <Metric label="총 비용" value={won(planCost)} hint="매입형 ‘매출/매입 관리’ 합계" />
-            <Metric label="마진금액" value={won(planMargin)} accent={planMargin < 0 ? "danger" : "primary"} />
-            <Metric label="마진률" value={planMarginRatePct} accent={planMarginRate != null && planMarginRate < 0 ? "danger" : "primary"} />
-          </div>
+          <MarginCockpit
+            revenue={planRevenue}
+            planCost={planCost}
+            actualCost={totalCost}
+            hasActual={totalCost > 0}
+            rolled={hasChildren ? (children as any[]).length : 0}
+            stage={stage}
+          />
+          <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
           {hasInclusiveSub && (
-            <p className="text-[11px] text-[var(--text-dim)]">※ VAT <b className="text-[var(--text-muted)]">포함</b>으로 입력한 매출/매입 항목은 <b className="text-[var(--text-muted)]">공급가액(VAT 제외)</b>으로 환산해 표시·계산됩니다. 입력한 총액은 ‘매출/매입 관리’ 탭에서 확인하세요.</p>
+            <p className="text-[11px] text-[var(--text-dim)]">※ VAT <b className="text-[var(--text-muted)]">포함</b>으로 입력한 매출/매입 항목은 <b className="text-[var(--text-muted)]">공급가액(VAT 제외)</b> 기준으로 환산해 계산됩니다.</p>
           )}
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-5">
-              <MarginRollup contract={ownContract} marginRow={marginRow} totalCost={totalCost} />
-              <div className="glass-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold">진행 단계</h3>
-                  <span className="text-[11px] text-[var(--text-dim)]">단계를 클릭해 변경하세요</span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {STAGE_ORDER.map((st) => {
-                    const active = st === stage;
-                    const passed = STAGE_ORDER.indexOf(st) < STAGE_ORDER.indexOf(stage);
-                    const c = STAGE_COLOR[st];
-                    return (
-                      <button key={st} onClick={() => !stageMut.isPending && stageMut.mutate(st)} disabled={stageMut.isPending}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-60 ${active ? `${c.bg} ${c.text} ring-2 ring-[var(--primary)]/40` : passed ? "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]" : "bg-[var(--bg)] text-[var(--text-dim)] border border-[var(--border)] hover:border-[var(--primary)]"}`}>
-                        {STAGE_LABEL[st]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <p className="text-[11px] text-[var(--text-dim)]">아래는 <b className="text-[var(--text-muted)]">실제 태그된 전표·계산서</b> 기준(실적)입니다. 매출/매입 관리 입력값 기준 마진은 위 약정 카드에서 확인하세요.</p>
-              <div className="grid grid-cols-2 gap-4">
-                <Metric label="계약금액(매출)" value={won(contract)} />
-                <Metric label="총 비용(실적)" value={won(totalCost)} hint="태그된 전표·계산서 합계" />
-                <Metric label="마진금액(실적)" value={won(margin)} accent={margin < 0 ? "danger" : "primary"} />
-                <Metric label="마진률(실적)" value={marginRatePct} accent={marginRate != null && marginRate < 0 ? "danger" : "primary"} />
-              </div>
-              <div className="glass-card overflow-hidden">
+              <div className="cost-breakdown glass-card overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--text-muted)]">비용 구성 (프로젝트에 태그된 비용처리 내역)</span>
+                  <span className="text-xs font-bold text-[var(--text-muted)]">확정 비용 구성 <span className="font-normal text-[var(--text-dim)]">— 프로젝트에 태그된 지출</span></span>
                   <span className="text-sm font-bold mono-number text-[var(--text)]">{won(totalCost)}</span>
                 </div>
                 <div className="divide-y divide-[var(--border)]/40">
@@ -841,7 +817,7 @@ export default function ProjectHubDetailPage() {
               </div>
             </div>
             <div className="space-y-5">
-              <div className="glass-card p-5">
+              <div className="project-basic-info glass-card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-bold">기본 정보</h3>
                 </div>
@@ -856,13 +832,13 @@ export default function ProjectHubDetailPage() {
                   <Info label="다음 액션" value={deal.next_action_text || "—"} />
                 </div>
               </div>
-              <div className="glass-card p-5 text-[11px] text-[var(--text-muted)] space-y-1 leading-relaxed">
-                <p>· <b className="text-[var(--text)]">비용</b> = 이 프로젝트에 태그된 세금계산서(매입)·현금영수증·카드사용·수동 전표 합계. 마진 = 계약금액 − 비용.</p>
-                <p>· 각 내역 화면에서 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳(예: 카드+전표)에 중복 태그하지 마세요</b> — 비용이 이중 계상됩니다.</p>
+              <div className="glass-card p-4 text-[11px] text-[var(--text-muted)] leading-relaxed">
+                · <b className="text-[var(--text)]">확정 비용</b> = 태그된 세금계산서·현금영수증·카드·전표 합계. 각 내역 화면에서 이 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳에 중복 태그하지 마세요</b>(이중 계상).
               </div>
             </div>
           </div>
         </div>
+        )
       )}
 
       {/* 세부 프로젝트 */}
@@ -1331,32 +1307,104 @@ export default function ProjectHubDetailPage() {
   );
 }
 
-// 약정 마진(세부 포함) vs 실적 마진 — 합산 금지(약정·실적 별도 축). marginRow 는 앱사이드 롤업(캠페인 포함).
-function MarginRollup({ contract, marginRow, totalCost }: { contract: number; marginRow: any; totalCost: number }) {
-  const subSales = Number(marginRow?.sub_sales_planned || 0);
-  const subPurchase = Number(marginRow?.sub_purchase_planned || 0);
-  if (subSales === 0 && subPurchase === 0) return null; // 세부 없으면 롤업 숨김(기존 카드로 충분)
-  const planned = marginRow?.planned_margin != null ? Number(marginRow.planned_margin) : contract + subSales - subPurchase;
-  const plannedRevenue = contract + subSales;
-  const plannedRate = plannedRevenue > 0 ? Math.round((planned / plannedRevenue) * 100) : null;
-  const actualMargin = marginRow?.actual_margin != null ? Number(marginRow.actual_margin) : contract - totalCost;
+// 마진 콕핏 — 예상→확정 한 축. 매출은 단일 산식, 비용만 예상(약정)↔확정(실적)으로 진행.
+function MarginCockpit({ revenue, planCost, actualCost, hasActual, rolled, stage }: {
+  revenue: number; planCost: number; actualCost: number; hasActual: boolean; rolled: number; stage: ProjectStage;
+}) {
+  const planMargin = revenue - planCost;
+  const actualMargin = revenue - actualCost;
+  const headMargin = hasActual ? actualMargin : planMargin;
+  const headRate = revenue > 0 ? headMargin / revenue : null;
+  const danger = headRate != null && headRate < 0;
+  const over = hasActual && planCost > 0 && actualCost > planCost;
+  const barPct = planMargin > 0 ? Math.max(0, Math.min(100, Math.round((actualMargin / planMargin) * 100))) : actualMargin > 0 ? 100 : 0;
+  const sc = STAGE_COLOR[stage];
   return (
-    <div className="glass-card overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)]">
-        <span className="text-xs font-bold text-[var(--text-muted)]">마진 롤업 <span className="font-normal text-[var(--text-dim)]">— 세부 프로젝트 포함(약정) · 전표(실적) 병기</span></span>
+    <div className="margin-cockpit glass-card p-5">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3 className="text-sm font-bold text-[var(--text)]">마진 <span className="text-[var(--text-dim)] font-normal">(수익성)</span>{rolled > 0 && <span className="ml-1.5 text-[11px] text-[var(--text-dim)] font-normal">· 세부 {rolled}개 합산</span>}</h3>
+        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
       </div>
-      <div className="p-4 space-y-3">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Metric label="총계약금액(주매출)" value={won(contract)} />
-          <Metric label="Σ 매출형 세부" value={won(subSales)} accent="primary" />
-          <Metric label="Σ 매입형 세부" value={won(subPurchase)} accent="danger" />
-          <Metric label="약정 마진" value={won(planned)} hint="(총계약 + 매출형세부) − 매입형세부" accent={planned < 0 ? "danger" : "primary"} />
+      <div className="flex items-end gap-5 flex-wrap">
+        <div>
+          <div className="text-[11px] text-[var(--text-dim)] mb-0.5">{hasActual ? "확정" : "예상"} 마진률</div>
+          <div className={`text-[40px] leading-none font-black mono-number ${danger ? "text-[var(--danger)]" : "text-[var(--primary)]"}`}>{headRate == null ? "—" : `${Math.round(headRate * 100)}%`}</div>
         </div>
-        <div className="flex items-center justify-between text-xs px-1">
-          <span className="text-[var(--text-muted)]">약정 마진율 <b className="text-[var(--text)] mono-number">{plannedRate == null ? "—" : `${plannedRate}%`}</b></span>
-          <span className="text-[var(--text-dim)]">실적 마진(전표 기준) <b className="text-[var(--text)] mono-number">{won(actualMargin)}</b> · 실적원가 {won(Number(marginRow?.actual_direct_cost || totalCost))}</span>
+        <div className="pb-1">
+          <div className="text-[11px] text-[var(--text-dim)] mb-0.5">마진금액</div>
+          <div className={`text-xl font-black mono-number ${danger ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{won(headMargin)}</div>
         </div>
-        <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">· 약정 마진 = 약정 기준(세부 매출형 더하고 매입형 뺌). 실적 마진 = 전표 직접원가 기준. <b className="text-[var(--text)]">두 축은 합산하지 않습니다</b>(이중계상 방지).</p>
+      </div>
+      {hasActual ? (
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-[11px] mb-1">
+            <span className="text-[var(--text-muted)]">예상 마진 <b className="mono-number text-[var(--text)]">{won(planMargin)}</b></span>
+            <span className={over ? "text-[var(--warning)]" : "text-[var(--success)]"}>확정 마진 <b className="mono-number">{won(actualMargin)}</b></span>
+          </div>
+          <div className="h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${danger ? "bg-[var(--danger)]" : over ? "bg-[var(--warning)]" : "bg-[var(--success)]"}`} style={{ width: `${barPct}%` }} />
+          </div>
+          {over && <div className="text-[11px] text-[var(--warning)] mt-1.5">⚠ 확정 비용이 예상보다 {won(actualCost - planCost)} 더 나갔습니다.</div>}
+        </div>
+      ) : (
+        <div className="mt-3 text-[11px] text-[var(--text-dim)]">예상(계획) 기준입니다. 비용을 프로젝트에 태그하면 <b className="text-[var(--text-muted)]">확정 마진</b>이 채워집니다.</div>
+      )}
+      <div className="mt-4 pt-3 border-t border-[var(--border)]/40 flex flex-wrap gap-x-6 gap-y-1.5 text-[12px]">
+        <span className="text-[var(--text-muted)]">매출 <b className="mono-number text-[var(--text)]">{won(revenue)}</b></span>
+        <span className="text-[var(--text-muted)]">예상 비용 <b className="mono-number text-[var(--text)]">{won(planCost)}</b></span>
+        <span className="text-[var(--text-muted)]">확정 비용 <b className="mono-number text-[var(--text)]">{won(actualCost)}</b></span>
+      </div>
+    </div>
+  );
+}
+
+// 진행 단계 — 파이프라인 스텝과 동일 언어(pill + ▶). 클릭해 deals.stage 변경.
+function StageStepper({ stage, onPick, pending }: { stage: ProjectStage; onPick: (s: ProjectStage) => void; pending: boolean }) {
+  const idx = STAGE_ORDER.indexOf(stage);
+  return (
+    <div className="stage-stepper glass-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-bold text-[var(--text)]">진행 단계</h3>
+        <span className="text-[11px] text-[var(--text-dim)]">단계를 클릭해 변경</span>
+      </div>
+      <div className="flex items-center gap-0.5 overflow-x-auto pb-1">
+        {STAGE_ORDER.map((st, i) => (
+          <div key={st} className="flex items-center">
+            <button disabled={pending} onClick={() => onPick(st)}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap transition disabled:opacity-60 ${st === stage ? "bg-[var(--primary)] text-white ring-2 ring-[var(--primary)]/30" : i < idx ? "bg-[var(--primary)]/15 text-[var(--primary)] hover:bg-[var(--primary)]/25" : "bg-[var(--bg-surface)] text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
+              {STAGE_LABEL[st]}
+            </button>
+            {i < STAGE_ORDER.length - 1 && <span className={`mx-0.5 text-xs ${i < idx ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>▶</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 첫 진입 온보딩 — 빈 수익형 프로젝트에 흐름(입력→견적/계약→비용태그→마진) 안내.
+function MarginOnboarding({ onTab }: { onTab: (t: TabKey) => void }) {
+  const steps: { n: number; t: string; d: string; cta?: { label: string; on: () => void } }[] = [
+    { n: 1, t: "매출·매입 입력", d: "받을 돈·줄 돈을 등록하면 예상 마진이 자동 계산됩니다.", cta: { label: "수주(매출) 열기 →", on: () => onTab("sales_pipeline") } },
+    { n: 2, t: "견적·계약·발주", d: "수주는 고객 견적→계약, 발주는 협력사 매입을 각 파이프라인에서 관리합니다.", cta: { label: "발주(매입) 열기 →", on: () => onTab("purchase_pipeline") } },
+    { n: 3, t: "비용 태그", d: "세금계산서·카드·전표를 이 프로젝트로 지정하면 확정 비용이 집계됩니다." },
+    { n: 4, t: "마진 확인", d: "예상 → 확정 마진이 이 개요 화면에서 한 축으로 채워집니다." },
+  ];
+  return (
+    <div className="margin-onboarding glass-card p-6">
+      <h3 className="text-base font-bold text-[var(--text)]">수익형 프로젝트 시작하기</h3>
+      <p className="text-xs text-[var(--text-muted)] mt-1 mb-5">계약·매출·매입으로 <b className="text-[var(--text)]">마진(수익성)</b>을 관리합니다. 아래 순서로 채워 보세요.</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {steps.map((s) => (
+          <div key={s.n} className="flex gap-3 p-4 rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
+            <span className="w-7 h-7 rounded-full bg-[var(--primary)] text-white text-sm font-bold flex items-center justify-center shrink-0">{s.n}</span>
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-[var(--text)]">{s.t}</div>
+              <div className="text-[12px] text-[var(--text-muted)] mt-0.5 leading-relaxed">{s.d}</div>
+              {s.cta && <button onClick={s.cta.on} className="mt-2 text-[12px] font-semibold text-[var(--primary)] hover:underline">{s.cta.label}</button>}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
