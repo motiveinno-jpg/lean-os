@@ -1314,6 +1314,33 @@ export default function TaxInvoicesPage() {
       )}
 
 
+      {/* Tabs — 매출·매입 + 자동발행·집계 (목록 위로 이동, 순서 정리 2026-07-13) */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="seg-bar flex-wrap">
+          {[
+            { key: "sales" as const, label: "매출", count: salesInvoices.length },
+            { key: "purchase" as const, label: "매입", count: purchaseInvoices.length },
+          ].map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)} className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
+              {t.label}<span className="text-xs opacity-70 ml-1">({t.count})</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-0.5 flex-wrap">
+          {([
+            { key: "queue", label: "자동발행" },
+            { key: "summary", label: "기간별 집계" },
+          ] as const).map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`px-2.5 py-1 rounded-lg text-[13px] font-medium transition ${tab === t.key ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 매출·매입 목록의 요약·경고 — 이 두 탭에서만 노출 (집계·자동발행 탭엔 중복이라 숨김) */}
+      {(tab === "sales" || tab === "purchase") && (<>
       {/* Duplicate Invoice Warning Banner */}
       {duplicateInvoices.filter(d => !dismissedDups.has(d.key)).length > 0 && (
         <div className="no-print mb-6 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-xl px-5 py-4 shadow-md">
@@ -1759,32 +1786,10 @@ export default function TaxInvoicesPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {/* 주 탭 — 매출·매입만. 나머지(자동발행·집계·부가세·동기화)는 아래 보조 버튼으로 이동(정리). */}
-        <div className="seg-bar flex-wrap">
-          {[
-            { key: "sales" as const, label: "매출", count: salesInvoices.length },
-            { key: "purchase" as const, label: "매입", count: purchaseInvoices.length },
-          ].map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
-              {t.label}<span className="text-xs opacity-70 ml-1">({t.count})</span>
-            </button>
-          ))}
-        </div>
-        {/* 보조 — 자동발행·집계만(작게). 부가세는 위 예상부가세 카드, 홈택스 동기화는 상단 접이식 바로 접근(중복 제거). */}
-        <div className="flex items-center gap-0.5 flex-wrap">
-          {([
-            { key: "queue", label: "자동발행" },
-            { key: "summary", label: "기간별 집계" },
-          ] as const).map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={`px-2.5 py-1 rounded-lg text-[13px] font-medium transition ${tab === t.key ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+      </>)}
 
+      {/* 목록 액션 (엑셀 업로드·내보내기) */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap justify-end">
         <div className="ml-auto flex gap-2">
           {/* Excel import */}
           <label className="btn-secondary cursor-pointer">
