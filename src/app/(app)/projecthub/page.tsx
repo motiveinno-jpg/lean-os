@@ -186,8 +186,11 @@ export default function ProjectHubPage() {
     return m;
   }, [topDeals, goalOverallByDeal, taskStatsByDeal, pnlByDeal]);
 
-  // 유형 탭 — 수익형/목표형/실행형 리스트 분리 (각 유형 전용 컬럼). 기본 수익형.
-  const [typeFilter, setTypeFilter] = useState<ProjectType>("margin");
+  // 유형 필터 — 전체(기본) + 수익형/목표형/실행형. 2026-07-13 개편: 전체 뷰 + 검색 + 내담당 + 카드형.
+  const [typeFilter, setTypeFilter] = useState<"all" | ProjectType>("all");
+  const [search, setSearch] = useState("");
+  const [mineOnly, setMineOnly] = useState(false);
+  const userId = user?.id ?? null;
 
   const partnerName = useMemo(() => {
     const m: Record<string, string> = {};
@@ -203,18 +206,10 @@ export default function ProjectHubPage() {
   type PSortKey = "name" | "partner" | "manager" | "stage" | "contract" | "direct_cost" | "cost_ratio" | "progress" | "period";
   const [sortKey, setSortKey] = useState<PSortKey>("contract");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const toggleSort = (k: PSortKey) => {
-    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(k); setSortDir(["contract", "direct_cost", "cost_ratio", "progress"].includes(k) ? "desc" : "asc"); }
-  };
-  const sortableTh = (k: PSortKey, label: string, cls: string) => (
-    <th className={`${cls} cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleSort(k)} title="클릭하여 정렬">
-      <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
-        {label}
-        <span className={`text-[9px] ${sortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{sortKey === k ? (sortDir === "asc" ? "▲" : "▼") : "↕"}</span>
-      </span>
-    </th>
-  );
+  // 카드 뷰 정렬 옵션 — 모든 유형 공통
+  const SORT_OPTIONS: [PSortKey, string][] = [
+    ["contract", "계약금액"], ["progress", "진행·달성률"], ["stage", "단계"], ["name", "프로젝트명"], ["period", "시작일"],
+  ];
   // 위험 판정 — 마진<0 · 달성 정체(0%) · 기한초과 · 태스크 지연
   const isRisk = (d: any) => {
     const type = normalizeProjectType(d.project_type);
@@ -227,7 +222,16 @@ export default function ProjectHubPage() {
   };
 
   const rows = useMemo(() => {
-    const filtered = topDeals.filter((d) => normalizeProjectType(d.project_type) === typeFilter);
+    const q = search.trim().toLowerCase();
+    const filtered = topDeals.filter((d) => {
+      if (typeFilter !== "all" && normalizeProjectType(d.project_type) !== typeFilter) return false;
+      if (mineOnly && d.internal_manager_id !== userId) return false;
+      if (q) {
+        const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${userName[d.internal_manager_id] || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
     return filtered.slice().sort((a, b) => {
       // 위험 항목 최상단 고정
       const ra = isRisk(a) ? 1 : 0, rb = isRisk(b) ? 1 : 0;
@@ -247,7 +251,7 @@ export default function ProjectHubPage() {
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       return sortDir === "asc" ? c : -c;
     });
-  }, [topDeals, typeFilter, sortKey, sortDir, partnerName, userName, pnlByDeal, heroByDeal]);
+  }, [topDeals, typeFilter, search, mineOnly, userId, sortKey, sortDir, partnerName, userName, pnlByDeal, heroByDeal]);
 
   // 유형별 요약 구획
   const typeSummary = useMemo(() => {
@@ -285,45 +289,52 @@ export default function ProjectHubPage() {
 
   return (
     <div className="space-y-6">
-      <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2">
-        {isManager && typeFilter === "goal" && (
-          <button onClick={() => setShowDashboard((v) => !v)} className={showDashboard ? "btn-primary" : "btn-secondary"}>
-            성과 대시보드
+      {/* 툴바 — 검색·내담당·성과대시보드·생성 */}
+      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+          <div className="relative flex-1 max-w-[320px]">
+            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" /></svg>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="프로젝트·거래처·담당 검색"
+              className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--primary)]" />
+          </div>
+          <button onClick={() => setMineOnly((v) => !v)}
+            className={`px-3 h-9 rounded-lg text-[13px] font-semibold whitespace-nowrap transition ${mineOnly ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
+            내 담당
           </button>
-        )}
-        <button onClick={() => setShowCreate(true)} className="btn-primary">
-          + 프로젝트 생성
-        </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+            <select value={sortKey} onChange={(e) => setSortKey(e.target.value as PSortKey)}
+              className="h-full pl-3 pr-1 bg-transparent text-[13px] text-[var(--text-muted)] focus:outline-none cursor-pointer" title="정렬 기준">
+              {SORT_OPTIONS.map(([k, label]) => <option key={k} value={k}>{label}순</option>)}
+            </select>
+            <button onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+              className="h-full px-2 border-l border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] text-xs" title={sortDir === "asc" ? "오름차순" : "내림차순"}>
+              {sortDir === "asc" ? "▲" : "▼"}
+            </button>
+          </div>
+          {isManager && typeFilter === "goal" && (
+            <button onClick={() => setShowDashboard((v) => !v)} className={`btn-sm ${showDashboard ? "btn-primary" : "btn-secondary"}`}>성과 대시보드</button>
+          )}
+          <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 생성</button>
+        </div>
       </div>
 
-      {/* 유형 선택 — 먼저 유형을 고르면 아래 대시보드·요약·목록이 그 유형 기준으로 표시 */}
-      <div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {PROJECT_TYPE_ORDER.map((t) => {
-          const c = PROJECT_TYPES[t];
-          const active = typeFilter === t;
-          return (
-            <button key={t} onClick={() => setTypeFilter(t)}
-              className={`glass-card card-hover px-5 py-4 text-left transition ${active ? "ring-2 ring-[var(--primary)] !border-[var(--primary)]" : "opacity-75 hover:opacity-100 hover:bg-[var(--bg-surface)]/60"}`}>
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-xs font-semibold text-[var(--text-muted)]">{c.icon} {c.label} <span className="font-normal text-[var(--text-dim)]">{typeSummary[t].count}건</span></div>
-                {active && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold whitespace-nowrap">보는 중</span>}
-              </div>
-              <div className="text-lg font-bold mono-number mt-1 text-[var(--text)]">
-                {t === "margin" ? (
-                  <span title="마진(매출−직접원가) 합계">마진합 {won(typeSummary.margin.marginSum)}</span>
-                ) : t === "goal" ? (
-                  <>평균 달성률 {typeSummary.goal.avgGoal == null ? <span className="text-[var(--text-dim)]">—</span> : `${typeSummary.goal.avgGoal}%`}</>
-                ) : (
-                  <>평균 진행률 {typeSummary.delivery.avgDelivery == null ? <span className="text-[var(--text-dim)]">—</span> : `${typeSummary.delivery.avgDelivery}%`}</>
-                )}
-              </div>
-            </button>
-          );
-        })}
-        </div>
-        <p className="text-[11px] text-[var(--text-dim)] mt-2">{PROJECT_TYPES[typeFilter].desc}</p>
+      {/* 유형 필터 — 전체 + 3유형 칩. 전체가 기본(모든 유형 한눈에), 클릭 시 그 유형만 */}
+      <div className="flex flex-wrap gap-1.5">
+        {([["all", "전체", topDeals.length]] as [string, string, number][])
+          .concat(PROJECT_TYPE_ORDER.map((t) => [t, `${PROJECT_TYPES[t].icon} ${PROJECT_TYPES[t].label}`, typeSummary[t].count] as [string, string, number]))
+          .map(([key, label, count]) => {
+            const active = typeFilter === key;
+            return (
+              <button key={key} onClick={() => setTypeFilter(key as "all" | ProjectType)}
+                className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${active ? "bg-[var(--primary)] text-white shadow-sm" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]"}`}>
+                {label} <span className={active ? "opacity-80" : "text-[var(--text-dim)]"}>{count}</span>
+              </button>
+            );
+          })}
       </div>
+      {typeFilter !== "all" && <p className="text-[11px] text-[var(--text-dim)] -mt-3">{PROJECT_TYPES[typeFilter].desc}</p>}
 
       {/* 성과 대시보드 — 목표형(KPI·체크인) 전용 집계라 목표형 탭에서만 표시 */}
       {showDashboard && typeFilter === "goal" && companyId && (
@@ -370,182 +381,121 @@ export default function ProjectHubPage() {
         />
       )}
 
-      {/* 요약 카드 — 활성 유형 기준 (stat-tile 표준) */}
+      {/* 요약 카드 — 현재 필터(전체/유형) 기준 (stat-tile 표준) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-tile">
           <div className="flex items-center justify-between">
-            <span className="stat-tile-label">{PROJECT_TYPES[typeFilter].icon} {PROJECT_TYPES[typeFilter].label} 프로젝트</span>
+            <span className="stat-tile-label">{typeFilter === "all" ? "📁 전체 프로젝트" : `${PROJECT_TYPES[typeFilter].icon} ${PROJECT_TYPES[typeFilter].label} 프로젝트`}</span>
             <span className="kpi-icon"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg></span>
           </div>
-          <div className="flex items-end gap-2">
-            <span className="stat-tile-value mono-number">{summary.total}</span>
-          </div>
+          <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">{summary.total}</span></div>
         </div>
         <div className="stat-tile">
           <div className="flex items-center justify-between">
             <span className="stat-tile-label">진행중</span>
             <span className="kpi-icon warning"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" /></svg></span>
           </div>
-          <div className="flex items-end gap-2">
-            <span className="stat-tile-value mono-number">{summary.inProgress}</span>
-          </div>
+          <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">{summary.inProgress}</span></div>
         </div>
-        {typeFilter === "margin" ? (<>
+        {/* 3번째 — 유형별 핵심: 수익형/전체=총계약, 목표형=평균 달성률, 실행형=평균 진행률 */}
+        {(typeFilter === "margin" || typeFilter === "all") ? (
           <div className="stat-tile">
             <div className="flex items-center justify-between">
               <span className="stat-tile-label">총 계약금액 <span className="font-normal">(VAT별도)</span></span>
               <span className="kpi-icon success"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></svg></span>
             </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">{won(summary.totalContract)}</span>
-            </div>
+            <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">{won(summary.totalContract)}</span></div>
             <div className="kpi-callout">VAT포함 <b>{won(summary.totalContractWithVat)}</b></div>
           </div>
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">평균 직접원가율</span>
-              <span className="kpi-icon info"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 5L5 19" /><circle cx="7.5" cy="7.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" /></svg></span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number" title="전표에 프로젝트를 태그한 직접원가 기준 (판관비 제외)">
-                {summary.avgRatio == null ? <span className="text-[var(--text-dim)]">—</span> : `${Math.round(summary.avgRatio * 100)}%`}
-              </span>
-            </div>
-          </div>
-        </>) : (<>
+        ) : (
           <div className="stat-tile">
             <div className="flex items-center justify-between">
               <span className="stat-tile-label">{typeFilter === "goal" ? "평균 달성률" : "평균 진행률"}</span>
               <span className="kpi-icon"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 19h16M7 15v4M12 10v9M17 5v14" /></svg></span>
             </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">
-                {(() => { const v = typeFilter === "goal" ? typeSummary.goal.avgGoal : typeSummary.delivery.avgDelivery; return v == null ? <span className="text-[var(--text-dim)]">—</span> : `${v}%`; })()}
-              </span>
-            </div>
+            <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">
+              {(() => { const v = typeFilter === "goal" ? typeSummary.goal.avgGoal : typeSummary.delivery.avgDelivery; return v == null ? <span className="text-[var(--text-dim)]">—</span> : `${v}%`; })()}
+            </span></div>
           </div>
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">{typeFilter === "delivery" ? "지연·위험" : "위험"}</span>
-              <span className="kpi-icon danger"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" /></svg></span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">{rows.filter(isRisk).length}</span>
-            </div>
+        )}
+        {/* 4번째 — 위험(전 유형 공통) */}
+        <div className="stat-tile">
+          <div className="flex items-center justify-between">
+            <span className="stat-tile-label">위험 · 지연</span>
+            <span className="kpi-icon danger"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" /></svg></span>
           </div>
-        </>)}
+          <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">{rows.filter(isRisk).length}</span></div>
+        </div>
       </div>
 
       {/* 목록 그리드 */}
-      <div className="glass-card overflow-hidden">
-        <div className="overflow-auto max-h-[640px]">
-          <table className={`w-full text-xs border-collapse ${typeFilter === "margin" ? "min-w-[1100px]" : "min-w-[720px]"}`}>
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-[var(--bg-card)] text-xs font-semibold text-[var(--text-dim)] border-b border-[var(--border)]">
-                {sortableTh("name", "프로젝트명", "px-3 py-2 text-left font-semibold")}
-                {typeFilter !== "delivery" && sortableTh("partner", "거래처", "px-3 py-2 text-left font-semibold")}
-                {sortableTh("manager", "담당자", "px-3 py-2 text-left font-semibold w-[100px]")}
-                {sortableTh("progress", typeFilter === "margin" ? "마진률" : typeFilter === "goal" ? "달성률" : "진행률", "px-3 py-2 text-center font-semibold w-[150px]")}
-                {typeFilter === "delivery" && <th className="px-3 py-2 text-center font-semibold w-[70px]">지연</th>}
-                {sortableTh("stage", "단계", "px-3 py-2 text-center font-semibold w-[80px]")}
-                {typeFilter === "margin" && (<>
-                  {sortableTh("contract", "계약금액(VAT별도)", "px-3 py-2 text-right font-semibold w-[120px]")}
-                  <th className="px-3 py-2 text-right font-semibold w-[90px]">VAT(10%)</th>
-                  <th className="px-3 py-2 text-right font-semibold w-[120px]">합계(VAT포함)</th>
-                  {sortableTh("direct_cost", "직접원가", "px-3 py-2 text-right font-semibold w-[110px]")}
-                  {sortableTh("cost_ratio", "원가율", "px-3 py-2 text-center font-semibold w-[70px]")}
-                </>)}
-                {sortableTh("period", "기간", "px-3 py-2 text-left font-semibold w-[150px]")}
-                <th className="px-3 py-2 text-center font-semibold w-[110px]">관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={typeFilter === "margin" ? 12 : 7} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={typeFilter === "margin" ? 12 : 7}>
-                    <div className="py-14 flex flex-col items-center justify-center text-center gap-2">
-                      <div className="text-4xl">{PROJECT_TYPES[typeFilter].icon}</div>
-                      <div className="text-sm font-semibold text-[var(--text)]">{PROJECT_TYPES[typeFilter].label} 프로젝트가 없습니다.</div>
-                      <div className="text-xs text-[var(--text-muted)]">‘+ 프로젝트 생성’으로 추가하세요.</div>
-                      <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 프로젝트 생성</button>
-                    </div>
-                  </td>
-                </tr>
-              ) : rows.map((d) => {
-                const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
-                const sc = STAGE_COLOR[stage];
-                const p = pnlByDeal[d.id];
-                const ratio = p?.direct_cost_ratio != null ? Number(p.direct_cost_ratio) : null;
-                const ptype = normalizeProjectType(d.project_type);
-                const hero = heroByDeal[d.id];
-                const risk = isRisk(d);
-                return (
-                  <tr key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
-                    className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50 cursor-pointer ${risk ? "bg-[var(--danger)]/[0.04]" : ""}`}>
-                    <td className="px-3 py-3 text-[var(--text)] font-medium">
-                      {risk && <span className="mr-1 text-[var(--danger)]" title="위험 — 확인 필요">●</span>}
-                      {d.name || "(이름 없음)"}
-                      {childCount[d.id] > 0 && (
-                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle" title={`세부 프로젝트 ${childCount[d.id]}개`}>
-                          캠페인 {childCount[d.id]}
-                        </span>
-                      )}
-                    </td>
-                    {typeFilter !== "delivery" && <td className="px-3 py-3 text-[var(--text-muted)] truncate">{partnerName[d.partner_id] || "—"}</td>}
-                    <td className="px-3 py-3 text-[var(--text-muted)] truncate">{userName[d.internal_manager_id] || "—"}</td>
-                    {/* 핵심지표 — 유형별 마진률/달성률/진행률 0~100% 막대(위험=빨강) */}
-                    <td className="px-3 py-3">
-                      {!hero || hero.raw == null ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
-                        <div className="flex items-center gap-1.5" title={`${PROJECT_TYPES[ptype].hero} ${hero.label}`}>
-                          <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                            <div className={`h-full rounded-full ${risk ? "bg-[var(--danger)]" : hero.pct >= 70 ? "bg-[var(--success)]" : "bg-[var(--primary)]"}`} style={{ width: `${hero.pct}%` }} />
-                          </div>
-                          <span className={`text-[10px] mono-number w-9 text-right ${risk ? "text-[var(--danger)] font-semibold" : "text-[var(--text-muted)]"}`}>{hero.label}</span>
-                        </div>
-                      )}
-                    </td>
-                    {typeFilter === "delivery" && (
-                      <td className="px-3 py-3 text-center">
-                        {hero?.delayed ? <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-red-500/10 text-red-500">지연</span> : <span className="text-[var(--text-dim)]">—</span>}
-                      </td>
-                    )}
-                    <td className="px-3 py-3 text-center">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
-                    </td>
-                    {typeFilter === "margin" && (() => {
-                      const sup = Number(d.contract_total || 0);
-                      const vat = Math.round(sup * 0.1);
-                      const dash = <span className="text-[var(--text-dim)]">—</span>;
-                      return (<>
-                        <td className="px-3 py-3 text-right mono-number text-[var(--text)]">{sup > 0 ? won(sup) : dash}</td>
-                        <td className="px-3 py-3 text-right mono-number text-[var(--text-muted)]">{sup > 0 ? won(vat) : dash}</td>
-                        <td className="px-3 py-3 text-right mono-number font-bold text-[var(--text)]">{sup > 0 ? won(sup + vat) : dash}</td>
-                        <td className="px-3 py-3 text-right mono-number text-[var(--text-muted)]">{p && Number(p.direct_cost) > 0 ? won(p.direct_cost) : dash}</td>
-                        <td className="px-3 py-3 text-center mono-number">
-                          {ratio == null || ratio === 0 ? <span className="text-[var(--text-dim)] text-[11px]">—</span> : (
-                            <span className={ratio >= 1 ? "text-[var(--danger)] font-semibold" : ratio >= 0.8 ? "text-[var(--warning)]" : "text-[var(--text)]"}>{Math.round(ratio * 100)}%</span>
-                          )}
-                        </td>
-                      </>);
-                    })()}
-                    <td className="px-3 py-3 text-[var(--text-muted)] mono-number text-[11px]">
-                      {fmtDate(d.start_date) || "—"}{d.end_date ? ` ~ ${fmtDate(d.end_date)}` : ""}
-                    </td>
-                    <td className="px-3 py-3 text-center whitespace-nowrap">
-                      <button onClick={(e) => { e.stopPropagation(); setEditDeal(d); }}
-                        className="btn-ghost btn-sm">수정</button>
-                      <button onClick={(e) => { e.stopPropagation(); setDelDeal(d); }}
-                        className="btn-danger btn-sm ml-1">삭제</button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* 목록 — 카드형(2026-07-13). 유형 뱃지로 전체 뷰에서도 유형 구분. 클릭 시 상세. */}
+      {isLoading ? (
+        <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
+      ) : rows.length === 0 ? (
+        <div className="glass-card py-14 flex flex-col items-center justify-center text-center gap-2">
+          <div className="text-4xl">{typeFilter === "all" ? "📁" : PROJECT_TYPES[typeFilter].icon}</div>
+          <div className="text-sm font-semibold text-[var(--text)]">
+            {search || mineOnly ? "조건에 맞는 프로젝트가 없습니다." : typeFilter === "all" ? "아직 프로젝트가 없습니다." : `${PROJECT_TYPES[typeFilter].label} 프로젝트가 없습니다.`}
+          </div>
+          {!(search || mineOnly) && <>
+            <div className="text-xs text-[var(--text-muted)]">‘+ 프로젝트 생성’으로 추가하세요.</div>
+            <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 프로젝트 생성</button>
+          </>}
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {rows.map((d) => {
+            const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
+            const sc = STAGE_COLOR[stage];
+            const p = pnlByDeal[d.id];
+            const ptype = normalizeProjectType(d.project_type);
+            const tc = PROJECT_TYPES[ptype];
+            const hero = heroByDeal[d.id];
+            const risk = isRisk(d);
+            const sup = Number(d.contract_total || 0);
+            const footerLeft = ptype === "margin" && sup > 0
+              ? `계약 ${won(sup)} (VAT별도)`
+              : fmtDate(d.start_date) ? `${fmtDate(d.start_date)}${d.end_date ? ` ~ ${fmtDate(d.end_date)}` : ""}` : "기간 미정";
+            return (
+              <div key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
+                className={`glass-card p-4 cursor-pointer transition hover:-translate-y-0.5 hover:border-[var(--primary)] flex flex-col gap-2.5 ${risk ? "!border-[var(--danger)]/40" : ""}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap">{tc.icon} {tc.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
+                </div>
+                <div className="text-sm font-bold text-[var(--text)] leading-snug">
+                  {risk && <span className="mr-1 text-[var(--danger)]" title="위험 — 확인 필요">●</span>}
+                  {d.name || "(이름 없음)"}
+                  {childCount[d.id] > 0 && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle">캠페인 {childCount[d.id]}</span>}
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] min-w-0">
+                  <span className="truncate">🏢 {partnerName[d.partner_id] || "—"}</span>
+                  <span className="text-[var(--text-dim)]">·</span>
+                  <span className="truncate">👤 {userName[d.internal_manager_id] || "—"}</span>
+                </div>
+                {hero && hero.raw != null && (
+                  <div className="flex items-center gap-2" title={`${tc.hero} ${hero.label}`}>
+                    <span className="text-[10px] text-[var(--text-dim)] w-11 shrink-0 truncate">{tc.hero}</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                      <div className={`h-full rounded-full ${risk ? "bg-[var(--danger)]" : hero.pct >= 70 ? "bg-[var(--success)]" : "bg-[var(--primary)]"}`} style={{ width: `${hero.pct}%` }} />
+                    </div>
+                    <span className={`text-[10px] mono-number w-9 text-right ${risk ? "text-[var(--danger)] font-semibold" : "text-[var(--text-muted)]"}`}>{hero.label}</span>
+                    {ptype === "delivery" && hero.delayed && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-500 font-semibold shrink-0">지연</span>}
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-[var(--border)]/40">
+                  <span className="text-[11px] text-[var(--text-muted)] mono-number truncate">{footerLeft}</span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    <button onClick={(e) => { e.stopPropagation(); setEditDeal(d); }} className="btn-ghost btn-sm">수정</button>
+                    <button onClick={(e) => { e.stopPropagation(); setDelDeal(d); }} className="text-[11px] text-[var(--danger)]/70 hover:text-[var(--danger)] px-1">삭제</button>
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <p className="text-[11px] text-[var(--text-dim)]">※ 진행 단계·실적·비용은 프로젝트 상세의 ‘개요’ 탭에서, 활동·일정은 ‘프로젝트 운영’ 탭에서 확인합니다.</p>
     </div>
