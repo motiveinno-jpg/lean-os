@@ -97,6 +97,7 @@ const TAB_LABEL: Record<TabKey, string> = {
   quote: "견적서",
   contract: "전자계약",
   subdeals: "매출/매입 관리",
+  transactions: "거래",
   sales_pipeline: "수주(매출)",
   purchase_pipeline: "발주(매입)",
   subprojects: "세부 프로젝트(캠페인)",
@@ -105,7 +106,7 @@ const TAB_LABEL: Record<TabKey, string> = {
   tasks: "태스크",
   workflow: "워크플로우",
 };
-const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "sales_pipeline", "purchase_pipeline", "subprojects", "pnl", "performance", "tasks", "workflow"];
+const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "transactions", "sales_pipeline", "purchase_pipeline", "subprojects", "pnl", "performance", "tasks", "workflow"];
 
 // ── 결제 조건(선금/중도금/잔금) ──
 type PayMode = "full" | "two" | "three";
@@ -692,7 +693,8 @@ export default function ProjectHubDetailPage() {
 
   // 파이프라인(방향) 탭 — 견적/계약/매출·매입을 방향(sub_deal.type)으로 걸러 한 흐름에 표시
   const pipelineDir: "sales" | "purchase" | null = tab === "sales_pipeline" ? "sales" : tab === "purchase_pipeline" ? "purchase" : null;
-  const isDocTab = tab === "quote" || tab === "contract" || !!pipelineDir;
+  const isTransTab = tab === "transactions"; // 통합 '거래' 탭 — 방향 필터 없이 문서 흐름 전체 표시
+  const isDocTab = tab === "quote" || tab === "contract" || !!pipelineDir || isTransTab;
 
   // 견적 승인 시 계약 자동생성 토글 (company_settings.settings.auto_contract_on_approve)
   const { data: autoContractOn = false } = useQuery({
@@ -733,7 +735,7 @@ export default function ProjectHubDetailPage() {
       const { data } = await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at", { ascending: true });
       return (data || []) as { id: string; name: string; type: string | null }[];
     },
-    enabled: !!dealId && (tab === "quote" || !!pipelineDir),
+    enabled: !!dealId && (tab === "quote" || !!pipelineDir || isTransTab),
   });
   const { data: quoteTracking = [] } = useQuery({
     queryKey: ["projecthub-quotes", dealId, docIds.length],
@@ -742,7 +744,7 @@ export default function ProjectHubDetailPage() {
       const { data } = await db.from("quote_tracking").select("*").in("document_id", docIds);
       return (data || []) as any[];
     },
-    enabled: (tab === "quote" || !!pipelineDir) && docIds.length > 0,
+    enabled: (tab === "quote" || !!pipelineDir || isTransTab) && docIds.length > 0,
   });
   const { data: approvals = [] } = useQuery({
     queryKey: ["projecthub-approvals", dealId],
@@ -759,7 +761,7 @@ export default function ProjectHubDetailPage() {
       const { data } = await db.from("signature_requests").select("id, title, status, signer_name, signer_email, signed_at, our_signed_at, signed_contract_url, document_id").in("document_id", docIds).order("created_at", { ascending: false });
       return (data || []) as any[];
     },
-    enabled: (tab === "contract" || !!pipelineDir) && docIds.length > 0,
+    enabled: (tab === "contract" || !!pipelineDir || isTransTab) && docIds.length > 0,
   });
 
   // 손익 — 프로젝트(deal_id)에 태그된 비용처리 내역: 세금계산서(매입)·현금영수증·카드사용·수동전표
@@ -1019,8 +1021,21 @@ export default function ProjectHubDetailPage() {
         </div>
       )}
 
-      {(tab === "quote" || pipelineDir) && (
+      {/* 거래 탭 — 부호 기반 매출·매입 원장(상단) + 견적/계약/계산서 문서 흐름(하단) */}
+      {isTransTab && companyId && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-[var(--text)]">거래 원장</h3>
+            <span className="text-[11px] text-[var(--text-dim)]">매출·매입 항목 · 마진 산정 기준</span>
+          </div>
+          <SubDealsTab dealId={dealId} companyId={companyId}
+            campaignInherit={deal.parent_deal_id ? null : { partnerId: deal?.partner_id || null, managerId: deal?.internal_manager_id || null, classification: deal?.classification || null }} />
+        </div>
+      )}
+
+      {(tab === "quote" || pipelineDir || isTransTab) && (
         <div className="space-y-3">
+          {isTransTab && <div className="pt-2 mt-2 border-t border-[var(--border)]/50" />}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
             <div className="flex items-center gap-2 relative">
@@ -1115,7 +1130,7 @@ export default function ProjectHubDetailPage() {
       )}
 
       {/* 계약 */}
-      {(tab === "contract" || pipelineDir) && (
+      {(tab === "contract" || pipelineDir || isTransTab) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
