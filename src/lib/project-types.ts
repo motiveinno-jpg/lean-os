@@ -25,6 +25,7 @@ export type ProjectTabKey =
   | "contract"
   | "subdeals"
   | "transactions"
+  | "issues"
   | "sales_pipeline"
   | "purchase_pipeline"
   | "subprojects"
@@ -61,8 +62,8 @@ export const PROJECT_TYPES: Record<ProjectType, ProjectTypeConfig> = {
     icon: "🎯",
     desc: "여러 KPI(매출·건수 등)와 정성 성과 체크인으로 목표 달성을 관리하는 성과관리 프로젝트.",
     hero: "달성률",
-    // 실행(tasks) = 목표 달성 실행 과제·일정(칸반/간트, 담당·마감). project_tasks 엔진 재사용.
-    tabs: ["overview", "performance", "tasks", "quote"],
+    // 실행(tasks)=실행 과제·일정, 이슈=문제점 트래커(project_issues). 목표설정→실행→이슈해결→분석 한 흐름.
+    tabs: ["overview", "performance", "tasks", "issues"],
   },
   delivery: {
     type: "delivery",

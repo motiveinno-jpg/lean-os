@@ -62,6 +62,11 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
     queryFn: async () => (await db.from("project_updates").select("status, did, issues, next_plan, period_start, update_date, created_by").eq("deal_id", dealId).order("update_date", { ascending: true })).data || [],
     enabled: !!dealId,
   });
+  const { data: openIssues = [] } = useQuery({
+    queryKey: ["project-issues-open", dealId],
+    queryFn: async () => (await db.from("project_issues").select("id, title, severity, status, due_date, assignee_id").eq("deal_id", dealId).neq("status", "resolved").order("created_at", { ascending: false })).data || [],
+    enabled: !!dealId,
+  });
   const { data: children = [] } = useQuery({
     queryKey: ["goal-overview-children", dealId],
     queryFn: async () => (await db.from("deals").select("id, name, internal_manager_id").eq("parent_deal_id", dealId).is("archived_at", null)).data || [],
@@ -250,6 +255,31 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
         </div>
 
         <div className="space-y-5">
+      {/* 열린 이슈 — 지금 볼 것(개선 유도). '이슈' 탭과 연동. */}
+      <section className="glass-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-[var(--text)]">열린 이슈 <span className="font-normal text-[var(--text-dim)] text-xs">문제점·리스크</span></h3>
+          <span className={`text-xs font-bold ${(openIssues as any[]).length ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{(openIssues as any[]).length}건</span>
+        </div>
+        {(openIssues as any[]).length === 0 ? (
+          <div className="text-xs text-[var(--text-dim)]">열린 이슈가 없습니다. 👍</div>
+        ) : (
+          <div className="space-y-1.5">
+            {(openIssues as any[]).slice(0, 6).map((i) => {
+              const sevColor = i.severity === "critical" ? DANGER : i.severity === "high" ? AMBER : i.severity === "medium" ? "var(--primary)" : "var(--text-dim)";
+              const overdue = i.due_date && i.due_date < new Date().toISOString().slice(0, 10);
+              return (
+                <div key={i.id} className="flex items-center gap-2 text-xs">
+                  <span style={{ width: 7, height: 7, borderRadius: 999, background: sevColor, flexShrink: 0 }} />
+                  <span className="flex-1 truncate text-[var(--text)]">{i.title}</span>
+                  {i.due_date && <span className={`mono-number text-[10px] ${overdue ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>{String(i.due_date).slice(5, 10)}{overdue ? "⚠" : ""}</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {/* ③ 분해 */}
       <section className="glass-card p-4">
         <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">

@@ -28,6 +28,7 @@ import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
 import { createTaxInvoice } from "@/lib/tax-invoice";
 import { deleteDocument } from "@/lib/queries";
 import { TasksTab } from "./_components/TasksTab";
+import { IssuesTab } from "./_components/IssuesTab";
 import { MondayBoard } from "@/components/monday-board";
 
 const db = supabase as any;
@@ -98,6 +99,7 @@ const TAB_LABEL: Record<TabKey, string> = {
   contract: "전자계약",
   subdeals: "매출/매입 관리",
   transactions: "거래",
+  issues: "이슈",
   sales_pipeline: "수주(매출)",
   purchase_pipeline: "발주(매입)",
   subprojects: "세부 프로젝트(캠페인)",
@@ -106,7 +108,7 @@ const TAB_LABEL: Record<TabKey, string> = {
   tasks: "태스크",
   workflow: "워크플로우",
 };
-const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "transactions", "sales_pipeline", "purchase_pipeline", "subprojects", "pnl", "performance", "tasks", "workflow"];
+const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "transactions", "issues", "sales_pipeline", "purchase_pipeline", "subprojects", "pnl", "performance", "tasks", "workflow"];
 
 // ── 결제 조건(선금/중도금/잔금) ──
 type PayMode = "full" | "two" | "three";
@@ -1421,6 +1423,11 @@ export default function ProjectHubDetailPage() {
       {/* 실행형 — 태스크(칸반/간트) */}
       {tab === "tasks" && companyId && (
         <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
+      )}
+
+      {/* 목표형 — 이슈 트래커 (문제점·리스크 체크 → 해결) */}
+      {tab === "issues" && companyId && (
+        <IssuesTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
       )}
 
       {/* 실행형 — 워크플로우 (전사 칸반 보드 임베드, 사이드바 '워크플로우' 메뉴 이동) */}
