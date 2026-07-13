@@ -82,7 +82,7 @@ export default function MyContractsPage() {
   }
 
   return (
-    <div className="max-w-[var(--content-max)] mx-auto">
+    <div>
       <div className="page-sticky-header mb-6 flex flex-wrap items-center justify-between gap-2">
         <div className="seg-bar">
           {[

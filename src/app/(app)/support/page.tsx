@@ -98,7 +98,7 @@ export default function SupportPage() {
   const answeredCount = useMemo(() => tickets.filter((t) => t.status === "answered").length, [tickets]);
 
   return (
-    <div className="max-w-[var(--content-max-wide)] mx-auto">
+    <div>
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-5 items-start">
         {/* 문의 작성 */}
         <div className="glass-card p-5 sm:p-6">

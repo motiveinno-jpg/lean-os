@@ -74,7 +74,7 @@ export default function NotificationsPage() {
   const unread = rows.filter(r => !r.is_read).length;
 
   return (
-    <div className="max-w-[var(--content-max)] mx-auto">
+    <div>
       <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <p className="text-xs text-[var(--text-dim)]">
           전체 <span className="mono-number font-semibold text-[var(--text-muted)]">{rows.length}</span>건 · 안읽음{" "}
