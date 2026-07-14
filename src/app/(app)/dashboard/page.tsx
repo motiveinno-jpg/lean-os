@@ -484,7 +484,7 @@ export default function DashboardPage() {
       {/* ═══ 시안 메인 (라운드6.5 레퍼런스 골격) — KPI 4카드 행 → 본문 2/3+1/3 그리드 → 하단 풀폭.
            owner/admin 기본 노출(뷰 토글과 무관). ═══ */}
       {(role === "owner" || role === "admin") && companyId && (
-        <div className="space-y-5 mb-6">
+        <div className="space-y-4 mb-6">
           {/* (0) AI 브리핑 + 오늘의 액션 — 라운드7.1(컨셉 1안). 문장 요약은 MorningBrief(규칙 기반) 재사용,
                버튼은 이미 계산된 sixPack·세금 마감에서 파생 — 신규 쿼리 0. */}
           <div>
@@ -517,20 +517,10 @@ export default function DashboardPage() {
           {/* 내 업무 — 상황판 핵심(내가 처리/담당하는 것 요약+바로가기). 관리자·직원 공통, 권한 무관 노출 */}
           {userId && <MyWorkSection companyId={companyId} userId={userId} />}
 
-          {/* 오늘 챙길 것 — 출퇴근(한 줄)·일정/할일(작게) + 미수금 회수. 모두 간략 + 해당 메뉴 이동 */}
-          <div className="grid gap-4 lg:grid-cols-2 items-start">
-            <div className="space-y-4">
-              {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
-              {userId && companyId && <DashboardCalendar userId={userId} companyId={companyId} />}
-            </div>
-            {/* 미수금 회수 — 거래처별 미입금 잔액·연체 미리보기 + 원장 이동(미수 없으면 자동 숨김) */}
-            <ReceivablesPreview companyId={companyId} />
-          </div>
-
-          {/* 핵심 지표 — 회계 숫자는 요약만, 카드 클릭 시 해당 메뉴로. 추세 그래프는 분석 메뉴로 분리 */}
+          {/* 핵심 지표 — 회계 숫자 요약(큐브형), 카드 클릭 시 해당 메뉴로 */}
           <div className="dash-section-head">
             <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>핵심 지표</div>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">잔고·매출·비용·미수금 요약 — 카드를 누르면 통장·세금계산서·손익 등 해당 메뉴로 이동합니다.</p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">카드를 누르면 통장·매출·비용·미수금 메뉴로 이동합니다.</p>
           </div>
           <DashboardSiyanHero
             balance={cashPulse?.currentBalance ?? null}
@@ -544,12 +534,23 @@ export default function DashboardPage() {
             netCashflow={dashboard.sixPack.netCashflow}
           />
 
-          {/* 자산 요약 — 통장·카드 잔액(간략) + 이동 */}
+          {/* 오늘 챙길 것 · 자금 — 3열 밀집(큐브형 타일). 열마다 관련 카드를 세로로 쌓아 여백 최소화 */}
           <div className="dash-section-head">
-            <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>자산 요약</div>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">통장·카드 현황 — 자세히 보려면 해당 메뉴로 이동하세요.</p>
+            <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>오늘 챙길 것 · 자금</div>
           </div>
-          <DashboardBottomCards companyId={companyId} />
+          <div className="grid gap-3 lg:grid-cols-3 items-start">
+            {/* 1열 — 일정·할 일 캘린더 */}
+            {userId && companyId && <DashboardCalendar userId={userId} companyId={companyId} />}
+            {/* 2열 — 근태 + 미수금 회수 */}
+            <div className="space-y-3">
+              {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
+              <ReceivablesPreview companyId={companyId} />
+            </div>
+            {/* 3열 — 카드·자산(세로 스택) */}
+            <div className="space-y-3">
+              <DashboardBottomCards companyId={companyId} />
+            </div>
+          </div>
         </div>
       )}
 
