@@ -556,9 +556,8 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   companyId: string; userId: string; invalidate: () => void;
 }) {
   const { toast } = useToast();
-  const [actionModal, setActionModal] = useState<{ stepId: string; action: "approve" | "reject"; title: string; description?: string; amount?: number; attachments?: string[]; formFields?: { label: string; type: string; value: string }[] } | null>(null);
   const [comment, setComment] = useState("");
-  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
   const { data: pendingApprovals = [], isLoading } = useQuery({
     queryKey: ["my-pending-approvals", userId, companyId],
@@ -603,8 +602,8 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       approveStep(stepId, userId, comment),
     onSuccess: () => {
       invalidate();
-      setActionModal(null);
       setComment("");
+      toast("승인 처리했습니다", "success");
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
     },
     onError: (err: any) => toast("승인 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
@@ -615,192 +614,142 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       rejectStep(stepId, userId, comment),
     onSuccess: () => {
       invalidate();
-      setActionModal(null);
       setComment("");
+      toast("반려 처리했습니다", "success");
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
     },
     onError: (err: any) => toast("반려 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
+  // 목록이 바뀌면(로드·처리 완료) 선택 유지 or 첫 항목으로
+  useEffect(() => {
+    if (pendingApprovals.length === 0) { setSelectedStepId(null); return; }
+    if (!pendingApprovals.some((p: any) => p.stepId === selectedStepId)) {
+      setSelectedStepId(pendingApprovals[0].stepId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingApprovals]);
+
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
 
+  if (pendingApprovals.length === 0) {
+    return (
+      <div className="text-center py-20 px-6 glass-card">
+        <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--success-dim)] text-[var(--success)] flex items-center justify-center">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div className="text-base font-bold mb-1.5">모두 처리했어요</div>
+        <div className="text-sm text-[var(--text-muted)]">새 결재 요청이 배정되면 이곳에 표시됩니다</div>
+      </div>
+    );
+  }
+
+  const selected = pendingApprovals.find((p: any) => p.stepId === selectedStepId) || null;
+  const selectedFormFields = selected ? getFormFields(selected) : [];
+  const selectedContent = selected ? contentWithoutFieldLines(selected.description || "", selectedFormFields) : "";
+
+  const handleApprove = () => {
+    if (!selected) return;
+    approveMut.mutate({ stepId: selected.stepId, comment: comment || undefined });
+  };
+  const handleReject = () => {
+    if (!selected) return;
+    if (!comment.trim()) { toast("반려 사유를 입력하세요", "error"); return; }
+    rejectMut.mutate({ stepId: selected.stepId, comment });
+  };
+
   return (
-    <div>
-      {pendingApprovals.length === 0 ? (
-        <div className="text-center py-20 px-6 glass-card">
-          <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--success-dim)] text-[var(--success)] flex items-center justify-center">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <div className="text-base font-bold mb-1.5">모두 처리했어요</div>
-          <div className="text-sm text-[var(--text-muted)]">새 결재 요청이 배정되면 이곳에 표시됩니다</div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {pendingApprovals.map((item: any) => {
-            const m = typeMeta(item.requestType);
-            const open = expandedRequestId === item.requestId;
-            const formFields = getFormFields(item);
-            const contentText = contentWithoutFieldLines(item.description || "", formFields);
-            return (
-              <div key={item.stepId} className="glass-card card-hover overflow-hidden animate-slide-in">
-                <div className="p-5">
-                  <div className="flex items-start gap-4">
-                    {/* 요청자 아바타 + 유형 미니 아이콘 오버레이 */}
-                    <div className="relative shrink-0 hidden sm:block">
-                      <Avatar name={item.requesterName} size={42} />
-                      <span className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-md flex items-center justify-center ring-2 ring-[var(--bg-card)] ${m.bg} ${m.text}`}>
-                        <TypeIcon name={m.icon} className="w-3 h-3" />
-                      </span>
-                    </div>
-
-                    <div
-                      className="flex-1 min-w-0 cursor-pointer"
-                      onClick={() => setExpandedRequestId(open ? null : item.requestId)}
-                    >
-                      <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <TypeChip type={item.requestType} label={REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType} />
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold leading-none bg-[var(--primary)]/10 text-[var(--primary)]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse" />
-                          내 차례 · {item.stageName}
-                        </span>
-                        <span className="text-[11px] text-[var(--text-dim)]">{item.requesterName || "알 수 없음"} · {formatDate(item.createdAt)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-[18px] leading-7 truncate">{item.title}</span>
-                        <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                      {!open && item.description && (
-                        <div className="mt-1 text-xs text-[var(--text-muted)] truncate">{contentText || item.description}</div>
-                      )}
-                      {!open && <AttachmentList attachments={item.attachments} />}
-                      <div className="mt-3">
-                        <StageProgress current={item.currentStage} total={item.totalStages} status="pending" />
-                      </div>
-                    </div>
-
-                    {/* 금액 + 액션 */}
-                    <div className="flex flex-col items-end gap-3 shrink-0">
-                      {item.amount > 0 && (
-                        <div className="text-right">
-                          <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">금액</div>
-                          <div className="text-lg font-extrabold mono-number leading-6">{formatAmount(item.amount)}</div>
-                        </div>
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title, description: item.description, amount: item.amount, attachments: item.attachments, formFields })}
-                          className="btn-danger"
-                        >
-                          반려
-                        </button>
-                        <button
-                          onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title, description: item.description, amount: item.amount, attachments: item.attachments, formFields })}
-                          className="btn-primary"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
-                          승인
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 확장 — Flex 스타일 구조화 필드 + 본문(줄간격 넓게) + 첨부파일 + 워크플로우 타임라인 */}
-                {open && (
-                  <div className="border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60">
-                    {formFields.length > 0 && (
-                      <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
-                        <FormFieldRows fields={formFields} />
-                      </div>
-                    )}
-                    {contentText && (
-                      <div className="mb-2 text-sm text-[var(--text)] leading-8 whitespace-pre-wrap">{contentText}</div>
-                    )}
-                    <AttachmentList attachments={item.attachments} />
-                    <div className="mt-5 pt-4 border-t border-[var(--border)]/60">
-                      <ActivityTimeline requestId={item.requestId} />
-                    </div>
-                  </div>
-                )}
+    <div className="flex flex-col lg:flex-row gap-4 items-start">
+      {/* LEFT — 결재 대기 목록 (분할 패널: 목록 컬럼) */}
+      <div className="w-full lg:w-[300px] shrink-0 space-y-2">
+        {pendingApprovals.map((item: any) => {
+          const m = typeMeta(item.requestType);
+          const active = item.stepId === selectedStepId;
+          return (
+            <button
+              key={item.stepId}
+              onClick={() => { setSelectedStepId(item.stepId); setComment(""); }}
+              className={`w-full text-left p-3.5 rounded-xl border transition ${active ? "border-[var(--primary)] bg-[var(--primary)]/6" : "border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--primary)]/30"}`}
+            >
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                  <TypeIcon name={m.icon} className="w-3 h-3" />
+                </span>
+                <span className="text-[10px] font-semibold text-[var(--text-dim)] truncate">{REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType}</span>
               </div>
-            );
-          })}
-        </div>
-      )}
+              <div className="text-sm font-bold truncate mb-0.5">{item.title}</div>
+              <div className="text-[11px] text-[var(--text-dim)] truncate">{item.requesterName || "알 수 없음"} · {formatDate(item.createdAt)}</div>
+              {item.amount > 0 && <div className="text-xs font-bold mono-number mt-1.5">{formatAmount(item.amount)}</div>}
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Approve/Reject Modal — Flex 스타일 문서 패널 */}
-      {actionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setActionModal(null)}>
-          <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold mb-3 ${actionModal.action === "approve" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--danger-dim)] text-[var(--danger)]"}`}>
-              {actionModal.action === "approve" ? "승인 필요" : "반려 처리"}
+      {/* RIGHT — 문서 패널 + 승인·참조 사이드바 */}
+      {selected && (
+        <div className="flex-1 w-full min-w-0 flex flex-col xl:flex-row gap-4 items-start">
+          <div className="flex-1 w-full min-w-0 glass-card p-6">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold mb-3 bg-[var(--warning-dim)] text-[var(--warning)]">
+              승인 필요
             </span>
-            <h3 className="text-[22px] font-extrabold leading-tight mb-4">{actionModal.title}</h3>
+            <h2 className="text-[22px] font-extrabold leading-tight mb-1.5">{selected.title}</h2>
+            <div className="text-xs text-[var(--text-dim)] mb-5">
+              {REQUEST_TYPE_LABELS[selected.requestType as RequestType] || selected.requestType} · {selected.requesterName || "알 수 없음"} · {formatDate(selected.createdAt)}
+            </div>
 
-            {/* 요청 내용·금액·구조화 필드·첨부파일 — 승인 결정에 필요한 정보를 모달에서 바로 확인 (사장님 QA 2026-07-10, 2026-07-14) */}
-            {(actionModal.description || (actionModal.amount ?? 0) > 0 || (actionModal.attachments?.length ?? 0) > 0 || (actionModal.formFields?.length ?? 0) > 0) && (
-              <div className="mb-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-4 py-3.5 max-h-[38vh] overflow-y-auto">
-                {(actionModal.amount ?? 0) > 0 && (
-                  <div className="text-lg font-extrabold mono-number mb-2">{formatAmount(actionModal.amount!)}</div>
-                )}
-                {(actionModal.formFields?.length ?? 0) > 0 && (
-                  <div className="mb-2 pb-2 border-b border-[var(--border)]/60">
-                    <FormFieldRows fields={actionModal.formFields!} />
-                  </div>
-                )}
-                {actionModal.description && (
-                  <div className="text-sm text-[var(--text)] whitespace-pre-wrap leading-8">
-                    {contentWithoutFieldLines(actionModal.description, actionModal.formFields || [])}
-                  </div>
-                )}
-                <AttachmentList attachments={actionModal.attachments} />
-              </div>
+            {selected.amount > 0 && (
+              <div className="text-2xl font-extrabold mono-number mb-4">{formatAmount(selected.amount)}</div>
             )}
 
-            <div className="mb-5">
-              <label className="field-label">
-                {actionModal.action === "approve" ? "코멘트 (선택)" : "반려 사유 (필수)"}
-              </label>
+            {selectedFormFields.length > 0 && (
+              <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
+                <FormFieldRows fields={selectedFormFields} />
+              </div>
+            )}
+            {selectedContent && (
+              <div className="mb-2 text-sm text-[var(--text)] leading-8 whitespace-pre-wrap">{selectedContent}</div>
+            )}
+            <AttachmentList attachments={selected.attachments} />
+
+            {/* 결재 의견 + 승인/반려 — 팝업 없이 패널 안에서 바로 처리 */}
+            <div className="mt-6 pt-5 border-t border-[var(--border)]">
+              <label className="field-label">결재 의견 (반려 시 필수)</label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                rows={3}
-                autoFocus
-                placeholder={actionModal.action === "approve" ? "승인 의견을 입력하세요..." : "반려 사유를 입력하세요..."}
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
+                rows={2}
+                placeholder="의견을 입력하세요..."
+                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none mb-4"
               />
-            </div>
-
-            <div className="flex gap-2.5">
-              <button
-                onClick={() => { setActionModal(null); setComment(""); }}
-                className="flex-1 py-3.5 rounded-full text-sm font-bold text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)] hover:bg-[var(--bg)] transition"
-              >
-                취소
-              </button>
-              {actionModal.action === "approve" ? (
+              <div className="flex gap-2.5">
                 <button
-                  onClick={() => approveMut.mutate({ stepId: actionModal.stepId, comment: comment || undefined })}
+                  onClick={handleReject}
+                  disabled={rejectMut.isPending}
+                  className="flex-1 py-3.5 rounded-full text-sm font-bold text-[var(--danger)] bg-[var(--danger-dim)] hover:opacity-90 disabled:opacity-50 transition"
+                >
+                  {rejectMut.isPending ? "처리 중..." : "반려"}
+                </button>
+                <button
+                  onClick={handleApprove}
                   disabled={approveMut.isPending}
                   className="flex-1 py-3.5 rounded-full text-sm font-bold text-white bg-[var(--success)] hover:opacity-90 disabled:opacity-50 transition inline-flex items-center justify-center gap-1.5"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
                   {approveMut.isPending ? "처리 중..." : "승인"}
                 </button>
-              ) : (
-                <button
-                  onClick={() => comment.trim() && rejectMut.mutate({ stepId: actionModal.stepId, comment })}
-                  disabled={!comment.trim() || rejectMut.isPending}
-                  className="flex-1 py-3.5 rounded-full text-sm font-bold text-white bg-[var(--danger)] hover:opacity-90 disabled:opacity-50 transition"
-                >
-                  {rejectMut.isPending ? "처리 중..." : "반려"}
-                </button>
-              )}
+              </div>
             </div>
+
+            <div className="mt-6 pt-5 border-t border-[var(--border)]">
+              <ActivityTimeline requestId={selected.requestId} />
+            </div>
+          </div>
+
+          {/* 승인·참조 사이드바 */}
+          <div className="w-full xl:w-[240px] shrink-0 glass-card p-4">
+            <ApprovalStageSidebar requestId={selected.requestId} />
           </div>
         </div>
       )}
@@ -2457,6 +2406,33 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
             <div className="text-[var(--text-dim)] shrink-0 mono-number">
               {step.decided_at ? formatDateTime(step.decided_at) : "대기 중"}
             </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 분할 패널 우측 — 플렉스 스타일 "승인·참조" 사이드바 (담당자별 단계·상태 요약)
+function ApprovalStageSidebar({ requestId }: { requestId: string }) {
+  const { data: steps = [] } = useQuery({
+    queryKey: ["activity-timeline", requestId],
+    queryFn: () => getApprovalTimeline(requestId),
+    enabled: !!requestId,
+  });
+  if (steps.length === 0) return null;
+  return (
+    <div>
+      <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-3">승인선</div>
+      <div className="space-y-3.5">
+        {steps.map((s) => (
+          <div key={s.id} className="flex items-start gap-2.5">
+            <Avatar name={s.approver_name || "담당자"} size={28} />
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-bold truncate">{s.approver_name || "담당자"}</div>
+              <div className="text-[10px] text-[var(--text-dim)] truncate">{s.stage_name}</div>
+            </div>
+            <div className="shrink-0 mt-0.5"><StatusBadge status={s.status} /></div>
           </div>
         ))}
       </div>
