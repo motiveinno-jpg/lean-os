@@ -411,7 +411,7 @@ export default function ApprovalsPage() {
         <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} />
       )}
       {tab === "all" && companyId && (
-        <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} />
+        <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} />
       )}
       {tab === "new-request" && companyId && userId && (
         <NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} />
@@ -908,7 +908,9 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
 // Tab 3: 전체 현황 (Admin)
 // ══════════════════════════════════════════════
 
-function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string; initialStatusFilter?: string }) {
+function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { companyId: string; initialStatusFilter?: string; userId?: string | null; userRole?: string | null }) {
+  // 직원 계정은 회사 전체가 아니라 본인이 신청한 요청만 조회 (관리자/대표는 전체)
+  const restrictToOwn = userRole === "employee";
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const queryClient = useQueryClient();
@@ -923,12 +925,13 @@ function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string;
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: allRequests = [], isLoading } = useQuery({
-    queryKey: ["all-requests", companyId, statusFilter, typeFilter],
+    queryKey: ["all-requests", companyId, statusFilter, typeFilter, restrictToOwn ? userId : null],
     queryFn: () => getApprovalRequests(companyId, {
       status: statusFilter || undefined,
       requestType: typeFilter || undefined,
+      requesterId: restrictToOwn ? userId || undefined : undefined,
     }),
-    enabled: !!companyId,
+    enabled: !!companyId && (!restrictToOwn || !!userId),
   });
 
   // 커스텀 결재 양식 필드 정의 — custom_fields 값과 짝지어 펼침 패널에 구조화된 항목으로 표시
