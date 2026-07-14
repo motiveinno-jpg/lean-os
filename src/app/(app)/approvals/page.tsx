@@ -35,6 +35,7 @@ import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 import { generateApprovalPdf } from "@/lib/document-generator";
+import { openStoredFile } from "@/lib/file-storage";
 
 const db = supabase as any;
 
@@ -128,6 +129,36 @@ function StageProgress({ current, total, status }: { current: number; total: num
 function formatAmount(amount: number) {
   if (!amount) return "-";
   return `₩${amount.toLocaleString()}`;
+}
+
+// 첨부파일 URL(`{timestamp}_{원본파일명}`)에서 원본 파일명만 추출
+function attachmentFileName(url: string): string {
+  try {
+    const last = decodeURIComponent(url.split("/").pop() || "");
+    const idx = last.indexOf("_");
+    return idx >= 0 ? last.slice(idx + 1) : last;
+  } catch {
+    return url;
+  }
+}
+
+function AttachmentList({ attachments }: { attachments?: string[] }) {
+  if (!attachments || attachments.length === 0) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {attachments.map((url, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={(e) => { e.stopPropagation(); openStoredFile(url); }}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
+        >
+          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+          <span className="truncate max-w-[160px]">{attachmentFileName(url)}</span>
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function formatDate(dateStr: string | null) {
@@ -489,7 +520,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   companyId: string; userId: string; invalidate: () => void;
 }) {
   const { toast } = useToast();
-  const [actionModal, setActionModal] = useState<{ stepId: string; action: "approve" | "reject"; title: string; description?: string; amount?: number } | null>(null);
+  const [actionModal, setActionModal] = useState<{ stepId: string; action: "approve" | "reject"; title: string; description?: string; amount?: number; attachments?: string[] } | null>(null);
   const [comment, setComment] = useState("");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
 
@@ -575,6 +606,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                       {item.description && (
                         <div className="mt-1 text-xs text-[var(--text-muted)] whitespace-pre-wrap">{item.description}</div>
                       )}
+                      <AttachmentList attachments={item.attachments} />
                       <div className="mt-3">
                         <StageProgress current={item.currentStage} total={item.totalStages} status="pending" />
                       </div>
@@ -590,13 +622,13 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                       )}
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title, description: item.description, amount: item.amount })}
+                          onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title, description: item.description, amount: item.amount, attachments: item.attachments })}
                           className="btn-danger"
                         >
                           반려
                         </button>
                         <button
-                          onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title, description: item.description, amount: item.amount })}
+                          onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title, description: item.description, amount: item.amount, attachments: item.attachments })}
                           className="btn-primary"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
@@ -634,8 +666,8 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
               {actionModal.action === "approve" ? "이 결재를 승인할까요?" : "이 결재를 반려할까요?"}
             </h3>
             <p className="text-sm font-semibold text-[var(--text)] mb-2">{actionModal.title}</p>
-            {/* 요청 내용·금액 — 승인 결정에 필요한 정보를 모달에서 바로 확인 (사장님 QA 2026-07-10) */}
-            {(actionModal.description || (actionModal.amount ?? 0) > 0) && (
+            {/* 요청 내용·금액·첨부파일 — 승인 결정에 필요한 정보를 모달에서 바로 확인 (사장님 QA 2026-07-10, 2026-07-14) */}
+            {(actionModal.description || (actionModal.amount ?? 0) > 0 || (actionModal.attachments?.length ?? 0) > 0) && (
               <div className="mb-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3.5 py-3 max-h-[32vh] overflow-y-auto">
                 {(actionModal.amount ?? 0) > 0 && (
                   <div className="text-sm font-extrabold mono-number mb-1.5">{formatAmount(actionModal.amount!)}</div>
@@ -643,6 +675,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                 {actionModal.description && (
                   <div className="text-xs text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed">{actionModal.description}</div>
                 )}
+                <AttachmentList attachments={actionModal.attachments} />
               </div>
             )}
 
