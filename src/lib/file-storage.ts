@@ -121,28 +121,31 @@ function getExtension(fileName: string): string {
 //   저장된 file_url(public) 대신 storage_path 로 매 조회 시 signed URL 발급.
 const SIGNED_TTL = 60 * 60; // 1시간
 
-export async function getSignedUrl(bucket: string, storagePath: string, ttl = SIGNED_TTL): Promise<string | null> {
+// downloadName 을 주면 서명 URL 자체에 Content-Disposition 다운로드 파일명을 실어(Supabase
+//   createSignedUrl 의 download 옵션) 저장 경로의 안전화된(추한) 이름 대신 원본 이름으로 받게 한다.
+export async function getSignedUrl(bucket: string, storagePath: string, ttl = SIGNED_TTL, downloadName?: string): Promise<string | null> {
   if (!storagePath) return null;
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, ttl);
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, ttl, downloadName ? { download: downloadName } : undefined);
   if (error || !data) return null;
   return data.signedUrl;
 }
 
 // DB 에 저장된 (구) public URL 에서 bucket/path 를 추출해 signed URL 로 변환.
 //   private 전환된 버킷의 표시 지점에서 onClick 으로 호출. 추출 실패 시 원본 반환.
-export async function resolveSignedUrl(stored?: string | null): Promise<string | null> {
+export async function resolveSignedUrl(stored?: string | null, downloadName?: string): Promise<string | null> {
   if (!stored) return null;
   const m = stored.match(/\/object\/(?:public|sign|authenticated)\/([^/]+)\/([^?]+)/);
   if (m) {
-    const signed = await getSignedUrl(m[1], decodeURIComponent(m[2]));
+    const signed = await getSignedUrl(m[1], decodeURIComponent(m[2]), SIGNED_TTL, downloadName);
     if (signed) return signed;
   }
   return stored;
 }
 
 // 저장된 URL 을 signed 로 변환해 새 탭으로 연다 (표시 지점 onClick 용).
-export async function openStoredFile(stored?: string | null): Promise<void> {
-  const url = await resolveSignedUrl(stored);
+//   downloadName 을 주면 원본 파일명 그대로 다운로드되게(저장 경로의 안전화 이름 대신).
+export async function openStoredFile(stored?: string | null, downloadName?: string): Promise<void> {
+  const url = await resolveSignedUrl(stored, downloadName);
   if (url) window.open(url, "_blank", "noopener");
 }
 

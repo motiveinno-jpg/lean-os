@@ -170,7 +170,7 @@ function AttachmentList({ attachments }: { attachments?: string[] }) {
           <button
             key={i}
             type="button"
-            onClick={(e) => { e.stopPropagation(); openStoredFile(url); }}
+            onClick={(e) => { e.stopPropagation(); openStoredFile(url, attachmentFileName(url)); }}
             className="inline-flex items-center gap-2 pl-2 pr-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
           >
             <span className="w-6 h-6 rounded-lg bg-[var(--success)]/12 text-[var(--success)] flex items-center justify-center shrink-0">
@@ -983,8 +983,9 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
       const rawAttachments: string[] = req.attachments || [];
       const attachments = (await Promise.all(
         rawAttachments.map(async (url) => {
-          const signed = await resolveSignedUrl(url);
-          return signed ? { name: attachmentFileName(url), url: signed } : null;
+          const name = attachmentFileName(url);
+          const signed = await resolveSignedUrl(url, name);
+          return signed ? { name, url: signed } : null;
         })
       )).filter((a): a is { name: string; url: string } => !!a);
       // 화면(팝업)과 완전히 동일한 순서·내용으로 — 구조화 필드 분리 + 중복 제거된 본문
