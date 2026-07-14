@@ -1,7 +1,9 @@
 "use client";
 
-// 내 업무 — 대시보드 "상황판" 핵심(2026-07-08). 역할 무관 공통: 내가 처리할/담당하는 것을
-//   요약 + 바로가기로. 각 타일은 건수 0이면 숨김(할 게 없으면 조용히). 데이터는 기존 테이블 재사용.
+// 내 업무 — 대시보드 "상황판" 핵심(2026-07-14 리포트형 개편).
+//   목적: 내가 담당·처리해야 할 것을 "실제 데이터 미리보기"로 한눈에 보고, 클릭하면 그 메뉴로 바로 이동.
+//   기존엔 '몇 건'만 표시 → 각 카드가 상위 항목(제목·마감·금액 등)을 보여주고 항목/헤더 클릭 시 해당 화면으로.
+//   역할 무관 공통. 데이터 없는 카드는 숨김(할 게 없으면 조용히). 기존 테이블 재사용, side-effect 0.
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -11,20 +13,63 @@ const db = supabase as any;
 const MENTION_ENTITIES = ["chat", "chat_channel", "board_post", "document_share"];
 const SIGN_TYPES = ["signature", "signature_request", "hr_contract_package"];
 
-function Tile({ href, icon, label, count, sub, tone = "primary" }: {
-  href: string; icon: string; label: string; count: number; sub?: string; tone?: "primary" | "warning" | "danger" | "success";
+const soft = (c: string, pct = 12) => `color-mix(in srgb, ${c} ${pct}%, transparent)`;
+const toneColor = (t?: string) =>
+  t === "warning" ? "var(--warning)" : t === "danger" ? "var(--danger)" : t === "success" ? "var(--success)" : "var(--primary)";
+
+// MM/DD
+function md(d?: string | null): string {
+  if (!d) return "";
+  const s = String(d).slice(0, 10);
+  const [, m, day] = s.split("-");
+  return m && day ? `${Number(m)}/${Number(day)}` : "";
+}
+// 마감까지 D-day (음수=지연)
+function dday(due?: string | null): number | null {
+  if (!due) return null;
+  const t = new Date(String(due).slice(0, 10)).getTime();
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.round((t - today) / 86400000);
+}
+function won(n: number): string {
+  if (!n) return "";
+  if (Math.abs(n) >= 100000000) return `${(n / 100000000).toFixed(1)}억`;
+  if (Math.abs(n) >= 10000) return `${Math.round(n / 10000).toLocaleString("ko")}만`;
+  return n.toLocaleString("ko");
+}
+const DOC_KIND: Record<string, string> = { quote: "견적서", contract: "계약서", invoice: "계산서", report: "보고서" };
+
+type WorkItem = { key: string; href: string; primary: string; secondary?: string; tone?: string };
+
+function WorkCard({ href, icon, label, count, tone = "primary", items, moreLabel }: {
+  href: string; icon: string; label: string; count: number; tone?: string; items: WorkItem[]; moreLabel?: string;
 }) {
-  const color = tone === "warning" ? "var(--warning)" : tone === "danger" ? "var(--danger)" : tone === "success" ? "var(--success)" : "var(--primary)";
+  const color = toneColor(tone);
   return (
-    <Link href={href} className="glass-card p-4 flex items-center gap-3 no-underline transition hover:-translate-y-0.5 hover:border-[var(--primary)]">
-      <span className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: `color-mix(in srgb, ${color} 12%, transparent)` }}>{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[12px] text-[var(--text-muted)] truncate">{label}</span>
-        <span className="block text-[20px] leading-6 font-extrabold mono-number" style={{ color }}>{count}{typeof count === "number" ? "건" : ""}</span>
-        {sub && <span className="block text-[10px] text-[var(--text-dim)] truncate mt-0.5">{sub}</span>}
-      </span>
-      <svg className="w-4 h-4 text-[var(--text-dim)] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-    </Link>
+    <div className="my-work-card glass-card p-4 flex flex-col">
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: soft(color, 12) }}>{icon}</span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-bold text-[var(--text)] leading-tight truncate">{label}</div>
+          <div className="text-[11px] font-semibold mono-number" style={{ color }}>{count}건</div>
+        </div>
+        <Link href={href} className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0 no-underline">이동 →</Link>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        {items.map((it) => (
+          <Link key={it.key} href={it.href}
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--bg-surface)] transition no-underline">
+            <span className="w-1 h-1 rounded-full shrink-0" style={{ background: it.tone ? toneColor(it.tone) : "var(--text-dim)" }} />
+            <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{it.primary}</span>
+            {it.secondary && <span className="text-[11px] shrink-0 mono-number" style={{ color: it.tone ? toneColor(it.tone) : "var(--text-dim)" }}>{it.secondary}</span>}
+          </Link>
+        ))}
+        {moreLabel && (
+          <Link href={href} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] px-2 pt-1 no-underline transition">{moreLabel}</Link>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -32,49 +77,100 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
   const enabled = !!companyId && !!userId;
 
   const { data } = useQuery({
-    queryKey: ["my-work", companyId, userId],
+    queryKey: ["my-work-v2", companyId, userId],
     enabled,
     staleTime: 60_000,
     queryFn: async () => {
-      const [appr, proj, tasks, mention, sign] = await Promise.all([
-        db.from("doc_approvals").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("approver_id", userId).eq("status", "pending"),
-        db.from("deals").select("id, name").eq("company_id", companyId).eq("internal_manager_id", userId).is("archived_at", null),
-        db.from("project_tasks").select("id", { count: "exact", head: true }).eq("assignee_id", userId).is("archived_at", null).neq("status", "done"),
-        db.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_read", false).in("entity_type", MENTION_ENTITIES),
-        db.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_read", false).in("type", SIGN_TYPES),
+      const [tasks, projects, approvals, mentions, signs] = await Promise.all([
+        db.from("project_tasks").select("id, title, due_date, status, deal_id, deals(name)")
+          .eq("assignee_id", userId).is("archived_at", null).neq("status", "done").order("due_date", { ascending: true, nullsFirst: false }).limit(50),
+        db.from("deals").select("id, name, stage, contract_total")
+          .eq("company_id", companyId).eq("internal_manager_id", userId).is("archived_at", null).order("updated_at", { ascending: false }).limit(50),
+        db.from("doc_approvals").select("id, created_at, document_id, documents(content_type, contract_amount)")
+          .eq("company_id", companyId).eq("approver_id", userId).eq("status", "pending").order("created_at", { ascending: false }).limit(50),
+        db.from("notifications").select("*").eq("user_id", userId).eq("is_read", false).in("entity_type", MENTION_ENTITIES).order("created_at", { ascending: false }).limit(50),
+        db.from("notifications").select("*").eq("user_id", userId).eq("is_read", false).in("type", SIGN_TYPES).order("created_at", { ascending: false }).limit(50),
       ]);
-      const projRows = (proj.data || []) as { id: string; name: string | null }[];
       return {
-        approvals: appr.count ?? 0,
-        projects: projRows.length,
-        projectNames: projRows.slice(0, 2).map((p) => p.name || "프로젝트").join(", "),
-        tasks: tasks.count ?? 0,
-        mentions: mention.count ?? 0,
-        signatures: sign.count ?? 0,
+        tasks: (tasks.data || []) as any[],
+        projects: (projects.data || []) as any[],
+        approvals: (approvals.data || []) as any[],
+        mentions: (mentions.data || []) as any[],
+        signs: (signs.data || []) as any[],
       };
     },
   });
 
-  const tiles: React.ReactNode[] = [];
+  const cards: React.ReactNode[] = [];
   if (data) {
-    if (data.approvals > 0) tiles.push(<Tile key="a" href="/approvals" icon="🧾" label="내 결재 대기" count={data.approvals} tone="warning" />);
-    if (data.projects > 0) tiles.push(<Tile key="p" href="/projecthub" icon="💼" label="내 담당 프로젝트" count={data.projects} sub={data.projectNames} />);
-    if (data.tasks > 0) tiles.push(<Tile key="t" href="/projecthub" icon="✅" label="내 할 일" count={data.tasks} />);
-    if (data.mentions > 0) tiles.push(<Tile key="m" href="/notifications" icon="💬" label="나를 언급한 글" count={data.mentions} tone="primary" />);
-    if (data.signatures > 0) tiles.push(<Tile key="s" href="/my-contracts" icon="🖊️" label="내 서명 요청" count={data.signatures} tone="danger" />);
+    const PREVIEW = 4;
+    const more = (n: number) => (n > PREVIEW ? `외 ${n - PREVIEW}건 더 보기 →` : undefined);
+
+    // 내 할 일 — 마감·지연 강조
+    if (data.tasks.length > 0) {
+      const items: WorkItem[] = data.tasks.slice(0, PREVIEW).map((t) => {
+        const d = dday(t.due_date);
+        const overdue = d != null && d < 0;
+        const proj = t.deals?.name;
+        return {
+          key: t.id,
+          href: t.deal_id ? `/projecthub/${t.deal_id}` : "/projecthub",
+          primary: t.title || "할 일",
+          secondary: t.due_date ? (overdue ? `${-d}일 지연` : d === 0 ? "오늘" : `D-${d}`) : (proj ? proj : ""),
+          tone: overdue ? "danger" : d === 0 ? "warning" : undefined,
+        };
+      });
+      cards.push(<WorkCard key="tasks" href="/projecthub" icon="✅" label="내 할 일" count={data.tasks.length} tone="primary" items={items} moreLabel={more(data.tasks.length)} />);
+    }
+
+    // 내 결재 대기 — 문서 종류·금액
+    if (data.approvals.length > 0) {
+      const items: WorkItem[] = data.approvals.slice(0, PREVIEW).map((a) => {
+        const kind = DOC_KIND[a.documents?.content_type] || "결재 문서";
+        const amt = Number(a.documents?.contract_amount || 0);
+        return { key: a.id, href: "/approvals", primary: kind, secondary: amt ? won(amt) : md(a.created_at), tone: "warning" };
+      });
+      cards.push(<WorkCard key="appr" href="/approvals" icon="🧾" label="내 결재 대기" count={data.approvals.length} tone="warning" items={items} moreLabel={more(data.approvals.length)} />);
+    }
+
+    // 내 담당 프로젝트 — 단계·계약액
+    if (data.projects.length > 0) {
+      const items: WorkItem[] = data.projects.slice(0, PREVIEW).map((p) => ({
+        key: p.id, href: `/projecthub/${p.id}`, primary: p.name || "프로젝트", secondary: p.contract_total ? won(Number(p.contract_total)) : "",
+      }));
+      cards.push(<WorkCard key="proj" href="/projecthub" icon="💼" label="내 담당 프로젝트" count={data.projects.length} tone="success" items={items} moreLabel={more(data.projects.length)} />);
+    }
+
+    // 내 서명 요청
+    if (data.signs.length > 0) {
+      const items: WorkItem[] = data.signs.slice(0, PREVIEW).map((n) => ({
+        key: n.id, href: n.link || "/my-contracts", primary: n.title || n.message || "서명 요청", secondary: md(n.created_at), tone: "danger",
+      }));
+      cards.push(<WorkCard key="sign" href="/my-contracts" icon="🖊️" label="내 서명 요청" count={data.signs.length} tone="danger" items={items} moreLabel={more(data.signs.length)} />);
+    }
+
+    // 나를 언급한 알림
+    if (data.mentions.length > 0) {
+      const items: WorkItem[] = data.mentions.slice(0, PREVIEW).map((n) => ({
+        key: n.id, href: n.link || "/notifications", primary: n.title || n.message || "새 알림", secondary: md(n.created_at),
+      }));
+      cards.push(<WorkCard key="ment" href="/notifications" icon="💬" label="나를 언급한 글" count={data.mentions.length} tone="primary" items={items} moreLabel={more(data.mentions.length)} />);
+    }
   }
 
   return (
-    <section className="mb-5">
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-sm font-bold text-[var(--text)]">내 업무</h2>
-        <span className="text-[11px] text-[var(--text-dim)]">지금 내가 처리할 것 · 담당하는 것</span>
+    <section className="my-work-section mb-6">
+      <div className="mb-3">
+        <h2 className="text-lg font-extrabold text-[var(--text)] tracking-tight">내 업무</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">내가 담당·처리해야 할 일을 미리 보고, 항목이나 “이동 →”을 누르면 해당 메뉴로 바로 갑니다.</p>
       </div>
-      {tiles.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{tiles}</div>
+      {cards.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{cards}</div>
       ) : data ? (
-        <div className="glass-card p-4 text-center text-xs text-[var(--text-dim)]">지금 처리할 내 업무가 없습니다. 👍</div>
-      ) : null}
+        <div className="glass-card p-5 text-center text-xs text-[var(--text-dim)]">지금 처리할 내 업무가 없습니다. 👍</div>
+      ) : (
+        <div className="glass-card p-5 text-center text-xs text-[var(--text-dim)]">불러오는 중…</div>
+      )}
     </section>
   );
 }
