@@ -2101,6 +2101,7 @@ export default function TaxInvoicesPage() {
           companyInfo={companyInfo}
           partners={partners}
           issuanceStatus={issuanceStatus}
+          deals={dealsForLink}
           onClose={() => setSelectedInvoice(null)}
           onModify={(inv: any) => {
             setSelectedInvoice(null);
@@ -2733,7 +2734,7 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
 }
 
 // ── Invoice Detail Modal (세금계산서 상세) ──
-function InvoiceDetailModal({ invoice, companyInfo, partners, issuanceStatus, onClose, onModify }: { invoice: any; companyInfo?: any; partners?: any[]; issuanceStatus?: { limit: number | null; used: number; remaining: number | null; planName: string | null }; onClose: () => void; onModify: (inv: any) => void }) {
+function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceStatus, onClose, onModify }: { invoice: any; companyInfo?: any; partners?: any[]; deals?: any[]; issuanceStatus?: { limit: number | null; used: number; remaining: number | null; planName: string | null }; onClose: () => void; onModify: (inv: any) => void }) {
   const issuanceLimitReached = !!issuanceStatus && issuanceStatus.limit !== null && (issuanceStatus.remaining ?? 0) <= 0;
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -2750,6 +2751,8 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, issuanceStatus, on
   const [showEmailForm, setShowEmailForm] = useState(false);
   // 계정과목(비목) — 상세에서 직접 지정, 손익계산서 매출원가/판관비 분류 기준
   const [expenseCat, setExpenseCat] = useState<string>(inv.expense_category || "");
+  // 프로젝트(딜) 연결 — 상세에서 직접 선택 (사장님 요청 2026-07-14)
+  const [dealId, setDealId] = useState<string>(inv.deal_id || "");
   const myCompany = companyInfo?.name || '(주)우리회사';
   const myBizNo = companyInfo?.business_number || '';
   const myRep = companyInfo?.representative || '';
@@ -3093,7 +3096,30 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, issuanceStatus, on
           {/* 내부 참고 정보(양식 밖) — 프로젝트/비목. 비목(계정과목)은 여기서 직접 지정 가능:
               매입 계산서에 지정하면 손익계산서에서 매출원가 대신 그 판관비 항목으로 반영 (사장님 QA 2026-07-10) */}
           <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px] text-[var(--text-muted)]">
-            <span>프로젝트: <b className="text-[var(--text)]">{inv.deals?.name || "—"}</b></span>
+            <span className="inline-flex items-center gap-1.5">프로젝트:
+              <select
+                value={dealId}
+                onChange={async (e) => {
+                  const v = e.target.value;
+                  const prev = dealId;
+                  setDealId(v);
+                  const { error } = await (supabase as any).from("tax_invoices").update({ deal_id: v || null }).eq("id", inv.id);
+                  if (error) { toast("프로젝트 저장 실패: " + error.message, "error"); setDealId(prev); return; }
+                  const picked = (deals || []).find((d: any) => d.id === v);
+                  inv.deal_id = v || null;
+                  inv.deals = v ? { name: picked?.name } : null;
+                  queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+                  toast(v ? `'${picked?.name || "프로젝트"}'에 연결되었습니다` : "프로젝트 연결 해제", "success");
+                }}
+                className="px-2 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text)]"
+                title="이 세금계산서를 프로젝트에 연결합니다 — 프로젝트 손익·비용 구성에 집계됩니다"
+              >
+                <option value="">미지정</option>
+                {(deals || []).map((d: any) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </span>
             <span className="inline-flex items-center gap-1.5">계정과목:
               <select
                 value={expenseCat}
