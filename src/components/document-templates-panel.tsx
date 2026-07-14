@@ -13,6 +13,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { supabase } from "@/lib/supabase";
 import { saveRevision, DOC_STATUS } from "@/lib/documents";
 import { RichEditor } from "@/components/rich-editor";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const TYPE_LABELS: Record<string, string> = {
   contract: "계약서",
@@ -150,6 +151,13 @@ function DocumentEditModal({ doc, userId, onClose, onSaved }: {
       setSaving(false);
     }
   };
+
+  // 리치에디터(Tiptap, contenteditable) 안에서 줄바꿈용 Enter 는 저장으로 새지 않게 제외.
+  useModalKeys(true, onClose, saving || !name.trim() ? undefined : () => {
+    const ae = document.activeElement as HTMLElement | null;
+    if (ae?.isContentEditable) return;
+    handleSave();
+  });
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>

@@ -12,6 +12,7 @@ import { FileUploadMulti } from "@/components/file-upload-multi";
 import { MentionDropdown } from "@/components/mention-dropdown";
 import { getCompanyUsers } from "@/lib/queries";
 import { friendlyError } from "@/lib/friendly-error";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase as any;
 
@@ -631,6 +632,11 @@ export default function BoardPage() {
     if (q && !(`${p.title} ${p.content}`.toLowerCase().includes(q))) return false;
     return true;
   });
+
+  // 글쓰기/수정 모달 — ESC 닫기, Enter 저장(제목·내용 미입력·업로드/저장 중엔 비활성)
+  const canSavePost =
+    !savePost.isPending && !uploading && !!form.title.trim() && !!form.content.trim();
+  useModalKeys(showForm, resetForm, canSavePost ? () => savePost.mutate() : undefined);
 
   return (
     <div className="">

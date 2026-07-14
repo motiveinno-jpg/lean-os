@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 interface PortalDoc {
   id: string;
@@ -44,6 +45,8 @@ export default function PartnerPortalPage() {
   const [inquiry, setInquiry] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+
+  useModalKeys(!!openDoc, () => setOpenDoc(null));
 
   const submitInquiry = async () => {
     const msg = inquiry.trim();

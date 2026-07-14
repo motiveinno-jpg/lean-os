@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { createBulkSignatureRequests } from "@/lib/signatures";
 import { materializeDocTemplate } from "@/lib/documents";
 import { isHrType } from "@/components/templates-tab";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 type Signer = { name: string; email: string; phone: string };
 
@@ -45,12 +46,6 @@ export function InviteModal({
 
   const validSigners = signers.filter((s) => s.name.trim() && s.email.trim());
 
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
   const submit = async () => {
     if (!docId) {
       toast("문서를 선택하세요", "error");
@@ -89,6 +84,8 @@ export function InviteModal({
       setSubmitting(false);
     }
   };
+
+  useModalKeys(true, onClose, submitting || validSigners.length === 0 || !docId ? undefined : submit);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">

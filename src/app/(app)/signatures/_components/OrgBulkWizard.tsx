@@ -9,6 +9,7 @@ import { isHrType } from "@/components/templates-tab";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // ── 단체(거래처) 일괄 발송 마법사 (5단계) ──
 type OrgPartner = {
@@ -283,12 +284,6 @@ export function OrgBulkWizard({
     });
   }, [previewPartner, selectedDoc, company, variableMap, commonVariables, perPartnerOverrides, applyOurSeal, hasCompanySeal]);
 
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
   const canNext = (() => {
     if (step === 1) return !!docId;
     if (step === 2) return selectedPartners.length > 0;
@@ -367,6 +362,15 @@ export function OrgBulkWizard({
       setProgress(null);
     }
   };
+
+  // Enter = 현재 단계의 주 액션 버튼과 동일(다음 단계로 넘기거나, 마지막 단계면 발송)
+  useModalKeys(
+    true,
+    onClose,
+    step < 5
+      ? (canNext ? () => setStep((s) => (s + 1) as 1 | 2 | 3 | 4 | 5) : undefined)
+      : (submitting || selectedPartners.length === 0 ? undefined : submit),
+  );
 
   // ── 렌더 ──
   return (

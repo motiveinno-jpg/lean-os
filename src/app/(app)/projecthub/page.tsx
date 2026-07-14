@@ -19,6 +19,7 @@ import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/
 import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getHeroMetric, getOverallAchievement, type ProjectType, type KpiSource } from "@/lib/project-types";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "");
@@ -664,6 +665,9 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   const IN = "field-input";
   const LB = "block text-xs text-[var(--text-muted)] mb-1";
   const cfg = PROJECT_TYPES[projectType];
+
+  useModalKeys(true, onClose, !isEdit && step === 1 ? () => setStep(2) : (saving || !form.name.trim() ? undefined : submit));
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -887,6 +891,8 @@ function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
       onDeleted();
     } catch (e: any) { toast(e?.message || "삭제 실패", "error"); } finally { setBusy(false); }
   };
+
+  useModalKeys(!busy, () => !busy && onClose(), canDelete && !busy ? del : undefined);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4" onClick={() => !busy && onClose()}>

@@ -12,6 +12,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
 import { uploadTaskAttachment, taskAttachmentUrl, taskAttachmentDownloadUrl, removeTaskAttachment, isImageAtt, type TaskAttachment } from "@/lib/task-attachments";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase as any;
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -337,7 +338,7 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
         {replyTo === c.id && (
           <div className="flex items-center gap-1.5 mt-1.5">
             <input value={replyText} onChange={(e) => setReplyText(e.target.value)} autoFocus
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(c.id, replyText); } }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); add(c.id, replyText); } }}
               placeholder={`${nameOf(c.created_by)}님에게 답글 (Enter로 등록)`}
               className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] focus:outline-none focus:border-[var(--primary)]" />
             <button type="button" onClick={() => add(c.id, replyText)} disabled={!replyText.trim() || busy}
@@ -359,7 +360,7 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
       </div>
       <div className="flex items-center gap-1.5 mt-2">
         <input value={text} onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(null, text); } }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); add(null, text); } }}
           placeholder="댓글 입력 (Enter로 등록)"
           className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]" />
         <button type="button" onClick={() => add(null, text)} disabled={!text.trim() || busy}
@@ -522,6 +523,11 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
 
   const IN = "w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]";
   const LB = "block text-xs text-[var(--text-muted)] mb-1";
+
+  // 보기 모드 주 액션 = 수정 진입, 편집 모드 주 액션 = 저장. 라이트박스가 열려 있으면 그쪽이 최상위(ESC 우선).
+  useModalKeys(!lightbox, onClose, isEdit && !editing ? () => setEditing(true) : (saving || !title.trim() ? undefined : save));
+  useModalKeys(!!lightbox, () => setLightbox(null));
+
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -647,7 +653,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
             {showLabelMaker && (
               <div className="flex items-center gap-1.5 mb-2 p-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]/50">
                 <input value={labelText} onChange={(e) => setLabelText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); createLabel(); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); createLabel(); } }}
                   placeholder="새 라벨 이름" className={`${IN} flex-1 min-w-0`} />
                 <div className="flex items-center gap-1 shrink-0">
                   {LABEL_COLORS.map((c) => (

@@ -13,6 +13,7 @@ import { friendlyError, reportError } from "@/lib/friendly-error";
 import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 import { useToast } from "@/components/toast";
 import { usePrintIsolation } from "@/lib/use-print-isolation";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -252,6 +253,12 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
       }
     })();
   }, [id]);
+
+  useModalKeys(
+    showOurSignModal,
+    () => { if (!submittingOurSig) setShowOurSignModal(false); },
+    submittingOurSig || !ourSigMethod || !ourSigDataUrl ? undefined : submitOurSignature,
+  );
 
   if (loading) return <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>;
   if (err || !row) {

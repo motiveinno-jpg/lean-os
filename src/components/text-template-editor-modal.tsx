@@ -9,6 +9,7 @@ import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RichEditor, type RichEditorRef } from "@/components/rich-editor";
 import { fillTextTemplate } from "@/lib/form-templates";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, onSave, onClose }: {
   title: string;
@@ -29,6 +30,13 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
     setSaving(true);
     try { await onSave(html); } finally { setSaving(false); }
   };
+
+  // 리치에디터(Tiptap, contenteditable) 안의 줄바꿈용 Enter는 저장으로 새지 않게 제외.
+  useModalKeys(true, onClose, saving ? undefined : () => {
+    const ae = document.activeElement as HTMLElement | null;
+    if (ae?.isContentEditable) return;
+    save();
+  });
 
   if (typeof document === "undefined") return null;
   return createPortal(

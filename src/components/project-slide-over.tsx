@@ -30,6 +30,7 @@ import { formatDueLabel } from "@/lib/project-badges";
 import { ProjectQuoteStages } from "@/components/project-quote-stages";
 import { getLatestApproval, type ApprovalLite } from "@/lib/quote-approvals";
 import { ProjectScheduleTab } from "@/components/project-schedule-tab";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // stage → 진행률 (%)
 const STAGE_PROGRESS: Record<ProjectStage, number> = {
@@ -602,6 +603,8 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
       ? "bg-[var(--primary)]/15 text-[var(--primary)] border-[var(--primary)]/30 hover:bg-[var(--primary)]/25"
       : "bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border)] hover:bg-[var(--border)]";
 
+  useModalKeys(editOpen, () => !editSaving && setEditOpen(false), editSaving || !editForm.name.trim() ? undefined : submitEdit);
+
   return (
     <div className="flex flex-col gap-4">
       {/* 다음 액션 CTA */}
@@ -998,6 +1001,11 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
   // deal.stage 따라 ProjectQuoteStages 의 stage prop 결정. stage 가 바뀌면 key 로 재마운트
   //   → approval 재조회·Realtime 구독 갱신.
   const approvalStage = dealStageToApprovalStage(data.deal.stage);
+
+  useModalKeys(paymentModalOpen, () => !paymentSaving && setPaymentModalOpen(false),
+    paymentSaving || !paymentDate || !paymentAmount || Number(paymentAmount) <= 0 ? undefined : submitPayment);
+  useModalKeys(costModalOpen, () => !costSaving && setCostModalOpen(false),
+    costSaving || !costDate || !costAmount || Number(costAmount) <= 0 ? undefined : submitCost);
 
   return (
     <div className="flex flex-col gap-4">
@@ -1496,6 +1504,9 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
     return (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
   });
 
+  // 담당자 추가 모달 — 목록 각 항목 클릭이 곧 추가라 단일 주 액션 버튼이 없음(ESC만)
+  useModalKeys(showAddAssignee, () => setShowAddAssignee(false));
+
   return (
     <div id="sec-activity" className="flex flex-col gap-4 transition-shadow">
       {/* 진척보고서 — deal.stage='in_progress' 일 때만 표시.
@@ -1811,14 +1822,8 @@ function DeleteProjectModal({
     },
   });
 
-  // ESC 닫기 — 진행 중에는 잠금
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !del.isPending) onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, del.isPending]);
+  // ESC 닫기 — 진행 중에는 잠금. Enter = 삭제 확인(이름 일치 시에만)
+  useModalKeys(true, () => !del.isPending && onClose(), canDelete && !del.isPending ? () => del.mutate() : undefined);
 
   return (
     <div

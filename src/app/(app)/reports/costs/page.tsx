@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
@@ -47,6 +48,10 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
   const items = data ?? [];
   const hasRemovable = items.some((i) => i.recurringId);
   const [removing, setRemoving] = useState<string | null>(null);
+
+  // 읽기 전용 산출 내역 팝업(정기결제 제거 가능 분기) — ESC로만 닫기.
+  //   CellDetail 재사용 분기(!hasRemovable)는 CellDetail 자체 ESC 처리가 있어 비활성.
+  useModalKeys(hasRemovable, onClose);
 
   const removeRecurring = async (id: string) => {
     setRemoving(id);

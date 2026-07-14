@@ -20,6 +20,7 @@ import {
   useColWidths, ResizableTh,
 } from "../ledger/shared";
 import { STAGE_LABEL } from "@/lib/project-rules";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export default function ReconciliationPage() {
   const { user } = useUser();
@@ -508,6 +509,12 @@ export default function ReconciliationPage() {
   );
   const cardSelectedSum = (cardTxns as any[]).filter((c) => selectedCardIds.has(c.id)).reduce((s, c) => s + Number(c.amount || 0), 0);
   const toggleCard = (id: string) => setSelectedCardIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  // 수동 매칭 모달 — 탭(세금계산서/현금영수증/카드/직접입력)별로 개별 연결 버튼이 달라 통일된 주 액션이 없어 ESC만 지원
+  useModalKeys(!!matchTx, () => setMatchTx(null));
+  useModalKeys(!!linkPrompt, () => setLinkPrompt(null), linkSelected && !linkProjectMut.isPending
+    ? () => linkProjectMut.mutate({ taxInvoiceId: linkPrompt!.taxInvoiceId, dealId: linkSelected })
+    : undefined);
 
   return (
     <div className="space-y-6">

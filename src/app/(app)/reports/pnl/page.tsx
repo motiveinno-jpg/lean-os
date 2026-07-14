@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import { MonthField } from "@/components/month-field";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -923,6 +924,10 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
   const [rows, setRows] = useState<{ id?: string; date: string; name: string; amount: number; expenseCategory?: string }[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // 읽기 전용 드릴다운 팝업 — ESC로만 닫기
+  useModalKeys(true, onClose);
+
   useEffect(() => {
     if (source === "computed") return;
     const startDate = `${start}-01`;

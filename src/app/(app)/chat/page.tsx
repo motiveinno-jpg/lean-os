@@ -16,6 +16,7 @@ import { ChatBubble } from "@/components/chat-bubble";
 import { ChatInput } from "@/components/chat-input";
 import { ChatSearch } from "@/components/chat-search";
 import { ChatRoomView } from "@/components/chat-room-view";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // ── Guest Chat View (previously chat/guest/[token]/client.tsx) ──
 interface GuestSession {
@@ -322,12 +323,6 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   const [teamName, setTeamName] = useState("");
   const [dmUserId, setDmUserId] = useState("");
 
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setCreating(null); };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, []);
-
   const { data: channels = [] } = useQuery({
     queryKey: ["chat-channels", companyId],
     queryFn: () => getChannels(companyId!, userId || undefined),
@@ -396,6 +391,18 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     },
     onError: (err: any) => toast(friendlyError(err, "DM 채널 생성 실패"), "error"),
   });
+
+  function handleCreateConfirm() {
+    if (creating === "team") {
+      if (teamName.trim() && !createTeamMut.isPending) createTeamMut.mutate();
+    } else if (creating === "deal") {
+      if (form.name.trim() && !createMut.isPending) createMut.mutate();
+    } else if (creating === "dm") {
+      if (dmUserId && !createDMMut.isPending) createDMMut.mutate();
+    }
+  }
+
+  useModalKeys(!!creating, () => setCreating(null), handleCreateConfirm);
 
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
 

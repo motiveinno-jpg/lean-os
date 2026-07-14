@@ -51,6 +51,7 @@ import AllowanceAdminTab from "@/components/hr-allowance-admin";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
 import { useConfirm } from "@/components/confirm-dialog";
 import { PayrollHero, ContractsHero, CertificatesHero } from "@/components/flex-hr-heroes";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
 
@@ -296,6 +297,8 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const [addExisting, setAddExisting] = useState(false);
   const [detailEmpId, setDetailEmpId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "orgchart">("list");
+  // ESC 닫기 — 확인 액션은 EmployeeDetailPanel 내부(탭별 저장/퇴사확정)가 자체 처리
+  useModalKeys(!!detailEmpId, () => setDetailEmpId(null));
 
   const currentYear = new Date().getFullYear();
 
@@ -2283,6 +2286,9 @@ function MissingCheckOutModal({
       await saveOne(row);
     }
   };
+
+  // ESC 닫기 · Enter 확인(일괄 저장, 대상 없거나 저장 중이면 비활성)
+  useModalKeys(true, onClose, missingRows.length === 0 || saving.size > 0 ? undefined : saveAll);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>

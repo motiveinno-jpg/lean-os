@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { nextQuoteNumber, DOC_STATUS } from "@/lib/documents";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase as any;
 
@@ -167,6 +168,8 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
       setBusy(false);
     }
   };
+
+  useModalKeys(true, onClose, busy ? undefined : create);
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>

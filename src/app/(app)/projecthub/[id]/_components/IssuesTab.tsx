@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase as any;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "—");
@@ -132,6 +133,8 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
     return c;
   }, [issues]);
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  useModalKeys(showForm, () => setShowForm(false), (saveMut.isPending || !form.title.trim()) ? undefined : () => saveMut.mutate());
 
   return (
     <div className="issues-tab space-y-3">

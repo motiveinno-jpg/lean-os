@@ -19,6 +19,7 @@ import {
   reviewAttendanceEditRequest,
   type MonthlyPayResult,
 } from "@/lib/hr";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const fmtKRW = (n: number) => `${(n || 0).toLocaleString("ko-KR")}원`;
 const minToH = (m: number) => `${(m / 60).toFixed(1)}h`;
@@ -156,6 +157,9 @@ export function AttendanceEditRequestDialog({
     onError: (err: any) =>
       toast(friendlyError(err, "요청 전송에 실패했습니다."), "error"),
   });
+
+  // ESC 닫기 · Enter 확인(요청 보내기 — 변경 항목 없거나 전송 중이면 비활성). Hook 규칙상 early return 이전에 항상 호출.
+  useModalKeys(open, onClose, mut.isPending || (!form.check_in && !form.check_out && !form.status) ? undefined : () => mut.mutate());
 
   if (!open) return null;
 

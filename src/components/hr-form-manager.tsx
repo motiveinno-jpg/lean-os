@@ -18,6 +18,7 @@ import {
   downloadTemplateFile, extractPdfText, templateTextToHtml, fillTextTemplate, wrapTemplatePrintHtml, updateFormTemplateContent,
   type OverlayField, type PdfFormTemplate,
 } from "@/lib/form-templates";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const HR_VARS = ["{{성명}}", "{{주민번호}}", "{{부서}}", "{{직급}}", "{{입사일}}", "{{연봉}}", "{{연락처}}", "{{주소}}", "{{작성일자}}"];
 // content_html 의 {{키}} 목록 추출
@@ -193,6 +194,11 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
       setFilling(null);
     } catch (e: any) { toast("출력 실패: " + (e?.message || ""), "error"); }
   };
+
+  // ESC 닫기. 필드 배치 에디터(editing)는 확인 액션이 하위 FormTemplateEditor 내부(onSave)로 위임돼
+  //   있어 여기서 Enter 확인은 바인딩하지 않음(라벨 입력 등 내부 폼과 충돌 우려). 채우기 모달은 출력 버튼으로 확인.
+  useModalKeys(!!editing, () => setEditing(null));
+  useModalKeys(!!filling, () => setFilling(null), filling ? exportFilled : undefined);
 
   if (!companyId) return null;
   const list = templates as PdfFormTemplate[];

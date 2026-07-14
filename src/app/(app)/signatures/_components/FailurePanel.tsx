@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { sendSignatureReminder } from "@/lib/signatures";
 import { friendlyError } from "@/lib/friendly-error";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // ── Failure Panel (최근 7일 발송 실패) ──
 const FAILURE_CODE_LABEL: Record<string, string> = {
@@ -33,11 +34,7 @@ export function FailurePanel({
   onClose: () => void;
   onRetried: () => void;
 }) {
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  useModalKeys(true, onClose);
 
   const total = summary.reduce((acc, r) => acc + Number(r.count || 0), 0);
 

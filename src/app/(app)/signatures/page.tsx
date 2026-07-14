@@ -37,6 +37,7 @@ import { FailurePanel } from "./_components/FailurePanel";
 import { InviteModal } from "./_components/InviteModal";
 import { OrgBulkWizard } from "./_components/OrgBulkWizard";
 import { DocumentTemplatesPanel } from "@/components/document-templates-panel";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export default function SignaturesDashboardPage() {
   const { role } = useUser();
@@ -63,6 +64,7 @@ export default function SignaturesDashboardPage() {
   // PR-3: signed 행 서명본 보기 모달 (signature_data jsonb 이미지)
   // 2026-05-28 signer_inputs(라디오/조건부 텍스트 응답) 표시 추가
   const [viewSignedRow, setViewSignedRow] = useState<{ id: string; signer_name: string; signed_at: string | null; signature_data: { type?: string; data?: string } | null; title: string; signer_inputs?: Record<string, string> | null } | null>(null);
+  useModalKeys(!!viewSignedRow, () => setViewSignedRow(null));
   // 2026-05-29 발송 실패 패널 (최근 7일) — 대표/관리자만 노출, RLS 자동 차단.
   //   role 이 employee/partner 면 컴포넌트 상단에서 이미 AccessDenied 로 차단되므로
   //   여기까지 도달했다는 건 owner/admin. RLS 가 2차 안전망.

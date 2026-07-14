@@ -23,6 +23,7 @@ import {
   STATUS_LABEL,
   type ApprovalLite,
 } from "@/lib/quote-approvals";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 interface Props {
   dealId: string;
@@ -535,14 +536,7 @@ function ProgressDetailModal({
   };
   onClose: () => void;
 }) {
-  // ESC 닫기
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useModalKeys(true, onClose);
 
   const pct = Math.max(0, Math.min(100, Number(item.payload?.progress_pct || 0)));
   const text = String(item.payload?.report_text || "");

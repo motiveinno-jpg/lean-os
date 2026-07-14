@@ -6,6 +6,7 @@ import { TileIcon } from "@/components/ui/icon-tile";
 import { getCorporateCards, getDistinctCardNames, upsertCorporateCard } from "@/lib/card-transactions";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // "BC카드 5979" → { company: "BC카드", lastFour: "5979" }
 function parseCardName(name: string): { company: string; lastFour: string | null } {
@@ -399,6 +400,8 @@ function BillingDetailModal({
   const total = cardTxs.reduce((s, t) => s + Number(t.amount || 0), 0);
   const usedSum = cardTxs.filter((t) => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
   const cancelSum = cardTxs.filter((t) => Number(t.amount) < 0).reduce((s, t) => s + Number(t.amount), 0);
+  // 조회 전용 모달(주 액션 없음) — ESC 닫기만 (모달 마운트 = 항상 열림 상태)
+  useModalKeys(true, onClose);
 
   return (
     <div onClick={onClose} className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">

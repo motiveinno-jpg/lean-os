@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import FormTemplateEditor from "@/components/form-template-editor";
 import { TextTemplateEditorModal } from "@/components/text-template-editor-modal";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import {
   rasterizePdf, detectFields, uploadTemplateFile, saveFormTemplate, setActiveTemplate,
   listFormTemplates, deleteFormTemplate, extractPdfText, templateTextToHtml, updateFormTemplateContent,
@@ -133,6 +134,10 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
     try { await deleteFormTemplate(t.id, t.file_path); toast("삭제했습니다", "info"); refresh(); }
     catch (e: any) { toast("삭제 실패: " + (e?.message || ""), "error"); }
   };
+
+  // 매핑 보정 에디터(FormTemplateEditor)는 내부 fields 상태를 자체 관리 — 저장 버튼은 그 안에서만
+  // 트리거 가능하므로 여기서는 ESC 닫기만 연결(Enter 저장 확인은 미배선).
+  useModalKeys(!!editing, () => setEditing(null));
 
   if (!companyId) return null;
   const byType = (dt: DocType) => (templates as PdfFormTemplate[]).filter((t) => t.doc_type === dt);

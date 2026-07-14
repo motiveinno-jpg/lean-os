@@ -16,8 +16,10 @@ export function useModalKeys(active: boolean, onClose?: () => void, onConfirm?: 
       if (e.key !== "Enter" || !onConfirm) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
-      // textarea 줄바꿈, select 옵션 선택, 이미 버튼 클릭되는 Enter, 한글 등 IME 조합 중 Enter는 제외
+      // textarea 줄바꿈, select 옵션 선택, 이미 버튼 클릭되는 Enter, 리치에디터(contenteditable) 줄바꿈,
+      // 한글 등 IME 조합 중 Enter는 제외
       if (tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON") return;
+      if (target?.isContentEditable) return;
       if ((e as unknown as { isComposing?: boolean }).isComposing) return;
       onConfirm();
     }

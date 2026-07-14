@@ -34,6 +34,7 @@ import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, resolveSignedUrl } from "@/lib/file-storage";
@@ -662,6 +663,18 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingApprovals]);
 
+  const selected = pendingApprovals.find((p: any) => p.stepId === selectedStepId) || null;
+
+  // 선택된 결재 건이 있는 동안: ESC=작성 중인 의견 초기화, Enter=승인(의견은 선택 입력).
+  //   반려는 사유 필수 확인이 이미 버튼 클릭 시 별도 검증되므로 Enter 단축키는 승인에만 연결.
+  useModalKeys(
+    !!selected,
+    () => setComment(""),
+    selected && !approveMut.isPending
+      ? () => approveMut.mutate({ stepId: selected.stepId, comment: comment || undefined })
+      : undefined,
+  );
+
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
@@ -678,7 +691,6 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
     );
   }
 
-  const selected = pendingApprovals.find((p: any) => p.stepId === selectedStepId) || null;
   const selectedFormFields = selected ? resolveFormFields(selected.formId, selected.customFields, formsById) : [];
   const selectedContent = selected ? contentWithoutFieldLines(selected.description || "", selectedFormFields) : "";
 
@@ -1006,6 +1018,9 @@ function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string;
     }
     setPdfLoadingId(null);
   };
+
+  // 요청 상세 팝업(읽기 전용) — ESC로만 닫기, 별도 확인 액션 없음
+  useModalKeys(!!expandedId, () => setExpandedId(null));
 
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;

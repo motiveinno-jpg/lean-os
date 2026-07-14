@@ -16,6 +16,7 @@ import { useToast } from "@/components/toast";
 import { ChatBubble } from "@/components/chat-bubble";
 import { ChatInput } from "@/components/chat-input";
 import { ChatSearch } from "@/components/chat-search";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 function FilesGalleryView({ files }: { files: any[] }) {
   const [preview, setPreview] = useState<any | null>(null);
@@ -412,9 +413,13 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
     });
   }, []);
 
+  // 초대 모달 — 내부 초대(클릭 즉시)/외부 초대(문자·메일 링크)로 단일 확인 버튼이 없어 ESC만 지원.
+  //   showInvite 가 열려 있으면 검색 ESC 는 그 다음(기존 우선순위 유지).
+  useModalKeys(showInvite, () => setShowInvite(false));
   useEffect(() => {
+    if (showInvite) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (showInvite) setShowInvite(false); else if (showSearch) setShowSearch(false); }
+      if (e.key === "Escape" && showSearch) setShowSearch(false);
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);

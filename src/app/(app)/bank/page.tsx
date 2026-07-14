@@ -17,6 +17,7 @@ import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias, 
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { EmptyState } from "@/components/empty-state";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { SortToolbar } from "@/components/sort-toolbar";
@@ -349,6 +350,9 @@ export default function BankPage() {
       queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
     } finally { setBulkPosting(false); }
   };
+
+  // 일괄 전표처리 모달 — ESC 닫기 · Enter 확인(계정과목 미선택/처리중이면 비활성)
+  useModalKeys(showBulkPost, () => setShowBulkPost(false), bulkPosting || !bulkAccountId ? undefined : doBulkPostBank);
 
   // 정렬 적용 — 원본 쿼리 캐시 불변(복제 정렬). null/빈값은 항상 뒤로.
   const sortedTx = useMemo(() => {

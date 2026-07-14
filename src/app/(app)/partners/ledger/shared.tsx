@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase as any;
 
@@ -712,6 +713,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   const assetMatches = (q: string) => { const t = q.trim().toLowerCase(); return (t ? assetItems.filter((a) => a.name.toLowerCase().includes(t)) : assetItems).slice(0, 12); };
   const IN = "w-full bg-transparent text-xs text-[var(--text)] focus:outline-none px-1.5 py-1.5 disabled:opacity-60";
 
+  useModalKeys(mounted, onClose, canSave ? save : undefined);
+
   if (!mounted) return null;
   return createPortal(
     <div className="fixed inset-0 z-[70] bg-black/40" onClick={onClose}>
@@ -781,7 +784,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                               if (e.key !== "Enter") return;
                               const q = picker?.kind === "acct" && picker.key === l.key ? picker.q : "";
                               const first = acctMatches(q)[0];
-                              if (first) { e.preventDefault(); setLine(l.key, { account: first }); setPicker(null); }
+                              if (first) { e.preventDefault(); e.stopPropagation(); setLine(l.key, { account: first }); setPicker(null); }
                             }}
                             placeholder="계정 검색" className={IN} />
                           {picker?.kind === "acct" && picker.key === l.key && (
@@ -974,6 +977,8 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
     }
   };
 
+  useModalKeys(mounted, onClose, s && s.status === "confirmed" && !deleting ? handleDelete : undefined);
+
   if (!mounted) return null;
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -1107,6 +1112,9 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
     },
     enabled: !!companyId && invIds.length > 0,
   });
+
+  // 차액 마감/전표 모달이 위에 떠 있으면 그쪽이 최상위(ESC 우선) — 이 모달은 그동안 비활성화.
+  useModalKeys(!closeTarget && !adjView, onClose);
 
   const remaining = (i: any) => Math.max(Number(i.total_amount || 0) - Number(i.settled_amount || 0), 0);
   const sum = (arr: any[], f: (i: any) => any) => arr.reduce((s, i) => s + Number(f(i) || 0), 0);
@@ -1273,6 +1281,8 @@ function CloseBalanceModal({ invoice, remaining, onClose, onDone, onError }: {
     if (error) { onError(error.message || "차액 마감 실패"); return; }
     onDone();
   };
+
+  useModalKeys(true, onClose, !reason || busy || !(amount > 0) ? undefined : submit);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>

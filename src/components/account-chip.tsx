@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { useUser } from "@/components/user-context";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "대표",
@@ -32,17 +33,16 @@ export function AccountChip() {
       const r = btnRef.current?.getBoundingClientRect();
       if (r) setPos({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) });
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     reposition();
     window.addEventListener("resize", reposition);
     window.addEventListener("scroll", reposition, true);
-    document.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("resize", reposition);
       window.removeEventListener("scroll", reposition, true);
-      document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  useModalKeys(open, () => setOpen(false), () => { setOpen(false); router.push("/mypage"); });
 
   return (
     <>

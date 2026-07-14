@@ -15,6 +15,7 @@ import { TileIcon } from "@/components/ui/icon-tile";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
 import { EmptyState } from "@/components/empty-state";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // 사업자등록번호 000-00-00000 형식 정규화 (하이픈 없이 저장된 값도 표시 시 구분)
 function fmtBizNo(b?: string | null): string {
@@ -236,17 +237,6 @@ export default function PartnersPage() {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
-
-  useEffect(() => {
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      if (showModal) { setShowModal(false); setEditingId(null); setForm(EMPTY_FORM); return; }
-      if (detailPartner) { setDetailPartner(null); return; }
-      if (importPreview || importError) { if (!importing) { setImportPreview(null); setImportError(null); } return; }
-    }
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [showModal, detailPartner, importPreview, importError, importing]);
 
   const { data: rawPartners = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["partners", companyId, typeFilter, activeFilter, debouncedSearch, tagFilter],
@@ -684,6 +674,16 @@ export default function PartnersPage() {
   const setField = useCallback(
     (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value })),
     []
+  );
+
+  useModalKeys(showModal, closeModal, form.name && !saveMutation.isPending ? () => saveMutation.mutate() : undefined);
+  // 포털 링크 모달이 이 위에 뜰 수 있음 — 그동안은 그쪽이 최상위(ESC 우선)
+  useModalKeys(!!detailPartner && !portalModal, () => setDetailPartner(null));
+  useModalKeys(!!importResult, () => setImportResult(null), () => setImportResult(null));
+  useModalKeys(
+    !!(importPreview || importError),
+    () => { if (!importing) { setImportPreview(null); setImportError(null); } },
+    importPreview && !importing ? confirmImport : undefined,
   );
 
   return (
@@ -1712,11 +1712,6 @@ export default function PartnersPage() {
 // ── 포털 링크 발급 결과 모달 (2026-05-22) ──
 function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerName: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url);
@@ -1726,6 +1721,7 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
       window.prompt("포털 링크 (복사해 거래처에 전달하세요)", url);
     }
   };
+  useModalKeys(true, onClose, copy);
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-md bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>

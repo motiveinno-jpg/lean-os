@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getCurrentUser, getUnreadCounts } from "@/lib/queries";
 import { openGlobalSearch } from "@/components/global-search";
 import { useSidebar } from "@/components/sidebar-context";
@@ -436,6 +437,9 @@ export function Sidebar() {
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname, setMobileOpen]);
+
+  // 모바일 사이드바 드로어 — ESC로 닫기 (내비게이션 전용이라 Enter 확인 액션 없음)
+  useModalKeys(mobileOpen, () => setMobileOpen(false));
 
   async function handleLogout() {
     await supabase.auth.signOut();

@@ -32,6 +32,7 @@ import {
   type ContractTemplate,
 } from "@/lib/contract-templates";
 import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 type QuoteItem = {
   name?: string;
@@ -594,6 +595,7 @@ function OurSignatureModal({
     onCapture("upload", companyInfo.seal_url);
   }
   void partnerName; void partnerRep; void partnerBiz;
+  useModalKeys(true, onClose, submitting || !ourSignatureDataUrl ? undefined : onSubmit);
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div className="glass-card w-full max-w-lg max-h-[92vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>

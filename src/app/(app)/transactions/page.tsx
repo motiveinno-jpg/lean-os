@@ -25,6 +25,7 @@ import { BankAccountsOverview } from "@/components/bank-accounts-overview";
 import { AccessDenied } from "@/components/access-denied";
 import { EmptyState } from "@/components/empty-state";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 type Tab = 'inbox' | 'all' | 'rules' | 'cards' | 'manual';
 type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
@@ -736,6 +737,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     },
     onError: (err: any) => toast("법인카드 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
+  // 법인카드 등록/수정 모달 — ESC 닫기 · Enter 확인(카드 이름 미입력/저장중이면 비활성)
+  useModalKeys(showCardForm, () => setShowCardForm(false), !cardForm.card_name || upsertCardMut.isPending ? undefined : () => upsertCardMut.mutate());
 
   const deleteCardMut = useMutation({
     mutationFn: (id: string) => deleteCorporateCard(id),
@@ -2289,6 +2292,8 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
   // 삭제 가능한 옵션 = 사용자가 저장한 옵션만 (기본/기존거래 파생은 삭제 불가)
   const clsDeletable = new Set(savedClassifications || []);
   const catDeletable = new Set(savedCategories || []);
+  // ESC 닫기 · Enter 매핑 저장 (모달 마운트 = 항상 열림 상태)
+  useModalKeys(true, onClose, () => onMap({ dealId: dealId || undefined, classification: classification.trim() || undefined, category: category.trim() || undefined, isFixedCost: isFixed }));
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
@@ -2407,6 +2412,14 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
   ]));
   const clsDeletable = new Set(savedClassifications || []);
   const catDeletable = new Set(savedCategories || []);
+  // ESC 닫기 · Enter 매핑 저장 (모달 마운트 = 항상 열림 상태)
+  useModalKeys(true, onClose, () => onMap({
+    dealId: dealId || undefined,
+    classification: classification.trim() || undefined,
+    category: category.trim() || undefined,
+    isFixedCost: isFixed,
+    isDeductible,
+  }));
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // 모달 바깥(백드롭) 클릭 등으로 닫힐 때, 입력 중인 내용이 있으면 "작업을 취소하시겠습니까?" 확인.
 //   사장님 요청(2026-07-09): 팝업 옆 공간을 실수로 누르면 바로 사라져 작성분이 날아가는 불편 방지.
@@ -16,6 +17,9 @@ export function useUnsavedGuard() {
     if (dirty) setPending(() => onClose);
     else onClose();
   }, []);
+
+  // ESC=이 확인창만 닫고 작성 계속(파괴적 취소는 Enter로 걸지 않음 — 실수로 작성분 날아가지 않게)
+  useModalKeys(!!pending, () => setPending(null));
 
   const confirmEl = pending ? (
     <div

@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { CurrencyInput } from "@/components/currency-input";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export type QuoteCol = {
   key: string;
@@ -266,6 +267,8 @@ function HistoryPicker({ companyId, partnerName, onClose, onPick }: { companyId:
   const filtered = useMemo(() => onlyPartner && partnerName ? pool.filter((i) => i._partner === partnerName) : pool, [pool, onlyPartner, partnerName]);
   const toggle = (i: number) => setSel((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
 
+  useModalKeys(true, onClose, sel.size === 0 ? undefined : () => onPick(filtered.filter((_, i) => sel.has(i)).map((it) => { const { _doc, _partner, ...rest } = it; return rest; })));
+
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -332,6 +335,8 @@ function MyItemsPicker({ companyId, currentItems, onClose, onPick }: { companyId
   const remove = (i: number) => save(presets.filter((_, j) => j !== i));
   const toggle = (i: number) => setSel((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
 
+  useModalKeys(true, onClose, sel.size === 0 ? undefined : () => onPick(presets.filter((_, i) => sel.has(i)).map((p) => ({ name: p.name, spec: p.spec || "", unitPrice: p.unitPrice || 0, code: p.code || "", quantity: 1 }))));
+
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -393,6 +398,8 @@ function ColumnEditor({ cols, onClose, onSave }: { cols: QuoteCol[]; onClose: ()
       return next;
     });
   };
+
+  useModalKeys(true, onClose, () => onSave(active));
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>

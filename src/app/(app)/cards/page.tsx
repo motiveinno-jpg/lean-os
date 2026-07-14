@@ -18,6 +18,7 @@ import { CardBillingSummary } from "@/components/card-billing-summary";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
 import { SortToolbar } from "@/components/sort-toolbar";
 import { EmptyState } from "@/components/empty-state";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -280,6 +281,8 @@ export default function CardsPage() {
       queryClient.invalidateQueries({ queryKey: ["cards-page-recent-tx"] });
     } catch { toast("일괄 처리 중 오류", "error"); } finally { setPosting(false); }
   };
+  // 전표처리 모달 — ESC 닫기 · Enter 확인(계정과목 미선택/처리중이면 비활성)
+  useModalKeys(!!postCard, () => setPostCard(null), posting || !postAccountId ? undefined : doPostVoucher);
 
   // 일괄 전표처리 — 선택된 미처리 카드거래를 비용계정 1개로 순차 post_card_voucher
   const [showBulkPost, setShowBulkPost] = useState(false);
@@ -303,6 +306,8 @@ export default function CardsPage() {
       queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] });
     } finally { setBulkPosting(false); }
   };
+  // 일괄 전표처리 모달 — ESC 닫기 · Enter 확인(계정과목 미선택/처리중이면 비활성)
+  useModalKeys(showBulkPost, () => setShowBulkPost(false), bulkPosting || !bulkAccountId ? undefined : doBulkPost);
 
   // 거래내역 탭 — 최근 100건. 탭 진입 시에만 fetch.
   const { data: recentTx = [] } = useQuery({

@@ -9,6 +9,7 @@ import { createPayrollBatch, approveBatch, triggerBatchExecution, getPrevMonthPa
 import { getPaymentBatches } from "@/lib/approval-center";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: string; userId: string; invalidate: () => void }) {
   const { toast } = useToast();
@@ -77,6 +78,11 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
     }
     setGenerating(false);
   }
+
+  // ESC 닫기 · Enter 확인(복사여부에 따라 해당 solid 버튼 — 생성 중이면 비활성)
+  useModalKeys(!!copyPrompt, () => setCopyPrompt(null), copyPrompt && !generating
+    ? () => runGenerate(copyPrompt.exists, !copyPrompt.exists)
+    : undefined);
 
   const statusLabel: Record<string, { label: string; color: string }> = {
     draft: { label: '초안', color: 'text-gray-400' },

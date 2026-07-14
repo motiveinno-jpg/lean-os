@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DateField } from "@/components/date-field";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insur
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
 import { GRANTABLE_TABS, getUserTabAccess, setTabAccess, effectiveTabAccess } from "@/lib/tab-access";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // ── Employee Detail Panel ──
 export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
@@ -35,13 +36,33 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
   // 연봉 raw 입력 보존 — ÷12 → ×12 반올림으로 input 이 깨지지 않게.
   const [annualSalaryInput, setAnnualSalaryInput] = useState<string>("");
 
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (showTermModal) setShowTermModal(false); else onClose(); }
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [showTermModal, onClose]);
+  // 퇴사 확정 — 모달 내부(JSX)에서만 쓰던 걸 최상위로 끌어올려 useModalKeys(Enter 확인)에서도 참조 가능하게 함
+  async function confirmTermination() {
+    setTerminating(true);
+    try {
+      const { error } = await (supabase as any).from("employees").update({
+        status: "inactive",
+        resignation_date: termDate,
+      }).eq("id", employeeId);
+      if (error) throw error;
+      const { data: verify } = await (supabase as any).from("employees").select("id,status").eq("id", employeeId).maybeSingle();
+      if (!verify || verify.status !== "inactive") throw new Error("상태 업데이트 실패 — 권한을 확인해주세요");
+      queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
+      setShowTermModal(false);
+      toast("퇴사 처리가 완료되었습니다", "success");
+      setTimeout(() => onClose(), 300);
+    } catch (err: any) {
+      toast("퇴사 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error");
+    } finally {
+      setTerminating(false);
+    }
+  }
+  const termAllChecked = termChecklist.equipment && termChecklist.systemAccess && termChecklist.handover && termChecklist.insurance;
+
+  // ESC 닫기(모달 열려있으면 모달만, 아니면 패널 전체) · Enter 확인(퇴사 확정, 체크리스트 미완료/처리중이면 비활성)
+  useModalKeys(!showTermModal, onClose);
+  useModalKeys(showTermModal, () => setShowTermModal(false), termAllChecked && !terminating ? confirmTermination : undefined);
 
   // Retirement pay calculation state
   const [retirementEndDate, setRetirementEndDate] = useState(new Date().toISOString().slice(0, 10));
@@ -606,29 +627,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
               last3MonthsSalary: Number(emp.salary || 0) * 3,
             })
           : null;
-        const allChecked = termChecklist.equipment && termChecklist.systemAccess && termChecklist.handover && termChecklist.insurance;
-
-        async function confirmTermination() {
-          setTerminating(true);
-          try {
-            const { error } = await (supabase as any).from("employees").update({
-              status: "inactive",
-              resignation_date: termDate,
-            }).eq("id", employeeId);
-            if (error) throw error;
-            const { data: verify } = await (supabase as any).from("employees").select("id,status").eq("id", employeeId).maybeSingle();
-            if (!verify || verify.status !== "inactive") throw new Error("상태 업데이트 실패 — 권한을 확인해주세요");
-            queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
-            queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
-            setShowTermModal(false);
-            toast("퇴사 처리가 완료되었습니다", "success");
-            setTimeout(() => onClose(), 300);
-          } catch (err: any) {
-            toast("퇴사 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error");
-          } finally {
-            setTerminating(false);
-          }
-        }
+        const allChecked = termAllChecked;
 
         return createPortal(
           <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowTermModal(false)}>

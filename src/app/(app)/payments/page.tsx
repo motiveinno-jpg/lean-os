@@ -21,6 +21,7 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { supabase } from "@/lib/supabase";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // 2026-07-08 "정기 지출" 재편 — 자동 추천을 첫 화면으로. 지출결의→결재관리, 급여→인사, 구독 흡수(구독 탭).
 type Tab = 'recommend' | 'recurring' | 'subscriptions' | 'fixed' | 'queue';
@@ -167,15 +168,21 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   const [refundStep, setRefundStep] = useState<1 | 2>(1);
   const [refundSubmitting, setRefundSubmitting] = useState(false);
 
-  useEffect(() => {
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      if (receiptItem) { setReceiptItem(null); return; }
-      if (refundItem && !refundSubmitting) { setRefundItem(null); return; }
-    }
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [receiptItem, refundItem, refundSubmitting]);
+  function printReceipt() {
+    const el = document.getElementById('receipt-printable');
+    if (!el) return;
+    const w = window.open('', '_blank', 'width=600,height=800');
+    if (!w) { queueToast('팝업이 차단되었습니다. 팝업을 허용해주세요.', 'error'); return; }
+    w.document.write(`<html><head><title>영수증</title><style>body{font-family:sans-serif;padding:20px;color:#000}.row{display:flex;justify-content:space-between;padding:4px 0;font-size:14px}.hr{border-top:1px solid #ccc;margin:12px 0}.center{text-align:center;margin-bottom:16px}.big{font-size:22px;font-weight:900}</style></head><body onload="window.print();window.close()">${el.innerHTML.replace(/var\(--[^)]+\)/g, '#333').replace(/text-\w+-\d+/g, '')}</body></html>`);
+    w.document.close();
+  }
+
+  useModalKeys(!!receiptItem, () => setReceiptItem(null), printReceipt);
+  useModalKeys(!!refundItem, () => { if (!refundSubmitting) setRefundItem(null); }, () => {
+    if (refundSubmitting) return;
+    if (refundStep === 1) { if (refundReason.trim()) setRefundStep(2); }
+    else submitRefund();
+  });
 
   async function submitRefund() {
     if (!refundItem || !refundReason.trim() || !userId) return;
@@ -522,14 +529,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
             </div>
             <div className="flex gap-2 p-4 border-t border-[var(--border)]">
               <button onClick={() => setReceiptItem(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--bg-surface)] text-[var(--text)] hover:bg-[var(--border)] transition">닫기</button>
-              <button onClick={() => {
-                const el = document.getElementById('receipt-printable');
-                if (!el) return;
-                const w = window.open('', '_blank', 'width=600,height=800');
-                if (!w) { queueToast('팝업이 차단되었습니다. 팝업을 허용해주세요.', 'error'); return; }
-                w.document.write(`<html><head><title>영수증</title><style>body{font-family:sans-serif;padding:20px;color:#000}.row{display:flex;justify-content:space-between;padding:4px 0;font-size:14px}.hr{border-top:1px solid #ccc;margin:12px 0}.center{text-align:center;margin-bottom:16px}.big{font-size:22px;font-weight:900}</style></head><body onload="window.print();window.close()">${el.innerHTML.replace(/var\(--[^)]+\)/g, '#333').replace(/text-\w+-\d+/g, '')}</body></html>`);
-                w.document.close();
-              }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition">PDF / 인쇄</button>
+              <button onClick={printReceipt} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition">PDF / 인쇄</button>
             </div>
           </div>
         </div>
@@ -724,11 +724,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
     enabled: !!batchId,
   });
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useModalKeys(true, onClose);
 
   const batch: any = data?.batch;
   const items: any[] = data?.items || [];
@@ -860,11 +856,7 @@ function RecurringDetailModal({
   onClose: () => void;
   onEdit: () => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useModalKeys(true, onClose, onEdit);
 
   const transferAccount = bankAccounts.find((a: any) => a.id === item.auto_transfer_account_id);
   const transferAccountLabel = transferAccount

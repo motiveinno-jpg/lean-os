@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 
@@ -98,6 +99,12 @@ export default function QuoteApprovalPage() {
   const [signerCompanyName, setSignerCompanyName] = useState("");
   const [signerBusinessNumber, setSignerBusinessNumber] = useState("");
   const [signerRepresentative, setSignerRepresentative] = useState("");
+
+  useModalKeys(
+    showSignatureModal,
+    () => setShowSignatureModal(false),
+    submitting || !signatureDataUrl ? undefined : () => submit("approved"),
+  );
 
   // 1) 토큰으로 1회 fetch + viewed 처리
   useEffect(() => {

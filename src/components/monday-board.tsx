@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -732,6 +733,8 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
     return new Date(iso).toLocaleDateString("ko-KR");
   };
 
+  useModalKeys(true, onClose, !body.trim() || busy ? undefined : submit);
+
   return (
     <div className="fixed inset-0 z-[80] flex justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
@@ -1130,6 +1133,8 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
   const setOpt = (i: number, patch: Partial<{ label: string; color: string }>) => setOptions((o) => o.map((x, idx) => idx === i ? { ...x, ...patch } : x));
   const removeOpt = (i: number) => setOptions((o) => o.filter((_, idx) => idx !== i));
   const save = () => { onSave({ name: name.trim() || col.name, ...(isStatus ? { settings: { ...(col.settings || {}), options } } : {}) }); onClose(); };
+
+  useModalKeys(true, onClose, save);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>

@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase as any;
 
@@ -188,6 +189,9 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
 function ProfilePanel({ companyId, emp, isManager, onClose }: { companyId: string; emp: Emp; isManager: boolean; onClose: () => void }) {
   const sm = statusMeta(emp.status);
   const year = new Date().getFullYear();
+
+  // ESC 닫기 — 읽기 전용 프로필 패널(수정 없음, 링크만 있어 Enter 확인 액션 없음)
+  useModalKeys(true, onClose);
 
   // 연차 잔여 (leave_balances 올해)
   const { data: leave } = useQuery<{ total: number; used: number; remaining: number } | null>({

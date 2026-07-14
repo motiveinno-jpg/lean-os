@@ -9,6 +9,7 @@
 import { useMemo, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { createPortal } from "react-dom";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -231,6 +232,14 @@ function TemplateEditorModal({
     if (fileType === "markdown") return !!bodyMarkdown.trim();
     return !!bodyHtml.trim();
   }
+
+  useModalKeys(
+    true,
+    onClose,
+    readonly || !canSave() || createMut.isPending || updateMut.isPending
+      ? undefined
+      : () => (editing ? updateMut.mutate() : createMut.mutate()),
+  );
 
   if (typeof document === "undefined") return null;
   return createPortal(

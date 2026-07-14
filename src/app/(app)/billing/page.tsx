@@ -9,6 +9,7 @@ import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase as any;
@@ -176,16 +177,6 @@ export default function BillingPage() {
     onError: (err: any) => toast("피드백 제출 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  useEffect(() => {
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      if (showUpgradeModal) { setShowUpgradeModal(null); return; }
-      if (showCancelModal) { setShowCancelModal(false); return; }
-    }
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [showUpgradeModal, showCancelModal]);
-
   // Handle Stripe checkout callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -261,6 +252,67 @@ export default function BillingPage() {
     { key: "invoices", label: "청구서", icon: "🧾" },
     { key: "referral", label: "추천/피드백", icon: "🎁" },
   ];
+
+  /** 플랜 변경 모달 확인 */
+  async function handleUpgradeConfirm() {
+    if (!showUpgradeModal) return;
+    if (showUpgradeModal === "free") {
+      setShowUpgradeModal(null);
+      // Stripe 구독자는 portal에서 정식 해지 → 결제기간 종료시 free 전환 (직접 DB조작 금지)
+      if (hasStripeSubscription) {
+        await handleOpenPortal();
+        return;
+      }
+      if (!subscription?.id) return;
+      await db.from('subscriptions').update({
+        status: 'canceled',
+        cancel_reason: '사용자 다운그레이드 (Free)',
+        canceled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('id', subscription.id);
+      qc.invalidateQueries({ queryKey: ['subscription'] });
+      toast("Free 플랜으로 변경되었습니다.", "success");
+      return;
+    }
+
+    const slug = showUpgradeModal;
+    setShowUpgradeModal(null);
+    // 이미 Stripe 구독자이면 portal에서 플랜 변경 (중복 구독 방지)
+    if (hasStripeSubscription && currentSlug !== 'free') {
+      await handleOpenPortal();
+      return;
+    }
+    await handleStripeCheckout(slug);
+  }
+
+  /** 구독 해지 모달 확인 */
+  async function handleCancelConfirm() {
+    try {
+      if (subscription?.id) {
+        await db.from('subscriptions').update({
+          status: 'canceled',
+          cancel_reason: cancelReason || null,
+          canceled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq('id', subscription.id);
+
+        await db.from('billing_events').insert({
+          company_id: companyId,
+          event_type: 'subscription_cancel',
+          metadata: { plan: currentSlug, reason: cancelReason },
+        });
+
+        qc.invalidateQueries({ queryKey: ['subscription'] });
+        toast("해지 요청이 접수되었습니다. 현재 결제 기간 종료 후 Free로 전환됩니다.", "success");
+      }
+    } catch {
+      toast("해지 처리 중 오류가 발생했습니다.", "error");
+    }
+    setShowCancelModal(false);
+  }
+
+  useModalKeys(!!showUpgradeModal, () => setShowUpgradeModal(null), isPaymentLoading ? undefined : handleUpgradeConfirm);
+  useModalKeys(showCancelModal, () => setShowCancelModal(false), handleCancelConfirm);
 
   if (isUserLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
   if (mainError) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
@@ -769,34 +821,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               <button
                 disabled={isPaymentLoading}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition disabled:opacity-50"
-                onClick={async () => {
-                  if (showUpgradeModal === "free") {
-                    setShowUpgradeModal(null);
-                    // Stripe 구독자는 portal에서 정식 해지 → 결제기간 종료시 free 전환 (직접 DB조작 금지)
-                    if (hasStripeSubscription) {
-                      await handleOpenPortal();
-                      return;
-                    }
-                    if (!subscription?.id) return;
-                    await db.from('subscriptions').update({
-                      status: 'canceled',
-                      cancel_reason: '사용자 다운그레이드 (Free)',
-                      canceled_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString(),
-                    }).eq('id', subscription.id);
-                    qc.invalidateQueries({ queryKey: ['subscription'] });
-                    toast("Free 플랜으로 변경되었습니다.", "success");
-                    return;
-                  }
-
-                  setShowUpgradeModal(null);
-                  // 이미 Stripe 구독자이면 portal에서 플랜 변경 (중복 구독 방지)
-                  if (hasStripeSubscription && currentSlug !== 'free') {
-                    await handleOpenPortal();
-                    return;
-                  }
-                  await handleStripeCheckout(showUpgradeModal);
-                }}
+                onClick={handleUpgradeConfirm}
               >
                 {isPaymentLoading ? "로딩 중..." : showUpgradeModal === "free" ? "다운그레이드" : "결제하기"}
               </button>
@@ -829,30 +854,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               </button>
               <button
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition"
-                onClick={async () => {
-                  try {
-                    if (subscription?.id) {
-                      await db.from('subscriptions').update({
-                        status: 'canceled',
-                        cancel_reason: cancelReason || null,
-                        canceled_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                      }).eq('id', subscription.id);
-
-                      await db.from('billing_events').insert({
-                        company_id: companyId,
-                        event_type: 'subscription_cancel',
-                        metadata: { plan: currentSlug, reason: cancelReason },
-                      });
-
-                      qc.invalidateQueries({ queryKey: ['subscription'] });
-                      toast("해지 요청이 접수되었습니다. 현재 결제 기간 종료 후 Free로 전환됩니다.", "success");
-                    }
-                  } catch {
-                    toast("해지 처리 중 오류가 발생했습니다.", "error");
-                  }
-                  setShowCancelModal(false);
-                }}
+                onClick={handleCancelConfirm}
               >
                 해지 확인
               </button>

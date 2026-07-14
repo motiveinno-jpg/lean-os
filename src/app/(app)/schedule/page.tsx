@@ -26,6 +26,7 @@ import {
 } from "@/lib/schedule";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 type Tab = "calendar" | "todo";
 
@@ -80,6 +81,11 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
   // R5: 일정 클릭 시 즉시 완료 토글 ❌ → 수정/완료 선택 팝업
   const [actionEvent, setActionEvent] = useState<ScheduleEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // ESC 닫기 · Enter 확인(완료/완료취소 — 팝업 내 유일한 solid 주 액션 버튼)
+  useModalKeys(!!actionEvent, () => setActionEvent(null), actionEvent
+    ? () => { toggleDoneMut.mutate({ id: actionEvent.id, completed: !actionEvent.completed }); setActionEvent(null); }
+    : undefined);
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["schedule-events", companyId, view.year, view.monthIdx0, scope, userId],
@@ -416,12 +422,6 @@ function EventModal({
     isShared: event.is_shared ?? false,
   });
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   // 종료가 시작보다 빠르면 막는다 (기간 일정 오입력 방지). 종료 비우면 단일 일정.
   const dateError = (() => {
     if (!form.endAt) return null;
@@ -459,6 +459,9 @@ function EventModal({
     });
   };
 
+  // ESC 닫기 · Enter 확인(저장 — 제목 비었거나 날짜 오류·저장 중이면 비활성)
+  useModalKeys(true, onClose, !form.title.trim() || !!dateError || saving ? undefined : submit);
+
   const colorOptions: EventColor[] = ["blue", "green", "red", "amber", "violet", "gray"];
 
   return (
@@ -475,7 +478,6 @@ function EventModal({
               autoFocus
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              onKeyDown={(e) => { if (e.key === "Enter" && form.title.trim()) submit(); }}
               placeholder="예: 미팅, 마감, 출장"
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
             />
@@ -784,11 +786,13 @@ function TodoEditModal({
     dueDate: todo.due_date || "",
   });
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const submitEdit = () => {
+    if (!form.title.trim()) return;
+    onSave({ id: todo.id, title: form.title.trim(), priority: form.priority, dueDate: form.dueDate || null });
+  };
+
+  // ESC 닫기 · Enter 확인(저장 — 제목 비었거나 저장 중이면 비활성)
+  useModalKeys(true, onClose, !form.title.trim() || saving ? undefined : submitEdit);
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
@@ -819,7 +823,7 @@ function TodoEditModal({
         </div>
         <div className="px-5 py-4 border-t border-[var(--border)] flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-lg">취소</button>
-          <button onClick={() => form.title.trim() && onSave({ id: todo.id, title: form.title.trim(), priority: form.priority, dueDate: form.dueDate || null })} disabled={!form.title.trim() || saving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">
+          <button onClick={submitEdit} disabled={!form.title.trim() || saving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">
             {saving ? "저장 중..." : "저장"}
           </button>
         </div>

@@ -37,6 +37,7 @@ import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
 import { useToast } from "@/components/toast";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase as any;
 
@@ -353,6 +354,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     } catch (e: any) { toast("발행 실패: " + (e?.message || ""), "error"); }
     finally { setIssuing(false); }
   };
+
+  useModalKeys(savedModal, () => setSavedModal(false), issuing ? undefined : () => issueInvoices("bulk"));
 
   const submitMut = useMutation({
     mutationFn: () => submitForReview(id),

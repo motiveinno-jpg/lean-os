@@ -4,6 +4,7 @@ import { globalSearch, type GlobalSearchResult } from "@/lib/search";
 import { getCurrentUser } from "@/lib/queries";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const TYPE_LABELS: Record<string, string> = {
   deals: "프로젝트", documents: "문서", partners: "거래처", taxInvoices: "세금계산서",
@@ -86,12 +87,17 @@ export function GlobalSearch() {
 
   const navigate = (type: string) => { setOpen(false); router.push(TYPE_ROUTES[type] ?? "/"); };
 
+  // 첫 번째 결과 그룹으로 이동 — Enter 로 검색 결과 첫 항목 선택과 동일 효과
+  const firstResultType = results && results.totalCount > 0
+    ? ENTITY_TYPES.find((t) => (results[t]?.length ?? 0) > 0) ?? null
+    : null;
+  useModalKeys(open, () => setOpen(false), firstResultType ? () => navigate(firstResultType) : undefined);
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]"
-      onClick={() => setOpen(false)}
-      onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}>
+      onClick={() => setOpen(false)}>
       <div className="absolute inset-0 bg-black/60" />
       <div className="relative bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden"
         role="dialog" aria-modal="true" aria-label="전역 검색"
@@ -103,7 +109,6 @@ export function GlobalSearch() {
           </svg>
           <input ref={inputRef} type="text" value={query}
             onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
             placeholder="검색... (프로젝트, 문서, 거래처, 세금계산서...)"
             className="flex-1 bg-transparent text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none text-sm" />
           <kbd className="hidden sm:inline-block text-[10px] text-[var(--text-dim)] border border-[var(--border)] rounded px-1.5 py-0.5">ESC</kbd>

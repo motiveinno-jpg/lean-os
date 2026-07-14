@@ -30,6 +30,7 @@ import { deleteDocument } from "@/lib/queries";
 import { TasksTab } from "./_components/TasksTab";
 import { IssuesTab } from "./_components/IssuesTab";
 import { MondayBoard } from "@/components/monday-board";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase as any;
 
@@ -852,6 +853,28 @@ export default function ProjectHubDetailPage() {
     enabled: costEnabled,
   });
 
+  // 모달 ESC/Enter 단축키 — 이 화면의 모든 모달은 서로 배타적으로 열리므로 개별 useModalKeys 로 등록.
+  //   deal 로딩 전에도 훅 순서 유지를 위해 조기 return(아래) 이전에 호출.
+  useModalKeys(showChildForm, () => setShowChildForm(false), creatingChild || !childName.trim() ? undefined : createChild);
+  useModalKeys(!!editChild, () => setEditChild(null), savingChild || !editChildName.trim() ? undefined : saveChild);
+  useModalKeys(!!deleteTarget, () => setDeleteTarget(null), deletingChild ? undefined : removeChild);
+  useModalKeys(!!tplManagerKind, () => setTplManagerKind(null)); // 양식 관리 — 내부 컴포넌트가 저장을 자체 처리, 주 액션 없음
+  useModalKeys(!!delDoc, () => setDelDoc(null), deletingDoc ? undefined : removeDoc);
+  useModalKeys(!!payModalQuote, () => setPayModalQuote(null),
+    (creatingContractFrom || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0))
+      ? undefined
+      : () => { const d = payModalQuote; setPayModalQuote(null); createContractFromQuote(d); });
+  useModalKeys(!!invoiceModal, () => setInvoiceModal(null), (() => {
+    if (!invoiceModal) return undefined;
+    const supply = quoteAmount(invoiceModal) || Number(deal?.contract_total || 0);
+    if (issuingInvoiceFrom || supply <= 0 || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)) return undefined;
+    return issueInvoices;
+  })());
+  useModalKeys(showQuoteForm, () => setShowQuoteForm(false),
+    (creatingQuote || (formKind === "contract" && payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)) ? undefined : createDoc);
+  useModalKeys(!!previewDoc, () => setPreviewDoc(null),
+    previewUrl ? () => { (document.getElementById("quote-preview-iframe") as HTMLIFrameElement | null)?.contentWindow?.print(); } : undefined);
+
   // 접근 권한은 RouteGuard(user_tab_access grant)가 처리 — 여기서 role 하드코딩 차단 제거(담당자 직원 접근 허용)
   if (isLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
   if (!deal) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">프로젝트를 찾을 수 없습니다. <Link href="/projecthub" className="text-[var(--primary)] hover:underline">목록으로</Link></div>;
@@ -1281,7 +1304,7 @@ export default function ProjectHubDetailPage() {
                     <button type="button" onClick={() => setChildKind("sales")} className={`px-3 h-10 text-xs font-bold transition ${childKind === "sales" ? "bg-[var(--success)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매출</button>
                     <button type="button" onClick={() => setChildKind("purchase")} className={`px-3 h-10 text-xs font-bold border-l border-[var(--border)] transition ${childKind === "purchase" ? "bg-[var(--danger)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매입</button>
                   </div>
-                  <input value={childAmt} onChange={(e) => setChildAmt(numComma(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") createChild(); }} inputMode="numeric" placeholder={childKind === "sales" ? "받을 돈 0" : "줄 돈 0"}
+                  <input value={childAmt} onChange={(e) => setChildAmt(numComma(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); createChild(); } }} inputMode="numeric" placeholder={childKind === "sales" ? "받을 돈 0" : "줄 돈 0"}
                     className={`flex-1 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)] ${childKind === "sales" ? "text-[var(--success)]" : "text-[var(--danger)]"}`} />
                   <select value={childVat} onChange={(e) => setChildVat(e.target.value as "exclude" | "include")} className="px-2 h-10 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[11px] text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] shrink-0">
                     <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
@@ -1361,7 +1384,7 @@ export default function ProjectHubDetailPage() {
                 </div>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">캠페인명 *</label>
                 <input autoFocus value={editChildName} onChange={(e) => setEditChildName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") saveChild(); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); saveChild(); } }}
                   className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">진행 단계</label>
                 <select value={editChildStage} onChange={(e) => setEditChildStage(e.target.value)}
@@ -1574,7 +1597,7 @@ export default function ProjectHubDetailPage() {
               autoFocus
               value={quoteName}
               onChange={(e) => setQuoteName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") createDoc(); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); createDoc(); } }}
               placeholder={formKind === "quote" ? "견적서명" : "계약서명"}
               className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
             />

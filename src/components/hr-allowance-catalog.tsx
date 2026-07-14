@@ -18,6 +18,7 @@ import {
   deleteAllowanceType,
   type AllowanceTypeRow,
 } from "@/lib/hr";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -319,6 +320,9 @@ function AllowanceTypeModal({
     if (form.rate_amount < 0) return false;
     return true;
   }, [form.name, form.rate_amount]);
+
+  // ESC 닫기 · Enter 확인(저장 — 미충족/저장 중이면 비활성)
+  useModalKeys(true, onClose, saveMut.isPending || !canSubmit ? undefined : () => saveMut.mutate());
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
