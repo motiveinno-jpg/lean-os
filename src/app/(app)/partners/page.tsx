@@ -10,6 +10,7 @@ import { getCurrentUser, getDeals } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { verifyBusinessNumber } from "@/lib/business-verification";
 import { QueryErrorBanner } from "@/components/query-status";
+import { MoreMenu, MORE_ITEM_CLS } from "@/components/more-menu";
 import { TileIcon } from "@/components/ui/icon-tile";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -732,19 +733,21 @@ export default function PartnersPage() {
         <input type="text" placeholder="이름, 담당자, 사업자번호 검색..." value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 min-w-[200px] px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-        {/* 액션 버튼 — 리스트 바로 위 우측 정렬(작게). 전체폭 툴바를 제거해 공간 절약(2026-07-14) */}
+        {/* 액션 버튼 — 리스트 바로 위 우측 정렬(작게). 자주 쓰는 것만 표시, 나머지는 더보기(2026-07-14) */}
         <div className="ml-auto flex items-center gap-1.5 flex-wrap justify-end">
           <Link href="/partners/ledger" className="btn-secondary btn-sm whitespace-nowrap" title="거래처별 미수금/미지급금 원장 (채권·채무 대사)">거래처 원장</Link>
-          <button onClick={downloadCSVTemplate} className="btn-secondary btn-sm" title="CSV 템플릿 다운로드">템플릿</button>
-          <label className="btn-secondary btn-sm whitespace-nowrap cursor-pointer">CSV 임포트
-            <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
-          </label>
-          <button onClick={handleExport} className="btn-secondary btn-sm whitespace-nowrap">Excel 내보내기</button>
           <button onClick={runDormancyDetect} disabled={detecting} className="btn-secondary btn-sm whitespace-nowrap disabled:opacity-50"
             title="6개월 이상 거래·연락 없는 거래처를 휴면으로 표시하고 담당자에게 리마인더 알림 발송">
             {detecting ? "감지 중..." : "휴면 감지"}
           </button>
+          <MoreMenu>
+            <button onClick={downloadCSVTemplate} className={MORE_ITEM_CLS} role="menuitem">📄 CSV 템플릿</button>
+            <label className={MORE_ITEM_CLS}>📥 CSV 임포트
+              <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
+            </label>
+            <button onClick={handleExport} className={MORE_ITEM_CLS} role="menuitem">📤 Excel 내보내기</button>
+          </MoreMenu>
           <button onClick={openCreate} className="btn-primary btn-sm whitespace-nowrap">+ 새 거래처</button>
         </div>
         <span className="text-xs text-[var(--text-dim)]">{partners.length}건{partners.length !== (rawPartners as any[]).length && `/${(rawPartners as any[]).length}`}</span>
