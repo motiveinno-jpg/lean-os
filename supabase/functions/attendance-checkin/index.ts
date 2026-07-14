@@ -61,7 +61,6 @@ serve(async (req) => {
       // 회귀픽스 (2026-05-21): INSERT 시 is_late / late_minutes 컬럼을 함께 채워
       //   "출근 누를 때마다 행 재생성 → late 컬럼 0" 회귀 차단. KST 분 단위 비교.
       //   클라이언트 hr.ts mark_attendance_late RPC 도 유지 (이중 안전망).
-      // work_start_time 은 지각판정 + 이른출근 clamp 공용으로 항상 조회.
       const csRes = await admin.from("company_settings")
         .select("work_start_time")
         .eq("company_id", companyId)
@@ -69,6 +68,14 @@ serve(async (req) => {
       let wst = "09:00";
       if (csRes.data && typeof csRes.data.work_start_time === "string" && /^\d{2}:\d{2}/.test(csRes.data.work_start_time)) {
         wst = csRes.data.work_start_time.slice(0, 5);
+      }
+      // 직원 개인 출퇴근시간 override — 있으면 회사 기본값 대신 사용 (지각 판정 일관성).
+      const empRes = await admin.from("employees")
+        .select("work_start_time")
+        .eq("id", employeeId)
+        .maybeSingle();
+      if (empRes.data && typeof empRes.data.work_start_time === "string" && /^\d{2}:\d{2}/.test(empRes.data.work_start_time)) {
+        wst = empRes.data.work_start_time.slice(0, 5);
       }
       const wparts = wst.split(":");
       const workStartMin = (Number(wparts[0]) || 0) * 60 + (Number(wparts[1]) || 0);
@@ -78,18 +85,11 @@ serve(async (req) => {
       const isLateFlag = status === "late";
       const lateMinutes = isLateFlag ? Math.max(0, ciKstMin - workStartMin) : 0;
 
-      // 이른 출근(지정 출근시간 전) — check_in 을 지정 출근시각으로 고정(찍힘).
-      //   실제 태그시각은 note 에 "실제 출근 HH:MM" 로 보존. 연장·근무시간은 지정시각부터 계산.
-      //   (사장님 요청 2026-07-09: 일찍 와도 9:30 로 찍히고, 이른 시간은 연장 미반영.)
-      let effectiveCheckIn = now;
-      let earlyNote: string | null = null;
-      if (ciKstMin < workStartMin) {
-        effectiveCheckIn = new Date(`${today}T${wst}:00+09:00`).toISOString();
-        const ah = String(Math.floor(ciKstMin / 60)).padStart(2, "0");
-        const am = String(ciKstMin % 60).padStart(2, "0");
-        earlyNote = `실제 출근 ${ah}:${am}`;
-      }
-
+      // QA 2026-07-14 (사장님): check_in 은 실제로 찍은 시각 그대로 저장·표시한다(더 이상
+      //   지정 출근시간으로 고정하지 않음). "이른 출근이 연장근무로 잡히면 안 된다"는 요구는
+      //   attendance-calc.ts의 calcDailyAttendance()가 이미 정규/연장 근무시간 계산 시에만
+      //   effCiMin = max(실제 출근, 지정 출근시각) 으로 별도 clamp하고 있어 그대로 유지됨 —
+      //   표시용 check_in 원본만 보존하도록 여기서의 강제 고정(clamp)을 제거.
       // overtime_request_id: 클라이언트가 check_can_clock_in_after_hours 게이트 통과 시 전달.
       //   NO_WORK_END / BEFORE_WORK_END 케이스에서는 null 로 전달돼 정상 처리.
       const otReqId = typeof overtimeRequestId === "string" && overtimeRequestId ? overtimeRequestId : null;
@@ -99,11 +99,10 @@ serve(async (req) => {
           company_id: companyId,
           employee_id: employeeId,
           date: today,
-          check_in: effectiveCheckIn,
+          check_in: now,
           status: status || "present",
           is_late: isLateFlag,
           late_minutes: lateMinutes,
-          note: earlyNote,
           work_hours: 0,
           overtime_hours: 0,
           overtime_request_id: otReqId,

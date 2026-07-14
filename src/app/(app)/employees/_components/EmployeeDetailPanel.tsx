@@ -156,7 +156,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
           <h3 className="text-sm font-bold text-[var(--text)]">구성원 상세</h3>
           <div className="flex items-center gap-2 shrink-0">
             {!isEditing && detailTab === "info" && (
-              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3 py-1.5 text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 rounded-lg transition">
+              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3 py-1.5 text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 rounded-lg transition">
                 ✏ 수정
               </button>
             )}
@@ -264,6 +264,23 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                   <InfoRow label="4대보험" value={emp.is_4_insurance ? "가입" : "미가입"} />
                 </>)}
               </div>
+            </div>
+            {/* 근무시간 (개인 설정) */}
+            <div>
+              <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                근무시간 (개인 설정)
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {isEditing ? (<>
+                  <EditField label="출근 시간" value={editData.work_start_time} onChange={(v) => setEditData({ ...editData, work_start_time: v })} type="time" />
+                  <EditField label="퇴근 시간" value={editData.work_end_time} onChange={(v) => setEditData({ ...editData, work_end_time: v })} type="time" />
+                </>) : (<>
+                  <InfoRow label="출근 시간" value={emp.work_start_time ? emp.work_start_time.slice(0, 5) : "회사 기본값"} />
+                  <InfoRow label="퇴근 시간" value={emp.work_end_time ? emp.work_end_time.slice(0, 5) : "회사 기본값"} />
+                </>)}
+              </div>
+              <div className="text-[10px] text-[var(--text-dim)] mt-1.5">비워두면 회사 설정(설정 &gt; 근태)의 기본 출퇴근 시간이 적용됩니다.</div>
             </div>
             {/* 기본 정보 */}
             <div>

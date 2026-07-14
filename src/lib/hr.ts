@@ -121,6 +121,7 @@ export async function updateEmployee(employeeId: string, updates: Record<string,
     'salary', 'bank_name', 'bank_account', 'bank_holder',
     'employee_number', 'hire_date', 'is_4_insurance',
     'meal_allowance_included', 'contract_type',
+    'work_start_time', 'work_end_time',
   ];
   // date/number 컬럼 — 빈 string 받으면 Postgres 가 invalid 에러.
   // 빈 값은 null 로 정규화.
@@ -238,7 +239,7 @@ const DEFAULT_ATTENDANCE_POLICY: AttendancePolicy = {
  *  컬럼 우선(work_start_time/late_grace_minutes) → JSONB settings fallback → 기본값.
  *  F2 호환: 시그니처/반환타입 무변동. checkIn 호출처 영향 없음.
  */
-export async function getAttendancePolicy(companyId: string): Promise<AttendancePolicy> {
+export async function getAttendancePolicy(companyId: string, employeeId?: string): Promise<AttendancePolicy> {
   try {
     const { data } = await db
       .from('company_settings')
@@ -258,6 +259,17 @@ export async function getAttendancePolicy(companyId: string): Promise<Attendance
       ltm = Math.max(0, Math.min(240, Math.trunc(Number(data.late_grace_minutes))));
     } else if (Number.isFinite(Number(s.late_threshold_minutes))) {
       ltm = Math.max(0, Math.min(240, Math.trunc(Number(s.late_threshold_minutes))));
+    }
+    // 2) 직원 개인 출퇴근시간 override — 있으면 회사 기본값 위에 덮어씀
+    if (employeeId) {
+      const { data: emp } = await db
+        .from('employees')
+        .select('work_start_time')
+        .eq('id', employeeId)
+        .maybeSingle();
+      if (typeof emp?.work_start_time === 'string' && /^\d{2}:\d{2}/.test(emp.work_start_time)) {
+        wst = emp.work_start_time.slice(0, 5);
+      }
     }
     return {
       workStartTime: wst ?? DEFAULT_ATTENDANCE_POLICY.workStartTime,
@@ -358,6 +370,49 @@ export async function getAttendanceCompanySettings(companyId: string): Promise<A
   } catch {
     return { ...D };
   }
+}
+
+/** L 근태 — 직원 개인 출퇴근시간 override 배치 조회 (recomputeAttendance 등 다건 처리용).
+ *  employees.work_start_time/work_end_time 이 NULL 이면 회사 기본값을 그대로 쓴다는 뜻이라
+ *  이 함수는 override "있는 값"만 담아 반환(없으면 맵에 키 자체가 안 잡히거나 값이 null).
+ */
+export async function getEmployeeWorkTimeOverrides(
+  employeeIds: string[]
+): Promise<Map<string, { work_start_time: string | null; work_end_time: string | null }>> {
+  const map = new Map<string, { work_start_time: string | null; work_end_time: string | null }>();
+  if (employeeIds.length === 0) return map;
+  const { data } = await db
+    .from('employees')
+    .select('id, work_start_time, work_end_time')
+    .in('id', employeeIds);
+  (data || []).forEach((e: any) => map.set(e.id, {
+    work_start_time: e.work_start_time || null,
+    work_end_time: e.work_end_time || null,
+  }));
+  return map;
+}
+
+/** 회사 기본 설정에 직원 개인 override(있으면)를 덮어써 그 직원 기준 유효 설정을 만든다. */
+export function applyEmployeeWorkTimeOverride(
+  base: AttendanceCompanySettings,
+  override?: { work_start_time: string | null; work_end_time: string | null } | null,
+): AttendanceCompanySettings {
+  if (!override) return base;
+  return {
+    ...base,
+    work_start_time: override.work_start_time ? hhmm(override.work_start_time, base.work_start_time) : base.work_start_time,
+    work_end_time: override.work_end_time ? hhmm(override.work_end_time, base.work_end_time) : base.work_end_time,
+  };
+}
+
+/** L 근태 — 직원 1인 기준 유효 설정 (회사 기본값 + 개인 출퇴근시간 override). */
+export async function getEffectiveAttendanceSettings(
+  companyId: string,
+  employeeId: string
+): Promise<AttendanceCompanySettings> {
+  const base = await getAttendanceCompanySettings(companyId);
+  const overrides = await getEmployeeWorkTimeOverrides([employeeId]);
+  return applyEmployeeWorkTimeOverride(base, overrides.get(employeeId));
 }
 
 /** L 근태 — 회사 전체 설정 저장 (신규 컬럼 upsert). */
@@ -481,6 +536,17 @@ export async function recomputeAttendance(params: {
   const { data: rows, error } = await q;
   if (error) throw error;
 
+  // 직원별 출퇴근시간 override — 회사 기본 settings 위에 개인 설정이 있으면 그 직원 행에만 덮어씀.
+  const distinctEmpIds = [...new Set((rows || []).map((r: any) => r.employee_id).filter(Boolean))] as string[];
+  const workTimeOverrides = await getEmployeeWorkTimeOverrides(distinctEmpIds);
+  const settingsByEmployee = new Map<string, AttendanceCompanySettings>();
+  const settingsFor = (employeeId: string): AttendanceCompanySettings => {
+    if (!settingsByEmployee.has(employeeId)) {
+      settingsByEmployee.set(employeeId, applyEmployeeWorkTimeOverride(settings, workTimeOverrides.get(employeeId)));
+    }
+    return settingsByEmployee.get(employeeId)!;
+  };
+
   // 휴가 행 (on_leave 판단)
   const { data: leaves } = await db
     .from('leave_requests')
@@ -506,7 +572,7 @@ export async function recomputeAttendance(params: {
       check_in: r.check_in,
       check_out: r.check_out,
       date: r.date,
-      settings,
+      settings: settingsFor(r.employee_id),
       holidays: holidaySet,
       on_leave: leaveByEmpDate.has(`${r.employee_id}|${r.date}`),
       attendance_type: (r.attendance_type as any) || 'normal',
@@ -770,7 +836,7 @@ export function isLate(currentKstMin: number, policy: AttendancePolicy): boolean
 // status === 'auto' (기본) → 회사 정책 기준 KST 시각으로 present/late 자동 판정
 export async function checkIn(companyId: string, employeeId: string, status: string = "auto") {
   if (status === "auto") {
-    const policy = await getAttendancePolicy(companyId);
+    const policy = await getAttendancePolicy(companyId, employeeId);
     const mins = nowKstMinutes();
     status = isLate(mins, policy) ? "late" : "present";
   }

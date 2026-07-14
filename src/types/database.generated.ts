@@ -5412,6 +5412,8 @@ export type Database = {
           saved_signature: Json | null
           status: string | null
           user_id: string | null
+          work_end_time: string | null
+          work_start_time: string | null
           working_hours: string | null
         }
         Insert: {
@@ -5450,6 +5452,8 @@ export type Database = {
           saved_signature?: Json | null
           status?: string | null
           user_id?: string | null
+          work_end_time?: string | null
+          work_start_time?: string | null
           working_hours?: string | null
         }
         Update: {
@@ -5488,6 +5492,8 @@ export type Database = {
           saved_signature?: Json | null
           status?: string | null
           user_id?: string | null
+          work_end_time?: string | null
+          work_start_time?: string | null
           working_hours?: string | null
         }
         Relationships: [

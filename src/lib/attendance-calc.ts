@@ -206,9 +206,9 @@ export function calcDailyAttendance(input: DailyInput): DailyResult {
   const is_late = !is_holiday && ciDayMin > lateThreshold;
   const late_minutes = is_late ? ciDayMin - workStartTarget : 0;
 
-  // 이른 출근(지정 출근시간 전)은 근무·연장으로 계산하지 않음 — 유효 출근시각을 지정 출근시간으로 clamp.
-  //   (사장님 요청 2026-07-09: 일찍 와도 9:30 기준, 이른 시간은 연장 미반영. 실제 태그시각은
-  //    attendance-checkin 엣지가 check_in 을 지정시간으로 고정 + note 에 실제시각 보존.)
+  // 이른 출근(지정 출근시간 전)은 근무·연장으로 계산하지 않음 — 계산용으로만 유효 출근시각을
+  //   지정 출근시간으로 clamp(표시되는 check_in 원본은 attendance-checkin 엣지가 실제 시각
+  //   그대로 저장 — 2026-07-14 변경. 정규/연장 근무시간 산정에만 이 clamp가 반영됨).
   const workStartAbs = (ciMin - ciDayMin) + workStartTarget; // 그 날의 지정 출근시각(절대분)
   const effCiMin = Math.max(ciMin, workStartAbs);
 
