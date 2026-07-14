@@ -13,8 +13,9 @@ import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget"
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
-import { fmt, ymNow, prevMonthStr, Delta, MonthlyCompareCard } from "../_components/kit";
+import { fmt, ymNow, MonthlyCompareCard } from "../_components/kit";
 import { CellDetail } from "../flow/_components/CellDetail";
+import { IntroCard, Section } from "@/components/report-kit";
 
 const db = supabase as any;
 
@@ -22,8 +23,6 @@ export default function RevenuePage() {
   const { role } = useUser();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const { year, month } = ymNow();
-  const lastMonth = prevMonthStr(month);
-  const monthNum = Number(month.slice(5, 7));
   const [detailMonth, setDetailMonth] = useState<number | null>(null);
 
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
@@ -70,8 +69,6 @@ export default function RevenuePage() {
   }
 
   const sales = budget.find((b) => b.month === month)?.salesRevenue ?? 0;
-  const lastSales = budget.find((b) => b.month === lastMonth)?.salesRevenue ?? 0;
-  const prevYearSameMonth = prevBudget.find((b) => Number(b.month.slice(5, 7)) === monthNum)?.salesRevenue ?? 0;
   const prevByMonthNum: Record<number, number> = {};
   prevBudget.forEach((b) => { prevByMonthNum[Number(b.month.slice(5, 7))] = b.salesRevenue || 0; });
   const compareRows = budget.filter((b) => b.month <= month).slice(-6).map((b) => {
@@ -84,38 +81,29 @@ export default function RevenuePage() {
   const loading = !companyId || budget.length === 0;
 
   return (
-    <div className="space-y-6">
+    <>
       <ReportsTabs />
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <>
-          {/* 이번 달 매출 + 올해 누적 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--success)]" />이번 달 매출</span>
-              <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--success)]">{fmt(sales)}</span>
-              <div className="flex items-center gap-3 flex-wrap">
-                <Delta cur={sales} prev={lastSales} />
-                <span className="text-[11px] text-[var(--text-dim)]">작년 동월 <Delta cur={sales} prev={prevYearSameMonth} /></span>
-              </div>
-            </div>
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">올해 누적 매출 <span className="text-[var(--text-dim)] font-normal">({year}년 1월~이번 달)</span></span>
-              <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--text)]">{fmt(ytd)}</span>
-              <span className="text-[11px] text-[var(--text-dim)]">세금계산서 공급가액 기준</span>
-            </div>
-          </div>
+        <div className="space-y-5 mt-1">
+          <IntroCard
+            eyebrow="이번 달 매출"
+            title={fmt(sales)}
+            desc="세금계산서 공급가액 기준입니다. 월별 추세·전년 비교와 거래처별 구성은 아래에서 확인하세요."
+            callout={{ label: `올해 누적 매출 (${year}년 1월~이번 달)`, value: fmt(ytd), tone: "success" }}
+            box={(salesData?.arOver30 ?? 0) > 0
+              ? { label: "30일 이상 미수금", value: fmt(salesData!.arOver30), sub: "회수 관리가 필요합니다", tone: "danger" }
+              : (salesData?.arTotal ?? 0) > 0
+                ? { label: "미수금 합계", value: fmt(salesData!.arTotal), sub: "회수 예정", tone: "warning" }
+                : undefined}
+          />
 
           {/* 월별 매출 · 전년 비교 (행 클릭 → 거래처별 구성 드릴다운) */}
           <MonthlyCompareCard title="월별 매출 · 전년 비교" rows={compareRows} accent="var(--success)" onRowClick={(mn) => setDetailMonth(mn)} />
 
           {/* 어디서 벌었나 — 거래처 TOP */}
-          <div className="glass-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-bold text-[var(--text)]">거래처별 매출 <span className="text-[var(--text-dim)] text-xs font-normal">(올해 상위)</span></div>
-              <Link href="/partners" className="text-xs text-[var(--primary)] font-semibold hover:underline">거래처 관리 →</Link>
-            </div>
+          <Section title="거래처별 매출" desc="올해 상위 거래처" right={<Link href="/partners" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">거래처 관리 →</Link>}>
             {top.length === 0 ? (
               <div className="text-xs text-[var(--text-dim)] py-6 text-center">올해 매출 세금계산서가 없습니다.</div>
             ) : (
@@ -131,11 +119,10 @@ export default function RevenuePage() {
                 ))}
               </div>
             )}
-          </div>
+          </Section>
 
           {/* 아직 못 받은 돈 (미수금) */}
-          <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-3">미수금 <span className="text-[var(--text-dim)] text-xs font-normal">(회수 예정)</span></div>
+          <Section title="미수금" desc="아직 못 받은 돈 (회수 예정)">
             <div className="grid grid-cols-2 gap-4">
               <div className="stat-tile">
                 <div className="stat-tile-label">미수금 합계</div>
@@ -149,8 +136,8 @@ export default function RevenuePage() {
             {(salesData?.arOver30 ?? 0) > 0 && (
               <div className="text-[11px] text-[var(--danger)] mt-2">30일 이상 경과한 미수금이 있습니다 — 거래처 원장에서 회수를 관리하세요.</div>
             )}
-          </div>
-        </>
+          </Section>
+        </div>
       )}
 
       {detailMonth != null && companyId && (
@@ -158,6 +145,6 @@ export default function RevenuePage() {
           title="매출" subtitle={`${year}년 ${detailMonth}월 · 거래처별 매출 구성`} clientItems={null}
           onClose={() => setDetailMonth(null)} />
       )}
-    </div>
+    </>
   );
 }

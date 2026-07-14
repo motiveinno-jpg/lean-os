@@ -16,7 +16,7 @@ import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
-import { ReportShell, IntroCard, StatCard, Section } from "@/components/report-kit";
+import { IntroCard, StatCard, Section } from "@/components/report-kit";
 
 const db = supabase as any;
 const fmt = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
@@ -135,7 +135,7 @@ export default function ManagementSummaryPage() {
   const maxAbs = Math.max(1, ...recent.map((r) => Math.abs(r.profit)));
 
   return (
-    <ReportShell>
+    <>
       <ReportsTabs />
 
       {loading ? (
@@ -228,6 +228,6 @@ export default function ManagementSummaryPage() {
           </div>
         </div>
       )}
-    </ReportShell>
+    </>
   );
 }
