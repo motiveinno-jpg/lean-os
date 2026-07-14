@@ -845,7 +845,7 @@ export default function ProjectHubDetailPage() {
       const ids = list.map((d) => d.id);
       const [sigsRes, invRes] = await Promise.all([
         ids.length ? db.from("signature_requests").select("id, status, signed_at, document_id").in("document_id", ids) : Promise.resolve({ data: [] as any[] }),
-        db.from("tax_invoices").select("id, supply_amount, total_amount, status, issue_date").in("deal_id", costDealIds).eq("type", "sales").neq("status", "void"),
+        db.from("tax_invoices").select("id, supply_amount, total_amount, status, issue_date, settled_amount, settlement_status, counterparty_name").in("deal_id", costDealIds).eq("type", "sales").neq("status", "void"),
       ]);
       return { quotes, contracts, sigs: (sigsRes.data || []) as any[], invoices: (invRes.data || []) as any[] };
     },
@@ -974,6 +974,7 @@ export default function ProjectHubDetailPage() {
             </div>
           )}
           <PipelineRibbon pipe={pipe} contractTotal={ownContract} onOpen={setTab} />
+          <SettlementPanel pipe={pipe} contractTotal={ownContract} onOpen={setTab} />
           <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
           {hasInclusiveSub && (
             <p className="text-[11px] text-[var(--text-dim)]">※ VAT <b className="text-[var(--text-muted)]">포함</b>으로 입력한 매출/매입 항목은 <b className="text-[var(--text-muted)]">공급가액(VAT 제외)</b> 기준으로 환산해 계산됩니다.</p>
@@ -1742,19 +1743,20 @@ function PipelineRibbon({ pipe, contractTotal, onOpen }: { pipe: any; contractTo
   const contractAmt = contracts.length ? (quoteAmount(contracts[0]) || contractTotal) : contractTotal;
   const signed = sigs.some((s) => s.signed_at);
   const invAmt = invoices.reduce((a, i) => a + Number(i.supply_amount || i.total_amount || 0), 0);
-  // 상태 구분 — 미수(발행됐으나 미입금) / 미청구(초안·무효) / 수금(그 외)
-  const OUTSTANDING = ["issued", "sent", "pending", "overdue"];
+  // 정산 — 실제 통장 입금(settled_amount) 기준. Phase 1 트리거로 입금이 프로젝트에 자동 연결됨.
   const NOT_BILLED = ["draft", "void"];
-  const issuedCount = invoices.filter((i) => !NOT_BILLED.includes(i.status)).length;
+  const billed = invoices.filter((i) => !NOT_BILLED.includes(i.status));
+  const issuedCount = billed.length;
   const draftCount = invoices.filter((i) => i.status === "draft").length;
-  const unpaidCount = invoices.filter((i) => OUTSTANDING.includes(i.status)).length;
-  const paidAmt = invoices.filter((i) => !OUTSTANDING.includes(i.status) && !NOT_BILLED.includes(i.status)).reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
-  const pending = unpaidCount + draftCount; // 아직 수금 안 된 건(미수 + 잔금 초안)
+  const billedAmt = billed.reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
+  const paidAmt = billed.reduce((a, i) => a + Number(i.settled_amount || 0), 0);
+  const outstandingAmt = Math.max(0, billedAmt - paidAmt);
+  const pending = billed.filter((i) => Number(i.total_amount || i.supply_amount || 0) - Number(i.settled_amount || 0) > 1).length;
   const stages = [
     { key: "quote", label: "견적", amt: quoteAmt, done: quotes.length > 0, sub: quotes.length ? `${quotes.length}건 작성` : "미작성" },
     { key: "contract", label: "계약", amt: contractAmt, done: contracts.length > 0, sub: contracts.length ? (signed ? "서명완료" : "미서명") : "미작성" },
     { key: "invoice", label: "계산서", amt: invAmt, done: issuedCount > 0, sub: invoices.length === 0 ? "미발행" : draftCount > 0 ? `발행 ${issuedCount}·초안 ${draftCount}` : `발행 ${issuedCount}건` },
-    { key: "settle", label: "정산", amt: paidAmt, done: invoices.length > 0 && pending === 0, sub: invoices.length === 0 ? "미수금" : pending > 0 ? `미수 ${pending}건` : "수금완료" },
+    { key: "settle", label: "정산", amt: paidAmt, done: issuedCount > 0 && outstandingAmt <= 1, sub: issuedCount === 0 ? "미발행" : outstandingAmt > 1 ? `미수 ${won(outstandingAmt)}` : "수금완료" },
   ];
   return (
     <div className="pipeline-ribbon glass-card p-4">
@@ -1778,6 +1780,83 @@ function PipelineRibbon({ pipe, contractTotal, onOpen }: { pipe: any; contractTo
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// 정산 현황 — 발행 → 실입금(통장 매칭) → 미수금. 계산서별 미수·연체 + 자동 점검 플래그.
+//   Phase 1 트리거로 입금이 프로젝트에 자동 연결되므로 settled_amount = 이 프로젝트로 실제 들어온 돈.
+function SettlementPanel({ pipe, contractTotal, onOpen }: { pipe: any; contractTotal: number; onOpen: (t: TabKey) => void }) {
+  const invoices = (pipe?.invoices || []) as any[];
+  const NOT_BILLED = ["draft", "void"];
+  const billed = invoices.filter((i) => !NOT_BILLED.includes(i.status));
+  if (billed.length === 0) return null; // 발행 계산서 없으면 숨김(온보딩/리본이 안내)
+
+  const billedAmt = billed.reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
+  const paidAmt = billed.reduce((a, i) => a + Number(i.settled_amount || 0), 0);
+  const outstanding = Math.max(0, billedAmt - paidAmt);
+  const contractAmt = Number(contractTotal || 0);
+
+  const today = new Date();
+  const overdueRows = billed
+    .map((i) => {
+      const bal = Number(i.total_amount || i.supply_amount || 0) - Number(i.settled_amount || 0);
+      const days = i.issue_date ? Math.floor((today.getTime() - new Date(i.issue_date).getTime()) / 86400000) : 0;
+      return { id: i.id, counterparty_name: i.counterparty_name, issue_date: i.issue_date, bal, days };
+    })
+    .filter((r) => r.bal > 1)
+    .sort((a, b) => b.days - a.days);
+
+  // 자동 점검 플래그 — 사람이 안 찾아도 확인할 것을 띄움
+  const flags: { tone: "danger" | "warning"; text: string }[] = [];
+  if (outstanding > 1) flags.push({ tone: "danger", text: `미수금 ${won(outstanding)} — 미입금 계산서 ${overdueRows.length}건` });
+  if (contractAmt > 0 && billedAmt < contractAmt - 1) flags.push({ tone: "warning", text: `계약 대비 계산서 미발행 ${won(contractAmt - billedAmt)}` });
+  if (paidAmt - billedAmt > 1) flags.push({ tone: "warning", text: "발행보다 입금이 많음 — 계산서 발행 누락 확인" });
+
+  return (
+    <div className="settlement-panel glass-card p-4">
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <h3 className="text-sm font-bold text-[var(--text)]">정산 현황 <span className="text-[var(--text-dim)] font-normal text-xs">발행 → 입금 → 미수 (통장 매칭 기준)</span></h3>
+        <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">계산서 열기 →</button>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <SettleStat label="발행액" value={billedAmt} tone="text" />
+        <SettleStat label="실입금" value={paidAmt} tone="success" />
+        <SettleStat label="미수금" value={outstanding} tone={outstanding > 1 ? "danger" : "success"} />
+      </div>
+      {flags.length > 0 && (
+        <div className="space-y-1.5 mb-3">
+          {flags.map((f, i) => (
+            <div key={i} className={`flex items-center gap-2 text-[12px] rounded-lg px-3 py-2 ${f.tone === "danger" ? "bg-[var(--danger)]/8 text-[var(--danger)]" : "bg-[var(--warning)]/8 text-[var(--warning)]"}`}>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "currentColor" }} />
+              <span>{f.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {overdueRows.length > 0 ? (
+        <div className="divide-y divide-[var(--border)]/50">
+          {overdueRows.map((r) => (
+            <div key={r.id} className="flex items-center gap-3 py-2 text-[12px]">
+              <span className="flex-1 min-w-0 truncate text-[var(--text)]">{r.counterparty_name || "—"}<span className="text-[var(--text-dim)]"> · {r.issue_date || ""}</span></span>
+              {r.days > 0 && <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${r.days >= 30 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>발행 D+{r.days}</span>}
+              <span className="mono-number font-bold text-[var(--danger)] shrink-0">{won(r.bal)}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-[12px] text-[var(--text-dim)] flex items-center gap-1.5"><span className="text-[var(--success)]">✓</span> 발행된 계산서가 모두 입금 완료됐습니다.</div>
+      )}
+    </div>
+  );
+}
+
+function SettleStat({ label, value, tone }: { label: string; value: number; tone: "text" | "success" | "danger" }) {
+  const color = tone === "danger" ? "text-[var(--danger)]" : tone === "success" ? "text-[var(--success)]" : "text-[var(--text)]";
+  return (
+    <div className="rounded-xl bg-[var(--bg-surface)]/50 px-3 py-2.5">
+      <div className="text-[10px] text-[var(--text-dim)] mb-0.5">{label}</div>
+      <div className={`text-sm font-black mono-number ${color}`}>{value > 0 ? won(value) : "—"}</div>
     </div>
   );
 }
