@@ -777,6 +777,7 @@ export interface ApprovalPdfParams {
   description?: string;
   createdAt: string; // yyyy-mm-dd 또는 ISO
   companyName?: string;
+  attachments?: { name: string; url: string }[]; // url: 클릭 시 열람 가능한(서명된) 링크
   steps: {
     stage: number;
     stageName: string;
@@ -821,18 +822,40 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
   });
   y = (doc as any).lastAutoTable.finalY + 6;
 
-  // ── 내용 ──
+  // ── 내용 (줄간격 넓게 — 가독성) ──
   if (params.description) {
     doc.setFontSize(9);
     setKoreanFont(doc, 'bold');
     doc.setTextColor(60, 60, 60);
     doc.text('내용', 14, y);
-    y += 5;
+    y += 6;
     setKoreanFont(doc, 'normal');
     doc.setTextColor(40, 40, 40);
+    const lineHeight = 6; // mm — 기본보다 넓은 줄간격
     const lines: string[] = doc.splitTextToSize(params.description, pageW - 28);
-    doc.text(lines, 14, y);
-    y += lines.length * 4.6 + 6;
+    lines.forEach((line, i) => doc.text(line, 14, y + i * lineHeight));
+    y += lines.length * lineHeight + 6;
+  }
+
+  // ── 첨부파일 (클릭 시 열람 가능한 링크) ──
+  if (params.attachments && params.attachments.length > 0) {
+    doc.setFontSize(9);
+    setKoreanFont(doc, 'bold');
+    doc.setTextColor(60, 60, 60);
+    doc.text('첨부파일', 14, y);
+    y += 6;
+    setKoreanFont(doc, 'normal');
+    doc.setTextColor(37, 99, 235);
+    const lineHeight = 6;
+    params.attachments.forEach((att, i) => {
+      const label = `📎 ${att.name}`;
+      doc.textWithLink(label, 14, y + i * lineHeight, { url: att.url });
+    });
+    y += params.attachments.length * lineHeight + 4;
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text('* 첨부파일 링크는 문서 생성 시점 기준 1시간 동안 유효합니다.', 14, y);
+    y += 6;
   }
 
   // ── 결재 라인 ──

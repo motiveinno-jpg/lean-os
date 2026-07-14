@@ -35,7 +35,7 @@ import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 import { generateApprovalPdf } from "@/lib/document-generator";
-import { openStoredFile } from "@/lib/file-storage";
+import { openStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 
 const db = supabase as any;
 
@@ -862,6 +862,13 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
     setPdfLoadingId(req.id);
     try {
       const timeline = await getApprovalTimeline(req.id);
+      const rawAttachments: string[] = req.attachments || [];
+      const attachments = (await Promise.all(
+        rawAttachments.map(async (url) => {
+          const signed = await resolveSignedUrl(url);
+          return signed ? { name: attachmentFileName(url), url: signed } : null;
+        })
+      )).filter((a): a is { name: string; url: string } => !!a);
       const blob = await generateApprovalPdf({
         title: req.title,
         requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
@@ -870,6 +877,7 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
         amount: req.amount || 0,
         description: req.description || undefined,
         createdAt: formatDate(req.created_at),
+        attachments: attachments.length > 0 ? attachments : undefined,
         steps: timeline.map((s) => ({
           stage: s.stage,
           stageName: s.stage_name,
@@ -1306,7 +1314,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       }
 
       const fieldLines = selectedForm ? (selectedForm.fields || []).map((fd) => `${fd.label}: ${customFieldValues[fd.key] || ""}`).join("\n") : "";
-      const finalDesc = [effectiveDescription, fieldLines].filter(Boolean).join("\n\n");
+      // 입력 필드(양식 필드) 값을 기본 템플릿 문구보다 위에 — 결재자가 실제 입력값을 먼저 보게 (2026-07-14)
+      const finalDesc = [fieldLines, effectiveDescription].filter(Boolean).join("\n\n");
       return createApprovalRequest({
         companyId,
         requestType: selectedForm ? selectedForm.name : form.requestType,
@@ -1621,8 +1630,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                               onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ""); setCustomFieldValues((s) => ({ ...s, [fd.key]: raw ? Number(raw).toLocaleString("ko-KR") : "" })); }}
                               placeholder="0" className="w-full pl-7 pr-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mono-number text-right" />
                           </div>
+                        ) : fd.type === "date" ? (
+                          <DateField value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
                         ) : (
-                          <input type={fd.type === "number" ? "number" : fd.type === "date" ? "date" : "text"} value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                          <input type={fd.type === "number" ? "number" : "text"} value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
                         )}
                       </div>
                     ))}
