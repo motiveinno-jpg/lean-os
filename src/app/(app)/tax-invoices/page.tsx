@@ -1171,13 +1171,45 @@ export default function TaxInvoicesPage() {
               국세청 발행 이번 달 {issuanceStatus.used}/{issuanceStatus.limit}건
             </span>
           )}
-          <button
-            onClick={() => setShowForm(true)}
-            className={issuanceStatus && issuanceStatus.limit === null ? "ml-auto self-center btn-primary" : "self-center btn-primary"}
-            title="세금계산서를 등록합니다"
-          >
-            + 세금계산서 등록
-          </button>
+          {/* 등록 영역 — 엑셀 업로드·내보내기·등록을 한 곳에 모음(2026-07-14 UI 정리) */}
+          <div className="ml-auto self-center flex items-center gap-2 flex-wrap">
+            {/* Excel import */}
+            <label className="btn-secondary cursor-pointer" title="엑셀/CSV로 세금계산서를 일괄 등록합니다">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
+                <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="12" y1="18" x2="12" y2="12" strokeLinecap="round"/>
+                <polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              엑셀 업로드
+              <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} className="hidden" />
+            </label>
+            {/* Export — 엑셀 내보내기 (더존 Smart-A 양식 CSV) — 매출·매입 목록에 데이터 있을 때만 */}
+            {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
+              <button
+                onClick={async () => {
+                  const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
+                  exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
+                }}
+                className="btn-secondary"
+                title="현재 목록을 엑셀로 내보내기"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
+                  <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="8" y1="18" x2="16" y2="18" strokeLinecap="round"/><line x1="12" y1="14" x2="12" y2="18" strokeLinecap="round"/><polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                엑셀 내보내기
+              </button>
+            )}
+            <button
+              onClick={() => setShowForm(true)}
+              className="btn-primary"
+              title="세금계산서를 등록합니다"
+            >
+              + 세금계산서 등록
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1793,42 +1825,7 @@ export default function TaxInvoicesPage() {
 
       </>)}
 
-      {/* 목록 액션 (엑셀 업로드·내보내기) */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap justify-end">
-        <div className="ml-auto flex gap-2">
-          {/* Excel import */}
-          <label className="btn-secondary cursor-pointer">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
-              <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
-              <line x1="12" y1="18" x2="12" y2="12" strokeLinecap="round"/>
-              <polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            엑셀 업로드
-            <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} className="hidden" />
-          </label>
-
-          {/* Export — 엑셀 내보내기 (더존 Smart-A 양식 CSV, 보기 좋은 포맷으로 통일) */}
-          {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
-            <button
-              onClick={async () => {
-                const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
-                exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
-              }}
-              className="btn-secondary"
-              title="현재 목록을 엑셀로 내보내기"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
-                <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="8" y1="18" x2="16" y2="18" strokeLinecap="round"/><line x1="12" y1="14" x2="12" y2="18" strokeLinecap="round"/><polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              엑셀 내보내기
-            </button>
-          )}
-        </div>
-      </div>
-
+      {/* 엑셀 업로드·내보내기는 상단 '세금계산서 등록' 영역으로 이동(2026-07-14 UI 정리). */}
       {/* 정렬 — 별도 버튼 툴바 제거(2026-07-13). 표 헤더(작성일자·거래처·품목·공급가액…)를 클릭하면 정렬됩니다. */}
 
       {/* Batch Actions */}
