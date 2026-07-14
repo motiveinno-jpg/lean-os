@@ -1337,7 +1337,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       const failedUploads: string[] = [];
       if (files.length > 0) {
         for (const file of files) {
-          const path = `approvals/${companyId}/${Date.now()}_${file.name}`;
+          // Supabase Storage 키는 한글·공백을 그대로 허용하지 않아 "Invalid key"로 실패 — 인코딩해서 저장
+          //   (attachmentFileName()이 표시할 때 decodeURIComponent로 원래 이름 복원)
+          const path = `approvals/${companyId}/${Date.now()}_${encodeURIComponent(file.name)}`;
           const { error } = await supabase.storage.from("documents").upload(path, file);
           if (!error) {
             const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
