@@ -547,6 +547,10 @@ export default function DashboardPage() {
           {userId && <MyWorkSection companyId={companyId} userId={userId} />}
 
           {/* (1) KPI 4카드 행 — 잔고·매출·운영비·미수금 + kpi-callout */}
+          <div className="dash-section-head">
+            <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>핵심 지표</div>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">지금 회사 상태를 한눈에 — 잔고·매출·운영비·미수금</p>
+          </div>
           <DashboardSiyanHero
             balance={cashPulse?.currentBalance ?? null}
             monthRevenue={dashboard.growth.monthRevenue}
@@ -560,6 +564,10 @@ export default function DashboardPage() {
           />
 
           {/* (2) 본문 그리드 — 좌 2/3: 큰 차트 + 분석 카드 / 우 1/3: 일정·할일·빠른 결재 스택 */}
+          <div className="dash-section-head">
+            <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>현황 분석</div>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">매출 추세·비용 구성과 오늘 처리할 일정·결재</p>
+          </div>
           <div className="grid gap-5 lg:grid-cols-3 items-start">
             <div className="lg:col-span-2 space-y-5">
               <DashboardRevenueTrendCard companyId={companyId} />
@@ -581,6 +589,10 @@ export default function DashboardPage() {
           </div>
 
           {/* (3) 하단 풀폭 — 카드/자산 요약 행 */}
+          <div className="dash-section-head">
+            <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>자산 요약</div>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">통장·카드·자산 현황</p>
+          </div>
           <DashboardBottomCards companyId={companyId} />
         </div>
       )}
