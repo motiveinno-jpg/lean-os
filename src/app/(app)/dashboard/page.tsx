@@ -41,6 +41,8 @@ import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
 import { MyWorkSection } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
+import { DashboardBizSummary } from "@/components/dashboard-biz-summary"; // 경영 요약(손익·잔액·런웨이)
+import { RecentProjects, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
@@ -514,14 +516,7 @@ export default function DashboardPage() {
             })()}
           </div>
 
-          {/* 내 업무 — 상황판 핵심(내가 처리/담당하는 것 요약+바로가기). 관리자·직원 공통, 권한 무관 노출 */}
-          {userId && <MyWorkSection companyId={companyId} userId={userId} />}
-
-          {/* 핵심 지표 — 회계 숫자 요약(큐브형), 카드 클릭 시 해당 메뉴로 */}
-          <div className="dash-section-head">
-            <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>핵심 지표</div>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">카드를 누르면 통장·매출·비용·미수금 메뉴로 이동합니다.</p>
-          </div>
+          {/* 핵심 지표 — 잔고·매출·비용·미수금 요약, 카드 클릭 시 해당 메뉴로 */}
           <DashboardSiyanHero
             balance={cashPulse?.currentBalance ?? null}
             monthRevenue={dashboard.growth.monthRevenue}
@@ -534,22 +529,25 @@ export default function DashboardPage() {
             netCashflow={dashboard.sixPack.netCashflow}
           />
 
-          {/* 오늘 챙길 것 · 자금 — 3열 밀집(큐브형 타일). 열마다 관련 카드를 세로로 쌓아 여백 최소화 */}
+          {/* 내 업무 — 내가 처리·담당하는 것 */}
+          {userId && <MyWorkSection companyId={companyId} userId={userId} />}
+
+          {/* 회사 현황 — 오너뷰에서 지금 일어나는 일을 카드로 한눈에 (마송리 밀집 배치, 여백 최소) */}
           <div className="dash-section-head">
-            <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>오늘 챙길 것 · 자금</div>
+            <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>회사 현황</div>
           </div>
-          <div className="grid gap-3 lg:grid-cols-3 items-start">
-            {/* 1열 — 일정·할 일 캘린더 */}
+          <div className="columns-1 md:columns-2 xl:columns-3 gap-3 [&>*]:mb-3 [&>*]:break-inside-avoid">
+            <DashboardBizSummary
+              profit={dashboard.growth.monthRevenue - ((realBurnData ?? 0) + (realVariableData ?? 0))}
+              balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0}
+              runwayMonths={dashboard.sixPack.runwayMonths}
+            />
+            <RecentProjects companyId={companyId} />
+            <RecentInvoices companyId={companyId} />
+            <ReceivablesPreview companyId={companyId} />
             {userId && companyId && <DashboardCalendar userId={userId} companyId={companyId} />}
-            {/* 2열 — 근태 + 미수금 회수 */}
-            <div className="space-y-3">
-              {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
-              <ReceivablesPreview companyId={companyId} />
-            </div>
-            {/* 3열 — 카드·자산(세로 스택) */}
-            <div className="space-y-3">
-              <DashboardBottomCards companyId={companyId} />
-            </div>
+            {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
+            <DashboardBottomCards companyId={companyId} />
           </div>
         </div>
       )}
