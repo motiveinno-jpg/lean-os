@@ -39,6 +39,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { ActionInbox } from "@/components/action-inbox";
+import { ReceivablesPreview } from "@/components/receivables-preview";
 import { MyWorkSection } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
@@ -572,6 +573,8 @@ export default function DashboardPage() {
             <div className="lg:col-span-2 space-y-5">
               <DashboardRevenueTrendCard companyId={companyId} />
               <DashboardCostDonut costBreakdown={costBreakdown} />
+              {/* 미수금 회수 — 거래처별 미입금 잔액·연체 미리보기 + 원장 이동(2026-07-14) */}
+              <ReceivablesPreview companyId={companyId} />
             </div>
             <div className="space-y-5">
               {/* 라운드7.1 — 출퇴근은 오너/관리자 화면에선 한 줄 압축(직원 화면만 큰 카드 유지) */}
