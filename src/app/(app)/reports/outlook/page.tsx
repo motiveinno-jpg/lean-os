@@ -14,6 +14,7 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
 import { fmt } from "../_components/kit";
+import { IntroCard, Section } from "@/components/report-kit";
 
 const TONE: Record<string, string> = { success: "var(--success)", warning: "var(--warning)", danger: "var(--danger)" };
 function runwayTone(months: number): string {
@@ -57,38 +58,23 @@ export default function OutlookPage() {
   const maxAbs = Math.max(1, ...points.map((p) => Math.abs(p.balance)), balance);
 
   return (
-    <div className="space-y-6">
+    <>
       <ReportsTabs />
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <>
-          {/* 버티는 기간 + 자금부족 경고 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: TONE[rTone] }} />운영 가능 기간 <span className="text-[var(--text-dim)] font-normal">(현재 지출 기준)</span></span>
-              <span className="text-[28px] leading-9 font-extrabold mono-number" style={{ color: TONE[rTone] }}>{runwayTxt}</span>
-              <span className="text-[11px] text-[var(--text-dim)]">가용 현금 {fmt(balance)} · 월 지출 약 {fmt(burn)}</span>
-            </div>
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: shortfall ? "var(--danger)" : "var(--success)" }} />자금 부족 예상</span>
-              {shortfall ? (
-                <>
-                  <span className="text-[22px] leading-8 font-extrabold text-[var(--danger)]">{shortfall.label} 무렵 현금 부족</span>
-                  <span className="text-[11px] text-[var(--text-dim)]">그 시점 예상 잔액 {fmt(shortfall.balance)} — 미리 자금 계획이 필요합니다.</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-[22px] leading-8 font-extrabold text-[var(--success)]">90일 내 부족 없음 🟢</span>
-                  <span className="text-[11px] text-[var(--text-dim)]">앞으로 90일 예측 상 통장이 마이너스가 되지 않습니다.</span>
-                </>
-              )}
-            </div>
-          </div>
+        <div className="space-y-5 mt-1">
+          <IntroCard
+            eyebrow="운영 가능 기간 (현재 지출 기준)"
+            title={runwayTxt}
+            desc={`가용 현금 ${fmt(balance)} · 월 지출 약 ${fmt(burn)} 기준의 전망입니다.`}
+            callout={shortfall
+              ? { label: "자금 부족 예상", value: `${shortfall.label} 무렵 부족`, sub: `그 시점 예상 잔액 ${fmt(shortfall.balance)} — 자금 계획 필요`, tone: "danger" }
+              : { label: "자금 부족 예상", value: "90일 내 부족 없음 🟢", sub: "예측상 통장이 마이너스가 되지 않습니다", tone: "success" }}
+          />
 
           {/* 통장 잔액 예측(오늘~D+90) */}
-          <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-4">현금 잔액 전망 <span className="text-[var(--text-dim)] text-xs font-normal">(향후 90일)</span></div>
+          <Section title="현금 잔액 전망" desc="향후 90일 예측">
             <div className="flex items-end gap-3 h-36">
               {points.map((p) => {
                 const neg = p.balance < 0;
@@ -102,11 +88,10 @@ export default function OutlookPage() {
                 );
               })}
             </div>
-          </div>
+          </Section>
 
           {/* 시나리오 */}
-          <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-3">시나리오 분석 <span className="text-[var(--text-dim)] text-xs font-normal">(지출 변동 시 운영 가능 기간)</span></div>
+          <Section title="시나리오 분석" desc="지출 변동 시 운영 가능 기간">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {scen.map((s) => (
                 <div key={s.label} className="stat-tile">
@@ -115,15 +100,15 @@ export default function OutlookPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </Section>
 
           <div className="text-center">
-            <Link href="/reports/flow" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:underline">
+            <Link href="/reports/flow" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:underline no-underline">
               자세한 현금 흐름·월별 표 보기 →
             </Link>
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </>
   );
 }

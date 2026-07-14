@@ -12,15 +12,14 @@ import { getMonthlyBudgetOverview, getCostBreakdown, type MonthlyBudget, type Co
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
-import { fmt, ymNow, prevMonthStr, Delta, MonthlyCompareCard } from "../_components/kit";
+import { fmt, ymNow, MonthlyCompareCard } from "../_components/kit";
 import { CellDetail } from "../flow/_components/CellDetail";
+import { IntroCard, Section } from "@/components/report-kit";
 
 export default function ExpensePage() {
   const { role } = useUser();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const { year, month } = ymNow();
-  const lastMonth = prevMonthStr(month);
-  const monthNum = Number(month.slice(5, 7));
   const [detailMonth, setDetailMonth] = useState<number | null>(null);
 
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
@@ -47,11 +46,9 @@ export default function ExpensePage() {
 
   const mBudget = budget.find((b) => b.month === month);
   const expense = mBudget?.expenseTotal ?? 0;
-  const lastExpense = budget.find((b) => b.month === lastMonth)?.expenseTotal ?? 0;
   const fixed = mBudget?.fixedCosts ?? 0;
   const variable = mBudget?.variableCosts ?? 0;
   const fixedPct = expense > 0 ? Math.round((fixed / expense) * 100) : 0;
-  const prevYearSameMonth = prevBudget.find((b) => Number(b.month.slice(5, 7)) === monthNum)?.expenseTotal ?? 0;
   const prevByMonthNum: Record<number, number> = {};
   prevBudget.forEach((b) => { prevByMonthNum[Number(b.month.slice(5, 7))] = b.expenseTotal || 0; });
   const compareRows = budget.filter((b) => b.month <= month).slice(-6).map((b) => {
@@ -68,44 +65,36 @@ export default function ExpensePage() {
   const loading = !companyId || budget.length === 0;
 
   return (
-    <div className="space-y-6">
+    <>
       <ReportsTabs />
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <>
-          {/* 이번 달 비용 + 고정/변동 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--warning)]" />이번 달 비용</span>
-              <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--warning)]">{fmt(expense)}</span>
-              <div className="flex items-center gap-3 flex-wrap">
-                <Delta cur={expense} prev={lastExpense} invert />
-                <span className="text-[11px] text-[var(--text-dim)]">작년 동월 <Delta cur={expense} prev={prevYearSameMonth} invert /></span>
-              </div>
+        <div className="space-y-5 mt-1">
+          <IntroCard
+            eyebrow="이번 달 비용"
+            title={fmt(expense)}
+            desc="고정비·변동비 구성과 월별 추세, 항목별 지출은 아래에서 확인하세요."
+            callout={{ label: "고정비 비중", value: `${fixedPct}%`, sub: `고정 ${fmt(fixed)} · 변동 ${fmt(variable)}`, tone: "primary" }}
+          />
+
+          {/* 고정비 · 변동비 구성 */}
+          <Section title="고정비 · 변동비" desc="이번 달 지출의 고정/변동 구성 비중">
+            <div className="flex h-3 rounded-full overflow-hidden bg-[var(--bg-surface)]">
+              <div style={{ width: `${fixedPct}%`, background: "var(--primary)" }} title={`고정비 ${fixedPct}%`} />
+              <div style={{ width: `${100 - fixedPct}%`, background: "var(--warning)" }} title={`변동비 ${100 - fixedPct}%`} />
             </div>
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">고정비 · 변동비 <span className="text-[var(--text-dim)] font-normal">(구성 비중)</span></span>
-              <div className="flex h-3 rounded-full overflow-hidden mt-1 bg-[var(--bg-surface)]">
-                <div style={{ width: `${fixedPct}%`, background: "var(--primary)" }} title={`고정비 ${fixedPct}%`} />
-                <div style={{ width: `${100 - fixedPct}%`, background: "var(--warning)" }} title={`변동비 ${100 - fixedPct}%`} />
-              </div>
-              <div className="flex justify-between text-[11px] mt-1">
-                <span className="text-[var(--primary)] font-semibold">고정 {fmt(fixed)} ({fixedPct}%)</span>
-                <span className="text-[var(--warning)] font-semibold">변동 {fmt(variable)} ({100 - fixedPct}%)</span>
-              </div>
+            <div className="flex justify-between text-[11px] mt-2">
+              <span className="text-[var(--primary)] font-semibold">고정 {fmt(fixed)} ({fixedPct}%)</span>
+              <span className="text-[var(--warning)] font-semibold">변동 {fmt(variable)} ({100 - fixedPct}%)</span>
             </div>
-          </div>
+          </Section>
 
           {/* 월별 비용 · 전년 비교 (행 클릭 → 고정/변동 구성 드릴다운) */}
           <MonthlyCompareCard title="월별 비용 · 전년 비교" rows={compareRows} accent="var(--warning)" onRowClick={(mn) => setDetailMonth(mn)} />
 
           {/* 어디에 썼나 — 카테고리 */}
-          <div className="glass-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-bold text-[var(--text)]">비용 항목별 구성 <span className="text-[var(--text-dim)] text-xs font-normal">(올해 상위)</span></div>
-              <Link href="/reports/costs" className="text-xs text-[var(--primary)] font-semibold hover:underline">상세 비용 분석 →</Link>
-            </div>
+          <Section title="비용 항목별 구성" desc="올해 상위 지출 항목" right={<Link href="/reports/costs" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">상세 비용 분석 →</Link>}>
             {cats.length === 0 ? (
               <div className="text-xs text-[var(--text-dim)] py-6 text-center">분류된 비용 데이터가 없습니다. 거래내역을 분류하면 채워집니다.</div>
             ) : (
@@ -121,8 +110,8 @@ export default function ExpensePage() {
                 ))}
               </div>
             )}
-          </div>
-        </>
+          </Section>
+        </div>
       )}
 
       {detailMonth != null && companyId && (
@@ -134,6 +123,6 @@ export default function ExpensePage() {
           ].filter((i) => i.amount)}
           onClose={() => setDetailMonth(null)} />
       )}
-    </div>
+    </>
   );
 }

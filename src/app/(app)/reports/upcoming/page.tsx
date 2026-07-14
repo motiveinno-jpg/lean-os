@@ -16,6 +16,7 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
 import { fmt, ymNow } from "../_components/kit";
+import { IntroCard, Section } from "@/components/report-kit";
 
 const db = supabase as any;
 function daysUntil(dateStr: string) { return Math.ceil((new Date(dateStr + "T00:00:00").getTime() - Date.now()) / 864e5); }
@@ -77,29 +78,26 @@ export default function UpcomingPage() {
   if (apTotal > 0) items.push({ icon: "💳", title: "미지급금 (매입)", note: "매입 세금계산서 미결제", amount: apTotal, href: "/tax-invoices" });
 
   return (
-    <div className="space-y-6">
+    <>
       <ReportsTabs />
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <>
-          {/* 다음 30일 예상 지출 + 감당 신호 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0 bg-[var(--warning)]" />30일 내 예정 지출</span>
-              <span className="text-[28px] leading-9 font-extrabold mono-number text-[var(--warning)]">{fmt(next30)}</span>
-              <span className="text-[11px] text-[var(--text-dim)]">고정비 + 대출 매달 상환{vatWithin30 ? " + 부가세" : ""}</span>
-            </div>
-            <div className="glass-card p-5 flex flex-col gap-2">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: covered ? "var(--success)" : "var(--danger)" }} />가용 현금 충당 여부</span>
-              <span className="text-[22px] leading-8 font-extrabold" style={{ color: covered ? "var(--success)" : "var(--danger)" }}>{covered ? "충당 가능 🟢" : "부족 우려 🔴"}</span>
-              <span className="text-[11px] text-[var(--text-dim)]">가용 현금 {fmt(balance)} − 예정 지출 {fmt(next30)} = <b style={{ color: covered ? "var(--success)" : "var(--danger)" }}>{fmt(balance - next30)}</b></span>
-            </div>
-          </div>
+        <div className="space-y-5 mt-1">
+          <IntroCard
+            eyebrow="다음 30일"
+            title={fmt(next30)}
+            desc={`고정비 + 대출 매달 상환${vatWithin30 ? " + 부가세" : ""} 기준의 예정 지출입니다.`}
+            callout={{
+              label: "가용 현금 충당 여부",
+              value: covered ? "충당 가능 🟢" : "부족 우려 🔴",
+              sub: `가용 ${fmt(balance)} − 예정 ${fmt(next30)} = ${fmt(balance - next30)}`,
+              tone: covered ? "success" : "danger",
+            }}
+          />
 
           {/* 예정 지출 목록 */}
-          <div className="glass-card p-5">
-            <div className="text-sm font-bold text-[var(--text)] mb-3">예정 지출 항목</div>
+          <Section title="예정 지출 항목" desc="곧 나갈 세금·대출·고정 지출">
             {items.length === 0 ? (
               <div className="text-xs text-[var(--text-dim)] py-6 text-center">예정된 세금·대출·고정 지출이 없습니다.</div>
             ) : (
@@ -114,9 +112,9 @@ export default function UpcomingPage() {
               </div>
             )}
             <div className="text-[11px] text-[var(--text-dim)] mt-3">※ 부가세·대출·고정비는 예정 기준입니다. 실제 납부일은 홈택스·은행 일정을 확인하세요.</div>
-          </div>
-        </>
+          </Section>
+        </div>
       )}
-    </div>
+    </>
   );
 }
