@@ -958,9 +958,9 @@ export default function TaxInvoicesPage() {
   };
   // 목록 표 컬럼 리사이즈 — 경계선 드래그로 너비 조절 · 더블클릭 내용 자동맞춤 · localStorage 기억 (2026-07-14)
   const listTableRef = useRef<HTMLTableElement | null>(null);
-  const [colW, setColW] = useColWidths("tax-invoice-list-colw", {
-    issue_date: 90, nts: 150, counterparty_name: 180, label: 150,
-    supply_amount: 110, tax_amount: 100, total_amount: 110, send: 84, status: 76, act: 132,
+  const [colW, setColW] = useColWidths("tax-invoice-list-colw-v2", {
+    issue_date: 104, nts: 150, counterparty_name: 180, label: 150,
+    supply_amount: 112, tax_amount: 100, total_amount: 116, send: 84, status: 78, act: 132,
   });
   const startColDrag = (k: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -1945,7 +1945,7 @@ export default function TaxInvoicesPage() {
               </div>
               {/* 홈택스식 격자 그리드 */}
               <div className="overflow-auto max-h-[600px]">
-                <table ref={listTableRef} className="w-full text-xs border-collapse" style={{ minWidth: 980 }}>
+                <table ref={listTableRef} className="w-full text-xs border-collapse [&_td]:overflow-hidden [&_td]:text-ellipsis" style={{ minWidth: 980, tableLayout: "fixed" }}>
                   <thead className="sticky top-0 z-10">
                     <tr className="text-xs text-[var(--text-dim)] bg-[var(--bg-card)] border-b border-[var(--border)]">
                       <th className="px-2 py-2.5 w-8 text-center border-l border-[var(--border)]/50 first:border-l-0">
