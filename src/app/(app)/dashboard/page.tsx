@@ -537,7 +537,7 @@ export default function DashboardPage() {
               { id: "revenue", h: 5, node: <RecentRevenue companyId={companyId} /> },
               { id: "projects", h: 5, node: <RecentProjects companyId={companyId} /> },
               { id: "receivables", h: 4, node: <ReceivablesPreview companyId={companyId} /> },
-              ...(userId ? [{ id: "calendar", h: 8, node: <DashboardCalendar userId={userId} companyId={companyId} /> }] : []),
+              ...(userId ? [{ id: "calendar", h: 10, node: <DashboardCalendar userId={userId} companyId={companyId} /> }] : []),
               ...(userId ? [{ id: "attendance", h: 2, node: <MyAttendanceCard companyId={companyId} userId={userId} compact /> }] : []),
               { id: "cards", h: 3, node: <CardsSummaryCard companyId={companyId} /> },
               { id: "assets", h: 3, node: <AssetsSummaryCard companyId={companyId} /> },

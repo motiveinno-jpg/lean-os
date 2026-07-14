@@ -797,3 +797,23 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .overflow-x-auto:not(.overflow-y-auto):not(.overflow-y-scroll):not(.overflow-auto) {
   touch-action: pan-x;
 }
+
+/* ── 대시보드 위젯 편집(react-grid-layout) — 리사이즈 핸들 또렷하게 + 드래그 커서 (2026-07-14) ── */
+.rgl-editing .react-grid-item { cursor: move; }
+.rgl-editing .react-resizable-handle {
+  width: 20px; height: 20px; z-index: 6; opacity: 1;
+  background-image: none; /* 기본 회색 아이콘 대신 커스텀 그립 */
+}
+.rgl-editing .react-resizable-handle::after {
+  content: ""; position: absolute; right: 4px; bottom: 4px;
+  width: 10px; height: 10px;
+  border-right: 2px solid var(--primary); border-bottom: 2px solid var(--primary);
+  border-bottom-right-radius: 3px;
+}
+.rgl-editing .react-resizable-handle-se { cursor: se-resize; }
+/* 드래그 이동 시 놓일 자리 미리보기 */
+.react-grid-item.react-grid-placeholder {
+  background: var(--primary) !important; opacity: 0.14; border-radius: 16px;
+}
+/* 드래그 중인 위젯이 위에 오도록 */
+.react-grid-item.react-draggable-dragging { z-index: 10; }
