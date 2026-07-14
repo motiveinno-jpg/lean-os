@@ -430,7 +430,7 @@ serve(async (req) => {
     // 실패
     const errorMsg = codefResp?.result?.message || "발행 실패";
     const hint = codefErrorHint(resultCode);
-    await supabase.from("tax_invoices").update({
+    const { error: updErr } = await supabase.from("tax_invoices").update({
       nts_issue_status: "failed",
       nts_error_code: resultCode || "UNKNOWN",
       nts_error_message: errorMsg,
@@ -441,6 +441,10 @@ serve(async (req) => {
       error: `발행 실패 (${resultCode}): ${errorMsg}`,
       code: resultCode,
       hint,
+      // QA 2026-07-14: DB 기록 확인이 안 돼 update 에러 자체를 응답에 포함해 진단.
+      dbUpdateError: updErr ? { message: updErr.message, code: (updErr as any).code, details: (updErr as any).details } : null,
+      debugInvoiceId: invoice_id,
+      debugPayloadSent: payload,
     }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
