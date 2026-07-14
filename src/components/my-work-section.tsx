@@ -11,7 +11,12 @@ import { supabase } from "@/lib/supabase";
 
 const db = supabase as any;
 const MENTION_ENTITIES = ["chat", "chat_channel", "board_post", "document_share"];
-const SIGN_TYPES = ["signature", "signature_request", "hr_contract_package"];
+// 서명 요청 상태 → 뱃지 라벨·색 (hr_contract_packages.status)
+const SIGN_STATUS: Record<string, { label: string; tone?: string }> = {
+  sent: { label: "서명 대기", tone: "warning" },
+  partially_signed: { label: "일부 서명", tone: "primary" },
+  draft: { label: "준비 중", tone: undefined },
+};
 
 const soft = (c: string, pct = 12) => `color-mix(in srgb, ${c} ${pct}%, transparent)`;
 const toneColor = (t?: string) =>
@@ -40,7 +45,7 @@ function won(n: number): string {
 }
 const DOC_KIND: Record<string, string> = { quote: "견적서", contract: "계약서", invoice: "계산서", report: "보고서" };
 
-type WorkItem = { key: string; href: string; primary: string; secondary?: string; tone?: string };
+type WorkItem = { key: string; href: string; primary: string; secondary?: string; tone?: string; badge?: boolean };
 
 function WorkCard({ href, icon, label, count, tone = "primary", items, moreLabel }: {
   href: string; icon: string; label: string; count: number; tone?: string; items: WorkItem[]; moreLabel?: string;
@@ -62,7 +67,9 @@ function WorkCard({ href, icon, label, count, tone = "primary", items, moreLabel
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--bg-surface)] transition no-underline">
             <span className="w-1 h-1 rounded-full shrink-0" style={{ background: it.tone ? toneColor(it.tone) : "var(--text-dim)" }} />
             <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{it.primary}</span>
-            {it.secondary && <span className="text-[11px] shrink-0 mono-number" style={{ color: it.tone ? toneColor(it.tone) : "var(--text-dim)" }}>{it.secondary}</span>}
+            {it.secondary && (it.badge
+              ? <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold" style={{ background: soft(it.tone ? toneColor(it.tone) : "var(--text-dim)", 14), color: it.tone ? toneColor(it.tone) : "var(--text-muted)" }}>{it.secondary}</span>
+              : <span className="text-[11px] shrink-0 mono-number" style={{ color: it.tone ? toneColor(it.tone) : "var(--text-dim)" }}>{it.secondary}</span>)}
           </Link>
         ))}
         {moreLabel && (
@@ -81,6 +88,9 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
     enabled,
     staleTime: 60_000,
     queryFn: async () => {
+      // 서명 요청 조회용 내 employee id (내게 온 계약 서명 = hr_contract_packages)
+      const { data: emp } = await db.from("employees").select("id").eq("user_id", userId).eq("company_id", companyId).maybeSingle();
+      const empId = emp?.id ?? null;
       const [tasks, projects, approvals, mentions, signs] = await Promise.all([
         db.from("project_tasks").select("id, title, due_date, status, deal_id, deals(name)")
           .eq("assignee_id", userId).is("archived_at", null).neq("status", "done").order("due_date", { ascending: true, nullsFirst: false }).limit(50),
@@ -89,7 +99,9 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
         db.from("doc_approvals").select("id, created_at, document_id, documents(content_type, contract_amount)")
           .eq("company_id", companyId).eq("approver_id", userId).eq("status", "pending").order("created_at", { ascending: false }).limit(50),
         db.from("notifications").select("*").eq("user_id", userId).eq("is_read", false).in("entity_type", MENTION_ENTITIES).order("created_at", { ascending: false }).limit(50),
-        db.from("notifications").select("*").eq("user_id", userId).eq("is_read", false).in("type", SIGN_TYPES).order("created_at", { ascending: false }).limit(50),
+        empId
+          ? db.from("hr_contract_packages").select("id, title, status, created_at").eq("employee_id", empId).in("status", ["sent", "partially_signed", "draft"]).order("created_at", { ascending: false }).limit(50)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
       return {
         tasks: (tasks.data || []) as any[],
@@ -143,9 +155,10 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
 
     // 내 서명 요청
     if (data.signs.length > 0) {
-      const items: WorkItem[] = data.signs.slice(0, PREVIEW).map((n) => ({
-        key: n.id, href: n.link || "/my-contracts", primary: n.title || n.message || "서명 요청", secondary: md(n.created_at), tone: "danger",
-      }));
+      const items: WorkItem[] = data.signs.slice(0, PREVIEW).map((s) => {
+        const st = SIGN_STATUS[s.status] || { label: "서명 대기", tone: "warning" as const };
+        return { key: s.id, href: "/my-contracts", primary: s.title || "서명 문서", secondary: st.label, tone: st.tone, badge: true };
+      });
       cards.push(<WorkCard key="sign" href="/my-contracts" icon="🖊️" label="내 서명 요청" count={data.signs.length} tone="danger" items={items} moreLabel={more(data.signs.length)} />);
     }
 
