@@ -117,7 +117,7 @@ const MoreLink = ({ href, label }: { href: string; label: string }) => (
   </Link>
 );
 
-const cardCls = "glass-card p-5 flex flex-col";
+const cardCls = "glass-card p-4 flex flex-col";
 
 // ── 매출 추이 — 본문 2/3 컬럼의 큰 차트 카드 (라운드7.1: 기간 토글 월/분기/연 + 축·눈금) ──
 type TrendMode = "month" | "quarter" | "year";
@@ -235,9 +235,9 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
       <div className={cardCls}>
         <Header title="카드" color={A.red}
           icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>} />
-        <div className="space-y-2.5 flex-1">
-          {(cards?.list || []).slice(0, 4).map((c) => <ListRow key={c.name} name={c.name} amount={c.amount} />)}
-          {(!cards || cards.list.length === 0) && <div className="text-[13px] text-center py-4 text-[var(--text-dim)]">이번 달 카드 사용 없음</div>}
+        <div className="space-y-2 flex-1">
+          {(cards?.list || []).slice(0, 2).map((c) => <ListRow key={c.name} name={c.name} amount={c.amount} />)}
+          {(!cards || cards.list.length === 0) && <div className="text-[12px] text-center py-2 text-[var(--text-dim)]">이번 달 카드 사용 없음</div>}
         </div>
         <TotalRow label="이번 달 사용" amount={cards?.total ?? 0} color={A.red} />
         <MoreLink href="/cards" label={`${cards?.count ?? 0}개 전체보기`} />
@@ -247,9 +247,9 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
       <div className={cardCls}>
         <Header title="자산" color={A.green}
           icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
-        <div className="space-y-2.5 flex-1">
-          {(assets?.list || []).slice(0, 4).map((a) => <ListRow key={a.name} name={a.name} amount={a.amount} />)}
-          {(!assets || assets.list.length === 0) && <div className="text-[13px] text-center py-4 text-[var(--text-dim)]">등록된 계좌 없음</div>}
+        <div className="space-y-2 flex-1">
+          {(assets?.list || []).slice(0, 2).map((a) => <ListRow key={a.name} name={a.name} amount={a.amount} />)}
+          {(!assets || assets.list.length === 0) && <div className="text-[12px] text-center py-2 text-[var(--text-dim)]">등록된 계좌 없음</div>}
         </div>
         <TotalRow label="총 자산" amount={assets?.total ?? 0} color={A.green} />
         <MoreLink href="/bank" label={`${assets?.count ?? 0}개 전체보기`} />

@@ -40,6 +40,7 @@ import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
 import { MyWorkSection } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
+import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
@@ -520,7 +521,7 @@ export default function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-2 items-start">
             <div className="space-y-4">
               {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
-              {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
+              {userId && companyId && <DashboardCalendar userId={userId} companyId={companyId} />}
             </div>
             {/* 미수금 회수 — 거래처별 미입금 잔액·연체 미리보기 + 원장 이동(미수 없으면 자동 숨김) */}
             <ReceivablesPreview companyId={companyId} />

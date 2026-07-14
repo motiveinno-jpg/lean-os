@@ -96,9 +96,15 @@ export function DashboardSiyanHero({
       <div className="glass-card p-5 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번달 매출</span>
-          {perfPct != null && (
-            <span className={`delta-chip ${perfPct >= 100 ? "delta-up" : "delta-flat"}`}>목표 {perfPct}%</span>
-          )}
+          <div className="flex items-center gap-1">
+            {perfPct != null && (
+              <span className={`delta-chip ${perfPct >= 100 ? "delta-up" : "delta-flat"}`}>목표 {perfPct}%</span>
+            )}
+            <Link href="/reports/revenue" aria-label="매출 현황 보기"
+              className="p-1 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] transition shrink-0">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
+          </div>
         </div>
         <p className={`${valueCls(won(monthRevenue))} text-[var(--text)]`} title={won(monthRevenue)}>{won(monthRevenue)}</p>
         <p className="text-[11px] truncate text-[var(--text-dim)]">
@@ -110,7 +116,13 @@ export function DashboardSiyanHero({
       <div className="glass-card p-5 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">월 운영비</span>
-          <span className="delta-chip delta-flat">고정 {fixedPct}%</span>
+          <div className="flex items-center gap-1">
+            <span className="delta-chip delta-flat">고정 {fixedPct}%</span>
+            <Link href="/reports/expense" aria-label="비용 현황 보기"
+              className="p-1 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] transition shrink-0">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
+          </div>
         </div>
         <p className={`${valueCls(won(expense))} text-[var(--text)]`} title={won(expense)}>{won(expense)}</p>
         <p className="text-[11px] truncate text-[var(--text-dim)]">고정 {wonM(fixedCost)} · 변동 {wonM(variableCost)}</p>
