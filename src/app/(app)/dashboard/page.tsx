@@ -14,8 +14,8 @@ import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export"
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
-import { DashboardSiyanHero, DashboardCostDonut } from "@/components/dashboard-siyan-hero";
-import { DashboardBottomCards, DashboardRevenueTrendCard } from "@/components/dashboard-bottom-cards";
+import { DashboardSiyanHero } from "@/components/dashboard-siyan-hero";
+import { DashboardBottomCards } from "@/components/dashboard-bottom-cards";
 import { QuickApprovalCard } from "@/components/quick-approval-card";
 import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
@@ -38,7 +38,6 @@ import { PRESET_VIEWS, WIDGET_REGISTRY, ROLE_PRESETS } from "@/lib/widget-regist
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
-import { ActionInbox } from "@/components/action-inbox";
 import { ReceivablesPreview } from "@/components/receivables-preview";
 import { MyWorkSection } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
@@ -213,37 +212,7 @@ export default function DashboardPage() {
     refetchInterval: 30_000,
   });
 
-  // 시안 히어로 세부행 — 고정비(급여/정기지출/기타) + 변동비(카드별). realBurnData/realVariableData 와 동일 소스.
-  const { data: costBreakdown } = useQuery({
-    queryKey: ["dash-cost-breakdown", companyId],
-    queryFn: async () => {
-      const db: any = supabase;
-      // 월 경계 — '-31' 무효날짜 회피 (위 realVariableData 와 동일 사유). < 다음달 1일.
-      const _now = new Date();
-      const monthStart = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-01`;
-      const _nm = new Date(_now.getFullYear(), _now.getMonth() + 1, 1);
-      const nextStart = `${_nm.getFullYear()}-${String(_nm.getMonth() + 1).padStart(2, '0')}-01`;
-      const [recurring, totalSalary, snapshot, cardsRes] = await Promise.all([
-        getRecurringPayments(companyId!),
-        getMonthlyTotalSalary(companyId!),
-        db.from('cash_snapshot').select('monthly_fixed_cost').eq('company_id', companyId!).maybeSingle(),
-        db.from('card_transactions').select('card_name, amount').eq('company_id', companyId!)
-          .gte('transaction_date', monthStart).lt('transaction_date', nextStart),
-      ]);
-      const recurringTotal = (recurring || []).filter((r: any) => r.is_active).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
-      const manualFixed = Number(snapshot.data?.monthly_fixed_cost || 0);
-      const fixed = [
-        { label: '급여', amount: totalSalary },
-        { label: '정기지출', amount: recurringTotal },
-        { label: '기타 고정비', amount: manualFixed },
-      ];
-      const byCard: Record<string, number> = {};
-      (cardsRes.data || []).forEach((t: any) => { const k = t.card_name || '기타'; byCard[k] = (byCard[k] || 0) + Number(t.amount || 0); });
-      const variable = Object.entries(byCard).map(([label, amount]) => ({ label, amount: amount as number })).sort((a, b) => b.amount - a.amount);
-      return { fixed, variable };
-    },
-    enabled: !!companyId, staleTime: 60_000,
-  });
+  // (비용 구성 도넛 제거로 costBreakdown 쿼리 삭제 — 추세·구성 그래프는 분석 메뉴(/reports)로 일원화)
 
   // 결재 대기 건수 — 전자결재 카드용
   const { data: approvalsPending = 0 } = useQuery({
@@ -547,10 +516,20 @@ export default function DashboardPage() {
           {/* 내 업무 — 상황판 핵심(내가 처리/담당하는 것 요약+바로가기). 관리자·직원 공통, 권한 무관 노출 */}
           {userId && <MyWorkSection companyId={companyId} userId={userId} />}
 
-          {/* (1) KPI 4카드 행 — 잔고·매출·운영비·미수금 + kpi-callout */}
+          {/* 오늘 챙길 것 — 출퇴근(한 줄)·일정/할일(작게) + 미수금 회수. 모두 간략 + 해당 메뉴 이동 */}
+          <div className="grid gap-4 lg:grid-cols-2 items-start">
+            <div className="space-y-4">
+              {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
+              {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
+            </div>
+            {/* 미수금 회수 — 거래처별 미입금 잔액·연체 미리보기 + 원장 이동(미수 없으면 자동 숨김) */}
+            <ReceivablesPreview companyId={companyId} />
+          </div>
+
+          {/* 핵심 지표 — 회계 숫자는 요약만, 카드 클릭 시 해당 메뉴로. 추세 그래프는 분석 메뉴로 분리 */}
           <div className="dash-section-head">
             <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>핵심 지표</div>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">지금 회사 상태를 한눈에 — 잔고·매출·운영비·미수금</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">잔고·매출·비용·미수금 요약 — 카드를 누르면 통장·세금계산서·손익 등 해당 메뉴로 이동합니다.</p>
           </div>
           <DashboardSiyanHero
             balance={cashPulse?.currentBalance ?? null}
@@ -564,37 +543,10 @@ export default function DashboardPage() {
             netCashflow={dashboard.sixPack.netCashflow}
           />
 
-          {/* (2) 본문 그리드 — 좌 2/3: 큰 차트 + 분석 카드 / 우 1/3: 일정·할일·빠른 결재 스택 */}
-          <div className="dash-section-head">
-            <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>현황 분석</div>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">매출 추세·비용 구성과 오늘 처리할 일정·결재</p>
-          </div>
-          <div className="grid gap-5 lg:grid-cols-3 items-start">
-            <div className="lg:col-span-2 space-y-5">
-              <DashboardRevenueTrendCard companyId={companyId} />
-              <DashboardCostDonut costBreakdown={costBreakdown} />
-              {/* 미수금 회수 — 거래처별 미입금 잔액·연체 미리보기 + 원장 이동(2026-07-14) */}
-              <ReceivablesPreview companyId={companyId} />
-            </div>
-            <div className="space-y-5">
-              {/* 라운드7.1 — 출퇴근은 오너/관리자 화면에선 한 줄 압축(직원 화면만 큰 카드 유지) */}
-              {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
-              {/* 처리 대기 큐(액션 인박스) — 미수금 지연·결재·세금 마감을 심각도순 + 진입 버튼 */}
-              <ActionInbox
-                pendingApprovalsCount={dashboard.sixPack.pendingApprovalsCount}
-                arOver30={dashboard.sixPack.arOver30}
-                arTotal={dashboard.sixPack.arTotal}
-              />
-              <UpcomingScheduleCard companyId={companyId} windowDays={30} />
-              {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
-              {userId && <QuickApprovalCard companyId={companyId} userId={userId} />}
-            </div>
-          </div>
-
-          {/* (3) 하단 풀폭 — 카드/자산 요약 행 */}
+          {/* 자산 요약 — 통장·카드 잔액(간략) + 이동 */}
           <div className="dash-section-head">
             <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>자산 요약</div>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">통장·카드·자산 현황</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">통장·카드 현황 — 자세히 보려면 해당 메뉴로 이동하세요.</p>
           </div>
           <DashboardBottomCards companyId={companyId} />
         </div>
