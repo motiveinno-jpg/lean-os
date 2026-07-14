@@ -246,7 +246,14 @@ export default function ApprovalsPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(newType ? "new-request" : "my-approvals");
   const [presetType, setPresetType] = useState<string | null>(newType);
+  const [allTabStatusFilter, setAllTabStatusFilter] = useState<string>("");
   const queryClient = useQueryClient();
+
+  // KPI 카드 클릭 → "전체 현황" 탭으로 이동 + 해당 상태 필터 적용
+  const goToAllWithStatus = (status: string) => {
+    setAllTabStatusFilter(status);
+    setTab("all");
+  };
 
   // URL ?new=... 가 바뀌면 탭 + 타입 동기화 (대시보드 → approvals 이동 시)
   useEffect(() => {
@@ -346,15 +353,19 @@ export default function ApprovalsPage() {
         </div>
       </div>
 
-      {/* Summary stats — 클릭 시 해당 뷰로 (전체 현황은 admin 전용이라 KPI 자체는 통계만) */}
+      {/* Summary stats — 클릭 시 전체 현황 탭으로 이동 + 해당 상태 필터 적용 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "대기 중", value: stats?.pending ?? 0, tone: "warning", valueCls: "text-[var(--warning)]", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" /></svg> },
-          { label: "승인 완료", value: stats?.approved ?? 0, tone: "success", valueCls: "text-[var(--success)]", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-          { label: "반려", value: stats?.rejected ?? 0, tone: "danger", valueCls: "text-[var(--danger)]", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-          { label: "전체 요청", value: stats?.total ?? 0, tone: "", valueCls: "text-[var(--text)]", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.008v.008H3.75V6.75zm0 5.25h.008v.008H3.75V12zm0 5.25h.008v.008H3.75v-.008z" /></svg> },
+          { label: "대기 중", value: stats?.pending ?? 0, tone: "warning", valueCls: "text-[var(--warning)]", status: "pending", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" /></svg> },
+          { label: "승인 완료", value: stats?.approved ?? 0, tone: "success", valueCls: "text-[var(--success)]", status: "approved", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+          { label: "반려", value: stats?.rejected ?? 0, tone: "danger", valueCls: "text-[var(--danger)]", status: "rejected", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+          { label: "전체 요청", value: stats?.total ?? 0, tone: "", valueCls: "text-[var(--text)]", status: "", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.008v.008H3.75V6.75zm0 5.25h.008v.008H3.75V12zm0 5.25h.008v.008H3.75v-.008z" /></svg> },
         ].map((k) => (
-          <div key={k.label} className="glass-card card-hover p-5 flex flex-col gap-3">
+          <div
+            key={k.label}
+            onClick={() => goToAllWithStatus(k.status)}
+            className="glass-card card-hover p-5 flex flex-col gap-3 cursor-pointer"
+          >
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-muted)]">{k.label}</span>
               <span className={`kpi-icon ${k.tone}`}>{k.icon}</span>
@@ -375,7 +386,7 @@ export default function ApprovalsPage() {
         <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} />
       )}
       {tab === "all" && companyId && (
-        <AllRequestsTab companyId={companyId} />
+        <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} />
       )}
       {tab === "new-request" && companyId && userId && (
         <NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} />
@@ -881,12 +892,16 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
 // Tab 3: 전체 현황 (Admin)
 // ══════════════════════════════════════════════
 
-function AllRequestsTab({ companyId }: { companyId: string }) {
+function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string; initialStatusFilter?: string }) {
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || "");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  // KPI 카드 클릭 시 이미 "전체 현황" 탭에 있어도(재마운트 없이) 필터가 갱신되도록 동기화
+  useEffect(() => {
+    if (initialStatusFilter !== undefined) setStatusFilter(initialStatusFilter);
+  }, [initialStatusFilter]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
