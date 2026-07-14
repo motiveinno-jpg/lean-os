@@ -14,7 +14,6 @@ import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export"
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
-import { DashboardSiyanHero } from "@/components/dashboard-siyan-hero";
 import { DashboardBottomCards } from "@/components/dashboard-bottom-cards";
 import { QuickApprovalCard } from "@/components/quick-approval-card";
 import { BarChart } from "@/components/bar-chart";
@@ -516,18 +515,7 @@ export default function DashboardPage() {
             })()}
           </div>
 
-          {/* 핵심 지표 — 잔고·매출·비용·미수금 요약, 카드 클릭 시 해당 메뉴로 */}
-          <DashboardSiyanHero
-            balance={cashPulse?.currentBalance ?? null}
-            monthRevenue={dashboard.growth.monthRevenue}
-            monthTarget={dashboard.growth.monthTarget}
-            fixedCost={realBurnData ?? 0}
-            variableCost={realVariableData ?? 0}
-            arTotal={dashboard.sixPack.arTotal}
-            arOver30={dashboard.sixPack.arOver30}
-            pendingApprovals={dashboard.sixPack.pendingApprovals}
-            netCashflow={dashboard.sixPack.netCashflow}
-          />
+          {/* 핵심 지표(숫자 4카드) 제거 — 아래 '회사 현황' 카드들이 그 숫자+내역을 담아 중복 해소(2026-07-14, 사장님 A안) */}
 
           {/* 내 업무 — 내가 처리·담당하는 것 */}
           {userId && <MyWorkSection companyId={companyId} userId={userId} />}
