@@ -67,6 +67,7 @@ export interface ApprovalRequest {
   current_stage: number;
   total_stages: number;
   attachments: string[];
+  reference_user_ids?: string[];
   created_at: string;
   updated_at?: string;
 }
@@ -218,6 +219,7 @@ export async function createApprovalRequest(params: {
   customApprovers?: { userId: string; name: string }[];
   formId?: string;                          // 커스텀 결재 양식 사용 시
   customFields?: Record<string, string>;    // 양식 커스텀 필드 값
+  referenceUserIds?: string[];              // 참조(CC) — 결재선과 별개, 통보만 받는 인원
 }): Promise<ApprovalRequest> {
   const amount = params.amount ?? 0;
 
@@ -273,6 +275,7 @@ export async function createApprovalRequest(params: {
       attachments: params.attachments ?? [],
       form_id: params.formId ?? null,
       custom_fields: params.customFields ?? {},
+      reference_user_ids: params.referenceUserIds ?? [],
     })
     .select()
     .single();
@@ -627,7 +630,7 @@ export async function getMyPendingApprovals(
 ): Promise<any[]> {
   const { data: steps, error } = await db
     .from('approval_steps')
-    .select('*, approval_requests!inner(id, company_id, title, amount, description, request_type, requester_id, status, current_stage, total_stages, created_at, attachments, form_id, custom_fields)')
+    .select('*, approval_requests!inner(id, company_id, title, amount, description, request_type, requester_id, status, current_stage, total_stages, created_at, attachments, form_id, custom_fields, reference_user_ids)')
     .eq('approver_id', userId)
     .eq('status', 'pending')
     .eq('approval_requests.company_id', companyId)
@@ -641,15 +644,17 @@ export async function getMyPendingApprovals(
     (s: any) => s.stage === s.approval_requests?.current_stage
   );
 
-  // Enrich with requester info
+  // Enrich with requester + reference(참조) 인원 정보
   const requesterIds = [...new Set(filtered.map((s: any) => s.approval_requests?.requester_id).filter(Boolean))];
-  let requesterMap = new Map<string, string>();
-  if (requesterIds.length > 0) {
+  const referenceIds = [...new Set(filtered.flatMap((s: any) => s.approval_requests?.reference_user_ids || []))];
+  const allUserIds = [...new Set([...requesterIds, ...referenceIds])];
+  let userMap = new Map<string, string>();
+  if (allUserIds.length > 0) {
     const { data: users } = await db
       .from('users')
       .select('id, name, email')
-      .in('id', requesterIds);
-    (users || []).forEach((u: any) => requesterMap.set(u.id, u.name || u.email || ''));
+      .in('id', allUserIds);
+    (users || []).forEach((u: any) => userMap.set(u.id, u.name || u.email || ''));
   }
 
   return filtered.map((s: any) => ({
@@ -662,13 +667,14 @@ export async function getMyPendingApprovals(
     description: s.approval_requests?.description || '',
     requestType: s.approval_requests?.request_type,
     requesterId: s.approval_requests?.requester_id,
-    requesterName: requesterMap.get(s.approval_requests?.requester_id) || '',
+    requesterName: userMap.get(s.approval_requests?.requester_id) || '',
     currentStage: s.approval_requests?.current_stage,
     totalStages: s.approval_requests?.total_stages,
     createdAt: s.approval_requests?.created_at,
     attachments: s.approval_requests?.attachments || [],
     formId: s.approval_requests?.form_id || null,
     customFields: s.approval_requests?.custom_fields || {},
+    referenceUsers: (s.approval_requests?.reference_user_ids || []).map((id: string) => ({ id, name: userMap.get(id) || '구성원' })),
   }));
 }
 

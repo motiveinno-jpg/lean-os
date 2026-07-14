@@ -749,7 +749,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
 
           {/* 승인·참조 사이드바 */}
           <div className="w-full xl:w-[240px] shrink-0 glass-card p-4">
-            <ApprovalStageSidebar requestId={selected.requestId} />
+            <ApprovalStageSidebar requestId={selected.requestId} referenceUsers={selected.referenceUsers} />
           </div>
         </div>
       )}
@@ -1359,6 +1359,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         customApprovers: (canEditLine && selectedApprovers.length > 0) ? selectedApprovers : undefined,
         formId: selectedForm?.id,
         customFields: selectedForm ? customFieldValues : undefined,
+        referenceUserIds: selectedForm?.reference_user_ids?.length ? selectedForm.reference_user_ids : undefined,
       });
     },
     onSuccess: () => {
@@ -2414,28 +2415,46 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
 }
 
 // 분할 패널 우측 — 플렉스 스타일 "승인·참조" 사이드바 (담당자별 단계·상태 요약)
-function ApprovalStageSidebar({ requestId }: { requestId: string }) {
+function ApprovalStageSidebar({ requestId, referenceUsers }: { requestId: string; referenceUsers?: { id: string; name: string }[] }) {
   const { data: steps = [] } = useQuery({
     queryKey: ["activity-timeline", requestId],
     queryFn: () => getApprovalTimeline(requestId),
     enabled: !!requestId,
   });
-  if (steps.length === 0) return null;
+  if (steps.length === 0 && (!referenceUsers || referenceUsers.length === 0)) return null;
   return (
-    <div>
-      <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-3">승인선</div>
-      <div className="space-y-3.5">
-        {steps.map((s) => (
-          <div key={s.id} className="flex items-start gap-2.5">
-            <Avatar name={s.approver_name || "담당자"} size={28} />
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-bold truncate">{s.approver_name || "담당자"}</div>
-              <div className="text-[10px] text-[var(--text-dim)] truncate">{s.stage_name}</div>
-            </div>
-            <div className="shrink-0 mt-0.5"><StatusBadge status={s.status} /></div>
+    <div className="space-y-5">
+      {referenceUsers && referenceUsers.length > 0 && (
+        <div>
+          <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-3">참조</div>
+          <div className="space-y-3">
+            {referenceUsers.map((u) => (
+              <div key={u.id} className="flex items-center gap-2.5">
+                <Avatar name={u.name} size={26} />
+                <div className="flex-1 min-w-0 text-[13px] font-bold truncate">{u.name}</div>
+                <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--bg-surface)] text-[var(--text-dim)]">참조</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+      {steps.length > 0 && (
+        <div>
+          <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-3">승인선</div>
+          <div className="space-y-3.5">
+            {steps.map((s) => (
+              <div key={s.id} className="flex items-start gap-2.5">
+                <Avatar name={s.approver_name || "담당자"} size={28} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-bold truncate">{s.approver_name || "담당자"}</div>
+                  <div className="text-[10px] text-[var(--text-dim)] truncate">{s.stage_name}</div>
+                </div>
+                <div className="shrink-0 mt-0.5"><StatusBadge status={s.status} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -447,6 +447,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          reference_user_ids: string[]
           stages: Json
           updated_at: string
           use_attachment: boolean
@@ -463,6 +464,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          reference_user_ids?: string[]
           stages?: Json
           updated_at?: string
           use_attachment?: boolean
@@ -479,6 +481,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          reference_user_ids?: string[]
           stages?: Json
           updated_at?: string
           use_attachment?: boolean
@@ -580,6 +583,7 @@ export type Database = {
           form_id: string | null
           id: string
           policy_id: string | null
+          reference_user_ids: string[]
           request_id: string | null
           request_type: string
           requester_id: string
@@ -599,6 +603,7 @@ export type Database = {
           form_id?: string | null
           id?: string
           policy_id?: string | null
+          reference_user_ids?: string[]
           request_id?: string | null
           request_type?: string
           requester_id: string
@@ -618,6 +623,7 @@ export type Database = {
           form_id?: string | null
           id?: string
           policy_id?: string | null
+          reference_user_ids?: string[]
           request_id?: string | null
           request_type?: string
           requester_id?: string

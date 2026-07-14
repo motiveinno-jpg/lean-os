@@ -391,6 +391,7 @@ export type Database = {
           description: string | null
           id: string
           policy_id: string | null
+          reference_user_ids: string[]
           request_id: string | null
           request_type: string
           requester_id: string
@@ -408,6 +409,7 @@ export type Database = {
           description?: string | null
           id?: string
           policy_id?: string | null
+          reference_user_ids?: string[]
           request_id?: string | null
           request_type?: string
           requester_id: string
@@ -425,6 +427,7 @@ export type Database = {
           description?: string | null
           id?: string
           policy_id?: string | null
+          reference_user_ids?: string[]
           request_id?: string | null
           request_type?: string
           requester_id?: string

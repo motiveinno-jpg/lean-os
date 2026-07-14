@@ -47,7 +47,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const refresh = () => qc.invalidateQueries({ queryKey: ["approval-forms", companyId] });
   const userName = (id: string) => { const u = (users as any[]).find((x) => x.id === id); return u?.name || u?.email || "구성원"; };
 
-  const openNew = () => setEditing({ name: "", category: "", description: "", fields: [], content_template: "", stages: [emptyStage(1)], allow_requester_edit: true, use_attachment: true });
+  const openNew = () => setEditing({ name: "", category: "", description: "", fields: [], content_template: "", stages: [emptyStage(1)], reference_user_ids: [], allow_requester_edit: true, use_attachment: true });
   const openEdit = (f: ApprovalForm) => setEditing({ ...f });
 
   const save = async () => {
@@ -62,6 +62,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
         fields: (editing.fields || []).filter((f) => (f.label || "").trim()),
         contentTemplate: editing.content_template || null,
         stages: (editing.stages || []).map((s, i) => ({ ...s, stage: i + 1 })),
+        referenceUserIds: editing.reference_user_ids || [],
         allowRequesterEdit: editing.allow_requester_edit ?? true,
         useAttachment: editing.use_attachment ?? true,
       });
@@ -186,8 +187,32 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                         {(Object.keys(FIELD_TYPE_LABEL) as ApprovalFieldType[]).map((t) => <option key={t} value={t}>{FIELD_TYPE_LABEL[t]}</option>)}
                       </select>
                       {f.type === "select" && (
-                        <input value={(f.options || []).join(", ")} onChange={(e) => setField(i, { options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-                          placeholder="옵션1, 옵션2" className="flex-1 min-w-[100px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
+                        <div className="flex-1 min-w-[160px] flex flex-wrap items-center gap-1">
+                          {(f.options || []).map((opt, oi) => (
+                            <span key={oi} className="inline-flex items-center gap-1 pl-2 pr-1 h-7 rounded-full bg-[var(--bg)] border border-[var(--border)] text-xs">
+                              {opt}
+                              <button
+                                type="button"
+                                onClick={() => setField(i, { options: (f.options || []).filter((_, j) => j !== oi) })}
+                                className="text-[var(--text-dim)] hover:text-[var(--danger)] px-0.5"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ))}
+                          <input
+                            placeholder="옵션 입력 후 Enter"
+                            className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
+                            onKeyDown={(e) => {
+                              if (e.key !== "Enter") return;
+                              e.preventDefault();
+                              const v = e.currentTarget.value.trim();
+                              if (!v) return;
+                              setField(i, { options: [...(f.options || []), v] });
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                        </div>
                       )}
                       {f.type === "fixed" && (
                         <input value={f.default_value || ""} onChange={(e) => setField(i, { default_value: e.target.value })}
@@ -250,6 +275,28 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (미리 지정) */}
+            <div className="mb-3">
+              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택) — 결재 여부와 무관하게 통보만 받는 인원</label>
+              <div className="flex flex-wrap gap-1 bg-[var(--bg-surface)] rounded-lg p-2">
+                {(users as any[]).length === 0 ? (
+                  <span className="text-[11px] text-[var(--text-dim)] px-1 py-1">구성원이 없습니다</span>
+                ) : (users as any[]).map((u) => {
+                  const on = (editing.reference_user_ids || []).includes(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => patch({ reference_user_ids: on ? (editing.reference_user_ids || []).filter((x) => x !== u.id) : [...(editing.reference_user_ids || []), u.id] })}
+                      className={`text-[10px] px-2 py-0.5 rounded-full border ${on ? "bg-[var(--text-muted)] text-white border-[var(--text-muted)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
+                    >
+                      {u.name || u.email}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

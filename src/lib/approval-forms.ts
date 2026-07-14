@@ -39,6 +39,7 @@ export interface ApprovalForm {
   fields: ApprovalFormField[];
   content_template: string | null;
   stages: ApprovalFormStage[];
+  reference_user_ids: string[]; // 참조(CC) — 결재선과 별개로 결과를 통보받는 인원, 양식에서 미리 지정
   allow_requester_edit: boolean;
   use_attachment: boolean;
   is_active: boolean;
@@ -66,6 +67,7 @@ export interface SaveApprovalFormInput {
   fields: ApprovalFormField[];
   contentTemplate?: string | null;
   stages: ApprovalFormStage[];
+  referenceUserIds?: string[];
   allowRequesterEdit?: boolean;
   useAttachment?: boolean;
   createdBy?: string | null;
@@ -80,6 +82,7 @@ export async function saveApprovalForm(input: SaveApprovalFormInput): Promise<st
     fields: input.fields,
     content_template: input.contentTemplate || null,
     stages: input.stages,
+    reference_user_ids: input.referenceUserIds ?? [],
     allow_requester_edit: input.allowRequesterEdit ?? true,
     use_attachment: input.useAttachment ?? true,
     updated_at: new Date().toISOString(),
