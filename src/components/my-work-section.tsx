@@ -52,12 +52,12 @@ function WorkCard({ href, icon, label, count, tone = "primary", items, moreLabel
 }) {
   const color = toneColor(tone);
   return (
-    <div className="my-work-card glass-card p-4 flex flex-col">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: soft(color, 12) }}>{icon}</span>
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-bold text-[var(--text)] leading-tight truncate">{label}</div>
-          <div className="text-[11px] font-semibold mono-number" style={{ color }}>{count}건</div>
+    <div className="my-work-card glass-card px-3.5 py-3 flex flex-col">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[13px] shrink-0" style={{ background: soft(color, 12) }}>{icon}</span>
+        <div className="min-w-0 flex-1 flex items-baseline gap-1.5">
+          <span className="text-[12px] font-bold text-[var(--text)] leading-tight truncate">{label}</span>
+          <span className="text-[11px] font-semibold mono-number shrink-0" style={{ color }}>{count}</span>
         </div>
         <Link href={href} className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0 no-underline">이동 →</Link>
       </div>
@@ -173,9 +173,9 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
 
   return (
     <section className="my-work-section mb-6">
-      <div className="mb-3">
-        <h2 className="text-lg font-extrabold text-[var(--text)] tracking-tight">내 업무</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">내가 담당·처리해야 할 일을 미리 보고, 항목이나 “이동 →”을 누르면 해당 메뉴로 바로 갑니다.</p>
+      <div className="mb-2.5">
+        <h2 className="text-[15px] font-extrabold text-[var(--text)] tracking-tight">내 업무</h2>
+        <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">담당·처리할 일을 미리 보고, 항목이나 “이동 →”으로 해당 메뉴로.</p>
       </div>
       {cards.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{cards}</div>

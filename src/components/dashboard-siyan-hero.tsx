@@ -53,17 +53,17 @@ export function DashboardSiyanHero({
   //   truncate(…) 대신 길이 기반 축소로 전체 금액이 항상 보이도록.
   const valueBase = "leading-tight font-extrabold mono-number tracking-tight whitespace-nowrap";
   const fitSize = (s: string) =>
-    s.length >= 15 ? "text-[13px] sm:text-[20px]"
-    : s.length >= 13 ? "text-[15px] sm:text-[22px]"
-    : s.length >= 11 ? "text-[18px] sm:text-[24px]"
-    : "text-[22px] sm:text-[26px]";
+    s.length >= 15 ? "text-[13px] sm:text-[16px]"
+    : s.length >= 13 ? "text-[14px] sm:text-[17px]"
+    : s.length >= 11 ? "text-[15px] sm:text-[18px]"
+    : "text-[17px] sm:text-[19px]";
   const valueCls = (s: string) => `${valueBase} ${fitSize(s)}`;
 
   // ── KPI 4카드 — 공통 골격: [라벨 + 우측 칩/버튼] / [값] / [보조 한 줄] ──
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {/* 총 자금 */}
-      <div className="glass-card p-5 flex flex-col gap-3">
+      <div className="glass-card p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 자금</span>
           <div className="flex items-center gap-1">
@@ -93,7 +93,7 @@ export function DashboardSiyanHero({
       </div>
 
       {/* 이번달 매출 */}
-      <div className="glass-card p-5 flex flex-col gap-3">
+      <div className="glass-card p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번달 매출</span>
           <div className="flex items-center gap-1">
@@ -113,7 +113,7 @@ export function DashboardSiyanHero({
       </div>
 
       {/* 월 운영비 */}
-      <div className="glass-card p-5 flex flex-col gap-3">
+      <div className="glass-card p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">월 운영비</span>
           <div className="flex items-center gap-1">
@@ -129,7 +129,7 @@ export function DashboardSiyanHero({
       </div>
 
       {/* 미수금 — 위험 값만 색으로 구분 + 회수 관리 진입 링크 */}
-      <div className="glass-card p-5 flex flex-col gap-3">
+      <div className="glass-card p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">미수금</span>
           <span className={`delta-chip ${arOver30 > 0 ? "delta-down" : "delta-up"}`}>{arOver30 > 0 ? "▼ 지연" : "▲ 정상"}</span>

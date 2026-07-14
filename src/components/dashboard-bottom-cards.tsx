@@ -90,33 +90,13 @@ function RefinedTrendChart({ series, labels, gradId }: { series: number[]; label
   );
 }
 
-// ── 공용 행/헤더 (카드·자산·매출 공통) ──
-const ListRow = ({ name, amount }: { name: string; amount: number }) => (
-  <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
-    <span className="text-[13px] truncate mr-2 text-[var(--text-muted)]">{name}</span>
-    <span className="text-[13px] font-semibold tabular-nums shrink-0 text-[var(--text)]">{fmtW(amount)}</span>
-  </div>
-);
-const Header = ({ title, icon, color }: { title: string; icon: React.ReactNode; color: string }) => (
-  <div className="flex items-center gap-2.5 mb-4">
-    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${color}1F`, color }}>{icon}</div>
-    <h3 className="text-sm font-bold text-[var(--text)]">{title}</h3>
-  </div>
-);
+// ── 공용 합계 행 (매출 추이 카드 등에서 사용) ──
 const TotalRow = ({ label, amount, color }: { label: string; amount: number; color?: string }) => (
   <div className="flex justify-between items-center mt-4 pt-4 border-t border-[var(--border)]">
     <span className="text-[13px] font-medium text-[var(--text-muted)]">{label}</span>
     <span className="text-[16px] font-bold tabular-nums text-[var(--text)]" style={color ? { color } : undefined}>{fmtW(amount)}</span>
   </div>
 );
-const MoreLink = ({ href, label }: { href: string; label: string }) => (
-  <Link href={href} className="mt-3 w-full text-[12px] font-semibold p-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-[var(--primary)]"
-    style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)" }}>
-    {label}
-    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-  </Link>
-);
-
 const cardCls = "glass-card p-4 flex flex-col";
 
 // ── 매출 추이 — 본문 2/3 컬럼의 큰 차트 카드 (라운드7.1: 기간 토글 월/분기/연 + 축·눈금) ──
@@ -230,30 +210,43 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
   });
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-      {/* 카드 */}
-      <div className={cardCls}>
-        <Header title="카드" color={A.red}
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>} />
-        <div className="space-y-2 flex-1">
-          {(cards?.list || []).slice(0, 2).map((c) => <ListRow key={c.name} name={c.name} amount={c.amount} />)}
-          {(!cards || cards.list.length === 0) && <div className="text-[12px] text-center py-2 text-[var(--text-dim)]">이번 달 카드 사용 없음</div>}
-        </div>
-        <TotalRow label="이번 달 사용" amount={cards?.total ?? 0} color={A.red} />
-        <MoreLink href="/cards" label={`${cards?.count ?? 0}개 전체보기`} />
-      </div>
-
-      {/* 자산 */}
-      <div className={cardCls}>
-        <Header title="자산" color={A.green}
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>} />
-        <div className="space-y-2 flex-1">
-          {(assets?.list || []).slice(0, 2).map((a) => <ListRow key={a.name} name={a.name} amount={a.amount} />)}
-          {(!assets || assets.list.length === 0) && <div className="text-[12px] text-center py-2 text-[var(--text-dim)]">등록된 계좌 없음</div>}
-        </div>
-        <TotalRow label="총 자산" amount={assets?.total ?? 0} color={A.green} />
-        <MoreLink href="/bank" label={`${assets?.count ?? 0}개 전체보기`} />
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <CompactAssetCard title="카드" color={A.red} total={cards?.total ?? 0} totalLabel="이번 달 사용"
+        rows={(cards?.list || []).slice(0, 3)} count={cards?.count ?? 0} href="/cards" empty="이번 달 카드 사용 없음" />
+      <CompactAssetCard title="자산" color={A.green} total={assets?.total ?? 0} totalLabel="총 자산"
+        rows={(assets?.list || []).slice(0, 3)} count={assets?.count ?? 0} href="/bank" empty="등록된 계좌 없음" />
     </div>
+  );
+}
+
+// 자산/카드 요약 — 작고 세련된 직사각형(총액 강조 + 얇은 내역 라인 + 카드 전체 클릭 이동)
+function CompactAssetCard({ title, color, total, totalLabel, rows, count, href, empty }: {
+  title: string; color: string; total: number; totalLabel: string;
+  rows: { name: string; amount: number }[]; count: number; href: string; empty: string;
+}) {
+  return (
+    <Link href={href} className="glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+          <span className="text-[12px] font-semibold text-[var(--text-muted)]">{title}</span>
+          <span className="text-[10px] text-[var(--text-dim)] truncate">· {totalLabel}</span>
+        </div>
+        <span className="text-[17px] leading-none font-extrabold tabular-nums shrink-0" style={{ color }}>{fmtW(total)}</span>
+      </div>
+      {rows.length === 0 ? (
+        <div className="text-[11px] text-[var(--text-dim)] mt-2">{empty}</div>
+      ) : (
+        <div className="flex flex-col gap-0.5 mt-2">
+          {rows.map((r) => (
+            <div key={r.name} className="flex justify-between items-center text-[11px]">
+              <span className="truncate text-[var(--text-dim)] mr-2">{r.name}</span>
+              <span className="tabular-nums text-[var(--text-muted)] shrink-0">{fmtW(r.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mt-2 text-[11px] font-semibold text-[var(--primary)]">{count}개 전체보기 →</div>
+    </Link>
   );
 }

@@ -57,12 +57,12 @@ export function ReceivablesPreview({ companyId }: { companyId: string }) {
   const top = data.list.slice(0, 5);
 
   return (
-    <div className="receivables-preview glass-card p-4">
-      <div className="flex items-end justify-between gap-2 mb-3">
-        <div className="min-w-0">
-          <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--danger)" }}>미수금 회수</div>
-          <div className="text-[22px] leading-7 font-extrabold mono-number" style={{ color: "var(--danger)" }}>{won(data.total)}</div>
-          <div className="text-[11px] text-[var(--text-dim)] mt-0.5">발행했지만 아직 입금 안 된 매출 · 거래처 {data.list.length}곳</div>
+    <div className="receivables-preview glass-card px-4 py-3">
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <div className="min-w-0 flex items-baseline gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider shrink-0" style={{ color: "var(--danger)" }}>미수금</span>
+          <span className="text-[17px] leading-none font-extrabold mono-number" style={{ color: "var(--danger)" }}>{won(data.total)}</span>
+          <span className="text-[10px] text-[var(--text-dim)] truncate">거래처 {data.list.length}곳</span>
         </div>
         <Link href="/partners/ledger?type=sales" className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0 no-underline">이동 →</Link>
       </div>
