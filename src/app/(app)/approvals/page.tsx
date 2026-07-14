@@ -972,13 +972,17 @@ function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string;
           return signed ? { name: attachmentFileName(url), url: signed } : null;
         })
       )).filter((a): a is { name: string; url: string } => !!a);
+      // 화면(팝업)과 완전히 동일한 순서·내용으로 — 구조화 필드 분리 + 중복 제거된 본문
+      const formFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
+      const contentText = contentWithoutFieldLines(req.description || "", formFields);
       const blob = await generateApprovalPdf({
         title: req.title,
         requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
         statusLabel: STATUS_CONFIG[req.status]?.label || req.status,
         requesterName: requesterNames.get(req.requester_id) || "-",
         amount: req.amount || 0,
-        description: req.description || undefined,
+        description: contentText || undefined,
+        formFields: formFields.length > 0 ? formFields : undefined,
         createdAt: formatDate(req.created_at),
         attachments: attachments.length > 0 ? attachments : undefined,
         steps: timeline.map((s) => ({

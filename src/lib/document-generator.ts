@@ -777,6 +777,7 @@ export interface ApprovalPdfParams {
   description?: string;
   createdAt: string; // yyyy-mm-dd 또는 ISO
   companyName?: string;
+  formFields?: { label: string; value: string }[]; // 커스텀 결재 양식 구조화 필드 — 화면과 동일 순서로 표시
   attachments?: { name: string; url: string }[]; // url: 클릭 시 열람 가능한(서명된) 링크
   steps: {
     stage: number;
@@ -821,6 +822,22 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
     margin: { left: 14, right: 14 },
   });
   y = (doc as any).lastAutoTable.finalY + 6;
+
+  // ── 구조화 필드 (커스텀 결재 양식) — 화면 표시와 동일하게 내용보다 먼저 ──
+  if (params.formFields && params.formFields.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      body: params.formFields.map((f) => [f.label, f.value]),
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3, font: 'NanumGothic' },
+      columnStyles: {
+        0: { fontStyle: 'bold', fillColor: [245, 247, 250], cellWidth: 32 },
+        1: { cellWidth: pageW - 28 - 32 },
+      },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+  }
 
   // ── 내용 (줄간격 넓게 — 가독성) ──
   if (params.description) {
