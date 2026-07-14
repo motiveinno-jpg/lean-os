@@ -1334,6 +1334,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     mutationFn: async () => {
       // Upload attachments if any
       let attachmentUrls: string[] = [];
+      const failedUploads: string[] = [];
       if (files.length > 0) {
         for (const file of files) {
           const path = `approvals/${companyId}/${Date.now()}_${file.name}`;
@@ -1341,7 +1342,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           if (!error) {
             const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
             attachmentUrls.push(urlData.publicUrl);
+          } else {
+            // QA 2026-07-14: 업로드 실패가 조용히 무시돼 첨부파일이 항상 빠지던 문제 진단용 — 원인 노출
+            failedUploads.push(`${file.name}: ${error.message}`);
           }
+        }
+        if (failedUploads.length > 0) {
+          toast(`첨부파일 업로드 실패 — ${failedUploads.join(" / ")}`, "error");
         }
       }
 
