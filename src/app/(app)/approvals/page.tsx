@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Fragment } from "react";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
@@ -21,6 +21,7 @@ import {
   getMyRequests,
   resubmitRequest,
   getApprovalStats,
+  deleteApprovalRequest,
   REQUEST_TYPE_LABELS,
   type RequestType,
   type ApprovalPolicy,
@@ -882,10 +883,13 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
 
 function AllRequestsTab({ companyId }: { companyId: string }) {
   const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: allRequests = [], isLoading } = useQuery({
     queryKey: ["all-requests", companyId, statusFilter, typeFilter],
@@ -895,6 +899,26 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
     }),
     enabled: !!companyId,
   });
+
+  const handleDelete = async (req: any) => {
+    const { ok } = await confirm({
+      title: "결재 요청 삭제",
+      desc: `"${req.title}"을(를) 완전히 삭제할까요? 이 작업은 되돌릴 수 없습니다.`,
+      confirmLabel: "삭제",
+      danger: true,
+    });
+    if (!ok) return;
+    setDeletingId(req.id);
+    try {
+      await deleteApprovalRequest(req.id);
+      if (expandedId === req.id) setExpandedId(null);
+      queryClient.invalidateQueries({ queryKey: ["all-requests", companyId] });
+      toast("삭제했습니다", "success");
+    } catch (err: any) {
+      toast(`삭제 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
+    }
+    setDeletingId(null);
+  };
 
   // Enrich with requester names
   const requesterNames = useMemo(() => {
@@ -1022,8 +1046,8 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
               allRequests.map((req: any) => {
                 const m = typeMeta(req.request_type);
                 return (
+                  <Fragment key={req.id}>
                   <tr
-                    key={req.id}
                     className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition"
                     onClick={() => setExpandedId(expandedId === req.id ? null : req.id)}
                   >
@@ -1051,45 +1075,53 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
                     </td>
                     <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(req.created_at)}</td>
                     <td className="px-4 py-3.5">
-                      {req.status === "approved" && (
+                      <div className="flex items-center gap-1.5">
+                        {req.status === "approved" && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDownloadApprovalPdf(req); }}
+                            disabled={pdfLoadingId === req.id}
+                            title="결재 문서 PDF 다운로드"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)] border border-[var(--border)] transition disabled:opacity-50"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                            </svg>
+                            {pdfLoadingId === req.id ? "생성 중..." : "PDF"}
+                          </button>
+                        )}
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleDownloadApprovalPdf(req); }}
-                          disabled={pdfLoadingId === req.id}
-                          title="결재 문서 PDF 다운로드"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)] border border-[var(--border)] transition disabled:opacity-50"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(req); }}
+                          disabled={deletingId === req.id}
+                          title="결재 요청 삭제"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] border border-[var(--border)] transition disabled:opacity-50"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
                           </svg>
-                          {pdfLoadingId === req.id ? "생성 중..." : "PDF"}
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
+                  {expandedId === req.id && (
+                    <tr className="border-b border-[var(--border)] last:border-0 bg-[var(--bg)]">
+                      <td colSpan={7} className="px-5 py-4">
+                        <ApprovalTimelineView
+                          requestId={req.id}
+                          currentStage={req.current_stage}
+                          totalStages={req.total_stages}
+                          requestStatus={req.status}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })
             )}
           </tbody>
         </table>
-
-        {/* Inline expanded timeline */}
-        {expandedId && (
-          <div className="border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]">
-            {(() => {
-              const req = allRequests.find((r: any) => r.id === expandedId);
-              if (!req) return null;
-              return (
-                <ApprovalTimelineView
-                  requestId={req.id}
-                  currentStage={req.current_stage}
-                  totalStages={req.total_stages}
-                  requestStatus={req.status}
-                />
-              );
-            })()}
-          </div>
-        )}
       </div>
+      {confirmElement}
     </div>
   );
 }

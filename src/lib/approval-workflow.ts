@@ -873,6 +873,16 @@ export async function cancelRequest(requestId: string, userId: string): Promise<
   });
 }
 
+/**
+ * Permanently delete an approval request and its steps (admin cleanup — 상태 무관).
+ */
+export async function deleteApprovalRequest(requestId: string): Promise<void> {
+  await db.from('approval_steps').delete().eq('request_id', requestId);
+  await db.from('approval_comments').delete().eq('request_id', requestId);
+  const { error } = await db.from('approval_requests').delete().eq('id', requestId);
+  if (error) throw error;
+}
+
 // ══════════════════════════════════════════════
 // Summary / Stats
 // ══════════════════════════════════════════════
