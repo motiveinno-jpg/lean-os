@@ -50,10 +50,7 @@ export function ReportsTabs() {
         })}
       </div>
       {current && (
-        <div className="mt-4 mb-5">
-          <h1 className="text-[26px] leading-8 font-extrabold text-[var(--text)] tracking-tight">{current.label}</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1.5 max-w-3xl leading-relaxed">{current.desc}</p>
-        </div>
+        <p className="text-sm text-[var(--text-muted)] mt-3 mb-5 max-w-3xl leading-relaxed">{current.desc}</p>
       )}
     </div>
   );
