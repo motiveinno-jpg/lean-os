@@ -38,7 +38,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
-import { MyWorkSection, useMyWorkCards } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
+import { useMyWorkCards } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
 import { DashboardBizSummary } from "@/components/dashboard-biz-summary"; // 경영 요약(손익·잔액·런웨이)
 import { RecentProjects, RecentRevenue } from "@/components/dashboard-activity"; // 회사 활동 요약 카드
@@ -2748,6 +2748,8 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
   const yearMonth = today.substring(0, 7);
   const currentYear = new Date().getFullYear();
   const [checkingIn, setCheckingIn] = useState(false);
+  // 직원용 '내 업무' 위젯 카드 — 관리자와 동일한 위젯(드래그/크기조절) 기능 제공
+  const empWorkCards = useMyWorkCards(companyId || "", userId || "");
   const [checkingOut, setCheckingOut] = useState(false);
   const queryClient = useQueryClient();
 
@@ -2988,8 +2990,16 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
 
   return (
     <div className="space-y-5">
-      {/* 내 업무 — 관리자·직원 동일 상황판. 권한 필요한 회사 현황은 이 화면에 없음(직원 노출 X) */}
-      {companyId && userId && <MyWorkSection companyId={companyId} userId={userId} />}
+      {/* 내 업무 — 관리자와 동일한 위젯 기능(드래그 이동·크기 조절). 회사 현황(재무) 위젯은 직원에 미노출 */}
+      {companyId && userId && (
+        <DashboardGrid
+          storageKey={`dashboard-grid-emp-${userId}`}
+          widgets={[
+            ...empWorkCards,
+            { id: "calendar", h: 10, node: <DashboardCalendar userId={userId} companyId={companyId} /> },
+          ]}
+        />
+      )}
       {/* 인사말 히어로 제거(라운드6.5) — 고정 헤더바가 인사·프로필을 대체. 근무 상태 칩은 아래 카드에 동일 표시 */}
       <div className="grid gap-5 lg:grid-cols-3 items-start">
       {/* ─ 주 콘텐츠 (좌 2/3) — 오늘 할 일: 출퇴근·결재·서명·휴가 통합 단일 카드 ─ */}

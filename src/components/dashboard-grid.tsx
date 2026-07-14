@@ -49,6 +49,14 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
   };
   const reset = () => { setLayout(buildDefault(widgets)); try { localStorage.removeItem(storageKey); } catch { /* noop */ } };
 
+  // 현재 배치를 JSON으로 복사 — 앱 기본값(buildDefault)으로 하드코딩할 때 사용
+  const [copied, setCopied] = useState(false);
+  const copyLayout = async () => {
+    const json = JSON.stringify(layout.map((l) => ({ i: l.i, x: l.x, y: l.y, w: l.w, h: l.h })));
+    try { await navigator.clipboard.writeText(json); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+    catch { window.prompt("아래 값을 복사하세요", json); }
+  };
+
   const Header = (
     <div className="dash-section-head flex items-start justify-between gap-2 mb-3">
       <div>
@@ -56,6 +64,7 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
         {edit && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 원하는 위치로 · 우하단 모서리를 드래그해 크기 조절 (빈칸 자동 정렬 · 자동 저장)</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
+        {edit && <button onClick={copyLayout} className="btn-secondary btn-sm">{copied ? "복사됨!" : "📋 배치 복사"}</button>}
         {edit && <button onClick={reset} className="btn-secondary btn-sm">기본값</button>}
         <button onClick={() => setEdit((v) => !v)} className={`btn-sm ${edit ? "btn-primary" : "btn-secondary"}`}>
           {edit ? "✓ 편집 완료" : "⠿ 위젯 편집"}
