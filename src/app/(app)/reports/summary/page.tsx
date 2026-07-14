@@ -226,8 +226,6 @@ export default function ManagementSummaryPage() {
               </div>
             </Section>
           </div>
-
-          <p className="text-[11px] text-[var(--text-dim)] text-center pt-1">※ 파일럿 — 리포트형 새 디자인 미리보기. 확정되면 전 화면으로 확산합니다.</p>
         </div>
       )}
     </ReportShell>
