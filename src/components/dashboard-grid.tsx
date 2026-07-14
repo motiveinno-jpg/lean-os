@@ -15,7 +15,7 @@ export type DashWidget = { id: string; node: React.ReactNode; w?: number; h?: nu
 
 function buildDefault(widgets: DashWidget[]): Layout[] {
   return widgets.map((w, i) => ({
-    i: w.id, x: (i % 3) * 4, y: Math.floor(i / 3) * (w.h || 5), w: w.w || 4, h: w.h || 5, minW: 3, minH: 2,
+    i: w.id, x: (i % 3) * 4, y: Math.floor(i / 3) * (w.h || 6), w: w.w || 4, h: w.h || 6, minW: 3, minH: 2,
   }));
 }
 
@@ -91,7 +91,7 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
         compactType="vertical"
         onLayoutChange={onLayoutChange}
         draggableCancel=".no-drag"
-        resizeHandles={["se"]}
+        resizeHandles={["s", "w", "e", "n", "sw", "nw", "se", "ne"]}
       >
         {widgets.map((w) => (
           <div key={w.id} className={edit ? "rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}>

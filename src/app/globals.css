@@ -800,19 +800,31 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
 /* ── 대시보드 위젯 편집(react-grid-layout) — 리사이즈 핸들 또렷하게 + 드래그 커서 (2026-07-14) ── */
 .rgl-editing .react-grid-item { cursor: move; }
-/* 기본 회색/깨진 그립 아이콘 제거 — 커스텀 코너 그립만 (편집 아닐 땐 핸들 자체 숨김) */
-.dashboard-grid .react-resizable-handle { background-image: none !important; }
+/* 기본 그립 아이콘 제거 · 편집 아닐 땐 핸들 숨김 */
+.dashboard-grid .react-resizable-handle { background-image: none !important; z-index: 6; }
 .dashboard-grid:not(.rgl-editing) .react-resizable-handle { display: none !important; }
-.rgl-editing .react-resizable-handle {
-  width: 20px; height: 20px; z-index: 6; opacity: 1; padding: 0;
-}
-.rgl-editing .react-resizable-handle::after {
-  content: ""; position: absolute; right: 4px; bottom: 4px;
-  width: 10px; height: 10px;
-  border-right: 2px solid var(--primary); border-bottom: 2px solid var(--primary);
-  border-bottom-right-radius: 3px;
-}
-.rgl-editing .react-resizable-handle-se { cursor: se-resize; }
+/* 모서리(코너) 4방향 — 인디고 ㄱ자 그립 */
+.rgl-editing .react-resizable-handle-se::after,
+.rgl-editing .react-resizable-handle-sw::after,
+.rgl-editing .react-resizable-handle-ne::after,
+.rgl-editing .react-resizable-handle-nw::after { content: ""; position: absolute; width: 9px; height: 9px; opacity: 0.85; }
+.rgl-editing .react-resizable-handle-se::after { right: 4px; bottom: 4px; border-right: 2px solid var(--primary); border-bottom: 2px solid var(--primary); }
+.rgl-editing .react-resizable-handle-sw::after { left: 4px; bottom: 4px; border-left: 2px solid var(--primary); border-bottom: 2px solid var(--primary); }
+.rgl-editing .react-resizable-handle-ne::after { right: 4px; top: 4px; border-right: 2px solid var(--primary); border-top: 2px solid var(--primary); }
+.rgl-editing .react-resizable-handle-nw::after { left: 4px; top: 4px; border-left: 2px solid var(--primary); border-top: 2px solid var(--primary); }
+/* 가장자리(엣지) 4방향 — 변 전체를 잡기 영역으로 + 얇은 바 */
+.rgl-editing .react-resizable-handle-n,
+.rgl-editing .react-resizable-handle-s { left: 0 !important; margin-left: 0 !important; width: 100% !important; height: 12px; }
+.rgl-editing .react-resizable-handle-e,
+.rgl-editing .react-resizable-handle-w { top: 0 !important; margin-top: 0 !important; height: 100% !important; width: 12px; }
+.rgl-editing .react-resizable-handle-n::after,
+.rgl-editing .react-resizable-handle-s::after { content: ""; position: absolute; left: 12%; right: 12%; height: 3px; border-radius: 2px; background: var(--primary); opacity: 0.22; }
+.rgl-editing .react-resizable-handle-n::after { top: 3px; }
+.rgl-editing .react-resizable-handle-s::after { bottom: 3px; }
+.rgl-editing .react-resizable-handle-e::after,
+.rgl-editing .react-resizable-handle-w::after { content: ""; position: absolute; top: 12%; bottom: 12%; width: 3px; border-radius: 2px; background: var(--primary); opacity: 0.22; }
+.rgl-editing .react-resizable-handle-e::after { right: 3px; }
+.rgl-editing .react-resizable-handle-w::after { left: 3px; }
 /* 드래그 이동 시 놓일 자리 미리보기 */
 .react-grid-item.react-grid-placeholder {
   background: var(--primary) !important; opacity: 0.14; border-radius: 16px;
