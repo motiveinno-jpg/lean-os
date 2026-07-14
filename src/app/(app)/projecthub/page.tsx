@@ -74,6 +74,29 @@ export default function ProjectHubPage() {
     return m;
   }, [pnl]);
 
+  // 회사 전체 미수금 롤업(Phase 3) — 프로젝트에 연결된 매출 계산서의 발행 vs 실입금(settled_amount, 통장 매칭).
+  const { data: settleRows = [] } = useQuery({
+    queryKey: ["projecthub-settle-rollup", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("tax_invoices")
+        .select("deal_id, total_amount, supply_amount, settled_amount, status")
+        .eq("company_id", companyId!).eq("type", "sales").neq("status", "void").not("deal_id", "is", null);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+  const settleSummary = useMemo(() => {
+    const byDeal: Record<string, number> = {};
+    for (const r of settleRows as any[]) {
+      if (r.status === "draft") continue;
+      const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
+      byDeal[r.deal_id] = (byDeal[r.deal_id] || 0) + bal;
+    }
+    let totalOutstanding = 0, projects = 0;
+    for (const k in byDeal) { if (byDeal[k] > 1) { totalOutstanding += byDeal[k]; projects++; } }
+    return { totalOutstanding, projects };
+  }, [settleRows]);
+
   // 유형별 실적 — 목표형(자동/수동), 실행형(태스크). 핵심지표 정규화·요약·위험 판정에 사용.
   const goalDealIds = useMemo(() => topDeals.filter((d) => normalizeProjectType(d.project_type) === "goal").map((d) => d.id), [topDeals]);
   const deliveryDealIds = useMemo(() => topDeals.filter((d) => normalizeProjectType(d.project_type) === "delivery").map((d) => d.id), [topDeals]);
@@ -433,6 +456,21 @@ export default function ProjectHubPage() {
           <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">{rows.filter(isRisk).length}</span></div>
         </div>
       </div>
+
+      {/* 회사 전체 미수금 롤업(Phase 3) — 수익형/전체 뷰에서 미수 발생 시 노출 */}
+      {(typeFilter === "margin" || typeFilter === "all") && settleSummary.totalOutstanding > 1 && (
+        <div className="receivables-rollup glass-card p-4 flex items-center gap-4 flex-wrap border border-[var(--danger)]/30 bg-[var(--danger)]/5">
+          <span className="kpi-icon danger text-base leading-none">💸</span>
+          <div className="min-w-0">
+            <div className="text-[13px] font-bold text-[var(--text)]">회사 전체 미수금</div>
+            <div className="text-[11px] text-[var(--text-muted)]">계산서는 발행했지만 아직 통장에 입금 안 된 금액 (매칭 기준)</div>
+          </div>
+          <div className="ml-auto text-right">
+            <div className="text-lg font-black mono-number text-[var(--danger)]">{won(settleSummary.totalOutstanding)}</div>
+            <div className="text-[11px] text-[var(--text-muted)]">미수 프로젝트 {settleSummary.projects}건 — 각 프로젝트 개요의 정산 현황에서 확인</div>
+          </div>
+        </div>
+      )}
 
       {/* 목록 그리드 */}
       {/* 목록 — 카드형(2026-07-13). 유형 뱃지로 전체 뷰에서도 유형 구분. 클릭 시 상세. */}
