@@ -131,12 +131,28 @@ function formatAmount(amount: number) {
   return `₩${amount.toLocaleString()}`;
 }
 
-// 첨부파일 URL(`{timestamp}_{원본파일명}`)에서 원본 파일명만 추출
+// 파일명(한글 포함) → Storage key에 안전한 base64url. Supabase Storage key는 한글·공백은
+//   물론 encodeURIComponent가 만드는 "%"조차 거부해 원본 그대로도 %인코딩도 못 씀 (2026-07-14 확인).
+//   base64url(A-Za-z0-9-_)만 쓰면 키 검증도 통과하고 원본 파일명도 그대로 복원 가능.
+function toBase64Url(str: string): string {
+  const bin = encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16)));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function fromBase64Url(b64url: string): string {
+  let b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+  while (b64.length % 4) b64 += "=";
+  const bin = atob(b64);
+  return decodeURIComponent(Array.from(bin).map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""));
+}
+
+// 첨부파일 URL(`{timestamp}_{base64url 인코딩된 원본파일명}`)에서 원본 파일명 복원
+//   구버전(화이트리스트 치환) 파일은 base64 디코딩이 실패하므로 원문 그대로 폴백.
 function attachmentFileName(url: string): string {
   try {
     const last = decodeURIComponent(url.split("/").pop() || "");
     const idx = last.indexOf("_");
-    return idx >= 0 ? last.slice(idx + 1) : last;
+    const raw = idx >= 0 ? last.slice(idx + 1) : last;
+    try { return fromBase64Url(raw); } catch { return raw; }
   } catch {
     return url;
   }
@@ -1337,10 +1353,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       const failedUploads: string[] = [];
       if (files.length > 0) {
         for (const file of files) {
-          // QA 2026-07-14: encodeURIComponent는 "%" 문자 자체도 Storage key 검증에 걸려 여전히
-          //   Invalid key 실패 — contract-templates-manager.tsx와 동일한 화이트리스트 치환으로 변경
-          const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-          const path = `approvals/${companyId}/${Date.now()}_${safeName}`;
+          // QA 2026-07-14: 화이트리스트 치환은 업로드는 되지만 한글 파일명이 언더스코어로
+          //   뭉개져 표시됨 — base64url 인코딩으로 교체(Storage key 안전 + 원본 파일명 복원 가능)
+          const path = `approvals/${companyId}/${Date.now()}_${toBase64Url(file.name)}`;
           const { error } = await supabase.storage.from("documents").upload(path, file);
           if (!error) {
             const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
