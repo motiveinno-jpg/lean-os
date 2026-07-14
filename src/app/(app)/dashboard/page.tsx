@@ -14,7 +14,7 @@ import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export"
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
-import { DashboardBottomCards } from "@/components/dashboard-bottom-cards";
+import { CardsSummaryCard, AssetsSummaryCard } from "@/components/dashboard-bottom-cards";
 import { QuickApprovalCard } from "@/components/quick-approval-card";
 import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
@@ -539,7 +539,8 @@ export default function DashboardPage() {
               { id: "receivables", h: 4, node: <ReceivablesPreview companyId={companyId} /> },
               ...(userId ? [{ id: "calendar", h: 8, node: <DashboardCalendar userId={userId} companyId={companyId} /> }] : []),
               ...(userId ? [{ id: "attendance", h: 2, node: <MyAttendanceCard companyId={companyId} userId={userId} compact /> }] : []),
-              { id: "assets", h: 6, node: <div className="space-y-3"><DashboardBottomCards companyId={companyId} /></div> },
+              { id: "cards", h: 3, node: <CardsSummaryCard companyId={companyId} /> },
+              { id: "assets", h: 3, node: <AssetsSummaryCard companyId={companyId} /> },
             ];
             return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} widgets={widgets} />;
           })()}

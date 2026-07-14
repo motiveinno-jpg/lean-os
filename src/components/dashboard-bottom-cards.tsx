@@ -178,8 +178,8 @@ export function DashboardRevenueTrendCard({ companyId }: { companyId: string }) 
 }
 
 // ── 하단 풀폭 행 — 카드 / 자산 ──
-export function DashboardBottomCards({ companyId }: { companyId: string }) {
-  // 카드 — 이번 달 카드별 사용액
+// ── 카드 위젯 — 이번 달 카드별 사용액 (독립 위젯) ──
+export function CardsSummaryCard({ companyId }: { companyId: string }) {
   const { data: cards } = useQuery({
     queryKey: ["dash-cards", companyId],
     queryFn: async () => {
@@ -196,8 +196,14 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
     },
     enabled: !!companyId, staleTime: 60_000,
   });
+  return (
+    <CompactAssetCard title="카드" color={A.red} total={cards?.total ?? 0} totalLabel="이번 달 사용"
+      rows={(cards?.list || []).slice(0, 3)} count={cards?.count ?? 0} href="/cards" empty="이번 달 카드 사용 없음" />
+  );
+}
 
-  // 자산 — 계좌별 잔액
+// ── 자산 위젯 — 계좌별 잔액 (독립 위젯) ──
+export function AssetsSummaryCard({ companyId }: { companyId: string }) {
   const { data: assets } = useQuery({
     queryKey: ["dash-assets", companyId],
     queryFn: async () => {
@@ -208,15 +214,9 @@ export function DashboardBottomCards({ companyId }: { companyId: string }) {
     },
     enabled: !!companyId, staleTime: 60_000,
   });
-
-  // 래퍼 없이 두 타일을 fragment 로 반환 — 대시보드의 밀집 그리드에서 다른 큐브 카드와 함께 배치.
   return (
-    <>
-      <CompactAssetCard title="카드" color={A.red} total={cards?.total ?? 0} totalLabel="이번 달 사용"
-        rows={(cards?.list || []).slice(0, 3)} count={cards?.count ?? 0} href="/cards" empty="이번 달 카드 사용 없음" />
-      <CompactAssetCard title="자산" color={A.green} total={assets?.total ?? 0} totalLabel="총 자산"
-        rows={(assets?.list || []).slice(0, 3)} count={assets?.count ?? 0} href="/bank" empty="등록된 계좌 없음" />
-    </>
+    <CompactAssetCard title="자산" color={A.green} total={assets?.total ?? 0} totalLabel="총 자산"
+      rows={(assets?.list || []).slice(0, 3)} count={assets?.count ?? 0} href="/bank" empty="등록된 계좌 없음" />
   );
 }
 
