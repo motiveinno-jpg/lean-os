@@ -1337,9 +1337,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       const failedUploads: string[] = [];
       if (files.length > 0) {
         for (const file of files) {
-          // Supabase Storage 키는 한글·공백을 그대로 허용하지 않아 "Invalid key"로 실패 — 인코딩해서 저장
-          //   (attachmentFileName()이 표시할 때 decodeURIComponent로 원래 이름 복원)
-          const path = `approvals/${companyId}/${Date.now()}_${encodeURIComponent(file.name)}`;
+          // QA 2026-07-14: encodeURIComponent는 "%" 문자 자체도 Storage key 검증에 걸려 여전히
+          //   Invalid key 실패 — contract-templates-manager.tsx와 동일한 화이트리스트 치환으로 변경
+          const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+          const path = `approvals/${companyId}/${Date.now()}_${safeName}`;
           const { error } = await supabase.storage.from("documents").upload(path, file);
           if (!error) {
             const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
