@@ -510,7 +510,7 @@ export default function DashboardPage() {
             const taxItems = getUpcomingTaxDeadlines(60);
             const widgets = [
               ...myWorkCards,
-              ...(taxItems.length > 0 ? [{ id: "tax", node: (
+              ...(taxItems.length > 0 ? [{ id: "tax", h: 4, node: (
                 <Link href={taxItems[0].href} className="glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--warning)" }}>세금 일정</span>
@@ -526,7 +526,7 @@ export default function DashboardPage() {
                   </div>
                 </Link>
               ) }] : []),
-              { id: "biz", node: (
+              { id: "biz", h: 3, node: (
                 <DashboardBizSummary
                   monthRevenue={dashboard.growth.monthRevenue}
                   expense={(realBurnData ?? 0) + (realVariableData ?? 0)}
@@ -534,12 +534,12 @@ export default function DashboardPage() {
                   runwayMonths={dashboard.sixPack.runwayMonths}
                 />
               ) },
-              { id: "revenue", node: <RecentRevenue companyId={companyId} /> },
-              { id: "projects", node: <RecentProjects companyId={companyId} /> },
-              { id: "receivables", node: <ReceivablesPreview companyId={companyId} /> },
-              ...(userId ? [{ id: "calendar", node: <DashboardCalendar userId={userId} companyId={companyId} /> }] : []),
-              ...(userId ? [{ id: "attendance", node: <MyAttendanceCard companyId={companyId} userId={userId} compact /> }] : []),
-              { id: "assets", node: <div className="space-y-3"><DashboardBottomCards companyId={companyId} /></div> },
+              { id: "revenue", h: 5, node: <RecentRevenue companyId={companyId} /> },
+              { id: "projects", h: 5, node: <RecentProjects companyId={companyId} /> },
+              { id: "receivables", h: 4, node: <ReceivablesPreview companyId={companyId} /> },
+              ...(userId ? [{ id: "calendar", h: 8, node: <DashboardCalendar userId={userId} companyId={companyId} /> }] : []),
+              ...(userId ? [{ id: "attendance", h: 2, node: <MyAttendanceCard companyId={companyId} userId={userId} compact /> }] : []),
+              { id: "assets", h: 6, node: <div className="space-y-3"><DashboardBottomCards companyId={companyId} /></div> },
             ];
             return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} widgets={widgets} />;
           })()}

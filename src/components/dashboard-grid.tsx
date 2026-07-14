@@ -81,10 +81,11 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
         {widgets.map((w, i) => (
           <div
             key={w.id}
-            data-grid={{ x: (i % 3) * 4, y: Math.floor(i / 3) * (w.h || 6), w: w.w || 4, h: w.h || 6, minW: 3, minH: 3 }}
-            className={edit ? "rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/50" : ""}
+            data-grid={{ x: (i % 3) * 4, y: Math.floor(i / 3) * (w.h || 5), w: w.w || 4, h: w.h || 5, minW: 3, minH: 2 }}
+            className={edit ? "rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}
           >
-            <div className={`h-full overflow-auto ${edit ? "pointer-events-none select-none" : ""}`}>{w.node}</div>
+            {/* 흰색 카드가 셀 높이를 꽉 채우도록 h-full 강제 — 셀=흰색(회색 여백 제거) */}
+            <div className={`h-full overflow-hidden [&>*]:h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.node}</div>
           </div>
         ))}
       </RGL>
