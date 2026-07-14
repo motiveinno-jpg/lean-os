@@ -145,17 +145,53 @@ function attachmentFileName(url: string): string {
 function AttachmentList({ attachments }: { attachments?: string[] }) {
   if (!attachments || attachments.length === 0) return null;
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {attachments.map((url, i) => (
-        <button
-          key={i}
-          type="button"
-          onClick={(e) => { e.stopPropagation(); openStoredFile(url); }}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
-        >
-          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-          <span className="truncate max-w-[160px]">{attachmentFileName(url)}</span>
-        </button>
+    <div className="mt-3">
+      <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">첨부파일 ({attachments.length})</div>
+      <div className="flex flex-wrap gap-2">
+        {attachments.map((url, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={(e) => { e.stopPropagation(); openStoredFile(url); }}
+            className="inline-flex items-center gap-2 pl-2 pr-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
+          >
+            <span className="w-6 h-6 rounded-lg bg-[var(--success)]/12 text-[var(--success)] flex items-center justify-center shrink-0">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+            </span>
+            <span className="truncate max-w-[180px]">{attachmentFileName(url)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Flex 스타일 구조화 필드 행 — 타입별 아이콘 + 라벨 + 값
+function fieldTypeIcon(type: string) {
+  if (type === "date") {
+    return <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+  }
+  if (type === "amount") {
+    return <span className="text-[11px] font-bold">₩</span>;
+  }
+  if (type === "select") {
+    return <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>;
+  }
+  return <span className="text-[11px] font-bold">Tr</span>;
+}
+
+function FormFieldRows({ fields }: { fields: { label: string; type: string; value: string }[] }) {
+  if (fields.length === 0) return null;
+  return (
+    <div className="py-1">
+      {fields.map((f, i) => (
+        <div key={i} className="flex items-center gap-3 py-2">
+          <span className="w-7 h-7 rounded-lg bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center shrink-0">
+            {fieldTypeIcon(f.type)}
+          </span>
+          <span className="w-[120px] shrink-0 text-[13px] text-[var(--text-muted)]">{f.label}</span>
+          <span className="text-sm font-semibold text-[var(--text)] truncate">{f.value}</span>
+        </div>
       ))}
     </div>
   );
@@ -520,7 +556,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   companyId: string; userId: string; invalidate: () => void;
 }) {
   const { toast } = useToast();
-  const [actionModal, setActionModal] = useState<{ stepId: string; action: "approve" | "reject"; title: string; description?: string; amount?: number; attachments?: string[] } | null>(null);
+  const [actionModal, setActionModal] = useState<{ stepId: string; action: "approve" | "reject"; title: string; description?: string; amount?: number; attachments?: string[]; formFields?: { label: string; type: string; value: string }[] } | null>(null);
   const [comment, setComment] = useState("");
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
 
@@ -529,6 +565,38 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
     queryFn: () => getMyPendingApprovals(userId, companyId),
     enabled: !!userId && !!companyId,
   });
+
+  // 커스텀 결재 양식 필드 정의 (label·type) — custom_fields 값과 짝지어 구조화된 항목으로 표시
+  const { data: customForms = [] } = useQuery({
+    queryKey: ["approval-forms", companyId],
+    queryFn: () => listApprovalForms(),
+    enabled: !!companyId,
+  });
+  const formsById = useMemo(() => {
+    const map = new Map<string, ApprovalForm>();
+    (customForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
+    return map;
+  }, [customForms]);
+
+  // item(양식 필드 정의 + 저장된 값) → [{label, type, value}] · 빈 값 제외
+  function getFormFields(item: any): { label: string; type: string; value: string }[] {
+    if (!item.formId) return [];
+    const form = formsById.get(item.formId);
+    if (!form) return [];
+    return form.fields
+      .map((fd) => ({ label: fd.label, type: fd.type, value: String(item.customFields?.[fd.key] ?? "") }))
+      .filter((f) => f.value);
+  }
+
+  // 양식 필드 값이 description 앞부분에 중복 병합돼 있으면(기존 저장 방식) 잘라내 중복 표시 방지
+  function contentWithoutFieldLines(description: string, formFields: { label: string; value: string }[]): string {
+    if (formFields.length === 0) return description;
+    const fieldLines = formFields.map((f) => `${f.label}: ${f.value}`).join("\n");
+    if (description.startsWith(fieldLines)) {
+      return description.slice(fieldLines.length).replace(/^\n+/, "");
+    }
+    return description;
+  }
 
   const approveMut = useMutation({
     mutationFn: ({ stepId, comment }: { stepId: string; comment?: string }) =>
@@ -573,6 +641,8 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
           {pendingApprovals.map((item: any) => {
             const m = typeMeta(item.requestType);
             const open = expandedRequestId === item.requestId;
+            const formFields = getFormFields(item);
+            const contentText = contentWithoutFieldLines(item.description || "", formFields);
             return (
               <div key={item.stepId} className="glass-card card-hover overflow-hidden animate-slide-in">
                 <div className="p-5">
@@ -589,7 +659,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                       className="flex-1 min-w-0 cursor-pointer"
                       onClick={() => setExpandedRequestId(open ? null : item.requestId)}
                     >
-                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
                         <TypeChip type={item.requestType} label={REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType} />
                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold leading-none bg-[var(--primary)]/10 text-[var(--primary)]">
                           <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse" />
@@ -598,15 +668,15 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                         <span className="text-[11px] text-[var(--text-dim)]">{item.requesterName || "알 수 없음"} · {formatDate(item.createdAt)}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-[15px] leading-6 truncate">{item.title}</span>
+                        <span className="font-extrabold text-[18px] leading-7 truncate">{item.title}</span>
                         <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                           <path d="M19 9l-7 7-7-7" />
                         </svg>
                       </div>
-                      {item.description && (
-                        <div className="mt-1 text-xs text-[var(--text-muted)] whitespace-pre-wrap">{item.description}</div>
+                      {!open && item.description && (
+                        <div className="mt-1 text-xs text-[var(--text-muted)] truncate">{contentText || item.description}</div>
                       )}
-                      <AttachmentList attachments={item.attachments} />
+                      {!open && <AttachmentList attachments={item.attachments} />}
                       <div className="mt-3">
                         <StageProgress current={item.currentStage} total={item.totalStages} status="pending" />
                       </div>
@@ -622,13 +692,13 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                       )}
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title, description: item.description, amount: item.amount, attachments: item.attachments })}
+                          onClick={() => setActionModal({ stepId: item.stepId, action: "reject", title: item.title, description: item.description, amount: item.amount, attachments: item.attachments, formFields })}
                           className="btn-danger"
                         >
                           반려
                         </button>
                         <button
-                          onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title, description: item.description, amount: item.amount, attachments: item.attachments })}
+                          onClick={() => setActionModal({ stepId: item.stepId, action: "approve", title: item.title, description: item.description, amount: item.amount, attachments: item.attachments, formFields })}
                           className="btn-primary"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
@@ -639,10 +709,21 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                   </div>
                 </div>
 
-                {/* D-7: 워크플로우 활동 타임라인 */}
+                {/* 확장 — Flex 스타일 구조화 필드 + 본문(줄간격 넓게) + 첨부파일 + 워크플로우 타임라인 */}
                 {open && (
                   <div className="border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60">
-                    <ActivityTimeline requestId={item.requestId} />
+                    {formFields.length > 0 && (
+                      <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
+                        <FormFieldRows fields={formFields} />
+                      </div>
+                    )}
+                    {contentText && (
+                      <div className="mb-2 text-sm text-[var(--text)] leading-8 whitespace-pre-wrap">{contentText}</div>
+                    )}
+                    <AttachmentList attachments={item.attachments} />
+                    <div className="mt-5 pt-4 border-t border-[var(--border)]/60">
+                      <ActivityTimeline requestId={item.requestId} />
+                    </div>
                   </div>
                 )}
               </div>
@@ -651,29 +732,30 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
         </div>
       )}
 
-      {/* Approve/Reject Modal */}
+      {/* Approve/Reject Modal — Flex 스타일 문서 패널 */}
       {actionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setActionModal(null)}>
-          <div className="glass-card p-6 w-full max-w-md shadow-xl animate-count-up" onClick={(e) => e.stopPropagation()}>
-            <div className={`w-12 h-12 mb-4 rounded-2xl flex items-center justify-center ${actionModal.action === "approve" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--danger-dim)] text-[var(--danger)]"}`}>
-              {actionModal.action === "approve" ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              )}
-            </div>
-            <h3 className="text-lg font-bold mb-1">
-              {actionModal.action === "approve" ? "이 결재를 승인할까요?" : "이 결재를 반려할까요?"}
-            </h3>
-            <p className="text-sm font-semibold text-[var(--text)] mb-2">{actionModal.title}</p>
-            {/* 요청 내용·금액·첨부파일 — 승인 결정에 필요한 정보를 모달에서 바로 확인 (사장님 QA 2026-07-10, 2026-07-14) */}
-            {(actionModal.description || (actionModal.amount ?? 0) > 0 || (actionModal.attachments?.length ?? 0) > 0) && (
-              <div className="mb-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3.5 py-3 max-h-[32vh] overflow-y-auto">
+          <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold mb-3 ${actionModal.action === "approve" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--danger-dim)] text-[var(--danger)]"}`}>
+              {actionModal.action === "approve" ? "승인 필요" : "반려 처리"}
+            </span>
+            <h3 className="text-[22px] font-extrabold leading-tight mb-4">{actionModal.title}</h3>
+
+            {/* 요청 내용·금액·구조화 필드·첨부파일 — 승인 결정에 필요한 정보를 모달에서 바로 확인 (사장님 QA 2026-07-10, 2026-07-14) */}
+            {(actionModal.description || (actionModal.amount ?? 0) > 0 || (actionModal.attachments?.length ?? 0) > 0 || (actionModal.formFields?.length ?? 0) > 0) && (
+              <div className="mb-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-4 py-3.5 max-h-[38vh] overflow-y-auto">
                 {(actionModal.amount ?? 0) > 0 && (
-                  <div className="text-sm font-extrabold mono-number mb-1.5">{formatAmount(actionModal.amount!)}</div>
+                  <div className="text-lg font-extrabold mono-number mb-2">{formatAmount(actionModal.amount!)}</div>
+                )}
+                {(actionModal.formFields?.length ?? 0) > 0 && (
+                  <div className="mb-2 pb-2 border-b border-[var(--border)]/60">
+                    <FormFieldRows fields={actionModal.formFields!} />
+                  </div>
                 )}
                 {actionModal.description && (
-                  <div className="text-xs text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed">{actionModal.description}</div>
+                  <div className="text-sm text-[var(--text)] whitespace-pre-wrap leading-8">
+                    {contentWithoutFieldLines(actionModal.description, actionModal.formFields || [])}
+                  </div>
                 )}
                 <AttachmentList attachments={actionModal.attachments} />
               </div>
@@ -693,10 +775,10 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 onClick={() => { setActionModal(null); setComment(""); }}
-                className="btn-secondary flex-1"
+                className="flex-1 py-3.5 rounded-full text-sm font-bold text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)] hover:bg-[var(--bg)] transition"
               >
                 취소
               </button>
@@ -704,17 +786,18 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
                 <button
                   onClick={() => approveMut.mutate({ stepId: actionModal.stepId, comment: comment || undefined })}
                   disabled={approveMut.isPending}
-                  className="btn-primary flex-1"
+                  className="flex-1 py-3.5 rounded-full text-sm font-bold text-white bg-[var(--success)] hover:opacity-90 disabled:opacity-50 transition inline-flex items-center justify-center gap-1.5"
                 >
-                  {approveMut.isPending ? "처리 중..." : "승인하기"}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+                  {approveMut.isPending ? "처리 중..." : "승인"}
                 </button>
               ) : (
                 <button
                   onClick={() => comment.trim() && rejectMut.mutate({ stepId: actionModal.stepId, comment })}
                   disabled={!comment.trim() || rejectMut.isPending}
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[var(--danger)] hover:opacity-90 disabled:opacity-50 transition"
+                  className="flex-1 py-3.5 rounded-full text-sm font-bold text-white bg-[var(--danger)] hover:opacity-90 disabled:opacity-50 transition"
                 >
-                  {rejectMut.isPending ? "처리 중..." : "반려하기"}
+                  {rejectMut.isPending ? "처리 중..." : "반려"}
                 </button>
               )}
             </div>
