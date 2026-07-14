@@ -74,8 +74,11 @@ function ResetPasswordContent() {
     setError("");
     setLoading(true);
 
+    // QA 2026-07-14: redirectTo가 /auth/reset?step=new로 곧장 가면 PKCE code가
+    //   세션으로 교환되지 않아 updateUser()가 "Auth session missing"(→ "링크 만료"로 오인)
+    //   실패. OAuth 로그인과 동일하게 /api/auth/callback을 거쳐 exchangeCodeForSession 처리.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://www.owner-view.com/auth/reset?step=new",
+      redirectTo: `https://www.owner-view.com/api/auth/callback?next=${encodeURIComponent("/auth/reset?step=new")}`,
     });
 
     setLoading(false);
