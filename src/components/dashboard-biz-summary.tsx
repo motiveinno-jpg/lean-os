@@ -1,7 +1,7 @@
 "use client";
 
-// 대시보드 경영 요약(압축) — "지금 회사 괜찮나?"를 세 신호로: 이번 달 손익 · 통장 잔액 · 버티는 기간.
-//   자산 상세보다 회사 건강을 우선 노출(2026-07-14). 카드 클릭 시 전체 경영 요약(/reports/summary)으로.
+// 대시보드 경영 요약 — "지금 회사 괜찮나?"를 한 카드로: 손익·통장잔액·런웨이 + 매출·비용까지 펼쳐서(2026-07-14).
+//   너무 심플하던 3신호에서 이번 달 매출·비용 breakdown 추가. 카드 클릭 시 전체 경영 요약(/reports/summary).
 
 import Link from "next/link";
 
@@ -12,10 +12,9 @@ function won(n: number): string {
   if (a >= 10000) return `${sign}${Math.round(a / 10000).toLocaleString("ko")}만`;
   return `${sign}${a.toLocaleString("ko")}`;
 }
-
 function runwayText(m: number): string {
   if (!isFinite(m) || m >= 99) return "충분";
-  if (m <= 0) return "즉시 위험";
+  if (m <= 0) return "위험";
   return `${m.toFixed(1)}개월`;
 }
 function runwayTone(m: number): string {
@@ -23,28 +22,35 @@ function runwayTone(m: number): string {
   if (m >= 3) return "warning";
   return "danger";
 }
-const col = (t: string) => (t === "success" ? "var(--success)" : t === "warning" ? "var(--warning)" : t === "danger" ? "var(--danger)" : "var(--text)");
+const col = (t: string) => (t === "success" ? "var(--success)" : t === "warning" ? "var(--warning)" : t === "danger" ? "var(--danger)" : t === "primary" ? "var(--primary)" : "var(--text)");
 
 function Signal({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
     <div className="min-w-0">
       <div className="text-[10px] text-[var(--text-dim)] mb-0.5 truncate">{label}</div>
-      <div className="text-[15px] leading-tight font-extrabold mono-number truncate" style={{ color: col(tone) }}>{value}</div>
+      <div className="text-[14px] leading-tight font-extrabold mono-number truncate" style={{ color: col(tone) }}>{value}</div>
     </div>
   );
 }
 
-export function DashboardBizSummary({ profit, balance, runwayMonths }: { profit: number; balance: number; runwayMonths: number }) {
+export function DashboardBizSummary({ monthRevenue, expense, balance, runwayMonths }: { monthRevenue: number; expense: number; balance: number; runwayMonths: number }) {
+  const profit = monthRevenue - expense;
   return (
     <Link href="/reports/summary" className="dashboard-biz-summary glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--primary)" }}>경영 요약</span>
         <span className="text-[11px] font-semibold text-[var(--primary)]">자세히 →</span>
       </div>
+      {/* 건강 신호 3 */}
       <div className="grid grid-cols-3 gap-2">
         <Signal label="이번 달 손익" value={`${profit >= 0 ? "+" : ""}${won(profit)}`} tone={profit >= 0 ? "success" : "danger"} />
         <Signal label="통장 잔액" value={won(balance)} tone="primary" />
         <Signal label="버티는 기간" value={runwayText(runwayMonths)} tone={runwayTone(runwayMonths)} />
+      </div>
+      {/* 매출·비용 breakdown */}
+      <div className="grid grid-cols-2 gap-2 mt-2.5 pt-2.5 border-t border-[var(--border)]">
+        <Signal label="이번 달 매출" value={won(monthRevenue)} tone="success" />
+        <Signal label="이번 달 비용" value={won(expense)} tone="warning" />
       </div>
     </Link>
   );

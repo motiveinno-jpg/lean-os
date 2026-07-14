@@ -86,6 +86,43 @@ export function RecentProjects({ companyId }: { companyId: string }) {
   );
 }
 
+// ── 이번 달 매출 (총액 + 최근 매출 내역) ──
+export function RecentRevenue({ companyId }: { companyId: string }) {
+  const { data } = useQuery({
+    queryKey: ["dash-recent-revenue", companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const now = new Date();
+      const mStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const { data } = await db.from("tax_invoices").select("id, counterparty_name, supply_amount, issue_date")
+        .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
+        .gte("issue_date", mStart).order("issue_date", { ascending: false }).limit(30);
+      const rows = (data || []) as any[];
+      return { rows: rows.slice(0, 4), total: rows.reduce((s, r) => s + Number(r.supply_amount || 0), 0), count: rows.length };
+    },
+  });
+  return (
+    <ActivityCard title="이번 달 매출" href="/reports/revenue" hrefLabel="매출 현황" empty={!data || data.count === 0}>
+      {data && (
+        <>
+          <div className="flex items-center justify-between py-2">
+            <span className="text-[11px] text-[var(--text-dim)]">이번 달 합계 ({data.count}건)</span>
+            <span className="text-[15px] leading-none font-extrabold mono-number" style={{ color: "var(--success)" }}>{won(data.total)}</span>
+          </div>
+          {data.rows.map((r) => (
+            <Link key={r.id} href="/tax-invoices" className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+              <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{r.counterparty_name || "-"}</span>
+              <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(r.issue_date)}</span>
+              <span className="text-[11px] mono-number text-[var(--text-muted)] shrink-0 w-16 text-right">{won(Number(r.supply_amount || 0))}</span>
+            </Link>
+          ))}
+        </>
+      )}
+    </ActivityCard>
+  );
+}
+
 // ── 최근 세금계산서 ──
 export function RecentInvoices({ companyId }: { companyId: string }) {
   const { data = [] } = useQuery({

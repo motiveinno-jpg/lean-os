@@ -42,7 +42,7 @@ import { ReceivablesPreview } from "@/components/receivables-preview";
 import { MyWorkSection } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
 import { DashboardBizSummary } from "@/components/dashboard-biz-summary"; // 경영 요약(손익·잔액·런웨이)
-import { RecentProjects, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드
+import { RecentProjects, RecentRevenue } from "@/components/dashboard-activity"; // 회사 활동 요약 카드
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
@@ -538,12 +538,13 @@ export default function DashboardPage() {
           </div>
           <div className="columns-1 md:columns-2 xl:columns-3 gap-3 [&>*]:mb-3 [&>*]:break-inside-avoid">
             <DashboardBizSummary
-              profit={dashboard.growth.monthRevenue - ((realBurnData ?? 0) + (realVariableData ?? 0))}
+              monthRevenue={dashboard.growth.monthRevenue}
+              expense={(realBurnData ?? 0) + (realVariableData ?? 0)}
               balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0}
               runwayMonths={dashboard.sixPack.runwayMonths}
             />
             <RecentProjects companyId={companyId} />
-            <RecentInvoices companyId={companyId} />
+            <RecentRevenue companyId={companyId} />
             <ReceivablesPreview companyId={companyId} />
             {userId && companyId && <DashboardCalendar userId={userId} companyId={companyId} />}
             {userId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
