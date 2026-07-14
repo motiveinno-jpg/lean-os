@@ -14,7 +14,7 @@ const SIZE_CLS: Record<number, string> = {
   3: "md:col-span-2 xl:col-span-3",
 };
 
-export function DashboardGrid({ widgets, storageKey }: { widgets: DashWidget[]; storageKey: string }) {
+export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: DashWidget[]; storageKey: string; title?: string }) {
   const ids = widgets.map((w) => w.id);
   const [edit, setEdit] = useState(false);
   const [order, setOrder] = useState<string[]>(ids);
@@ -63,7 +63,7 @@ export function DashboardGrid({ widgets, storageKey }: { widgets: DashWidget[]; 
     <div className="dashboard-grid">
       <div className="dash-section-head flex items-center justify-between gap-2">
         <div>
-          <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>회사 현황</div>
+          {title && <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>{title}</div>}
           {edit && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 위치 이동 · [크기] 버튼으로 넓이 조절 (자동 저장)</p>}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">

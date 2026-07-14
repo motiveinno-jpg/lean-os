@@ -38,7 +38,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
-import { MyWorkSection } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
+import { MyWorkSection, useMyWorkCards } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
 import { DashboardBizSummary } from "@/components/dashboard-biz-summary"; // 경영 요약(손익·잔액·런웨이)
 import { RecentProjects, RecentRevenue } from "@/components/dashboard-activity"; // 회사 활동 요약 카드
@@ -375,6 +375,9 @@ export default function DashboardPage() {
 
   const sp = dashboard.sixPack;
 
+  // 내 업무 카드(위젯) — 통합 그리드에서 회사 현황과 함께 배치. 얼리 리턴 전에 호출(hooks 규칙).
+  const myWorkCards = useMyWorkCards(companyId || "", userId || "");
+
   // ── Employee Dashboard ──
   if (role === "employee") {
     if (!companyId) return <div className="flex items-center justify-center h-[60vh] text-sm text-[var(--text-muted)]">로딩 중...</div>;
@@ -499,32 +502,30 @@ export default function DashboardPage() {
               userId={userId ?? undefined}
               aiBriefingEnabled={aiBriefingEnabled}
             />
-            {(() => {
-              const nearestTax = getUpcomingTaxDeadlines(30)[0];
-              const acts: { key: string; href: string; label: string; primary?: boolean }[] = [];
-              if (dashboard.sixPack.arOver30 > 0) acts.push({ key: "ar", href: "/tax-invoices", label: "미수금 회수 관리 →", primary: true });
-              if (dashboard.sixPack.pendingApprovalsCount > 0) acts.push({ key: "appr", href: "/approvals", label: `결재 ${dashboard.sixPack.pendingApprovalsCount}건 처리` });
-              if (nearestTax) acts.push({ key: nearestTax.id, href: nearestTax.href, label: `${nearestTax.title} ${nearestTax.daysLeft === 0 ? "D-Day" : `D-${nearestTax.daysLeft}`}` });
-              if (acts.length === 0) return null;
-              return (
-                <div className="flex flex-wrap items-center gap-2 mt-3">
-                  {acts.map((a) => (
-                    <Link key={a.key} href={a.href} className={`${a.primary ? "btn-primary" : "btn-secondary"} btn-sm`}>{a.label}</Link>
-                  ))}
-                </div>
-              );
-            })()}
           </div>
 
-          {/* 핵심 지표(숫자 4카드) 제거 — 아래 '회사 현황' 카드들이 그 숫자+내역을 담아 중복 해소(2026-07-14, 사장님 A안) */}
-
-          {/* 내 업무 — 내가 처리·담당하는 것 */}
-          {userId && <MyWorkSection companyId={companyId} userId={userId} />}
-
-          {/* 회사 현황 — 위젯식(편집 모드에서 드래그로 위치 이동 + 크기 조절, 자동 저장) */}
-          <DashboardGrid
-            storageKey={`dashboard-grid-${companyId}`}
-            widgets={[
+          {/* 대시보드 통합 위젯 그리드 — 내 업무 + 오늘의 액션(세금 등) + 회사 현황을 한 레이아웃으로.
+              내업무/회사현황 구분 없이 하나의 그리드. 편집 모드에서 드래그 이동 + 크기 조절(자동 저장). */}
+          {(() => {
+            const taxItems = getUpcomingTaxDeadlines(60);
+            const widgets = [
+              ...myWorkCards,
+              ...(taxItems.length > 0 ? [{ id: "tax", node: (
+                <Link href={taxItems[0].href} className="glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--warning)" }}>세금 일정</span>
+                    <span className="text-[11px] font-semibold text-[var(--primary)]">이동 →</span>
+                  </div>
+                  <div className="flex flex-col divide-y divide-[var(--border)]/60">
+                    {taxItems.slice(0, 4).map((t) => (
+                      <div key={t.id} className="flex items-center gap-2 py-2">
+                        <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold ${t.daysLeft <= 7 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>{t.daysLeft === 0 ? "D-Day" : `D-${t.daysLeft}`}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Link>
+              ) }] : []),
               { id: "biz", node: (
                 <DashboardBizSummary
                   monthRevenue={dashboard.growth.monthRevenue}
@@ -539,8 +540,9 @@ export default function DashboardPage() {
               ...(userId ? [{ id: "calendar", node: <DashboardCalendar userId={userId} companyId={companyId} /> }] : []),
               ...(userId ? [{ id: "attendance", node: <MyAttendanceCard companyId={companyId} userId={userId} compact /> }] : []),
               { id: "assets", node: <div className="space-y-3"><DashboardBottomCards companyId={companyId} /></div> },
-            ]}
-          />
+            ];
+            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} widgets={widgets} />;
+          })()}
         </div>
       )}
 

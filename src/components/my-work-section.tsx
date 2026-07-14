@@ -80,7 +80,10 @@ function WorkCard({ href, icon, label, count, tone = "primary", items, moreLabel
   );
 }
 
-export function MyWorkSection({ companyId, userId }: { companyId: string; userId: string }) {
+export type MyWorkCard = { id: string; node: React.ReactNode };
+
+// 내 업무 카드들을 위젯 배열로 반환하는 훅 — 대시보드 통합 그리드에서 회사 현황 카드와 함께 배치.
+export function useMyWorkCards(companyId: string, userId: string): MyWorkCard[] {
   const enabled = !!companyId && !!userId;
 
   const { data } = useQuery({
@@ -113,7 +116,7 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
     },
   });
 
-  const cards: React.ReactNode[] = [];
+  const cards: MyWorkCard[] = [];
   if (data) {
     const PREVIEW = 4;
     const more = (n: number) => (n > PREVIEW ? `외 ${n - PREVIEW}건 더 보기 →` : undefined);
@@ -132,7 +135,7 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
           tone: overdue ? "danger" : d === 0 ? "warning" : undefined,
         };
       });
-      cards.push(<WorkCard key="tasks" href="/projecthub" icon="✅" label="내 할 일" count={data.tasks.length} tone="primary" items={items} moreLabel={more(data.tasks.length)} />);
+      cards.push({ id: "work-tasks", node: <WorkCard key="work-tasks" href="/projecthub" icon="✅" label="내 할 일" count={data.tasks.length} tone="primary" items={items} moreLabel={more(data.tasks.length)} /> });
     }
 
     // 내 결재 대기 — 문서 종류·금액
@@ -142,7 +145,7 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
         const amt = Number(a.documents?.contract_amount || 0);
         return { key: a.id, href: "/approvals", primary: kind, secondary: amt ? won(amt) : md(a.created_at), tone: "warning" };
       });
-      cards.push(<WorkCard key="appr" href="/approvals" icon="🧾" label="내 결재 대기" count={data.approvals.length} tone="warning" items={items} moreLabel={more(data.approvals.length)} />);
+      cards.push({ id: "work-appr", node: <WorkCard key="work-appr" href="/approvals" icon="🧾" label="내 결재 대기" count={data.approvals.length} tone="warning" items={items} moreLabel={more(data.approvals.length)} /> });
     }
 
     // 내 담당 프로젝트 — 단계·계약액
@@ -150,7 +153,7 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
       const items: WorkItem[] = data.projects.slice(0, PREVIEW).map((p) => ({
         key: p.id, href: `/projecthub/${p.id}`, primary: p.name || "프로젝트", secondary: p.contract_total ? won(Number(p.contract_total)) : "",
       }));
-      cards.push(<WorkCard key="proj" href="/projecthub" icon="💼" label="내 담당 프로젝트" count={data.projects.length} tone="success" items={items} moreLabel={more(data.projects.length)} />);
+      cards.push({ id: "work-proj", node: <WorkCard key="work-proj" href="/projecthub" icon="💼" label="내 담당 프로젝트" count={data.projects.length} tone="success" items={items} moreLabel={more(data.projects.length)} /> });
     }
 
     // 내 서명 요청
@@ -159,7 +162,7 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
         const st = SIGN_STATUS[s.status] || { label: "서명 대기", tone: "warning" as const };
         return { key: s.id, href: "/my-contracts", primary: s.title || "서명 문서", secondary: st.label, tone: st.tone, badge: true };
       });
-      cards.push(<WorkCard key="sign" href="/my-contracts" icon="🖊️" label="내 서명 요청" count={data.signs.length} tone="danger" items={items} moreLabel={more(data.signs.length)} />);
+      cards.push({ id: "work-sign", node: <WorkCard key="work-sign" href="/my-contracts" icon="🖊️" label="내 서명 요청" count={data.signs.length} tone="danger" items={items} moreLabel={more(data.signs.length)} /> });
     }
 
     // 나를 언급한 알림
@@ -167,10 +170,16 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
       const items: WorkItem[] = data.mentions.slice(0, PREVIEW).map((n) => ({
         key: n.id, href: n.link || "/notifications", primary: n.title || n.message || "새 알림", secondary: md(n.created_at),
       }));
-      cards.push(<WorkCard key="ment" href="/notifications" icon="💬" label="나를 언급한 글" count={data.mentions.length} tone="primary" items={items} moreLabel={more(data.mentions.length)} />);
+      cards.push({ id: "work-ment", node: <WorkCard key="work-ment" href="/notifications" icon="💬" label="나를 언급한 글" count={data.mentions.length} tone="primary" items={items} moreLabel={more(data.mentions.length)} /> });
     }
   }
 
+  return cards;
+}
+
+// 얇은 래퍼 — 직원 대시보드 등에서 '내 업무' 섹션으로 그대로 렌더.
+export function MyWorkSection({ companyId, userId }: { companyId: string; userId: string }) {
+  const cards = useMyWorkCards(companyId, userId);
   return (
     <section className="my-work-section mb-6">
       <div className="mb-2.5">
@@ -178,11 +187,9 @@ export function MyWorkSection({ companyId, userId }: { companyId: string; userId
         <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">담당·처리할 일을 미리 보고, 항목이나 “이동 →”으로 해당 메뉴로.</p>
       </div>
       {cards.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{cards}</div>
-      ) : data ? (
-        <div className="glass-card p-5 text-center text-xs text-[var(--text-dim)]">지금 처리할 내 업무가 없습니다. 👍</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{cards.map((c) => c.node)}</div>
       ) : (
-        <div className="glass-card p-5 text-center text-xs text-[var(--text-dim)]">불러오는 중…</div>
+        <div className="glass-card p-5 text-center text-xs text-[var(--text-dim)]">지금 처리할 내 업무가 없습니다. 👍</div>
       )}
     </section>
   );
