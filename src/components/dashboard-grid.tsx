@@ -50,7 +50,7 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
   const reset = () => { setLayout(buildDefault(widgets)); try { localStorage.removeItem(storageKey); } catch { /* noop */ } };
 
   const Header = (
-    <div className="dash-section-head flex items-center justify-between gap-2">
+    <div className="dash-section-head flex items-start justify-between gap-2 mb-3">
       <div>
         {title && <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>{title}</div>}
         {edit && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 원하는 위치로 · 우하단 모서리를 드래그해 크기 조절 (빈칸 자동 정렬 · 자동 저장)</p>}

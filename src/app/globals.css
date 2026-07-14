@@ -800,9 +800,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
 /* ── 대시보드 위젯 편집(react-grid-layout) — 리사이즈 핸들 또렷하게 + 드래그 커서 (2026-07-14) ── */
 .rgl-editing .react-grid-item { cursor: move; }
+/* 기본 회색/깨진 그립 아이콘 제거 — 커스텀 코너 그립만 (편집 아닐 땐 핸들 자체 숨김) */
+.dashboard-grid .react-resizable-handle { background-image: none !important; }
+.dashboard-grid:not(.rgl-editing) .react-resizable-handle { display: none !important; }
 .rgl-editing .react-resizable-handle {
-  width: 20px; height: 20px; z-index: 6; opacity: 1;
-  background-image: none; /* 기본 회색 아이콘 대신 커스텀 그립 */
+  width: 20px; height: 20px; z-index: 6; opacity: 1; padding: 0;
 }
 .rgl-editing .react-resizable-handle::after {
   content: ""; position: absolute; right: 4px; bottom: 4px;
