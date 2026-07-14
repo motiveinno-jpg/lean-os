@@ -214,6 +214,30 @@ function FormFieldRows({ fields }: { fields: { label: string; type: string; valu
   );
 }
 
+// 결재 양식(form_id) 필드 정의(label·type)와 저장된 값(custom_fields)을 짝지어 구조화된 항목으로
+function resolveFormFields(
+  formId: string | null | undefined,
+  customFields: Record<string, unknown> | undefined,
+  formsById: Map<string, ApprovalForm>
+): { label: string; type: string; value: string }[] {
+  if (!formId) return [];
+  const form = formsById.get(formId);
+  if (!form) return [];
+  return form.fields
+    .map((fd) => ({ label: fd.label, type: fd.type, value: String(customFields?.[fd.key] ?? "") }))
+    .filter((f) => f.value);
+}
+
+// 양식 필드 값이 description 앞부분에 중복 병합돼 있으면(기존 저장 방식) 잘라내 중복 표시 방지
+function contentWithoutFieldLines(description: string, formFields: { label: string; value: string }[]): string {
+  if (formFields.length === 0) return description;
+  const fieldLines = formFields.map((f) => `${f.label}: ${f.value}`).join("\n");
+  if (description.startsWith(fieldLines)) {
+    return description.slice(fieldLines.length).replace(/^\n+/, "");
+  }
+  return description;
+}
+
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("ko-KR", {
@@ -605,26 +629,6 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
     return map;
   }, [customForms]);
 
-  // item(양식 필드 정의 + 저장된 값) → [{label, type, value}] · 빈 값 제외
-  function getFormFields(item: any): { label: string; type: string; value: string }[] {
-    if (!item.formId) return [];
-    const form = formsById.get(item.formId);
-    if (!form) return [];
-    return form.fields
-      .map((fd) => ({ label: fd.label, type: fd.type, value: String(item.customFields?.[fd.key] ?? "") }))
-      .filter((f) => f.value);
-  }
-
-  // 양식 필드 값이 description 앞부분에 중복 병합돼 있으면(기존 저장 방식) 잘라내 중복 표시 방지
-  function contentWithoutFieldLines(description: string, formFields: { label: string; value: string }[]): string {
-    if (formFields.length === 0) return description;
-    const fieldLines = formFields.map((f) => `${f.label}: ${f.value}`).join("\n");
-    if (description.startsWith(fieldLines)) {
-      return description.slice(fieldLines.length).replace(/^\n+/, "");
-    }
-    return description;
-  }
-
   const approveMut = useMutation({
     mutationFn: ({ stepId, comment }: { stepId: string; comment?: string }) =>
       approveStep(stepId, userId, comment),
@@ -675,7 +679,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   }
 
   const selected = pendingApprovals.find((p: any) => p.stepId === selectedStepId) || null;
-  const selectedFormFields = selected ? getFormFields(selected) : [];
+  const selectedFormFields = selected ? resolveFormFields(selected.formId, selected.customFields, formsById) : [];
   const selectedContent = selected ? contentWithoutFieldLines(selected.description || "", selectedFormFields) : "";
 
   const handleApprove = () => {
@@ -915,6 +919,18 @@ function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string;
     enabled: !!companyId,
   });
 
+  // 커스텀 결재 양식 필드 정의 — custom_fields 값과 짝지어 펼침 패널에 구조화된 항목으로 표시
+  const { data: customForms = [] } = useQuery({
+    queryKey: ["approval-forms", companyId],
+    queryFn: () => listApprovalForms(),
+    enabled: !!companyId,
+  });
+  const formsById = useMemo(() => {
+    const map = new Map<string, ApprovalForm>();
+    (customForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
+    return map;
+  }, [customForms]);
+
   const handleDelete = async (req: any) => {
     const { ok } = await confirm({
       title: "결재 요청 삭제",
@@ -1060,6 +1076,8 @@ function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string;
             ) : (
               allRequests.map((req: any) => {
                 const m = typeMeta(req.request_type);
+                const reqFormFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
+                const reqContentText = contentWithoutFieldLines(req.description || "", reqFormFields);
                 return (
                   <Fragment key={req.id}>
                   <tr
@@ -1120,6 +1138,19 @@ function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string;
                   {expandedId === req.id && (
                     <tr className="border-b border-[var(--border)] last:border-0 bg-[var(--bg)]">
                       <td colSpan={7} className="px-5 py-4">
+                        {(reqFormFields.length > 0 || reqContentText || (req.attachments?.length ?? 0) > 0) && (
+                          <div className="mb-5 pb-5 border-b border-[var(--border)]">
+                            {reqFormFields.length > 0 && (
+                              <div className="mb-3 pb-3 border-b border-[var(--border)]/60">
+                                <FormFieldRows fields={reqFormFields} />
+                              </div>
+                            )}
+                            {reqContentText && (
+                              <div className="mb-2 text-sm text-[var(--text)] leading-8 whitespace-pre-wrap">{reqContentText}</div>
+                            )}
+                            <AttachmentList attachments={req.attachments} />
+                          </div>
+                        )}
                         <ApprovalTimelineView
                           requestId={req.id}
                           currentStage={req.current_stage}
