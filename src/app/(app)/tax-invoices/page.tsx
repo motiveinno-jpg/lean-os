@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { getCurrentUser } from "@/lib/queries";
+import { useColWidths } from "../partners/ledger/shared";
 import {
   createTaxInvoice,
   markInvoiceMatched,
@@ -955,12 +956,39 @@ export default function TaxInvoicesPage() {
     if (k === invSortKey) setInvSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setInvSortKey(k); setInvSortDir(k === "issue_date" ? "desc" : "asc"); }
   };
-  const invSortTh = (k: InvSortKey, label: string, cls: string) => (
-    <th className={`px-3 py-2.5 font-semibold whitespace-nowrap border-l border-[var(--border)]/50 ${cls} cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleInvSort(k)}>
+  // 목록 표 컬럼 리사이즈 — 경계선 드래그로 너비 조절 · 더블클릭 내용 자동맞춤 · localStorage 기억 (2026-07-14)
+  const listTableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths("tax-invoice-list-colw", {
+    issue_date: 90, nts: 150, counterparty_name: 180, label: 150,
+    supply_amount: 110, tax_amount: 100, total_amount: 110, send: 84, status: 76, act: 132,
+  });
+  const startColDrag = (k: string, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const startX = e.clientX; const startW = colW[k] || 100;
+    const move = (ev: MouseEvent) => setColW(k, Math.max(44, startW + (ev.clientX - startX)));
+    const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); document.body.style.cursor = ""; };
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+  };
+  const autofitCol = (k: string, colIndex: number) => {
+    const table = listTableRef.current; if (!table) return;
+    let max = 44;
+    table.querySelectorAll("tr").forEach((tr) => { const cell = tr.children[colIndex] as HTMLElement | undefined; if (cell) max = Math.max(max, cell.scrollWidth); });
+    setColW(k, Math.min(640, max + 14));
+  };
+  const ColHandle = ({ k, colIndex }: { k: string; colIndex: number }) => (
+    <span onMouseDown={(e) => startColDrag(k, e)} onDoubleClick={() => autofitCol(k, colIndex)} onClick={(e) => e.stopPropagation()}
+      className="absolute top-0 -right-[3px] h-full w-[7px] cursor-col-resize select-none z-[1] hover:bg-[var(--primary)]/35 active:bg-[var(--primary)]/55 rounded"
+      title="드래그: 너비 조절 · 더블클릭: 내용에 맞춤" />
+  );
+  const invSortTh = (k: InvSortKey, label: string, cls: string, colIndex: number) => (
+    <th className={`px-3 py-2.5 font-semibold whitespace-nowrap border-l border-[var(--border)]/50 ${cls} cursor-pointer select-none hover:text-[var(--text)] transition`}
+        style={{ width: colW[k], position: "relative" }} onClick={() => toggleInvSort(k)}>
       <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
         {label}
         <span className={`text-[9px] ${invSortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{invSortKey === k ? (invSortDir === "asc" ? "▲" : "▼") : "↕"}</span>
       </span>
+      <ColHandle k={k} colIndex={colIndex} />
     </th>
   );
   const displayList = useMemo(() => {
@@ -1917,7 +1945,7 @@ export default function TaxInvoicesPage() {
               </div>
               {/* 홈택스식 격자 그리드 */}
               <div className="overflow-auto max-h-[600px]">
-                <table className="w-full text-xs border-collapse" style={{ minWidth: 980 }}>
+                <table ref={listTableRef} className="w-full text-xs border-collapse" style={{ minWidth: 980 }}>
                   <thead className="sticky top-0 z-10">
                     <tr className="text-xs text-[var(--text-dim)] bg-[var(--bg-card)] border-b border-[var(--border)]">
                       <th className="px-2 py-2.5 w-8 text-center border-l border-[var(--border)]/50 first:border-l-0">
@@ -1926,16 +1954,16 @@ export default function TaxInvoicesPage() {
                             className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" title="미발행 전체 선택" />
                         )}
                       </th>
-                      {invSortTh("issue_date", "작성일자", "text-left w-[90px]")}
-                      <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[150px]">승인번호</th>
-                      {invSortTh("counterparty_name", "상호(거래처)", "text-left")}
-                      {invSortTh("label", "품목", "text-left")}
-                      {invSortTh("supply_amount", "공급가액", "text-right w-[110px]")}
-                      {invSortTh("tax_amount", "세액", "text-right w-[100px]")}
-                      {invSortTh("total_amount", "합계금액", "text-right w-[110px]")}
-                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[84px]">전송</th>
-                      {invSortTh("status", "상태", "text-center w-[76px]")}
-                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50 w-[70px]">관리</th>
+                      {invSortTh("issue_date", "작성일자", "text-left", 1)}
+                      <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap border-l border-[var(--border)]/50" style={{ width: colW.nts, position: "relative" }}>승인번호<ColHandle k="nts" colIndex={2} /></th>
+                      {invSortTh("counterparty_name", "상호(거래처)", "text-left", 3)}
+                      {invSortTh("label", "품목", "text-left", 4)}
+                      {invSortTh("supply_amount", "공급가액", "text-right", 5)}
+                      {invSortTh("tax_amount", "세액", "text-right", 6)}
+                      {invSortTh("total_amount", "합계금액", "text-right", 7)}
+                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50" style={{ width: colW.send, position: "relative" }}>전송<ColHandle k="send" colIndex={8} /></th>
+                      {invSortTh("status", "상태", "text-center", 9)}
+                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50" style={{ width: colW.act, position: "relative" }}>관리<ColHandle k="act" colIndex={10} /></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1988,7 +2016,7 @@ export default function TaxInvoicesPage() {
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${sc.bg} ${sc.text}`}>{sc.label}</span>
                           </td>
                           <td className="px-3 py-2 text-center border-l border-[var(--border)]/40" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap">
                               {canIssue && (
                                 <button
                                   onClick={() => handleSingleIssue(inv.id)}
