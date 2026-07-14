@@ -34,6 +34,7 @@ import { useToast } from "@/components/toast";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
+import { generateApprovalPdf } from "@/lib/document-generator";
 
 const db = supabase as any;
 
@@ -799,9 +800,11 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
 // ══════════════════════════════════════════════
 
 function AllRequestsTab({ companyId }: { companyId: string }) {
+  const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
   const { data: allRequests = [], isLoading } = useQuery({
     queryKey: ["all-requests", companyId, statusFilter, typeFilter],
@@ -820,6 +823,41 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
     });
     return map;
   }, [allRequests]);
+
+  // 승인 완료된 결재 문서 PDF 다운로드
+  const handleDownloadApprovalPdf = async (req: any) => {
+    setPdfLoadingId(req.id);
+    try {
+      const timeline = await getApprovalTimeline(req.id);
+      const blob = await generateApprovalPdf({
+        title: req.title,
+        requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
+        statusLabel: STATUS_CONFIG[req.status]?.label || req.status,
+        requesterName: requesterNames.get(req.requester_id) || "-",
+        amount: req.amount || 0,
+        description: req.description || undefined,
+        createdAt: formatDate(req.created_at),
+        steps: timeline.map((s) => ({
+          stage: s.stage,
+          stageName: s.stage_name,
+          approverName: s.approver_name || "담당자",
+          statusLabel: STATUS_CONFIG[s.status]?.label || s.status,
+          comment: s.comment || undefined,
+          decidedAt: s.decided_at ? formatDateTime(s.decided_at) : null,
+        })),
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `결재문서_${req.title}_${formatDate(req.created_at)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("PDF 다운로드 완료", "success");
+    } catch (err: any) {
+      toast(`PDF 생성 실패: ${err.message}`, "error");
+    }
+    setPdfLoadingId(null);
+  };
 
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
@@ -877,12 +915,13 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right">금액</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">문서</th>
             </tr>
           </thead>
           <tbody>
             {allRequests.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-16 text-center">
+                <td colSpan={7} className="px-4 py-16 text-center">
                   <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
                   </div>
@@ -922,6 +961,21 @@ function AllRequestsTab({ companyId }: { companyId: string }) {
                       <StageProgress current={req.current_stage} total={req.total_stages} status={req.status} />
                     </td>
                     <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(req.created_at)}</td>
+                    <td className="px-4 py-3.5">
+                      {req.status === "approved" && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDownloadApprovalPdf(req); }}
+                          disabled={pdfLoadingId === req.id}
+                          title="결재 문서 PDF 다운로드"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)] border border-[var(--border)] transition disabled:opacity-50"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                          </svg>
+                          {pdfLoadingId === req.id ? "생성 중..." : "PDF"}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })

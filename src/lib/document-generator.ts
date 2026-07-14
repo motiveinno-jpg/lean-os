@@ -765,6 +765,121 @@ export async function generateTaxInvoicePdf(params: TaxInvoicePdfParams): Promis
 }
 
 // ────────────────────────────────────────────
+// 4.5 결재 문서 PDF (승인 완료 결재 요청)
+// ────────────────────────────────────────────
+
+export interface ApprovalPdfParams {
+  title: string;
+  requestTypeLabel: string;
+  statusLabel: string;
+  requesterName: string;
+  amount: number;
+  description?: string;
+  createdAt: string; // yyyy-mm-dd 또는 ISO
+  companyName?: string;
+  steps: {
+    stage: number;
+    stageName: string;
+    approverName: string;
+    statusLabel: string;
+    comment?: string;
+    decidedAt: string | null; // 표시용 포맷 완료 문자열
+  }[];
+}
+
+export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Blob> {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  await loadKoreanFont(doc);
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  let y = 16;
+
+  // ── 제목 ──
+  doc.setFontSize(18);
+  setKoreanFont(doc, 'bold');
+  doc.setTextColor(30, 30, 30);
+  doc.text('결 재 문 서', pageW / 2, y, { align: 'center' });
+  y += 10;
+
+  // ── 기본 정보 테이블 ──
+  autoTable(doc, {
+    startY: y,
+    body: [
+      ['문서종류', params.requestTypeLabel, '상태', params.statusLabel],
+      ['제목', params.title, '기안자', params.requesterName],
+      ['기안일', params.createdAt, '금액', params.amount ? `${fmtKRW(params.amount)} 원` : '-'],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 3, font: 'NanumGothic' },
+    columnStyles: {
+      0: { fontStyle: 'bold', fillColor: [245, 247, 250], cellWidth: 24 },
+      1: { cellWidth: 72 },
+      2: { fontStyle: 'bold', fillColor: [245, 247, 250], cellWidth: 24 },
+      3: { cellWidth: 62 },
+    },
+    margin: { left: 14, right: 14 },
+  });
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // ── 내용 ──
+  if (params.description) {
+    doc.setFontSize(9);
+    setKoreanFont(doc, 'bold');
+    doc.setTextColor(60, 60, 60);
+    doc.text('내용', 14, y);
+    y += 5;
+    setKoreanFont(doc, 'normal');
+    doc.setTextColor(40, 40, 40);
+    const lines: string[] = doc.splitTextToSize(params.description, pageW - 28);
+    doc.text(lines, 14, y);
+    y += lines.length * 4.6 + 6;
+  }
+
+  // ── 결재 라인 ──
+  if (params.steps.length > 0) {
+    doc.setFontSize(9);
+    setKoreanFont(doc, 'bold');
+    doc.setTextColor(60, 60, 60);
+    doc.text('결재 라인', 14, y);
+    y += 3;
+
+    autoTable(doc, {
+      startY: y,
+      head: [['단계', '결재자', '상태', '의견', '처리일시']],
+      body: params.steps.map((s) => [
+        `${s.stage}. ${s.stageName}`,
+        s.approverName,
+        s.statusLabel,
+        s.comment || '-',
+        s.decidedAt || '대기 중',
+      ]),
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2.5, font: 'NanumGothic' },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', font: 'NanumGothic', halign: 'center' },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        1: { cellWidth: 28 },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 58 },
+        4: { cellWidth: 36 },
+      },
+      margin: { left: 14, right: 14 },
+      alternateRowStyles: { fillColor: [248, 249, 250] },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+  }
+
+  // ── 하단 안내 ──
+  doc.setFontSize(7);
+  setKoreanFont(doc, 'normal');
+  doc.setTextColor(150, 150, 150);
+  doc.text('이 문서는 OwnerView 결재 시스템에서 생성되었습니다.', pageW / 2, pageH - 8, { align: 'center' });
+
+  addPageNumbers(doc, params.companyName || '');
+  return doc.output('blob');
+}
+
+// ────────────────────────────────────────────
 // 5. 문서 발행 (issued 상태 + 잠금)
 // ────────────────────────────────────────────
 
