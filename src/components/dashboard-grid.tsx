@@ -1,44 +1,59 @@
 "use client";
 
-// 위젯식 대시보드 그리드 — react-grid-layout 기반 자유 배치(2026-07-14 개편).
-//   편집 모드: 드래그로 아무 위치 이동(작은 격자에 스냅) + 모서리 드래그로 크기 조절, 세로 자동 압축(빈칸 자동 정렬).
-//   레이아웃은 회사별 localStorage 자동 저장. RGL 1.5(nodeRef)로 React 19 호환.
+// 위젯식 대시보드 그리드 — react-grid-layout(비반응형 GridLayout, 완전 controlled) 기반 자유 배치(2026-07-14).
+//   편집 모드: 드래그로 아무 위치 이동(격자 스냅) + 모서리 드래그로 크기 조절, 세로 자동 압축(빈칸 자동 정렬).
+//   단일 layout 배열을 상태로 관리(드롭이 원위치로 튕기던 문제 해결). 레이아웃 회사별 localStorage 저장.
 
 import { useState, useEffect } from "react";
-import { Responsive, WidthProvider, type Layouts } from "react-grid-layout";
+import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
-const RGL = WidthProvider(Responsive);
+const RGL = WidthProvider(GridLayout);
 
 export type DashWidget = { id: string; node: React.ReactNode; w?: number; h?: number };
+
+function buildDefault(widgets: DashWidget[]): Layout[] {
+  return widgets.map((w, i) => ({
+    i: w.id, x: (i % 3) * 4, y: Math.floor(i / 3) * (w.h || 5), w: w.w || 4, h: w.h || 5, minW: 3, minH: 2,
+  }));
+}
 
 export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: DashWidget[]; storageKey: string; title?: string }) {
   const [edit, setEdit] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [layouts, setLayouts] = useState<Layouts>({});
+  const [layout, setLayout] = useState<Layout[]>(() => buildDefault(widgets));
 
+  const widgetIds = widgets.map((w) => w.id).join(",");
+
+  // 저장된 레이아웃 로드 + 신규/삭제 위젯 머지 (widget 구성 바뀌면 재계산)
   useEffect(() => {
+    const def = buildDefault(widgets);
+    let base: Layout[] = def;
     try {
       const raw = JSON.parse(localStorage.getItem(storageKey) || "null");
-      if (raw && typeof raw === "object") setLayouts(raw as Layouts);
+      if (Array.isArray(raw)) {
+        const savedIds = new Set(raw.map((l: Layout) => l.i));
+        const validIds = new Set(widgets.map((w) => w.id));
+        base = [...raw.filter((l: Layout) => validIds.has(l.i)), ...def.filter((d) => !savedIds.has(d.i))];
+      }
     } catch { /* noop */ }
+    setLayout(base);
     setMounted(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  }, [storageKey, widgetIds]);
 
-  const onLayoutChange = (_cur: unknown, all: Layouts) => {
-    if (!mounted) return;
-    setLayouts(all);
-    try { localStorage.setItem(storageKey, JSON.stringify(all)); } catch { /* noop */ }
+  const onLayoutChange = (l: Layout[]) => {
+    setLayout(l);
+    if (mounted) { try { localStorage.setItem(storageKey, JSON.stringify(l)); } catch { /* noop */ } }
   };
-  const reset = () => { setLayouts({}); try { localStorage.removeItem(storageKey); } catch { /* noop */ } };
+  const reset = () => { setLayout(buildDefault(widgets)); try { localStorage.removeItem(storageKey); } catch { /* noop */ } };
 
   const Header = (
     <div className="dash-section-head flex items-center justify-between gap-2">
       <div>
         {title && <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>{title}</div>}
-        {edit && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 원하는 위치로 · 모서리를 드래그해 크기 조절 (빈칸 자동 정렬 · 자동 저장)</p>}
+        {edit && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 원하는 위치로 · 우하단 모서리를 드래그해 크기 조절 (빈칸 자동 정렬 · 자동 저장)</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         {edit && <button onClick={reset} className="btn-secondary btn-sm">기본값</button>}
@@ -66,9 +81,8 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
       {Header}
       <RGL
         className="layout"
-        layouts={layouts}
-        breakpoints={{ lg: 1024, md: 640, sm: 0 }}
-        cols={{ lg: 12, md: 8, sm: 2 }}
+        layout={layout}
+        cols={12}
         rowHeight={44}
         margin={[12, 12]}
         containerPadding={[0, 0]}
@@ -76,15 +90,12 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
         isResizable={edit}
         compactType="vertical"
         onLayoutChange={onLayoutChange}
-        draggableCancel="a,button,input,select,label,.no-drag"
+        draggableCancel=".no-drag"
+        resizeHandles={["se"]}
       >
-        {widgets.map((w, i) => (
-          <div
-            key={w.id}
-            data-grid={{ x: (i % 3) * 4, y: Math.floor(i / 3) * (w.h || 5), w: w.w || 4, h: w.h || 5, minW: 3, minH: 2 }}
-            className={edit ? "rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}
-          >
-            {/* 흰색 카드가 셀 높이를 채우되(h-full), 콘텐츠가 넘치면 잘리지 않고 스크롤(overflow-auto) */}
+        {widgets.map((w) => (
+          <div key={w.id} className={edit ? "rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}>
+            {/* 흰색 카드가 셀을 채우되(min-h-full), 넘치면 잘리지 않고 스크롤(overflow-auto) */}
             <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.node}</div>
           </div>
         ))}
