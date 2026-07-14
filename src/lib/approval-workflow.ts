@@ -68,6 +68,8 @@ export interface ApprovalRequest {
   total_stages: number;
   attachments: string[];
   reference_user_ids?: string[];
+  form_id?: string | null;
+  custom_fields?: Record<string, unknown>;
   created_at: string;
   updated_at?: string;
 }

@@ -1076,13 +1076,11 @@ function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string;
             ) : (
               allRequests.map((req: any) => {
                 const m = typeMeta(req.request_type);
-                const reqFormFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
-                const reqContentText = contentWithoutFieldLines(req.description || "", reqFormFields);
                 return (
-                  <Fragment key={req.id}>
                   <tr
+                    key={req.id}
                     className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition"
-                    onClick={() => setExpandedId(expandedId === req.id ? null : req.id)}
+                    onClick={() => setExpandedId(req.id)}
                   >
                     <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
                     <td className="px-4 py-3.5">
@@ -1135,38 +1133,63 @@ function AllRequestsTab({ companyId, initialStatusFilter }: { companyId: string;
                       </div>
                     </td>
                   </tr>
-                  {expandedId === req.id && (
-                    <tr className="border-b border-[var(--border)] last:border-0 bg-[var(--bg)]">
-                      <td colSpan={7} className="px-5 py-4">
-                        {(reqFormFields.length > 0 || reqContentText || (req.attachments?.length ?? 0) > 0) && (
-                          <div className="mb-5 pb-5 border-b border-[var(--border)]">
-                            {reqFormFields.length > 0 && (
-                              <div className="mb-3 pb-3 border-b border-[var(--border)]/60">
-                                <FormFieldRows fields={reqFormFields} />
-                              </div>
-                            )}
-                            {reqContentText && (
-                              <div className="mb-2 text-sm text-[var(--text)] leading-8 whitespace-pre-wrap">{reqContentText}</div>
-                            )}
-                            <AttachmentList attachments={req.attachments} />
-                          </div>
-                        )}
-                        <ApprovalTimelineView
-                          requestId={req.id}
-                          currentStage={req.current_stage}
-                          totalStages={req.total_stages}
-                          requestStatus={req.status}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                  </Fragment>
                 );
               })
             )}
           </tbody>
         </table>
       </div>
+
+      {/* 요청 상세 팝업 — 클릭한 행의 내용·구조화 필드·첨부파일·결재 타임라인 */}
+      {expandedId && (() => {
+        const req = allRequests.find((r: any) => r.id === expandedId);
+        if (!req) return null;
+        const m = typeMeta(req.request_type);
+        const reqFormFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
+        const reqContentText = contentWithoutFieldLines(req.description || "", reqFormFields);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setExpandedId(null)}>
+            <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                    <TypeIcon name={m.icon} className="w-4 h-4" />
+                  </span>
+                  <StatusBadge status={req.status} />
+                </div>
+                <button onClick={() => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+              </div>
+              <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{req.title}</h3>
+              <div className="text-xs text-[var(--text-dim)] mb-5">
+                {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} · {requesterNames.get(req.requester_id) || "알 수 없음"} · {formatDate(req.created_at)}
+              </div>
+
+              {req.amount > 0 && (
+                <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(req.amount)}</div>
+              )}
+
+              {reqFormFields.length > 0 && (
+                <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
+                  <FormFieldRows fields={reqFormFields} />
+                </div>
+              )}
+              {reqContentText && (
+                <div className="mb-2 text-sm text-[var(--text)] leading-8 whitespace-pre-wrap">{reqContentText}</div>
+              )}
+              <AttachmentList attachments={req.attachments} />
+
+              <div className="mt-6 pt-5 border-t border-[var(--border)]">
+                <ApprovalTimelineView
+                  requestId={req.id}
+                  currentStage={req.current_stage}
+                  totalStages={req.total_stages}
+                  requestStatus={req.status}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {confirmElement}
     </div>
   );
