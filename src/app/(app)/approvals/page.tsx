@@ -1413,10 +1413,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     setDescriptionInited(form.requestType);
   }, [form.requestType, isLeave, descriptionInited, matchedPolicy]);
 
-  // 커스텀 결재 양식 선택 시 — 내용 템플릿 프리필 + 결재선을 승인자로 적용
+  // 커스텀 결재 양식 선택 시 — 제목·내용 템플릿 프리필 + 결재선을 승인자로 적용
   useEffect(() => {
     if (!selectedForm || descriptionInited === form.requestType) return;
-    setForm((prev) => ({ ...prev, description: selectedForm.content_template || "" }));
+    setForm((prev) => ({
+      ...prev,
+      title: prev.title || selectedForm.name,
+      description: selectedForm.content_template || "",
+    }));
     setDescriptionInited(form.requestType);
     // 직원 QA #11 — 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
     const initFields: Record<string, string> = {};
