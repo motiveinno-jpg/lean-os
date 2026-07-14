@@ -10,6 +10,7 @@
 //   withInput 을 주면 사유 입력(textarea) 값을 함께 반환 (반려 사유 등 — window.prompt 대체).
 
 import { useCallback, useState, type ReactNode } from "react";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export type ConfirmOptions = {
   title: string;
@@ -43,6 +44,13 @@ export function useConfirm() {
     state?.resolve(r);
     setState(null);
   };
+
+  const canConfirm = !!state && !(state.withInput != null && !state.inputOptional && !input.trim());
+  useModalKeys(
+    !!state,
+    () => close({ ok: false }),
+    canConfirm ? () => close({ ok: true, input: input.trim() || undefined }) : undefined,
+  );
 
   const confirmElement = state ? (
     <div
