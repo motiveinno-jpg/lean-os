@@ -367,12 +367,12 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <main
         className={`flex-1 min-w-0 transition-[margin] duration-200 pt-[80px] md:pt-[88px] ${
           collapsed ? "md:ml-[92px]" : "md:ml-[264px]"
-        } ml-0 ${guideOpen ? "md:mr-[412px]" : ""} ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pl-4 md:pr-3 md:pb-3" : role === "owner" ? "p-6 pb-20 md:pb-3 md:pr-3 md:pl-4" : "p-6 md:pr-3 md:pb-3 md:pl-4"}`}
+        } ml-0 ${guideOpen ? "md:mr-[412px]" : ""} ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pl-8 md:pr-3 md:pb-3" : role === "owner" ? "p-6 pb-20 md:pb-3 md:pr-3 md:pl-8" : "p-6 md:pr-3 md:pb-3 md:pl-8"}`}
       >
         {/* 2026-07-14 콘텐츠 좌측 정렬 + 우측 여백 + 전체 축소(사장님 요청, 오너뷰사이즈.PNG).
             max-width 로 좌측 정렬(오른쪽 여백) + zoom 으로 스퀘어·글씨를 전체적으로 살짝 작게.
             폼·문서 등 자체 --content-max 페이지는 그 안에서 추가 제한되므로 영향 없음. */}
-        <div className="app-content-scale w-full max-w-[1240px]" style={{ zoom: 0.97 }}>
+        <div className="app-content-scale w-full max-w-[1440px]" style={{ zoom: 0.97 }}>
           {/* 페이지 제목·설명은 상단 크롬 헤더바(브레드크럼)에서 표시 — 본문 중복 제목 없음. */}
           {/* 유료 출시 게이트(2026-06-11): trial D-N 배너 + 만료/해지 페이월. 운영자·레거시(구독행 없음) 비차단. */}
           <RouteGuard>
