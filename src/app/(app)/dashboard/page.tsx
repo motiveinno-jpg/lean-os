@@ -508,9 +508,16 @@ export default function DashboardPage() {
               내업무/회사현황 구분 없이 하나의 그리드. 편집 모드에서 드래그 이동 + 크기 조절(자동 저장). */}
           {(() => {
             const taxItems = getUpcomingTaxDeadlines(60);
+            // 앱 기본 배치(사장님 배치.PNG 기준) — 저장된 개인 레이아웃이 없거나 '기본값' 리셋 시 이 배치로.
+            const POS: Record<string, { x: number; y: number; w: number; h: number }> = {
+              attendance: { x: 0, y: 0, w: 4, h: 2 }, calendar: { x: 0, y: 2, w: 4, h: 10 }, projects: { x: 0, y: 12, w: 4, h: 3 },
+              "work-tasks": { x: 4, y: 0, w: 4, h: 4 }, revenue: { x: 4, y: 4, w: 4, h: 5 }, tax: { x: 4, y: 9, w: 4, h: 3 },
+              biz: { x: 8, y: 0, w: 4, h: 3 }, receivables: { x: 8, y: 3, w: 4, h: 5 }, assets: { x: 8, y: 8, w: 4, h: 3 }, cards: { x: 8, y: 11, w: 4, h: 2 },
+              "work-appr": { x: 4, y: 12, w: 4, h: 4 }, "work-proj": { x: 0, y: 15, w: 4, h: 4 }, "work-sign": { x: 8, y: 13, w: 4, h: 4 }, "work-ment": { x: 4, y: 16, w: 4, h: 4 },
+            };
             const widgets = [
-              ...myWorkCards,
-              ...(taxItems.length > 0 ? [{ id: "tax", h: 4, node: (
+              ...myWorkCards.map((c) => ({ ...c, ...(POS[c.id] || {}) })),
+              ...(taxItems.length > 0 ? [{ id: "tax", ...POS.tax, node: (
                 <Link href={taxItems[0].href} className="glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--warning)" }}>세금 일정</span>
@@ -526,7 +533,7 @@ export default function DashboardPage() {
                   </div>
                 </Link>
               ) }] : []),
-              { id: "biz", h: 3, node: (
+              { id: "biz", ...POS.biz, node: (
                 <DashboardBizSummary
                   monthRevenue={dashboard.growth.monthRevenue}
                   expense={(realBurnData ?? 0) + (realVariableData ?? 0)}
@@ -534,13 +541,13 @@ export default function DashboardPage() {
                   runwayMonths={dashboard.sixPack.runwayMonths}
                 />
               ) },
-              { id: "revenue", h: 5, node: <RecentRevenue companyId={companyId} /> },
-              { id: "projects", h: 5, node: <RecentProjects companyId={companyId} /> },
-              { id: "receivables", h: 4, node: <ReceivablesPreview companyId={companyId} /> },
-              ...(userId ? [{ id: "calendar", h: 10, node: <DashboardCalendar userId={userId} companyId={companyId} /> }] : []),
-              ...(userId ? [{ id: "attendance", h: 2, node: <MyAttendanceCard companyId={companyId} userId={userId} compact /> }] : []),
-              { id: "cards", h: 3, node: <CardsSummaryCard companyId={companyId} /> },
-              { id: "assets", h: 3, node: <AssetsSummaryCard companyId={companyId} /> },
+              { id: "revenue", ...POS.revenue, node: <RecentRevenue companyId={companyId} /> },
+              { id: "projects", ...POS.projects, node: <RecentProjects companyId={companyId} /> },
+              { id: "receivables", ...POS.receivables, node: <ReceivablesPreview companyId={companyId} /> },
+              ...(userId ? [{ id: "calendar", ...POS.calendar, node: <DashboardCalendar userId={userId} companyId={companyId} /> }] : []),
+              ...(userId ? [{ id: "attendance", ...POS.attendance, node: <MyAttendanceCard companyId={companyId} userId={userId} compact /> }] : []),
+              { id: "cards", ...POS.cards, node: <CardsSummaryCard companyId={companyId} /> },
+              { id: "assets", ...POS.assets, node: <AssetsSummaryCard companyId={companyId} /> },
             ];
             return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} widgets={widgets} />;
           })()}
