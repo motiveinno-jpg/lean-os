@@ -927,10 +927,10 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="tx-header-bar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         {/* 탭 — 좌측 (visibleTabs 길이가 1 이하면 탭 UI 자체 숨김, 단일 view) */}
         {visibleTabs.length > 1 ? (
-          <div className="seg-bar">
+          <div className="tx-tab-switcher seg-bar">
             {(([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][])
               .filter(([t]) => visibleTabs.includes(t))
             ).map(([t, label]) => (
@@ -941,7 +941,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             ))}
           </div>
         ) : <div />}
-        <div className="flex flex-wrap gap-2">
+        <div className="tx-toolbar-actions flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
           {!(visibleTabs.length === 1 && visibleTabs[0] === 'cards') && (
             <button
@@ -1107,7 +1107,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       </div>
 
       {/* Search Bar */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="tx-search-bar flex items-center gap-2 mb-4">
         <div className="flex-1 relative">
           <input
             value={searchQuery}
@@ -1162,7 +1162,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       </div>
 
       {uploadResult && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${uploadResult.startsWith("오류") ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
+        <div className={`bank-upload-result-banner mb-4 p-3 rounded-lg text-sm ${uploadResult.startsWith("오류") ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
           {uploadResult}
           <button onClick={() => setUploadResult(null)} className="ml-2 opacity-60 hover:opacity-100">x</button>
         </div>
@@ -1170,7 +1170,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
       {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치. 탭에 따라 통장/카드 기간 */}
       {(tab === 'inbox' || tab === 'all' || tab === 'cards') && (
-        <div className="no-print flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+        <div className="tx-period-filter-bar no-print flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
           <span className="text-xs font-semibold text-[var(--text-muted)]">기간</span>
           {tab === 'cards' ? (
             <>
@@ -1196,8 +1196,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
       {/* Manual Entry Tab */}
       {tab === 'manual' && (
-        <div className="space-y-4">
-          <div className="glass-card p-6">
+        <div className="manual-entry-tab space-y-4">
+          <div className="manual-entry-form-card glass-card p-6">
             <h3 className="section-title">거래내역 직접 등록</h3>
             {/* 영수증 스캔 — 사진 한 장으로 폼 자동 완성 (OCR) */}
             <input ref={ocrFileRef} type="file" accept="image/*" capture="environment" onChange={handleOcrScan} className="hidden" />
@@ -1313,7 +1313,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           </div>
 
           {/* Recently added manual entries */}
-          <div className="glass-card p-6">
+          <div className="manual-entry-history-card glass-card p-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold">수기 입력 내역</h3>
               <button onClick={async () => {
@@ -1327,7 +1327,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               <EmptyState icon="✍️" title="수기 입력된 거래가 없습니다" desc="위에서 거래를 등록하세요." />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="manual-entry-history-table w-full text-sm">
                   <thead className="sticky-bar"><tr className="table-head-row">
                     <th className="text-left px-2 py-2">날짜</th><th className="text-left px-2 py-2">구분</th>
                     <th className="text-right px-2 py-2">금액</th><th className="text-left px-2 py-2">거래처</th>
@@ -1354,14 +1354,14 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
       {/* Rules Tab */}
       {tab === 'rules' && (
-        <div className="space-y-3">
+        <div className="rules-tab space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-[var(--text-dim)]">거래처/적요 패턴 매칭으로 자동 분류합니다. n8n에서 수집된 거래도 이 규칙을 적용합니다.</p>
             <button onClick={() => setShowRuleForm(!showRuleForm)} className="text-xs text-[var(--primary)] font-semibold">+ 규칙 추가</button>
           </div>
 
           {showRuleForm && (
-            <div className="glass-card p-4 space-y-3">
+            <div className="rule-form-card glass-card p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">규칙명 *</label>
@@ -1433,9 +1433,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               action={<button onClick={() => setShowRuleForm(!showRuleForm)} className="btn-primary">+ 규칙 추가</button>}
             />
           ) : (
-            <div className="space-y-2">
+            <div className="rule-list space-y-2">
               {rules.map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between px-4 py-3 glass-card">
+                <div key={r.id} className="rule-row flex items-center justify-between px-4 py-3 glass-card">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{r.rule_name}</span>
@@ -1479,7 +1479,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           {/* ═══ 아래: 거래내역 검색·필터 + 차트 ═══ */}
           {/* 통장 + 날짜 필터 — codef sync 결과 분류 */}
           {bankAccountsList.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mb-3 p-3 bg-[var(--bg-surface)] rounded-xl">
+            <div className="bank-account-filter-bar flex flex-wrap items-center gap-2 mb-3 p-3 bg-[var(--bg-surface)] rounded-xl">
               <select
                 value={selectedAccountNo}
                 onChange={e => setSelectedAccountNo(e.target.value)}
@@ -1530,7 +1530,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
           {/* Filter pills */}
           {tab === 'all' && (
-            <div className="flex items-center gap-2 mb-3">
+            <div className="bank-status-filter-pills flex items-center gap-2 mb-3">
               <div className="seg-bar">
                 {([['all', '전체'], ['unmapped', '미매핑'], ['auto_mapped', '자동'], ['manual_mapped', '수동'], ['ignored', '무시']] as [FilterStatus, string][]).map(([f, label]) => (
                   <button key={f} onClick={() => setFilterStatus(f)}
@@ -1550,7 +1550,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             </div>
           )}
 
-          <div className="glass-card overflow-hidden">
+          <div className="bank-tx-list-card glass-card overflow-hidden">
             {isLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : filteredBankTx.length === 0 ? (
@@ -1562,7 +1562,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             ) : (
               <div className="overflow-auto max-h-[600px] space-y-2.5 pr-1">
                 {/* 정렬·전체선택 툴바 (시안) */}
-                <div className="flex items-center gap-2 pb-1 text-xs">
+                <div className="bank-tx-sort-toolbar flex items-center gap-2 pb-1 text-xs">
                   {tab === 'inbox' && (
                     <label className="flex items-center gap-1.5 text-[var(--text-muted)] cursor-pointer mr-1">
                       <input type="checkbox"
@@ -1591,7 +1591,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     : { c: 'bg-[var(--text-muted)]/10 text-[var(--text-muted)]', t: '무시' };
                   return (
                     <div key={tx.id} onClick={() => setMapModal(tx)} title="클릭해서 분류·매핑"
-                      className="group glass-card p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-md">
+                      className="bank-tx-row group glass-card p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-md">
                       {tab === 'inbox' && tx.mapping_status === 'unmapped' && (
                         <input type="checkbox" checked={selectedIds.has(tx.id)} onClick={e => e.stopPropagation()}
                           onChange={e => { const next = new Set(selectedIds); if (e.target.checked) next.add(tx.id); else next.delete(tx.id); setSelectedIds(next); }}
@@ -1645,7 +1645,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   const net = sumIncome - sumExpense;
                   const selSum = filteredBankTx.filter((t: any) => selectedIds.has(t.id)).reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
                   return (
-                    <div className="sticky bottom-0 glass-card p-3 flex flex-wrap items-center justify-between gap-2 text-xs mt-1">
+                    <div className="bank-tx-summary-bar sticky bottom-0 glass-card p-3 flex flex-wrap items-center justify-between gap-2 text-xs mt-1">
                       <span className="text-[var(--text-dim)] uppercase tracking-wider">
                         합계 ({filteredBankTx.length}건)
                         {selectedIds.size > 0 && <span className="ml-2 text-[var(--primary)] font-semibold">· 선택 {selectedIds.size}건 ₩{selSum.toLocaleString()}</span>}
@@ -1663,12 +1663,12 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           </div>
 
           {/* ═══ 하단: 월별 추이 + 카테고리 분포 차트 ═══ */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+          <div className="monthly-trend-section grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             <div className="md:col-span-2">
               {monthlyData.length > 0 && <MonthlyChart data={monthlyData} />}
             </div>
             {categoryEntries.length > 0 && (
-              <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
+              <div className="category-breakdown-card p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
                 <p className="text-xs font-semibold text-[var(--text-muted)] mb-3">지출 카테고리 분포</p>
                 <div className="space-y-2">
                   {categoryEntries.slice(0, 6).map(([cat, amount]) => {
@@ -1697,7 +1697,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
       {/* Cards Tab */}
       {tab === 'cards' && (
-        <div className="space-y-6">
+        <div className="cards-tab space-y-6">
           {/* Card Query Error */}
           {cardError && (
             <div className="p-3 rounded-lg text-sm bg-red-500/10 text-red-400">
@@ -1706,7 +1706,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           )}
           {/* Card Upload Result */}
           {cardUploadResult && (
-            <div className={`p-3 rounded-lg text-sm ${cardUploadResult.startsWith("오류") ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
+            <div className={`card-upload-result-banner p-3 rounded-lg text-sm ${cardUploadResult.startsWith("오류") ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
               {cardUploadResult}
               <button onClick={() => setCardUploadResult(null)} className="ml-2 opacity-60 hover:opacity-100">x</button>
             </div>
@@ -1734,7 +1734,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
           {/* ═══ 상세: 이용대금/청구서 + 큰 지출 TOP5 (2열) ═══ */}
           {companyId && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="card-billing-detail-grid grid grid-cols-1 lg:grid-cols-2 gap-5">
               <CardBillingSummary
                 companyId={companyId}
                 onSelectCard={(id) => {
@@ -1766,7 +1766,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             const unidentifiedCards = codefCards.filter((c: any) => isUnidentified(c.card_name));
             const unidentifiedCount = unidentifiedCards.reduce((s: number, c: any) => s + Number(c.count || 0), 0);
             return (
-              <div id="card-tx-detail">
+              <div id="card-tx-detail" className="card-usage-detail">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs font-semibold text-[var(--text-muted)]">카드별 사용액 (카드번호 끝 4자리)</div>
                   {selectedCardName && (
@@ -1788,7 +1788,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     return (
                       <div
                         key={c.card_name}
-                        className={`relative group p-3 rounded-xl border text-left transition cursor-pointer ${
+                        className={`card-usage-tile relative group p-3 rounded-xl border text-left transition cursor-pointer ${
                           selectedCardName === c.card_name
                             ? 'bg-[var(--primary)]/10 border-[var(--primary)]'
                             : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]/50'
@@ -1833,7 +1833,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           })()}
 
           {/* Card Selector + Actions */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="card-selector-actions-bar flex flex-wrap items-center gap-2 sm:gap-3">
             <select value={selectedCardId} onChange={e => { setSelectedCardId(e.target.value); if (e.target.value) setSelectedCardName(''); }}
               className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm w-full sm:w-auto sm:min-w-[200px]">
               <option value="">전체 카드 (등록된)</option>
@@ -1860,7 +1860,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           </div>
 
           {/* Card Filter Pills + 환불/취소 표시 토글 */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="card-status-filter-bar flex items-center gap-2 flex-wrap">
             {([['all', '전체'], ['unmapped', '미매핑'], ['auto_mapped', '자동'], ['manual_mapped', '수동'], ['ignored', '무시']] as [CardFilterStatus, string][]).map(([f, label]) => (
               <button key={f} onClick={() => setCardFilterStatus(f)}
                 className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${cardFilterStatus === f ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
@@ -1880,7 +1880,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               CODEF 카드별 사용액(위)에서 이미 모든 카드 정보가 노출되어 중복. 수정/삭제는 청구서 카드 상세에서. */}
 
           {/* Card Transactions Table */}
-          <div className="glass-card overflow-hidden">
+          <div className="card-tx-table-card glass-card overflow-hidden">
             {cardTxLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : displayCardTx.length === 0 ? (
@@ -1922,7 +1922,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     <tr
                       key={tx.id}
                       onClick={() => setCardMapModal(tx)}
-                      className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer"
+                      className="card-tx-row border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer"
                       title="클릭해서 분류·매핑"
                     >
                       <td className="px-4 py-2.5 text-xs text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
@@ -1991,7 +1991,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       {/* Card Add/Edit Modal */}
       {showCardForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCardForm(false)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
+          <div className="card-form-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
             <h3 className="section-title">{editingCard ? '카드 수정' : '법인카드 등록'}</h3>
             <div className="space-y-3 mb-4">
               <div>
@@ -2297,7 +2297,7 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
+      <div className="bank-map-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-bold mb-1">거래 매핑</h3>
         <div className="text-xs text-[var(--text-muted)] mb-4">
           {tx.transaction_date} · {tx.counterparty || '알 수 없음'} · {tx.type === 'income' ? '+' : '-'}₩{Number(tx.amount).toLocaleString()}
@@ -2423,7 +2423,7 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
+      <div className="card-map-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-bold mb-1">카드 거래 매핑</h3>
         <div className="text-xs text-[var(--text-muted)] mb-4">
           {tx.transaction_date} · {tx.merchant_name || '알 수 없음'} · {Number(tx.amount) < 0 ? <span className="text-green-500">+₩{Math.abs(Number(tx.amount)).toLocaleString()} (취소/환불)</span> : `-₩${Number(tx.amount).toLocaleString()}`}
@@ -2594,7 +2594,7 @@ function MonthlyChart({ data }: { data: MonthlyIncomeExpense[] }) {
   const hoverMIdx = hover ? parseInt(hover.month.split('-')[1], 10) - 1 : 0;
 
   return (
-    <div className="mb-5 glass-card p-5">
+    <div className="monthly-trend-chart-card mb-5 glass-card p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <div>

@@ -1140,12 +1140,12 @@ export default function TaxInvoicesPage() {
       {confirmElement}
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* 기간설정 + 등록 — 한 줄로 통합(2026-07-13 정리). 인쇄·조회하기 제거(월 변경 시 자동 반영). */}
-      <div className="mb-3 no-print rounded-lg overflow-hidden border border-[var(--border)]">
+      <div className="tax-invoice-toolbar mb-3 no-print rounded-lg overflow-hidden border border-[var(--border)]">
         <div className="bg-[var(--bg-card)] p-2.5 flex flex-wrap items-stretch gap-x-0 gap-y-2">
           {/* 조회기간은 목록(매출·매입)에서만 — 집계/부가세 탭은 자체 기간(월별·분기·연간) 사용(중복 제거) */}
           {(tab === "sales" || tab === "purchase") && (
           <div className="flex flex-wrap items-stretch border border-[var(--border)] rounded-md overflow-hidden min-w-0 max-w-full">
-            <div className="px-3 flex items-center text-[11px] font-bold text-[var(--text-muted)]" style={{ background: "color-mix(in srgb, var(--primary) 6%, var(--bg-surface))" }}>조회기간</div>
+            <div className="px-3 flex items-center text-[11px] font-bold text-[var(--text-muted)] bg-[color-mix(in_srgb,var(--primary)_6%,var(--bg-surface))]">조회기간</div>
             <div className="px-3 py-2 flex items-center gap-2 flex-wrap min-w-0">
               <MonthField
                 value={viewFromMonth}
@@ -1334,7 +1334,7 @@ export default function TaxInvoicesPage() {
 
       {/* 동기화 결과 패널 — 월별 응답 수 vs 저장 수 비교, 누락 월에 재시도 버튼 */}
       {syncResultDetail && syncResultDetail.length > 0 && (
-        <div className="glass-card p-5 mb-6 no-print">
+        <div className="tax-invoice-sync-result-panel glass-card p-5 mb-6 no-print">
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs font-bold text-[var(--text)]">
               동기화 결과
@@ -1397,7 +1397,7 @@ export default function TaxInvoicesPage() {
 
 
       {/* Tabs — 매출·매입 + 자동발행·집계 (목록 위로 이동, 순서 정리 2026-07-13) */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
+      <div className="tax-invoice-tabs flex items-center gap-2 mb-4 flex-wrap">
         <div className="seg-bar flex-wrap">
           {[
             { key: "sales" as const, label: "매출", count: salesInvoices.length },
@@ -1426,7 +1426,7 @@ export default function TaxInvoicesPage() {
       {/* 중복의심·주의할계산서·필수확인 3블록 → 아래 「점검 리포트」 카드로 통합(2026-07-13) */}
 
       {/* Summary Cards — TeamHub KPI 카드 패턴: [라벨 + kpi-icon] / [큰 값] / [실데이터 보조행] */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" data-print-area>
+      <div className="tax-invoice-summary-cards grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" data-print-area>
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">조회기간 매출</span>
@@ -1604,7 +1604,7 @@ export default function TaxInvoicesPage() {
       {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
       {showForm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowForm(false)}>
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-[96vw] max-w-[1240px] max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="tax-invoice-registration-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-[96vw] max-w-[1240px] max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] shrink-0">
             <div>
@@ -1637,7 +1637,7 @@ export default function TaxInvoicesPage() {
                 {rows.map((row) => {
                   const sa = Number(row.supplyAmount) || 0;
                   return (
-                    <div key={row.key}>
+                    <div key={row.key} className="tax-invoice-form-row">
                       <div className="grid grid-cols-[84px_124px_minmax(150px,1.3fr)_108px_128px_46px_84px_124px_120px_minmax(120px,1fr)_32px] gap-2 items-center">
                         {/* 유형 */}
                         <select
@@ -1858,7 +1858,7 @@ export default function TaxInvoicesPage() {
 
       {/* Batch Actions */}
       {(tab === "sales" || tab === "purchase") && selectedRows.length > 0 && (
-        <div className="mb-3 flex items-center gap-2.5 px-4 py-2.5 bg-[var(--primary)]/[.06] border border-[var(--primary)]/20 rounded-xl">
+        <div className="tax-invoice-batch-actions-bar mb-3 flex items-center gap-2.5 px-4 py-2.5 bg-[var(--primary)]/[.06] border border-[var(--primary)]/20 rounded-xl">
           <span className="text-xs font-semibold text-[var(--primary)]">{selectedRows.length}건 선택</span>
           {selectedIssuable.length > 0 && (
             <button
@@ -1912,7 +1912,7 @@ export default function TaxInvoicesPage() {
 
       {/* Sales / Purchase Table */}
       {(tab === "sales" || tab === "purchase") && (
-        <div className="glass-card overflow-hidden">
+        <div className="tax-invoice-list-card glass-card overflow-hidden">
           {isLoading ? (
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">
               불러오는 중...
@@ -1940,12 +1940,12 @@ export default function TaxInvoicesPage() {
                 <span className="font-bold text-[var(--text)]">총 {currentList.length}건</span>
                 <span className="text-[var(--text-muted)]">공급가액 <b className="text-[var(--text)] mono-number">{currentList.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0).toLocaleString("ko")}원</b></span>
                 <span className="text-[var(--text-muted)]">세액 <b className="text-[var(--text)] mono-number">{currentList.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0).toLocaleString("ko")}원</b></span>
-                <span className="text-[var(--text-muted)]">합계금액 <b className="mono-number" style={{ color: "var(--primary)" }}>{currentList.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}원</b></span>
+                <span className="text-[var(--text-muted)]">합계금액 <b className="mono-number text-[var(--primary)]">{currentList.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}원</b></span>
                 <span className="ml-auto text-[10px] text-[var(--text-dim)]">행을 클릭하면 상세를 확인합니다</span>
               </div>
               {/* 홈택스식 격자 그리드 */}
               <div className="overflow-auto max-h-[600px]">
-                <table ref={listTableRef} className="w-full text-xs border-collapse [&_td]:overflow-hidden [&_td]:text-ellipsis" style={{ minWidth: 980, tableLayout: "fixed" }}>
+                <table ref={listTableRef} className="tax-invoice-list-table w-full text-xs border-collapse [&_td]:overflow-hidden [&_td]:text-ellipsis min-w-[980px] table-fixed">
                   <thead className="sticky top-0 z-10">
                     <tr className="text-xs text-[var(--text-dim)] bg-[var(--bg-card)] border-b border-[var(--border)]">
                       <th className="px-2 py-2.5 w-8 text-center border-l border-[var(--border)]/50 first:border-l-0">
@@ -1975,7 +1975,7 @@ export default function TaxInvoicesPage() {
                       const notIssued = inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no;
                       return (
                         <tr key={inv.id} onClick={() => setSelectedInvoice(inv)}
-                          className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 cursor-pointer">
+                          className="tax-invoice-row border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 cursor-pointer">
                           <td className="px-2 py-2 text-center border-l border-[var(--border)]/40 first:border-l-0" onClick={(e) => e.stopPropagation()}>
                             {canSelect ? (
                               <input type="checkbox" checked={selectedIds.has(inv.id)} onChange={() => toggleSelect(inv.id)}
@@ -2020,8 +2020,7 @@ export default function TaxInvoicesPage() {
                               {canIssue && (
                                 <button
                                   onClick={() => handleSingleIssue(inv.id)}
-                                  className="px-2.5 py-1 rounded text-[11px] font-bold text-white transition hover:brightness-110"
-                                  style={{ background: "var(--primary)" }}
+                                  className="px-2.5 py-1 rounded text-[11px] font-bold text-white transition hover:brightness-110 bg-[var(--primary)]"
                                   title="홈택스 전자발행"
                                 >
                                   발행
@@ -2058,7 +2057,7 @@ export default function TaxInvoicesPage() {
                       <td colSpan={4} className="px-3 py-2.5 border-l border-[var(--border)]/40">합계 ({currentList.length}건)</td>
                       <td className="px-3 py-2.5 text-right mono-number border-l border-[var(--border)]/40">{currentList.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0).toLocaleString("ko")}</td>
                       <td className="px-3 py-2.5 text-right mono-number border-l border-[var(--border)]/40">{currentList.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0).toLocaleString("ko")}</td>
-                      <td className="px-3 py-2.5 text-right mono-number border-l border-[var(--border)]/40" style={{ color: "var(--primary)" }}>{currentList.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}</td>
+                      <td className="px-3 py-2.5 text-right mono-number border-l border-[var(--border)]/40 text-[var(--primary)]">{currentList.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}</td>
                       <td colSpan={3} className="border-l border-[var(--border)]/40" />
                     </tr>
                   </tfoot>
@@ -2088,7 +2087,7 @@ export default function TaxInvoicesPage() {
       {/* 일괄 전표처리 모달 — 선택된 세금계산서를 계정 1개로 일괄 기장(매출/매입 방향 자동) */}
       {showBulkVoucher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkVoucher(false)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="tax-invoice-bulk-voucher-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedVoucherable.length}건을 한 계정으로 전표 생성합니다. 이미 처리된 건은 건너뜁니다.</div>
@@ -2176,7 +2175,7 @@ export default function TaxInvoicesPage() {
 
       {/* Queue Tab (자동발행 대기) */}
       {tab === "queue" && (
-        <div className="space-y-4">
+        <div className="tax-invoice-queue-tab space-y-4">
           <div className="glass-card p-5 mb-2">
             <div className="text-xs text-[var(--text-muted)] leading-relaxed">
               <strong className="text-[var(--text)]">자동발행 큐</strong>: 프로젝트 매출 스케줄이 확정되면 세금계산서가 자동으로 큐에 등록됩니다.
@@ -2261,7 +2260,7 @@ export default function TaxInvoicesPage() {
 
       {/* Sync Tab (홈택스 동기화) */}
       {tab === "sync" && (
-        <div className="space-y-4">
+        <div className="tax-invoice-sync-tab space-y-4">
           {/* 미연결 상태 — 등록 가이드 */}
           {!isHometaxConnected && (
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-5 shadow-md">
@@ -2409,7 +2408,7 @@ export default function TaxInvoicesPage() {
       {/* 계약 상세 팝업 모달 */}
       {matchDealPopup && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setMatchDealPopup(null)}>
-          <div className="glass-card w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="tax-invoice-deal-match-popup glass-card w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-bold">계약 ↔ 세금계산서 매칭 상세</h3>
               <button onClick={() => setMatchDealPopup(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg">&times;</button>
@@ -2471,7 +2470,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
   const totalCardDeduction = cardDeductions.reduce((s: number, c: any) => s + c.estimatedVatDeduction, 0);
 
   return (
-    <div>
+    <div className="tax-invoice-summary-tab">
       <div className="seg-bar w-fit mb-4">
         {([
           { key: "monthly", label: "월별" },
@@ -2588,7 +2587,7 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
   const totalVAT = vatPreview.reduce((s: number, v: any) => s + v.netVAT, 0);
 
   return (
-    <div>
+    <div className="tax-invoice-vat-preview-tab">
       <div className="glass-card p-5 mb-6">
         <div className="text-xs text-[var(--text-muted)] leading-relaxed">
           <strong className="text-[var(--text)]">VAT 미리보기</strong>: 분기별 부가가치세 납부/환급 예상액입니다.
@@ -2714,7 +2713,7 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="glass-card w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="tax-invoice-link-tx-popup glass-card w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <div className="min-w-0">
             <div className="text-sm font-bold">통장 거래 연결</div>
@@ -2987,7 +2986,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="glass-card w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="tax-invoice-detail-modal glass-card w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* Header (모달 크롬) */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-3 flex-wrap">
@@ -3005,7 +3004,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
 
         {/* 홈택스 전자세금계산서 양식 — 실제 발행본과 동일한 시각 형태(항상 흰 배경 공식 문서). */}
         <div className="p-4 sm:p-6" data-print-area>
-          <div className="mx-auto" style={{ background: "#fff", color: "#1a1a1a", border: `2.5px solid ${formColor}`, borderRadius: 4, overflow: "hidden" }}>
+          <div className="tax-invoice-document mx-auto" style={{ background: "#fff", color: "#1a1a1a", border: `2.5px solid ${formColor}`, borderRadius: 4, overflow: "hidden" }}>
             {/* 제목 바 — 전송 여부에 따라 전자세금계산서 / 미전송 전자세금계산서 */}
             <div className="relative text-center" style={{ background: formTint, borderBottom: `1.5px solid ${formColor}` }}>
               <div className="py-2 font-black tracking-[0.35em] text-[15px] sm:text-[17px]" style={{ color: formColor }}>{docTitle}</div>
@@ -3278,7 +3277,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
   const [submitting, setSubmitting] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="glass-card w-full max-w-[90vw] sm:max-w-[520px] mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="tax-invoice-modification-modal glass-card w-full max-w-[90vw] sm:max-w-[520px] mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">수정세금계산서 발행</h3>
           <p className="text-xs text-[var(--text-muted)] mt-1">

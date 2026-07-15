@@ -330,7 +330,7 @@ export default function LoansPage() {
       <QueryErrorBanner error={mainError} onRetry={refetch} />
 
       {/* 컴팩트 툴바 — 탭(좌) + 인쇄(우). 타이틀은 상단 고정 헤더바가 담당 */}
-      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="loans-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <div className="seg-bar max-w-full overflow-x-auto">
           {TABS.map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -352,11 +352,11 @@ export default function LoansPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="loans-summary-cards grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {statCards.map((c) => (
           <div
             key={c.label}
-            className={`stat-tile ${
+            className={`loans-stat-card stat-tile ${
               (c as { highlight?: boolean }).highlight
                 ? "!bg-[var(--warning)]/5 !border-[var(--warning)]/30"
                 : ""
@@ -375,7 +375,7 @@ export default function LoansPage() {
 
       {/* List Tab */}
       {tab === "list" && (<>
-        <div className="glass-card overflow-hidden">
+        <div className="loans-list-panel glass-card overflow-hidden">
           {loans.length === 0 ? (
             <EmptyState
               icon="🏦"
@@ -389,7 +389,7 @@ export default function LoansPage() {
                 const st = LOAN_STATUS[loan.status] || LOAN_STATUS.active;
                 const isEditing = editingLoan?.id === loan.id;
                 return (
-                  <div key={loan.id} className="p-5 hover:bg-[var(--bg-surface)]/50 transition">
+                  <div key={loan.id} className="loan-row p-5 hover:bg-[var(--bg-surface)]/50 transition">
                     {isEditing ? (
                       <EditLoanForm loan={loan} onSave={(data) => updateMut.mutate({ id: loan.id, data })} onCancel={() => setEditingLoan(null)} />
                     ) : (
@@ -450,7 +450,7 @@ export default function LoansPage() {
         {loans.length > 0 && (
           <div className="mt-6 space-y-6">
             {/* Portfolio Summary */}
-            <div className="glass-card p-5">
+            <div className="loan-portfolio-summary glass-card p-5">
               <h3 className="text-sm font-bold mb-3">상환 현황</h3>
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div>
@@ -478,7 +478,7 @@ export default function LoansPage() {
               </div>
 
               {/* Per-loan bars */}
-              <div className="space-y-3">
+              <div className="loan-repayment-bars space-y-3">
                 {loans.filter((l) => l.status === "active").map((loan) => {
                   const original = Number(loan.original_amount) || 1;
                   const remaining = Number(loan.remaining_balance) || 0;
@@ -488,7 +488,7 @@ export default function LoansPage() {
                   const isOverdue = maturityDate ? new Date(maturityDate).getTime() < Date.now() : false;
 
                   return (
-                    <div key={loan.id}>
+                    <div key={loan.id} className="loan-repayment-bar-row">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold">{loan.name}</span>
@@ -531,7 +531,7 @@ export default function LoansPage() {
 
             {/* Repayment Schedule Projection */}
             {repaymentSchedule.length > 0 && (
-              <div className="glass-card p-5">
+              <div className="loan-schedule-panel glass-card p-5">
                 <h3 className="text-sm font-bold mb-3">상환 스케줄 (향후 6개월 예상)</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[500px]">
@@ -583,7 +583,7 @@ export default function LoansPage() {
 
       {/* Payments Tab */}
       {tab === "payments" && (
-        <div className="space-y-4">
+        <div className="loan-payments-panel space-y-4">
           {/* Add payment button */}
           <div className="flex justify-end">
             <button onClick={() => { setShowPayForm(!showPayForm); if (loans.length > 0 && !payForm.loanId) setPayForm(f => ({ ...f, loanId: loans[0].id })); }}
@@ -594,7 +594,7 @@ export default function LoansPage() {
 
           {/* Payment form */}
           {showPayForm && (
-            <div className="glass-card p-5">
+            <div className="loan-payment-form glass-card p-5">
               <h3 className="text-sm font-bold mb-3">상환 기록 추가</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
                 <div>
@@ -639,7 +639,7 @@ export default function LoansPage() {
           )}
 
           {/* Payments table */}
-          <div className="glass-card overflow-hidden">
+          <div className="loan-payments-table glass-card overflow-hidden">
             {allPayments.length === 0 ? (
               <EmptyState
                 icon="📋"
@@ -691,7 +691,7 @@ export default function LoansPage() {
 
       {/* Auto-Match Tab */}
       {tab === "match" && (
-        <div className="space-y-4">
+        <div className="loan-match-panel space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-xs text-[var(--text-muted)]">은행 거래내역에서 대출 상환 가능한 건을 자동으로 찾습니다.</p>
             <button
@@ -718,7 +718,7 @@ export default function LoansPage() {
             </button>
           </div>
 
-          <div className="glass-card overflow-hidden">
+          <div className="loan-match-list glass-card overflow-hidden">
             {matchCandidates.length === 0 ? (
               <EmptyState
                 icon="🔍"
@@ -734,7 +734,7 @@ export default function LoansPage() {
                     const confColor = conf >= 0.7 ? "text-green-400 bg-green-500/10" : conf >= 0.5 ? "text-yellow-400 bg-yellow-500/10" : "text-orange-400 bg-orange-500/10";
                     const isAccepting = acceptingId === candidate.transaction.id;
                     return (
-                      <div key={candidate.transaction.id} className="p-5 hover:bg-[var(--bg-surface)]/50 transition">
+                      <div key={candidate.transaction.id} className="loan-match-candidate p-5 hover:bg-[var(--bg-surface)]/50 transition">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             {/* Transaction info */}
@@ -810,7 +810,7 @@ export default function LoansPage() {
 
       {/* Register Tab */}
       {tab === "register" && (
-        <div className="glass-card p-6">
+        <div className="loan-register-form glass-card p-6">
           <h3 className="section-title">새 대출 등록</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
@@ -897,7 +897,7 @@ function EditLoanForm({ loan, onSave, onCancel }: {
   });
 
   return (
-    <div className="space-y-3">
+    <div className="loan-edit-form space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
           <label className="block text-[10px] text-[var(--text-dim)] mb-1">대출명</label>

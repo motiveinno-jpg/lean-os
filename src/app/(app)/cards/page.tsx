@@ -530,7 +530,7 @@ export default function CardsPage() {
   return (
     <div>
       {/* 컴팩트 툴바 — 탭(좌) + 카드 연동(우). 타이틀은 상단 고정 헤더바가 담당 */}
-      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="cards-page-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <div className="seg-bar">
           {([
             { k: "cards", l: "카드" },
@@ -576,7 +576,7 @@ export default function CardsPage() {
       </div>
 
       {/* 기간설정 — 제일 상단(툴바 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용 */}
-      <div className="no-print flex items-center gap-2 mb-6 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+      <div className="card-tx-period-filter no-print flex items-center gap-2 mb-6 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
         <span className="text-xs font-semibold text-[var(--text-muted)]">카드 거래 기간</span>
         <DateField value={cardTxFrom} max={cardTxTo || undefined} onChange={(e) => setCardTxFrom(e.target.value)} title="시작일"
           className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
@@ -625,7 +625,7 @@ export default function CardsPage() {
             )}
 
             {/* 카드 미니 그리드 — 클릭 시 그 카드 거래내역 영역으로 스크롤+필터 */}
-            <div>
+            <div className="card-mini-grid-section">
               <h3 className="text-lg font-bold text-[var(--text)] mb-4">내 카드</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {cards.map((card: any, idx: number) => (
@@ -648,7 +648,7 @@ export default function CardsPage() {
             {/* 카드 선택 시에만 그 카드 거래내역 노출. 닫기 → 영역 자체 hide.
                 전체 카드 거래는 별도 거래내역 탭에서 제공하므로 미선택 시 영역 없음. */}
             {(selectedCardId || selectedCardName) && (
-              <section id="card-tx-detail" className="scroll-mt-6">
+              <section id="card-tx-detail" className="card-tx-detail-panel scroll-mt-6">
                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <h3 className="text-lg font-bold text-[var(--text)]">
                     {selectedCardLabel} 거래내역 <span className="text-sm font-normal text-[var(--text-dim)]">({cardTx.length}건)</span>
@@ -688,7 +688,7 @@ export default function CardsPage() {
                       desc="기간을 조정하거나 상단의 카드 연동으로 거래를 불러오세요"
                     />
                   ) : shownCardTx.map((tx: any) => (
-                    <div key={tx.id} className="glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
+                    <div key={tx.id} className="card-tx-list-item glass-card p-4 flex items-center justify-between gap-4 hover:shadow-md transition">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
                           {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
@@ -727,8 +727,8 @@ export default function CardsPage() {
 
       {/* ========== 거래내역 탭 ========== */}
       {tab === "transactions" && (
-        <div className="space-y-4">
-          <div className="flex gap-3 flex-col md:flex-row">
+        <div className="card-tx-tab-panel space-y-4">
+          <div className="card-tx-filter-bar flex gap-3 flex-col md:flex-row">
             <input
               type="text"
               value={search}
@@ -750,7 +750,7 @@ export default function CardsPage() {
 
           {/* 선택 액션바 — 1건 이상 선택 시 sticky 노출. 전표처리는 자리표시(준비중) */}
           {selectedTxIds.size > 0 && (
-            <div className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+            <div className="card-tx-bulk-action-bar sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
               <span className="text-sm font-semibold text-[var(--text)]">
                 <b className="text-[var(--primary)]">{selectedTxIds.size}건</b> 선택됨
               </span>
@@ -787,7 +787,7 @@ export default function CardsPage() {
             onSort={onSortTx}
           />
 
-          <div className="glass-card overflow-hidden">
+          <div className="card-tx-table glass-card overflow-hidden">
             <div className="overflow-auto max-h-[640px]">
               <table className="w-full">
                 <thead className="sticky-bar">
@@ -821,7 +821,7 @@ export default function CardsPage() {
                     const posted = !!tx.journal_entry_id;
                     const cat = classificationLabel(tx.classification) || tx.category || "미분류";
                     return (
-                      <tr key={tx.id} className={`border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors ${checked ? "bg-[var(--primary)]/5" : ""}`}>
+                      <tr key={tx.id} className={`card-tx-table-row border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors ${checked ? "bg-[var(--primary)]/5" : ""}`}>
                         <td className="w-10 px-4 py-4">
                           <input
                             type="checkbox"
@@ -861,9 +861,9 @@ export default function CardsPage() {
 
       {/* ========== 분석 탭 ========== */}
       {tab === "analysis" && (
-        <div className="space-y-6">
+        <div className="card-analysis-tab-panel space-y-6">
           {/* Stat 4 — 가짜 trend 없음 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="card-analysis-stats grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Stat tone="danger" label="총 사용액" value={fmtW(totalUsage)} sub="이번 달" icon="🛒" />
             {hasLimits ? (
               <Stat
@@ -881,13 +881,13 @@ export default function CardsPage() {
           </div>
 
           {/* 카테고리별 지출 */}
-          <div className="glass-card p-6">
+          <div className="card-category-spending-panel glass-card p-6">
             <h3 className="text-base font-bold text-[var(--text)] mb-4">카테고리별 지출 (상위 5)</h3>
             <div className="space-y-3">
               {categoryStats.length === 0 ? (
                 <p className="text-sm text-[var(--text-muted)] text-center py-4">이번 달 카드 지출 없음</p>
               ) : categoryStats.map((c) => (
-                <div key={c.name} className="flex items-center gap-4">
+                <div key={c.name} className="card-category-row flex items-center gap-4">
                   <div className="w-28 text-sm text-[var(--text-muted)] truncate shrink-0">{c.name}</div>
                   <div className="flex-1">
                     <div className="w-full bg-[var(--bg-surface)] rounded-full h-3 overflow-hidden">
@@ -915,7 +915,7 @@ export default function CardsPage() {
 
       {/* 전표처리 모달 — 카드 1건을 수동으로 전표 생성 (회사별 매핑 기본계정 제안) */}
       {postCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPostCard(null)}>
+        <div className="card-post-voucher-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPostCard(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">전표처리</div>
@@ -984,7 +984,7 @@ export default function CardsPage() {
 
       {/* 일괄 전표처리 모달 — 선택된 미처리 카드거래를 비용계정 1개로 일괄 생성 */}
       {showBulkPost && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkPost(false)}>
+        <div className="card-bulk-post-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkPost(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
@@ -1045,7 +1045,7 @@ function MiniCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (!isEditing && e.key === "Enter") onClick(); }}
-      className={`glass-card p-5 transition-all group ${
+      className={`card-mini-card glass-card p-5 transition-all group ${
         isEditing ? "cursor-default" : "cursor-pointer card-hover"
       } ${
         selected ? "ring-2 ring-[var(--primary)] shadow-lg" : "hover:shadow-md"
