@@ -47,6 +47,7 @@ import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
 import { SyncFreshness } from "@/components/sync-freshness"; // 데이터 신선도(마지막 동기화 시각) 표시
+import { UnclassifiedPrompt } from "@/components/unclassified-prompt"; // 미분류 거래 원클릭 자동정리
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -608,6 +609,9 @@ export default function DashboardPage() {
         )}
 
       </div>
+
+      {/* 미분류 거래 정리 — 계정과목 미지정 통장·카드 거래 건수 + 원클릭 자동정리(CODEF 호출 없음) */}
+      {companyId && <UnclassifiedPrompt companyId={companyId} />}
 
       {/* ═══ ① CEO 커맨드 센터 — 액션(결재 즉시승인·매칭·미수금·위험) + 펄스/목표/리스크 ═══ */}
       {companyId && (
