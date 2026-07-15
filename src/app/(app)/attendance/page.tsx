@@ -58,29 +58,6 @@ export default function AttendancePage() {
     enabled: !!companyId,
   });
 
-  // 오늘 출근/지각/휴가 — AttendanceTab 의 todayStatus 와 동일 소스(attendance_records + leave_requests, KST).
-  const kstToday = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-  const { data: todayStat } = useQuery({
-    queryKey: ["attendance-today-stat", companyId, kstToday],
-    queryFn: async () => {
-      const [attRes, leaveRes] = await Promise.all([
-        (supabase as any).from("attendance_records").select("employee_id, status, is_late").eq("company_id", companyId).eq("date", kstToday),
-        (supabase as any).from("leave_requests").select("employee_id").eq("company_id", companyId).eq("status", "approved").lte("start_date", kstToday).gte("end_date", kstToday),
-      ]);
-      const present = new Set<string>();
-      const late = new Set<string>();
-      for (const r of (attRes.data || []) as any[]) {
-        if (r.is_late || r.status === "late") late.add(r.employee_id);
-        else present.add(r.employee_id);
-      }
-      const leaveSet = new Set<string>(((leaveRes.data || []) as any[]).map((r) => r.employee_id));
-      for (const id of leaveSet) { present.delete(id); late.delete(id); }
-      return { present: present.size, late: late.size, leave: leaveSet.size };
-    },
-    enabled: !!companyId && isManager,
-    staleTime: 60_000,
-  });
-
   // 미검토(승인 대기) 휴가 건수 — 공지 alert 실데이터. RLS 회사 격리. 표시 전용.
   const { data: pendingLeave = 0 } = useQuery<number>({
     queryKey: ["pending-leave-count", companyId],
@@ -100,12 +77,7 @@ export default function AttendancePage() {
     return <div className="py-16 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   }
 
-  // 결석 = 재직 직원 − (출근 + 지각 + 휴가). 음수면 0 클램프 (가짜 아닌 단순 derive).
   const activeEmp = (employees as any[]).filter((e) => !["invited", "inactive", "resigned"].includes(e.status)).length;
-  const present = todayStat?.present ?? 0;
-  const late = todayStat?.late ?? 0;
-  const leave = todayStat?.leave ?? 0;
-  const absent = Math.max(0, activeEmp - present - late - leave);
 
   return (
     <div>
@@ -121,51 +93,6 @@ export default function AttendancePage() {
         </div>
         {isManager && <span className="text-xs text-[var(--text-muted)]">재직 {activeEmp.toLocaleString()}명</span>}
       </div>
-
-      {/* KPI 4 (출석/지각/결석/휴가) — 관리자 노출. 실데이터 + derive(결석). */}
-      {isManager && section === "work" && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">출석</span>
-              <span className="kpi-icon info">✓</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">{present.toLocaleString()}명</span>
-            </div>
-          </div>
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">지각</span>
-              <span className="kpi-icon warning">⏰</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">{late.toLocaleString()}명</span>
-            </div>
-          </div>
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">결석</span>
-              <span className="kpi-icon danger">✕</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">{absent.toLocaleString()}명</span>
-            </div>
-            {absent > 0
-              ? <div className="kpi-callout danger">재직 − 출석 − 지각 − 휴가 = <b>{absent.toLocaleString()}명</b></div>
-              : <div className="text-[11px] text-[var(--text-dim)]">이상 없음</div>}
-          </div>
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">휴가</span>
-              <span className="kpi-icon success">🏖</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">{leave.toLocaleString()}명</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 공지 — 미검토 휴가(승인 대기). 클릭 시 휴가 섹션 승인 영역으로 이동. */}
       {isManager && pendingLeave > 0 && (

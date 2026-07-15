@@ -1517,8 +1517,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
       {/* Calendar View — 2026-07-15 리디자인: 좌 월간 캘린더 + 우 오늘 통계·선택일 상세(관리자 전용) */}
       {viewMode === "calendar" && (
-        <div className={`grid gap-4 ${!isEmployeeRole ? "lg:grid-cols-3" : ""}`}>
-          <div className={`glass-card overflow-hidden ${!isEmployeeRole ? "lg:col-span-2" : ""}`}>
+        <div className={`grid gap-4 ${!isEmployeeRole ? "lg:grid-cols-4" : ""}`}>
+          <div className={`glass-card overflow-hidden ${!isEmployeeRole ? "lg:col-span-3" : ""}`}>
             {/* 헤더: 타이틀 + 범례 */}
             <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-[var(--border)]">
               <span className="text-sm font-bold text-[var(--text)]">월간 출근 현황</span>
@@ -1545,7 +1545,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             <div className="grid grid-cols-7">
               {/* Empty cells before first day */}
               {Array.from({ length: calendarData.firstDayOfWeek }).map((_, i) => (
-                <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-[var(--border)]/30 bg-[var(--bg-surface)]/30" />
+                <div key={`empty-${i}`} className="min-h-[120px] border-b border-r border-[var(--border)]/30 bg-[var(--bg-surface)]/30" />
               ))}
 
               {/* Day cells */}
@@ -1578,19 +1578,19 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     type="button"
                     key={day}
                     onClick={() => setSelectedDay((cur) => (cur === dateStr ? null : dateStr))}
-                    className={`min-h-[80px] border-b border-r border-[var(--border)]/30 p-1.5 text-left transition ${
+                    className={`min-h-[120px] border-b border-r border-[var(--border)]/30 p-2.5 text-left transition ${
                       isSelected ? "ring-2 ring-inset ring-[var(--primary)] bg-[var(--primary)]/8" : isToday ? "bg-[var(--primary)]/5" : isWeekend ? "bg-[var(--bg-surface)]/30" : "hover:bg-[var(--bg-surface)]/50"
                     }`}
                   >
-                    <div className={`text-xs font-medium mb-1 flex items-center gap-1 ${
+                    <div className={`text-sm font-medium mb-1.5 flex items-center gap-1 ${
                       isToday ? "text-[var(--primary)] font-bold" : dayOfWeek === 0 ? "text-[var(--danger)]" : dayOfWeek === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
                     }`}>
-                      {isSelected ? <span className="w-4 h-4 rounded-full bg-[var(--primary)] text-white text-[10px] flex items-center justify-center font-bold">{day}</span> : day}
+                      {isSelected ? <span className="w-5 h-5 rounded-full bg-[var(--primary)] text-white text-[11px] flex items-center justify-center font-bold">{day}</span> : day}
                     </div>
-                    <div className="flex flex-col gap-0.5 items-start">
+                    <div className="flex flex-col gap-1 items-start">
                       {ATTENDANCE_STATUS.filter((s) => dayStatusCounts.get(s.value)).map((s) => (
-                        <span key={s.value} className="inline-flex items-center gap-1 text-[10px] leading-none">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColor(s.value)}`} />
+                        <span key={s.value} className="inline-flex items-center gap-1 text-[11px] leading-none">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${statusColor(s.value)}`} />
                           <span className="text-[var(--text)] font-medium">{s.label} {dayStatusCounts.get(s.value)}</span>
                         </span>
                       ))}
