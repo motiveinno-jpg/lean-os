@@ -1517,8 +1517,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       {/* Inbox / All Tabs */}
       {(tab === 'inbox' || tab === 'all') && (
         <>
-          {/* ═══ granter 계좌 스타일 통장 개요: 전체 잔액 + 증감 + 은행별 그룹 + 3열 그리드 (2026-05-27) ═══ */}
-          {companyId && (
+          {/* ═══ granter 계좌 스타일 통장 개요 — 미분류 정리(거래 자동화)에선 숨김: 통장 페이지와 중복(계좌·지출예정·자동이체·이번달지출). ═══ */}
+          {companyId && tab !== 'inbox' && (
             <BankAccountsOverview
               companyId={companyId}
               selectedAccountNo={selectedAccountNo}
@@ -1526,8 +1526,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             />
           )}
 
-          {/* 메인 카드 2열 — 다가오는 자동이체 + 이번달 큰 지출 TOP5 (엑셀 다운로드) */}
-          {companyId && (
+          {/* 메인 카드 2열 — 다가오는 자동이체 + 이번달 큰 지출 TOP5 — inbox 숨김(통장 중복) */}
+          {companyId && tab !== 'inbox' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               <UpcomingAutoTransfersCard companyId={companyId} />
               <AutoTransferHistoryCard companyId={companyId} />
