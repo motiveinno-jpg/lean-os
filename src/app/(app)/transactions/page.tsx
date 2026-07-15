@@ -1629,12 +1629,14 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         </div>
                       </div>
                       <div className="shrink-0 flex flex-col gap-1" onClick={e => e.stopPropagation()}>
+                        {tab !== 'inbox' && (
                         <label className="flex items-center gap-1 cursor-pointer" title={tx.is_auto_transfer ? '자동이체로 표시됨 — 클릭해서 해제' : '자동이체(결제 방식)로 표시'}>
                           <input type="checkbox" checked={!!tx.is_auto_transfer} onChange={e => toggleAutoMut.mutate({ id: tx.id, value: e.target.checked })} disabled={toggleAutoMut.isPending} className="accent-sky-500 cursor-pointer" />
                           {tx.is_auto_transfer ? <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-500 font-semibold whitespace-nowrap">자동이체</span>
                             : isAutoTransferTx(tx) ? <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 whitespace-nowrap" title="등록된 자동이체와 일치 — 자동 감지">자동감지</span>
                             : <span className="text-[9px] text-[var(--text-dim)]">자동이체</span>}
                         </label>
+                        )}
                         <label className="flex items-center gap-1 cursor-pointer" title={tx.is_fixed_cost ? '고정비로 표시됨 — 클릭해서 해제' : '고정비(비용 성격)로 표시'}>
                           <input type="checkbox" checked={!!tx.is_fixed_cost} onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })} disabled={toggleFixedMut.isPending} className="accent-orange-500 cursor-pointer" />
                           {tx.is_fixed_cost ? <span className="text-[9px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-500 font-semibold whitespace-nowrap">고정비</span>
@@ -1645,7 +1647,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         <p className={`text-base font-bold mono-number ${isIncome ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>
                           {isIncome ? '+' : '-'}₩{Number(tx.amount).toLocaleString()}
                         </p>
-                        <p className="text-[10px] text-[var(--text-dim)] mono-number mt-0.5 hidden md:block">잔액 ₩{Number(tx.balance_after || 0).toLocaleString()}</p>
+                        {tab !== 'inbox' && <p className="text-[10px] text-[var(--text-dim)] mono-number mt-0.5 hidden md:block">잔액 ₩{Number(tx.balance_after || 0).toLocaleString()}</p>}
                       </div>
                     </div>
                   );
@@ -1674,7 +1676,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             )}
           </div>
 
-          {/* ═══ 하단: 월별 추이 + 카테고리 분포 차트 ═══ */}
+          {/* ═══ 하단: 월별 추이 + 카테고리 분포 차트 — 미분류 정리(분류 확정)에선 숨김(분석은 통장·리포트에서). ═══ */}
+          {tab !== 'inbox' && (
           <div className="monthly-trend-section grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             <div className="md:col-span-2">
               {monthlyData.length > 0 && <MonthlyChart data={monthlyData} />}
@@ -1704,6 +1707,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               </div>
             )}
           </div>
+          )}
         </>
       )}
 
