@@ -52,6 +52,10 @@ export function DashboardBizSummary({ monthRevenue, expense, balance, runwayMont
         <Signal label="이번 달 매출" value={won(monthRevenue)} tone="success" />
         <Signal label="이번 달 비용" value={won(expense)} tone="warning" />
       </div>
+      {/* 상세 분석·추이 보기 — 기존 대시보드 하단 단독 링크를 경영 요약 위젯 안으로 통합(2026-07-15) */}
+      <div className="mt-2.5 pt-2 border-t border-[var(--border)] flex justify-center">
+        <span className="text-[11px] font-semibold text-[var(--primary)]">📊 상세 분석·추이 보기 →</span>
+      </div>
     </Link>
   );
 }

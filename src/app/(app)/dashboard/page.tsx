@@ -558,12 +558,7 @@ export default function DashboardPage() {
       )}
 
       {/* ═══ 2026-07-08 분석 뷰 토글·DashboardAnalytics 제거 — 추세·과거·미래는 분석 메뉴(/reports)로 일원화.
-           대시보드는 현재 상황·내 업무 중심. 심층 분석은 아래 링크로 이동. ═══ */}
-      {(role === "owner" || role === "admin") && (
-        <div className="flex justify-end mb-4">
-          <Link href="/reports/summary" className="btn-secondary btn-sm">📊 상세 분석·추이 보기 →</Link>
-        </div>
-      )}
+           2026-07-15 하단 단독 '상세 분석·추이 보기' 링크는 경영 요약(biz) 위젯 안으로 이동. ═══ */}
 
       {/* ═══ 경영 종합 — CEO 커맨드 센터(액션·펄스·목표·리스크). owner 전용, 상시 노출. ═══ */}
       {role === "owner" && (<>

@@ -833,6 +833,12 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .rgl-editing .react-resizable-handle-w::after { content: ""; position: absolute; top: 12%; bottom: 12%; width: 3px; border-radius: 2px; background: var(--primary); opacity: 0.22; }
 .rgl-editing .react-resizable-handle-e::after { right: 3px; }
 .rgl-editing .react-resizable-handle-w::after { left: 3px; }
+/* 그립을 상시 노출하지 않음 — 위젯이 많으면 화면에 그립(점)이 잔뜩 보이는 문제(2026-07-15 사장님).
+   해당 위젯에 마우스를 올릴 때만 그립 표시. 그랩 영역·리사이즈 기능은 그대로. */
+.rgl-editing .react-resizable-handle::after { opacity: 0; transition: opacity .15s ease; }
+.rgl-editing .react-grid-item:hover .react-resizable-handle-se::after { opacity: 0.85; }
+.rgl-editing .react-grid-item:hover .react-resizable-handle-s::after,
+.rgl-editing .react-grid-item:hover .react-resizable-handle-e::after { opacity: 0.22; }
 /* 드래그 이동 시 놓일 자리 미리보기 */
 .react-grid-item.react-grid-placeholder {
   background: var(--primary) !important; opacity: 0.14; border-radius: 16px;
