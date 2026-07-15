@@ -99,6 +99,33 @@ export async function createSignatureRequest(params: {
   expiresAt.setDate(expiresAt.getDate() + 14); // 14-day expiry
   const signToken = generateSignToken();
 
+  // 2026-07-15 버그수정: 단체일괄발송(createBulkSignatureRequestsToOrgs)은 발송 직후
+  //   template_snapshot_html 을 채워 넣지만, 이 단건 생성 함수(새 서명 요청/자체 서명/원클릭
+  //   발송이 모두 호출)는 채우지 않아 서명 완료 후 "본문이 저장되지 않았습니다" 로 표시되던 문제.
+  //   문서 본문 + 회사(갑)/서명자(을 임시) 정보로 스냅샷을 생성해 모든 생성 경로에 일괄 적용.
+  let templateSnapshotHtml: string | null = null;
+  try {
+    const { data: docRow } = await db.from('documents').select('content_json').eq('id', params.documentId).maybeSingle();
+    const docBody = docRow?.content_json?.body;
+    if (typeof docBody === 'string' && docBody.trim()) {
+      const { data: companyRow } = await db.from('companies').select('name, business_number, representative, address').eq('id', params.companyId).maybeSingle();
+      const { buildPartnerReplacements, applyTokenReplacements } = await import('./signer-replacements');
+      const replacements = buildPartnerReplacements(companyRow, {
+        name: params.signerName,
+        contact_name: params.signerName,
+        contact_email: params.signerEmail,
+        contact_phone: params.signerPhone || '',
+      });
+      const filledText = applyTokenReplacements(normalizeVariableTokens(docBody), replacements);
+      const html = /^\s*</.test(filledText)
+        ? filledText
+        : `<div style="white-space:pre-wrap;font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.7;color:#111">${filledText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+      templateSnapshotHtml = injectContractInlineStyles(html);
+    }
+  } catch {
+    // 스냅샷 생성 실패해도 서명 요청 자체는 생성 진행 (레거시 폴백 fillBody 가 /sign 화면은 커버)
+  }
+
   const { data, error } = await db
     .from('signature_requests')
     .insert({
@@ -112,6 +139,7 @@ export async function createSignatureRequest(params: {
       sign_token: signToken,
       expires_at: expiresAt.toISOString(),
       created_by: params.createdBy,
+      template_snapshot_html: templateSnapshotHtml,
     })
     .select()
     .single();
