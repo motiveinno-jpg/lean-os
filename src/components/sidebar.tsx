@@ -39,6 +39,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
       // 2026-06-12 메뉴 분리: 원장(조회 — 매출처·매입처 잔액) / 거래 대사(작업 — 입금·계산서 매칭)
       { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"] },
+      // 2026-07-15 파이낸스로 이동: 거래 자동화(지출 분류) → 거래 매칭(입금 정산) → 전표입력 → 원장 흐름. 분류=회계처리라 파이낸스가 적합.
+      { href: "/transactions", label: "거래 자동화", icon: "sparkles", roles: ["owner", "admin"] },
       { href: "/partners/reconciliation", label: "거래 매칭", icon: "clipboard-check", roles: ["owner", "admin"] },
       { href: "/partners/reconciliation/voucher-entry", label: "전표입력", icon: "edit-3", roles: ["owner", "admin"] },
       { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
@@ -71,8 +73,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
-      // 2026-07-15 재노출: 미분류 거래 정리 + 자동 분류 규칙·AI 허브(구 "거래내역" — 조회 중복이라 숨겼다가 자동화 도구로 재정의).
-      { href: "/transactions", label: "거래 자동화", icon: "sparkles", roles: ["owner", "admin"] },
       // 2026-07-08 "정기 지출" 재편 — 자동 추천 중심. 지출결의→결재관리, 급여→인사, 구독→정기지출 "구독" 탭 흡수.
       { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"] },
       { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },

@@ -40,7 +40,9 @@ interface TransactionsViewProps {
 }
 
 export default function TransactionsPage() {
-  return <TransactionsView initialTab="inbox" visibleTabs={BANK_TABS} />;
+  // 2026-07-15 단순화: 브라우징 탭(전체/수기입력/법인카드) 제거 — 조회는 통장·카드가 담당.
+  //   '거래 자동화'는 미분류 정리 + 분류 규칙만. 입금은 '거래 매칭'으로 유도(아래 배너).
+  return <TransactionsView initialTab="inbox" visibleTabs={['inbox', 'rules']} />;
 }
 
 export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: TransactionsViewProps = {}) {
@@ -931,7 +933,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         {/* 탭 — 좌측 (visibleTabs 길이가 1 이하면 탭 UI 자체 숨김, 단일 view) */}
         {visibleTabs.length > 1 ? (
           <div className="tx-tab-switcher seg-bar">
-            {(([['inbox', `Inbox (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][])
+            {(([['inbox', `미분류 정리 (${s.unmapped})`], ['all', '전체'], ['manual', '수기 입력'], ['rules', '분류 규칙'], ['cards', '법인카드']] as [Tab, string][])
               .filter(([t]) => visibleTabs.includes(t))
             ).map(([t, label]) => (
               <button key={t} onClick={() => { setTab(t); if (t === 'inbox') setFilterStatus('unmapped'); else if (t === 'all') setFilterStatus('all'); }}
@@ -1191,6 +1193,16 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               {(bankDateFrom || bankDateTo) && <button onClick={() => { setBankDateFrom(''); setBankDateTo(''); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
             </>
           )}
+        </div>
+      )}
+
+      {/* 입금 → 거래 매칭 유도 배너 — 거래 자동화는 '지출 분류' 중심, 입금 정산은 '거래 매칭'에서(회계 전표 자동). */}
+      {tab === 'inbox' && (bankTx as any[]).some((t) => t.type === 'income') && (
+        <div className="no-print mb-4 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--info)]/8 border border-[var(--info)]/25">
+          <span className="text-[12px] text-[var(--text)]">
+            💡 <b>입금 {(bankTx as any[]).filter((t) => t.type === 'income').length}건</b>은 여기서 분류하기보다 <b>거래 매칭</b>에서 세금계산서와 정산하면 미수금 차감·회계 전표가 자동 처리됩니다.
+          </span>
+          <a href="/partners/reconciliation" className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[var(--info)] text-white hover:opacity-90 transition whitespace-nowrap">거래 매칭에서 정산 →</a>
         </div>
       )}
 
