@@ -12,7 +12,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import {
   getSalaryHistory, addSalaryRecord, getActiveContracts,
   // Attendance & Leave
-  checkIn, checkOut, cancelCheckOut, getAttendanceRecords, getMonthlyAttendanceSummary,
+  getAttendanceRecords, getMonthlyAttendanceSummary,
   recomputeAttendance,
   calculateWeeklyHours,
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
@@ -42,12 +42,9 @@ import { generateEmploymentCertificate, generateCareerCertificate, getCertificat
 import { type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, resendEmployeeInvitationByEmail, addExistingMemberAsEmployee } from "@/lib/invitations";
 import {
-  AttendanceEditRequestDialog,
-  EditRequestInbox,
   MonthlyRecomputeButton,
 } from "@/components/hr-attendance-extras";
 import { AttendanceBadges } from "@/components/attendance-badges";
-import AllowanceAdminTab from "@/components/hr-allowance-admin";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
 import { useConfirm } from "@/components/confirm-dialog";
 import { PayrollHero, ContractsHero, CertificatesHero } from "@/components/flex-hr-heroes";
@@ -1232,16 +1229,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
   );
   const [viewMode, setViewMode] = useState<"calendar" | "table">("calendar");
-  const [showDerivedAbsence, setShowDerivedAbsence] = useState(true); // 결근 자동표시(과거 평일 무기록) on/off
-  // 관리자 분기: 수당 명세 임베드 collapse 토글.
-  //   직원 분기 MyAllowanceCard 가 항상 표시되는 IA 와 일치하도록 기본 펼침 (true).
-  //   필요시 사용자가 접을 수 있게 토글은 유지.
-  const [allowanceExpanded, setAllowanceExpanded] = useState(true);
+  const showDerivedAbsence = true; // 결근 자동표시(과거 평일 무기록) — 항상 on (2026-07-15 리디자인에서 토글 UI 제거)
   // 근태 캘린더 리디자인(2026-07-15) — 선택한 날짜(우측 패널에 그 날 직원별 출근 현황 표시).
   //   기본값은 오늘(선택 월이 이번 달일 때만) — 이미지 시안처럼 진입 시 바로 오늘 상세가 보임.
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  // 퇴근 미입력 일괄 보정 모달 (관리자 전용)
-  const [showMissingCheckOutModal, setShowMissingCheckOutModal] = useState(false);
   // status 와 is_late 불일치 흡수: is_late=true 면 'late' 우선 (UI 일관성).
   //   edge attendance-checkin INSERT 시 status·is_late 계산 source 가 달라 어긋날 수 있음.
   //   근본 fix(edge 통합) 는 별건 — 본 헬퍼는 표시 단의 안전망.
@@ -1317,39 +1308,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   //   근본 해결: 별건 PR — pg_cron 1시간 1회 배치 + advisory lock 으로 동시 실행 1개 제한.
   // recomputeMonthlyAllowancesForCompany 자동 호출은 본 PR 에서 제거됨.
 
-  // Check-in mutation
-  const doCheckIn = useMutation({
-    mutationFn: (employeeId: string) => checkIn(companyId!, employeeId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance"] }),
-    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
-  });
-
-  // Check-out mutation
-  const doCheckOut = useMutation({
-    mutationFn: (employeeId: string) => checkOut(employeeId, companyId!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance"] }),
-    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
-  });
-
-  // Cancel check-out mutation
-  const doCancelCheckOut = useMutation({
-    mutationFn: (employeeId: string) => cancelCheckOut(employeeId, companyId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
-      toast("퇴근 취소 완료", "success");
-    },
-    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
-  });
-
   // Admin attendance correction
   const isAdmin = role === "owner" || role === "admin";
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ check_in: "", check_out: "", status: "" });
-
-  // L 근태 — C-2 직원 수정요청 다이얼로그 상태
-  const [editReqOpen, setEditReqOpen] = useState(false);
-  const [editReqRecord, setEditReqRecord] = useState<{ id: string; check_in?: string; check_out?: string; status?: string } | null>(null);
 
   const doCorrectAttendance = useMutation({
     mutationFn: ({ recordId, updates }: { recordId: string; updates: { check_in?: string; check_out?: string; status?: string } }) =>
@@ -1398,44 +1360,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   }, [selectedMonth, records]);
 
 
-  // 52-hour check: compute weekly hours for current week for each employee
-  const weeklyWarnings = useMemo(() => {
-    // Get current Monday
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(monday.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    const mondayStr = monday.toISOString().slice(0, 10);
-    const sundayDate = new Date(monday);
-    sundayDate.setDate(sundayDate.getDate() + 6);
-    const sundayStr = sundayDate.toISOString().slice(0, 10);
-
-    // Filter records for this week
-    const weekRecords = records.filter(
-      (r: any) => r.date >= mondayStr && r.date <= sundayStr
-    );
-
-    const empWeekHours: Record<string, number> = {};
-    weekRecords.forEach((r: any) => {
-      empWeekHours[r.employee_id] = (empWeekHours[r.employee_id] || 0) + Number(r.work_hours || 0);
-    });
-
-    const warnings: { employeeId: string; name: string; hours: number; level: "warning" | "danger" }[] = [];
-    Object.entries(empWeekHours).forEach(([empId, hours]) => {
-      if (hours > 48) {
-        const emp = employees.find((e: any) => e.id === empId);
-        warnings.push({
-          employeeId: empId,
-          name: emp?.name || "Unknown",
-          hours: Math.round(hours * 10) / 10,
-          level: hours > 52 ? "danger" : "warning",
-        });
-      }
-    });
-
-    return warnings;
-  }, [records, employees]);
-
   const statusColor = (status: string) => {
     switch (status) {
       case "present": return "bg-[var(--success)]";
@@ -1455,23 +1379,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
   // employee 역할: 본인 직원 레코드 자동 선택 (user_id 매칭 → 이메일 폴백)
   const isEmployeeRole = role === "employee";
-  const myEmployeeRecord = isEmployeeRole
-    ? employees.find((e: any) => e.user_id === userId) || employees.find((e: any) => e.email === userEmail)
-    : null;
-
-  // L 근태 — C-3 관리자 수정요청 인박스용 reviewerId (현재 user.id 가 admin 일 때만 의미 있음)
-  // employees 배열의 직원 row 는 user_id 보유 — admin 본인의 user.id 는 props 로 받은 userId 가 가장 정확
-  const reviewerUserId = userId || null;
-
-  // 관리자 분기 — 이번 달 "퇴근 미입력" 행 수 (overtime/night/holiday 산정 불가 사유).
-  //   사용자 호소 "수당 일괄 계산 후 0" 의 근본 원인 안내용.
-  //   check_out 이 null 인 attendance_records 카운트.
-  const missingCheckOutCount = useMemo(() => {
-    if (isEmployeeRole) return 0;
-    // 오늘(KST)은 제외 — 출근 후 아직 퇴근 전인 정상 상태를 '미입력'으로 세지 않음. 지난 날짜만.
-    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
-    return (records as any[]).filter((r) => !r.check_out && (r.date || "") < today).length;
-  }, [records, isEmployeeRole]);
 
   // 관리자 분기 — 직원별 월간 수당 합산 (allowance_entries × allowance_types).
   //   key: employee_id → { overtime, night, holiday, on_duty, etc, total }
@@ -1552,79 +1459,17 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
   return (
     <div>
-      {/* L 근태 — C-3 관리자: 수정 요청 인박스 */}
-      {isAdmin && reviewerUserId && companyId && (
-        <EditRequestInbox companyId={companyId} reviewerId={reviewerUserId} />
-      )}
-
-      {/* L 수당 — 관리자: 직원 수당 명세 임베드 (핸드오프 (a) — collapse 기본 접힘) */}
-      {isAdmin && companyId && (
-        <div className="mb-6 glass-card overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setAllowanceExpanded((v) => !v)}
-            className="w-full p-4 flex items-center gap-2.5 hover:bg-[var(--bg-surface)] transition text-left"
-          >
-            <span className="kpi-icon success shrink-0">💰</span>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-[var(--text)]">
-                직원 수당 명세 <span className="font-normal text-[var(--text-muted)]">· 이번 달</span>
-              </div>
-              <div className="text-xs text-[var(--text-muted)] truncate">
-                직원별 법정·커스텀 수당 · 월 일괄 재계산 · 엑셀 export
-              </div>
-            </div>
-            <svg
-              className={`ml-auto shrink-0 w-4 h-4 text-[var(--text-muted)] transition-transform duration-200 ${allowanceExpanded ? "rotate-180" : ""}`}
-              fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-          {allowanceExpanded && (
-            <div className="px-4 pb-4 border-t border-[var(--border)]">
-              <AllowanceAdminTab companyId={companyId} userId={userId ?? null} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 2026-05-21 사장님 요청: 직원 근태관리에서 수당 카드 (ExtraPaySummaryCard / MyAllowanceCard) 제거.
-          관리자 영역 (EditRequestInbox, MonthlyRecomputeButton, AllowanceAdminTab) 은 그대로 유지. */}
-
-      {/* 52-hour warnings */}
-      {weeklyWarnings.length > 0 && (
-        <div className="mb-6 space-y-2">
-          {weeklyWarnings.map((w) => (
-            <div
-              key={w.employeeId}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
-                w.level === "danger"
-                  ? "bg-[var(--danger)]/10 border-[var(--danger)]/30 text-[var(--danger)]"
-                  : "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
-              }`}
-            >
-              <span className={`kpi-icon shrink-0 ${w.level === "danger" ? "danger" : "warning"}`}>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </span>
-              <span className="text-sm font-medium">
-                {w.level === "danger" ? "[52시간 초과]" : "[48시간 경고]"} {w.name} - 이번 주 {w.hours}시간 근무
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Controls: month picker + check-in/out buttons + view toggle */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-3 items-center">
+      {/* Controls: 타이틀 + 월 표시 + 캘린더/데이터 토글 + CSV Export (2026-07-15 리디자인 — 시안과 동일하게 단순화) */}
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <div className="flex items-center gap-2.5">
+          <h2 className="text-lg font-extrabold text-[var(--text)]">근태관리</h2>
           <MonthField
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            className="px-2 py-1 bg-transparent border-0 text-sm text-[var(--text-muted)] focus:outline-none"
           />
+        </div>
+        <div className="flex gap-2 items-center">
           <div className="seg-bar">
             <button
               onClick={() => setViewMode("calendar")}
@@ -1667,73 +1512,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               CSV Export
             </button>
           )}
-        </div>
-        <div className="flex gap-2">
-          {isEmployeeRole && myEmployeeRecord ? (
-            /* 직원 역할: 본인 전용 출퇴근 버튼 */
-            (() => {
-              const todayStr = new Date().toISOString().slice(0, 10);
-              const todayRecord = records.find((r: any) => r.employee_id === myEmployeeRecord.id && r.date === todayStr);
-              const hasIn = !!todayRecord;
-              const hasOut = !!todayRecord?.check_out;
-              return (
-                <>
-                  <button
-                    disabled={hasIn}
-                    onClick={() => doCheckIn.mutate(myEmployeeRecord.id)}
-                    className="px-4 py-2 bg-[var(--success)] hover:brightness-110 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
-                  >
-                    {hasIn ? "출근 완료" : "출근"}
-                  </button>
-                  <button
-                    disabled={!hasIn || hasOut}
-                    onClick={() => doCheckOut.mutate(myEmployeeRecord.id)}
-                    className="px-4 py-2 bg-[var(--warning)] hover:brightness-110 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
-                  >
-                    {hasOut ? "퇴근 완료" : "퇴근"}
-                  </button>
-                  {hasOut && (
-                    <button
-                      onClick={() => {
-                        if (confirm("퇴근 기록을 취소하시겠습니까?")) {
-                          doCancelCheckOut.mutate(myEmployeeRecord.id);
-                        }
-                      }}
-                      className="px-3 py-2 bg-[var(--danger)]/80 hover:brightness-110 text-white rounded-xl text-xs font-semibold transition"
-                    >
-                      퇴근 취소
-                    </button>
-                  )}
-                  {/* L 근태 — C-2: 수정 요청 (오늘 기록이 있을 때만) */}
-                  {todayRecord && (
-                    <button
-                      onClick={() => {
-                        setEditReqRecord({
-                          id: todayRecord.id,
-                          check_in: todayRecord.check_in,
-                          check_out: todayRecord.check_out,
-                          status: todayRecord.status,
-                        });
-                        setEditReqOpen(true);
-                      }}
-                      className="px-3 py-2 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] rounded-xl text-xs font-semibold transition"
-                    >
-                      수정 요청
-                    </button>
-                  )}
-                </>
-              );
-            })()
-          ) : !isEmployeeRole && activeEmployees.length > 0 ? (
-            <QuickAttendanceButtons
-              employees={activeEmployees}
-              records={records}
-              onCheckIn={(empId: string) => doCheckIn.mutate(empId)}
-              onCheckOut={(empId: string) => doCheckOut.mutate(empId)}
-            />
-          ) : isEmployeeRole ? (
-            <div className="text-xs text-[var(--text-muted)] py-2">직원 정보가 연결되지 않았습니다</div>
-          ) : null}
         </div>
       </div>
 
@@ -1820,16 +1598,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   </button>
                 );
               })}
-            </div>
-
-            <div className="flex items-center justify-end p-2.5 border-t border-[var(--border)]">
-              <button
-                onClick={() => setShowDerivedAbsence((v) => !v)}
-                className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition ${showDerivedAbsence ? "bg-[var(--primary)]/10 border-[var(--primary)]/30 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}
-                title="기록 없는 과거 평일을 결근으로 자동 표시"
-              >
-                {showDerivedAbsence ? "✓ " : ""}결근 자동표시
-              </button>
             </div>
           </div>
 
@@ -2063,23 +1831,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 <span className="text-[11px] text-[var(--text-muted)]">수당 재계산은 위의 "월 일괄 재계산" 버튼 클릭 시 실행</span>
               )}
             </div>
-            {/* 퇴근 미입력 안내 — 연장/야간/휴일 산정 불가 사유 + 입력 진입 CTA */}
-            {isAdminForAllowance && missingCheckOutCount > 0 && (
-              <div className="mb-3 px-4 py-3 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-300 text-xs flex items-center justify-between gap-3 shadow-sm">
-                <span>
-                  <span className="font-semibold">⚠️ 퇴근 미입력 {missingCheckOutCount}건</span>
-                  {" — "}
-                  연장·야간·휴일 분 산정 불가, 수당 0원. 직원/관리자가 퇴근을 입력해야 자동 산출됩니다.
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowMissingCheckOutModal(true)}
-                  className="shrink-0 px-3 py-1.5 text-xs font-semibold bg-orange-500/20 text-orange-200 hover:bg-orange-500/30 rounded-lg transition"
-                >
-                  📝 미입력 행 보기·입력
-                </button>
-              </div>
-            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {summary.map((s: any) => {
                 const alw = allowanceByEmployee.get(s.employee_id);
@@ -2125,38 +1876,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           </div>
         );
       })()}
-
-      {/* L 근태 — C-2 직원: 수정요청 다이얼로그 */}
-      {editReqOpen && editReqRecord && companyId && userId && (
-        <AttendanceEditRequestDialog
-          open={editReqOpen}
-          onClose={() => { setEditReqOpen(false); setEditReqRecord(null); }}
-          companyId={companyId}
-          attendanceRecordId={editReqRecord.id}
-          userId={userId}
-          initial={{
-            check_in: editReqRecord.check_in,
-            check_out: editReqRecord.check_out,
-            status: editReqRecord.status,
-          }}
-        />
-      )}
-
-      {/* 관리자 — 퇴근 미입력 일괄 보정 모달 */}
-      {showMissingCheckOutModal && companyId && (
-        <MissingCheckOutModal
-          companyId={companyId}
-          records={records}
-          employees={employees}
-          selectedMonth={selectedMonth}
-          onClose={() => setShowMissingCheckOutModal(false)}
-          onSaved={() => {
-            queryClient.invalidateQueries({ queryKey: ["attendance"] });
-            queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
-            queryClient.invalidateQueries({ queryKey: ["allowance-entries-monthly-summary"] });
-          }}
-        />
-      )}
     </div>
   );
 }
