@@ -708,6 +708,18 @@ export async function getApprovalTimeline(requestId: string): Promise<ApprovalSt
 }
 
 /**
+ * 이미 승인/반려 처리된 결재 단계의 코멘트를 본인(승인자)이 수정.
+ * 결정(approved/rejected) 자체는 바꾸지 않고 comment 텍스트만 갱신.
+ */
+export async function updateApprovalStepComment(stepId: string, comment: string): Promise<void> {
+  const { error } = await db
+    .from('approval_steps')
+    .update({ comment })
+    .eq('id', stepId);
+  if (error) throw error;
+}
+
+/**
  * Get all approval requests for a company with optional filters.
  */
 export async function getApprovalRequests(

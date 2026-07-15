@@ -22,6 +22,7 @@ import {
   resubmitRequest,
   getApprovalStats,
   deleteApprovalRequest,
+  updateApprovalStepComment,
   REQUEST_TYPE_LABELS,
   type RequestType,
   type ApprovalPolicy,
@@ -892,7 +893,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                 {/* Expanded: Timeline */}
                 {open && (
                   <div className="border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60">
-                    <ApprovalTimelineView requestId={req.id} currentStage={req.current_stage} totalStages={req.total_stages} requestStatus={req.status} />
+                    <ApprovalTimelineView requestId={req.id} currentStage={req.current_stage} totalStages={req.total_stages} requestStatus={req.status} currentUserId={userId} />
                   </div>
                 )}
               </div>
@@ -1207,6 +1208,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                   currentStage={req.current_stage}
                   totalStages={req.total_stages}
                   requestStatus={req.status}
+                  currentUserId={userId}
                 />
               </div>
             </div>
@@ -2469,17 +2471,32 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
 // Approval Timeline Component
 // ══════════════════════════════════════════════
 
-function ApprovalTimelineView({ requestId, currentStage, totalStages, requestStatus }: {
+function ApprovalTimelineView({ requestId, currentStage, totalStages, requestStatus, currentUserId }: {
   requestId: string;
   currentStage: number;
   totalStages: number;
   requestStatus: string;
+  currentUserId?: string | null;
 }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [editingStepId, setEditingStepId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
   const { data: timeline = [], isLoading } = useQuery({
     queryKey: ["approval-timeline", requestId],
     queryFn: () => getApprovalTimeline(requestId),
     enabled: !!requestId,
   });
+
+  async function saveComment(stepId: string) {
+    try {
+      await updateApprovalStepComment(stepId, editText.trim());
+      qc.invalidateQueries({ queryKey: ["approval-timeline", requestId] });
+      setEditingStepId(null);
+    } catch (e: any) {
+      toast(friendlyError(e, "코멘트 수정 실패"), "error");
+    }
+  }
 
   if (isLoading) {
     return <div className="text-xs text-[var(--text-muted)] py-2">타임라인 로딩 중...</div>;
@@ -2544,24 +2561,50 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
 
       {/* Detailed steps */}
       <div className="space-y-2.5">
-        {timeline.map((step) => (
-          <div key={step.id} className="flex items-start gap-3 text-xs">
-            <Avatar name={step.approver_name || "담당자"} size={26} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold">{step.approver_name || "담당자"}</span>
-                <span className="text-[var(--text-dim)]">{step.stage_name}</span>
-                <StatusBadge status={step.status} />
+        {timeline.map((step) => {
+          const canEdit = !!currentUserId && step.approver_id === currentUserId && !!step.decided_at;
+          const isEditing = editingStepId === step.id;
+          return (
+            <div key={step.id} className="flex items-start gap-3 text-xs">
+              <Avatar name={step.approver_name || "담당자"} size={26} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold">{step.approver_name || "담당자"}</span>
+                  <span className="text-[var(--text-dim)]">{step.stage_name}</span>
+                  <StatusBadge status={step.status} />
+                  {canEdit && !isEditing && (
+                    <button
+                      onClick={() => { setEditingStepId(step.id); setEditText(step.comment || ""); }}
+                      className="text-[10px] font-semibold text-[var(--primary)] hover:underline"
+                    >
+                      코멘트 {step.comment ? "수정" : "추가"}
+                    </button>
+                  )}
+                </div>
+                {isEditing ? (
+                  <div className="mt-1.5">
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={2}
+                      autoFocus
+                      className="w-full px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-[var(--primary)] resize-none"
+                    />
+                    <div className="flex gap-2 mt-1.5">
+                      <button onClick={() => setEditingStepId(null)} className="px-2.5 py-1 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
+                      <button onClick={() => saveComment(step.id)} className="px-2.5 py-1 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition">저장</button>
+                    </div>
+                  </div>
+                ) : step.comment ? (
+                  <div className="mt-1.5 inline-block px-3 py-2 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-pre-wrap">{step.comment}</div>
+                ) : null}
               </div>
-              {step.comment && (
-                <div className="mt-1.5 inline-block px-3 py-2 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-pre-wrap">{step.comment}</div>
-              )}
+              <div className="text-[var(--text-dim)] shrink-0 mono-number">
+                {step.decided_at ? formatDateTime(step.decided_at) : "대기 중"}
+              </div>
             </div>
-            <div className="text-[var(--text-dim)] shrink-0 mono-number">
-              {step.decided_at ? formatDateTime(step.decided_at) : "대기 중"}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
