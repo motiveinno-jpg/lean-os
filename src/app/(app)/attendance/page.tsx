@@ -58,6 +58,19 @@ export default function AttendancePage() {
     enabled: !!companyId,
   });
 
+  // 휴가 캘린더용 사내 디렉토리(이름만) — employees 테이블은 RESTRICTIVE RLS 로 직원 role 은
+  //   본인 1행만 SELECT 가능(20260519040000). 위 employees 쿼리도 같은 제약이라 동료 이름을
+  //   못 읽어 휴가 캘린더에 "Unknown" 으로 뜨던 원인. get_company_directory() 는 SECURITY DEFINER
+  //   RPC 로 salary 등 민감컬럼 제외한 안전 필드(이름 포함)만 회사 전체 반환 — /team 과 동일 패턴.
+  const { data: directory = [] } = useQuery({
+    queryKey: ["company-directory", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).rpc("get_company_directory");
+      return data || [];
+    },
+    enabled: !!companyId && section === "leave",
+  });
+
   // 미검토(승인 대기) 휴가 건수 — 공지 alert 실데이터. RLS 회사 격리. 표시 전용.
   const { data: pendingLeave = 0 } = useQuery<number>({
     queryKey: ["pending-leave-count", companyId],
@@ -138,6 +151,7 @@ export default function AttendancePage() {
       {section === "leave" && companyId && (
         <LeaveTab
           employees={employees}
+          directory={directory}
           companyId={companyId}
           userId={userId}
           queryClient={queryClient}

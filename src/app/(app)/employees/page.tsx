@@ -2669,7 +2669,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 }
 
 // ── Leave Tab ──
-export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee, autoNew, focusPending }: any) {
+export function LeaveTab({ employees, directory, companyId, userId, queryClient, isEmployee, autoNew, focusPending }: any) {
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -2895,25 +2895,37 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
   const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
   const [editingBalanceVal, setEditingBalanceVal] = useState<string>("");
 
-  // Build leave calendar: who's on leave on which dates
+  // 휴가 캘린더 이름 조회 — leave_requests.employees(name) 조인은 employees RESTRICTIVE
+  //   RLS(직원 role=본인 1행만) 로 타인 행이 null 이 돼 "Unknown" 이 뜨던 원인. get_company_directory()
+  //   기반 directory(안전 필드만, 전 직원) 로 employee_id → 이름을 우선 조회하고, 그래도 없으면
+  //   (관리자 role 등 조인이 이미 성공한 경우) 기존 조인 결과로 폴백.
+  const directoryNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    (directory as any[] || []).forEach((d: any) => { m[d.id] = d.name; });
+    return m;
+  }, [directory]);
+
+  // Build leave calendar: who's on leave on which dates — 연차/반차/기타 3버킷으로 구분 표시.
   const leaveCalendar = useMemo(() => {
     const approved = leaveRequests.filter((r: any) => r.status === "approved");
-    const dateMap: Record<string, { name: string; type: string }[]> = {};
+    const dateMap: Record<string, { name: string; type: string; bucket: "annual" | "half" | "other" }[]> = {};
 
     approved.forEach((r: any) => {
       const start = new Date(r.start_date);
       const end = new Date(r.end_date);
-      const name = r.employees?.name || "Unknown";
+      const name = directoryNameById[r.employee_id] || r.employees?.name || "구성원";
       const type = LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
+      const isHalf = r.leave_unit === "half_day" || r.leave_unit === "two_hours";
+      const bucket: "annual" | "half" | "other" = isHalf ? "half" : r.leave_type === "annual" ? "annual" : "other";
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const key = d.toISOString().slice(0, 10);
         if (!dateMap[key]) dateMap[key] = [];
-        dateMap[key].push({ name, type });
+        dateMap[key].push({ name, type, bucket });
       }
     });
 
     return dateMap;
-  }, [leaveRequests]);
+  }, [leaveRequests, directoryNameById]);
 
   // Calendar for current month
   const today = new Date();
@@ -3647,13 +3659,21 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
 
       {/* Leave Calendar */}
       <div className="leave-calendar">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h3 className="text-sm font-bold text-[var(--text-muted)]">휴가 캘린더</h3>
-          <MonthField
-            value={calMonth}
-            onChange={(e) => setCalMonth(e.target.value)}
-            className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm"
-          />
+          <div className="flex items-center gap-3">
+            {/* 범례 — 연차/반차/기타휴가 색상 구분 */}
+            <div className="flex items-center gap-2.5 text-[10px] text-[var(--text-muted)]">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />연차</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />반차</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />기타휴가</span>
+            </div>
+            <MonthField
+              value={calMonth}
+              onChange={(e) => setCalMonth(e.target.value)}
+              className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm"
+            />
+          </div>
         </div>
         <div className="glass-card overflow-hidden">
           {/* Header */}
@@ -3696,15 +3716,22 @@ export function LeaveTab({ employees, companyId, userId, queryClient, isEmployee
                     {day}
                   </div>
                   <div className="space-y-0.5">
-                    {onLeave.slice(0, 3).map((l, idx) => (
-                      <div
-                        key={idx}
-                        className="text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-400 truncate"
-                        title={`${l.name} (${l.type})`}
-                      >
-                        {l.name}
-                      </div>
-                    ))}
+                    {onLeave.slice(0, 3).map((l, idx) => {
+                      const chipCls = l.bucket === "annual"
+                        ? "bg-purple-500/10 text-purple-400"
+                        : l.bucket === "half"
+                        ? "bg-amber-500/10 text-amber-500"
+                        : "bg-blue-500/10 text-blue-400";
+                      return (
+                        <div
+                          key={idx}
+                          className={`text-[9px] px-1 py-0.5 rounded truncate ${chipCls}`}
+                          title={`${l.name} — ${l.type}${l.bucket === "half" ? " (반차)" : ""}`}
+                        >
+                          {l.name}{l.bucket !== "annual" && <span className="opacity-70"> · {l.bucket === "half" ? "반차" : l.type}</span>}
+                        </div>
+                      );
+                    })}
                     {onLeave.length > 3 && (
                       <div className="text-[9px] text-[var(--text-dim)]">+{onLeave.length - 3}명</div>
                     )}
