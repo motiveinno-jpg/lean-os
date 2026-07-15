@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getCEOPendingActions, approveAction, type PendingAction } from "@/lib/approval-center";
+import { getCEOPendingActions, approveAction, rejectAction, canRejectAction, type PendingAction } from "@/lib/approval-center";
 import { useToast } from "@/components/toast";
 
 const db = supabase as any;
@@ -44,6 +44,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   const qc = useQueryClient();
   const { toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [processed, setProcessed] = useState(0); // 이번 세션에서 처리(승인/반려)한 건수 — 진행 체감용
 
   // ① 결재 액션 (7종 통합 — approval-center 재사용)
   const { data: actions = [] } = useQuery<PendingAction[]>({
@@ -71,10 +72,27 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
       setBusyId(a.id);
       await approveAction(companyId, a.type as any, a.id, userId);
     },
-    onSuccess: () => { toast("승인 완료", "success"); qc.invalidateQueries({ queryKey: ["ceo-pending-actions", companyId] }); },
+    onSuccess: () => { setProcessed((n) => n + 1); toast("승인 완료", "success"); qc.invalidateQueries({ queryKey: ["ceo-pending-actions", companyId] }); },
     onError: (e: any) => toast(e?.message || "승인 실패", "error"),
     onSettled: () => setBusyId(null),
   });
+
+  const rejectMut = useMutation({
+    mutationFn: async ({ a, reason }: { a: PendingAction; reason: string }) => {
+      if (!userId) throw new Error("로그인이 필요합니다");
+      setBusyId(a.id);
+      await rejectAction(companyId, a.type as any, a.id, userId, reason);
+    },
+    onSuccess: () => { setProcessed((n) => n + 1); toast("반려 완료", "success"); qc.invalidateQueries({ queryKey: ["ceo-pending-actions", companyId] }); },
+    onError: (e: any) => toast(e?.message || "반려 실패", "error"),
+    onSettled: () => setBusyId(null),
+  });
+
+  const handleReject = (a: PendingAction) => {
+    const reason = window.prompt("반려 사유를 입력하세요 (취소하면 반려하지 않습니다)", "");
+    if (reason === null) return; // 취소
+    rejectMut.mutate({ a, reason: reason.trim() });
+  };
 
   const score = cashPulse?.pulseScore ?? 0;
   const scoreColor = score >= 60 ? "var(--success)" : score >= 40 ? "var(--warning)" : "var(--danger)";
@@ -102,6 +120,9 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5">결재 · 입금 확인 · 미수금 — 여기서 바로 끝내세요</div>
           </div>
           <span className="text-2xl font-black mono-number ml-1" style={{ color: totalTodo > 0 ? "var(--warning)" : "var(--success)" }}>{totalTodo}</span>
+          {processed > 0 && (
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[var(--success)]/12 text-[var(--success)]">✓ {processed}건 처리됨</span>
+          )}
           <div className="ml-auto flex items-center gap-1.5 flex-wrap">
             {queueCount > 0 && (
               <Link href="/partners/reconciliation" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20">
@@ -160,6 +181,14 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
                         className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white bg-emerald-500 hover:opacity-90 transition disabled:opacity-50">
                         {busyId === a.id ? "..." : "승인"}
                       </button>
+                      {canRejectAction(a.type) && (
+                        <button
+                          onClick={() => handleReject(a)}
+                          disabled={busyId === a.id}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[var(--danger)]/30 text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50">
+                          반려
+                        </button>
+                      )}
                       <Link href={meta.href} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition">
                         상세
                       </Link>

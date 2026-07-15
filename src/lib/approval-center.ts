@@ -4,8 +4,9 @@
  */
 
 import { supabase } from './supabase';
-import { approvePayment } from './payment-queue';
-import { approveExpense } from './expenses';
+import { approvePayment, rejectPayment } from './payment-queue';
+import { approveExpense, rejectExpense } from './expenses';
+import { rejectLeaveRequest } from './hr';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -344,6 +345,56 @@ export async function approveAction(
       }
       break;
     }
+  }
+}
+
+// ── Reject a single action by type ──
+//   반려 의미가 명확·안전한 4종만 지원(문서검토·서명발송·비용승인은 상세에서 처리).
+const REJECTABLE_TYPES: PendingActionType[] = ['payment', 'expense', 'leave', 'approval'];
+export function canRejectAction(actionType: PendingActionType): boolean {
+  return REJECTABLE_TYPES.includes(actionType);
+}
+
+export async function rejectAction(
+  companyId: string,
+  actionType: PendingActionType,
+  actionId: string,
+  userId: string,
+  reason?: string,
+): Promise<void> {
+  switch (actionType) {
+    case 'payment':
+      await rejectPayment(actionId, userId);
+      break;
+
+    case 'expense':
+      await rejectExpense({ companyId, expenseId: actionId, approverId: userId, comment: reason });
+      break;
+
+    case 'leave':
+      await rejectLeaveRequest(actionId, userId);
+      break;
+
+    case 'approval': {
+      const { data: req } = await db.from('approval_requests').select('id, current_stage').eq('id', actionId).maybeSingle();
+      if (req) {
+        const { data: step } = await db.from('approval_steps')
+          .select('id')
+          .eq('request_id', actionId)
+          .eq('stage', req.current_stage)
+          .eq('status', 'pending')
+          .limit(1)
+          .maybeSingle();
+        if (step) {
+          const { rejectStep } = await import('./approval-workflow');
+          await rejectStep(step.id, userId, reason || '반려');
+        }
+      }
+      break;
+    }
+
+    default:
+      throw new Error('이 항목은 여기서 반려할 수 없습니다. 상세에서 처리하세요.');
   }
 }
 
