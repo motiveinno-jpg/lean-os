@@ -103,7 +103,10 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
         compactType="vertical"
         onLayoutChange={onLayoutChange}
         draggableCancel=".no-drag"
-        resizeHandles={["s", "w", "e", "n", "sw", "nw", "se", "ne"]}
+        // 하단·우측 핸들만 사용(s/e/se). 상단·좌측(n/w/nw/ne/sw) 핸들은 리사이즈 시 x/y까지
+        // 이동시켜 vertical 압축과 충돌 → "다른 위치 위젯이 리사이즈/축소"되는 RGL 고질 버그를 유발.
+        // 아래·오른쪽 핸들은 폭/높이만 키워 위치 이동이 없어 이웃 위젯에 영향 없음.
+        resizeHandles={["s", "e", "se"]}
       >
         {widgets.map((w) => (
           <div key={w.id} className={edit ? "rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}>

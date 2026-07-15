@@ -74,6 +74,15 @@ const RISK_LABELS: Record<RiskLabel, { title: string; icon: string; color: strin
   OUTSOURCE_OVER_MARGIN:  { title: '외주비 마진잠식', icon: '🔥', color: '#ff6b35' },
 };
 
+// 대시보드 위젯 기본 배치(사장님 확정 배치 2026-07-15) — 저장된 개인 레이아웃이 없거나 '기본값' 리셋 시 이 배치로.
+//   오너/직원 공용. 직원 화면엔 재무·attendance·tax 위젯이 없어 해당 항목은 자동으로 미적용(그리드가 무시).
+//   목록에 없는 위젯(work-appr/proj/sign/ment 등 조건부 카드)은 표시될 때 그리드가 자동 배치.
+const DEFAULT_WIDGET_POS: Record<string, { x: number; y: number; w: number; h: number }> = {
+  attendance: { x: 0, y: 0, w: 4, h: 2 }, calendar: { x: 0, y: 2, w: 4, h: 9 }, "work-tasks": { x: 0, y: 11, w: 4, h: 4 },
+  projects: { x: 4, y: 0, w: 4, h: 5 }, revenue: { x: 4, y: 5, w: 4, h: 5 }, tax: { x: 4, y: 10, w: 4, h: 5 },
+  biz: { x: 8, y: 0, w: 4, h: 4 }, receivables: { x: 8, y: 4, w: 4, h: 5 }, assets: { x: 8, y: 9, w: 4, h: 3 }, cards: { x: 8, y: 12, w: 4, h: 3 },
+};
+
 // ═══════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════
@@ -508,13 +517,7 @@ export default function DashboardPage() {
               내업무/회사현황 구분 없이 하나의 그리드. 편집 모드에서 드래그 이동 + 크기 조절(자동 저장). */}
           {(() => {
             const taxItems = getUpcomingTaxDeadlines(60);
-            // 앱 기본 배치(사장님 배치.PNG 기준) — 저장된 개인 레이아웃이 없거나 '기본값' 리셋 시 이 배치로.
-            const POS: Record<string, { x: number; y: number; w: number; h: number }> = {
-              attendance: { x: 0, y: 0, w: 4, h: 2 }, calendar: { x: 0, y: 2, w: 4, h: 10 }, projects: { x: 0, y: 12, w: 4, h: 3 },
-              "work-tasks": { x: 4, y: 0, w: 4, h: 4 }, revenue: { x: 4, y: 4, w: 4, h: 5 }, tax: { x: 4, y: 9, w: 4, h: 3 },
-              biz: { x: 8, y: 0, w: 4, h: 3 }, receivables: { x: 8, y: 3, w: 4, h: 5 }, assets: { x: 8, y: 8, w: 4, h: 3 }, cards: { x: 8, y: 11, w: 4, h: 2 },
-              "work-appr": { x: 4, y: 12, w: 4, h: 4 }, "work-proj": { x: 0, y: 15, w: 4, h: 4 }, "work-sign": { x: 8, y: 13, w: 4, h: 4 }, "work-ment": { x: 4, y: 16, w: 4, h: 4 },
-            };
+            const POS = DEFAULT_WIDGET_POS;
             const widgets = [
               ...myWorkCards.map((c) => ({ ...c, ...(POS[c.id] || {}) })),
               ...(taxItems.length > 0 ? [{ id: "tax", ...POS.tax, node: (
@@ -3002,8 +3005,9 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
         <DashboardGrid
           storageKey={`dashboard-grid-emp-${userId}`}
           widgets={[
-            ...empWorkCards,
-            { id: "calendar", h: 10, node: <DashboardCalendar userId={userId} companyId={companyId} /> },
+            // 오너와 동일한 기본 배치 사용(안 보이는 재무 위젯은 목록에 없어 자동 제외).
+            ...empWorkCards.map((c) => ({ ...c, ...(DEFAULT_WIDGET_POS[c.id] || {}) })),
+            { id: "calendar", ...DEFAULT_WIDGET_POS.calendar, node: <DashboardCalendar userId={userId} companyId={companyId} /> },
           ]}
         />
       )}
