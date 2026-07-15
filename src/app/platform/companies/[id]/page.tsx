@@ -75,7 +75,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
       </div>
 
       {/* 헤더 */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="platform-company-header flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">{c.name || "—"}</h1>
           <div className="mt-1 text-sm text-[var(--text-muted)] flex flex-wrap items-center gap-3">
@@ -85,7 +85,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
           </div>
         </div>
         {plan && (
-          <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+          <span className={`platform-company-plan-badge px-3 py-1.5 rounded-full text-xs font-bold ${
             plan.slug === "business" || plan.slug === "pro"
               ? "bg-[var(--primary-light)] text-[var(--primary)]"
               : plan.slug === "starter"
@@ -98,14 +98,14 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
       </div>
 
       {/* 핵심 지표 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="platform-company-kpi-grid grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "사용자", value: `${data.user_count}명`, sub: `관리자 ${data.admin_count} · 직원 ${data.employee_count}` },
           { label: "딜", value: `${data.deals_count}개`, sub: `진행중 ${data.deals_active_count}` },
           { label: "통장 거래", value: `${data.bank_tx_count.toLocaleString()}건`, sub: `카드 ${data.card_tx_count.toLocaleString()}건` },
           { label: "누적 결제", value: fmtW(Number(data.paid_invoices_total || 0)), sub: `${data.paid_invoices_count}건` },
         ].map((kpi) => (
-          <div key={kpi.label} className="glass-card p-5 flex flex-col gap-3">
+          <div key={kpi.label} className="platform-company-kpi-card glass-card p-5 flex flex-col gap-3">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">{kpi.label}</span>
             <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{kpi.value}</span>
             <div className="text-[11px] text-[var(--text-dim)]">{kpi.sub}</div>
@@ -114,8 +114,8 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
       </div>
 
       {/* 운영 지표 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="glass-card p-5 flex flex-col gap-3">
+      <div className="platform-company-ops-grid grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="platform-company-errors-card glass-card p-5 flex flex-col gap-3">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">24시간 에러</span>
           <div className={`text-[26px] leading-8 font-extrabold mono-number ${data.errors_24h > 50 ? "text-[var(--danger)]" : data.errors_24h > 10 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
             {data.errors_24h}건
@@ -124,7 +124,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
             전체 에러 해석 →
           </Link>
         </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
+        <div className="platform-company-last-login-card glass-card p-5 flex flex-col gap-3">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">마지막 로그인</span>
           <div className="text-xl leading-8 font-extrabold text-[var(--text)]">{data.last_login_at ? fmtDate(data.last_login_at) : "—"}</div>
           <div className="text-[11px] text-[var(--text-dim)]">회사 내 모든 사용자 중 최근값</div>
@@ -133,7 +133,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
 
       {/* 구독 상세 */}
       {sub && (
-        <div className="glass-card p-5">
+        <div className="platform-company-subscription-card glass-card p-5">
           <h3 className="section-title text-[var(--text)]">구독 상세</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div className="rounded-lg bg-[var(--bg-surface)] px-3 py-2.5">

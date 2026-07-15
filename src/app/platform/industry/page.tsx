@@ -106,7 +106,7 @@ export default function PlatformIndustryPage() {
       </div>
 
       {/* 분포 */}
-      <div className="glass-card p-5">
+      <div className="platform-industry-distribution-card glass-card p-5">
         <h3 className="section-title text-[var(--text)]">업종 분포</h3>
         <div className="space-y-2">
           {dist.map((d) => {
@@ -117,7 +117,7 @@ export default function PlatformIndustryPage() {
                 key={d.industry}
                 onClick={() => !isUnclassified && setSelectedIndustry(d.industry === selectedIndustry ? "" : d.industry)}
                 disabled={isUnclassified}
-                className={`w-full flex items-center gap-3 text-left ${!isUnclassified ? "cursor-pointer" : "cursor-default"}`}
+                className={`platform-industry-bar-row w-full flex items-center gap-3 text-left ${!isUnclassified ? "cursor-pointer" : "cursor-default"}`}
               >
                 <div className={`w-32 shrink-0 text-sm ${isUnclassified ? "text-[var(--warning)]" : "text-[var(--text)]"}`}>
                   {d.industry}
@@ -147,7 +147,7 @@ export default function PlatformIndustryPage() {
 
       {/* 선택 업종 평균 */}
       {selectedIndustry && (
-        <div className="glass-card p-5">
+        <div className="platform-industry-average-card glass-card p-5">
           <h3 className="section-title text-[var(--text)]">
             <span className="text-[var(--primary)]">{selectedIndustry}</span> 업종 평균 (최신 월)
           </h3>
@@ -156,7 +156,7 @@ export default function PlatformIndustryPage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {industryAvg.map((r) => (
-                <div key={r.metric} className="bg-[var(--bg-surface)] rounded-lg p-3">
+                <div key={r.metric} className="platform-metric-tile bg-[var(--bg-surface)] rounded-lg p-3">
                   <div className="text-[11px] text-[var(--text-dim)]">{r.label}</div>
                   <div className="text-sm font-bold mono-number text-[var(--primary)] mt-1">평균 {fmtW(r.avg_value)}</div>
                   <div className="text-[11px] text-[var(--text-muted)]">중앙 {fmtW(r.median_value)}</div>
@@ -169,7 +169,7 @@ export default function PlatformIndustryPage() {
       )}
 
       {/* 미분류 분류 UI */}
-      <div className="glass-card p-5">
+      <div className="platform-unclassified-card glass-card p-5">
         <h3 className="section-title text-[var(--text)]">
           미분류 회사 분류
           {unclassified.length > 0 && (
@@ -181,7 +181,7 @@ export default function PlatformIndustryPage() {
         ) : (
           <div className="space-y-2">
             {unclassified.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-surface)]">
+              <div key={c.id} className="platform-unclassified-row flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-surface)]">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm text-[var(--text)] truncate">{c.name}</div>
                   <div className="text-[11px] text-[var(--text-dim)]">

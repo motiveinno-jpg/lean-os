@@ -97,7 +97,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
   // 인라인 스타일 — CSS 로딩 전에도 보이도록
   if (status === "denied") {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F2F4F9", color: "#18181B" }}>
+      <div className="platform-access-denied-screen" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F2F4F9", color: "#18181B" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
           <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>접근 권한 없음</h1>
@@ -112,7 +112,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
   if (status === "loading") {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F2F4F9" }}>
+      <div className="platform-loading-screen" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F2F4F9" }}>
         <div style={{ width: 32, height: 32, border: "2px solid #4F46E5", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
@@ -125,7 +125,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
     //   래퍼 배경 제거(body::before 앰비언트 캔버스가 비쳐 보이게) + 사이드바를 떠 있는 유리 패널로.
     <div className="min-h-screen flex">
       {/* Sidebar — 고객 앱 sidebar.tsx 와 동일한 인셋 플로팅 유리 패널 */}
-      <aside className="chrome-glass w-56 rounded-[20px] border border-[var(--border)]/60 flex flex-col fixed left-3 top-3 bottom-3 z-40">
+      <aside className="platform-sidebar chrome-glass w-56 rounded-[20px] border border-[var(--border)]/60 flex flex-col fixed left-3 top-3 bottom-3 z-40">
         <div className="p-5 border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center">
@@ -142,7 +142,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
         <nav className="flex-1 py-3 px-2 space-y-3 overflow-y-auto">
           {NAV_GROUPS.map((group) => (
-            <div key={group.title}>
+            <div key={group.title} className="platform-nav-group">
               <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">
                 {group.title}
               </div>
@@ -153,7 +153,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                      className={`platform-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
                         active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                       }`}
                     >
@@ -167,7 +167,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           ))}
         </nav>
 
-        <div className="p-4 border-t border-[var(--border)]">
+        <div className="platform-sidebar-footer p-4 border-t border-[var(--border)]">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs font-bold">
               {userName.charAt(0)}
@@ -181,7 +181,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         </div>
       </aside>
 
-      <main className="flex-1 ml-[248px] p-6 lg:p-8 lg:pr-6">
+      <main className="platform-main-content flex-1 ml-[248px] p-6 lg:p-8 lg:pr-6">
         {children}
       </main>
     </div>

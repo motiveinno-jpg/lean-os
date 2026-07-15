@@ -58,7 +58,7 @@ export default function SystemPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* DB Stats */}
-        <div className="glass-card p-5">
+        <div className="platform-db-stats-card glass-card p-5">
           <h3 className="section-title text-[var(--text)]">데이터베이스</h3>
           <div className="space-y-3">
             {/* 총 회사 — 클릭 시 목록 토글 */}
@@ -73,7 +73,7 @@ export default function SystemPage() {
               <span className="font-bold mono-number text-[var(--text)]">{companies.length}</span>
             </button>
             {expanded === "companies" && (
-              <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]">
+              <div className="platform-company-list max-h-72 overflow-y-auto rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]">
                 {companies.length === 0 ? (
                   <div className="p-4 text-center text-xs text-[var(--text-dim)]">회사가 없습니다</div>
                 ) : (
@@ -81,7 +81,7 @@ export default function SystemPage() {
                     <Link
                       key={c.id}
                       href={`/platform/companies/${c.id}`}
-                      className="flex items-center justify-between px-3 py-2.5 hover:bg-[var(--bg-surface)]/60 transition"
+                      className="platform-company-row flex items-center justify-between px-3 py-2.5 hover:bg-[var(--bg-surface)]/60 transition"
                     >
                       <div className="min-w-0">
                         <div className="text-sm text-[var(--text)] font-medium truncate">{c.name || "(이름 없음)"}</div>
@@ -109,7 +109,7 @@ export default function SystemPage() {
               <span className="font-bold mono-number text-[var(--text)]">{users.length}</span>
             </button>
             {expanded === "users" && (
-              <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]">
+              <div className="platform-user-list max-h-72 overflow-y-auto rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]">
                 {users.length === 0 ? (
                   <div className="p-4 text-center text-xs text-[var(--text-dim)]">사용자가 없습니다</div>
                 ) : (
@@ -117,7 +117,7 @@ export default function SystemPage() {
                     <Link
                       key={u.id}
                       href={`/operator-users?q=${encodeURIComponent(u.email || u.id)}`}
-                      className="flex items-center justify-between px-3 py-2.5 hover:bg-[var(--bg-surface)]/60 transition"
+                      className="platform-user-row flex items-center justify-between px-3 py-2.5 hover:bg-[var(--bg-surface)]/60 transition"
                     >
                       <div className="min-w-0">
                         <div className="text-sm text-[var(--text)] font-medium truncate">{u.name || "(이름 없음)"}</div>
@@ -135,7 +135,7 @@ export default function SystemPage() {
 
             {/* 역할별 카운트 (기존 유지) */}
             {Object.entries(roleCounts).map(([role, count]) => (
-              <div key={role} className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
+              <div key={role} className="platform-role-count-row flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
                 <span className="text-sm text-[var(--text-dim)]">  {role}</span>
                 <span className="text-sm text-[var(--text-muted)]">{count as number}명</span>
               </div>
@@ -144,14 +144,14 @@ export default function SystemPage() {
         </div>
 
         {/* Plans */}
-        <div className="glass-card p-5">
+        <div className="platform-plans-card glass-card p-5">
           <h3 className="section-title text-[var(--text)]">요금제</h3>
           <div className="space-y-3">
             {plans.length === 0 ? (
               <div className="text-center py-8 text-sm text-[var(--text-dim)]">요금제가 없습니다</div>
             ) : (
               plans.map((p: any) => (
-                <div key={p.id} className="p-4 rounded-xl bg-[var(--bg-surface)]">
+                <div key={p.id} className="platform-plan-row p-4 rounded-xl bg-[var(--bg-surface)]">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-[var(--text)]">{p.name}</span>
                     <span className="text-sm font-bold mono-number text-[var(--primary)]">
@@ -169,7 +169,7 @@ export default function SystemPage() {
         </div>
 
         {/* Environment */}
-        <div className="glass-card p-5 md:col-span-2">
+        <div className="platform-env-card glass-card p-5 md:col-span-2">
           <h3 className="section-title text-[var(--text)]">환경 정보</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
@@ -178,7 +178,7 @@ export default function SystemPage() {
               { label: "호스팅", value: "GitHub Pages" },
               { label: "도메인", value: "www.owner-view.com" },
             ].map((item) => (
-              <div key={item.label} className="p-3 rounded-xl bg-[var(--bg-surface)]">
+              <div key={item.label} className="platform-env-item p-3 rounded-xl bg-[var(--bg-surface)]">
                 <div className="text-[10px] text-[var(--text-dim)] mb-0.5">{item.label}</div>
                 <div className="text-sm font-semibold text-[var(--text)]">{item.value}</div>
               </div>
@@ -187,11 +187,11 @@ export default function SystemPage() {
         </div>
 
         {/* Release Log / 작업일지 */}
-        <div className="glass-card p-5 md:col-span-2">
+        <div className="platform-release-log-card glass-card p-5 md:col-span-2">
           <h3 className="section-title text-[var(--text)]">작업일지 / 릴리즈 로그</h3>
           <div className="space-y-4 max-h-[600px] overflow-y-auto">
             {releaseLog.map((release: any, idx: number) => (
-              <div key={idx} className="p-4 rounded-xl bg-[var(--bg-surface)]">
+              <div key={idx} className="platform-release-item p-4 rounded-xl bg-[var(--bg-surface)]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-[var(--text)]">{release.version}</span>

@@ -80,7 +80,7 @@ export default function PlatformIncidentsPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="platform-incident-toolbar flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-2">
           <h1 className="text-2xl font-extrabold text-[var(--text)]">사고 기록</h1>
           <span className="text-sm text-[var(--text-muted)]">
@@ -108,9 +108,9 @@ export default function PlatformIncidentsPage() {
 
       {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
 
-      <div className="space-y-4">
+      <div className="platform-incident-list space-y-4">
         {items.map((i) => (
-          <div key={i.id} className={`glass-card p-5 ${i.resolved_at ? "" : "border border-[var(--warning)]/40"}`}>
+          <div key={i.id} className={`platform-incident-card glass-card p-5 ${i.resolved_at ? "" : "border border-[var(--warning)]/40"}`}>
             <div className="flex items-start justify-between gap-3 mb-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -157,7 +157,7 @@ export default function PlatformIncidentsPage() {
 
 function Field({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className={`p-3 rounded-lg ${accent ? "bg-[var(--primary-light)]" : "bg-[var(--bg-surface)]"}`}>
+    <div className={`platform-incident-field p-3 rounded-lg ${accent ? "bg-[var(--primary-light)]" : "bg-[var(--bg-surface)]"}`}>
       <div className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-1">{label}</div>
       <div className="text-[var(--text)] whitespace-pre-wrap">{value}</div>
     </div>
@@ -175,7 +175,7 @@ function IncidentForm({
   error?: string;
 }) {
   return (
-    <div className="glass-card p-5 space-y-3">
+    <div className="platform-incident-form glass-card p-5 space-y-3">
       <div className="text-sm font-bold text-[var(--text)]">{value.id ? "사고 수정" : "신규 사고 기록"}</div>
       <input
         type="text"

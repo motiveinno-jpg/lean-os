@@ -103,7 +103,7 @@ export default function PlatformSupportPage() {
         </div>
       </div>
 
-      <div className="glass-card overflow-hidden">
+      <div className="platform-support-ticket-list glass-card overflow-hidden">
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-sm text-[var(--text-dim)]">문의가 없습니다</div>
         ) : (
@@ -112,7 +112,7 @@ export default function PlatformSupportPage() {
               const st = STATUS_META[t.status] || STATUS_META.open;
               const draft = drafts[t.id] ?? "";
               return (
-                <div key={t.id} className="p-5">
+                <div key={t.id} className="platform-support-ticket-row p-5">
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
                     <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] font-medium">{CATEGORY_LABEL[t.category] || t.category}</span>
@@ -125,7 +125,7 @@ export default function PlatformSupportPage() {
                   </div>
 
                   {t.answer && (
-                    <div className="mt-3 rounded-xl bg-[var(--bg-surface)] p-3.5">
+                    <div className="platform-support-answer-block mt-3 rounded-xl bg-[var(--bg-surface)] p-3.5">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-bold text-[var(--success)]">등록된 답변</span>
                         {t.answered_at && <span className="text-[11px] text-[var(--text-dim)]">{new Date(t.answered_at).toLocaleString("ko-KR")}</span>}
@@ -134,7 +134,7 @@ export default function PlatformSupportPage() {
                     </div>
                   )}
 
-                  <div className="mt-3">
+                  <div className="platform-support-answer-form mt-3">
                     <textarea
                       value={draft}
                       onChange={(e) => setDrafts((d) => ({ ...d, [t.id]: e.target.value }))}

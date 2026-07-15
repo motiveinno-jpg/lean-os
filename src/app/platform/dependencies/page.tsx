@@ -21,7 +21,7 @@ function StatusBadge({ status }: { status: "ok" | "warn" | "down" }) {
       ? "bg-[var(--warning-dim)] text-[var(--warning)]"
       : "bg-[var(--danger-dim)] text-[var(--danger)]";
   const label = status === "ok" ? "정상" : status === "warn" ? "주의" : "장애";
-  return <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${tone}`}>● {label}</span>;
+  return <span className={`platform-dependency-status-badge px-2.5 py-1 rounded-full text-[10px] font-bold ${tone}`}>● {label}</span>;
 }
 
 export default function PlatformDependenciesPage() {
@@ -120,7 +120,7 @@ export default function PlatformDependenciesPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-end justify-between gap-4">
+      <div className="platform-dependencies-header flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">의존성 상태</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -137,9 +137,9 @@ export default function PlatformDependenciesPage() {
 
       {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="platform-dependency-card-grid grid grid-cols-1 md:grid-cols-2 gap-4">
         {cards.map((c) => (
-          <div key={c.name} className="glass-card p-5">
+          <div key={c.name} className="platform-dependency-card glass-card p-5">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm font-bold text-[var(--text)]">{c.name}</div>
               <StatusBadge status={c.status} />
@@ -153,7 +153,7 @@ export default function PlatformDependenciesPage() {
             <div className="text-[10px] text-[var(--text-dim)] mb-2">
               <span className="font-bold uppercase tracking-wider">영향도:</span> {c.blockedOn}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="platform-dependency-links flex flex-wrap gap-2">
               {c.links.map((l) => (
                 <a
                   key={l.href}

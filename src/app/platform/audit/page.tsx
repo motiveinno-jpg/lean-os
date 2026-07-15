@@ -49,7 +49,7 @@ export default function PlatformAuditPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-end justify-between gap-4">
+      <div className="platform-audit-header flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">감사 로그</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -59,7 +59,7 @@ export default function PlatformAuditPage() {
         <select
           value={hours}
           onChange={(e) => setHours(Number(e.target.value))}
-          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]"
+          className="platform-audit-hours-filter px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]"
         >
           <option value={24}>최근 24시간</option>
           <option value={168}>최근 7일</option>
@@ -70,7 +70,7 @@ export default function PlatformAuditPage() {
       {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
 
       {!isLoading && items.length === 0 && (
-        <div className="glass-card p-8 text-center text-sm text-[var(--text-dim)]">
+        <div className="platform-audit-empty glass-card p-8 text-center text-sm text-[var(--text-dim)]">
           이 기간에 감사 로그가 없습니다.
           <div className="mt-2 text-[11px]">
             운영자 페이지가 자동 기록을 호출하면 누적됩니다.
@@ -79,7 +79,7 @@ export default function PlatformAuditPage() {
         </div>
       )}
 
-      <div className="glass-card overflow-hidden">
+      <div className="platform-audit-table glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -93,7 +93,7 @@ export default function PlatformAuditPage() {
             </thead>
             <tbody>
               {items.map((a) => (
-                <tr key={a.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition">
+                <tr key={a.id} className="platform-audit-row border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition">
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="text-xs text-[var(--text)]">{fmtRelative(a.created_at)}</div>
                     <div className="text-[10px] text-[var(--text-dim)]">{new Date(a.created_at).toLocaleString("ko-KR")}</div>
@@ -117,7 +117,7 @@ export default function PlatformAuditPage() {
         </div>
       </div>
 
-      <div className="kpi-callout">
+      <div className="platform-audit-footnote kpi-callout">
         <b>OP-F</b> · 운영자 행동은 RPC <span className="font-mono text-[var(--primary)]">operator_log_action</span> 호출로만 적재 (직접 INSERT 차단).
         회사 드릴다운 진입은 [id] 페이지에서 자동 호출.
       </div>

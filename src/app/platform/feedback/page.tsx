@@ -43,9 +43,9 @@ export default function FeedbackPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="platform-feedback-header flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">고객 피드백</h1>
-        <div className="flex flex-wrap gap-2 text-xs">
+        <div className="platform-feedback-status-summary flex flex-wrap gap-2 text-xs">
           {Object.entries(FB_STATUS).map(([key, val]) => {
             const count = feedback.filter((f: any) => f.status === key).length;
             return count > 0 ? (
@@ -57,7 +57,7 @@ export default function FeedbackPage() {
         </div>
       </div>
 
-      <div className="glass-card overflow-hidden">
+      <div className="platform-feedback-list glass-card overflow-hidden">
         {feedback.length === 0 ? (
           <div className="text-center py-16 text-sm text-[var(--text-dim)]">피드백이 없습니다</div>
         ) : (
@@ -65,7 +65,7 @@ export default function FeedbackPage() {
             {feedback.map((fb: any) => {
               const st = FB_STATUS[fb.status] || FB_STATUS.pending;
               return (
-                <div key={fb.id} className="p-5 hover:bg-[var(--bg-surface)]/60 transition">
+                <div key={fb.id} className="platform-feedback-row p-5 hover:bg-[var(--bg-surface)]/60 transition">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1.5">
@@ -80,7 +80,7 @@ export default function FeedbackPage() {
                         {fb.companies?.name} · {fb.users?.name || fb.users?.email} · {new Date(fb.created_at).toLocaleDateString("ko-KR")}
                       </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
+                    <div className="platform-feedback-actions flex gap-1 shrink-0">
                       {["reviewed", "planned", "in_progress", "done", "rejected"].map((s) => (
                         <button
                           key={s}
