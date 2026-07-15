@@ -10,6 +10,10 @@ import { useToast } from "@/components/toast";
 // 개인 계정 영역 — 회사 설정에서 마이페이지로 이관(2026-07-08). 컴포넌트 위치는 유지, 마운트만 옮김.
 import { AccountTab } from "../settings/_components/AccountTab";
 import { NotificationsTab } from "../settings/_components/NotificationsTab";
+// 개인 인사기록 허브(2026-07-15) — 근로계약서/급여명세/증명서를 마이페이지로 이관.
+import { MyContractsCard } from "./_components/MyContractsCard";
+import { MyPayslips } from "./_components/MyPayslips";
+import { MyCertificates } from "./_components/MyCertificates";
 
 const EMP_STATUS: Record<string, { label: string; color: string }> = {
   invited: { label: "초대중", color: "text-[var(--warning)]" },
@@ -254,6 +258,12 @@ export default function MyPage() {
         </div>
       )}
 
+      {/* 내 근로계약서 — 나에게 온 서명 요청/계약서 (개인 인사기록) */}
+      {employee?.id && <MyContractsCard employeeId={employee.id} />}
+
+      {/* 내 급여명세 — 월별 명세 본인 조회 (개인 인사기록) */}
+      {employee?.id && <MyPayslips employeeId={employee.id} />}
+
       {/* 연차 현황 */}
       <div className="mypage-leave-card glass-card p-6">
         <h2 className="section-title">{currentYear}년 연차 현황</h2>
@@ -305,6 +315,9 @@ export default function MyPage() {
           </div>
         )}
       </div>
+
+      {/* 내 증명서 — 재직/경력 증명서 본인 발급 (개인 인사기록) */}
+      {employee?.id && <MyCertificates companyId={companyId} userId={userId} employee={employee} />}
 
       {/* 계정·보안 — 비밀번호 변경 (회사 설정에서 이관) */}
       <AccountTab />
