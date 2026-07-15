@@ -49,7 +49,7 @@ export function AccountChip() {
       <button
         ref={btnRef}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 md:pl-2 md:pr-3 md:py-1.5 rounded-full md:bg-[var(--bg-card)] md:border md:border-[var(--border)] hover:opacity-85 transition shrink-0"
+        className="account-chip-button flex items-center gap-2 md:pl-2 md:pr-3 md:py-1.5 rounded-full md:bg-[var(--bg-card)] md:border md:border-[var(--border)] hover:opacity-85 transition shrink-0"
         aria-label="내 계정"
         aria-expanded={open}
       >
@@ -63,18 +63,18 @@ export function AccountChip() {
       </button>
 
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[998]" onClick={() => setOpen(false)}>
+        <div className="account-chip-popover-overlay fixed inset-0 z-[998]" onClick={() => setOpen(false)}>
           <div
-            className="glass-card fixed z-[999] w-[min(92vw,300px)] animate-[slide-in_0.15s_ease]"
+            className="account-chip-popover glass-card fixed z-[999] w-[min(92vw,300px)] animate-[slide-in_0.15s_ease]"
             style={{ top: pos.top, right: pos.right, boxShadow: "var(--shadow-lg, 0 12px 32px rgba(0,0,0,0.18))" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+            <div className="account-chip-popover-header flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
               <span className="text-sm font-bold text-[var(--text)]">내 계정</span>
               <button onClick={() => setOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg leading-none px-1" aria-label="닫기">✕</button>
             </div>
 
-            <div className="flex items-center gap-3 px-4 py-4">
+            <div className="account-chip-identity flex items-center gap-3 px-4 py-4">
               <Avatar name={user?.name || user?.email} src={user?.avatar_url} size={44} />
               <div className="min-w-0">
                 <div className="text-sm font-bold text-[var(--text)] truncate">{user?.name || user?.email?.split("@")[0] || ""}</div>
@@ -82,7 +82,7 @@ export function AccountChip() {
               </div>
             </div>
 
-            <div className="px-4 pb-3 space-y-1.5 text-[12px]">
+            <div className="account-chip-details px-4 pb-3 space-y-1.5 text-[12px]">
               <div className="flex items-center justify-between">
                 <span className="text-[var(--text-dim)]">역할</span>
                 <span className="font-semibold text-[var(--text)]">{roleLabel}</span>
@@ -95,7 +95,7 @@ export function AccountChip() {
               )}
             </div>
 
-            <div className="px-4 py-2.5 border-t border-[var(--border)]">
+            <div className="account-chip-footer px-4 py-2.5 border-t border-[var(--border)]">
               <button
                 onClick={() => { setOpen(false); router.push("/mypage"); }}
                 className="w-full flex items-center justify-center gap-1.5 text-[12px] font-semibold text-[var(--primary)] hover:underline"

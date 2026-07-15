@@ -191,7 +191,7 @@ export function DashboardGrid({
       {Header}
       {/* 상황 기반 추천 — 신호가 있는데 꺼진 위젯을 편집모드에서 원클릭 추가 칩으로 안내 */}
       {edit && recAddable.length > 0 && (
-        <div className="mb-3 flex items-center gap-1.5 flex-wrap text-[11px]">
+        <div className="recommended-widgets-row mb-3 flex items-center gap-1.5 flex-wrap text-[11px]">
           <span className="text-[var(--text-dim)]">💡 지금 유용한 위젯:</span>
           {recAddable.map((c) => (
             <button key={c.id} onClick={() => addWidget(c.id)}
@@ -218,7 +218,7 @@ export function DashboardGrid({
         resizeHandles={["s", "e", "se"]}
       >
         {active.map((w) => (
-          <div key={w.id} className={edit ? "relative rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}>
+          <div key={w.id} className={`dashboard-widget-tile ${edit ? "relative rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}`}>
             {edit && (
               <button onClick={() => removeWidget(w.id)}
                 className="no-drag absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-[var(--danger)] text-white text-[13px] font-bold flex items-center justify-center shadow-md hover:scale-110 transition"

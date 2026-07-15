@@ -86,8 +86,8 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
   };
 
   return (
-    <div className="mb-3 glass-card p-5">
-      <div className="flex items-center justify-between mb-3">
+    <div className="top-expenses-card mb-3 glass-card p-5">
+      <div className="top-expenses-header flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <span className="kpi-icon danger"><TileIcon name="trendingDown" className="w-5 h-5" /></span>
           <div>
@@ -106,7 +106,7 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
       </div>
 
       {top.length > 0 && (
-        <div className="text-[10px] text-[var(--text-dim)] mb-2 flex justify-between">
+        <div className="top-expenses-summary text-[10px] text-[var(--text-dim)] mb-2 flex justify-between">
           <span>총 지출 {dedupedRows.length}건</span>
           <span className="mono-number text-[var(--danger)] font-semibold">₩{fmtKRW(totalThisMonth)}</span>
         </div>
@@ -117,7 +117,7 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
           이번달 지출 내역이 없습니다.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="top-expenses-list space-y-2">
           {top.map((t: any, i: number) => {
             const amount = Math.abs(Number(t.amount || 0));
             const dateStr = t.transaction_date || '';
@@ -126,7 +126,7 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
             const counterparty = t.counterparty || '(거래처 미상)';
             const bank = t.bank_accounts?.alias || t.bank_accounts?.bank_name || '';
             return (
-              <div key={t.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
+              <div key={t.id} className="top-expense-row flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
                 <div className="text-[10px] font-bold text-[var(--text-dim)] w-5 text-center">{i + 1}</div>
                 <div className="text-[10px] text-[var(--text-dim)] w-10 mono-number">{dateDisplay}</div>
                 <div className="flex-1 min-w-0">

@@ -175,7 +175,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
   return (
     <div className="space-y-4">
       {/* ── 주차 네비 + 요약 칩 ── */}
-      <div className="glass-card px-4 py-3 flex flex-wrap items-center gap-3">
+      <div className="flex-work-week-nav glass-card px-4 py-3 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="w-8 h-8 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]" aria-label="이전 주">◀</button>
           <button onClick={() => setWeekStart(mondayOf(kstToday()))} className="px-3 h-8 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">이번 주</button>
@@ -184,8 +184,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
         <div className="text-sm font-bold text-[var(--text)]">{weekStart.getFullYear()}년 {weekLabel}</div>
         {!isEmployee && (
           <div className="ml-auto flex items-center gap-2 flex-wrap text-[11px]">
-            <span className="px-2.5 py-1 rounded-full font-semibold" style={{ background: FLEX.violetDim, color: FLEX.violet }}>평균 {hm(teamAvg)}</span>
-            <span className="px-2.5 py-1 rounded-full font-semibold" style={{ background: FLEX.amberDim, color: FLEX.amber }}>연장 합계 {hm(totalOt)}</span>
+            <span className="px-2.5 py-1 rounded-full font-semibold bg-[var(--primary-light)] text-[var(--primary)]">평균 {hm(teamAvg)}</span>
+            <span className="px-2.5 py-1 rounded-full font-semibold bg-[var(--warning-dim)] text-[var(--warning)]">연장 합계 {hm(totalOt)}</span>
             <span className={`px-2.5 py-1 rounded-full font-semibold`} style={over52 > 0 ? { background: FLEX.redDim, color: FLEX.red } : { background: "var(--bg-surface)", color: "var(--text-dim)" }}>
               52시간 초과 {over52}명
             </span>
@@ -194,12 +194,12 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
       </div>
 
       {/* ── 워크보드 ── */}
-      <div className="glass-card overflow-hidden">
+      <div className="flex-work-board-table-card glass-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse" style={{ minWidth: 860 }}>
+          <table className="w-full text-xs border-collapse min-w-[860px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-4 py-2.5 font-semibold min-w-[180px]" style={{ position: "sticky", left: 0, background: "var(--bg-card)", zIndex: 6 }}>구성원</th>
+                <th className="text-left px-4 py-2.5 font-semibold min-w-[180px] sticky left-0 z-[6] bg-[var(--bg-card)]">구성원</th>
                 {days.map((d, i) => {
                   const isToday = ymd(d) === todayStr;
                   const weekend = i >= 5;
@@ -219,9 +219,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
                 <tr><td colSpan={9} className="p-10 text-center text-[var(--text-muted)]">표시할 구성원이 없습니다.</td></tr>
               )}
               {rows.map(({ emp, total, overtime, lateDays }) => (
-                <tr key={emp.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/40">
+                <tr key={emp.id} className="flex-work-employee-row border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/40">
                   {/* 구성원 */}
-                  <td className="px-4 py-2" style={{ position: "sticky", left: 0, background: "var(--bg-card)", zIndex: 5 }}>
+                  <td className="px-4 py-2 sticky left-0 z-[5] bg-[var(--bg-card)]">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: avatarColor(emp.id) }}>
                         {initials(emp.name)}
@@ -242,7 +242,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
                     if (onLeave) {
                       return (
                         <td key={i} className="px-1 py-2 text-center align-middle">
-                          <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold" style={{ background: FLEX.greenDim, color: FLEX.green }}>휴가</span>
+                          <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">휴가</span>
                         </td>
                       );
                     }
@@ -283,7 +283,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
           </table>
         </div>
         <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
-          타임라인 = 출근~퇴근 (07~22시 스케일) · <span style={{ color: FLEX.violet }}>■</span> 정상 <span style={{ color: FLEX.amber }}>■</span> 지각 <span style={{ color: FLEX.green }}>■</span> 휴가 · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span style={{ color: FLEX.red }}>빨강</span>
+          타임라인 = 출근~퇴근 (07~22시 스케일) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가 · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
         </div>
       </div>
     </div>

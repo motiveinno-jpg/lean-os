@@ -300,8 +300,8 @@ export function ProgressReportStageCard({
   const showResend = !readonly && mode === "preview" && status === "rejected";
 
   return (
-    <div className="bg-[var(--bg-surface)] rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3 gap-2">
+    <div className="progress-report-stage-card bg-[var(--bg-surface)] rounded-xl p-4">
+      <div className="progress-report-header flex items-center justify-between mb-3 gap-2">
         <h3 className="text-xs font-bold text-[var(--text-muted)]">📊 진척 보고서</h3>
         <div className="flex items-center gap-2">
           {approval && mode === "preview" && (
@@ -333,7 +333,7 @@ export function ProgressReportStageCard({
 
       {/* 거절 사유 — rejected 일 때만 */}
       {status === "rejected" && approval?.decision_note && (
-        <div className="mb-3 rounded-lg bg-red-500/10 border border-red-500/30 p-3">
+        <div className="progress-report-rejection-notice mb-3 rounded-lg bg-red-500/10 border border-red-500/30 p-3">
           <div className="text-[10px] font-bold text-red-400 mb-1">❌ 거래처가 거절했습니다</div>
           <div className="text-xs text-[var(--text)] whitespace-pre-wrap">{approval.decision_note}</div>
           <button
@@ -347,7 +347,7 @@ export function ProgressReportStageCard({
       )}
 
       {mode === "edit" ? (
-        <div className="space-y-3">
+        <div className="progress-report-edit-form space-y-3">
           <div>
             <label className="text-[10px] font-bold text-[var(--text-muted)] block mb-1">
               진행률 (%)
@@ -383,7 +383,7 @@ export function ProgressReportStageCard({
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="progress-report-preview space-y-3">
           <div className="bg-[var(--bg)] rounded-lg p-3">
             <div className="text-[10px] text-[var(--text-dim)] font-medium mb-1">진행률</div>
             <div className="flex items-center gap-2">
@@ -407,7 +407,7 @@ export function ProgressReportStageCard({
 
       {/* 💾 저장하기 (발송 없이 박제) + 발송 바 */}
       {!readonly && (mode === "edit" || (mode === "preview" && (!approval || approval?.status === "draft"))) && (
-        <div className="mb-1 pt-3 mt-3 border-t border-[var(--border)]/40 space-y-2">
+        <div className="progress-report-save-send-bar mb-1 pt-3 mt-3 border-t border-[var(--border)]/40 space-y-2">
           <div className="flex gap-2 flex-wrap">
             <button
               type="button"
@@ -447,7 +447,7 @@ export function ProgressReportStageCard({
 
       {/* 누적 스택 — 저장된 진척보고서 시간 역순 (사장님 요청: "쭉쭉 쌓이게") */}
       {stack.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-[var(--border)]/40">
+        <div className="progress-report-stack mt-4 pt-3 border-t border-[var(--border)]/40">
           <div className="text-[10px] text-[var(--text-dim)] font-medium mb-2">
             저장된 진척 보고서 ({stack.length}건)
           </div>
@@ -488,7 +488,7 @@ export function ProgressReportStageCard({
       )}
 
       {showResend && (
-        <div className="mb-1 pt-3 mt-3 border-t border-[var(--border)]/40">
+        <div className="progress-report-resend-bar mb-1 pt-3 mt-3 border-t border-[var(--border)]/40">
           <div className="text-[10px] text-amber-400 font-medium mb-1.5">
             거절된 진척 보고서입니다 — 같은 내용으로 재발송 (수정하려면 ✏️ 수정)
           </div>
@@ -545,17 +545,17 @@ function ProgressDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4"
+      className="progress-detail-modal-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full sm:max-w-lg bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="progress-detail-modal relative w-full sm:max-w-lg bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
       >
         {/* 헤더 */}
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3">
+        <div className="progress-detail-modal-header px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <span className="text-sm font-bold text-[var(--text)]">📊 진척 보고서 상세</span>
@@ -578,7 +578,7 @@ function ProgressDetailModal({
         </div>
 
         {/* 본문 */}
-        <div className="p-5 overflow-y-auto space-y-4">
+        <div className="progress-detail-modal-body p-5 overflow-y-auto space-y-4">
           {/* 진행률 바 (크게) */}
           <div>
             <div className="flex items-baseline justify-between mb-1.5">

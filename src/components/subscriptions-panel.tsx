@@ -157,10 +157,10 @@ export function SubscriptionsPanel() {
   if (ovMonthly > 0) byCategory.set("collab", (byCategory.get("collab") || 0) + ovMonthly);
 
   return (
-    <div className="">
+    <div className="subscriptions-panel">
       {/* 컴팩트 툴바 — 액션(우). 타이틀은 상단 고정 헤더바가 담당 */}
       {canEdit && (
-        <div className="flex flex-wrap items-center justify-end gap-2 mb-6">
+        <div className="subscriptions-toolbar flex flex-wrap items-center justify-end gap-2 mb-6">
           <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary">
             + 구독 추가
           </button>
@@ -168,7 +168,7 @@ export function SubscriptionsPanel() {
       )}
 
       {/* 요약 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="subscriptions-summary grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="stat-tile">
           <div className="stat-tile-label">월 총 구독비</div>
           <div className="stat-tile-value text-[var(--primary)]">{fmtW(totalMonthly)}</div>
@@ -196,9 +196,9 @@ export function SubscriptionsPanel() {
 
       {/* 등록/수정 폼 */}
       {showForm && canEdit && (
-        <div className="glass-card p-6 mb-6">
+        <div className="subscription-form glass-card p-6 mb-6">
           <h3 className="section-title">{editingId ? "구독 수정" : "구독 추가"}</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+          <div className="subscription-form-grid grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">서비스명 *</label>
               <input value={form.serviceName} onChange={(e) => setForm({ ...form, serviceName: e.target.value })}
@@ -253,7 +253,7 @@ export function SubscriptionsPanel() {
                 className="field-input" />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="subscription-form-actions flex gap-2">
             <button onClick={() => { if (!form.serviceName.trim()) return; saveMut.mutate(); }}
               disabled={!form.serviceName.trim() || saveMut.isPending}
               className="btn-primary">
@@ -269,7 +269,7 @@ export function SubscriptionsPanel() {
       )}
 
       {/* 목록 */}
-      <div className="glass-card overflow-x-auto">
+      <div className="subscriptions-table glass-card overflow-x-auto">
         <table className="w-full text-sm min-w-[760px]">
           <thead>
             <tr className="border-b border-[var(--border)]">
@@ -285,7 +285,7 @@ export function SubscriptionsPanel() {
           <tbody>
             {/* OwnerView 항목 (자동 포함) */}
             {ovPlan && (
-              <tr className="border-b border-[var(--border)]/30 bg-[var(--primary)]/5">
+              <tr className="ownerview-sub-row border-b border-[var(--border)]/30 bg-[var(--primary)]/5">
                 <td className="p-4">
                   <div className="font-semibold flex items-center gap-1.5">
                     <span className="text-[var(--primary)]">★</span> OwnerView
@@ -308,7 +308,7 @@ export function SubscriptionsPanel() {
             {activeAccounts.map((a: any) => {
               const st = STATUS_TONE[a.status] || STATUS_TONE.active;
               return (
-                <tr key={a.id} className={`border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition ${canEdit ? "cursor-pointer" : ""}`}
+                <tr key={a.id} className={`subscription-row border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition ${canEdit ? "cursor-pointer" : ""}`}
                   onClick={() => { if (!canEdit) return; setEditingId(a.id); setForm({ serviceName: a.service_name || "", category: a.category || "other", monthlyCost: String(a.monthly_cost || ""), billingCycle: a.billing_cycle || "monthly", renewalDate: a.renewal_date || "", paymentMethod: a.payment_method || "", ownerId: a.owner_id || "", url: a.url || "", notes: a.notes || "" }); setShowForm(true); }}>
                   <td className="p-4">
                     <div className="font-semibold">{a.service_name}</div>

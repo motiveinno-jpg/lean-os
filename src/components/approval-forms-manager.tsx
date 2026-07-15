@@ -84,8 +84,8 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const setStage = (i: number, p: Partial<ApprovalFormStage>) => patch({ stages: (editing!.stages || []).map((s, j) => (j === i ? { ...s, ...p } : s)) });
 
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-5 gap-2 flex-wrap">
+    <div className="approval-forms-manager glass-card p-5">
+      <div className="panel-header flex items-center justify-between mb-5 gap-2 flex-wrap">
         <div>
           <h2 className="text-sm font-bold text-[var(--text)]">결재 양식 관리</h2>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">회사에서 쓰는 결재 양식(필드·내용·결재선)을 만들어 새 요청에서 선택합니다.</p>
@@ -94,7 +94,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       </div>
 
       {(forms as ApprovalForm[]).length === 0 ? (
-        <div className="text-center py-14">
+        <div className="forms-empty-state text-center py-14">
           <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
           </div>
@@ -102,9 +102,9 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
           <div className="text-xs text-[var(--text-muted)]">&ldquo;+ 새 양식 추가&rdquo;로 우리 회사만의 결재 양식을 만들어 보세요</div>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="forms-grid grid gap-3 sm:grid-cols-2">
           {(forms as ApprovalForm[]).map((f) => (
-            <div key={f.id} className="glass-card group p-4 hover:border-[var(--primary)]/40 hover:shadow-md transition">
+            <div key={f.id} className="form-card glass-card group p-4 hover:border-[var(--primary)]/40 hover:shadow-md transition">
               <div className="flex items-start gap-3">
                 <span className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -119,7 +119,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                     <span className="badge badge-muted">결재 {f.stages?.length || 0}단계</span>
                   </div>
                 </div>
-                <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="form-card-actions flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openEdit(f)} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition" title="편집">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                   </button>
@@ -142,8 +142,8 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
           if (dirty && !window.confirm("양식 추가를 취소하시겠습니까? 작성 중인 내용이 사라집니다.")) return;
           setEditing(null);
         }}>
-          <div className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2.5 mb-4">
+          <div className="form-builder-modal glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header flex items-center gap-2.5 mb-4">
               <span className="w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
               </span>
@@ -169,7 +169,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             </div>
 
             {/* 커스텀 필드 */}
-            <div className="mb-3">
+            <div className="form-fields-section mb-3">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-semibold text-[var(--text-muted)]">입력 필드</label>
                 <button onClick={() => patch({ fields: [...(editing.fields || []), emptyField()] })} className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 필드 추가</button>
@@ -179,7 +179,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               ) : (
                 <div className="space-y-1.5">
                   {(editing.fields || []).map((f, i) => (
-                    <div key={f.key} className="flex flex-wrap items-center gap-1.5 bg-[var(--bg-surface)] rounded-lg p-2">
+                    <div key={f.key} className="field-row flex flex-wrap items-center gap-1.5 bg-[var(--bg-surface)] rounded-lg p-2">
                       <input value={f.label} onChange={(e) => setField(i, { label: e.target.value })} placeholder="필드 이름"
                         className="flex-1 min-w-[120px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
                       <select value={f.type} onChange={(e) => setField(i, { type: e.target.value as ApprovalFieldType })}
@@ -229,7 +229,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             </div>
 
             {/* 내용 템플릿 */}
-            <div className="mb-3">
+            <div className="content-template-section mb-3">
               <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿)</label>
               <textarea value={editing.content_template || ""} onChange={(e) => patch({ content_template: e.target.value })} rows={3}
                 placeholder={"작성 시 상세 내용에 기본으로 채워집니다.\n예: 1. 지출 항목\n2. 사유"}
@@ -237,14 +237,14 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             </div>
 
             {/* 결재선 단계 */}
-            <div className="mb-3">
+            <div className="approval-stages-section mb-3">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선 (승인 단계)</label>
                 <button onClick={() => patch({ stages: [...(editing.stages || []), emptyStage((editing.stages || []).length + 1)] })} className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 단계 추가</button>
               </div>
               <div className="space-y-1.5">
                 {(editing.stages || []).map((s, i) => (
-                  <div key={i} className="bg-[var(--bg-surface)] rounded-lg p-2 space-y-1.5">
+                  <div key={i} className="stage-row bg-[var(--bg-surface)] rounded-lg p-2 space-y-1.5">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold w-5 h-5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">{i + 1}</span>
                       <input value={s.name} onChange={(e) => setStage(i, { name: e.target.value })} placeholder="단계 이름(예: 팀장 승인)"
@@ -279,7 +279,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             </div>
 
             {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (미리 지정) */}
-            <div className="mb-3">
+            <div className="reference-users-section mb-3">
               <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택) — 결재 여부와 무관하게 통보만 받는 인원</label>
               <div className="flex flex-wrap gap-1 bg-[var(--bg-surface)] rounded-lg p-2">
                 {(users as any[]).length === 0 ? (
@@ -301,7 +301,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             </div>
 
             {/* 옵션 토글 */}
-            <div className="flex flex-wrap gap-4 mb-4">
+            <div className="options-toggle-row flex flex-wrap gap-4 mb-4">
               <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer">
                 <input type="checkbox" checked={editing.allow_requester_edit ?? true} onChange={(e) => patch({ allow_requester_edit: e.target.checked })} className="accent-[var(--primary)]" /> 작성자 내용 수정 허용
               </label>
@@ -310,7 +310,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               </label>
             </div>
 
-            <div className="flex gap-2">
+            <div className="modal-footer-actions flex gap-2">
               <button onClick={() => setEditing(null)} className="btn-secondary flex-1">취소</button>
               <button onClick={save} disabled={saving} className="btn-primary flex-1">{saving ? "저장 중…" : "양식 저장"}</button>
             </div>

@@ -58,18 +58,18 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
 
   return (
     <div className="dashboard-calendar glass-card p-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="dashboard-calendar-header flex items-center justify-between mb-3">
         <h3 className="text-[13px] font-bold text-[var(--text)]">{year}년 {month + 1}월 <span className="text-[var(--text-dim)] font-normal">일정 · 할 일</span></h3>
         <Link href="/schedule" className="text-[11px] font-semibold text-[var(--primary)] hover:underline no-underline">전체 보기 →</Link>
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5 mb-1">
+      <div className="dashboard-calendar-weekdays grid grid-cols-7 gap-0.5 mb-1">
         {WD.map((w, i) => (
           <div key={w} className={`text-center text-[10px] font-semibold ${i === 0 ? "text-[var(--danger)]" : i === 6 ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>{w}</div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5">
+      <div className="dashboard-calendar-days grid grid-cols-7 gap-0.5">
         {cells.map((d, i) => {
           if (d === null) return <div key={`x${i}`} className="aspect-square" />;
           const key = ymd(year, month, d);
@@ -91,14 +91,14 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
         })}
       </div>
 
-      <div className="mt-3 border-t border-[var(--border)] pt-2.5">
+      <div className="dashboard-calendar-selected mt-3 border-t border-[var(--border)] pt-2.5">
         <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">
           {Number(selected.slice(5, 7))}월 {Number(selected.slice(8, 10))}일{selected === todayStr ? " · 오늘" : ""}
         </div>
         {selItems.length === 0 ? (
           <div className="text-[11px] text-[var(--text-dim)] py-1">일정·할 일이 없습니다.</div>
         ) : (
-          <div className="flex flex-col gap-1">
+          <div className="dashboard-calendar-items flex flex-col gap-1">
             {selItems.slice(0, 4).map((it) => (
               <Link key={it.id} href="/schedule" className="flex items-center gap-2 text-[12px] text-[var(--text)] no-underline hover:text-[var(--primary)] transition">
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${it.kind === "event" ? "bg-[var(--primary)]" : "bg-[var(--warning)]"}`} />

@@ -193,7 +193,7 @@ export function FileUploadMulti({
   }
 
   return (
-    <div className="w-full">
+    <div className="file-upload-multi w-full">
       {/* Hidden file input */}
       <input
         ref={inputRef}
@@ -213,7 +213,7 @@ export function FileUploadMulti({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         disabled={disabled}
-        className={`w-full rounded-xl border-2 border-dashed p-6 transition-all text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`file-upload-dropzone w-full rounded-xl border-2 border-dashed p-6 transition-all text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
           isDragging
             ? "border-[var(--primary)] bg-[var(--primary)]/5 scale-[1.01]"
             : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/3"
@@ -258,11 +258,11 @@ export function FileUploadMulti({
 
       {/* Error messages */}
       {errors.length > 0 && (
-        <div className="mt-2 space-y-1">
+        <div className="file-upload-errors mt-2 space-y-1">
           {errors.map((err, i) => (
             <div
               key={i}
-              className="flex items-start gap-1.5 text-xs text-[var(--danger)]"
+              className="file-upload-error-item flex items-start gap-1.5 text-xs text-[var(--danger)]"
             >
               <svg
                 width="14"
@@ -285,9 +285,9 @@ export function FileUploadMulti({
 
       {/* Selected files list */}
       {selectedFiles.length > 0 && (
-        <div className="mt-3">
+        <div className="file-upload-selected mt-3">
           {/* Header with count badge + clear all */}
-          <div className="flex items-center justify-between mb-2">
+          <div className="file-upload-selected-header flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-[var(--text)]">
                 선택된 파일
@@ -306,13 +306,13 @@ export function FileUploadMulti({
           </div>
 
           {/* File items */}
-          <div className="space-y-1.5 max-h-60 overflow-y-auto">
+          <div className="file-upload-list space-y-1.5 max-h-60 overflow-y-auto">
             {selectedFiles.map((file, index) => {
               const { icon, color } = getFileIcon(file.type);
               return (
                 <div
                   key={`${file.name}-${file.size}-${index}`}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] group hover:border-[var(--primary)]/30 transition-colors"
+                  className="file-upload-list-item flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] group hover:border-[var(--primary)]/30 transition-colors"
                 >
                   {/* Type icon */}
                   <div

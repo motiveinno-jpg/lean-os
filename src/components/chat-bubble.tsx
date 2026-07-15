@@ -71,7 +71,7 @@ export function ChatBubble({
   // Deleted message
   if (deletedAt) {
     return (
-      <div className="flex justify-center my-2">
+      <div className="chat-bubble-deleted flex justify-center my-2">
         <div className="px-3 py-1.5 bg-[var(--bg-surface)] rounded-full text-[10px] text-[var(--text-dim)] italic">
           삭제된 메시지
         </div>
@@ -82,7 +82,7 @@ export function ChatBubble({
   // System message
   if (type === "system") {
     return (
-      <div className="flex justify-center my-2">
+      <div className="chat-bubble-system flex justify-center my-2">
         <div className="px-3 py-1.5 bg-[var(--bg-surface)] rounded-full text-[10px] text-[var(--text-dim)]">
           {content}
         </div>
@@ -95,15 +95,15 @@ export function ChatBubble({
   const isImage = isFile && metadata?.mime_type?.startsWith('image/');
 
   return (
-    <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-3 group`}>
-      <div className={`max-w-[70%] ${isOwn ? "items-end" : "items-start"}`}>
+    <div className={`chat-bubble-row flex ${isOwn ? "justify-end" : "justify-start"} mb-3 group`}>
+      <div className={`chat-bubble-column max-w-[70%] ${isOwn ? "items-end" : "items-start"}`}>
         {!isOwn && (
-          <div className="text-[10px] mb-1 px-1 text-[var(--text-dim)]">{senderName}</div>
+          <div className="chat-bubble-sender-name text-[10px] mb-1 px-1 text-[var(--text-dim)]">{senderName}</div>
         )}
 
         {/* Reply indicator */}
         {replyTo && (
-          <div className="flex items-center gap-1 px-3 mb-1">
+          <div className="chat-bubble-reply flex items-center gap-1 px-3 mb-1">
             <div className="w-0.5 h-4 bg-[var(--primary)]/40 rounded-full" />
             <div className="text-[10px] text-[var(--text-dim)] truncate max-w-[200px]">
               <span className="font-semibold">{replyTo.senderName}</span>: {replyTo.content}
@@ -111,7 +111,7 @@ export function ChatBubble({
           </div>
         )}
 
-        <div className="flex items-end gap-2 relative">
+        <div className="chat-bubble-content-row flex items-end gap-2 relative">
           {isOwn && (
             <span className="text-[9px] mb-1 text-[var(--text-dim)]">
               {time}
@@ -119,7 +119,7 @@ export function ChatBubble({
           )}
 
           {/* Hover action bar — 카카오/인스타식 플로팅 툴바 (버블 상단 모서리에 떠서 표시) */}
-          <div className={`absolute -top-4 ${isOwn ? 'right-1' : 'left-1'} z-10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 p-1 rounded-full shadow-lg bg-[var(--bg-card)] border border-[var(--border)]`}>
+          <div className={`chat-bubble-toolbar absolute -top-4 ${isOwn ? 'right-1' : 'left-1'} z-10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 p-1 rounded-full shadow-lg bg-[var(--bg-card)] border border-[var(--border)]`}>
             {onReact && (
               <button onClick={() => setShowReactions(!showReactions)} className={actionBtnCls} title="공감">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
@@ -149,7 +149,7 @@ export function ChatBubble({
 
           {/* Quick reactions popup — 툴바 위에 뜨는 이모지 피커 */}
           {showReactions && onReact && (
-            <div className={`absolute ${isOwn ? 'right-1' : 'left-1'} -top-14 flex gap-1 rounded-full px-2 py-1.5 shadow-xl z-20 bg-[var(--bg-card)] border border-[var(--border)]`}>
+            <div className={`chat-bubble-reactions-popup absolute ${isOwn ? 'right-1' : 'left-1'} -top-14 flex gap-1 rounded-full px-2 py-1.5 shadow-xl z-20 bg-[var(--bg-card)] border border-[var(--border)]`}>
               {QUICK_REACTIONS.map(emoji => (
                 <button key={emoji} onClick={() => { onReact(emoji); setShowReactions(false); }}
                   className="text-lg leading-none hover:scale-[1.35] transition-transform">
@@ -160,7 +160,7 @@ export function ChatBubble({
           )}
 
           <div
-            className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+            className={`chat-bubble-bubble px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
               isOwn
                 ? (glass ? "bg-[var(--primary)] text-white rounded-br-md" : "bg-[#3B82F6] text-white rounded-br-md")
                 : (glass ? "bg-[var(--bg-surface)]/85 backdrop-blur-md text-[var(--text)] border border-[var(--border)] rounded-bl-md" : "bg-white dark:bg-[#2A2A2E] text-[var(--text)] rounded-bl-md border border-gray-100 dark:border-[var(--border)]")
@@ -168,15 +168,15 @@ export function ChatBubble({
           >
             {/* File content */}
             {isFile ? (
-              <div>
+              <div className="chat-bubble-file">
                 {isImage ? (
                   <a href={metadata.file_url} target="_blank" rel="noopener noreferrer">
                     <img src={metadata.file_url} alt={metadata.file_name}
-                      className="max-w-[240px] max-h-[180px] rounded-lg object-cover" />
+                      className="chat-bubble-file-image max-w-[240px] max-h-[180px] rounded-lg object-cover" />
                   </a>
                 ) : (
                   <a href={metadata.file_url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 hover:underline">
+                    className="chat-bubble-file-link flex items-center gap-2 hover:underline">
                     <span className="text-lg">📎</span>
                     <div>
                       <div className="text-xs font-medium">{metadata.file_name}</div>
@@ -217,11 +217,11 @@ export function ChatBubble({
 
         {/* Reactions row */}
         {reactions && reactions.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1 px-1">
+          <div className="chat-bubble-reactions-row flex flex-wrap gap-1 mt-1 px-1">
             {reactions.map(r => (
               <button key={r.emoji}
                 onClick={() => onReact?.(r.emoji)}
-                className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] transition ${
+                className={`chat-bubble-reaction-chip flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] transition ${
                   r.hasOwn
                     ? 'bg-[var(--primary)]/15 border border-[var(--primary)]/30'
                     : 'bg-[var(--bg-surface)] hover:bg-[var(--bg-surface)]/80'

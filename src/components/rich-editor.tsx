@@ -226,9 +226,9 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
   };
 
   return (
-    <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--bg)]">
+    <div className="rich-editor border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--bg)]">
       {editable && (
-        <div className="flex flex-wrap gap-0.5 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+        <div className="rich-editor-toolbar flex flex-wrap gap-0.5 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]">
           {/* 서식 */}
           <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btnCls(editor.isActive("bold"))} title="굵게"><strong>B</strong></button>
           <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={btnCls(editor.isActive("italic"))} title="기울임"><em>I</em></button>
@@ -238,7 +238,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           <div className="w-px h-5 bg-[var(--border)] mx-1 self-center" />
 
           {/* 글자 색상 */}
-          <div className="flex items-center gap-0.5 px-1" title="글자 색상">
+          <div className="rich-editor-color-palette flex items-center gap-0.5 px-1" title="글자 색상">
             {COLORS.map((c) => (
               <button key={c} type="button" onClick={() => editor.chain().focus().setColor(c).run()}
                 className="w-4 h-4 rounded-full border border-[var(--border)] hover:scale-110 transition" style={{ background: c }} title={c} />
@@ -306,7 +306,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           {pdfProgress && <span className="text-[11px] text-[var(--primary)] self-center ml-2 animate-pulse">{pdfProgress}</span>}
         </div>
       )}
-      <div style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
+      <div className="rich-editor-body" style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
         <EditorContent
           editor={editor}
           className="prose prose-sm max-w-none px-4 py-3 min-h-[200px] focus:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[180px] [&_.tiptap_img]:max-w-full [&_.tiptap_img]:rounded-lg [&_.tiptap_img]:my-2 [&_.tiptap_table]:border-collapse [&_.tiptap_table]:w-full [&_.tiptap_table]:my-2 [&_.tiptap_td]:border [&_.tiptap_td]:border-[var(--border)] [&_.tiptap_td]:p-2 [&_.tiptap_th]:border [&_.tiptap_th]:border-[var(--border)] [&_.tiptap_th]:p-2 [&_.tiptap_th]:bg-[var(--bg-surface)] [&_.tiptap_th]:font-bold [&_.is-editor-empty:first-child::before]:text-[var(--text-dim)] [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:pointer-events-none"

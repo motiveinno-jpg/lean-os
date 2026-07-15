@@ -159,9 +159,9 @@ function PopupWindow({ win }: { win: Win }) {
         </button>
       </div>
       {/* 본문 — 라우트를 embed 로 iframe */}
-      <div className="flex-1 relative bg-[var(--bg)]">
+      <div className="popup-body flex-1 relative bg-[var(--bg)]">
         <iframe src={`${win.href}?embed=1`} title={win.title}
-          className="absolute inset-0 w-full h-full" style={{ border: 0, pointerEvents: iframePE }} />
+          className="absolute inset-0 w-full h-full border-0" style={{ pointerEvents: iframePE }} />
       </div>
       {/* 우하단 리사이즈 핸들 */}
       {!win.max && (
@@ -188,9 +188,9 @@ export function PopupWindowsHost() {
       {wins.map((w) => <PopupWindow key={w.id} win={w} />)}
       {/* 최소화된 창 — 하단 작업표시줄 칩 */}
       {minimized.length > 0 && (
-        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[58] flex gap-2 max-w-[92vw] overflow-x-auto">
+        <div className="popup-taskbar fixed bottom-3 left-1/2 -translate-x-1/2 z-[58] flex gap-2 max-w-[92vw] overflow-x-auto">
           {minimized.map((w) => (
-            <div key={w.id} className="flex items-center gap-1.5 pl-3 pr-1.5 h-9 rounded-full bg-[var(--bg-card)] border border-[var(--border)] shadow-lg shrink-0">
+            <div key={w.id} className="popup-taskbar-chip flex items-center gap-1.5 pl-3 pr-1.5 h-9 rounded-full bg-[var(--bg-card)] border border-[var(--border)] shadow-lg shrink-0">
               <button onClick={() => restore(w.id)} className="text-[12px] font-semibold text-[var(--text)] hover:text-[var(--primary)] transition max-w-[160px] truncate">
                 {w.title}
               </button>

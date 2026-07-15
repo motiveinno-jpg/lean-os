@@ -97,7 +97,7 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
     <>
       {/* 직전월 명세 복사 여부 모달 */}
       {copyPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setCopyPrompt(null)}>
+        <div className="copy-prompt-modal fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setCopyPrompt(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="text-lg font-bold mb-2">지난달 명세를 그대로 복사할까요?</div>
             {copyPrompt.exists ? (
@@ -160,7 +160,7 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="payroll-header flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-bold">급여 일괄 이체</h2>
           <p className="text-xs text-[var(--text-muted)] mt-1">전 직원 급여 배치 생성 → 대표 승인 → 일괄 이체</p>
@@ -173,11 +173,11 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
 
       {/* Last generated preview */}
       {lastResult && (
-        <div className="bg-green-500/5 border border-green-500/20 rounded-2xl p-4 mb-6 shadow-md">
+        <div className="last-generated-preview bg-green-500/5 border border-green-500/20 rounded-2xl p-4 mb-6 shadow-md">
           <div className="text-sm font-bold text-green-500 mb-3">급여 배치가 생성되었습니다 ({lastResult.items.length}명)</div>
           <div className="space-y-1">
             {lastResult.items.map((item, i) => (
-              <div key={i} className="flex items-center justify-between text-xs">
+              <div key={i} className="preview-item-row flex items-center justify-between text-xs">
                 <span>{item.employeeName}</span>
                 <div className="flex gap-4">
                   <span className="text-[var(--text-dim)]">기본급 ₩{item.baseSalary.toLocaleString()}</span>
@@ -191,9 +191,9 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
       )}
 
       {/* Batch history */}
-      <div className="glass-card overflow-hidden">
+      <div className="batch-history-card glass-card overflow-hidden">
         {batches.length === 0 ? (
-          <div className="py-14 px-6 text-center">
+          <div className="batch-empty-state py-14 px-6 text-center">
             <div className="text-5xl mb-4">💰</div>
             <div className="text-base font-bold mb-1.5">급여 배치 없음</div>
             <div className="text-sm text-[var(--text-muted)]">"이번 달 급여 배치 생성" 버튼으로 시작하세요</div>
@@ -214,7 +214,7 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
               {batches.map((b: any) => {
                 const sl = statusLabel[b.status] || statusLabel.draft;
                 return (
-                  <tr key={b.id} className="border-b border-[var(--border)]/50">
+                  <tr key={b.id} className="batch-row border-b border-[var(--border)]/50">
                     <td className="px-5 py-3 text-sm font-medium">{b.name}</td>
                     <td className="px-5 py-3 text-sm text-right font-bold">₩{Number(b.total_amount || 0).toLocaleString()}</td>
                     <td className="px-5 py-3 text-sm text-center">{b.item_count || 0}명</td>
@@ -225,7 +225,7 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
                       {b.created_at ? new Date(b.created_at).toLocaleDateString('ko') : '—'}
                     </td>
                     <td className="px-5 py-3 text-center">
-                      <div className="flex gap-1.5 justify-center">
+                      <div className="batch-row-actions flex gap-1.5 justify-center">
                         {(b.status === 'draft' || b.status === 'pending_approval') && (
                           <button onClick={() => approveMut.mutate(b.id)} disabled={approveMut.isPending}
                             className="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/20 transition">

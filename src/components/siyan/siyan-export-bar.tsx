@@ -19,12 +19,12 @@ export function SiyanExportBar({
   className?: string;
 }) {
   return (
-    <div className={`no-print rounded-2xl p-6 text-white bg-gradient-to-r ${gradient} flex flex-wrap items-center justify-between gap-4 ${className}`}>
-      <div className="min-w-0">
+    <div className={`siyan-export-bar no-print rounded-2xl p-6 text-white bg-gradient-to-r ${gradient} flex flex-wrap items-center justify-between gap-4 ${className}`}>
+      <div className="export-bar-title-block min-w-0">
         <h3 className="text-lg font-bold mb-1">{title}</h3>
         {subtitle && <p className="text-white/80 text-sm">{subtitle}</p>}
       </div>
-      <div className="flex items-center gap-3 shrink-0 flex-wrap">{children}</div>
+      <div className="export-bar-actions flex items-center gap-3 shrink-0 flex-wrap">{children}</div>
     </div>
   );
 }

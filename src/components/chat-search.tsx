@@ -32,8 +32,8 @@ export function ChatSearch({ onSearch, onResultClick, onClose }: ChatSearchProps
   }
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 mb-3">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="chat-search bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 mb-3">
+      <div className="chat-search-bar flex items-center gap-2 mb-3">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -52,10 +52,10 @@ export function ChatSearch({ onSearch, onResultClick, onClose }: ChatSearchProps
         </button>
       </div>
       {results.length > 0 && (
-        <div className="max-h-48 overflow-y-auto space-y-1">
+        <div className="chat-search-results max-h-48 overflow-y-auto space-y-1">
           {results.map(r => (
             <button key={r.id} onClick={() => onResultClick(r.id)}
-              className="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)] transition">
+              className="chat-search-result-row w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)] transition">
               <div className="text-xs font-medium truncate">{r.content}</div>
               <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                 {(r.users as any)?.name || (r.users as any)?.email || '—'} · {r.created_at ? new Date(r.created_at).toLocaleString('ko') : ''}

@@ -18,12 +18,11 @@ export function MenuGuide() {
   return (
     <button
       onClick={toggleGuide}
-      className={`menu-guide-toggle pointer-events-auto flex items-center justify-center w-8 h-8 rounded-full border transition ${
+      className={`menu-guide-toggle pointer-events-auto flex items-center justify-center w-8 h-8 rounded-full border transition shadow-[var(--shadow-sm)] ${
         open
           ? "bg-[var(--primary)] text-white border-[var(--primary)]"
           : "bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
       }`}
-      style={{ boxShadow: "var(--shadow-sm)" }}
       aria-label="이 메뉴 도움말"
       aria-expanded={open}
       title="이 메뉴 사용법 자세히 보기"
@@ -127,7 +126,7 @@ export function MenuGuideDrawer() {
                 <section className="guide-tips space-y-2">
                   <h3 className="guide-section-title text-[11px] font-bold tracking-wide text-[var(--text-dim)] uppercase">알아두면 좋아요</h3>
                   {guide.tips.map((tip, i) => (
-                    <div key={i} className="flex gap-2 rounded-xl bg-[var(--bg-surface)] px-3 py-2.5 text-[12.5px] leading-relaxed text-[var(--text-muted)]">
+                    <div key={i} className="guide-tip-item flex gap-2 rounded-xl bg-[var(--bg-surface)] px-3 py-2.5 text-[12.5px] leading-relaxed text-[var(--text-muted)]">
                       <span className="shrink-0">💡</span>
                       <span>{tip}</span>
                     </div>

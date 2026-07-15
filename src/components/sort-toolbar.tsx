@@ -26,7 +26,7 @@ export function SortToolbar({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-1.5 flex-wrap ${className}`}>
+    <div className={`sort-toolbar flex items-center gap-1.5 flex-wrap ${className}`}>
       <span className="text-xs font-semibold text-[var(--text-muted)] mr-0.5">정렬:</span>
       {options.map((opt) => {
         const active = sortKey === opt.key;
@@ -36,7 +36,7 @@ export function SortToolbar({
             type="button"
             onClick={() => onSort(opt.key)}
             aria-pressed={active}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition select-none ${
+            className={`sort-toolbar-btn px-2.5 py-1 rounded-lg text-xs font-semibold border transition select-none ${
               active
                 ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm"
                 : "bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)] hover:border-[var(--primary)]/50"

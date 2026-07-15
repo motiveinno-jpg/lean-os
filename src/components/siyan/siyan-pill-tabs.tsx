@@ -23,13 +23,13 @@ export function SiyanPillTabs<K extends string>({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-2 flex-wrap ${className}`}>
+    <div className={`siyan-pill-tabs flex items-center gap-2 flex-wrap ${className}`}>
       {tabs.map((t) => (
         <button
           key={t.key}
           type="button"
           onClick={() => onChange(t.key)}
-          className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
+          className={`siyan-pill-tab px-4 py-2 rounded-full text-sm font-semibold transition ${
             active === t.key
               ? `bg-gradient-to-r ${gradient} text-white shadow-md`
               : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)]"

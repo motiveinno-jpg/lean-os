@@ -78,17 +78,17 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
 
   return (
     <div className="receivables-preview glass-card px-4 py-3">
-      <div className="flex items-center justify-between gap-2 mb-2.5">
+      <div className="receivables-preview-header flex items-center justify-between gap-2 mb-2.5">
         <div className="min-w-0 flex items-baseline gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider shrink-0" style={{ color: "var(--danger)" }}>미수금</span>
-          <span className="text-[17px] leading-none font-extrabold mono-number" style={{ color: "var(--danger)" }}>{won(data.total)}</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider shrink-0 text-[var(--danger)]">미수금</span>
+          <span className="text-[17px] leading-none font-extrabold mono-number text-[var(--danger)]">{won(data.total)}</span>
           <span className="text-[10px] text-[var(--text-dim)] truncate">거래처 {data.list.length}곳</span>
         </div>
         <Link href="/partners/ledger?type=sales" className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0 no-underline">이동 →</Link>
       </div>
-      <div className="flex flex-col gap-0.5">
+      <div className="receivables-preview-list flex flex-col gap-0.5">
         {top.map((g) => (
-          <div key={g.name} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--bg-surface)] transition">
+          <div key={g.name} className="receivables-preview-row flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--bg-surface)] transition">
             <Link href="/partners/ledger?type=sales" className="flex items-center gap-2 min-w-0 flex-1 no-underline">
               <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{g.name}<span className="text-[var(--text-dim)]">{g.count > 1 ? ` · ${g.count}건` : ""}</span></span>
               {g.oldestDays > 0 && (
@@ -97,7 +97,7 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
                 </span>
               )}
             </Link>
-            <span className="text-[11px] mono-number font-bold shrink-0" style={{ color: "var(--danger)" }}>{won(g.outstanding)}</span>
+            <span className="text-[11px] mono-number font-bold shrink-0 text-[var(--danger)]">{won(g.outstanding)}</span>
             <button onClick={() => copyDunning(g)} title="독촉 문구 복사 (직접 발송)"
               className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md border border-[var(--border)] text-[var(--text-dim)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition">
               독촉

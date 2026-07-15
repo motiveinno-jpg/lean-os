@@ -17,7 +17,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
   return (
     <div
       ref={ref}
-      className={`rounded-[var(--radius-card)] border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm shadow-[var(--shadow-glass)] ${
+      className={`ui-card rounded-[var(--radius-card)] border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm shadow-[var(--shadow-glass)] ${
         hover ? "transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/10" : ""
       } ${className}`}
       {...props}

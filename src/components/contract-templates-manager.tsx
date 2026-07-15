@@ -59,8 +59,8 @@ export default function ContractTemplatesManager({ companyId }: Props) {
   }
 
   return (
-    <div className="glass-card p-6 space-y-5">
-      <div className="flex items-center justify-between gap-2">
+    <div className="contract-templates-manager glass-card p-6 space-y-5">
+      <div className="panel-header flex items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-[var(--text)]">계약서 양식 관리</h3>
           <p className="text-xs text-[var(--text-dim)] mt-1">
@@ -82,7 +82,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </div>
         <div className="grid gap-1.5">
           {systemTemplates.map((t) => (
-            <div key={t.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
+            <div key={t.id} className="template-row flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
               <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold flex-shrink-0">🔒 시스템</span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-[var(--text)] truncate">{t.name}</div>
@@ -105,13 +105,13 @@ export default function ContractTemplatesManager({ companyId }: Props) {
           회사 자체 양식 ({companyTemplates.length})
         </div>
         {companyTemplates.length === 0 ? (
-          <div className="px-3 py-6 text-center text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)]/40 rounded-lg border border-dashed border-[var(--border)]">
+          <div className="templates-empty px-3 py-6 text-center text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)]/40 rounded-lg border border-dashed border-[var(--border)]">
             회사 자체 양식이 없습니다. "+ 양식 추가" 로 등록하세요.
           </div>
         ) : (
           <div className="grid gap-1.5">
             {companyTemplates.map((t) => (
-              <div key={t.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
+              <div key={t.id} className="template-row flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
                 <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold flex-shrink-0">자체</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-[var(--text)] truncate">{t.name}</div>
@@ -243,12 +243,12 @@ function TemplateEditorModal({
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="template-editor-modal fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="modal-header flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold text-[var(--text)]">
               {readonly ? "시스템 양식 미리보기" : editing ? "계약서 양식 수정" : "계약서 양식 추가"}
@@ -278,7 +278,7 @@ function TemplateEditorModal({
           {!readonly && (
             <div>
               <label className="field-label">본문 입력 방식</label>
-              <div className="flex gap-1.5">
+              <div className="body-mode-toggle-group flex gap-1.5">
                 {[
                   { v: "html" as const, label: "HTML 직접 입력" },
                   { v: "markdown" as const, label: "Markdown 입력" },
@@ -353,7 +353,7 @@ function TemplateEditorModal({
           {fileType !== "pdf" && detectedVars.length > 0 && (
             <div>
               <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">감지된 변수 ({detectedVars.length}개)</label>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="detected-vars-list flex flex-wrap gap-1.5">
                 {detectedVars.map((v) => (
                   <span key={v} className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono">{`{${v}}`}</span>
                 ))}
@@ -375,7 +375,7 @@ function TemplateEditorModal({
 
           {/* 액션 */}
           {!readonly && (
-            <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
+            <div className="modal-actions flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
               <button
                 type="button"
                 onClick={onClose}

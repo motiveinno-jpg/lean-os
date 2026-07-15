@@ -28,8 +28,8 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
   });
 
   return (
-    <div className="glass-card p-5 md:p-6">
-      <div className="flex items-center justify-between mb-3">
+    <div className="quick-approval-card glass-card p-5 md:p-6">
+      <div className="quick-approval-header flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-violet-500" />
           <span className="text-sm font-bold text-[var(--text)]">전자결재</span>
@@ -47,9 +47,9 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
       <div className="mb-4 text-xs text-[var(--text-dim)]">자주 사용하는 결재를 빠르게 작성하세요</div>
 
       {/* 4개 항목 일관 정렬 — 이모지 고정 박스(w-9 h-9) + 동일 카드 높이(min-h-[60px]) + 텍스트 leading 통일. */}
-      <div className="grid grid-cols-2 gap-2 mb-3 items-stretch">
+      <div className="quick-approval-grid grid grid-cols-2 gap-2 mb-3 items-stretch">
         <Link href="/approvals?new=expense"
-          className="flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-emerald-500/40 transition">
+          className="quick-approval-item-expense flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-emerald-500/40 transition">
           <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-emerald-500/10 text-base leading-none">💳</span>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">경비 청구</div>
@@ -57,7 +57,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
           </div>
         </Link>
         <Link href="/approvals?new=payment"
-          className="flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-blue-500/40 transition">
+          className="quick-approval-item-payment flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-blue-500/40 transition">
           <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-blue-500/10 text-base leading-none">📝</span>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">지출 결의서</div>
@@ -65,7 +65,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
           </div>
         </Link>
         <Link href="/leave?new=1"
-          className="flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-orange-500/40 transition">
+          className="quick-approval-item-leave flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-orange-500/40 transition">
           <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-orange-500/10 text-base leading-none">🏖</span>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">연차 신청</div>
@@ -73,7 +73,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
           </div>
         </Link>
         <Link href="/approvals?new=general"
-          className="flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-violet-500/40 transition">
+          className="quick-approval-item-general flex items-center gap-2.5 min-h-[60px] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-violet-500/40 transition">
           <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-violet-500/10 text-base leading-none">📋</span>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">일반 결재</div>
@@ -82,7 +82,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
         </Link>
       </div>
 
-      <div className="text-[10px] text-[var(--text-dim)] pt-3 border-t border-[var(--border)]">
+      <div className="quick-approval-footer text-[10px] text-[var(--text-dim)] pt-3 border-t border-[var(--border)]">
         💡 항목 클릭 → 결재 페이지에서 양식 작성 → 승인자 지정 → 결재 요청 발송
       </div>
     </div>

@@ -377,7 +377,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
   const grandTotal = items.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
 
   if (loading) {
-    return <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-[11px] text-[var(--text-dim)] text-center">불러오는 중…</div>;
+    return <div className="quote-stages-loading bg-[var(--bg-surface)] rounded-xl p-4 text-[11px] text-[var(--text-dim)] text-center">불러오는 중…</div>;
   }
 
   // 완료 확인서 / 정산 확인 — 우선 stub, 다음 라운드에서 본 폼 추가
@@ -426,10 +426,10 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
   const sectionLabel = "견적 품목 / 결제 단계";
 
   return (
-    <div className="bg-[var(--bg-surface)] rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3 gap-2">
+    <div className="quote-stages-panel bg-[var(--bg-surface)] rounded-xl p-4">
+      <div className="quote-stages-header flex items-center justify-between mb-3 gap-2">
         <h3 className="text-xs font-bold text-[var(--text-muted)]">{sectionLabel}</h3>
-        <div className="flex items-center gap-2">
+        <div className="quote-stages-header-actions flex items-center gap-2">
           {/* STEP 4: StatusBadge — approval 존재 시 상태 노출 */}
           {approval && mode === "preview" && <StatusBadge approval={approval} />}
           {/* edit ↔ preview 전환 */}
@@ -437,13 +437,13 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
             <button
               type="button"
               onClick={() => setMode("edit")}
-              className="text-[10px] px-2 py-1 rounded-lg bg-[var(--bg)] hover:bg-[var(--border)] text-[var(--text-muted)] font-semibold transition"
+              className="quote-stages-edit-btn text-[10px] px-2 py-1 rounded-lg bg-[var(--bg)] hover:bg-[var(--border)] text-[var(--text-muted)] font-semibold transition"
             >
               ✏️ 수정
             </button>
           )}
           {!readonly && mode === "edit" && (
-            <button onClick={save} disabled={saving} className="text-[10px] px-3 py-1 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold disabled:opacity-50 transition">
+            <button onClick={save} disabled={saving} className="quote-stages-save-btn text-[10px] px-3 py-1 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white font-semibold disabled:opacity-50 transition">
               {saving ? "저장 중…" : "💾 저장"}
             </button>
           )}
@@ -501,8 +501,8 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
       {mode === "edit" && (
         <>
           {/* 결제 단계 */}
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-2">
+          <div className="edit-payment-stages mb-3">
+            <div className="edit-stages-header flex items-center justify-between mb-2">
               <span className="text-[10px] text-[var(--text-dim)] font-medium">결제 단계 ({stages.length}단계)</span>
               <div className="flex items-center gap-2">
                 <span className="caption">합계 {stageSum}%
@@ -520,7 +520,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
             </div>
             <div className="space-y-1.5">
               {stages.map((stage, idx) => (
-                <div key={idx} className="flex flex-wrap items-center gap-1.5">
+                <div key={idx} className="edit-stage-row flex flex-wrap items-center gap-1.5">
                   <input value={stage.label} onChange={(e) => updateStage(idx, { label: e.target.value })}
                     disabled={readonly} placeholder="단계명"
                     className="w-16 px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-[10px] focus:outline-none focus:border-[var(--primary)]" />
@@ -548,7 +548,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
               ))}
             </div>
             {stages.length > 0 && (
-              <div className="mt-2 h-1.5 rounded-full bg-[var(--bg)] overflow-hidden flex">
+              <div className="edit-stages-bar mt-2 h-1.5 rounded-full bg-[var(--bg)] overflow-hidden flex">
                 {stages.map((stage, idx) => (
                   <div key={idx} className="h-full" style={{ width: `${stage.ratio}%`, backgroundColor: idx === 0 ? "#3B82F6" : idx === 1 ? "#22C55E" : idx === 2 ? "#EAB308" : "#8B5CF6", opacity: 0.8 }} title={`${stage.label} ${stage.ratio}%`} />
                 ))}
@@ -557,17 +557,17 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
           </div>
 
           {/* 견적 품목 */}
-          <div className="mb-3 pt-3 border-t border-[var(--border)]/40">
-            <div className="flex items-center justify-between mb-2">
+          <div className="edit-quote-items mb-3 pt-3 border-t border-[var(--border)]/40">
+            <div className="edit-items-header flex items-center justify-between mb-2">
               <span className="text-[10px] text-[var(--text-dim)] font-medium">견적 품목 ({items.length}건)</span>
               {!readonly && (
                 <button onClick={addItem} className="text-[10px] text-[var(--primary)] hover:underline font-semibold">+ 품목 추가</button>
               )}
             </div>
             {items.length === 0 ? (
-              <div className="text-[11px] text-[var(--text-dim)] text-center py-3">품목을 추가하면 견적서 생성 시 자동 반영됩니다</div>
+              <div className="edit-items-empty text-[11px] text-[var(--text-dim)] text-center py-3">품목을 추가하면 견적서 생성 시 자동 반영됩니다</div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="edit-items-table-wrap overflow-x-auto">
                 <table className="w-full text-[10px]">
                   <thead>
                     <tr className="text-[var(--text-dim)] border-b border-[var(--border)]/40">
@@ -625,7 +625,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
           </div>
 
           {/* 견적 내용 / 비고 */}
-          <div className="pt-3 border-t border-[var(--border)]/40">
+          <div className="edit-remarks pt-3 border-t border-[var(--border)]/40">
             <label className="block text-[10px] text-[var(--text-dim)] font-medium mb-1.5">견적서 내용 / 비고</label>
             <textarea value={content} onChange={(e) => setContent(e.target.value)} disabled={readonly}
               rows={2} placeholder="견적서에 포함할 내용, 조건, 비고 등"
@@ -669,7 +669,7 @@ function StatusBadge({ approval }: { approval: ApprovalLite }) {
   const icon =
     status === "approved" ? "✅" : status === "rejected" ? "❌" : status === "viewed" ? "👁" : status === "expired" ? "⏰" : status === "sent" ? "📤" : "📝";
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${tone}`}>
+    <span className={`status-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${tone}`}>
       <span>{icon}</span>
       <span className="truncate max-w-[180px]">{label}</span>
     </span>
@@ -678,18 +678,18 @@ function StatusBadge({ approval }: { approval: ApprovalLite }) {
 
 function RejectedCard({ note, onEdit }: { note: string; onEdit: () => void }) {
   return (
-    <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-      <div className="flex items-center justify-between mb-2">
+    <div className="rejected-card mb-3 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+      <div className="rejected-card-header flex items-center justify-between mb-2">
         <span className="text-[11px] font-bold text-red-400">❌ 거래처가 거절했습니다</span>
         <button
           type="button"
           onClick={onEdit}
-          className="text-[10px] px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 font-semibold transition"
+          className="rejected-card-edit-btn text-[10px] px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 font-semibold transition"
         >
           수정 후 재발송
         </button>
       </div>
-      <div className="text-[11px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed">
+      <div className="rejected-card-note text-[11px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed">
         {note}
       </div>
     </div>
@@ -717,17 +717,17 @@ function PreviewCard({
 }) {
   if (items.length === 0 && stages.length === 0) {
     return (
-      <div className="text-[11px] text-[var(--text-dim)] text-center py-4">
+      <div className="quote-preview-empty text-[11px] text-[var(--text-dim)] text-center py-4">
         견적 품목을 추가하려면 ‘수정’ 버튼을 눌러주세요
       </div>
     );
   }
   return (
-    <div className="space-y-3 mb-3">
+    <div className="quote-preview space-y-3 mb-3">
       {/* 결제 단계 */}
       {stages.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
+        <div className="preview-payment-stages">
+          <div className="preview-stages-header flex items-center justify-between mb-1.5">
             <span className="text-[10px] text-[var(--text-dim)] font-medium">결제 단계 ({stages.length}단계)</span>
             <span className="caption">
               합계 {stageSum}%
@@ -744,7 +744,7 @@ function PreviewCard({
               </div>
             ))}
           </div>
-          <div className="mt-1.5 h-1.5 rounded-full bg-[var(--bg)] overflow-hidden flex">
+          <div className="preview-stages-bar mt-1.5 h-1.5 rounded-full bg-[var(--bg)] overflow-hidden flex">
             {stages.map((stage, idx) => (
               <div
                 key={idx}
@@ -763,11 +763,11 @@ function PreviewCard({
       )}
       {/* 품목표 */}
       {items.length > 0 && (
-        <div className="pt-2 border-t border-[var(--border)]/40">
-          <div className="text-[10px] text-[var(--text-dim)] font-medium mb-1.5">
+        <div className="preview-items pt-2 border-t border-[var(--border)]/40">
+          <div className="preview-items-header text-[10px] text-[var(--text-dim)] font-medium mb-1.5">
             견적 품목 ({items.length}건) — {dealName || "(이름 없음)"}
           </div>
-          <div className="overflow-x-auto">
+          <div className="preview-items-table-wrap overflow-x-auto">
             <table className="w-full text-[10px]">
               <thead>
                 <tr className="text-[var(--text-dim)] border-b border-[var(--border)]/40">
@@ -808,7 +808,7 @@ function PreviewCard({
       )}
       {/* 비고 */}
       {content && (
-        <div className="pt-2 border-t border-[var(--border)]/40">
+        <div className="preview-remarks pt-2 border-t border-[var(--border)]/40">
           <div className="text-[10px] text-[var(--text-dim)] font-medium mb-1">비고</div>
           <div className="text-[10px] text-[var(--text)] whitespace-pre-wrap break-words">{content}</div>
         </div>
@@ -836,11 +836,11 @@ function SendBar({
 }) {
   const stageLabel = STAGE_LABEL[stage];
   return (
-    <div className="mb-3 pt-3 border-t border-[var(--border)]/40">
+    <div className="send-bar mb-3 pt-3 border-t border-[var(--border)]/40">
       <div className="text-[10px] text-[var(--text-dim)] font-medium mb-1.5">
         거래처에 {stageLabel} 발송 {partnerName ? `· ${partnerName}` : ""}
       </div>
-      <div className="flex flex-col sm:flex-row gap-1.5">
+      <div className="send-bar-row flex flex-col sm:flex-row gap-1.5">
         <input
           type="email"
           value={email}
@@ -870,12 +870,12 @@ function SendBar({
 function StageStubCard({ stage, approval }: { stage: QuoteApprovalStage; approval: ApprovalLite | null }) {
   const label = STAGE_LABEL[stage];
   return (
-    <div className="bg-[var(--bg-surface)] rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3 gap-2">
+    <div className="stage-stub-card bg-[var(--bg-surface)] rounded-xl p-4">
+      <div className="stage-stub-header flex items-center justify-between mb-3 gap-2">
         <h3 className="text-xs font-bold text-[var(--text-muted)]">{label}</h3>
         {approval && <StatusBadge approval={approval} />}
       </div>
-      <div className="text-[11px] text-[var(--text-dim)] py-6 text-center leading-relaxed">
+      <div className="stage-stub-body text-[11px] text-[var(--text-dim)] py-6 text-center leading-relaxed">
         {label} 단계 본 폼은 다음 라운드에 추가됩니다.<br/>
         <span className="caption">현재 단계: <span className="text-[var(--text)] font-semibold">{label}</span> · {STAGE_NEXT_HINT[stage]}</span>
       </div>
@@ -895,11 +895,11 @@ function ResendBar({
   sending: boolean;
 }) {
   return (
-    <div className="mb-3 pt-3 border-t border-[var(--border)]/40">
+    <div className="resend-bar mb-3 pt-3 border-t border-[var(--border)]/40">
       <div className="text-[10px] text-amber-400 font-medium mb-1.5">
         거절된 견적입니다 — 같은 내용으로 재발송 (수정하려면 ✏️ 수정)
       </div>
-      <div className="flex flex-col sm:flex-row gap-1.5">
+      <div className="resend-bar-row flex flex-col sm:flex-row gap-1.5">
         <input
           type="email"
           value={email}

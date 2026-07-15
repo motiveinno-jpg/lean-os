@@ -28,7 +28,7 @@ export function ActivityCard({ title, href, hrefLabel = "전체보기", empty, c
 }) {
   return (
     <div className="activity-card glass-card px-4 py-3 flex flex-col">
-      <div className="flex items-center justify-between mb-2">
+      <div className="activity-card-header flex items-center justify-between mb-2">
         <div className="flex items-baseline gap-1.5 min-w-0">
           <h3 className="text-[13px] font-bold text-[var(--text)] truncate">{title}</h3>
           {count != null && count > 0 && <span className="text-[11px] font-semibold text-[var(--text-dim)] mono-number">{count}</span>}
@@ -36,8 +36,8 @@ export function ActivityCard({ title, href, hrefLabel = "전체보기", empty, c
         <Link href={href} className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0 no-underline">{hrefLabel} →</Link>
       </div>
       {empty
-        ? <div className="text-[11px] text-[var(--text-dim)] py-2 text-center">표시할 내용이 없습니다.</div>
-        : <div className="flex flex-col divide-y divide-[var(--border)]/60">{children}</div>}
+        ? <div className="activity-card-empty text-[11px] text-[var(--text-dim)] py-2 text-center">표시할 내용이 없습니다.</div>
+        : <div className="activity-card-rows flex flex-col divide-y divide-[var(--border)]/60">{children}</div>}
     </div>
   );
 }
@@ -75,7 +75,7 @@ export function RecentProjects({ companyId }: { companyId: string }) {
       {data.map((p) => {
         const st = STAGE[p.stage] || { l: p.stage || "-", c: "var(--text-dim)" };
         return (
-          <Link key={p.id} href={`/projecthub/${p.id}`} className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+          <Link key={p.id} href={`/projecthub/${p.id}`} className="project-row flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
             <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{p.name || "프로젝트"}</span>
             <Badge label={st.l} tone={st.c} />
             <span className="text-[11px] mono-number text-[var(--text-muted)] shrink-0 w-16 text-right">{p.contract_total ? won(Number(p.contract_total)) : "-"}</span>
@@ -106,12 +106,12 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
     <ActivityCard title="이번 달 매출" href="/reports/revenue" hrefLabel="매출 현황" empty={!data || data.count === 0}>
       {data && (
         <>
-          <div className="flex items-center justify-between py-2">
+          <div className="revenue-total-row flex items-center justify-between py-2">
             <span className="text-[11px] text-[var(--text-dim)]">이번 달 합계 ({data.count}건)</span>
             <span className="text-[15px] leading-none font-extrabold mono-number" style={{ color: "var(--success)" }}>{won(data.total)}</span>
           </div>
           {data.rows.map((r) => (
-            <Link key={r.id} href="/tax-invoices" className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+            <Link key={r.id} href="/tax-invoices" className="revenue-row flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
               <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{r.counterparty_name || "-"}</span>
               <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(r.issue_date)}</span>
               <span className="text-[11px] mono-number text-[var(--text-muted)] shrink-0 w-16 text-right">{won(Number(r.supply_amount || 0))}</span>
@@ -141,7 +141,7 @@ export function RecentInvoices({ companyId }: { companyId: string }) {
       {data.map((inv) => {
         const isSales = inv.type === "sales";
         return (
-          <Link key={inv.id} href="/tax-invoices" className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+          <Link key={inv.id} href="/tax-invoices" className="invoice-row flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
             <Badge label={isSales ? "매출" : "매입"} tone={isSales ? "var(--success)" : "var(--warning)"} />
             <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{inv.counterparty_name || "-"}</span>
             <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(inv.issue_date)}</span>

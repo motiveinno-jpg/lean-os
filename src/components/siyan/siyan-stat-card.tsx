@@ -37,15 +37,15 @@ export function SiyanStatCard({
 }) {
   const g = gradient || GRAD[tone];
   return (
-    <div className={`rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${g} ${className}`}>
-      <div className="flex items-start justify-between gap-2">
+    <div className={`siyan-stat-card rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${g} ${className}`}>
+      <div className="stat-card-body flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[11px] text-white/80 mb-1 uppercase tracking-wider font-medium">{label}</div>
-          <div className="text-2xl font-black mono-number truncate">{value}</div>
-          {sub != null && <div className="text-xs text-white/75 mt-1">{sub}</div>}
+          <div className="stat-card-label text-[11px] text-white/80 mb-1 uppercase tracking-wider font-medium">{label}</div>
+          <div className="stat-card-value text-2xl font-black mono-number truncate">{value}</div>
+          {sub != null && <div className="stat-card-sub text-xs text-white/75 mt-1">{sub}</div>}
         </div>
         {icon != null && (
-          <span className="p-2 bg-white/20 rounded-lg shrink-0 text-base leading-none flex items-center justify-center">
+          <span className="stat-card-icon p-2 bg-white/20 rounded-lg shrink-0 text-base leading-none flex items-center justify-center">
             {icon}
           </span>
         )}

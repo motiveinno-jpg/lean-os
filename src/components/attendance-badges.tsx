@@ -71,7 +71,7 @@ export function AttendanceBadges({
     <>
       {showLate && (
         <span
-          className={`inline-flex items-center gap-1 rounded font-semibold bg-red-500/10 text-red-400 ${pad}`}
+          className={`attendance-badge-late inline-flex items-center gap-1 rounded font-semibold bg-red-500/10 text-red-400 ${pad}`}
           title={`지각 ${lateMin}분`}
         >
           🔴 지각 {lateMin}분
@@ -79,7 +79,7 @@ export function AttendanceBadges({
       )}
       {showOt && (
         <span
-          className={`inline-flex items-center gap-1 rounded font-semibold bg-orange-500/10 text-orange-400 ${pad}`}
+          className={`attendance-badge-overtime inline-flex items-center gap-1 rounded font-semibold bg-orange-500/10 text-orange-400 ${pad}`}
           title={`연장근로 ${otMin}분 (가산 1.5)`}
         >
           🟠 연장 {fmtHM(otMin)}
@@ -87,7 +87,7 @@ export function AttendanceBadges({
       )}
       {showOtLegacy && (
         <span
-          className={`inline-flex items-center gap-1 rounded font-semibold bg-orange-500/10 text-orange-400 ${pad}`}
+          className={`attendance-badge-overtime-legacy inline-flex items-center gap-1 rounded font-semibold bg-orange-500/10 text-orange-400 ${pad}`}
           title="연장근로 (시간)"
         >
           🟠 연장 +{otHoursLegacy.toFixed(1)}h
@@ -95,7 +95,7 @@ export function AttendanceBadges({
       )}
       {showNight && (
         <span
-          className={`inline-flex items-center gap-1 rounded font-semibold bg-purple-500/10 text-purple-400 ${pad}`}
+          className={`attendance-badge-night inline-flex items-center gap-1 rounded font-semibold bg-purple-500/10 text-purple-400 ${pad}`}
           title={`야간근로 ${nightMin}분 (가산 0.5)`}
         >
           🟣 야간 {fmtHM(nightMin)}
@@ -103,7 +103,7 @@ export function AttendanceBadges({
       )}
       {showHoliday && (
         <span
-          className={`inline-flex items-center gap-1 rounded font-semibold bg-emerald-500/10 text-emerald-400 ${pad}`}
+          className={`attendance-badge-holiday inline-flex items-center gap-1 rounded font-semibold bg-emerald-500/10 text-emerald-400 ${pad}`}
           title={`휴일 근무 ${holidayMin}분 (가산 1.5x~2.0x)`}
         >
           🟢 휴일 {fmtHM(holidayMin)}
@@ -111,7 +111,7 @@ export function AttendanceBadges({
       )}
       {typeMeta && (
         <span
-          className={`inline-flex items-center gap-1 rounded font-semibold bg-sky-500/10 text-sky-400 ${pad}`}
+          className={`attendance-badge-type inline-flex items-center gap-1 rounded font-semibold bg-sky-500/10 text-sky-400 ${pad}`}
           title={`근무 형태: ${typeMeta.label}`}
         >
           {typeMeta.emoji} {typeMeta.label}

@@ -92,7 +92,7 @@ function RefinedTrendChart({ series, labels, gradId }: { series: number[]; label
 
 // ── 공용 합계 행 (매출 추이 카드 등에서 사용) ──
 const TotalRow = ({ label, amount, color }: { label: string; amount: number; color?: string }) => (
-  <div className="flex justify-between items-center mt-4 pt-4 border-t border-[var(--border)]">
+  <div className="total-row flex justify-between items-center mt-4 pt-4 border-t border-[var(--border)]">
     <span className="text-[13px] font-medium text-[var(--text-muted)]">{label}</span>
     <span className="text-[16px] font-bold tabular-nums text-[var(--text)]" style={color ? { color } : undefined}>{fmtW(amount)}</span>
   </div>
@@ -149,8 +149,8 @@ export function DashboardRevenueTrendCard({ companyId }: { companyId: string }) 
   const hasChart = series.length > 1 && series.some((v) => v > 0);
 
   return (
-    <div className={cardCls}>
-      <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+    <div className={`revenue-trend-card ${cardCls}`}>
+      <div className="revenue-trend-header flex items-center justify-between gap-2 flex-wrap mb-4">
         <div className="flex items-baseline gap-2.5">
           <h3 className="text-sm font-bold text-[var(--text)]">매출 추이</h3>
           <Link href="/reports/pnl" className="text-[12px] font-semibold text-[var(--primary)]">손익 상세 →</Link>
@@ -166,7 +166,7 @@ export function DashboardRevenueTrendCard({ companyId }: { companyId: string }) 
         {hasChart ? (
           <RefinedTrendChart series={series} labels={labels} gradId={`rev-grad-${mode}`} />
         ) : (
-          <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
+          <div className="revenue-trend-empty flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
             <span className="text-[13px] text-[var(--text-muted)]">{mode === "year" ? "연도별" : `${year}년`} 매출 데이터가 아직 부족합니다</span>
             <span className="text-[13px] font-semibold tabular-nums shrink-0 text-[var(--text)]">{fmtW(totalAmount)}</span>
           </div>
@@ -226,8 +226,8 @@ function CompactAssetCard({ title, color, total, totalLabel, rows, count, href, 
   rows: { name: string; amount: number }[]; count: number; href: string; empty: string;
 }) {
   return (
-    <Link href={href} className="glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
-      <div className="flex items-center justify-between gap-2">
+    <Link href={href} className="compact-asset-card glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
+      <div className="compact-asset-header flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
           <span className="text-[12px] font-semibold text-[var(--text-muted)]">{title}</span>
@@ -238,9 +238,9 @@ function CompactAssetCard({ title, color, total, totalLabel, rows, count, href, 
       {rows.length === 0 ? (
         <div className="text-[11px] text-[var(--text-dim)] mt-2">{empty}</div>
       ) : (
-        <div className="flex flex-col gap-0.5 mt-2">
+        <div className="compact-asset-rows flex flex-col gap-0.5 mt-2">
           {rows.map((r) => (
-            <div key={r.name} className="flex justify-between items-center text-[11px]">
+            <div key={r.name} className="compact-asset-row flex justify-between items-center text-[11px]">
               <span className="truncate text-[var(--text-dim)] mr-2">{r.name}</span>
               <span className="tabular-nums text-[var(--text-muted)] shrink-0">{fmtW(r.amount)}</span>
             </div>

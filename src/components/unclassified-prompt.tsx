@@ -56,7 +56,7 @@ export function UnclassifiedPrompt({ companyId }: { companyId: string }) {
   return (
     <div className="unclassified-prompt mb-4 flex items-center gap-3 px-4 py-2.5 rounded-xl border" style={{ background: "color-mix(in srgb, var(--warning) 8%, transparent)", borderColor: "color-mix(in srgb, var(--warning) 22%, transparent)" }}>
       <span className="text-base shrink-0">🗂️</span>
-      <div className="min-w-0 flex-1">
+      <div className="prompt-text min-w-0 flex-1">
         <div className="text-[12px] font-bold text-[var(--text)]">미분류 거래 {count.toLocaleString()}건</div>
         <div className="text-[11px] text-[var(--text-dim)] truncate">계정과목이 지정되지 않은 통장·카드 거래입니다. 자동 정리하거나 직접 분류하세요.</div>
       </div>

@@ -132,9 +132,9 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
   const onSave = () => saveMut.mutate(form);
 
   return (
-    <div className="space-y-4">
+    <div className="attendance-settings-panel space-y-4">
       {/* 근무시간 */}
-      <div className="glass-card p-6">
+      <div className="work-hours-section glass-card p-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold">근무시간</h2>
           <span className="caption">
@@ -201,7 +201,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
           야간 종료가 시작보다 작으면 자정을 넘긴 것으로 자동 계산합니다 (예: 22:00 ~ 06:00).
         </p>
 
-        <div className="mt-4">
+        <div className="workday-picker mt-4">
           <label className="block text-xs text-[var(--text-muted)] mb-1.5">근무 요일</label>
           <div className="flex gap-1.5">
             {DOW.map((d) => (
@@ -222,7 +222,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
       </div>
 
       {/* 가산수당 정책 */}
-      <div className="glass-card p-6">
+      <div className="allowance-policy-section glass-card p-6">
         <h2 className="section-title">가산수당 정책</h2>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -295,7 +295,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
       <HrAllowanceCatalogPanel companyId={companyId} />
 
       {/* 휴일 캘린더 */}
-      <div className="glass-card p-6">
+      <div className="holiday-calendar-section glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold">휴일 관리 ({year}년)</h2>
           <div className="flex items-center gap-2">
@@ -315,7 +315,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-2 mb-3">
+        <div className="holiday-form-row grid grid-cols-4 gap-2 mb-3">
           <DateField
             value={newHoliday.date}
             onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })}
@@ -345,12 +345,12 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
           </button>
         </div>
 
-        <div className="space-y-1 max-h-72 overflow-y-auto">
+        <div className="holiday-list space-y-1 max-h-72 overflow-y-auto">
           {holidays.length === 0 ? (
             <p className="text-xs text-[var(--text-muted)] text-center py-6">등록된 휴일이 없습니다.</p>
           ) : (
             holidays.map((h: any) => (
-              <div key={h.id} className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+              <div key={h.id} className="holiday-row flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
                 <div className="flex items-center gap-3 text-xs">
                   <span className="text-[var(--text-muted)] w-24">{h.date}</span>
                   <span className="font-medium">{h.name}</span>

@@ -294,7 +294,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
   return (
     <div className="space-y-4">
       {/* 헤더 — print 시 숨김 */}
-      <div className="flex items-center justify-between gap-2 print:hidden">
+      <div className="contract-viewer-header flex items-center justify-between gap-2 print:hidden">
         <div>
           {backHref && (
             <Link href={backHref} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">← 프로젝트 목록</Link>
@@ -313,7 +313,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
       </div>
 
       {/* 감사 메타 — print 시 숨김 */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 print:hidden">
+      <div className="contract-viewer-meta bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 print:hidden">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
           <div>
             <div className="text-[var(--text-dim)] uppercase tracking-wider text-[10px] mb-0.5">서명 방식</div>
@@ -341,12 +341,12 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
 
       {/* 계약서 본문 (print-friendly) — 양식 안에 sig-box 이미 있으면 푸터 중복 회피.
           globals.css 의 `body * { visibility: hidden }` 우회 — `.print-area` 만 visible. */}
-      <div className="print-area bg-white text-gray-900 rounded-xl shadow border border-[var(--border)] p-8 print:shadow-none print:border-0 print:p-0 print:rounded-none print:m-0 print:w-full">
+      <div className="contract-viewer-body print-area bg-white text-gray-900 rounded-xl shadow border border-[var(--border)] p-8 print:shadow-none print:border-0 print:p-0 print:rounded-none print:m-0 print:w-full">
         <div dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(stripBodySignatureArea(html)) }} />
 
         {/* 갑/을 푸터 자동 합성 — 본문에 sig-box 없는 경우만 (자유 본문·옛 양식) */}
         {!/class="sig-box"/.test(html) && (
-          <div className="mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-12 print:break-inside-avoid">
+          <div className="contract-viewer-signature-footer mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-12 print:break-inside-avoid">
             {/* 갑 (우리 회사) — 우리 서명 없으면 회사 직인(seal_url) fallback 표시(을 손글씨와 대칭) */}
             <div>
               <div className="text-sm font-bold mb-2 flex items-center gap-2">
@@ -407,11 +407,11 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
       {/* 갑(우리) 서명·도장 추가 모달 */}
       {showOurSignModal && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 print:hidden"
+          className="our-sign-modal fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 print:hidden"
           onClick={() => !submittingOurSig && setShowOurSignModal(false)}
         >
           <div
-            className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+            className="our-sign-modal-panel bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
@@ -459,14 +459,14 @@ function SignatureBox({ dataUrl }: { dataUrl: string | null | undefined }) {
   const [broken, setBroken] = useState(false);
   const showImg = !!dataUrl && !broken;
   return (
-    <span className="relative inline-block w-[80px] h-[80px] border border-dashed border-gray-300 rounded bg-gray-50 flex-shrink-0 overflow-hidden align-middle">
+    <span className="signature-box relative inline-block w-[80px] h-[80px] border border-dashed border-gray-300 rounded bg-gray-50 flex-shrink-0 overflow-hidden align-middle">
       {showImg ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={dataUrl!}
           alt=""
           onError={() => setBroken(true)}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }}
+          className="absolute inset-0 w-full h-full object-contain p-1"
         />
       ) : (
         <span className="absolute inset-0 flex items-center justify-center text-[9px] text-gray-400">

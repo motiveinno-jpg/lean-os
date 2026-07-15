@@ -113,11 +113,11 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   const totalTodo = actions.length + queueCount + (sixPack.arOver30 > 0 ? 1 : 0);
 
   return (
-    <div className="space-y-4 mb-5">
+    <div className="owner-command-center space-y-4 mb-5">
       {/* ═══ ① 오늘의 액션 센터 ═══ */}
-      <div className="glass-card overflow-hidden">
+      <div className="today-action-center glass-card overflow-hidden">
         {/* 흰 카드 헤더 (TeamHub 라운드) */}
-        <div className="px-5 py-4 flex flex-wrap items-center gap-3 border-b border-[var(--border)]">
+        <div className="today-action-center-header px-5 py-4 flex flex-wrap items-center gap-3 border-b border-[var(--border)]">
           <div>
             <div className="text-[15px] font-bold text-[var(--text)]">오늘 처리할 일</div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5">결재 · 입금 확인 · 미수금 — 여기서 바로 끝내세요</div>
@@ -149,9 +149,9 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
         </div>
 
         {/* 결재 리스트 */}
-        <div>
+        <div className="pending-approval-list">
           {topActions.length === 0 ? (
-            <div className="px-5 py-6 flex items-center gap-3">
+            <div className="pending-approval-empty px-5 py-6 flex items-center gap-3">
               <span className="text-2xl">🎉</span>
               <div>
                 <div className="text-sm font-bold text-[var(--text)]">대기 중인 결재가 없습니다</div>
@@ -163,7 +163,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
               {topActions.map((a) => {
                 const meta = ACTION_META[a.type] || ACTION_META.approval;
                 return (
-                  <div key={`${a.type}-${a.id}`} className="px-5 py-3 flex items-center gap-3 border-b border-[var(--border)]/50 last:border-b-0 hover:bg-[var(--bg-surface)]/50 transition">
+                  <div key={`${a.type}-${a.id}`} className="pending-approval-row px-5 py-3 flex items-center gap-3 border-b border-[var(--border)]/50 last:border-b-0 hover:bg-[var(--bg-surface)]/50 transition">
                     <span className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 bg-[var(--bg-surface)]">{meta.icon}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -213,16 +213,16 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
       </div>
 
       {/* ═══ ② 현금 펄스 / 이번 달 목표 / 리스크 ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="command-center-summary-grid grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* 현금 펄스 */}
-        <div className="glass-card p-5">
+        <div className="cash-pulse-card glass-card p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-[13px] font-bold text-[var(--text)]">현금 펄스</h3>
             <Link href="/reports/flow" className="text-[10px] font-semibold text-[var(--primary)]">경영 흐름 →</Link>
           </div>
           <div className="flex items-center gap-4">
             {/* 스코어 링 */}
-            <div className="relative shrink-0" style={{ width: 84, height: 84 }}>
+            <div className="cash-pulse-score-ring relative shrink-0" style={{ width: 84, height: 84 }}>
               <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
                 <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--bg-surface)" strokeWidth="3.2" />
                 <circle cx="18" cy="18" r="15.9155" fill="none" stroke={scoreColor} strokeWidth="3.2"
@@ -250,7 +250,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
         </div>
 
         {/* 이번 달 목표 */}
-        <div className="glass-card p-5">
+        <div className="revenue-target-card glass-card p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-[13px] font-bold text-[var(--text)]">매출 목표</h3>
             <Link href="/reports/pnl" className="text-[10px] font-semibold text-[var(--primary)]">손익 →</Link>
@@ -279,13 +279,13 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
         </div>
 
         {/* 리스크 */}
-        <div className="glass-card p-5">
+        <div className="risk-summary-card glass-card p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-[13px] font-bold text-[var(--text)]">리스크</h3>
             <Link href="/projects" className="text-[10px] font-semibold text-[var(--primary)]">프로젝트 →</Link>
           </div>
           {riskTotal === 0 ? (
-            <div className="py-6 text-center">
+            <div className="risk-summary-empty py-6 text-center">
               <div className="text-2xl mb-1.5">🛡️</div>
               <div className="text-[12px] font-semibold text-emerald-500">감지된 리스크 없음</div>
               <div className="text-[10px] text-[var(--text-dim)] mt-0.5">마진·마감·미수금·외주비 자동 감시 중</div>

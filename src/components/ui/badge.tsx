@@ -24,7 +24,7 @@ export function Badge({
   className?: string;
 }) {
   return (
-    <span className={`text-[13px] font-semibold px-3 py-1 rounded-full whitespace-nowrap ${TONE_CLASS[tone]} ${className}`}>
+    <span className={`ui-badge text-[13px] font-semibold px-3 py-1 rounded-full whitespace-nowrap ${TONE_CLASS[tone]} ${className}`}>
       {children}
     </span>
   );

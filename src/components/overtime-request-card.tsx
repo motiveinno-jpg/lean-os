@@ -211,7 +211,7 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
   });
 
   return (
-    <div className="glass-card p-5 mb-6">
+    <div className="overtime-request-card glass-card p-5 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-bold text-[var(--text)]">연장근무 신청</h3>
@@ -222,7 +222,7 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
       </div>
 
       {/* 폼 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+      <div className="overtime-request-form grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">예정일</label>
           <DateField
@@ -275,7 +275,7 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
       </div>
 
       {/* 본인 신청 이력 — 최근 5건 */}
-      <div>
+      <div className="overtime-request-history">
         <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">최근 신청</div>
         {history.length === 0 ? (
           <div className="text-[11px] text-[var(--text-dim)] py-3 text-center bg-[var(--bg-surface)] rounded-lg border border-[var(--border)]">
@@ -288,7 +288,7 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
               return (
                 <div
                   key={row.id}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]"
+                  className="overtime-history-row flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]"
                 >
                   <div className="text-xs font-mono text-[var(--text)] shrink-0 w-[88px]">{row.requested_date}</div>
                   <div className="text-xs font-mono text-[var(--text-muted)] shrink-0 w-[52px]">

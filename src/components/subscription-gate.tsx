@@ -39,23 +39,19 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   // ── 하드 페이월: trial 만료 · 해지 후 기간 종료 ──
   if (gate.blocked && !onAllowedRoute) {
     return (
-      <div className="glass-card" style={{ maxWidth: 560, margin: "64px auto", padding: "40px 32px", textAlign: "center" }}>
+      <div className="subscription-paywall glass-card max-w-[560px] my-16 mx-auto px-8 py-10 text-center">
         <div
-          style={{
-            width: 56, height: 56, borderRadius: 16, margin: "0 auto 20px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)",
-          }}
+          className="subscription-paywall-icon w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-[var(--primary)]"
         >
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" />
             <path d="M7 11V7a5 5 0 0110 0v4" />
           </svg>
         </div>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", margin: "0 0 10px" }}>
+        <h2 className="text-xl font-extrabold text-[var(--text)] mb-2.5">
           {gate.state === "trial_expired" ? "무료 체험이 끝났습니다" : "구독이 종료되었습니다"}
         </h2>
-        <p style={{ fontSize: 13.5, color: "var(--text-muted)", lineHeight: 1.7, margin: "0 0 24px" }}>
+        <p className="text-[13.5px] text-[var(--text-muted)] leading-[1.7] mb-6">
           데이터는 안전하게 보관되어 있습니다.
           {isManager
             ? " 요금제를 선택하시면 모든 기능과 데이터를 바로 다시 사용할 수 있습니다."
@@ -64,18 +60,14 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
         {isManager ? (
           <Link
             href="/billing"
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px",
-              borderRadius: 12, background: "var(--primary)", color: "#fff",
-              fontSize: 14, fontWeight: 700, textDecoration: "none",
-            }}
+            className="subscription-paywall-cta inline-flex items-center gap-2 py-3 px-7 rounded-xl bg-[var(--primary)] text-white text-sm font-bold no-underline"
           >
             요금제 보기 →
           </Link>
         ) : (
           <Link
             href="/mypage"
-            style={{ fontSize: 13, color: "var(--primary)", fontWeight: 600, textDecoration: "none" }}
+            className="text-[13px] text-[var(--primary)] font-semibold no-underline"
           >
             내 계정으로 이동 →
           </Link>
@@ -94,44 +86,29 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
       {showTrialBanner && isManager && (
         <Link
           href="/billing"
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
-            padding: "10px 16px", borderRadius: 12, marginBottom: 16, textDecoration: "none",
-            background: "color-mix(in srgb, var(--primary) 8%, transparent)",
-            border: "1px solid color-mix(in srgb, var(--primary) 25%, transparent)",
-          }}
+          className="subscription-trial-banner flex items-center justify-between gap-3 py-2.5 px-4 rounded-xl mb-4 no-underline bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] border border-[color-mix(in_srgb,var(--primary)_25%,transparent)]"
         >
-          <span style={{ fontSize: 12.5, color: "var(--text)", fontWeight: 600 }}>
-            ⏳ 무료 체험이 <strong style={{ color: "var(--primary)" }}>{gate.daysLeft}일</strong> 남았습니다
+          <span className="text-[12.5px] text-[var(--text)] font-semibold">
+            ⏳ 무료 체험이 <strong className="text-[var(--primary)]">{gate.daysLeft}일</strong> 남았습니다
             {gate.planName ? ` (${gate.planName} 체험 중)` : ""}
           </span>
-          <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 700, whiteSpace: "nowrap" }}>요금제 선택 →</span>
+          <span className="text-xs text-[var(--primary)] font-bold whitespace-nowrap">요금제 선택 →</span>
         </Link>
       )}
       {showPastDueBanner && isManager && (
         <Link
           href="/billing"
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
-            padding: "10px 16px", borderRadius: 12, marginBottom: 16, textDecoration: "none",
-            background: "color-mix(in srgb, #ef4444 8%, transparent)",
-            border: "1px solid color-mix(in srgb, #ef4444 30%, transparent)",
-          }}
+          className="subscription-pastdue-banner flex items-center justify-between gap-3 py-2.5 px-4 rounded-xl mb-4 no-underline bg-[color-mix(in_srgb,#ef4444_8%,transparent)] border border-[color-mix(in_srgb,#ef4444_30%,transparent)]"
         >
-          <span style={{ fontSize: 12.5, color: "#ef4444", fontWeight: 600 }}>
+          <span className="text-[12.5px] text-[#ef4444] font-semibold">
             ⚠️ 결제에 실패했습니다 — 결제 수단을 확인해 주세요. 미해결 시 서비스가 제한될 수 있습니다.
           </span>
-          <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 700, whiteSpace: "nowrap" }}>결제 관리 →</span>
+          <span className="text-xs text-[#ef4444] font-bold whitespace-nowrap">결제 관리 →</span>
         </Link>
       )}
       {showBlockedAllowedBanner && (
         <div
-          style={{
-            padding: "10px 16px", borderRadius: 12, marginBottom: 16,
-            background: "color-mix(in srgb, #f59e0b 8%, transparent)",
-            border: "1px solid color-mix(in srgb, #f59e0b 30%, transparent)",
-            fontSize: 12.5, color: "#d97706", fontWeight: 600,
-          }}
+          className="subscription-blocked-banner py-2.5 px-4 rounded-xl mb-4 bg-[color-mix(in_srgb,#f59e0b_8%,transparent)] border border-[color-mix(in_srgb,#f59e0b_30%,transparent)] text-[12.5px] text-[#d97706] font-semibold"
         >
           🔒 구독이 만료되어 다른 화면은 잠겨 있습니다. {isManager ? "요금제를 선택하면 즉시 복구됩니다." : "관리자에게 문의해 주세요."}
         </div>

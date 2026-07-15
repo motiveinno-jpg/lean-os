@@ -25,7 +25,7 @@ export function DateTimeField({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="datetime-field flex items-center gap-2">
       <DateField
         value={datePart}
         onChange={(e) => emit(e.target.value, timePart)}

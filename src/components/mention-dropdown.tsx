@@ -42,15 +42,15 @@ export function MentionDropdown({ users, filter, onSelect, onClose, activeIndex,
 
   return (
     <div ref={ref}
-      className="absolute bottom-full left-0 mb-1 w-64 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden z-50">
-      <div className="px-3 py-1.5 text-[9px] text-[var(--text-dim)] uppercase tracking-wider font-semibold border-b border-[var(--border)]">
+      className="mention-dropdown absolute bottom-full left-0 mb-1 w-64 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden z-50">
+      <div className="mention-dropdown-header px-3 py-1.5 text-[9px] text-[var(--text-dim)] uppercase tracking-wider font-semibold border-b border-[var(--border)]">
         멘션 — @{filter}
       </div>
       {filtered.map((u, i) => (
         <button key={u.id}
           onClick={() => onSelect(u)}
           onMouseEnter={() => onHoverIndex?.(i)}
-          className={`w-full px-3 py-2 text-left transition flex items-center gap-2 ${i === activeIndex ? 'bg-[var(--bg-surface)]' : 'hover:bg-[var(--bg-surface)]'}`}>
+          className={`mention-dropdown-item w-full px-3 py-2 text-left transition flex items-center gap-2 ${i === activeIndex ? 'bg-[var(--bg-surface)]' : 'hover:bg-[var(--bg-surface)]'}`}>
           <div className="w-6 h-6 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--primary)]">
             {(u.name || u.email)[0].toUpperCase()}
           </div>

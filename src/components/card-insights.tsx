@@ -80,8 +80,8 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
   }, [rows]);
 
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-3">
+    <div className="top-card-expenses glass-card p-5">
+      <div className="top-card-expenses-header flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <span className="kpi-icon danger"><TileIcon name="card" className="w-5 h-5" /></span>
           <div>
@@ -105,14 +105,14 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
       {top.length === 0 ? (
         <div className="text-center py-6 text-xs text-[var(--text-dim)]">최근 30일 카드 지출이 없습니다.</div>
       ) : (
-        <div className="space-y-2">
+        <div className="top-card-expenses-list space-y-2">
           {top.map((t: any, i: number) => {
             const amount = Number(t.amount || 0);
             const dStr = t.transaction_date || '';
             const d = new Date(dStr);
             const dateDisplay = isNaN(d.getTime()) ? dStr : `${d.getMonth() + 1}/${d.getDate()}`;
             return (
-              <div key={t.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
+              <div key={t.id} className="top-card-expense-row flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
                 <div className="text-[10px] font-bold text-[var(--text-dim)] w-5 text-center">{i + 1}</div>
                 <div className="text-[10px] text-[var(--text-dim)] w-10 mono-number">{dateDisplay}</div>
                 <div className="flex-1 min-w-0">
@@ -202,8 +202,8 @@ export function CardAutoTransferHistory({ companyId }: Props) {
   const total = useMemo(() => items.reduce((s, r) => s + Number(r.amount || 0), 0), [items]);
 
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-3">
+    <div className="card-auto-transfer glass-card p-5">
+      <div className="card-auto-transfer-header flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <span className="kpi-icon info"><TileIcon name="repeat" className="w-5 h-5" /></span>
           <h2 className="text-[15px] font-bold text-[var(--text)]">정기결제내역</h2>
@@ -227,14 +227,14 @@ export function CardAutoTransferHistory({ companyId }: Props) {
           <div className="text-[10px] mt-1">거래내역 페이지에서 거래를 &quot;고정비&quot;로 체크하면 여기에 모입니다.</div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="card-auto-transfer-list space-y-2">
           {items.map((t: any) => {
             const amount = Number(t.amount || 0);
             const dStr = t.transaction_date || '';
             const d = new Date(dStr);
             const dateDisplay = isNaN(d.getTime()) ? dStr : `${d.getMonth() + 1}/${d.getDate()}`;
             return (
-              <div key={t.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
+              <div key={t.id} className="card-auto-transfer-row flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
                 <div className="text-[10px] text-[var(--text-dim)] w-10 mono-number">{dateDisplay}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -391,8 +391,8 @@ export function CardMonthlyUsage({ companyId }: Props) {
   const grandTotal = months.reduce((s, m) => s + (totals[m] || 0), 0);
 
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-3">
+    <div className="card-monthly-usage glass-card p-5">
+      <div className="card-monthly-usage-header flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <span className="kpi-icon"><TileIcon name="trendingUp" className="w-5 h-5" /></span>
           <div>
@@ -407,7 +407,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
       </div>
 
       {/* 합계 막대 그래프 */}
-      <div className="mb-4">
+      <div className="card-monthly-usage-bars mb-4">
         <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">월별 합계</div>
         <div className="grid grid-cols-6 gap-2">
           {months.map((m) => {
@@ -468,11 +468,11 @@ function CardPerCardTable({
     });
   };
   return (
-    <div>
+    <div className="card-per-card-table">
       <button
         type="button"
         onClick={toggle}
-        className="flex items-center gap-1.5 mb-2 hover:opacity-80 transition"
+        className="card-per-card-toggle flex items-center gap-1.5 mb-2 hover:opacity-80 transition"
       >
         <span className="inline-block w-3 text-center text-[10px] text-[var(--text-muted)]">{collapsed ? '▶' : '▼'}</span>
         <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">

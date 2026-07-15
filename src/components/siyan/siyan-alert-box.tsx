@@ -28,12 +28,12 @@ export function SiyanAlertBox({
   if (items.length === 0 && !emptyFallback) return null;
   const s = STYLE[type];
   return (
-    <div className={`rounded-2xl border ${s.box} p-5 ${className}`}>
-      <div className="flex items-start gap-3">
+    <div className={`siyan-alert-box rounded-2xl border ${s.box} p-5 ${className}`}>
+      <div className="alert-box-body flex items-start gap-3">
         <span className={`p-2 rounded-lg shrink-0 text-base leading-none ${s.iconBg} ${s.iconColor}`}>{s.emoji}</span>
         <div className="min-w-0">
           <p className="font-bold text-[var(--text)] mb-1.5">{title}</p>
-          <ul className="space-y-1 text-sm text-[var(--text-muted)]">
+          <ul className="alert-box-list space-y-1 text-sm text-[var(--text-muted)]">
             {items.length > 0
               ? items.map((it, i) => (
                   <li key={i} className="flex gap-2">

@@ -113,7 +113,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
   if (compact) {
     if (empLoading || !employeeId) return null;
     return (
-      <div className="glass-card px-4 py-3 flex items-center gap-3">
+      <div className="attendance-card-compact glass-card px-4 py-3 flex items-center gap-3">
         <div className={`w-2 h-2 rounded-full shrink-0 ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
         <span className="flex-1 min-w-0 text-xs text-[var(--text-muted)] truncate">
           {!isCheckedIn
@@ -151,8 +151,8 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
   }
 
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-3">
+    <div className="attendance-card glass-card p-5">
+      <div className="attendance-card-header flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
           <span className="text-sm font-bold text-[var(--text)]">
@@ -164,7 +164,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
         )}
       </div>
 
-      <div className="flex items-center gap-6 mb-4">
+      <div className="attendance-times-row flex items-center gap-6 mb-4">
         <div>
           <div className="caption mb-0.5">출근</div>
           <div className="text-lg font-black font-mono">{fmtTime(todayAtt?.check_in)}</div>
@@ -188,7 +188,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
       {/* 갭①-B: 오늘 배지 (지각/연장/야간/휴일/외근·당직). 갭④: 출근 직후
           checkIn 함수가 is_late·late_minutes 즉시 채움 → 퇴근 전에도 표시. */}
       {todayAtt && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <div className="attendance-badges-row flex flex-wrap items-center gap-1.5 mb-3">
           <AttendanceBadges record={todayAtt} compact />
           {isCheckedIn && !isCheckedOut && Number(todayAtt.overtime_minutes || 0) === 0 && (
             <span className="text-[10px] text-[var(--text-dim)] italic">연장은 퇴근 시 산정</span>
@@ -197,7 +197,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
       )}
 
       {!isCheckedIn && (
-        <div className="flex gap-2 mb-3 flex-wrap">
+        <div className="attendance-status-picker flex gap-2 mb-3 flex-wrap">
           {[
             { value: "present", label: "출근" },
             { value: "remote", label: "재택" },
@@ -216,7 +216,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="attendance-action-row flex gap-3">
         {!isCheckedIn ? (
           <button onClick={doCheckIn} disabled={busy}
             className="flex-1 py-3 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50">

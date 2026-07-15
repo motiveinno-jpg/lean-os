@@ -19,7 +19,7 @@ export function ClassificationBadge({ classification, color, size = 'sm' }: Clas
 
   return (
     <span
-      className={`inline-flex items-center rounded font-semibold uppercase tracking-wider ${
+      className={`classification-badge inline-flex items-center rounded font-semibold uppercase tracking-wider ${
         size === 'sm' ? 'text-[9px] px-1.5 py-0.5' : 'text-[10px] px-2 py-1'
       }`}
       style={{

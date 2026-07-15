@@ -61,9 +61,9 @@ export function DashboardSiyanHero({
 
   // ── KPI 4카드 — 공통 골격: [라벨 + 우측 칩/버튼] / [값] / [보조 한 줄] ──
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="dashboard-siyan-hero-grid grid grid-cols-2 lg:grid-cols-4 gap-4">
       {/* 총 자금 */}
-      <div className="glass-card p-4 flex flex-col gap-2">
+      <div className="kpi-balance-card glass-card p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 자금</span>
           <div className="flex items-center gap-1">
@@ -93,7 +93,7 @@ export function DashboardSiyanHero({
       </div>
 
       {/* 이번달 매출 */}
-      <div className="glass-card p-4 flex flex-col gap-2">
+      <div className="kpi-revenue-card glass-card p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번달 매출</span>
           <div className="flex items-center gap-1">
@@ -113,7 +113,7 @@ export function DashboardSiyanHero({
       </div>
 
       {/* 월 운영비 */}
-      <div className="glass-card p-4 flex flex-col gap-2">
+      <div className="kpi-expense-card glass-card p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">월 운영비</span>
           <div className="flex items-center gap-1">
@@ -129,7 +129,7 @@ export function DashboardSiyanHero({
       </div>
 
       {/* 미수금 — 위험 값만 색으로 구분 + 회수 관리 진입 링크 */}
-      <div className="glass-card p-4 flex flex-col gap-2">
+      <div className="kpi-ar-card glass-card p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">미수금</span>
           <span className={`delta-chip ${arOver30 > 0 ? "delta-down" : "delta-up"}`}>{arOver30 > 0 ? "▼ 지연" : "▲ 정상"}</span>
@@ -168,18 +168,18 @@ export function DashboardCostBars({ costBreakdown }: { costBreakdown?: Breakdown
   }
 
   return (
-    <div className="glass-card p-6">
-      <div className="flex items-center justify-between mb-1">
+    <div className="cost-bars-card glass-card p-6">
+      <div className="cost-bars-header flex items-center justify-between mb-1">
         <h3 className="text-sm font-bold text-[var(--text)]">비용 구성</h3>
         <Link href="/reports/pnl" className="text-[13px] font-semibold text-[var(--primary)]">상세 보기</Link>
       </div>
       <p className="text-[11px] text-[var(--text-dim)] mb-4">이번 달 총 비용 <b className="text-[var(--text)] mono-number">{won(catTotal)}</b></p>
-      <div className="space-y-3">
+      <div className="cost-bars-list space-y-3">
         {cats.map((c, i) => {
           const pct = catTotal > 0 ? Math.round((c.amount / catTotal) * 100) : 0;
           const barPct = maxAmount > 0 ? (c.amount / maxAmount) * 100 : 0; // 막대 길이는 최대 항목 대비 — 편중 구조에서도 차이가 읽힘
           return (
-            <div key={c.label} className="flex items-center gap-3">
+            <div key={c.label} className="cost-bars-row flex items-center gap-3">
               <span className="w-20 text-[13px] font-medium truncate text-[var(--text)] shrink-0">{c.label}</span>
               <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
                 <div className="h-full rounded-full" style={{ width: `${Math.max(barPct, 1.5)}%`, backgroundColor: SEG[i % SEG.length] }} />

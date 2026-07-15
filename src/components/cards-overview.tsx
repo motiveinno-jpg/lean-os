@@ -106,7 +106,7 @@ function StatCard({ tone, icon, label, value, trend }: {
   trend: number | null;
 }) {
   return (
-    <div className="glass-card p-5 flex flex-col gap-3">
+    <div className="card-stat-tile glass-card p-5 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
         <span className={`kpi-icon ${tone === "brand" ? "" : tone}`}><TileIcon name={icon} className="w-5 h-5" /></span>
@@ -236,9 +236,9 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
   }, [data, prevData, total]);
 
   return (
-    <div className="space-y-6">
+    <div className="cards-overview space-y-6">
       {/* 상단 통계 4개 (시안) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="cards-stat-grid grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard tone="danger" icon="card" label="기간 카드 사용액" value={fmtWon(stats.total)} trend={stats.trend} />
         <StatCard tone="brand" icon="wallet" label="등록 카드" value={`${stats.cardCount}개`} trend={null} />
         <StatCard tone="info" icon="trendingUp" label="거래 건수" value={`${stats.txCount.toLocaleString("ko-KR")}건`} trend={null} />
@@ -246,7 +246,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
       </div>
 
       {/* 컨트롤 바 — 탭(카드 종류) + 기간/새로고침/다운로드 + 검색/정렬 */}
-      <div className="glass-card p-4">
+      <div className="cards-control-bar glass-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="seg-bar overflow-x-auto scrollbar-hide">
             {([["all", "전체"], ["credit", "신용"], ["check", "체크"], ["debit", "직불"]] as const).map(([id, label]) => (
@@ -258,7 +258,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* 기간 네비게이션 — 1개월 단위 이동 + 날짜 직접 선택 */}
-            <div className="flex items-center gap-1 bg-[var(--bg-surface)] rounded-xl px-1 py-1 border border-[var(--border)]">
+            <div className="cards-date-range-nav flex items-center gap-1 bg-[var(--bg-surface)] rounded-xl px-1 py-1 border border-[var(--border)]">
               <button onClick={() => shiftMonths(-1)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="이전 달">◀</button>
               <DateField
                 value={fromStr}
@@ -289,7 +289,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
         </div>
 
         {/* 검색 + 정렬 */}
-        <div className="flex items-center gap-2 mt-4 flex-wrap">
+        <div className="cards-search-sort flex items-center gap-2 mt-4 flex-wrap">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -308,7 +308,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
       {isLoading ? (
         <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : flatCards.length === 0 ? (
-        <div className="flex items-center justify-center py-16 glass-card">
+        <div className="cards-empty flex items-center justify-center py-16 glass-card">
           <div className="text-center">
             <svg className="w-12 h-12 text-[var(--text-dim)] mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="7" strokeWidth={2} />
@@ -319,7 +319,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="cards-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {flatCards.map((c) => {
             const zero = Math.round(c.spend) === 0;
             const tr = trendOf(c.key, c.spend);
@@ -327,7 +327,7 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
               <button
                 key={c.key}
                 onClick={() => onSelectCard(cardClickPayload(c))}
-                className="group glass-card p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                className="card-tile group glass-card p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3 min-w-0">

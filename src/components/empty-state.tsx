@@ -31,5 +31,5 @@ export function EmptyState({
       {action}
     </div>
   );
-  return card ? <div className="glass-card">{body}</div> : body;
+  return card ? <div className="empty-state-card-wrap glass-card">{body}</div> : body;
 }

@@ -44,19 +44,19 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
 
   return (
     // transform:translateZ(0) — 자체 컴포지팅 레이어 격리(스크롤 시 고정 배경 위 페인트 잔상 방지)
-    <div className="relative" style={{ height, transform: "translateZ(0)" }}>
+    <div className="bar-chart relative [transform:translateZ(0)]" style={{ height }}>
       {/* Y-axis labels — min~max(음수 포함) 반영 */}
-      <div className="absolute left-0 top-0 bottom-4 w-12 flex flex-col justify-between text-[9px] text-[var(--text-dim)] mono-number">
+      <div className="bar-chart-y-axis absolute left-0 top-0 bottom-4 w-12 flex flex-col justify-between text-[9px] text-[var(--text-dim)] mono-number">
         <span>{fmtShort(axisMax)}</span>
         <span>{fmtShort((axisMax + axisMin) / 2)}</span>
         <span>{fmtShort(axisMin)}</span>
       </div>
 
       {/* Chart area */}
-      <div className="ml-12 h-full flex flex-col">
-        <div className="flex-1 flex gap-1 relative">
+      <div className="bar-chart-area ml-12 h-full flex flex-col">
+        <div className="bar-chart-plot flex-1 flex gap-1 relative">
           {/* Grid lines */}
-          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+          <div className="bar-chart-grid-lines absolute inset-0 flex flex-col justify-between pointer-events-none">
             {[0, 1, 2].map(i => (
               <div key={i} className="border-b border-[var(--border)] opacity-30" />
             ))}
@@ -65,7 +65,7 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
           {/* 0 기준선 — 음수 값이 있을 때만 (양/음 구분) */}
           {axisMin < 0 && (
             <div
-              className="absolute left-0 right-0 border-t border-dashed border-[var(--text-dim)] opacity-60 pointer-events-none z-[1]"
+              className="bar-chart-zero-line absolute left-0 right-0 border-t border-dashed border-[var(--text-dim)] opacity-60 pointer-events-none z-[1]"
               style={{ top: `${baseY}%` }}
             />
           )}
@@ -74,7 +74,7 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
           {data.map((group, gi) => (
             <div
               key={gi}
-              className={`flex-1 flex gap-0.5 h-full relative cursor-pointer rounded-t transition-all ${hover === gi ? 'bg-[var(--bg-surface)]' : ''}`}
+              className={`bar-chart-group flex-1 flex gap-0.5 h-full relative cursor-pointer rounded-t transition-all ${hover === gi ? 'bg-[var(--bg-surface)]' : ''}`}
               onClick={() => onBarClick?.(gi)}
               onMouseEnter={() => setHover(gi)}
               onMouseLeave={() => setHover(null)}
@@ -99,7 +99,7 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
                     />
                     {/* Tooltip */}
                     {hover === gi && (
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[9px] text-[var(--text)] whitespace-nowrap z-10 mono-number">
+                      <div className="bar-chart-tooltip absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[9px] text-[var(--text)] whitespace-nowrap z-10 mono-number">
                         {v.label}: ₩{v.value.toLocaleString()}
                       </div>
                     )}
@@ -113,8 +113,7 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
               (preserveAspectRatio=none + non-scaling-stroke 가 일부 브라우저서 박스 밖으로 번지던 버그 2026-06-10) */}
           {trendPoints && (
             <div
-              className="absolute inset-0 overflow-hidden pointer-events-none z-[2]"
-              style={{ contain: "paint", transform: "translateZ(0)" }}
+              className="bar-chart-trend-overlay absolute inset-0 overflow-hidden pointer-events-none z-[2] [contain:paint] [transform:translateZ(0)]"
             >
               <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <polyline
@@ -137,7 +136,7 @@ export function BarChart({ data, height = 220, onBarClick, trendLine, trendColor
         </div>
 
         {/* X-axis labels */}
-        <div className="flex mt-1">
+        <div className="bar-chart-x-axis flex mt-1">
           {data.map((g, i) => (
             <div
               key={i}

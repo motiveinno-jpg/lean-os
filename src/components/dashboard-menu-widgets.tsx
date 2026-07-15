@@ -53,7 +53,7 @@ export function BankRecentCard({ companyId }: { companyId: string }) {
       {data.map((t) => {
         const isIn = t.type === "in" || t.type === "deposit" || Number(t.amount) > 0;
         return (
-          <Link key={t.id} href="/bank" className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+          <Link key={t.id} href="/bank" className="dash-bank-row flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
             <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.counterparty || t.description || "-"}</span>
             <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(t.transaction_date)}</span>
             <span className="text-[11px] mono-number shrink-0 w-16 text-right" style={{ color: isIn ? "var(--success)" : "var(--text-muted)" }}>
@@ -99,7 +99,7 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
   return (
     <ActivityCard title="결재 대기" href="/approvals" count={data?.total} empty={(data?.total ?? 0) === 0}>
       {items.map((it) => (
-        <Link key={`${it.kind}-${it.id}`} href={it.href} className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+        <Link key={`${it.kind}-${it.id}`} href={it.href} className="dash-approval-row flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
           <Badge label={it.badge} tone="var(--warning)" />
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">
             {it.kind === "pay" ? (it as any).label : (it.amt ? won(it.amt) : "결재 문서")}
@@ -128,7 +128,7 @@ export function EmployeesCard({ companyId }: { companyId: string }) {
   return (
     <ActivityCard title="구성원" href="/employees" count={data?.count} empty={list.length === 0}>
       {list.map((e) => (
-        <Link key={e.id} href="/employees" className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+        <Link key={e.id} href="/employees" className="dash-employee-row flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{e.name || "-"}</span>
           {e.department && <span className="text-[10px] text-[var(--text-dim)] shrink-0 truncate max-w-[40%]">{e.department}</span>}
         </Link>
@@ -153,7 +153,7 @@ export function PartnersCard({ companyId }: { companyId: string }) {
   return (
     <ActivityCard title="거래처" href="/partners" count={data?.count} empty={list.length === 0}>
       {list.map((p) => (
-        <Link key={p.id} href="/partners" className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+        <Link key={p.id} href="/partners" className="dash-partner-row flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{p.name || "-"}</span>
         </Link>
       ))}
@@ -175,7 +175,7 @@ export function AnnouncementsCard() {
   return (
     <ActivityCard title="공지사항" href="/announcements" empty={data.length === 0}>
       {data.map((a) => (
-        <Link key={a.id} href="/announcements" className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+        <Link key={a.id} href="/announcements" className="dash-announcement-row flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
           {a.pinned && <span className="text-[11px] shrink-0">📌</span>}
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{a.title || "-"}</span>
           <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(a.created_at)}</span>
@@ -204,7 +204,7 @@ export function MyTasksCard({ userId }: { userId: string }) {
         const overdue = d != null && d < 0;
         return (
           <Link key={t.id} href={t.deal_id ? `/projecthub/${t.deal_id}` : "/projecthub"}
-            className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+            className="dash-task-row flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
             <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title || "할 일"}</span>
             {t.due_date && (
               <span className="text-[10px] font-semibold shrink-0" style={{ color: overdue ? "var(--danger)" : d === 0 ? "var(--warning)" : "var(--text-dim)" }}>

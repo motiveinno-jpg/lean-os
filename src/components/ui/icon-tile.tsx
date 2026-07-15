@@ -28,7 +28,7 @@ export function IconTile({
 }) {
   return (
     <div
-      className={`rounded-xl bg-gradient-to-br ${GRAD[tone]} flex items-center justify-center shadow-lg shrink-0 ${className}`}
+      className={`icon-tile rounded-xl bg-gradient-to-br ${GRAD[tone]} flex items-center justify-center shadow-lg shrink-0 ${className}`}
       style={{ width: size, height: size }}
     >
       {children}

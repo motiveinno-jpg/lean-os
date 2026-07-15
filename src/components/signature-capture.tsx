@@ -129,9 +129,9 @@ export function SignatureCapture({ onChange }: Props) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="signature-capture space-y-3">
       {/* 모드 탭 */}
-      <div className="flex gap-1.5">
+      <div className="signature-mode-tabs flex gap-1.5">
         {[
           { v: "draw" as const, label: "✍️ 손글씨" },
           { v: "upload" as const, label: "🟥 도장 업로드" },
@@ -153,7 +153,7 @@ export function SignatureCapture({ onChange }: Props) {
 
       {/* draw */}
       {mode === "draw" && (
-        <div>
+        <div className="signature-draw-panel">
           <div className="text-[11px] text-gray-500 mb-1">아래 흰 박스 안에 마우스/터치로 서명해 주세요</div>
           <canvas
             ref={canvasRef}
@@ -164,7 +164,7 @@ export function SignatureCapture({ onChange }: Props) {
             style={{ touchAction: "none" }}
             className="w-full h-40 bg-white border-2 border-dashed border-gray-300 rounded-lg cursor-crosshair"
           />
-          <div className="flex justify-between mt-1">
+          <div className="signature-draw-footer flex justify-between mt-1">
             <span className="text-[10px] text-gray-400">{drawDirty ? "✓ 서명 입력됨" : "서명 미입력"}</span>
             <button type="button" onClick={clearDraw} className="text-[11px] text-gray-500 hover:text-gray-800 underline">지우기</button>
           </div>
@@ -173,7 +173,7 @@ export function SignatureCapture({ onChange }: Props) {
 
       {/* upload */}
       {mode === "upload" && (
-        <div>
+        <div className="signature-upload-panel">
           <div className="text-[11px] text-gray-500 mb-1">도장/사인 이미지 (PNG/JPG, 권장 흰 배경 + 빨강 도장)</div>
           <input
             type="file"
@@ -182,7 +182,7 @@ export function SignatureCapture({ onChange }: Props) {
             className="text-xs"
           />
           {uploadedUrl && (
-            <div className="mt-2 bg-white border border-gray-200 rounded-lg p-3 flex justify-center">
+            <div className="signature-upload-preview mt-2 bg-white border border-gray-200 rounded-lg p-3 flex justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={uploadedUrl} alt="업로드 도장" className="max-h-32 object-contain" />
             </div>

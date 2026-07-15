@@ -217,19 +217,19 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
       </p>
 
       {/* 업로드 폼 */}
-      <div className="flex flex-wrap items-end gap-2 mb-4">
-        <div className="flex-1 min-w-[160px]">
+      <div className="hr-form-upload flex flex-wrap items-end gap-2 mb-4">
+        <div className="hr-form-name-field flex-1 min-w-[160px]">
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">양식 이름</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 표준 근로계약서"
             className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         </div>
         {/* 텍스트변환이 기본(권장) — 내용 수정·표·서식·{{변수}} 가능. 오버레이는 디자인 100% 보존용 보조. */}
-        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF를 편집 가능한 텍스트로 변환 — 내용을 고치고 표·서식·{{변수}}를 넣습니다 (권장)">
+        <label className={`hr-form-upload-text-btn h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF를 편집 가능한 텍스트로 변환 — 내용을 고치고 표·서식·{{변수}}를 넣습니다 (권장)">
           {busy ? "처리 중…" : "PDF 업로드 (텍스트 변환·권장)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileText(f); e.target.value = ""; }} />
         </label>
-        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer border ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="PDF 배경 위에 채울 필드 위치를 지정(원본 100% 보존, 내용 수정 불가)">
+        <label className={`hr-form-upload-overlay-btn h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer border ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="PDF 배경 위에 채울 필드 위치를 지정(원본 100% 보존, 내용 수정 불가)">
           {busy ? "처리 중…" : "디자인 그대로 (오버레이)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
@@ -238,11 +238,11 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
 
       {/* 양식 목록 */}
       {list.length === 0 ? (
-        <div className="text-xs text-[var(--text-dim)] px-1 py-2">등록된 인사 양식이 없습니다.</div>
+        <div className="hr-form-list-empty text-xs text-[var(--text-dim)] px-1 py-2">등록된 인사 양식이 없습니다.</div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="hr-form-list space-y-1.5">
           {list.map((t) => (
-            <div key={t.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div key={t.id} className="hr-form-row flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
               <span className="flex-1 text-sm text-[var(--text)] font-medium truncate">{t.name}
                 <span className="ml-1 text-[10px] text-[var(--text-dim)]">
                   {t.template_mode === "text" ? "텍스트" : `${t.page_count}p · 필드 ${t.fields?.length || 0}`}
@@ -259,9 +259,9 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
 
       {/* 필드 배치 에디터 (모달) */}
       {editing && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+        <div className="hr-form-field-editor-modal fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
           <div className="bg-[var(--bg-card)] rounded-xl max-w-[1000px] w-full max-h-[90vh] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="text-sm font-bold text-[var(--text)] mb-2">채울 필드 위치 지정 — {name}</div>
+            <div className="hr-form-field-editor-header text-sm font-bold text-[var(--text)] mb-2">채울 필드 위치 지정 — {name}</div>
             <FormTemplateEditor
               docType="hr_form"
               pageImages={editing.pageImages}
@@ -277,15 +277,15 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
 
       {/* 채우기 모달 */}
       {filling && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setFilling(null)}>
+        <div className="hr-form-fill-modal fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setFilling(null)}>
           <div className="bg-[var(--bg-card)] rounded-xl max-w-md w-full max-h-[85vh] overflow-auto p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="text-sm font-bold text-[var(--text)] mb-3">{filling.tpl.name} — 값 입력</div>
+            <div className="hr-form-fill-header text-sm font-bold text-[var(--text)] mb-3">{filling.tpl.name} — 값 입력</div>
             {fillKeys(filling.tpl).length === 0 ? (
               <div className="text-xs text-[var(--text-dim)] mb-3">채울 수 있는 필드가 없습니다. 빈 양식을 내려받아 손으로 작성하세요.</div>
             ) : (
-              <div className="space-y-2 mb-4">
+              <div className="hr-form-fill-fields space-y-2 mb-4">
                 {fillKeys(filling.tpl).map((f, i) => (
-                  <div key={i}>
+                  <div key={i} className="hr-form-fill-field">
                     <label className="block text-[11px] text-[var(--text-muted)] mb-1">{f.label}</label>
                     <input
                       value={filling.values[f.key] ?? ""}
@@ -296,7 +296,7 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
                 ))}
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="hr-form-fill-actions flex gap-2">
               <button onClick={() => setFilling(null)} className="flex-1 py-2 rounded-lg border border-[var(--border)] text-sm text-[var(--text-muted)]">취소</button>
               <button onClick={exportFilled} className="flex-1 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold">채워서 PDF 출력</button>
             </div>

@@ -36,7 +36,7 @@ export function RadialGauge({ pct, label, color, size = 132 }: { pct: number | n
   const circ = 2 * Math.PI * r;
   const stroke = color || statusColor(pct);
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} style={{ width: size, height: size }} role="img" aria-label={`달성률 ${Math.round(p)}%`}>
+    <svg className="radial-gauge" viewBox={`0 0 ${size} ${size}`} style={{ width: size, height: size }} role="img" aria-label={`달성률 ${Math.round(p)}%`}>
       <circle cx={cx} cy={cx} r={r} fill="none" stroke={BORDER} strokeWidth={sw} />
       <circle cx={cx} cy={cx} r={r} fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round"
         strokeDasharray={`${(circ * p) / 100} ${circ}`} transform={`rotate(-90 ${cx} ${cx})`} />
@@ -52,7 +52,7 @@ export function RadialGauge({ pct, label, color, size = 132 }: { pct: number | n
 export function ProgressBar({ pct, color, height = 8 }: { pct: number | null; color?: string; height?: number }) {
   const p = pct == null ? 0 : Math.min(100, Math.max(0, pct));
   return (
-    <div style={{ height, borderRadius: height, background: "var(--bg-surface)", overflow: "hidden" }}>
+    <div className="progress-bar-track" style={{ height, borderRadius: height, background: "var(--bg-surface)", overflow: "hidden" }}>
       <div style={{ width: `${p}%`, height: "100%", borderRadius: height, background: color || statusColor(pct), transition: "width .3s" }} />
     </div>
   );
@@ -60,13 +60,13 @@ export function ProgressBar({ pct, color, height = 8 }: { pct: number | null; co
 
 // ── ① 미니 스파크라인 ──
 export function Sparkline({ points, color, width = 80, height = 24 }: { points: number[]; color?: string; width?: number; height?: number }) {
-  if (!points || points.length === 0) return <svg width={width} height={height} />;
+  if (!points || points.length === 0) return <svg className="sparkline" width={width} height={height} />;
   const max = Math.max(...points, 1), min = Math.min(...points, 0);
   const span = max - min || 1;
   const step = points.length > 1 ? width / (points.length - 1) : 0;
   const d = points.map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(height - ((v - min) / span) * (height - 2) - 1).toFixed(1)}`).join(" ");
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} style={{ width, height }} preserveAspectRatio="none">
+    <svg className="sparkline" viewBox={`0 0 ${width} ${height}`} style={{ width, height }} preserveAspectRatio="none">
       <path d={d} fill="none" stroke={color || PRIMARY} strokeWidth={1.4} />
     </svg>
   );
@@ -79,7 +79,7 @@ export function BarList({ items, unit = "", emptyText = "데이터 없음" }: { 
   const max = Math.max(...rows.map((r) => r.value), 1);
   const total = rows.reduce((s, r) => s + r.value, 0);
   return (
-    <div className="space-y-2">
+    <div className="bar-list space-y-2">
       {rows.map((r) => (
         <div key={r.label}>
           <div className="flex items-center justify-between text-[11px] mb-0.5">
@@ -110,7 +110,7 @@ export function LineChart({ series, markerX, height = 160, yUnit = "" }: { serie
   const sy = (y: number) => padT + (1 - (y - yMin) / ySpan) * (H - padT - padB);
   const path = (pts: { x: number; y: number }[]) => pts.map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ");
   return (
-    <div>
+    <div className="chart-line">
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H }} preserveAspectRatio="none">
         <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke={BORDER} strokeWidth={0.5} />
         {markerX != null && (
@@ -139,7 +139,7 @@ const ST_COLOR: Record<string, string> = { green: "var(--primary)", yellow: AMBE
 export function StatusTimeline({ points }: { points: { label: string; status: string }[] }) {
   if (!points || points.length === 0) return <div className="text-xs text-[var(--text-dim)] py-2">체크인 기록 없음</div>;
   return (
-    <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="status-timeline flex items-center gap-1.5 flex-wrap">
       {points.map((p, i) => (
         <div key={i} className="flex flex-col items-center gap-0.5" title={`${p.label}: ${p.status}`}>
           <span style={{ width: 14, height: 14, borderRadius: 999, background: ST_COLOR[p.status] || DIM, display: "inline-block" }} />

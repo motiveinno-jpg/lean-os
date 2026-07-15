@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 /* ── OwnerView SVG Icon ── */
 export function OwnerViewIcon({ size = 28, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={`shrink-0 ${className}`} xmlns="http://www.w3.org/2000/svg">
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className={`owner-view-icon shrink-0 ${className}`} xmlns="http://www.w3.org/2000/svg">
       <rect width="40" height="40" rx="10" fill="#1E293B"/>
       <circle cx="18" cy="17" r="8.5" stroke="#fff" strokeWidth="2.5" fill="none"/>
       <line x1="24" y1="23" x2="31" y2="30" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
@@ -24,11 +24,11 @@ export function RollingBrandText({ className = "", interval = 2000 }: { classNam
   }, [interval]);
 
   return (
-    <span className={`relative inline-flex justify-center overflow-hidden ${className}`} style={{ height: "1.25em" }}>
+    <span className={`brand-rolling-text relative inline-flex justify-center overflow-hidden h-[1.25em] ${className}`}>
       {/* Invisible sizer — ensures container is wide enough for longest text */}
-      <span className="invisible whitespace-nowrap px-1" aria-hidden="true">OwnerView</span>
+      <span className="brand-rolling-sizer invisible whitespace-nowrap px-1" aria-hidden="true">OwnerView</span>
       <span
-        className="absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap"
+        className="brand-rolling-en absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap"
         style={{
           transform: showKr ? "translateY(-100%)" : "translateY(0)",
           opacity: showKr ? 0 : 1,
@@ -37,7 +37,7 @@ export function RollingBrandText({ className = "", interval = 2000 }: { classNam
         OwnerView
       </span>
       <span
-        className="absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap"
+        className="brand-rolling-kr absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap"
         style={{
           transform: showKr ? "translateY(0)" : "translateY(100%)",
           opacity: showKr ? 1 : 0,

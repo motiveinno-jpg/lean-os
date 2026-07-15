@@ -27,8 +27,8 @@ export function ActionCard({ cardType, status, summaryJson }: ActionCardProps) {
   const summary = summaryJson || {};
 
   return (
-    <div className={`border-l-3 ${style.border} bg-[var(--bg-surface)] rounded-r-lg p-3 my-1`}>
-      <div className="flex items-center justify-between mb-1.5">
+    <div className={`action-card border-l-3 ${style.border} bg-[var(--bg-surface)] rounded-r-lg p-3 my-1`}>
+      <div className="action-card-header flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-1.5">
           <span className="text-sm">{style.icon}</span>
           <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">

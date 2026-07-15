@@ -28,13 +28,13 @@ export function FinancialNumber({
   const sizeClass = size === "large" ? "text-[36px]" : "text-[22px]";
   if (tone === "gradient") {
     return (
-      <div className={`${sizeClass} font-semibold bg-gradient-to-r from-[var(--fin-from)] to-[var(--fin-to)] bg-clip-text text-transparent tabular-nums ${className}`}>
+      <div className={`financial-number ${sizeClass} font-semibold bg-gradient-to-r from-[var(--fin-from)] to-[var(--fin-to)] bg-clip-text text-transparent tabular-nums ${className}`}>
         {children}
       </div>
     );
   }
   return (
-    <div className={`${sizeClass} font-semibold tabular-nums ${TONE_CLASS[tone]} ${className}`}>
+    <div className={`financial-number ${sizeClass} font-semibold tabular-nums ${TONE_CLASS[tone]} ${className}`}>
       {children}
     </div>
   );

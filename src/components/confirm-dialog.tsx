@@ -54,10 +54,10 @@ export function useConfirm() {
 
   const confirmElement = state ? (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4"
+      className="confirm-dialog-backdrop fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4"
       onClick={() => close({ ok: false })}
     >
-      <div className="glass-card w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
+      <div className="confirm-dialog-panel glass-card w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
         <h3 className="text-base font-bold text-[var(--text)]">{state.title}</h3>
         {state.desc && <div className="mt-2 text-sm text-[var(--text-muted)] leading-relaxed">{state.desc}</div>}
         {state.withInput != null && (
@@ -70,7 +70,7 @@ export function useConfirm() {
             rows={3}
           />
         )}
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="confirm-dialog-actions mt-5 flex justify-end gap-2">
           <button className="btn-secondary" onClick={() => close({ ok: false })}>취소</button>
           <button
             className={state.danger ? "btn-danger-solid" : "btn-primary"}

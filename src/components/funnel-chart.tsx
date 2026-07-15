@@ -22,7 +22,7 @@ function fmtKR(n: number): string {
 
 export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
   if (stages.length === 0) {
-    return <div className="text-xs text-[var(--text-dim)] text-center py-8">데이터 없음</div>;
+    return <div className="funnel-chart-empty text-xs text-[var(--text-dim)] text-center py-8">데이터 없음</div>;
   }
 
   const maxCount = Math.max(...stages.map((s) => s.count), 1);
@@ -33,7 +33,7 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
       {/* Desktop: SVG funnel */}
       {/* contain:paint + overflow-hidden + translateZ(0) — preserveAspectRatio=none·non-scaling-stroke
           SVG 페인트가 박스 밖으로 번지던 버그 차단(2026-06-10) */}
-      <div className="hidden md:block relative overflow-hidden" style={{ height, transform: "translateZ(0)", contain: "paint" }}>
+      <div className="funnel-chart-desktop hidden md:block relative overflow-hidden" style={{ height, transform: "translateZ(0)", contain: "paint" }}>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ contain: "paint" }}>
           {stages.map((s, i) => {
             const segH = 100 / stages.length;
@@ -63,14 +63,13 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
         </svg>
 
         {/* Labels overlay */}
-        <div className="absolute inset-0 flex flex-col">
+        <div className="funnel-chart-labels absolute inset-0 flex flex-col">
           {stages.map((s, i) => {
             const conv = i === 0 ? 100 : (firstCount > 0 ? (s.count / firstCount) * 100 : 0);
             return (
               <div
                 key={i}
-                className="flex-1 flex items-center justify-between px-3 text-[10px]"
-                style={{ minHeight: 0 }}
+                className="funnel-chart-label-row flex-1 flex items-center justify-between px-3 text-[10px] min-h-0"
               >
                 <span className="font-semibold text-[var(--text)] bg-[var(--bg-card)]/80 px-1.5 py-0.5 rounded">
                   {s.label}
@@ -88,7 +87,7 @@ export function FunnelChart({ stages, height = 220 }: FunnelChartProps) {
       </div>
 
       {/* Mobile: horizontal stacked bars */}
-      <div className="md:hidden space-y-2">
+      <div className="funnel-chart-mobile md:hidden space-y-2">
         {stages.map((s, i) => {
           const widthPct = (maxCount > 0 && s.count > 0) ? (s.count / maxCount) * 100 : 0;
           const conv = i === 0 ? 100 : (firstCount > 0 ? (s.count / firstCount) * 100 : 0);
