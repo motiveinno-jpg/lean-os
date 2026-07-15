@@ -157,11 +157,34 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
 
   return (
     <div className="employee-detail-modal glass-card overflow-hidden shadow-2xl animate-slide-in">
-      {/* 상단 액션 바 — 라운드6.5: 인물 정보는 좌측 프로필 카드로 이동, 액션만 유지. 2026-07-15: 유리질감 헤더로 정제 */}
-      <div className="employee-detail-header px-6 py-4 border-b border-[var(--border)] bg-gradient-to-b from-[var(--bg-surface)]/70 to-transparent">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[15px] font-extrabold text-[var(--text)] tracking-tight">구성원 상세</h3>
-          <div className="flex items-center gap-2 shrink-0">
+      {/* 히어로 헤더 — 2026-07-15: 좌우 분할(프로필카드+탭콘텐츠) 구조 폐기, 그라데이션 배너 + 아바타 오버랩 단일 헤더로 재구성 */}
+      <div className="employee-detail-hero relative">
+        <div className="h-20 w-full" style={{ background: `linear-gradient(120deg, ${avatarColor(emp.id)}, color-mix(in srgb, ${avatarColor(emp.id)} 25%, var(--bg-card)))` }} />
+        <button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-xl bg-black/15 hover:bg-black/25 text-white transition backdrop-blur-sm">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <div className="px-6 pb-4 -mt-9 flex items-end justify-between gap-4 flex-wrap">
+          <div className="flex items-end gap-3.5 min-w-0">
+            <div
+              className="w-[72px] h-[72px] rounded-3xl flex items-center justify-center text-white font-extrabold text-2xl shadow-xl ring-4 ring-[var(--bg-card)] shrink-0"
+              style={{ background: `linear-gradient(135deg, ${avatarColor(emp.id)}, ${avatarColor(emp.id)}99)` }}
+            >
+              {emp.name?.charAt(0)}
+            </div>
+            <div className="min-w-0 pb-0.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-lg font-extrabold text-[var(--text)] truncate">{emp.name}</span>
+                {["active", "joined"].includes(emp.status)
+                  ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--success)]/12 text-[var(--success)] shrink-0">재직</span>
+                  : <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--text-dim)]/15 text-[var(--text-dim)] shrink-0">퇴직</span>}
+              </div>
+              <div className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
+                {[emp.position, emp.department].filter(Boolean).join(" · ") || "직책 미지정"}
+                {emp.employee_number ? ` · #${emp.employee_number}` : ""}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 pb-0.5">
             {!isEditing && detailTab === "info" && (
               <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3.5 py-1.5 text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 rounded-xl transition">
                 ✏ 수정
@@ -172,53 +195,13 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                 퇴사 처리
               </button>
             )}
-            <button onClick={onClose} className="p-2 hover:bg-[var(--bg-surface)] rounded-xl text-[var(--text-dim)] hover:text-[var(--text)] transition">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
           </div>
         </div>
       </div>
 
-      {/* 본문 — 레퍼런스 Employee Details: 좌 1/3 프로필 카드 + 우 2/3 콘텐츠 */}
-      <div className="grid gap-5 lg:grid-cols-3 p-6 bg-[var(--bg-surface)]/30 max-h-[74vh] overflow-y-auto">
-        {/* 좌 — 프로필 카드 */}
-        <div className="lg:col-span-1">
-          <div className="employee-profile-card glass-card p-5 text-center">
-            <div
-              className="w-20 h-20 mx-auto rounded-3xl flex items-center justify-center text-white font-extrabold text-2xl shadow-lg ring-4 ring-[var(--bg-card)]"
-              style={{ background: `linear-gradient(135deg, ${avatarColor(emp.id)}, ${avatarColor(emp.id)}99)` }}
-            >
-              {emp.name?.charAt(0)}
-            </div>
-            <div className="mt-3 text-lg font-extrabold text-[var(--text)]">{emp.name}</div>
-            <div className="text-xs text-[var(--text-muted)] mt-0.5">{[emp.position, emp.department].filter(Boolean).join(" · ") || "직책 미지정"}</div>
-            <div className="mt-2">
-              {["active", "joined"].includes(emp.status)
-                ? <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--success)]/12 text-[var(--success)]">재직</span>
-                : <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--text-dim)]/15 text-[var(--text-dim)]">퇴직</span>}
-            </div>
-            <div className="mt-4 pt-2 border-t border-[var(--border)] text-left">
-              {([
-                ["사번", emp.employee_number ? `#${emp.employee_number}` : null],
-                ["고용형태", emp.employment_type === "regular" ? "정규직" : emp.employment_type === "contract" ? "계약직" : emp.employment_type === "parttime" ? "파트타임" : emp.employment_type === "intern" ? "인턴" : emp.employment_type || null],
-                ["입사일", emp.hire_date || null],
-                ["근속기간", emp.hire_date ? (() => { const d = new Date(emp.hire_date); const now = new Date(); const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth(); const y = Math.floor(months / 12); const m = months % 12; return y > 0 ? `${y}년 ${m}개월` : `${m}개월`; })() : null],
-                ["4대보험", emp.is_4_insurance ? "가입" : "미가입"],
-                ["이메일", emp.email || null],
-                ["전화번호", emp.phone || null],
-              ] as [string, string | null][]).map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between gap-2 py-2 border-b border-[var(--border)]/50 last:border-0">
-                  <span className="text-[11px] text-[var(--text-dim)] shrink-0">{label}</span>
-                  <span className="text-[12px] font-semibold text-[var(--text)] text-right truncate">{value || "—"}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 우 — 탭 콘텐츠 (근태·연차/문서·계약 등 기존 탭 데이터, 필형 seg-bar 수렴) */}
-        <div className="lg:col-span-2 min-w-0">
-        <div className="seg-bar flex-wrap mb-4">
+      {/* 탭 바 — 히어로 아래, 전체 폭 */}
+      <div className="px-6 pt-3 pb-0 border-b border-[var(--border)] bg-[var(--bg-surface)]/20">
+        <div className="seg-bar flex-wrap mb-3">
           {[
             { key: "info", label: "정보" },
             { key: "contracts", label: "계약서" },
@@ -235,6 +218,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
             </button>
           ))}
         </div>
+      </div>
+
+      {/* 본문 — 단일 컬럼 전체폭(좌우 분할 폐기), 정보 탭은 2열 카드 그리드로 재배치 */}
+      <div className="p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto">
         {/* Info Tab — Flex-style sections */}
         {detailTab === "info" && (
           <div className="space-y-5">
@@ -247,6 +234,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                 </div>
               </div>
             )}
+            <div className="grid gap-4 lg:grid-cols-2">
             {/* 인사 정보 */}
             <div className="employee-info-section">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
@@ -364,6 +352,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                   <InfoRow label="예금주" value={emp.bank_holder} />
                 </>)}
               </div>
+            </div>
             </div>
             {/* 퇴직금 계산 */}
             {emp.hire_date && emp.salary && (() => {
@@ -642,7 +631,6 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
             </div>
           </div>
         )}
-        </div>
       </div>
 
       {/* Termination Modal */}
