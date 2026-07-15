@@ -213,6 +213,19 @@ export default function BankPage() {
           }
         })
         .catch(() => { /* 자동분류 실패는 비차단 — 수동 분류로 진행 가능 */ });
+
+      // 동기화 후 입금↔계산서 매칭 '제안' 자동 생성(비차단) — 새 입금에 대한 정산 제안을 미리 만들어 둠.
+      //   확정/미수금 반영은 사람이 '거래 대사' 확인 큐에서(확정은 사람 원칙). RPC 는 on-conflict-do-nothing 이라 중복 제안 안 만듦.
+      (async () => {
+        try {
+          const end = new Date().toISOString().slice(0, 10);
+          const s = new Date(); s.setDate(s.getDate() - 120);
+          const start = s.toISOString().slice(0, 10);
+          const { data } = await (supabase as any).rpc("generate_settlement_suggestions", { p_start: start, p_end: end });
+          const sug = Number((data as any)?.suggested || 0);
+          if (sug > 0) toast(`입금 매칭 제안 ${sug}건 생성 — '거래 대사'에서 확인·확정하세요`, "info");
+        } catch { /* 제안 생성 실패는 비차단 */ }
+      })();
     } catch (e: any) {
       toast(friendlyError(e, "통장 연동 오류"), "error");
     } finally {
