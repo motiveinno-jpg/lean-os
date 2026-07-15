@@ -1,9 +1,11 @@
 "use client";
 
 // 위젯식 대시보드 그리드 — react-grid-layout(비반응형 GridLayout, 완전 controlled) 기반 자유 배치(2026-07-14).
-//   편집 모드: 8방향 드래그 리사이즈 + 아무 위치 드래그 이동(격자 스냅) + 세로 자동 압축. 회사/유저별 localStorage 저장.
-//   렌더 시 모든 위젯에 항상 레이아웃 항목 보장 → 데이터 로딩으로 위젯이 잠깐 빠졌다 돌아올 때 RGL이 h=1로
-//   자동생성/저장하며 최소 크기로 줄어들던 버그 방지. 위젯별 기본 위치(x/y/w/h)는 DashWidget 으로 지정 가능.
+//   편집 모드: 하단·우측 드래그 리사이즈 + 아무 위치 드래그 이동(격자 스냅) + 세로 자동 압축. 회사/유저별 localStorage 저장.
+//   2026-07-15 카탈로그 기반 전환: 전체 위젯 카탈로그 + 개인별 활성 목록 관리 → 편집 모드에서 위젯 추가/삭제 자유.
+//     · 활성 목록: localStorage `${storageKey}::active` (없으면 defaultActiveIds)
+//     · 배치(layout): localStorage `${storageKey}` (현재 없는 위젯 항목도 보존)
+//   활성 위젯만 render() 호출 → 비활성 위젯의 쿼리/컴포넌트는 마운트되지 않음(비용 0).
 
 import { useState, useEffect, useMemo } from "react";
 import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
@@ -12,37 +14,82 @@ import "react-resizable/css/styles.css";
 
 const RGL = WidthProvider(GridLayout);
 
-export type DashWidget = { id: string; node: React.ReactNode; x?: number; y?: number; w?: number; h?: number };
+// 카탈로그 위젯 정의 — 페이지에서 render 클로저로 페이지 데이터(companyId 등)를 캡처해 전달.
+export type CatalogWidget = {
+  id: string;
+  name: string;               // picker 표시 이름
+  icon?: string;              // 이모지
+  desc?: string;              // picker 설명
+  category?: string;          // picker 그룹
+  x?: number; y?: number; w?: number; h?: number; // 기본 배치(기본 활성 위젯용)
+  render: () => React.ReactNode;
+};
 
-function buildDefault(widgets: DashWidget[]): Layout[] {
-  return widgets.map((w, i) => ({
+function buildDefault(cat: CatalogWidget[]): Layout[] {
+  return cat.map((w, i) => ({
     i: w.id,
     x: w.x ?? (i % 3) * 4,
-    y: w.y ?? Math.floor(i / 3) * (w.h || 6),
-    w: w.w || 4, h: w.h || 6, minW: 3, minH: 2,
+    // 기본 배치(y) 없는 위젯(=사용자가 나중에 추가)은 맨 아래로 — vertical 압축이 빈자리로 끌어올림.
+    y: w.y ?? 1000,
+    w: w.w || 4, h: w.h || 4, minW: 3, minH: 2,
   }));
 }
 
-export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: DashWidget[]; storageKey: string; title?: string }) {
+export function DashboardGrid({
+  storageKey, catalog, defaultActiveIds, title = "",
+}: {
+  storageKey: string;
+  catalog: CatalogWidget[];
+  defaultActiveIds: string[];
+  title?: string;
+}) {
   const [edit, setEdit] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [layout, setLayout] = useState<Layout[]>([]); // 저장된 레이아웃(현재 없는 위젯 항목도 보존)
+  const [layout, setLayout] = useState<Layout[]>([]);      // 저장된 배치(현재 없는 위젯 항목도 보존)
+  const [activeIds, setActiveIds] = useState<string[]>(defaultActiveIds);
   const [copied, setCopied] = useState(false);
+  const [picking, setPicking] = useState(false);           // 위젯 추가 패널 열림
 
-  const widgetIds = widgets.map((w) => w.id).join(",");
+  const activeKey = `${storageKey}::active`;
+  const catMap = useMemo(() => Object.fromEntries(catalog.map((c) => [c.id, c])), [catalog]);
+  const catalogIds = catalog.map((c) => c.id).join(",");
 
   useEffect(() => {
     try { const raw = JSON.parse(localStorage.getItem(storageKey) || "null"); if (Array.isArray(raw)) setLayout(raw); } catch { /* noop */ }
+    try {
+      const rawA = JSON.parse(localStorage.getItem(activeKey) || "null");
+      if (Array.isArray(rawA)) setActiveIds(rawA);
+    } catch { /* noop */ }
     setMounted(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
-  // 렌더용 레이아웃 — 현재 위젯마다 항상 항목 보장(저장분 우선, 없으면 기본값). RGL h=1 자동생성 방지.
+  // 활성 위젯(카탈로그에 존재하는 것만) — 순서 보존.
+  const active = useMemo(
+    () => activeIds.map((id) => catMap[id]).filter(Boolean) as CatalogWidget[],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeIds, catalogIds],
+  );
+
+  // 추가 가능한 위젯(현재 비활성) — picker 목록.
+  const addable = useMemo(
+    () => catalog.filter((c) => !activeIds.includes(c.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeIds, catalogIds],
+  );
+
+  // 렌더용 배치 — 활성 위젯마다 항상 항목 보장(저장분 우선, 없으면 기본값).
   const effective = useMemo(() => {
     const saved = Object.fromEntries(layout.map((l) => [l.i, l]));
-    const def = Object.fromEntries(buildDefault(widgets).map((l) => [l.i, l]));
-    return widgets.map((w) => saved[w.id] || def[w.id]);
+    const def = Object.fromEntries(buildDefault(active).map((l) => [l.i, l]));
+    return active.map((w) => saved[w.id] || def[w.id]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, widgetIds]);
+  }, [layout, activeIds, catalogIds]);
+
+  const persistActive = (ids: string[]) => {
+    setActiveIds(ids);
+    try { localStorage.setItem(activeKey, JSON.stringify(ids)); } catch { /* noop */ }
+  };
 
   const onLayoutChange = (l: Layout[]) => {
     if (!mounted) return;
@@ -54,7 +101,14 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
       return next;
     });
   };
-  const reset = () => { setLayout([]); try { localStorage.removeItem(storageKey); } catch { /* noop */ } };
+
+  const addWidget = (id: string) => { if (!activeIds.includes(id)) persistActive([...activeIds, id]); setPicking(false); };
+  const removeWidget = (id: string) => persistActive(activeIds.filter((x) => x !== id));
+
+  const reset = () => {
+    setLayout([]); persistActive(defaultActiveIds);
+    try { localStorage.removeItem(storageKey); } catch { /* noop */ }
+  };
   const copyLayout = async () => {
     const json = JSON.stringify(effective.map((l) => ({ i: l.i, x: l.x, y: l.y, w: l.w, h: l.h })));
     try { await navigator.clipboard.writeText(json); setCopied(true); setTimeout(() => setCopied(false), 1500); }
@@ -65,14 +119,40 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
     <div className="dash-section-head flex items-start justify-between gap-2 mb-3">
       <div>
         {title && <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>{title}</div>}
-        {edit && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 원하는 위치로 · 모서리/가장자리를 드래그해 크기 조절 (빈칸 자동 정렬 · 자동 저장)</p>}
+        {edit && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 이동 · 우측/하단 모서리로 크기 조절 · 위젯 추가/삭제 (자동 저장)</p>}
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        {edit && <button onClick={copyLayout} className="btn-secondary btn-sm">{copied ? "복사됨!" : "📋 배치 복사"}</button>}
-        {edit && <button onClick={reset} className="btn-secondary btn-sm">기본값</button>}
-        <button onClick={() => setEdit((v) => !v)} className={`btn-sm ${edit ? "btn-primary" : "btn-secondary"}`}>
+      <div className="flex items-center gap-1.5 shrink-0 relative">
+        {edit && (
+          <button onClick={() => setPicking((v) => !v)} className="btn-secondary btn-sm no-drag">
+            {picking ? "닫기" : `＋ 위젯 추가${addable.length ? ` (${addable.length})` : ""}`}
+          </button>
+        )}
+        {edit && <button onClick={copyLayout} className="btn-secondary btn-sm no-drag">{copied ? "복사됨!" : "📋 배치 복사"}</button>}
+        {edit && <button onClick={reset} className="btn-secondary btn-sm no-drag">기본값</button>}
+        <button onClick={() => { setEdit((v) => !v); setPicking(false); }} className={`btn-sm no-drag ${edit ? "btn-primary" : "btn-secondary"}`}>
           {edit ? "✓ 편집 완료" : "⠿ 위젯 편집"}
         </button>
+
+        {/* 위젯 추가 패널 */}
+        {edit && picking && (
+          <div className="widget-picker absolute right-0 top-full mt-1.5 z-30 w-[300px] max-h-[60vh] overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-2">
+            {addable.length === 0 ? (
+              <div className="text-[12px] text-[var(--text-dim)] text-center py-6">추가할 수 있는 위젯이 없습니다.<br />모든 위젯이 이미 표시 중입니다.</div>
+            ) : (
+              addable.map((c) => (
+                <button key={c.id} onClick={() => addWidget(c.id)}
+                  className="w-full flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[var(--bg-surface)] transition">
+                  <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[14px] shrink-0">{c.icon || "🧩"}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[12px] font-bold text-[var(--text)] truncate">{c.name}</span>
+                    {c.desc && <span className="block text-[11px] text-[var(--text-dim)] truncate">{c.desc}</span>}
+                  </span>
+                  <span className="text-[16px] text-[var(--primary)] font-bold shrink-0 leading-none mt-1">＋</span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -82,7 +162,7 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
       <div className="dashboard-grid">
         {Header}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {widgets.map((w) => <div key={w.id}>{w.node}</div>)}
+          {active.map((w) => <div key={w.id}>{w.render()}</div>)}
         </div>
       </div>
     );
@@ -105,12 +185,18 @@ export function DashboardGrid({ widgets, storageKey, title = "" }: { widgets: Da
         draggableCancel=".no-drag"
         // 하단·우측 핸들만 사용(s/e/se). 상단·좌측(n/w/nw/ne/sw) 핸들은 리사이즈 시 x/y까지
         // 이동시켜 vertical 압축과 충돌 → "다른 위치 위젯이 리사이즈/축소"되는 RGL 고질 버그를 유발.
-        // 아래·오른쪽 핸들은 폭/높이만 키워 위치 이동이 없어 이웃 위젯에 영향 없음.
         resizeHandles={["s", "e", "se"]}
       >
-        {widgets.map((w) => (
-          <div key={w.id} className={edit ? "rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}>
-            <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.node}</div>
+        {active.map((w) => (
+          <div key={w.id} className={edit ? "relative rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}>
+            {edit && (
+              <button onClick={() => removeWidget(w.id)}
+                className="no-drag absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-[var(--danger)] text-white text-[13px] font-bold flex items-center justify-center shadow-md hover:scale-110 transition"
+                style={{ pointerEvents: "auto" }} aria-label={`${w.name} 위젯 삭제`} title="위젯 삭제">
+                ×
+              </button>
+            )}
+            <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.render()}</div>
           </div>
         ))}
       </RGL>

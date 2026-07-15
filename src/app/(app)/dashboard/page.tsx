@@ -38,11 +38,11 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
-import { useMyWorkCards } from "@/components/my-work-section"; // 상황판 "내 업무"(2026-07-08)
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
 import { DashboardBizSummary } from "@/components/dashboard-biz-summary"; // 경영 요약(손익·잔액·런웨이)
-import { RecentProjects, RecentRevenue } from "@/components/dashboard-activity"; // 회사 활동 요약 카드
-import { DashboardGrid } from "@/components/dashboard-grid"; // 위젯식 드래그 이동·크기 조절 그리드
+import { RecentProjects, RecentRevenue, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드
+import { DashboardGrid, type CatalogWidget } from "@/components/dashboard-grid"; // 위젯식 드래그 이동·크기 조절 그리드
+import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, MyTasksCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
@@ -384,9 +384,6 @@ export default function DashboardPage() {
 
   const sp = dashboard.sixPack;
 
-  // 내 업무 카드(위젯) — 통합 그리드에서 회사 현황과 함께 배치. 얼리 리턴 전에 호출(hooks 규칙).
-  const myWorkCards = useMyWorkCards(companyId || "", userId || "");
-
   // ── Employee Dashboard ──
   if (role === "employee") {
     if (!companyId) return <div className="flex items-center justify-center h-[60vh] text-sm text-[var(--text-muted)]">로딩 중...</div>;
@@ -513,46 +510,36 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* 대시보드 통합 위젯 그리드 — 내 업무 + 오늘의 액션(세금 등) + 회사 현황을 한 레이아웃으로.
-              내업무/회사현황 구분 없이 하나의 그리드. 편집 모드에서 드래그 이동 + 크기 조절(자동 저장). */}
+          {/* 대시보드 통합 위젯 그리드 — 카탈로그 기반: 개인별 위젯 추가/삭제 자유(2026-07-15).
+              기본 활성 위젯 = 사장님 확정 배치(DEFAULT_WIDGET_POS), 그 외는 편집 모드 '위젯 추가'로. */}
           {(() => {
             const taxItems = getUpcomingTaxDeadlines(60);
-            const POS = DEFAULT_WIDGET_POS;
-            const widgets = [
-              ...myWorkCards.map((c) => ({ ...c, ...(POS[c.id] || {}) })),
-              ...(taxItems.length > 0 ? [{ id: "tax", ...POS.tax, node: (
-                <Link href={taxItems[0].href} className="glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--warning)" }}>세금 일정</span>
-                    <span className="text-[11px] font-semibold text-[var(--primary)]">이동 →</span>
-                  </div>
-                  <div className="flex flex-col divide-y divide-[var(--border)]/60">
-                    {taxItems.slice(0, 4).map((t) => (
-                      <div key={t.id} className="flex items-center gap-2 py-2">
-                        <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold ${t.daysLeft <= 7 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>{t.daysLeft === 0 ? "D-Day" : `D-${t.daysLeft}`}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Link>
-              ) }] : []),
-              { id: "biz", ...POS.biz, node: (
-                <DashboardBizSummary
-                  monthRevenue={dashboard.growth.monthRevenue}
-                  expense={(realBurnData ?? 0) + (realVariableData ?? 0)}
-                  balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0}
-                  runwayMonths={dashboard.sixPack.runwayMonths}
-                />
-              ) },
-              { id: "revenue", ...POS.revenue, node: <RecentRevenue companyId={companyId} /> },
-              { id: "projects", ...POS.projects, node: <RecentProjects companyId={companyId} /> },
-              { id: "receivables", ...POS.receivables, node: <ReceivablesPreview companyId={companyId} /> },
-              ...(userId ? [{ id: "calendar", ...POS.calendar, node: <DashboardCalendar userId={userId} companyId={companyId} /> }] : []),
-              ...(userId ? [{ id: "attendance", ...POS.attendance, node: <MyAttendanceCard companyId={companyId} userId={userId} compact /> }] : []),
-              { id: "cards", ...POS.cards, node: <CardsSummaryCard companyId={companyId} /> },
-              { id: "assets", ...POS.assets, node: <AssetsSummaryCard companyId={companyId} /> },
+            const P = DEFAULT_WIDGET_POS;
+            const uid = userId || "";
+            // 카탈로그 — 앞쪽 10개는 기본 활성(확정 배치), 뒤쪽은 추가 가능(기본 비활성).
+            const catalog: CatalogWidget[] = [
+              { id: "biz", name: "경영 요약", icon: "📊", desc: "손익·잔액·런웨이 + 매출·비용", category: "경영", ...P.biz,
+                render: () => <DashboardBizSummary monthRevenue={dashboard.growth.monthRevenue} expense={(realBurnData ?? 0) + (realVariableData ?? 0)} balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0} runwayMonths={dashboard.sixPack.runwayMonths} /> },
+              { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", ...P.revenue, render: () => <RecentRevenue companyId={companyId} /> },
+              { id: "receivables", name: "미수금", icon: "💸", desc: "미수금·연체 현황", category: "경영", ...P.receivables, render: () => <ReceivablesPreview companyId={companyId} /> },
+              { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", ...P.projects, render: () => <RecentProjects companyId={companyId} /> },
+              { id: "tax", name: "세금 일정", icon: "🧾", desc: "다가오는 세금 마감", category: "경영", ...P.tax, render: () => <TaxScheduleWidget items={taxItems} /> },
+              { id: "cards", name: "카드", icon: "💳", desc: "이번 달 카드 사용액", category: "자금", ...P.cards, render: () => <CardsSummaryCard companyId={companyId} /> },
+              { id: "assets", name: "자산", icon: "🏦", desc: "계좌별 잔액·총자산", category: "자금", ...P.assets, render: () => <AssetsSummaryCard companyId={companyId} /> },
+              { id: "calendar", name: "일정·캘린더", icon: "📅", desc: "이번 달 일정·할 일", category: "개인", ...P.calendar, render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
+              { id: "attendance", name: "내 근태", icon: "🕘", desc: "출퇴근 상태", category: "개인", ...P.attendance, render: () => <MyAttendanceCard companyId={companyId} userId={uid} compact /> },
+              { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", ...P["work-tasks"], render: () => <MyTasksCard userId={uid} /> },
+              // ── 추가 가능(기본 비활성) ──
+              { id: "bank", name: "통장 거래", icon: "🏛️", desc: "최근 입출금 내역", category: "자금", w: 4, h: 5, render: () => <BankRecentCard companyId={companyId} /> },
+              { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", w: 4, h: 5, render: () => <RecentInvoices companyId={companyId} /> },
+              { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", w: 4, h: 4, render: () => <ApprovalsPendingCard companyId={companyId} /> },
+              { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", w: 4, h: 4, render: () => <EmployeesCard companyId={companyId} /> },
+              { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", w: 4, h: 4, render: () => <PartnersCard companyId={companyId} /> },
+              { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", w: 4, h: 4, render: () => <AnnouncementsCard /> },
+              { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 5, render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
             ];
-            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} widgets={widgets} />;
+            const defaultActiveIds = ["attendance", "calendar", "work-tasks", "projects", "revenue", "tax", "biz", "receivables", "assets", "cards"];
+            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={catalog} defaultActiveIds={defaultActiveIds} />;
           })()}
         </div>
       )}
@@ -668,6 +655,34 @@ export default function DashboardPage() {
 }
 
 // ═══ Sub-components ═══
+
+// ── 세금 일정 위젯(카탈로그용) — 다가오는 세금 마감 미리보기 ──
+function TaxScheduleWidget({ items }: { items: ReturnType<typeof getUpcomingTaxDeadlines> }) {
+  if (items.length === 0) {
+    return (
+      <div className="glass-card px-4 py-3 flex flex-col h-full">
+        <span className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--warning)" }}>세금 일정</span>
+        <div className="flex-1 flex items-center justify-center text-[11px] text-[var(--text-dim)]">다가오는 세금 일정이 없습니다.</div>
+      </div>
+    );
+  }
+  return (
+    <Link href={items[0].href} className="glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--warning)" }}>세금 일정</span>
+        <span className="text-[11px] font-semibold text-[var(--primary)]">이동 →</span>
+      </div>
+      <div className="flex flex-col divide-y divide-[var(--border)]/60">
+        {items.slice(0, 4).map((t) => (
+          <div key={t.id} className="flex items-center gap-2 py-2">
+            <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold ${t.daysLeft <= 7 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>{t.daysLeft === 0 ? "D-Day" : `D-${t.daysLeft}`}</span>
+          </div>
+        ))}
+      </div>
+    </Link>
+  );
+}
 
 // ── 빠른 이동 위젯: 자주 가는 메뉴 정적 바로가기 (새 테이블 없음) ──
 const QUICK_NAV_LINKS: { icon: string; label: string; href: string }[] = [
@@ -2753,8 +2768,6 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
   const yearMonth = today.substring(0, 7);
   const currentYear = new Date().getFullYear();
   const [checkingIn, setCheckingIn] = useState(false);
-  // 직원용 '내 업무' 위젯 카드 — 관리자와 동일한 위젯(드래그/크기조절) 기능 제공
-  const empWorkCards = useMyWorkCards(companyId || "", userId || "");
   const [checkingOut, setCheckingOut] = useState(false);
   const queryClient = useQueryClient();
 
@@ -2995,17 +3008,19 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
 
   return (
     <div className="space-y-5">
-      {/* 내 업무 — 관리자와 동일한 위젯 기능(드래그 이동·크기 조절). 회사 현황(재무) 위젯은 직원에 미노출 */}
-      {companyId && userId && (
-        <DashboardGrid
-          storageKey={`dashboard-grid-emp-${userId}`}
-          widgets={[
-            // 오너와 동일한 기본 배치 사용(안 보이는 재무 위젯은 목록에 없어 자동 제외).
-            ...empWorkCards.map((c) => ({ ...c, ...(DEFAULT_WIDGET_POS[c.id] || {}) })),
-            { id: "calendar", ...DEFAULT_WIDGET_POS.calendar, node: <DashboardCalendar userId={userId} companyId={companyId} /> },
-          ]}
-        />
-      )}
+      {/* 내 업무 — 관리자와 동일한 위젯 추가/삭제 기능. 재무 등 권한 밖 위젯은 카탈로그에서 제외(2026-07-15). */}
+      {companyId && userId && (() => {
+        const P = DEFAULT_WIDGET_POS;
+        const catalog: CatalogWidget[] = [
+          { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", ...P["work-tasks"], render: () => <MyTasksCard userId={userId} /> },
+          { id: "calendar", name: "일정·캘린더", icon: "📅", desc: "이번 달 일정·할 일", category: "개인", ...P.calendar, render: () => <DashboardCalendar userId={userId} companyId={companyId} /> },
+          { id: "attendance", name: "내 근태", icon: "🕘", desc: "출퇴근 상태", category: "개인", ...P.attendance, render: () => <MyAttendanceCard companyId={companyId} userId={userId} compact /> },
+          { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 5, render: () => <MyTodosWidget userId={userId} companyId={companyId} /> },
+          { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", w: 4, h: 4, render: () => <AnnouncementsCard /> },
+        ];
+        const defaultActiveIds = ["work-tasks", "calendar", "attendance", "todos"];
+        return <DashboardGrid storageKey={`dashboard-grid-emp-${userId}`} catalog={catalog} defaultActiveIds={defaultActiveIds} />;
+      })()}
       {/* 인사말 히어로 제거(라운드6.5) — 고정 헤더바가 인사·프로필을 대체. 근무 상태 칩은 아래 카드에 동일 표시 */}
       <div className="grid gap-5 lg:grid-cols-3 items-start">
       {/* ─ 주 콘텐츠 (좌 2/3) — 오늘 할 일: 출퇴근·결재·서명·휴가 통합 단일 카드 ─ */}
