@@ -485,7 +485,7 @@ export default function VoucherEntryPage() {
   return (
     <div className="space-y-6">
       {/* ══ 툴바 — 일자·구분 (좌) + 액션 (우), 타이틀은 공통 헤더바가 담당 ══ */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="voucher-entry-toolbar flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 pl-2.5 pr-1 py-0.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
             <span className="text-[11px] font-semibold text-[var(--text-dim)]">일자</span>
@@ -522,7 +522,7 @@ export default function VoucherEntryPage() {
       )}
 
       {/* ══ 상단: 입력 영역 (§3-3) ══ */}
-      <div ref={topRef} onKeyDown={onTopKey} className="glass-card" style={{ overflow: "visible" }}>
+      <div ref={topRef} onKeyDown={onTopKey} className="voucher-entry-input-card glass-card overflow-visible">
         <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
             <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-[var(--primary)]" />분개 입력
@@ -596,7 +596,7 @@ export default function VoucherEntryPage() {
           </table>
         </div>
         {/* 스티키 풋터 바 — 합계(차변합/대변합) + 차대일치 상태 pill */}
-        <div className="sticky bottom-0 z-10 px-5 py-3 border-t-2 border-[var(--border)] rounded-b-[18px] bg-[var(--bg-card)] flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="voucher-entry-summary-bar sticky bottom-0 z-10 px-5 py-3 border-t-2 border-[var(--border)] rounded-b-[18px] bg-[var(--bg-card)] flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-dim)]">차변합</span>
             <span className="text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalD.toLocaleString()}</span>
@@ -620,7 +620,7 @@ export default function VoucherEntryPage() {
       </div>
 
       {/* ══ 하단: 전표목록 그리드 (§3-3-A 사용자 지정 스펙) ══ */}
-      <div className="glass-card" style={{ overflow: "visible" }}>
+      <div className="voucher-entry-list-card glass-card overflow-visible">
         <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
             <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-emerald-500" />{entryDate} 전표목록
@@ -760,7 +760,7 @@ export default function VoucherEntryPage() {
 
       {/* 우클릭 메뉴 (§3-3-A: 행 삽입/복사/삭제) */}
       {ctx && (
-        <div className="fixed z-[80] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl p-1.5 text-xs"
+        <div className="voucher-entry-context-menu fixed z-[80] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl p-1.5 text-xs"
           style={{ left: ctx.x, top: ctx.y }} onClick={(e) => e.stopPropagation()}>
           {ctx.rowId.startsWith("s:") ? (
             <>

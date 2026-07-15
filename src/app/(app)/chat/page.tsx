@@ -191,8 +191,8 @@ function GuestChatView({ token }: { token: string }) {
   if (!session) return null;
 
   return (
-    <div className="max-w-[700px] mx-auto flex flex-col" style={{ height: "calc(100dvh - 60px)" }}>
-      <div className="flex items-center justify-between mb-4 shrink-0">
+    <div className="chat-guest-view max-w-[700px] mx-auto flex flex-col" style={{ height: "calc(100dvh - 60px)" }}>
+      <div className="chat-guest-header flex items-center justify-between mb-4 shrink-0">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-bold">GUEST</span>
@@ -220,7 +220,7 @@ function GuestChatView({ token }: { token: string }) {
             )}
           </div>
         )}
-        <div className={`flex-1 overflow-y-auto bg-[var(--bg-card)] ${guestRtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] p-5`}>
+        <div className={`chat-guest-messages-panel flex-1 overflow-y-auto bg-[var(--bg-card)] ${guestRtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''} border border-b-0 border-[var(--border)] p-5`}>
           {messages.length === 0 ? (
             <div className="text-center py-20">
               <div className="text-4xl mb-3">💬</div>
@@ -245,7 +245,7 @@ function GuestChatView({ token }: { token: string }) {
         {guestSendError && (
           <div className="px-4 py-2 bg-[var(--danger-dim)] text-[var(--danger)] text-xs font-medium">{guestSendError}</div>
         )}
-        <div className="rounded-b-2xl border border-t-0 border-[var(--border)] overflow-hidden">
+        <div className="chat-guest-input-wrapper rounded-b-2xl border border-t-0 border-[var(--border)] overflow-hidden">
           <ChatInput onSend={(text) => sendMut.mutate(text)} disabled={sendMut.isPending} />
         </div>
       </div>
@@ -280,7 +280,7 @@ function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean;
   const prefix = isDM ? "@" : "#";
   return (
     <button onClick={onClick}
-      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition ${
+      className={`chat-channel-row w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition ${
         active ? "bg-[var(--primary)] text-white" : "hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
       }`}>
       <span className={`text-sm shrink-0 ${active ? "text-white/70" : "text-[var(--text-dim)]"}`}>{prefix}</span>
@@ -298,7 +298,7 @@ function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean;
 function SidebarSection({ title, count, onAdd, children }: { title: string; count: number; onAdd: () => void; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="mb-2">
+    <div className="chat-sidebar-section mb-2">
       <div className="flex items-center gap-1 px-2 mb-0.5 group">
         <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1 flex-1 text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)] hover:text-[var(--text-muted)] transition py-1">
           <svg className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18" /></svg>
@@ -413,9 +413,9 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   ];
 
   return (
-    <div className="glass-card flex overflow-hidden" style={{ height: "calc(100dvh - 104px)" }}>
+    <div className="chat-workspace glass-card flex overflow-hidden" style={{ height: "calc(100dvh - 104px)" }}>
       {/* ── 좌측 채널 사이드바 ── */}
-      <aside className={`${selectedChannel ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40`}>
+      <aside className={`chat-sidebar ${selectedChannel ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40`}>
         <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">채널</span>
@@ -444,7 +444,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       </aside>
 
       {/* ── 우측 대화 패널 ── */}
-      <section className={`${selectedChannel ? "flex" : "hidden lg:flex"} flex-1 min-w-0 flex-col`}>
+      <section className={`chat-conversation-panel ${selectedChannel ? "flex" : "hidden lg:flex"} flex-1 min-w-0 flex-col`}>
         {selectedChannel ? (
           <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3">
             <ChatRoomView channelId={selectedChannel} embedded onBack={() => router.push("/chat")} />
@@ -462,7 +462,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
 
       {/* ── 생성 모달 (프로젝트/팀/DM 통합) ── */}
       {creating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCreating(null)}>
+        <div className="chat-create-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCreating(null)}>
           <div className="glass-card w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-bold text-[var(--text)]">새로 만들기</h3>

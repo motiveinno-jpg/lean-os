@@ -323,7 +323,7 @@ export default function BillingPage() {
 
       {/* 툴바 — 탭(좌) + 액션(우) */}
       <div className="page-sticky-header mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="billing-toolbar flex flex-wrap items-center justify-between gap-2">
           <div className="seg-bar overflow-x-auto">
             {TABS.map((t) => (
               <button
@@ -348,7 +348,7 @@ export default function BillingPage() {
       </div>
 
       {/* KPI 행 — 현재 플랜 · 월 결제 금액 · 다음 결제 · 사용량 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="billing-kpi-row grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="stat-tile">
           <div className="stat-tile-label">현재 플랜</div>
           <div className="stat-tile-value">{currentPlan?.name || "Free"}</div>
@@ -401,7 +401,7 @@ export default function BillingPage() {
               { label: "동기화 크레딧 (이번 달)", used: usage.codefUnits, limit: codefLimit },
             ];
             return (
-              <div className="glass-card p-6 mb-6">
+              <div className="billing-usage-card glass-card p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-bold text-[var(--text)]">이번 달 사용량</h3>
                   <span className="text-xs text-[var(--text-muted)]">{new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long" })}</span>
@@ -433,7 +433,7 @@ export default function BillingPage() {
             );
           })()}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
+          <div className="billing-plan-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
               const meta = PLAN_FEATURES[slug] || { icon: "📦", features: [] };
@@ -444,7 +444,7 @@ export default function BillingPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative rounded-2xl border-2 p-6 transition ${
+                  className={`billing-plan-card relative rounded-2xl border-2 p-6 transition ${
                     isCurrent
                       ? "border-[var(--primary)] bg-[var(--primary)]/5"
                       : meta.recommended
@@ -521,7 +521,7 @@ export default function BillingPage() {
           </div>
 
           {currentSlug !== "free" && (
-            <div className="mt-8 p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger-dim)]">
+            <div className="billing-cancel-section mt-8 p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger-dim)]">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-semibold text-sm text-[var(--text)]">구독 해지</div>
@@ -552,7 +552,7 @@ export default function BillingPage() {
       {/* Payment Tab */}
       {tab === "payment" && (
         <div className="space-y-4">
-          <div className="glass-card p-6">
+          <div className="billing-payment-method-card glass-card p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-[var(--text)]">결제 수단</h3>
             </div>
@@ -583,7 +583,7 @@ export default function BillingPage() {
             )}
           </div>
 
-          <div className="glass-card p-6">
+          <div className="billing-payment-info-card glass-card p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-[var(--text)]">결제 안내</h3>
             </div>
@@ -600,7 +600,7 @@ export default function BillingPage() {
 
       {/* Invoices Tab */}
       {tab === "invoices" && (
-        <div className="glass-card overflow-hidden">
+        <div className="billing-invoices-card glass-card overflow-hidden">
           <div className="p-4 border-b border-[var(--border)]">
             <h3 className="text-sm font-bold text-[var(--text)]">청구서 내역</h3>
           </div>
@@ -680,7 +680,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
       {/* Referral & Feedback Tab */}
       {tab === "referral" && (
         <div className="space-y-6">
-          <div className="glass-card p-6">
+          <div className="billing-referral-card glass-card p-6">
             <h3 className="text-sm font-bold text-[var(--text)] mb-1">추천인 프로그램</h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">친구가 가입하면 양쪽 모두 ₩10,000 크레딧!</p>
 
@@ -726,7 +726,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
             )}
           </div>
 
-          <div className="glass-card p-6">
+          <div className="billing-feedback-card glass-card p-6">
             <h3 className="text-sm font-bold text-[var(--text)] mb-1">피드백</h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">OwnerView를 더 좋게 만들어 주세요</p>
 
@@ -790,7 +790,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
 
       {/* Upgrade Modal */}
       {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowUpgradeModal(null)}>
+        <div className="billing-upgrade-modal fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowUpgradeModal(null)}>
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-extrabold text-[var(--text)] mb-2">플랜 변경</h3>
             <p className="text-sm text-[var(--text-muted)] mb-4">
@@ -832,7 +832,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
 
       {/* Cancel Modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowCancelModal(false)}>
+        <div className="billing-cancel-modal fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowCancelModal(false)}>
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-extrabold text-red-600 dark:text-red-400 mb-2">구독 해지</h3>
             <p className="text-sm text-[var(--text-muted)] mb-4">

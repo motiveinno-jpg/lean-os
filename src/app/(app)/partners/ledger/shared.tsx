@@ -298,9 +298,9 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   let cumCredit = 0; // 누계(대변)
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="ledger-sheet-card glass-card overflow-hidden">
       {/* 시트 헤더 — 거래처명 크게 + 유형·기간 pill + 우측 액션 */}
-      <div className="px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-surface)]/60 flex flex-wrap items-center justify-between gap-3">
+      <div className="ledger-sheet-header px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-surface)]/60 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <span aria-hidden className="w-1.5 h-5 rounded-full shrink-0" style={{ background: pal.main }} />
@@ -311,7 +311,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-dim)] mono-number">{yStart} ~ {yEnd}</span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+        <div className="ledger-sheet-actions flex items-center gap-1.5 shrink-0 ml-auto">
           <button onClick={() => setNewOpen(true)} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--primary)] text-white shadow-sm hover:opacity-90 transition">+ 전표 입력</button>
           <button onClick={downloadCsv} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">엑셀</button>
           <button onClick={onOpenDetail} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition">상세 · 차액 마감</button>
@@ -319,7 +319,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       </div>
 
       {/* 원장 그리드 */}
-      <div className="overflow-auto max-h-[560px]">
+      <div className="ledger-sheet-grid overflow-auto max-h-[560px]">
         <table className="w-full min-w-[640px] text-xs border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
@@ -404,7 +404,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
           </tbody>
         </table>
       </div>
-      <div className="px-5 py-2.5 border-t border-[var(--border)] bg-[var(--bg-surface)]/40 text-[10px] text-[var(--text-dim)]">
+      <div className="ledger-sheet-footnote px-5 py-2.5 border-t border-[var(--border)] bg-[var(--bg-surface)]/40 text-[10px] text-[var(--text-dim)]">
         발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · <span className="text-[var(--primary)]">파란 글씨</span> = 수동 전표(클릭 시 수정·삭제, 일자 변경 포함) · 상단 “+ 전표 입력”으로 신규 작성
       </div>
 
@@ -717,13 +717,13 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
 
   if (!mounted) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[70] bg-black/40" onClick={onClose}>
+    <div className="voucher-edit-overlay fixed inset-0 z-[70] bg-black/40" onClick={onClose}>
       <div
-        className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-[calc(100vw-2rem)] max-w-3xl max-h-[calc(100vh-3rem)] overflow-y-auto flex flex-col shadow-2xl fixed left-1/2 top-1/2"
+        className="voucher-edit-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-[calc(100vw-2rem)] max-w-3xl max-h-[calc(100vh-3rem)] overflow-y-auto flex flex-col shadow-2xl fixed left-1/2 top-1/2"
         style={{ transform: `translate(calc(-50% + ${drag.x}px), calc(-50% + ${drag.y}px))` }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div onMouseDown={startDrag} className="sticky top-0 z-10 bg-[var(--bg-card)] rounded-t-2xl px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3 cursor-move select-none">
+        <div onMouseDown={startDrag} className="voucher-edit-header sticky top-0 z-10 bg-[var(--bg-card)] rounded-t-2xl px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3 cursor-move select-none">
           <div>
             <div className="text-base font-bold text-[var(--text)]">{isNew ? "신규 전표 입력" : <>전표 수정 {voucherNo != null && <span className="text-[var(--text-dim)] mono-number">#{voucherNo}</span>}</>}</div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -757,8 +757,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
           <>
             {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold">🔒 마감(잠금)된 회계기간 — 읽기 전용 (일자를 미마감 월로 바꾸면 편집 가능)</div>}
             <div className="px-5 pt-3 text-[10px] text-[var(--text-dim)]">적요는 아래 각 줄에 입력하세요 — 거래처 원장에 그대로 표시됩니다.</div>
-            <div className="px-5 py-3 pt-2">
-              <table className="w-full text-xs border-collapse" style={{ minWidth: 560 }}>
+            <div className="voucher-edit-table px-5 py-3 pt-2">
+              <table className="w-full text-xs border-collapse min-w-[560px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
                     <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left min-w-[150px]">계정과목</th>
@@ -890,7 +890,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
               </table>
               {!locked && <button onClick={addLine} className="mt-2 text-[12px] text-[var(--text-dim)] hover:text-[var(--primary)] font-semibold">+ 행 추가</button>}
             </div>
-            <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-3">
+            <div className="voucher-edit-footer px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-3">
               <span className="text-[11px] font-bold">
                 {totalD === 0 ? <span className="text-[var(--text-dim)] font-semibold">금액을 입력하세요</span>
                   : diff === 0 ? <span className="text-emerald-500">✅ 차대일치</span>
@@ -981,9 +981,9 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
 
   if (!mounted) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
+    <div className="adj-voucher-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="adj-voucher-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="adj-voucher-header px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
           <div>
             <div className="text-sm font-bold text-[var(--text)]">차액 마감 전표</div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{partnerName} · <span className="text-amber-500 font-semibold">{reasonLabel}</span></div>
@@ -1128,10 +1128,10 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
   const agingDays = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="partner-detail-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="partner-detail-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
+        <div className="partner-detail-header px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-base font-bold text-[var(--text)] truncate">{partnerName}</span>
@@ -1143,7 +1143,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
         </div>
 
         {/* 요약 */}
-        <div className="px-5 py-3 border-b border-[var(--border)] grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="partner-detail-summary px-5 py-3 border-b border-[var(--border)] grid grid-cols-2 sm:grid-cols-4 gap-2">
           {([["전기이월", priorOut, "text-amber-500"], ["당기 청구", periodBilled, "text-[var(--text)]"], ["당기 정산", periodSettled, "text-[var(--text-muted)]"], ["잔액", priorOut + periodOut, accent]] as const).map(([label, val, cls]) => (
             <div key={label} className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
               <div className="caption">{label}</div>
@@ -1153,7 +1153,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
         </div>
 
         {/* 필터 탭 */}
-        <div className="px-5 pt-2 flex gap-1.5">
+        <div className="partner-detail-tabs px-5 pt-2 flex gap-1.5">
           {([["all", `전체 ${invoices.length}`], ["period", `당기 ${period.length}`], ["prior", `전기이월 ${prior.length}`]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setView(k)}
               className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition ${view === k ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>{l}</button>
@@ -1161,7 +1161,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
         </div>
 
         {/* 세금계산서 목록 */}
-        <div className="flex-1 overflow-auto px-5 py-2">
+        <div className="partner-detail-invoice-list flex-1 overflow-auto px-5 py-2">
           {isLoading ? (
             <div className="p-8 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : invoices.length === 0 ? (
@@ -1174,7 +1174,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
               const isPrior = inv.issue_date < yStart;
               const setts = settleMap[inv.id] || [];
               return (
-                <div key={inv.id} className="border-b border-[var(--border)]/50 py-2.5">
+                <div key={inv.id} className="partner-detail-invoice-row border-b border-[var(--border)]/50 py-2.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -1285,8 +1285,8 @@ function CloseBalanceModal({ invoice, remaining, onClose, onDone, onError }: {
   useModalKeys(true, onClose, !reason || busy || !(amount > 0) ? undefined : submit);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="close-balance-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="close-balance-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)]">
           <div className="text-sm font-bold text-[var(--text)]">차액 마감</div>
           <div className="text-[11px] text-[var(--text-dim)] mt-0.5">

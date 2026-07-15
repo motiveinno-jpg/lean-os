@@ -96,7 +96,7 @@ export default function PaymentsPage() {
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* 컴팩트 툴바 — 탭(좌). 타이틀은 상단 고정 헤더바가 담당 */}
-      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="payments-tab-bar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <div className="seg-bar">
           {TABS.map((t) => (
             <button
@@ -313,7 +313,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   return (
     <>
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="payment-stats-grid grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="stat-tile overflow-hidden">
           <div className="stat-tile-label">승인 대기</div>
           <div className="stat-tile-value text-[var(--warning)] truncate">{stats?.pendingCount ?? 0}건</div>
@@ -344,7 +344,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       </div>
 
       {showForm && (
-        <div className="glass-card p-6 mb-6">
+        <div className="payment-manual-form-card glass-card p-6 mb-6">
           <h3 className="section-title">수동 결제 등록</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -370,7 +370,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       )}
 
       {/* Filter */}
-      <div className="seg-bar mb-4">
+      <div className="payment-filter-bar seg-bar mb-4">
         {[
           { key: "all", label: "전체" }, { key: "pending", label: "승인대기" },
           { key: "approved", label: "승인완료" }, { key: "executed", label: "실행완료" }, { key: "refunded", label: "환불" }, { key: "rejected", label: "거부" },
@@ -384,7 +384,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 
       {/* 벌크 액션바 — 선택 항목이 있을 때만 표시 */}
       {selectedIds.size > 0 && (
-        <div className="sticky top-0 z-10 mb-3 bg-[var(--primary)]/10 border border-[var(--primary)]/30 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
+        <div className="payment-bulk-action-bar sticky top-0 z-10 mb-3 bg-[var(--primary)]/10 border border-[var(--primary)]/30 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
           <div className="text-sm font-semibold text-[var(--primary)]">
             {selectedIds.size}건 선택됨 · ₩{selectedSum.toLocaleString()}
           </div>
@@ -419,7 +419,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       )}
 
       {/* Queue */}
-      <div className="glass-card overflow-hidden">
+      <div className="payment-queue-table glass-card overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-16 px-6 text-center">
             <div className="text-5xl mb-4">💳</div>
@@ -505,7 +505,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 
       {/* 영수증 모달 */}
       {receiptItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setReceiptItem(null)}>
+        <div className="payment-receipt-modal fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setReceiptItem(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div id="receipt-printable" className="p-6">
               <div className="text-center mb-4">
@@ -537,7 +537,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 
       {/* 환불 모달 */}
       {refundItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !refundSubmitting && setRefundItem(null)}>
+        <div className="refund-modal fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !refundSubmitting && setRefundItem(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
               <h3 className="text-lg font-extrabold text-orange-400 mb-2">
@@ -638,7 +638,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="fixed-cost-batch-header flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-bold">고정비 일괄 이체</h2>
           <p className="text-xs text-[var(--text-muted)] mt-1">반복결제(임대/보험/구독 등) 배치 → 대표 승인 → 일괄 이체</p>
@@ -656,7 +656,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
         />
       )}
 
-      <div className="glass-card overflow-hidden">
+      <div className="fixed-cost-batch-table glass-card overflow-hidden">
         {batches.length === 0 ? (
           <div className="py-14 px-6 text-center">
             <div className="text-5xl mb-4">🏢</div>
@@ -745,7 +745,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto"
+      className="payment-batch-detail-modal fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
@@ -865,7 +865,7 @@ function RecurringDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto"
+      className="recurring-detail-modal fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
@@ -1045,7 +1045,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
     <>
       {/* Detected recurring from bank tx */}
       {newDetected.length > 0 && (
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 mb-6 shadow-md">
+        <div className="recurring-detected-banner bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 mb-6 shadow-md">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-bold text-blue-500">
               이체내역에서 고정비 {newDetected.length}건 감지됨
@@ -1084,7 +1084,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="recurring-payments-header flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-bold">반복 결제 설정</h2>
           <p className="text-xs text-[var(--text-muted)] mt-1">
@@ -1121,7 +1121,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 
       {/* Refresh Results */}
       {refreshResults !== null && (
-        <div className={`rounded-2xl border p-4 mb-6 ${
+        <div className={`recurring-refresh-results rounded-2xl border p-4 mb-6 ${
           refreshResults.length > 0
             ? 'bg-green-500/5 border-green-500/20'
             : 'bg-[var(--bg-surface)] border-[var(--border)]'
@@ -1161,7 +1161,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       )}
 
       {showForm && (
-        <div className="glass-card p-6 mb-6">
+        <div className="recurring-payment-form-card glass-card p-6 mb-6">
           <h3 className="section-title">{editingId ? '반복결제 수정' : '반복결제 등록'}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
@@ -1246,7 +1246,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       )}
 
       {/* List */}
-      <div className="glass-card overflow-hidden">
+      <div className="recurring-payments-table glass-card overflow-hidden">
         {recurring.length === 0 ? (
           <div className="py-14 px-6 text-center">
             <div className="text-5xl mb-4">🔄</div>
@@ -1437,7 +1437,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
   return (
     <div className="mb-6 space-y-3">
       {/* Pipeline visualization */}
-      <div className="glass-card p-5">
+      <div className="payment-automation-pipeline glass-card p-5">
         <div className="flex items-center gap-2 mb-3">
           <span className="eyebrow">자동화 진행 현황</span>
           <span className="caption">설정 &rarr; 지출결의 &rarr; 승인 &rarr; 결제 &rarr; 세금계산서</span>
@@ -1461,7 +1461,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
       </div>
 
       {/* Action buttons */}
-      <div className="space-y-2">
+      <div className="payment-automation-actions space-y-2">
         <div className="flex gap-2">
           <button onClick={handleDetect} disabled={detecting}
             className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
@@ -1487,7 +1487,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
 
       {/* Automation result */}
       {result && (
-        <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3 shadow-sm">
+        <div className="payment-automation-result bg-green-500/5 border border-green-500/20 rounded-xl p-3 shadow-sm">
           <div className="text-xs font-bold text-green-500 mb-2">자동화 실행 완료</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
             {result.recurringExpense.created > 0 && (
@@ -1554,7 +1554,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
 
       {/* Detected patterns from bank tx — 건별 등록/미등록 (반복 이체 ≠ 전부 정기결제) */}
       {detected.length > 0 && (
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 shadow-sm">
+        <div className="payment-detected-patterns bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 shadow-sm">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <div className="text-xs font-bold text-blue-500">
               이체내역에서 {freshDetected.length}건 신규 감지 / {detected.filter(d => d.alreadyRegistered).length}건 기등록
@@ -1733,7 +1733,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
   return (
     <>
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="expense-summary-grid grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="stat-tile overflow-hidden">
           <div className="stat-tile-label">승인 대기</div>
           <div className="stat-tile-value text-[var(--warning)] truncate">{pendingCount}건</div>
@@ -1756,7 +1756,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="expense-filter-bar flex items-center justify-between mb-4">
         <div className="seg-bar">
           {['all', 'pending', 'approved', 'paid', 'rejected'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
@@ -1772,7 +1772,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
 
       {/* Create Form */}
       {showForm && (
-        <div className="glass-card p-6 mb-6">
+        <div className="expense-request-form-card glass-card p-6 mb-6">
           <div className="flex gap-2 mb-4">
             <button onClick={() => setRequestType('expense')}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${requestType === 'expense' ? 'bg-blue-500 text-white' : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'}`}>
@@ -1958,7 +1958,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
       )}
 
       {/* List */}
-      <div className="glass-card overflow-hidden">
+      <div className="expense-requests-table glass-card overflow-hidden">
         {expenses.length === 0 ? (
           <div className="py-16 px-6 text-center">
             <div className="text-5xl mb-4">📄</div>

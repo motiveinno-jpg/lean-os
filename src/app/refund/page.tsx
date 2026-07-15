@@ -102,7 +102,7 @@ export default function RefundPage() {
   return (
     <div className="min-h-screen bg-[#0A0E1A] text-white">
       {/* Nav */}
-      <nav className="sticky top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50">
+      <nav className="refund-nav sticky top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50">
         <div className="max-w-4xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-blue-600">L</div>
@@ -115,14 +115,14 @@ export default function RefundPage() {
       </nav>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-6 py-16">
+      <main className="refund-main max-w-4xl mx-auto px-6 py-16">
         <div className="mb-12">
           <h1 className="text-3xl md:text-4xl font-bold mb-3">환불규정</h1>
           <p className="text-slate-400 text-sm">최종 수정일: 2026년 7월 13일 | 시행일: 2026년 7월 13일</p>
         </div>
 
         {/* Summary table */}
-        <div className="mb-12 overflow-x-auto">
+        <div className="refund-summary-table mb-12 overflow-x-auto">
           <h2 className="text-lg font-semibold mb-4">요약</h2>
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -146,7 +146,7 @@ export default function RefundPage() {
 
         <div className="space-y-10">
           {SECTIONS.map((s) => (
-            <section key={s.id} className="scroll-mt-20">
+            <section key={s.id} className="refund-section scroll-mt-20">
               <h2 className="text-lg font-semibold text-white mb-3">{s.title}</h2>
               <div className="text-slate-300 text-sm leading-7 whitespace-pre-line">{s.content}</div>
             </section>
@@ -154,7 +154,7 @@ export default function RefundPage() {
         </div>
 
         {/* Supplementary */}
-        <div className="mt-16 p-6 rounded-xl bg-white/[0.03] border border-white/5">
+        <div className="refund-supplementary mt-16 p-6 rounded-xl bg-white/[0.03] border border-white/5">
           <h3 className="font-semibold mb-3 text-white">부칙</h3>
           <div className="text-slate-300 text-sm leading-7 space-y-1">
             <p>1. 본 규정은 2026년 7월 13일부터 시행합니다.</p>
@@ -163,14 +163,14 @@ export default function RefundPage() {
         </div>
 
         {/* Contact */}
-        <div className="mt-10 p-6 rounded-xl bg-blue-500/5 border border-blue-500/10 text-sm text-slate-300 leading-7">
+        <div className="refund-contact mt-10 p-6 rounded-xl bg-blue-500/5 border border-blue-500/10 text-sm text-slate-300 leading-7">
           <p className="font-semibold text-white mb-2">환불 문의</p>
           <p>이메일: <a href="mailto:creative@mo-tive.com" className="text-blue-400 hover:underline">creative@mo-tive.com</a></p>
           <p>제목에 <span className="text-white font-medium">[환불요청]</span>을 포함하여 보내주시면 7영업일 이내 처리해 드립니다.</p>
         </div>
 
         {/* Company info */}
-        <div className="mt-6 p-6 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-slate-400 space-y-1">
+        <div className="refund-company-info mt-6 p-6 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-slate-400 space-y-1">
           <p className="font-semibold text-slate-300">(주)모티브이노베이션</p>
           <p>대표: 채희웅</p>
           <p>소재지: 경기 화성시 동탄구 동탄첨단산업1로 27 IX타워 A동 2514호, 2515호</p>
@@ -179,7 +179,7 @@ export default function RefundPage() {
       </main>
 
       {/* Footer */}
-      <footer className="py-10 px-6 bg-[#060810] text-slate-500 border-t border-white/5">
+      <footer className="refund-footer py-10 px-6 bg-[#060810] text-slate-500 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
             <div>(주)모티브이노베이션 | 대표 채희웅 | 경기 화성시 동탄구 동탄첨단산업1로 27 IX타워 A동 2514호, 2515호</div>

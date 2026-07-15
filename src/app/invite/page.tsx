@@ -14,7 +14,7 @@ type InviteInfo = {
 export default function InvitePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="invite-loading-screen min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
       </div>
     }>
@@ -96,7 +96,7 @@ function InviteContent() {
 
   if (validating) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="invite-validating-screen min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm text-[var(--text-muted)]">초대 확인 중...</p>
@@ -107,7 +107,7 @@ function InviteContent() {
 
   if (invalid) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="invite-invalid-screen min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--danger-dim)] text-[var(--danger)] text-xl font-black mb-4">
             !
@@ -131,10 +131,10 @@ function InviteContent() {
   const roleColor = invite?.type === "partner" ? "#7C3AED" : "#2563EB";
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="invite-accept-screen min-h-screen flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-6 md:mb-8">
+        <div className="invite-logo text-center mb-6 md:mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-2xl mb-3">
             <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
               <rect width="40" height="40" rx="10" fill="#111"/>
@@ -150,11 +150,10 @@ function InviteContent() {
 
         {/* Card */}
         <div
-          className="glass-card p-6 md:p-8"
-          style={{ boxShadow: "var(--shadow-lg)" }}
+          className="invite-accept-card glass-card p-6 md:p-8 shadow-[var(--shadow-lg)]"
         >
           {/* Invite Badge */}
-          <div className="text-center mb-6">
+          <div className="invite-badge text-center mb-6">
             <span
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-white"
               style={{ background: roleColor }}
@@ -174,12 +173,12 @@ function InviteContent() {
           </div>
 
           {error && (
-            <div role="alert" className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
+            <div role="alert" className="invite-error-banner mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleAccept}>
+          <form onSubmit={handleAccept} className="invite-accept-form">
             <div className="mb-4">
               <label className="field-label">이름</label>
               <input
@@ -220,7 +219,7 @@ function InviteContent() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-[var(--text-dim)] mt-6">
+        <p className="invite-login-link text-center text-xs text-[var(--text-dim)] mt-6">
           이미 계정이 있으신가요?{" "}
           <button onClick={() => router.push("/auth")} className="text-[var(--primary)] hover:underline">
             로그인

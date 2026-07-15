@@ -460,10 +460,10 @@ export default function OnboardingPage() {
   const progressPercent = ((step - 1) / (TOTAL_STEPS - 1)) * 100;
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-8" onKeyDown={handleKeyDown}>
+    <div className="onboarding-page min-h-[80vh] flex items-center justify-center px-4 py-8" onKeyDown={handleKeyDown}>
       <div className="w-full max-w-[680px] mx-auto">
         {/* Progress bar */}
-        <div className="mb-6">
+        <div className="onboarding-progress-bar mb-6">
           <div className="flex items-center justify-between mb-2">
             {STEPS.map((s, i) => {
               const isActive = step === s.num;
@@ -519,7 +519,7 @@ export default function OnboardingPage() {
         {/* Error banner */}
         {error && (
           <div
-            className="mb-4 px-4 py-3 rounded-xl text-sm flex items-start gap-2 bg-[var(--danger)]/10 border border-[var(--danger)]/20 shadow-sm"
+            className="onboarding-error-banner mb-4 px-4 py-3 rounded-xl text-sm flex items-start gap-2 bg-[var(--danger)]/10 border border-[var(--danger)]/20 shadow-sm"
             role="alert"
           >
             <svg className="w-4 h-4 text-[var(--danger)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -532,7 +532,7 @@ export default function OnboardingPage() {
         )}
 
         {/* Step content */}
-        <div className="glass-card overflow-hidden">
+        <div className="onboarding-step-card glass-card overflow-hidden">
           <div className="p-6 sm:p-8 min-h-[380px] sm:min-h-[360px]">
             {step === 1 && (
               <Step1Company data={company} onChange={setCompany} isCompleted={status.companyInfo} />
@@ -553,7 +553,7 @@ export default function OnboardingPage() {
 
           {/* Footer */}
           <div
-            className="px-6 sm:px-8 py-4 flex items-center justify-between"
+            className="onboarding-footer px-6 sm:px-8 py-4 flex items-center justify-between"
             style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}
           >
             <div>
@@ -605,7 +605,7 @@ export default function OnboardingPage() {
 
         {/* Skip all link */}
         {step < 5 && (
-          <div className="mt-4 text-center">
+          <div className="onboarding-skip-all mt-4 text-center">
             <button
               onClick={() => router.replace("/dashboard")}
               className="text-xs text-[var(--text-dim)] hover:text-[var(--text-muted)] transition underline underline-offset-2"
@@ -640,7 +640,7 @@ function Step1Company({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="onboarding-company-step space-y-5">
       <StepHeader
         icon="building"
         title="회사 기본 정보"
@@ -723,7 +723,7 @@ function Step2Bank({
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="onboarding-bank-step space-y-5">
       <StepHeader
         icon="bank"
         title="법인 계좌 등록"
@@ -806,7 +806,7 @@ function Step3Employee({
   isCompleted: boolean;
 }) {
   return (
-    <div className="space-y-5">
+    <div className="onboarding-employee-step space-y-5">
       <StepHeader
         icon="people"
         title="첫 직원 등록"
@@ -890,7 +890,7 @@ function Step4Deal({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="onboarding-deal-step space-y-5">
       <StepHeader
         icon="sparkles"
         title="첫 프로젝트(거래) 등록"
@@ -986,7 +986,7 @@ function Step5Complete({ status }: { status: CompletionStatus }) {
   ).current;
 
   return (
-    <div className="flex flex-col items-center text-center relative overflow-hidden">
+    <div className="onboarding-complete-step flex flex-col items-center text-center relative overflow-hidden">
       {/* Confetti animation */}
       {isAllDone && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
@@ -1093,7 +1093,7 @@ function Step5Complete({ status }: { status: CompletionStatus }) {
 
       {/* Quick links */}
       {isAllDone && (
-        <div className="mt-6 flex flex-wrap gap-3 justify-center relative z-10">
+        <div className="onboarding-quick-links mt-6 flex flex-wrap gap-3 justify-center relative z-10">
           <QuickLink href="/dashboard" label="대시보드" />
           <QuickLink href="/projects" label="프로젝트 관리" />
           <QuickLink href="/employees" label="직원 관리" />
@@ -1118,7 +1118,7 @@ function StepHeader({
   description: string;
 }) {
   return (
-    <div className="flex items-start gap-3 mb-1">
+    <div className="onboarding-step-header flex items-start gap-3 mb-1">
       <StepIcon type={icon} />
       <div>
         <h2 className="text-lg font-bold text-[var(--text)]">{title}</h2>
@@ -1130,7 +1130,7 @@ function StepHeader({
 
 function CompletedBadge({ message }: { message: string }) {
   return (
-    <div className="px-3 py-2.5 rounded-xl flex items-start gap-2 bg-[var(--success)]/10 border border-[var(--success)]/20 shadow-sm">
+    <div className="onboarding-completed-badge px-3 py-2.5 rounded-xl flex items-start gap-2 bg-[var(--success)]/10 border border-[var(--success)]/20 shadow-sm">
       <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--success)" }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
         <polyline points="22 4 12 14.01 9 11.01" />
