@@ -41,6 +41,9 @@ const AI_CATEGORY_LABEL: Record<string, string> = {
   travel: "출장/교통비", communication: "통신비", tax: "세금/공과금", depreciation: "감가상각비",
   interest: "이자비용", other_expense: "기타 운영비",
 };
+
+// 매달 고정적으로 나가는 계정 = 고정비(변동비와 구분, 번레이트 분석용). AI 확정 시 이 코드면 고정비 자동 체크.
+const AI_FIXED_COST_CODES = new Set(["rent", "salary", "insurance", "software", "communication", "infrastructure", "interest"]);
 const CARD_TABS: Tab[] = ['cards'];
 
 interface TransactionsViewProps {
@@ -723,7 +726,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const confirmAiSug = useCallback((txId: string, code: string, confidence: number) => {
     const label = AI_CATEGORY_LABEL[code] || code;
     void confidence; // (확정 시엔 라벨만 저장 — 수동 분류와 동일 형식으로 일관 + 학습)
-    mapMut.mutate({ id: txId, category: label, classification: label });
+    // 고정비도 AI 계정과목에서 자동 판정(수동 체크 불필요). 임대료·급여·보험·구독·통신·인프라·이자 = 고정비.
+    mapMut.mutate({ id: txId, category: label, classification: label, isFixedCost: AI_FIXED_COST_CODES.has(code) });
     setAiSug((prev) => { const n = { ...prev }; delete n[txId]; return n; });
   }, [mapMut]);
 
@@ -1692,6 +1696,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                             <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}>🤖 AI 추천</span>
                             <span className="text-[12px] font-bold text-[var(--text)]">{label}</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{s.confidence}%</span>
+                            {AI_FIXED_COST_CODES.has(s.category) && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/12 text-orange-500 font-semibold">고정비</span>}
                             <button onClick={() => confirmAiSug(tx.id, s.category, s.confidence)}
                               className="ml-auto px-3 py-1 rounded-lg text-[11px] font-bold text-white bg-[var(--primary)] hover:opacity-90 transition">확정</button>
                             <button onClick={() => setMapModal(tx)}
