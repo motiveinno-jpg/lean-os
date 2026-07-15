@@ -197,6 +197,22 @@ export default function BankPage() {
       } else {
         toast(`통장 연동 완료 — 새 거래 없음${balMsg}`, "info");
       }
+
+      // 동기화 후 자동분류(비차단) — 규칙·학습 기반. UI 를 막지 않고 백그라운드로 실행,
+      //   완료 시 매칭된 건이 있을 때만 결과 토스트 + 목록 갱신. (매칭분만 auto_mapped → 반복 실행 시 수렴)
+      import("@/lib/automation")
+        .then(({ applyBankClassificationRules }) => applyBankClassificationRules(companyId))
+        .then((r) => {
+          const n = r?.matched || 0;
+          if (n > 0) {
+            toast(`미분류 거래 ${n}건 자동분류 완료`, "success");
+            queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
+            queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
+            queryClient.invalidateQueries({ queryKey: ["bank-page-flow-v2"] });
+            queryClient.invalidateQueries({ queryKey: ["bank-page-changes"] });
+          }
+        })
+        .catch(() => { /* 자동분류 실패는 비차단 — 수동 분류로 진행 가능 */ });
     } catch (e: any) {
       toast(friendlyError(e, "통장 연동 오류"), "error");
     } finally {
