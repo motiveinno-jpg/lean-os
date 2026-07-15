@@ -1233,6 +1233,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   // 근태 캘린더 리디자인(2026-07-15) — 선택한 날짜(우측 패널에 그 날 직원별 출근 현황 표시).
   //   기본값은 오늘(선택 월이 이번 달일 때만) — 이미지 시안처럼 진입 시 바로 오늘 상세가 보임.
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // 직원별 월간 요약 카드 클릭 시 상세(수당내역·근무내역) 모달.
+  const [summaryDetailId, setSummaryDetailId] = useState<string | null>(null);
   // status 와 is_late 불일치 흡수: is_late=true 면 'late' 우선 (UI 일관성).
   //   edge attendance-checkin INSERT 시 status·is_late 계산 source 가 달라 어긋날 수 있음.
   //   근본 fix(edge 통합) 는 별건 — 본 헬퍼는 표시 단의 안전망.
@@ -1601,25 +1603,25 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             </div>
           </div>
 
-          {/* 우 — 오늘 통계 2x2 + 선택일 상세 (관리자 전용) */}
+          {/* 우 — 오늘 통계 2x2 + 선택일 상세 (관리자 전용). 캘린더와 높이 맞춤(flex-1로 하단까지 채움). */}
           {!isEmployeeRole && (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4 h-full">
               <div className="grid grid-cols-2 gap-3">
-                <div className="glass-card p-4">
-                  <div className="text-[11px] text-[var(--text-dim)] mb-1">오늘 출근</div>
-                  <div className="text-2xl font-extrabold text-[var(--text)]">{todayStatus?.present ?? 0}<span className="text-xs font-semibold text-[var(--text-dim)]"> 명</span></div>
+                <div className="glass-card p-5">
+                  <div className="text-xs text-[var(--text-dim)] mb-1.5">오늘 출근</div>
+                  <div className="text-3xl font-extrabold text-[var(--text)]">{todayStatus?.present ?? 0}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
                 </div>
-                <div className="glass-card p-4">
-                  <div className="text-[11px] text-[var(--text-dim)] mb-1">지각</div>
-                  <div className="text-2xl font-extrabold text-yellow-500">{todayStatus?.late ?? 0}<span className="text-xs font-semibold text-[var(--text-dim)]"> 명</span></div>
+                <div className="glass-card p-5">
+                  <div className="text-xs text-[var(--text-dim)] mb-1.5">지각</div>
+                  <div className="text-3xl font-extrabold text-yellow-500">{todayStatus?.late ?? 0}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
                 </div>
-                <div className="glass-card p-4">
-                  <div className="text-[11px] text-[var(--text-dim)] mb-1">결근</div>
-                  <div className="text-2xl font-extrabold text-[var(--danger)]">{Math.max(0, activeEmployees.length - (todayStatus?.present ?? 0) - (todayStatus?.late ?? 0) - (todayStatus?.leave ?? 0))}<span className="text-xs font-semibold text-[var(--text-dim)]"> 명</span></div>
+                <div className="glass-card p-5">
+                  <div className="text-xs text-[var(--text-dim)] mb-1.5">결근</div>
+                  <div className="text-3xl font-extrabold text-[var(--danger)]">{Math.max(0, activeEmployees.length - (todayStatus?.present ?? 0) - (todayStatus?.late ?? 0) - (todayStatus?.leave ?? 0))}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
                 </div>
-                <div className="glass-card p-4">
-                  <div className="text-[11px] text-[var(--text-dim)] mb-1">자리비움</div>
-                  <div className="text-2xl font-extrabold text-[var(--info)]">{todayStatus?.leave ?? 0}<span className="text-xs font-semibold text-[var(--text-dim)]"> 명</span></div>
+                <div className="glass-card p-5">
+                  <div className="text-xs text-[var(--text-dim)] mb-1.5">자리비움</div>
+                  <div className="text-3xl font-extrabold text-[var(--info)]">{todayStatus?.leave ?? 0}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
                 </div>
               </div>
 
@@ -1629,13 +1631,13 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 const weekday = new Date(`${effectiveSelectedDay}T00:00:00`).toLocaleDateString("ko-KR", { weekday: "long" });
                 const groups = ATTENDANCE_STATUS.filter((s) => dayDetail?.[s.value]?.length);
                 return (
-                  <div className="glass-card p-4">
+                  <div className="glass-card p-5 flex-1 flex flex-col min-h-0">
                     <div className="text-sm font-bold text-[var(--text)]">{dNum}일 {weekday}</div>
                     <div className="text-[11px] text-[var(--text-dim)] mb-3">캘린더의 날짜를 클릭하면 그 날 현황을 볼 수 있습니다</div>
                     {groups.length === 0 ? (
                       <div className="text-xs text-[var(--text-dim)]">해당 날짜 기록이 없습니다</div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-4 overflow-y-auto">
                         {groups.map((s) => (
                           <div key={s.value}>
                             <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] mb-1.5">
@@ -1827,9 +1829,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           <div className="mt-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-[var(--text-muted)]">직원별 월간 요약</h3>
-              {isAdminForAllowance && (
-                <span className="text-[11px] text-[var(--text-muted)]">수당 재계산은 위의 "월 일괄 재계산" 버튼 클릭 시 실행</span>
-              )}
+              <span className="text-[11px] text-[var(--text-dim)]">카드를 클릭하면 상세 내역을 볼 수 있습니다</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {summary.map((s: any) => {
@@ -1839,7 +1839,12 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   : '수당 기록 없음';
                 const ratio = workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0;
                 return (
-                  <div key={s.employee_id} className="glass-card p-4">
+                  <button
+                    type="button"
+                    key={s.employee_id}
+                    onClick={() => setSummaryDetailId(s.employee_id)}
+                    className="glass-card p-4 text-left hover:-translate-y-0.5 hover:shadow-lg transition"
+                  >
                     <div className="flex items-center gap-2.5 mb-3">
                       <span
                         className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
@@ -1869,9 +1874,86 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                         </div>
                       )}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 직원별 월간 요약 카드 클릭 상세 — 수당내역 + 근무내역 */}
+      {summaryDetailId && (() => {
+        const s = (summary as any[]).find((x) => x.employee_id === summaryDetailId);
+        if (!s) return null;
+        const alw = allowanceByEmployee.get(summaryDetailId);
+        const allowanceLines = (monthlyAllowanceEntries as any[]).filter((r) => r.employee_id === summaryDetailId);
+        const empRecords = (records as any[]).filter((r) => r.employee_id === summaryDetailId).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setSummaryDetailId(null)}>
+            <div className="glass-card p-6 w-full max-w-lg shadow-xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: attAvatarColor(summaryDetailId) }}>
+                    {attInitials(s.name)}
+                  </span>
+                  <div>
+                    <div className="text-sm font-bold text-[var(--text)]">{s.name}</div>
+                    <div className="text-[11px] text-[var(--text-dim)]">{selectedMonth} · {s.totalDays}일 근무 · 총 {s.totalHours.toFixed(1)}h</div>
+                  </div>
+                </div>
+                <button onClick={() => setSummaryDetailId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+              </div>
+
+              {isAdminForAllowance && (
+                <div className="mb-5">
+                  <div className="text-xs font-bold text-[var(--text-muted)] mb-2">수당 내역</div>
+                  {allowanceLines.length === 0 ? (
+                    <div className="text-xs text-[var(--text-dim)] px-1">이번 달 수당 기록이 없습니다</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {allowanceLines.map((r: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-surface)] text-xs">
+                          <span className="text-[var(--text-muted)]">{r.allowance_types?.name || r.allowance_types?.code || "기타"}</span>
+                          <span className="font-semibold mono-number text-[var(--success)]">{Number(r.amount || 0).toLocaleString('ko-KR')}원</span>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--success)]/10 text-xs font-bold">
+                        <span className="text-[var(--text)]">합계</span>
+                        <span className="mono-number text-[var(--success)]">{(alw?.total ?? 0).toLocaleString('ko-KR')}원</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <div className="text-xs font-bold text-[var(--text-muted)] mb-2">근무 내역</div>
+                {empRecords.length === 0 ? (
+                  <div className="text-xs text-[var(--text-dim)] px-1">이번 달 근태 기록이 없습니다</div>
+                ) : (
+                  <div className="space-y-1">
+                    {empRecords.map((r: any) => {
+                      const es = effectiveStatus(r);
+                      return (
+                        <div key={r.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-surface)] text-xs">
+                          <span className="text-[var(--text-muted)] mono-number">{r.date}</span>
+                          <span className="flex items-center gap-1">
+                            <span className={`w-1.5 h-1.5 rounded-full ${statusColor(es)}`} />
+                            <span className="text-[var(--text)]">{statusLabel(es)}</span>
+                          </span>
+                          <span className="text-[var(--text-dim)] mono-number">
+                            {r.check_in ? new Date(r.check_in).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                            {" ~ "}
+                            {r.check_out ? new Date(r.check_out).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                          </span>
+                          <span className="font-semibold mono-number text-[var(--text)]">{r.work_hours ? `${Number(r.work_hours).toFixed(1)}h` : "—"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
