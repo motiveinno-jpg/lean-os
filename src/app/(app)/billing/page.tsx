@@ -433,7 +433,7 @@ export default function BillingPage() {
             );
           })()}
 
-          <div className="billing-plan-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
+          <div className="billing-plan-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
               const meta = PLAN_FEATURES[slug] || { icon: "📦", features: [] };

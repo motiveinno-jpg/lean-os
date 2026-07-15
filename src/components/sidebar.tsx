@@ -26,6 +26,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "홈",
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
+      { href: "/mypage", label: "마이페이지", icon: "user" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
   },
@@ -84,7 +85,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
       { href: "/announcements", label: "공지사항", icon: "megaphone" },
-      { href: "/mypage", label: "마이페이지", icon: "user" },
       { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/support", label: "고객센터", icon: "headphones" },
@@ -99,6 +99,7 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
     label: "홈",
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
+      { href: "/mypage", label: "마이페이지", icon: "user" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
   },
@@ -125,7 +126,6 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/team", label: "구성원", icon: "users" },
       { href: "/announcements", label: "공지사항", icon: "megaphone" },
-      { href: "/mypage", label: "마이페이지", icon: "user" },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/support", label: "고객센터", icon: "headphones" },
     ],

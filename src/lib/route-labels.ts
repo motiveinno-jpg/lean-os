@@ -54,7 +54,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
 
   "/settings": { group: "설정·도움말", title: "회사 설정", desc: "회사 기본·회계·인사 설정을 관리합니다." },
   "/announcements": { group: "설정·도움말", title: "공지사항", desc: "공지사항을 관리합니다." },
-  "/mypage": { group: "설정·도움말", title: "마이페이지", desc: "내 계정 정보를 관리합니다." },
+  "/mypage": { group: "홈", title: "마이페이지", desc: "내 계정 정보를 관리합니다." },
   "/billing": { group: "설정·도움말", title: "요금제", desc: "요금제와 결제를 관리합니다." },
   "/guide": { group: "설정·도움말", title: "사용 가이드" },
   "/support": { group: "설정·도움말", title: "고객센터" },
