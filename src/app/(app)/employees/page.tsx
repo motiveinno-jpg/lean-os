@@ -1216,6 +1216,14 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
   );
 }
 
+// 근태 캘린더 리디자인(2026-07-15) — 직원 식별 색상. 구성원 디렉토리와 동일 팔레트로 통일.
+function attAvatarColor(id: string): string {
+  let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  const palette = ["#6C5CE7", "#0984E3", "#00B894", "#E17055", "#00CEC9", "#A29BFE", "#FF7675", "#55A3FF"];
+  return palette[Math.abs(h) % palette.length];
+}
+const attInitials = (name: string) => (/[가-힣]/.test(name || "") ? (name || "").slice(-2) : (name || "").slice(0, 2).toUpperCase());
+
 // ── Attendance Tab ──
 export function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, role }: any) {
   const { toast } = useToast();
@@ -1229,8 +1237,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   //   직원 분기 MyAllowanceCard 가 항상 표시되는 IA 와 일치하도록 기본 펼침 (true).
   //   필요시 사용자가 접을 수 있게 토글은 유지.
   const [allowanceExpanded, setAllowanceExpanded] = useState(true);
-  // 오늘 출퇴근 현황 — 탭 클릭 시 해당 직원 명단 펼침
-  const [attnDetail, setAttnDetail] = useState<"present" | "late" | "leave" | "absent" | null>(null);
+  // 근태 캘린더 리디자인(2026-07-15) — 선택한 날짜(우측 패널에 그 날 직원별 출근 현황 표시).
+  //   기본값은 오늘(선택 월이 이번 달일 때만) — 이미지 시안처럼 진입 시 바로 오늘 상세가 보임.
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   // 퇴근 미입력 일괄 보정 모달 (관리자 전용)
   const [showMissingCheckOutModal, setShowMissingCheckOutModal] = useState(false);
   // status 와 is_late 불일치 흡수: is_late=true 면 'late' 우선 (UI 일관성).
@@ -1388,19 +1397,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     return { year, month, daysInMonth, firstDayOfWeek, empMap };
   }, [selectedMonth, records]);
 
-  // Stats
-  const totalRecords = records.length;
-  const presentCount = records.filter((r: any) => { const s = effectiveStatus(r); return s === "present" || s === "remote"; }).length;
-  const lateCount = records.filter((r: any) => effectiveStatus(r) === "late").length;
-  const avgHours = totalRecords > 0
-    ? (records.reduce((s: number, r: any) => s + Number(r.work_hours || 0), 0) / totalRecords).toFixed(1)
-    : "0.0";
-  const attendanceRate = totalRecords > 0
-    ? ((presentCount / totalRecords) * 100).toFixed(1)
-    : "0.0";
-  const lateRate = totalRecords > 0
-    ? ((lateCount / totalRecords) * 100).toFixed(1)
-    : "0.0";
 
   // 52-hour check: compute weekly hours for current week for each employee
   const weeklyWarnings = useMemo(() => {
@@ -1499,32 +1495,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     return m;
   }, [monthlyAllowanceEntries]);
 
-  // 관리자 분기 — 지각 식별 요약 (오늘 지각자 + 이번 달 누적 Top 5).
-  //   직원 분기에선 미노출. records / activeEmployees / effectiveStatus 재사용.
-  //   비용: O(records) 1패스. typical 회사(<50명, <1500행) 무시 가능.
-  const lateAdminSummary = useMemo(() => {
-    if (isEmployeeRole) return { todayList: [] as { name: string; minutes: number }[], monthTop: [] as { name: string; count: number }[] };
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const empNameMap = new Map<string, string>(activeEmployees.map((e: any) => [e.id, e.name]));
-    const todayList: { name: string; minutes: number }[] = [];
-    const monthCount = new Map<string, number>();
-    for (const r of records as any[]) {
-      if (effectiveStatus(r) !== 'late') continue;
-      monthCount.set(r.employee_id, (monthCount.get(r.employee_id) || 0) + 1);
-      if (r.date === todayStr) {
-        todayList.push({
-          name: empNameMap.get(r.employee_id) || '직원',
-          minutes: Number(r.late_minutes || 0),
-        });
-      }
-    }
-    const monthTop = Array.from(monthCount.entries())
-      .map(([id, count]) => ({ name: empNameMap.get(id) || '직원', count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-    return { todayList, monthTop };
-  }, [records, activeEmployees, isEmployeeRole]);
-
   // 2026-05-22 오늘 출퇴근 현황 — KST 오늘 기준 출근/지각/휴가 집계 (records 의존 X, 별도 fetch).
   const kstToday = useMemo(() => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10), []);
   const { data: todayStatus } = useQuery({
@@ -1551,6 +1521,34 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     enabled: !!companyId && !isEmployeeRole,
     staleTime: 60_000,
   });
+
+  // 캘린더에서 선택한 날짜 — 없으면 조회 중인 달이 이번 달일 때만 오늘을 기본 선택(시안처럼 진입 시 바로 상세 노출).
+  const effectiveSelectedDay = selectedDay || (
+    selectedMonth === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}` ? todayStr : null
+  );
+
+  // 선택한 날짜의 직원별 출근 현황(상태별 그룹) — 캘린더 셀 클릭 시 우측 패널에 표시.
+  const dayDetail = useMemo(() => {
+    if (!effectiveSelectedDay) return null;
+    const dow = new Date(`${effectiveSelectedDay}T00:00:00`).getDay();
+    const isPast = effectiveSelectedDay < todayStr;
+    const byStatus: Record<string, { id: string; name: string }[]> = {};
+    activeEmployees.forEach((emp: any) => {
+      const rec = records.find((r: any) => r.employee_id === emp.id && r.date === effectiveSelectedDay);
+      let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[effectiveSelectedDay] || null);
+      if (!status && isPast && dow !== 0 && dow !== 6 && showDerivedAbsence) {
+        const onLeave = leaveDaySet.has(`${emp.id}:${effectiveSelectedDay}`);
+        const employed = !emp.hire_date || effectiveSelectedDay >= String(emp.hire_date).slice(0, 10);
+        if (!onLeave && employed) status = "absent";
+      }
+      if (status) {
+        if (!byStatus[status]) byStatus[status] = [];
+        byStatus[status].push({ id: emp.id, name: emp.name });
+      }
+    });
+    return byStatus;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSelectedDay, activeEmployees, records, calendarData, leaveDaySet, showDerivedAbsence, todayStr]);
 
   return (
     <div>
@@ -1593,138 +1591,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
       {/* 2026-05-21 사장님 요청: 직원 근태관리에서 수당 카드 (ExtraPaySummaryCard / MyAllowanceCard) 제거.
           관리자 영역 (EditRequestInbox, MonthlyRecomputeButton, AllowanceAdminTab) 은 그대로 유지. */}
-
-      {/* Stats cards — 라운드6 KPI 카드 (값/계산 무변경) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">출근률</span>
-            <span className="kpi-icon success">✓</span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{attendanceRate}%</span>
-          </div>
-        </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">지각률</span>
-            <span className="kpi-icon warning">⏰</span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{lateRate}%</span>
-          </div>
-        </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">평균근무시간</span>
-            <span className="kpi-icon info">⚡</span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{avgHours}h</span>
-          </div>
-        </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">이번 달 기록</span>
-            <span className="kpi-icon">📋</span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{totalRecords}건</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 관리자 분기 — 지각 식별 요약 (오늘 지각자 + 이번 달 누적 Top 5) */}
-      {!isEmployeeRole && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6">
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2.5 mb-3">
-              <span className="kpi-icon warning shrink-0">⏰</span>
-              <span className="text-sm font-semibold text-[var(--text)]">오늘 지각자</span>
-              {lateAdminSummary.todayList.length > 0 && (
-                <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500 font-semibold">{lateAdminSummary.todayList.length}명</span>
-              )}
-            </div>
-            {lateAdminSummary.todayList.length === 0 ? (
-              <div className="text-sm text-[var(--text-muted)]">오늘 지각자 없음 ✅</div>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {lateAdminSummary.todayList.slice(0, 5).map((x, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">
-                    {x.name} <span className="font-semibold">{x.minutes}분</span>
-                  </span>
-                ))}
-                {lateAdminSummary.todayList.length > 5 && (
-                  <span className="text-xs text-[var(--text-muted)] self-center">외 {lateAdminSummary.todayList.length - 5}명</span>
-                )}
-              </div>
-            )}
-          </div>
-          {/* 2026-05-22 지각 누적 Top5 → 오늘 출퇴근 현황 */}
-          {(() => {
-            const total = activeEmployees.length;
-            const nameMap = new Map<string, string>(activeEmployees.map((e: any) => [e.id, e.name]));
-            const presentIds: string[] = todayStatus?.presentIds ?? [];
-            const lateIds: string[] = todayStatus?.lateIds ?? [];
-            const leaveIds: string[] = todayStatus?.leaveIds ?? [];
-            const accounted = new Set<string>([...presentIds, ...lateIds, ...leaveIds]);
-            const absentIds: string[] = activeEmployees.filter((e: any) => !accounted.has(e.id)).map((e: any) => e.id);
-            const rate = total > 0 ? Math.round(((presentIds.length + lateIds.length) / total) * 100) : 0;
-            const toNames = (ids: string[]) => ids.map((id) => nameMap.get(id) || "직원");
-            const CATS: { key: "present" | "late" | "leave" | "absent"; emoji: string; label: string; ids: string[]; tile: string; txt: string }[] = [
-              { key: "present", emoji: "🟢", label: "출근", ids: presentIds, tile: "bg-[var(--success)]/8 border-[var(--success)]/20", txt: "text-[var(--success)]" },
-              { key: "late", emoji: "🟡", label: "지각", ids: lateIds, tile: "bg-yellow-500/8 border-yellow-500/20", txt: "text-yellow-500" },
-              { key: "leave", emoji: "🔵", label: "휴가", ids: leaveIds, tile: "bg-[var(--info)]/8 border-[var(--info)]/20", txt: "text-[var(--info)]" },
-              { key: "absent", emoji: "⚪", label: "미출근", ids: absentIds, tile: "bg-[var(--bg-surface)] border-[var(--border)]", txt: "text-[var(--text-muted)]" },
-            ];
-            const sel = CATS.find((c) => c.key === attnDetail);
-            return (
-              <div className="glass-card p-4">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <span className="kpi-icon info shrink-0">📋</span>
-                  <span className="text-sm font-semibold text-[var(--text)]">오늘 출퇴근 현황</span>
-                  <span className="ml-auto text-[10px] text-[var(--text-dim)]">{kstToday} · 총원 {total}명</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  {CATS.map((c) => {
-                    const active = attnDetail === c.key;
-                    return (
-                      <button
-                        key={c.key}
-                        type="button"
-                        onClick={() => setAttnDetail(active ? null : c.key)}
-                        className={`rounded-lg border px-3 py-2 flex items-center justify-between transition ${c.tile} ${active ? "ring-2 ring-[var(--primary)]/50" : "hover:brightness-105 active:scale-[0.98]"}`}
-                        aria-pressed={active}
-                      >
-                        <span className={`text-[11px] ${c.txt}`}>{c.emoji} {c.label}</span>
-                        <span className={`text-base font-extrabold tabular-nums ${c.txt}`}>{c.ids.length}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {sel && (
-                  <div className="mb-2 p-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[11px] font-semibold text-[var(--text-muted)]">{sel.emoji} {sel.label} · {sel.ids.length}명</span>
-                      <button type="button" onClick={() => setAttnDetail(null)} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]">닫기 ✕</button>
-                    </div>
-                    {sel.ids.length === 0 ? (
-                      <div className="text-[11px] text-[var(--text-dim)]">해당 직원 없음</div>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        {toNames(sel.ids).map((nm, i) => (
-                          <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)]">{nm}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="text-[10px] text-[var(--text-dim)] text-right">출근율 {rate}% · 탭을 눌러 명단 보기</div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
 
       {/* 52-hour warnings */}
       {weeklyWarnings.length > 0 && (
@@ -1770,12 +1636,36 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               onClick={() => setViewMode("table")}
               className={`seg-item ${viewMode === "table" ? "seg-item-active" : ""}`}
             >
-              테이블
+              데이터
             </button>
           </div>
           {/* L 근태 — C-3 관리자: 가산수당 재계산 (월 일괄) */}
           {isAdmin && companyId && (
             <MonthlyRecomputeButton companyId={companyId} from={monthStart} to={monthEnd} />
+          )}
+          {summary.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const header = ["직원", "출근일", "지각횟수", "지각합계(분)", "연장(분)", "야간(분)", "휴일(분)", "결근", "재택", "반차", "총근무(h)"];
+                const rows = (summary as any[]).map((s) => [
+                  s.name, String(s.totalDays), String(s.lateDays), String(Math.round(s.lateMinutesSum || 0)),
+                  String(Math.round(s.overtimeMinutesSum || 0)), String(Math.round(s.nightMinutesSum || 0)), String(Math.round(s.holidayMinutesSum || 0)),
+                  String(s.absentDays), String(s.remoteDays), String(s.halfDays), s.totalHours.toFixed(1),
+                ]);
+                const csv = [header, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+                const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `근태_월간요약_${selectedMonth}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] rounded-xl text-xs font-semibold hover:bg-[var(--bg-surface)] transition"
+            >
+              CSV Export
+            </button>
           )}
         </div>
         <div className="flex gap-2">
@@ -1847,102 +1737,165 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         </div>
       </div>
 
-      {/* Calendar View */}
+      {/* Calendar View — 2026-07-15 리디자인: 좌 월간 캘린더 + 우 오늘 통계·선택일 상세(관리자 전용) */}
       {viewMode === "calendar" && (
-        <div className="glass-card overflow-hidden">
-          {/* Calendar header: days of week */}
-          <div className="grid grid-cols-7 border-b border-[var(--border)]">
-            {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
-              <div key={d} className={`text-center text-xs font-medium py-2 ${i === 0 ? "text-[var(--danger)]" : i === 6 ? "text-[var(--info)]" : "text-[var(--text-dim)]"}`}>
-                {d}
+        <div className={`grid gap-4 ${!isEmployeeRole ? "lg:grid-cols-3" : ""}`}>
+          <div className={`glass-card overflow-hidden ${!isEmployeeRole ? "lg:col-span-2" : ""}`}>
+            {/* 헤더: 타이틀 + 범례 */}
+            <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-[var(--border)]">
+              <span className="text-sm font-bold text-[var(--text)]">월간 출근 현황</span>
+              <div className="flex gap-2.5 flex-wrap items-center">
+                {ATTENDANCE_STATUS.map((s) => (
+                  <span key={s.value} className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                    <span className={`w-2 h-2 rounded-full ${statusColor(s.value)}`} />
+                    {s.label}
+                  </span>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
 
-          {/* Calendar body */}
-          <div className="grid grid-cols-7">
-            {/* Empty cells before first day */}
-            {Array.from({ length: calendarData.firstDayOfWeek }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-[var(--border)]/30 bg-[var(--bg-surface)]/30" />
-            ))}
-
-            {/* Day cells */}
-            {Array.from({ length: calendarData.daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = `${selectedMonth}-${String(day).padStart(2, "0")}`;
-              const isToday = dateStr === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-              const dayOfWeek = (calendarData.firstDayOfWeek + i) % 7;
-              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-              // Get all employee statuses for this day.
-              //   tooltip 에 지각 분 표시를 위해 records 에서 같은 (emp,date) 행 직접 조회.
-              //   typical 회사 직원 수·records 수 < 1500 이라 O(emps × records) 무시 가능.
-              const isPastWeekday = dateStr < todayStr && !isWeekend;
-              const dayRecords = activeEmployees.map((emp: any) => {
-                const rec = records.find((r: any) => r.employee_id === emp.id && r.date === dateStr);
-                let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[dateStr] || null);
-                // 결근 파생: 기록 없는 과거 평일 + 휴가 아님 + 입사일 이후 → 결근 (토글 ON일 때만)
-                if (!status && isPastWeekday && showDerivedAbsence) {
-                  const onLeave = leaveDaySet.has(`${emp.id}:${dateStr}`);
-                  const employed = !emp.hire_date || dateStr >= String(emp.hire_date).slice(0, 10);
-                  if (!onLeave && employed) status = "absent";
-                }
-                return {
-                  name: emp.name,
-                  status,
-                  lateMin: rec ? Number(rec.late_minutes || 0) : 0,
-                };
-              }).filter((r: any) => r.status);
-
-              return (
-                <div
-                  key={day}
-                  className={`min-h-[80px] border-b border-r border-[var(--border)]/30 p-1.5 ${
-                    isToday ? "bg-[var(--primary)]/5" : isWeekend ? "bg-[var(--bg-surface)]/30" : ""
-                  }`}
-                >
-                  <div className={`text-xs font-medium mb-1 ${
-                    isToday ? "text-[var(--primary)] font-bold" : dayOfWeek === 0 ? "text-[var(--danger)]" : dayOfWeek === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
-                  }`}>
-                    {day}
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {dayRecords.map((r: any, idx: number) => (
-                      <span
-                        key={idx}
-                        title={
-                          r.status === 'late'
-                            ? `${r.name}: 🔴 지각 ${r.lateMin}분`
-                            : `${r.name}: ${statusLabel(r.status)}`
-                        }
-                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] leading-none"
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColor(r.status)}`} />
-                        <span className="truncate max-w-[2.5em] text-[var(--text)] font-medium">{(r.name || '').slice(0, 2)}</span>
-                      </span>
-                    ))}
-                  </div>
+            {/* Calendar header: days of week */}
+            <div className="grid grid-cols-7 border-b border-[var(--border)]">
+              {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+                <div key={d} className={`text-center text-xs font-medium py-2 ${i === 0 ? "text-[var(--danger)]" : i === 6 ? "text-[var(--info)]" : "text-[var(--text-dim)]"}`}>
+                  {d}
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Calendar body */}
+            <div className="grid grid-cols-7">
+              {/* Empty cells before first day */}
+              {Array.from({ length: calendarData.firstDayOfWeek }).map((_, i) => (
+                <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-[var(--border)]/30 bg-[var(--bg-surface)]/30" />
+              ))}
+
+              {/* Day cells */}
+              {Array.from({ length: calendarData.daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dateStr = `${selectedMonth}-${String(day).padStart(2, "0")}`;
+                const isToday = dateStr === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+                const isSelected = dateStr === effectiveSelectedDay;
+                const dayOfWeek = (calendarData.firstDayOfWeek + i) % 7;
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+                // Get all employee statuses for this day, aggregated into per-status counts
+                //   (시안: 사람별 칩이 아니라 "●출근 7" 처럼 상태별 집계 pill — 개인 목록은 우측 선택일 패널에서).
+                const isPastWeekday = dateStr < todayStr && !isWeekend;
+                const dayStatusCounts = new Map<string, number>();
+                activeEmployees.forEach((emp: any) => {
+                  const rec = records.find((r: any) => r.employee_id === emp.id && r.date === dateStr);
+                  let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[dateStr] || null);
+                  // 결근 파생: 기록 없는 과거 평일 + 휴가 아님 + 입사일 이후 → 결근 (토글 ON일 때만)
+                  if (!status && isPastWeekday && showDerivedAbsence) {
+                    const onLeave = leaveDaySet.has(`${emp.id}:${dateStr}`);
+                    const employed = !emp.hire_date || dateStr >= String(emp.hire_date).slice(0, 10);
+                    if (!onLeave && employed) status = "absent";
+                  }
+                  if (status) dayStatusCounts.set(status, (dayStatusCounts.get(status) || 0) + 1);
+                });
+
+                return (
+                  <button
+                    type="button"
+                    key={day}
+                    onClick={() => setSelectedDay((cur) => (cur === dateStr ? null : dateStr))}
+                    className={`min-h-[80px] border-b border-r border-[var(--border)]/30 p-1.5 text-left transition ${
+                      isSelected ? "ring-2 ring-inset ring-[var(--primary)] bg-[var(--primary)]/8" : isToday ? "bg-[var(--primary)]/5" : isWeekend ? "bg-[var(--bg-surface)]/30" : "hover:bg-[var(--bg-surface)]/50"
+                    }`}
+                  >
+                    <div className={`text-xs font-medium mb-1 flex items-center gap-1 ${
+                      isToday ? "text-[var(--primary)] font-bold" : dayOfWeek === 0 ? "text-[var(--danger)]" : dayOfWeek === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
+                    }`}>
+                      {isSelected ? <span className="w-4 h-4 rounded-full bg-[var(--primary)] text-white text-[10px] flex items-center justify-center font-bold">{day}</span> : day}
+                    </div>
+                    <div className="flex flex-col gap-0.5 items-start">
+                      {ATTENDANCE_STATUS.filter((s) => dayStatusCounts.get(s.value)).map((s) => (
+                        <span key={s.value} className="inline-flex items-center gap-1 text-[10px] leading-none">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColor(s.value)}`} />
+                          <span className="text-[var(--text)] font-medium">{s.label} {dayStatusCounts.get(s.value)}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-end p-2.5 border-t border-[var(--border)]">
+              <button
+                onClick={() => setShowDerivedAbsence((v) => !v)}
+                className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition ${showDerivedAbsence ? "bg-[var(--primary)]/10 border-[var(--primary)]/30 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}
+                title="기록 없는 과거 평일을 결근으로 자동 표시"
+              >
+                {showDerivedAbsence ? "✓ " : ""}결근 자동표시
+              </button>
+            </div>
           </div>
 
-          {/* Legend — 시안 pill 톤 + 결근 자동표시 토글 */}
-          <div className="flex gap-2 flex-wrap items-center p-3 border-t border-[var(--border)]">
-            {ATTENDANCE_STATUS.map((s) => (
-              <span key={s.value} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)]">
-                <span className={`w-2 h-2 rounded-full ${statusColor(s.value)}`} />
-                {s.label}
-              </span>
-            ))}
-            <button
-              onClick={() => setShowDerivedAbsence((v) => !v)}
-              className={`ml-auto inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition ${showDerivedAbsence ? "bg-[var(--primary)]/10 border-[var(--primary)]/30 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}
-              title="기록 없는 과거 평일을 결근으로 자동 표시"
-            >
-              {showDerivedAbsence ? "✓ " : ""}결근 자동표시
-            </button>
-          </div>
+          {/* 우 — 오늘 통계 2x2 + 선택일 상세 (관리자 전용) */}
+          {!isEmployeeRole && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="glass-card p-4">
+                  <div className="text-[11px] text-[var(--text-dim)] mb-1">오늘 출근</div>
+                  <div className="text-2xl font-extrabold text-[var(--text)]">{todayStatus?.present ?? 0}<span className="text-xs font-semibold text-[var(--text-dim)]"> 명</span></div>
+                </div>
+                <div className="glass-card p-4">
+                  <div className="text-[11px] text-[var(--text-dim)] mb-1">지각</div>
+                  <div className="text-2xl font-extrabold text-yellow-500">{todayStatus?.late ?? 0}<span className="text-xs font-semibold text-[var(--text-dim)]"> 명</span></div>
+                </div>
+                <div className="glass-card p-4">
+                  <div className="text-[11px] text-[var(--text-dim)] mb-1">결근</div>
+                  <div className="text-2xl font-extrabold text-[var(--danger)]">{Math.max(0, activeEmployees.length - (todayStatus?.present ?? 0) - (todayStatus?.late ?? 0) - (todayStatus?.leave ?? 0))}<span className="text-xs font-semibold text-[var(--text-dim)]"> 명</span></div>
+                </div>
+                <div className="glass-card p-4">
+                  <div className="text-[11px] text-[var(--text-dim)] mb-1">자리비움</div>
+                  <div className="text-2xl font-extrabold text-[var(--info)]">{todayStatus?.leave ?? 0}<span className="text-xs font-semibold text-[var(--text-dim)]"> 명</span></div>
+                </div>
+              </div>
+
+              {effectiveSelectedDay && (() => {
+                const [, , dStr] = effectiveSelectedDay.split("-");
+                const dNum = Number(dStr);
+                const weekday = new Date(`${effectiveSelectedDay}T00:00:00`).toLocaleDateString("ko-KR", { weekday: "long" });
+                const groups = ATTENDANCE_STATUS.filter((s) => dayDetail?.[s.value]?.length);
+                return (
+                  <div className="glass-card p-4">
+                    <div className="text-sm font-bold text-[var(--text)]">{dNum}일 {weekday}</div>
+                    <div className="text-[11px] text-[var(--text-dim)] mb-3">캘린더의 날짜를 클릭하면 그 날 현황을 볼 수 있습니다</div>
+                    {groups.length === 0 ? (
+                      <div className="text-xs text-[var(--text-dim)]">해당 날짜 기록이 없습니다</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {groups.map((s) => (
+                          <div key={s.value}>
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+                              <span className={`w-2 h-2 rounded-full ${statusColor(s.value)}`} />
+                              {s.label} <span className="text-[var(--text-dim)] font-normal">{dayDetail![s.value].length}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {dayDetail![s.value].map((emp) => (
+                                <span key={emp.id} className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">
+                                  <span
+                                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                                    style={{ background: attAvatarColor(emp.id) }}
+                                  >
+                                    {attInitials(emp.name)}
+                                  </span>
+                                  {emp.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
 
@@ -2088,18 +2041,20 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
       {/* Monthly Summary per Employee */}
       {summary.length > 0 && (() => {
-        // 분 → "Nh Nm" 포맷 헬퍼 (0 은 "—")
-        const fmtMin = (n: number): string => {
-          const m = Math.round(Number(n) || 0);
-          if (m <= 0) return "—";
-          const h = Math.floor(m / 60);
-          const mm = m % 60;
-          return h > 0 ? `${h}h ${mm}m` : `${mm}m`;
-        };
         const fmtKRW = (n: number): string => {
           const v = Math.round(Number(n) || 0);
           return v > 0 ? `${v.toLocaleString('ko-KR')}원` : "—";
         };
+        // 진행바용 — 선택 월의 평일 수(이번 달이면 오늘까지) 대비 출근일 비율. 가짜 목표치 아닌 실제 평일수 기반.
+        const [wy, wm] = selectedMonth.split('-').map(Number);
+        const lastDayOfMonth = new Date(wy, wm, 0).getDate();
+        const isCurrentSelectedMonth = selectedMonth === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        const upToDay = isCurrentSelectedMonth ? today.getDate() : lastDayOfMonth;
+        let workdaysSoFar = 0;
+        for (let d = 1; d <= upToDay; d++) {
+          const dow = new Date(wy, wm - 1, d).getDay();
+          if (dow !== 0 && dow !== 6) workdaysSoFar++;
+        }
         return (
           <div className="mt-6">
             <div className="flex items-center justify-between mb-3">
@@ -2125,55 +2080,47 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 </button>
               </div>
             )}
-            <div className="glass-card overflow-hidden">
-              <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[960px]">
-                <thead className="sticky-bar">
-                  <tr className="table-head-row">
-                    <th className="th-cell text-left">직원</th>
-                    <th className="th-cell text-center">출근일</th>
-                    <th className="th-cell text-center">지각</th>
-                    <th className="th-cell text-center">지각 합계</th>
-                    <th className="th-cell text-center">연장</th>
-                    <th className="th-cell text-center">야간</th>
-                    <th className="th-cell text-center">휴일</th>
-                    <th className="th-cell text-center">결근</th>
-                    <th className="th-cell text-center">재택</th>
-                    <th className="th-cell text-center">반차</th>
-                    <th className="th-cell text-right">총 근무</th>
-                    {isAdminForAllowance && (
-                      <th className="th-cell text-right">수당 합계</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {summary.map((s: any) => {
-                    const alw = allowanceByEmployee.get(s.employee_id);
-                    const alwTitle = alw
-                      ? `연장 ${alw.overtime.toLocaleString('ko-KR')}원 · 야간 ${alw.night.toLocaleString('ko-KR')}원 · 휴일 ${alw.holiday.toLocaleString('ko-KR')}원 · 당직 ${alw.on_duty.toLocaleString('ko-KR')}원 · 기타 ${alw.etc.toLocaleString('ko-KR')}원`
-                      : '수당 기록 없음';
-                    return (
-                      <tr key={s.employee_id} className="border-b border-[var(--border)]/50">
-                        <td className="px-5 py-3 text-sm font-medium">{s.name}</td>
-                        <td className="px-5 py-3 text-sm text-center">{s.totalDays}일</td>
-                        <td className="px-5 py-3 text-sm text-center text-yellow-400">{s.lateDays > 0 ? `${s.lateDays}회` : "—"}</td>
-                        <td className="px-5 py-3 text-sm text-center text-yellow-400">{fmtMin(s.lateMinutesSum)}</td>
-                        <td className="px-5 py-3 text-sm text-center text-orange-400">{fmtMin(s.overtimeMinutesSum)}</td>
-                        <td className="px-5 py-3 text-sm text-center text-purple-400">{fmtMin(s.nightMinutesSum)}</td>
-                        <td className="px-5 py-3 text-sm text-center text-[var(--success)]">{fmtMin(s.holidayMinutesSum)}</td>
-                        <td className="px-5 py-3 text-sm text-center text-[var(--danger)]">{s.absentDays > 0 ? `${s.absentDays}회` : "—"}</td>
-                        <td className="px-5 py-3 text-sm text-center text-[var(--info)]">{s.remoteDays > 0 ? `${s.remoteDays}일` : "—"}</td>
-                        <td className="px-5 py-3 text-sm text-center text-orange-400">{s.halfDays > 0 ? `${s.halfDays}회` : "—"}</td>
-                        <td className="px-5 py-3 text-sm text-right font-medium">{s.totalHours.toFixed(1)}h</td>
-                        {isAdminForAllowance && (
-                          <td className="px-5 py-3 text-sm text-right font-medium text-[var(--success)]" title={alwTitle}>
-                            {fmtKRW(alw?.total ?? 0)}
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {summary.map((s: any) => {
+                const alw = allowanceByEmployee.get(s.employee_id);
+                const alwTitle = alw
+                  ? `연장 ${alw.overtime.toLocaleString('ko-KR')}원 · 야간 ${alw.night.toLocaleString('ko-KR')}원 · 휴일 ${alw.holiday.toLocaleString('ko-KR')}원 · 당직 ${alw.on_duty.toLocaleString('ko-KR')}원 · 기타 ${alw.etc.toLocaleString('ko-KR')}원`
+                  : '수당 기록 없음';
+                const ratio = workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0;
+                return (
+                  <div key={s.employee_id} className="glass-card p-4">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <span
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ background: attAvatarColor(s.employee_id) }}
+                      >
+                        {attInitials(s.name)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-[var(--text)] truncate">{s.name}</div>
+                        <div className="text-[11px] text-[var(--text-dim)] truncate">
+                          {s.totalDays}일 근무{s.lateDays > 0 ? ` · 지각 ${s.lateDays}회` : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mb-3">
+                      <div className="h-full rounded-full bg-[var(--primary)] transition-all" style={{ width: `${Math.round(ratio * 100)}%` }} />
+                    </div>
+                    <div className="flex items-end justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-[10px] text-[var(--text-dim)]">총 근무</div>
+                        <div className="text-base font-extrabold mono-number text-[var(--text)]">{s.totalHours.toFixed(1)}h</div>
+                      </div>
+                      {isAdminForAllowance && (
+                        <div className="text-right min-w-0" title={alwTitle}>
+                          <div className="text-[10px] text-[var(--text-dim)]">수당</div>
+                          <div className="text-sm font-bold mono-number text-[var(--success)] truncate">{fmtKRW(alw?.total ?? 0)}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
