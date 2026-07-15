@@ -963,10 +963,12 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         ) : <div />}
         <div className="tx-toolbar-actions relative flex items-center gap-2">
           <input ref={fileRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
-          {/* 도구 드롭다운 — 동기화·내보내기·업로드를 한곳에 몰아 버튼 난립 압축. 주 액션(AI 추천)은 리스트 툴바에. */}
+          {/* 도구 드롭다운 — 미분류 정리(inbox)에선 숨김: 동기화·내보내기·업로드는 통장 소관(중복). 전체/카드 뷰에서만. */}
+          {tab !== 'inbox' && (
           <button type="button" onClick={() => setToolsOpen(v => !v)} className="btn-secondary rounded-lg text-xs whitespace-nowrap" title="최근 거래 불러오기 · 자동이체 인식 · 내보내기 · 업로드">
             🛠 도구 {toolsOpen ? '▲' : '▾'}
           </button>
+          )}
           {toolsOpen && (
           <div className="tx-tools-menu absolute right-0 top-full mt-1.5 z-30 min-w-[200px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1.5 flex flex-col gap-1 [&>button]:!w-full [&>button]:!justify-start" onClick={() => setToolsOpen(false)}>
           {!(visibleTabs.length === 1 && visibleTabs[0] === 'cards') && (
@@ -1123,7 +1125,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search Bar — 미분류 정리(inbox)에선 별도 검색행 제거, 검색·선택확정은 리스트 툴바에 압축. */}
+      {tab !== 'inbox' && (
       <div className="tx-search-bar flex items-center gap-2 mb-4">
         <div className="flex-1 relative">
           <input
@@ -1177,6 +1180,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           CSV 내보내기
         </button>
       </div>
+      )}
 
       {uploadResult && (
         <div className={`bank-upload-result-banner mb-4 p-3 rounded-lg text-sm ${uploadResult.startsWith("오류") ? "bg-red-500/10 text-red-400" : "bg-green-500/10 text-green-400"}`}>
@@ -1185,8 +1189,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         </div>
       )}
 
-      {/* 기간설정 — 제일 상단(제목 헤더 아래) 통일 위치. 탭에 따라 통장/카드 기간 */}
-      {(tab === 'inbox' || tab === 'all' || tab === 'cards') && (
+      {/* 기간설정 — 미분류 정리(inbox)에선 제거(분류 확정엔 불필요). 전체/카드에서만. */}
+      {(tab === 'all' || tab === 'cards') && (
         <div className="tx-period-filter-bar no-print flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
           <span className="text-xs font-semibold text-[var(--text-muted)]">기간</span>
           {tab === 'cards' ? (
@@ -1504,8 +1508,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
           )}
 
           {/* ═══ 아래: 거래내역 검색·필터 + 차트 ═══ */}
-          {/* 통장 + 날짜 필터 — codef sync 결과 분류 */}
-          {bankAccountsList.length > 0 && (
+          {/* 통장 선택 필터 — 미분류 정리(inbox)에선 제거(분류 확정엔 불필요). 전체 뷰에서만. */}
+          {tab !== 'inbox' && bankAccountsList.length > 0 && (
             <div className="bank-account-filter-bar flex flex-wrap items-center gap-2 mb-3 p-3 bg-[var(--bg-surface)] rounded-xl">
               <select
                 value={selectedAccountNo}
@@ -1528,14 +1532,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 <input
                   type="checkbox"
                   checked={showFixedOnly}
-                  onChange={e => {
-                    const next = e.target.checked;
-                    setShowFixedOnly(next);
-                    if (next && tab === 'inbox') {
-                      setTab('all');
-                      setFilterStatus('all');
-                    }
-                  }}
+                  onChange={e => setShowFixedOnly(e.target.checked)}
                   className="accent-[var(--primary)]"
                 />
                 자동이체만
@@ -1608,11 +1605,22 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     </button>
                   </div>
                   {tab === 'inbox' && (
-                    <button onClick={runAiSuggest} disabled={aiSugLoading}
-                      className="ai-suggest-btn ml-auto btn-secondary btn-sm inline-flex items-center gap-1 disabled:opacity-50"
-                      title="미분류 지출(최대 20건)에 AI 계정과목 추천 — 확정은 직접">
-                      {aiSugLoading ? "AI 추천 중…" : "🤖 AI 추천 받기"}
-                    </button>
+                    <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="거래처 검색" aria-label="거래처 검색"
+                      className="tx-inline-search px-2.5 py-1 rounded-lg text-xs bg-[var(--bg)] border border-[var(--border)] w-36 focus:border-[var(--primary)]/60 focus:outline-none" />
+                  )}
+                  {tab === 'inbox' && (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {selectedIds.size > 0 && (
+                        <button onClick={() => { selectedIds.forEach(id => mapMut.mutate({ id })); setSelectedIds(new Set()); }}
+                          className="btn-secondary btn-sm whitespace-nowrap">선택 {selectedIds.size}건 확정</button>
+                      )}
+                      <button onClick={runAiSuggest} disabled={aiSugLoading}
+                        className="ai-suggest-btn btn-primary btn-sm inline-flex items-center gap-1 whitespace-nowrap disabled:opacity-50"
+                        title="미분류 지출(최대 20건)에 AI 계정과목 추천 — 확정은 직접">
+                        {aiSugLoading ? "AI 추천 중…" : "🤖 AI 추천 받기"}
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -1704,11 +1712,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         합계 ({filteredBankTx.length}건)
                         {selectedIds.size > 0 && <span className="ml-2 text-[var(--primary)] font-semibold">· 선택 {selectedIds.size}건 ₩{selSum.toLocaleString()}</span>}
                       </span>
+                      {tab !== 'inbox' && (
                       <span className="flex items-center gap-4 mono-number">
                         <span className="text-[var(--success)] font-bold">+₩{sumIncome.toLocaleString()}</span>
                         <span className="text-[var(--danger)] font-bold">-₩{sumExpense.toLocaleString()}</span>
                         <span className={`font-bold ${net >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>{net >= 0 ? '+' : ''}₩{net.toLocaleString()}</span>
                       </span>
+                      )}
                     </div>
                   );
                 })()}
