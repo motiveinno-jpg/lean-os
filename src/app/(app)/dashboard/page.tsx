@@ -869,9 +869,8 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 
   return (
-    <div className="flex flex-col h-full">
-      {/* 제목은 박스 밖(eyebrow) — 스택 간격은 부모 space-y 가 담당.
-          루트 flex-col h-full + 내부 카드 flex-1 로 셀 높이를 꽉 채움(편집 시 빈 공간이 위젯 범위로 잡히던 문제 방지). */}
+    // 루트가 glass-card(흰 박스) — 제목·목록 모두 박스 안. h-full 로 셀 높이를 꽉 채움(다른 위젯과 통일).
+    <div className="glass-card p-4 flex flex-col h-full">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="dot-primary" />
@@ -886,7 +885,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
           전체 보기 →
         </Link>
       </div>
-      <div className="glass-card p-4 flex-1">
+      <div className="flex-1">
       {items.length === 0 ? (
         <div className="text-center py-4">
           <p className="text-xs text-[var(--text-muted)] mb-2">등록된 할일·일정이 없습니다.</p>
