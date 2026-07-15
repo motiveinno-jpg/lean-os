@@ -2080,63 +2080,6 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
   );
 }
 
-function TodayActions({ dashboard }: { dashboard: FounderDashboardData }) {
-  const actions: { priority: 'critical' | 'high' | 'normal'; text: string; href?: string }[] = [];
-
-  const sp = dashboard.sixPack;
-  const level = getRunwayLevel(sp.runwayMonths);
-
-  if (level === 'CRITICAL' || level === 'DANGER') {
-    actions.push({ priority: 'critical', text: `생존 ${sp.runwayMonths}개월 — 즉시 현금 확보 필요`, href: '/settings' });
-  }
-  if (sp.arOver30 > 0) {
-    actions.push({ priority: 'critical', text: `미수금 30일+ ₩${fmtW(sp.arOver30)} — 독촉 필요` });
-  }
-  if (sp.pendingApprovalsCount > 0) {
-    actions.push({ priority: 'high', text: `승인대기 ${sp.pendingApprovalsCount}건 — 검토/승인 필요` });
-  }
-  if (dashboard.riskCounts.LOW_MARGIN > 0) {
-    actions.push({ priority: 'high', text: `마진위험 프로젝트 ${dashboard.riskCounts.LOW_MARGIN}건 — 구조 재검토`, href: '/projects' });
-  }
-  if (dashboard.riskCounts.DUE_SOON > 0) {
-    actions.push({ priority: 'high', text: `마감 임박 ${dashboard.riskCounts.DUE_SOON}건 — 진행 확인` });
-  }
-  if (sp.netCashflow < 0) {
-    actions.push({ priority: 'normal', text: `이번달 적자 ₩${fmtW(Math.abs(sp.netCashflow))} 예상 — 지출 구조조정 검토` });
-  }
-
-  if (actions.length === 0) {
-    actions.push({ priority: 'normal', text: '현재 긴급 조치 사항 없음' });
-  }
-
-  const priorityColors = {
-    critical: 'border-l-[var(--danger)] bg-red-500/[.03]',
-    high: 'border-l-[var(--warning)] bg-orange-500/[.02]',
-    normal: 'border-l-[var(--text-dim)] bg-[var(--bg-card)]',
-  };
-  const dotColors = {
-    critical: 'bg-[var(--danger)]',
-    high: 'bg-[var(--warning)]',
-    normal: 'bg-[var(--text-dim)]',
-  };
-
-  return (
-    <div className="space-y-2">
-      {actions.map((a, i) => (
-        <div key={i} className={`flex items-center gap-3 px-4 py-3 rounded-lg border-l-2 border border-[var(--border)] ${priorityColors[a.priority]}`}>
-          <div className={`w-2 h-2 rounded-full shrink-0 ${dotColors[a.priority]} ${a.priority === 'critical' ? 'animate-pulse-danger' : ''}`} />
-          <span className="text-xs text-[var(--text-muted)] flex-1">{a.text}</span>
-          {a.href && (
-            <Link href={a.href} className="text-[10px] text-[var(--primary)] font-semibold hover:underline shrink-0">
-              바로가기 →
-            </Link>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════
 // DealFunnel — 프로젝트 진행 현황 깔때기 (5단계)
 // ═══════════════════════════════════════════

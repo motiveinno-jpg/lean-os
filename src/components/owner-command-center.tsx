@@ -23,10 +23,13 @@ const fmtW = (n: number) => {
 };
 
 const ACTION_META: Record<string, { icon: string; label: string; href: string }> = {
+  // 2026-07-15 버그수정: expense/leave 는 approval_requests 가 아니라 별도 테이블
+  // (expense_requests/leave_requests) — /approvals(내결재함) 로 보내면 항목이 안 보임.
+  // 실제로 그 항목을 처리할 수 있는 화면으로 정정.
   payment: { icon: "💸", label: "결제", href: "/payments" },
-  expense: { icon: "🧾", label: "경비", href: "/approvals" },
+  expense: { icon: "🧾", label: "경비", href: "/payments" },
   document: { icon: "📄", label: "문서", href: "/documents" },
-  leave: { icon: "🏖", label: "휴가", href: "/approvals" },
+  leave: { icon: "🏖", label: "휴가", href: "/attendance?section=leave" },
   signature: { icon: "✍️", label: "서명", href: "/signatures" },
   cost: { icon: "📦", label: "프로젝트 비용", href: "/projects" },
   approval: { icon: "✅", label: "결재", href: "/approvals" },
@@ -106,7 +109,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   const yearPct = growth.yearTarget > 0 ? Math.min(999, Math.round((growth.yearRevenue / growth.yearTarget) * 100)) : null;
 
   const riskTotal = useMemo(() => Object.values(riskCounts).reduce((s, n) => s + n, 0), [riskCounts]);
-  const topActions = actions.slice(0, 6);
+  const topActions = actions.slice(0, 10);
   const totalTodo = actions.length + queueCount + (sixPack.arOver30 > 0 ? 1 : 0);
 
   return (
@@ -197,9 +200,12 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
                 );
               })}
               {actions.length > topActions.length && (
-                <Link href="/approvals" className="block px-5 py-2.5 text-center text-[11px] font-semibold text-[var(--primary)] hover:bg-[var(--bg-surface)]/60 transition">
-                  외 {actions.length - topActions.length}건 더 보기 →
-                </Link>
+                // 2026-07-15: 남은 항목은 결제/경비/휴가/문서/서명/비용/결재 7종이 섞여 있어
+                // 단일 링크(예 /approvals)로 보내면 실제로 없는 화면으로 안내하는 문제가 있었음.
+                // 유형별 상세 버튼을 이용하도록 안내만 하고 잘못된 단일 링크는 제거.
+                <div className="px-5 py-2.5 text-center text-[11px] text-[var(--text-dim)]">
+                  외 {actions.length - topActions.length}건 더 있음 — 각 항목의 "상세"로 이동해 처리하세요
+                </div>
               )}
             </>
           )}
