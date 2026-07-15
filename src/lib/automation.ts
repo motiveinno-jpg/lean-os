@@ -692,7 +692,7 @@ export async function autoQueueApprovedExpenses(companyId: string) {
       companyId,
       approvalRequestId: req.id,
       amount,
-      description: `[승인#${req.id.substring(0, 8)}] ${req.title}`,
+      description: req.title,
       costType: req.request_type === 'purchase' ? 'purchase' : 'expense',
     });
 

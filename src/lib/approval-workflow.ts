@@ -500,7 +500,7 @@ export async function approveStep(
               companyId: request.company_id,
               approvalRequestId: request.id,
               amount,
-              description: `[승인#${request.id.substring(0, 8)}] ${request.title}`,
+              description: request.title,
               costType: reqType === 'purchase' ? 'purchase' : 'expense',
               dealBankAccountId: bank?.id || null,
             });
