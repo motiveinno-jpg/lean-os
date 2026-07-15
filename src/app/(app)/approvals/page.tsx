@@ -249,6 +249,35 @@ function formatDate(dateStr: string | null) {
   });
 }
 
+// PDF 등 다운로드 시 저장 경로를 사용자가 직접 고를 수 있게 — 지원 브라우저(Chrome/Edge)는
+// File System Access API 로 "다른 이름으로 저장" 다이얼로그 사용, 미지원 브라우저는 기존
+// <a download> 방식(브라우저 기본 다운로드 폴더)으로 자동 폴백.
+async function saveBlobToUserChosenPath(blob: Blob, suggestedName: string): Promise<boolean> {
+  const w = window as any;
+  if (typeof w.showSaveFilePicker === "function") {
+    try {
+      const handle = await w.showSaveFilePicker({
+        suggestedName,
+        types: [{ description: "PDF 문서", accept: { "application/pdf": [".pdf"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch (err: any) {
+      if (err?.name === "AbortError") return false; // 사용자가 저장 취소
+      // 그 외 실패 시 기존 방식으로 폴백
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = suggestedName;
+  a.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
 function formatDateTime(dateStr: string | null) {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleString("ko-KR", {
@@ -1011,13 +1040,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
           decidedAt: s.decided_at ? formatDateTime(s.decided_at) : null,
         })),
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `결재문서_${req.title}_${formatDate(req.created_at)}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast("PDF 다운로드 완료", "success");
+      const saved = await saveBlobToUserChosenPath(blob, `결재문서_${req.title}_${formatDate(req.created_at)}.pdf`);
+      if (saved) toast("PDF 다운로드 완료", "success");
     } catch (err: any) {
       toast(`PDF 생성 실패: ${err.message}`, "error");
     }
@@ -1083,13 +1107,14 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right">금액</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">승인일</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">문서</th>
             </tr>
           </thead>
           <tbody>
             {allRequests.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-16 text-center">
+                <td colSpan={8} className="px-4 py-16 text-center">
                   <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
                   </div>
@@ -1129,6 +1154,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                       <StageProgress current={req.current_stage} total={req.total_stages} status={req.status} />
                     </td>
                     <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(req.created_at)}</td>
+                    <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{req.status === "approved" ? formatDate(req.updated_at) : "-"}</td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5">
                         {req.status === "approved" && (
