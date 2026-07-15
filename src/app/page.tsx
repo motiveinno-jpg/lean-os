@@ -107,9 +107,9 @@ function RollingText() {
   }, [idx]);
 
   return (
-    <span className="inline-block relative overflow-hidden align-bottom" style={{ width: "2em", height: "1.15em" }}>
+    <span className="rolling-text-wrap inline-block relative overflow-hidden align-bottom w-[2em] h-[1.15em]">
       <span
-        className="absolute left-0 transition-all duration-300"
+        className="rolling-text-item absolute left-0 transition-all duration-300"
         style={{
           color: "var(--primary, #2563EB)",
           fontWeight: 800,
@@ -287,14 +287,14 @@ function PaymentSim() {
   const statusColor: Record<string, string> = { "요청": "#94A3B8", "대기": "#F59E0B", "승인": "#3B82F6", "완료": "#10B981" };
 
   return (
-    <div className="bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden relative" style={{ minHeight: 280 }}>
+    <div className="payment-sim-card bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden relative min-h-[280px]">
       <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">PAYMENT QUEUE</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300">{items.filter(i => i.status === "완료").length}/3 처리됨</span>
       </div>
       <div className="space-y-2.5">
         {items.map((item, i) => (
-          <div key={i} className="bg-white/5 backdrop-blur rounded-xl p-3 flex items-center gap-3 transition-all duration-700" style={{ opacity: 1, transform: step > i * 4 ? "translateX(0)" : "translateX(20px)" }}>
+          <div key={i} className="payment-sim-item bg-white/5 backdrop-blur rounded-xl p-3 flex items-center gap-3 transition-all duration-700" style={{ opacity: 1, transform: step > i * 4 ? "translateX(0)" : "translateX(20px)" }}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: `${statusColor[item.status]}20`, color: statusColor[item.status] }}>
               {item.status === "완료" ? "✓" : item.status === "승인" ? "→" : item.status === "대기" ? "!" : "•"}
             </div>
@@ -328,7 +328,7 @@ function PipelineSim() {
   const activeStage = Math.min(3, Math.floor(step / 4));
 
   return (
-    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+    <div className="pipeline-sim-card lp-card-dark min-h-[280px]">
       <div className="flex items-center justify-between mb-5">
         <span className="text-xs font-bold text-blue-400">DEAL PIPELINE</span>
         <span className="text-[10px] text-slate-400">그**이 식품 납품</span>
@@ -391,7 +391,7 @@ function ContractSim() {
   const phaseIcon = ["📝", "👀", "✍️", "✅"];
 
   return (
-    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+    <div className="contract-sim-card lp-card-dark min-h-[280px]">
       <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">E-CONTRACT</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">{phases[phase]}</span>
@@ -458,7 +458,7 @@ function PayrollSim() {
   const showApprove = step >= 9;
 
   return (
-    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+    <div className="payroll-sim-card lp-card-dark min-h-[280px]">
       <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">PAYROLL</span>
         <span className="text-[10px] text-slate-400">2026년 3월</span>
@@ -514,7 +514,7 @@ function AISim() {
   ];
 
   return (
-    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+    <div className="ai-sim-card lp-card-dark min-h-[280px]">
       <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">AI ENGINE</span>
         <div className="flex items-center gap-1.5">
@@ -560,12 +560,12 @@ function ChatSim() {
   ];
 
   return (
-    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+    <div className="chat-sim-card lp-card-dark min-h-[280px]">
       <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">TEAM CHAT</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">실시간</span>
       </div>
-      <div className="space-y-2 overflow-hidden" style={{ maxHeight: 220 }}>
+      <div className="space-y-2 overflow-hidden max-h-[220px]">
         {msgs.map((m, i) => (
           <div key={i} className={`flex gap-2 transition-all duration-500 ${m.show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${m.isAction ? "bg-blue-500/20 text-blue-400" : m.isPartner ? "bg-purple-500/20 text-purple-400" : "bg-white/10 text-slate-400"}`}>
@@ -601,7 +601,7 @@ function CRMSim() {
   const showInsight = step >= 10;
 
   return (
-    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+    <div className="crm-sim-card lp-card-dark min-h-[280px]">
       <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">CLIENT DB</span>
         <span className="text-[10px] text-slate-400">{clients.filter(c => c.show).length}개 거래처</span>
@@ -646,7 +646,7 @@ function DocSim() {
   const statusColors: Record<string, string> = { "검토중": "#F59E0B", "서명완료": "#3B82F6", "잠금": "#10B981", "대기": "#64748B", "생성됨": "#3B82F6", "백업완료": "#10B981", "발행됨": "#8B5CF6", "매칭완료": "#10B981", "작성중": "#F59E0B", "백업중": "#3B82F6", "아카이브": "#10B981" };
 
   return (
-    <div className="lp-card-dark" style={{ minHeight: 280 }}>
+    <div className="doc-sim-card lp-card-dark min-h-[280px]">
       <div className="lp-row-between">
         <span className="text-xs font-bold text-blue-400">DOCUMENT HUB</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">자동관리</span>
@@ -707,7 +707,7 @@ function useInView(threshold = 0.15) {
 // ═══════════════════════════════════════════
 function FloatingElements() {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="hero-floating-elements absolute inset-0 overflow-hidden pointer-events-none">
       {/* Floating icons */}
       {[
         { icon: "📊", x: "10%", y: "20%", delay: "0s", dur: "20s" },
@@ -738,8 +738,8 @@ function FloatingElements() {
         <path d="M0,250 Q300,200 600,350 T1100,250" fill="none" stroke="white" strokeWidth="0.5" />
       </svg>
       {/* Gradient orbs */}
-      <div className="absolute w-[500px] h-[500px] rounded-full opacity-10 blur-[120px] bg-blue-600" style={{ top: "-10%", right: "-10%" }} />
-      <div className="absolute w-[400px] h-[400px] rounded-full opacity-10 blur-[100px] bg-blue-800" style={{ bottom: "-5%", left: "-5%" }} />
+      <div className="absolute w-[500px] h-[500px] rounded-full opacity-10 blur-[120px] bg-blue-600 -top-[10%] -right-[10%]" />
+      <div className="absolute w-[400px] h-[400px] rounded-full opacity-10 blur-[100px] bg-blue-800 -bottom-[5%] -left-[5%]" />
     </div>
   );
 }
@@ -826,7 +826,7 @@ export default function LandingPage() {
       `}</style>
 
       {/* ── NAV ── */}
-      <nav className="fixed top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50">
+      <nav className="site-nav fixed top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex items-center gap-2.5 cursor-pointer">
             <OwnerViewLogo size={32} />
@@ -877,7 +877,7 @@ export default function LandingPage() {
         </div>
         {/* 모바일 드롭다운 메뉴 */}
         {isMobileMenuOpen && (
-          <div className="md:hidden bg-[#0A0E1A]/95 backdrop-blur-xl border-t border-white/5 px-6 py-4 space-y-3">
+          <div className="mobile-nav-menu md:hidden bg-[#0A0E1A]/95 backdrop-blur-xl border-t border-white/5 px-6 py-4 space-y-3">
             <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">주요기능</a>
             <a href="#engines" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">도입효과</a>
             <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">요금제</a>
@@ -891,15 +891,15 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO ── */}
-      <section className="relative pt-32 pb-28 md:pt-44 md:pb-36 px-6 bg-[#0A0E1A] overflow-hidden" ref={heroRef.ref}>
+      <section className="hero-section relative pt-32 pb-28 md:pt-44 md:pb-36 px-6 bg-[#0A0E1A] overflow-hidden" ref={heroRef.ref}>
         {/* Subtle geometric background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute w-[600px] h-[600px] rounded-full opacity-[0.07] blur-[150px] bg-blue-600" style={{ top: "-15%", right: "-10%" }} />
-          <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[120px] bg-indigo-500" style={{ bottom: "-5%", left: "-5%" }} />
+          <div className="absolute w-[600px] h-[600px] rounded-full opacity-[0.07] blur-[150px] bg-blue-600 -top-[15%] -right-[10%]" />
+          <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[120px] bg-indigo-500 -bottom-[5%] -left-[5%]" />
           {/* Subtle dot grid pattern */}
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
         </div>
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div className="hero-content max-w-4xl mx-auto text-center relative z-10">
           {/* OwnerView Logo — large */}
           <div className={`mb-10 ${heroRef.inView ? "animate-scale" : "opacity-0"}`}>
             <OwnerViewLogo size={72} className="mx-auto" />
@@ -910,13 +910,13 @@ export default function LandingPage() {
             <br />
             자동으로 한눈에!
           </h1>
-          <p className={`text-base md:text-lg text-slate-300 mb-3 max-w-2xl mx-auto font-medium ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.15s" }}>
+          <p className={`text-base md:text-lg text-slate-300 mb-3 max-w-2xl mx-auto font-medium [animation-delay:0.15s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             현금, 프로젝트, 세무, 급여, 결재 — 회사 운영의 모든 것을 하나로
           </p>
-          <p className={`text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
+          <p className={`text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed [animation-delay:0.2s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             중소기업 대표를 위한 올인원 운영 플랫폼
           </p>
-          <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.4s" }}>
+          <div className={`hero-cta flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 [animation-delay:0.4s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             <Link href="/auth" className="w-full sm:w-auto px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 active:scale-[0.98]">
               무료로 시작하기
             </Link>
@@ -928,7 +928,7 @@ export default function LandingPage() {
             </a>
           </div>
           {/* 신뢰 카운터 */}
-          <div className={`flex items-center justify-center gap-8 mb-10 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.45s" }}>
+          <div className={`hero-trust-counter flex items-center justify-center gap-8 mb-10 [animation-delay:0.45s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             <div className="text-center">
               <div className="text-2xl md:text-3xl font-black text-white">30<span className="text-blue-400">+</span></div>
               <div className="text-[11px] text-slate-500 mt-0.5">통합 기능</div>
@@ -950,7 +950,7 @@ export default function LandingPage() {
             </div>
           </div>
           {/* Trust badges */}
-          <div className={`flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500 ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.5s" }}>
+          <div className={`hero-trust-badges flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500 [animation-delay:0.5s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 카드 등록 없이 무료</span>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 가입 즉시 세팅 완료</span>
             <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 24시간 자동 운영</span>
@@ -958,7 +958,7 @@ export default function LandingPage() {
           </div>
 
           {/* Hero mini dashboard mockup */}
-          <div className={`mt-16 max-w-3xl mx-auto ${heroRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.6s" }}>
+          <div className={`hero-dashboard-mockup mt-16 max-w-3xl mx-auto [animation-delay:0.6s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             <div className="bg-[#1E293B]/80 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-2xl">
               <div className="flex items-center gap-2 mb-3 px-2">
                 <div className="w-3 h-3 rounded-full bg-red-400/80" />
@@ -1001,7 +1001,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PAIN POINT → SOLUTION ── */}
-      <section className="py-20 px-6 bg-[#0F1629]">
+      <section className="pain-point-section py-20 px-6 bg-[#0F1629]">
         <div className="lp-container">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
@@ -1018,7 +1018,7 @@ export default function LandingPage() {
               { keyword: "서류 3초 검색", pain: "계약서 어디 저장했더라? 작년 견적서 찾느라 30분", solve: "모든 서류 자동 분류·저장·백업. 검색 한 번이면 3초 만에 찾기", icon: "📁" },
               { keyword: "업무 히스토리 보존", pain: "파트너사와 카톡으로 업무하다 중요한 내용 유실", solve: "프로젝트별 전용 채팅 채널 + 견적·서명·승인 액션카드. 비즈니스 히스토리 영구 보존", icon: "💬" },
             ].map((item) => (
-              <div key={item.pain} className="bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-6 hover:border-white/10 transition group">
+              <div key={item.pain} className="pain-point-card bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-6 hover:border-white/10 transition group">
                 <div className="flex items-start gap-4">
                   <span className="text-3xl mt-0.5">{item.icon}</span>
                   <div>
@@ -1031,7 +1031,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="text-center">
-            <div className="inline-block bg-blue-600/15 border border-blue-500/20 rounded-2xl px-8 py-5">
+            <div className="pain-point-summary inline-block bg-blue-600/15 border border-blue-500/20 rounded-2xl px-8 py-5">
               <p className="text-lg md:text-xl font-bold text-white mb-1">
                 회계 · 인사 · 총무 · 재무 · 법무 담당자 없이도
               </p>
@@ -1044,7 +1044,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── 4 ENGINES ── */}
-      <section className="py-24 px-6 bg-[#0A0E1A]" id="engines">
+      <section className="engines-section py-24 px-6 bg-[#0A0E1A]" id="engines">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-20">
             <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold mb-6 border border-[#818CF8]/30 bg-[#818CF8]/10 text-[#818CF8]">
@@ -1064,7 +1064,7 @@ export default function LandingPage() {
               return (
               <div key={engine.num} className="group relative">
                 {/* Engine card */}
-                <div className="bg-white/[0.04] border border-white/10 rounded-[20px] overflow-hidden hover:border-white/20 transition-all duration-500 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <div className="engine-card bg-white/[0.04] border border-white/10 rounded-[20px] overflow-hidden hover:border-white/20 transition-all duration-500 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]">
                   {/* Accent bar */}
                   <div className="h-1" style={{ background: engine.color }} />
 
@@ -1091,7 +1091,7 @@ export default function LandingPage() {
                     </div>
 
                     {/* Tagline — big and bold */}
-                    <div className="rounded-2xl p-4 md:p-5 mb-6" style={{ background: `${engine.color}08`, borderLeft: `4px solid ${engine.color}` }}>
+                    <div className="engine-tagline rounded-2xl p-4 md:p-5 mb-6" style={{ background: `${engine.color}08`, borderLeft: `4px solid ${engine.color}` }}>
                       <p className="text-base md:text-xl font-extrabold text-white leading-snug mb-1">{engine.tagline}</p>
                       <p className="text-sm text-slate-400">{engine.headline}</p>
                     </div>
@@ -1106,7 +1106,7 @@ export default function LandingPage() {
                         <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">작동 방식 — 3단계</div>
                         <div className="space-y-3 mb-6">
                           {engine.steps.map((s, i) => (
-                            <div key={i} className="flex items-start gap-3 bg-white/[0.04] rounded-xl p-3.5 border border-white/[0.06]">
+                            <div key={i} className="engine-step-item flex items-start gap-3 bg-white/[0.04] rounded-xl p-3.5 border border-white/[0.06]">
                               <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shrink-0 mt-0.5" style={{ background: engine.color, color: "white" }}>
                                 {i + 1}
                               </div>
@@ -1133,7 +1133,7 @@ export default function LandingPage() {
                         <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">핵심 기능</div>
                         <div className="grid grid-cols-2 gap-2.5 mb-6">
                           {engine.features.map((f) => (
-                            <div key={f.name} className="flex items-start gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-2xl p-3 hover:bg-white/[0.06] hover:border-white/12 transition-colors">
+                            <div key={f.name} className="engine-feature-item flex items-start gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-2xl p-3 hover:bg-white/[0.06] hover:border-white/12 transition-colors">
                               <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${engine.color}1a`, boxShadow: `inset 0 0 0 1px ${engine.color}22`, color: engine.color }}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                               </span>
@@ -1148,7 +1148,7 @@ export default function LandingPage() {
                         {/* Metrics row — 예시 대시보드 미리보기 (샘플 수치) */}
                         <div className="grid grid-cols-3 gap-2">
                           {engine.metrics.map((m) => (
-                            <div key={m.label} className="bg-white/[0.05] rounded-xl p-3 text-center border border-white/[0.06]">
+                            <div key={m.label} className="engine-metric-tile bg-white/[0.05] rounded-xl p-3 text-center border border-white/[0.06]">
                               <div className="text-[10px] text-slate-500">{m.label}</div>
                               <div className="text-base font-extrabold text-white">{m.value}</div>
                               <div className="text-[10px] font-semibold" style={{ color: engine.color }}>{m.sub}</div>
@@ -1172,7 +1172,7 @@ export default function LandingPage() {
 
           {/* Total savings */}
           <div className="mt-16 text-center">
-            <div className="inline-flex flex-col sm:flex-row items-center gap-6 sm:gap-10 px-10 py-8 bg-blue-600/10 border border-white/10 rounded-3xl backdrop-blur">
+            <div className="engines-savings-summary inline-flex flex-col sm:flex-row items-center gap-6 sm:gap-10 px-10 py-8 bg-blue-600/10 border border-white/10 rounded-3xl backdrop-blur">
               <div className="text-center sm:text-left">
                 <div className="text-sm text-slate-500 mb-2">4개 엔진 총 절감 인건비</div>
                 <div className="text-4xl md:text-5xl font-extrabold text-white">연 <span className="text-blue-400">1.87억원</span></div>
@@ -1190,7 +1190,7 @@ export default function LandingPage() {
 
 
       {/* ── FEATURE MAP — 실제 제품 기능 전체 (2026-07 최신화) ── */}
-      <section className="py-20 px-6 bg-[#0B1120]" id="featuremap">
+      <section className="feature-map-section py-20 px-6 bg-[#0B1120]" id="featuremap">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5 border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
@@ -1256,7 +1256,7 @@ export default function LandingPage() {
                 ],
               },
             ].map((g) => (
-              <div key={g.group} className="bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-3xl overflow-hidden hover:border-white/15 transition">
+              <div key={g.group} className="feature-map-group-card bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-3xl overflow-hidden hover:border-white/15 transition">
                 <div className="h-1" style={{ background: g.color }} />
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-5">
@@ -1279,7 +1279,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── COMPETITOR COMPARISON (witty half-logos) ── */}
-      <section className="py-20 px-6 bg-[#111827]" id="compare" ref={compRef.ref}>
+      <section className="competitor-section py-20 px-6 bg-[#111827]" id="compare" ref={compRef.ref}>
         <div className="lp-container">
           <div className={`text-center mb-14 ${compRef.inView ? "animate-up" : "opacity-0"}`}>
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
@@ -1289,13 +1289,13 @@ export default function LandingPage() {
           </div>
 
           {/* Competitor half-logo cards */}
-          <div className={`grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-12 ${compRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
+          <div className={`grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-12 [animation-delay:0.2s] ${compRef.inView ? "animate-up" : "opacity-0"}`}>
             {COMPETITORS.map((c) => (
-              <div key={c.name} className="group relative bg-white/5 rounded-2xl p-4 text-center border border-white/5 hover:border-white/20 transition overflow-hidden">
+              <div key={c.name} className="competitor-card group relative bg-white/5 rounded-2xl p-4 text-center border border-white/5 hover:border-white/20 transition overflow-hidden">
                 {/* Half-clipped letter logo */}
                 <div className="relative w-10 h-10 mx-auto mb-2">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black overflow-hidden" style={{ background: `${c.color}20`, color: c.color }}>
-                    <span style={{ clipPath: "inset(0 50% 0 0)" }}>{c.letter}</span>
+                    <span className="[clip-path:inset(0_50%_0_0)]">{c.letter}</span>
                   </div>
                   {/* Slash through */}
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -1316,7 +1316,7 @@ export default function LandingPage() {
           </div>
 
           {/* Cost Calculator */}
-          <div className={`bg-[#1A2332] rounded-3xl border border-white/10 p-8 shadow-2xl ${compRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.4s" }}>
+          <div className={`cost-calculator bg-[#1A2332] rounded-3xl border border-white/10 p-8 shadow-2xl [animation-delay:0.4s] ${compRef.inView ? "animate-up" : "opacity-0"}`}>
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
               <div>
                 <h3 className="text-xl font-bold text-white mb-1">비용 비교 계산기</h3>
@@ -1328,15 +1328,15 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-center">
+              <div className="cost-calculator-stat bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-center">
                 <div className="text-xs text-red-400 mb-1">개별 구독 합계</div>
                 <div className="text-3xl font-extrabold text-red-400">{Math.round(competitorTotal / 10000).toLocaleString()}<span className="text-base font-normal">만원/월</span></div>
               </div>
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 text-center">
+              <div className="cost-calculator-stat bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 text-center">
                 <div className="text-xs text-blue-400 mb-1">OwnerView {reflectPlan} <span className="text-emerald-400">(정액)</span></div>
                 <div className="text-3xl font-extrabold text-blue-400">{reflectTotal === null ? "별도 협의" : reflectTotal.toLocaleString()}<span className="text-base font-normal">{reflectTotal === null ? "" : "원/월"}</span></div>
               </div>
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
+              <div className="cost-calculator-stat bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 text-center">
                 <div className="text-xs text-emerald-400 mb-1">매월 절감액</div>
                 <div className="text-3xl font-extrabold text-emerald-400">{Math.round(savings / 10000).toLocaleString()}<span className="text-base font-normal">만원 ({savingsPercent}%)</span></div>
               </div>
@@ -1346,7 +1346,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES + LIVE SIMULATION ── */}
-      <section className="py-20 px-6 bg-[#111827]" id="features" ref={featRef.ref}>
+      <section className="live-demo-section py-20 px-6 bg-[#111827]" id="features" ref={featRef.ref}>
         <div className="lp-container">
           <div className={`text-center mb-12 ${featRef.inView ? "animate-up" : "opacity-0"}`}>
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
@@ -1356,12 +1356,12 @@ export default function LandingPage() {
           </div>
 
           {/* Feature tabs */}
-          <div className={`flex flex-wrap gap-2 justify-center mb-10 ${featRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
+          <div className={`flex flex-wrap gap-2 justify-center mb-10 [animation-delay:0.2s] ${featRef.inView ? "animate-up" : "opacity-0"}`}>
             {FEATURES.map((f, i) => (
               <button
                 key={i}
                 onClick={() => setActiveFeat(i)}
-                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                className={`feature-tab-button px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
                   activeFeat === i
                     ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30"
                     : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5"
@@ -1375,7 +1375,7 @@ export default function LandingPage() {
           {/* Feature content + Sim */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left: Info */}
-            <div className="bg-[#1A2332] rounded-2xl border border-white/10 p-8 flex flex-col justify-center">
+            <div className="feature-info-card bg-[#1A2332] rounded-2xl border border-white/10 p-8 flex flex-col justify-center">
               <div className="text-xs text-blue-400 font-medium mb-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
                 {FEATURES[activeFeat].replaces} 대체
@@ -1400,7 +1400,7 @@ export default function LandingPage() {
         </div>
       </section>
       {/* ── HOW IT WORKS — 도입 장벽 제거 ── */}
-      <section className="py-20 px-6 bg-white">
+      <section className="onboarding-section py-20 px-6 bg-white">
         <div className="lp-container">
           <div className="text-center mb-6">
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">&quot;도입이 어렵지 않나요?&quot;</h2>
@@ -1419,7 +1419,7 @@ export default function LandingPage() {
               { step: "03", title: "자동 등록", desc: "거래처·거래내역 자동 인식·등록", icon: "✅", color: "#10B981" },
               { step: "04", title: "바로 경영 시작", desc: "대시보드에서 전체 현황 파악", icon: "🚀", color: "#F59E0B" },
             ].map((s, i) => (
-              <div key={s.step} className="relative group">
+              <div key={s.step} className="onboarding-step-card relative group">
                 {i < 3 && <div className="hidden md:block absolute top-10 -right-3 w-6 h-[2px] bg-gray-200 z-10" />}
                 <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg hover:border-gray-200 transition-all text-center">
                   <div className="text-3xl mb-3">{s.icon}</div>
@@ -1432,7 +1432,7 @@ export default function LandingPage() {
           </div>
           {/* Social proof */}
           <div className="mt-10 text-center">
-            <div className="inline-flex items-center gap-4 px-6 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
+            <div className="onboarding-social-proof inline-flex items-center gap-4 px-6 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
               <span className="text-emerald-600 text-sm font-semibold">도입 비용</span>
               <span className="text-2xl font-extrabold text-emerald-700">0원</span>
               <span className="text-xs text-emerald-500">카드 등록 없이 무료로 시작</span>
@@ -1442,7 +1442,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRICING ── */}
-      <section className="py-20 px-6 bg-gray-50" id="pricing" ref={priceRef.ref}>
+      <section className="pricing-section py-20 px-6 bg-gray-50" id="pricing" ref={priceRef.ref}>
         <div className="lp-container">
           <div className={`text-center mb-6 ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-blue-100 text-blue-700 border border-blue-200">
@@ -1533,20 +1533,20 @@ export default function LandingPage() {
       {/* Revenue simulation removed — now in separate IR report HTML */}
 
       {/* ── PARTNERSHIP INQUIRY ── */}
-      <section className="py-20 px-6 bg-white" id="partner" ref={partnerRef.ref}>
+      <section className="partner-section py-20 px-6 bg-white" id="partner" ref={partnerRef.ref}>
         <div className="max-w-3xl mx-auto">
           <div className={`text-center mb-12 ${partnerRef.inView ? "animate-up" : "opacity-0"}`}>
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">제휴 & 도입 문의</h2>
             <p className="text-gray-500 text-lg">Enterprise 도입, API 연동, 리셀러 제휴를 상담해 드립니다</p>
           </div>
           {partnerSent ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center">
+            <div className="partner-success-message bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center">
               <div className="text-4xl mb-4">✅</div>
               <h3 className="text-xl font-bold text-emerald-700 mb-2">문의가 접수되었습니다</h3>
               <p className="text-sm text-emerald-600">영업일 기준 1일 이내에 회신드리겠습니다.</p>
             </div>
           ) : (
-            <div className={`bg-white rounded-2xl border border-gray-200 p-8 shadow-sm ${partnerRef.inView ? "animate-up" : "opacity-0"}`} style={{ animationDelay: "0.2s" }}>
+            <div className={`partner-form-card bg-white rounded-2xl border border-gray-200 p-8 shadow-sm [animation-delay:0.2s] ${partnerRef.inView ? "animate-up" : "opacity-0"}`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="lp-field-label">회사명 *</label>
@@ -1583,14 +1583,14 @@ export default function LandingPage() {
       </section>
 
       {/* ── FAQ ── */}
-      <section className="py-20 px-6 bg-gray-50" id="faq">
+      <section className="faq-section py-20 px-6 bg-gray-50" id="faq">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">자주 묻는 질문</h2>
           </div>
           <div className="space-y-3">
             {FAQS.map((faq, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-300 transition">
+              <div key={i} className="faq-item bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-300 transition">
                 <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full flex items-center justify-between px-6 py-5 text-left">
                   <span className="font-semibold text-sm pr-4">{faq.q}</span>
                   <svg className={`w-5 h-5 text-gray-400 shrink-0 transition-transform duration-300 ${openFaq === i ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1607,10 +1607,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section className="py-24 px-6 bg-[#0A0E1A] relative overflow-hidden">
+      <section className="final-cta-section py-24 px-6 bg-[#0A0E1A] relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute w-[600px] h-[600px] rounded-full blur-[150px] bg-blue-600/20" style={{ top: "-20%", left: "20%" }} />
-          <div className="absolute w-[400px] h-[400px] rounded-full blur-[120px] bg-blue-800/15" style={{ bottom: "-10%", right: "10%" }} />
+          <div className="absolute w-[600px] h-[600px] rounded-full blur-[150px] bg-blue-600/20 -top-[20%] left-[20%]" />
+          <div className="absolute w-[400px] h-[400px] rounded-full blur-[120px] bg-blue-800/15 -bottom-[10%] right-[10%]" />
         </div>
         <div className="max-w-3xl mx-auto text-center relative z-10">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
@@ -1627,7 +1627,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="py-12 px-6 bg-[#060810] text-slate-500">
+      <footer className="site-footer py-12 px-6 bg-[#060810] text-slate-500">
         <div className="lp-container">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-2.5">

@@ -64,7 +64,7 @@ function ShareContent() {
   if (invalid || !share) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
+        <div className="share-invalid-card bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
           <div className="text-4xl mb-4">🔗</div>
           <h1 className="text-xl font-bold text-gray-900 mb-2">유효하지 않은 링크</h1>
           <p className="text-gray-500 text-sm">이 문서 링크가 만료되었거나 존재하지 않습니다.</p>
@@ -96,14 +96,14 @@ function ShareContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
-      <div className="max-w-3xl mx-auto">
+    <div className="share-page min-h-screen bg-[var(--bg)] py-8 px-4">
+      <div className="share-content max-w-3xl mx-auto">
         <DocumentRender doc={doc} company={company} />
 
         <div className="h-4" />
         {/* Feedback Section */}
         {share.allow_feedback && !feedbackSent && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4">
+          <div className="share-feedback-card bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4">
             {!showFeedback ? (
               <div className="text-center">
                 <p className="text-sm text-gray-500 mb-3">이 문서에 대해 의견을 보내실 수 있습니다.</p>
@@ -168,7 +168,7 @@ function ShareContent() {
 
         {/* Feedback sent confirmation */}
         {feedbackSent && (
-          <div className="bg-[var(--success-dim)] border border-[var(--success)]/25 rounded-2xl p-6 mb-4 text-center">
+          <div className="share-feedback-sent bg-[var(--success-dim)] border border-[var(--success)]/25 rounded-2xl p-6 mb-4 text-center">
             <div className="text-2xl mb-2">✅</div>
             <h3 className="text-sm font-bold text-[var(--success)]">피드백이 전송되었습니다</h3>
             <p className="text-xs text-[var(--success)] mt-1">감사합니다. 담당자에게 알림이 전달됩니다.</p>
@@ -176,7 +176,7 @@ function ShareContent() {
         )}
 
         {/* Footer */}
-        <div className="text-center text-xs text-gray-400 py-4">
+        <div className="share-footer text-center text-xs text-gray-400 py-4">
           Powered by <span className="font-semibold">OwnerView</span>
         </div>
       </div>

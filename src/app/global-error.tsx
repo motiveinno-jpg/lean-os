@@ -17,6 +17,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
     <html lang="ko">
       <body>
         <div
+          className="global-error-shell"
           style={{
             display: "flex",
             alignItems: "center",
@@ -26,7 +27,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             background: "#f9fafb",
           }}
         >
-          <div style={{ textAlign: "center", padding: "40px" }}>
+          <div className="global-error-card" style={{ textAlign: "center", padding: "40px" }}>
             <h1 style={{ fontSize: "24px", color: "#111827", marginBottom: "8px" }}>
               오류가 발생했습니다
             </h1>
@@ -34,6 +35,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               일시적인 문제가 발생했습니다. 다시 시도해 주세요.
             </p>
             <button
+              className="global-error-retry-btn"
               onClick={reset}
               style={{
                 padding: "10px 24px",

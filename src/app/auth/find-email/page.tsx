@@ -53,10 +53,10 @@ export default function FindEmailPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="find-email-page min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="find-email-logo text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4">
             <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
               <rect width="40" height="40" rx="10" fill="#111"/>
@@ -74,20 +74,19 @@ export default function FindEmailPage() {
 
         {/* Card */}
         <div
-          className="glass-card p-8"
-          style={{ boxShadow: "var(--shadow-lg)" }}
+          className="find-email-card glass-card p-8 shadow-[var(--shadow-lg)]"
         >
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
+            <div className="find-email-error-banner mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
               {error}
             </div>
           )}
 
           {/* Results */}
           {results !== null && (
-            <div className="mb-6">
+            <div className="find-email-results mb-6">
               {results.length === 0 ? (
-                <div className="text-center py-6">
+                <div className="find-email-no-results text-center py-6">
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--bg-surface)] mb-4">
                     <svg className="w-8 h-8 text-[var(--text-dim)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -99,14 +98,14 @@ export default function FindEmailPage() {
                   </p>
                 </div>
               ) : (
-                <div className="text-center py-4">
+                <div className="find-email-found text-center py-4">
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--success-dim)] mb-4">
                     <svg className="w-8 h-8 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                   <p className="text-[var(--text)] font-semibold text-lg mb-3">이메일을 찾았습니다</p>
-                  <div className="space-y-2">
+                  <div className="email-result-list space-y-2">
                     {results.map((maskedEmail, i) => (
                       <div
                         key={i}
@@ -126,8 +125,8 @@ export default function FindEmailPage() {
 
           {/* Search Form */}
           {results === null && (
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
+            <form onSubmit={handleSubmit} className="find-email-search-form">
+              <div className="name-field mb-4">
                 <label className="field-label">이름</label>
                 <input
                   type="text"
@@ -138,7 +137,7 @@ export default function FindEmailPage() {
                   required
                 />
               </div>
-              <div className="mb-6">
+              <div className="phone-field mb-6">
                 <label className="field-label">전화번호 (선택)</label>
                 <input
                   type="tel"
@@ -178,7 +177,7 @@ export default function FindEmailPage() {
         </div>
 
         {/* Back to login */}
-        <div className="text-center mt-6">
+        <div className="find-email-back-link text-center mt-6">
           <Link
             href="/auth"
             className="text-sm text-[var(--primary)] hover:underline font-medium"

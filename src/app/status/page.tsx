@@ -30,19 +30,19 @@ export default async function StatusPage() {
   const label = status === 'healthy' ? '정상' : status === 'degraded' ? '부분 장애' : '장애';
 
   return (
-    <main style={{ maxWidth: 720, margin: '40px auto', padding: '0 24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <main className="status-page" style={{ maxWidth: 720, margin: '40px auto', padding: '0 24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>OwnerView 상태</h1>
       <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
         {body?.timestamp ? new Date(body.timestamp).toLocaleString('ko-KR') : ''} · HTTP {http}
       </div>
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: color, color: 'white', fontWeight: 700, marginBottom: 24 }}>
+      <div className="status-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: color, color: 'white', fontWeight: 700, marginBottom: 24 }}>
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'white', display: 'inline-block' }} />
         {label}
       </div>
 
-      <div style={{ display: 'grid', gap: 8 }}>
+      <div className="status-checks-list" style={{ display: 'grid', gap: 8 }}>
         {Object.entries(checks).map(([name, c]) => (
-          <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff' }}>
+          <div key={name} className="status-check-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.ok ? '#16a34a' : '#dc2626', display: 'inline-block' }} />
               <strong style={{ fontSize: 14 }}>{name.toUpperCase()}</strong>

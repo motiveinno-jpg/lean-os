@@ -14,7 +14,7 @@ export default function MaintenancePage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <div className="maintenance-page min-h-screen flex items-center justify-center p-6">
       {/* 점검 페이지 전용 망치질 애니메이션 (순수 CSS, 외부 의존 없음) */}
       <style>{`
         @keyframes hmr-swing { 0%,32%,100% { transform: rotate(-22deg); } 50% { transform: rotate(20deg); } 64% { transform: rotate(15deg); } }
@@ -26,10 +26,10 @@ export default function MaintenancePage() {
         @media (prefers-reduced-motion: reduce) { .hmr-tool, .hmr-spark, .hmr-anvil { animation: none; } .hmr-spark { opacity: 0; } }
       `}</style>
       <div className="max-w-md w-full text-center space-y-5">
-        <div className="relative mx-auto select-none" style={{ width: 120, height: 96 }} aria-hidden>
-          <div className="hmr-anvil" style={{ position: "absolute", left: "50%", bottom: 14, transform: "translateX(-50%)", width: 50, height: 14, borderRadius: 6, background: "var(--bg-surface)", border: "1px solid var(--border)" }} />
-          <div className="hmr-spark" style={{ position: "absolute", left: "50%", bottom: 26, transform: "translateX(-50%)", fontSize: 18 }}>✨</div>
-          <div className="hmr-tool" style={{ position: "absolute", left: "50%", top: 0, marginLeft: -24, fontSize: 48, lineHeight: 1, transformOrigin: "50% 92%" }}>🔨</div>
+        <div className="maintenance-anvil-scene relative mx-auto select-none w-[120px] h-[96px]" aria-hidden>
+          <div className="hmr-anvil absolute left-1/2 bottom-[14px] -translate-x-1/2 w-[50px] h-[14px] rounded-[6px] bg-[var(--bg-surface)] border border-[var(--border)]" />
+          <div className="hmr-spark absolute left-1/2 bottom-[26px] -translate-x-1/2 text-[18px]">✨</div>
+          <div className="hmr-tool absolute left-1/2 top-0 -ml-6 text-5xl leading-none origin-[50%_92%]">🔨</div>
         </div>
         <h1 className="text-2xl font-extrabold text-[var(--text)]">서버 점검 중</h1>
         <p className="text-sm text-[var(--text-muted)] leading-relaxed">

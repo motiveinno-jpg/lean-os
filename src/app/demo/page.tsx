@@ -101,7 +101,7 @@ export default function DemoPage() {
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       {/* ═══ Demo Banner ═══ */}
       <div
-        className="sticky top-0 z-50 px-4 py-2.5 text-center text-sm font-semibold"
+        className="demo-banner sticky top-0 z-50 px-4 py-2.5 text-center text-sm font-semibold"
         style={{
           background: "linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)",
           color: "#fff",
@@ -121,7 +121,7 @@ export default function DemoPage() {
       <div className="flex">
         {/* Sidebar (desktop) */}
         <aside
-          className="hidden md:flex flex-col w-[220px] min-h-screen border-r p-4 flex-shrink-0"
+          className="app-sidebar hidden md:flex flex-col w-[220px] min-h-screen border-r p-4 flex-shrink-0"
           style={{
             background: "var(--bg-card)",
             borderColor: "var(--border)",
@@ -142,7 +142,7 @@ export default function DemoPage() {
             </span>
           </div>
 
-          <div className="space-y-1 flex-1">
+          <div className="sidebar-nav-list space-y-1 flex-1">
             {[
               { label: "대시보드", active: true },
               { label: "프로젝트" },
@@ -156,7 +156,7 @@ export default function DemoPage() {
             ].map((item) => (
               <div
                 key={item.label}
-                className="px-3 py-2 rounded-lg text-xs font-semibold cursor-default"
+                className="sidebar-nav-item px-3 py-2 rounded-lg text-xs font-semibold cursor-default"
                 style={{
                   background: item.active
                     ? "var(--primary)"
@@ -170,7 +170,7 @@ export default function DemoPage() {
           </div>
 
           <div
-            className="mt-auto pt-4 border-t text-[11px]"
+            className="sidebar-company-info mt-auto pt-4 border-t text-[11px]"
             style={{
               borderColor: "var(--border)",
               color: "var(--text-dim)",
@@ -187,7 +187,7 @@ export default function DemoPage() {
         <main className="flex-1 min-w-0 px-4 md:px-8 py-6 max-w-[1100px]">
           {/* ═══ Morning Brief ═══ */}
           <section
-            className="mb-6 rounded-2xl border p-6 md:p-8"
+            className="morning-brief-card mb-6 rounded-2xl border p-6 md:p-8"
             style={{
               background: "var(--bg-card)",
               borderColor: "var(--border)",
@@ -209,11 +209,10 @@ export default function DemoPage() {
               {briefLines.map((line, i) => (
                 <p
                   key={i}
-                  className={i === 0 ? "text-base font-bold" : "text-sm"}
+                  className={`${i === 0 ? "text-base font-bold" : "text-sm"} leading-[1.7]`}
                   style={{
                     color:
                       i === 0 ? "var(--text)" : "var(--text-muted)",
-                    lineHeight: 1.7,
                   }}
                 >
                   {line}
@@ -224,7 +223,7 @@ export default function DemoPage() {
 
           {/* ═══ Cash Pulse Bar ═══ */}
           <div
-            className="rounded-2xl p-1 mb-4"
+            className="cash-pulse-bar rounded-2xl p-1 mb-4"
             style={{
               background: "var(--bg-card)",
               border: "1px solid rgba(34,197,94,0.15)",
@@ -239,7 +238,7 @@ export default function DemoPage() {
                 } as React.CSSProperties
               }
             >
-              <div className="px-4 py-3">
+              <div className="pulse-balance-stat px-4 py-3">
                 <div
                   className="text-[9px] font-semibold uppercase tracking-wider mb-1"
                   style={{ color: "var(--text-dim)" }}
@@ -253,7 +252,7 @@ export default function DemoPage() {
                   ₩2.3억
                 </div>
               </div>
-              <div className="px-4 py-3">
+              <div className="pulse-forecast-stat px-4 py-3">
                 <div
                   className="text-[9px] font-semibold uppercase tracking-wider mb-1"
                   style={{ color: "var(--text-dim)" }}
@@ -270,7 +269,7 @@ export default function DemoPage() {
                   D+90 ₩1.41억
                 </div>
               </div>
-              <div className="px-4 py-3">
+              <div className="pulse-score-stat px-4 py-3">
                 <div
                   className="text-[9px] font-semibold uppercase tracking-wider mb-1"
                   style={{ color: "var(--text-dim)" }}
@@ -279,8 +278,7 @@ export default function DemoPage() {
                 </div>
                 <div className="flex items-baseline gap-1.5">
                   <span
-                    className="text-lg font-black"
-                    style={{ color: "#22c55e" }}
+                    className="text-lg font-black text-[#22c55e]"
                   >
                     72
                   </span>
@@ -292,7 +290,7 @@ export default function DemoPage() {
                   </span>
                 </div>
               </div>
-              <div className="px-4 py-3">
+              <div className="pulse-risk-stat px-4 py-3">
                 <div
                   className="text-[9px] font-semibold uppercase tracking-wider mb-1"
                   style={{ color: "var(--text-dim)" }}
@@ -319,7 +317,7 @@ export default function DemoPage() {
 
           {/* ═══ 6-Pack Metrics ═══ */}
           <div
-            className="rounded-2xl border mb-5 overflow-hidden"
+            className="six-pack-metrics-card rounded-2xl border mb-5 overflow-hidden"
             style={{
               background: "var(--bg-card)",
               borderColor: "var(--border)",
@@ -329,7 +327,7 @@ export default function DemoPage() {
               style={{ borderColor: "var(--border)" }}
             >
               {SIX_PACK.map((item) => (
-                <div key={item.label} className="px-4 py-4">
+                <div key={item.label} className="six-pack-metric-item px-4 py-4">
                   <div
                     className="text-[9px] font-semibold uppercase tracking-wider mb-1"
                     style={{ color: "var(--text-dim)" }}
@@ -346,7 +344,7 @@ export default function DemoPage() {
 
           {/* ═══ Cash Pulse Forecast Chart ═══ */}
           <div
-            className="mb-5 rounded-xl border p-4"
+            className="cash-pulse-forecast-card mb-5 rounded-xl border p-4"
             style={{
               background: "var(--bg-card)",
               borderColor: "var(--border)",
@@ -380,7 +378,7 @@ export default function DemoPage() {
                     ? (Math.abs(pt.balance) / maxForecast) * 100
                     : 0;
                 return (
-                  <div key={pt.label} className="text-center">
+                  <div key={pt.label} className="forecast-bar-item text-center">
                     <div
                       className="text-[9px] font-semibold mb-1"
                       style={{ color: "var(--text-dim)" }}
@@ -389,11 +387,10 @@ export default function DemoPage() {
                     </div>
                     <div className="h-12 flex items-end justify-center mb-1">
                       <div
-                        className="w-full max-w-[32px] rounded-t"
+                        className="w-full max-w-[32px] rounded-t opacity-80"
                         style={{
                           height: `${Math.max(pct, 8)}%`,
                           background: pt.color,
-                          opacity: 0.8,
                         }}
                       />
                     </div>
@@ -420,7 +417,7 @@ export default function DemoPage() {
           </div>
 
           {/* ═══ Today Actions ═══ */}
-          <div className="mb-5">
+          <div className="today-actions-list mb-5">
             <div className="flex items-center gap-2 mb-3">
               <div
                 className="w-2 h-2 rounded-full"
@@ -450,10 +447,9 @@ export default function DemoPage() {
                 return (
                   <div
                     key={i}
-                    className="flex items-center gap-3 px-4 py-3 rounded-lg border"
+                    className="today-action-item flex items-center gap-3 px-4 py-3 rounded-lg border border-l-2"
                     style={{
                       borderColor: "var(--border)",
-                      borderLeftWidth: 2,
                       borderLeftColor: borderColor,
                       background:
                         a.priority === "critical"
@@ -480,7 +476,7 @@ export default function DemoPage() {
 
           {/* ═══ Yesterday Transactions ═══ */}
           <div
-            className="mb-5 rounded-xl border p-4"
+            className="yesterday-tx-card mb-5 rounded-xl border p-4"
             style={{
               background: "var(--bg-card)",
               borderColor: "var(--border)",
@@ -502,7 +498,7 @@ export default function DemoPage() {
               {YESTERDAY_TX.map((tx, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg"
+                  className="yesterday-tx-row flex items-center justify-between px-3 py-2 rounded-lg"
                   style={{ background: "var(--bg-surface, var(--bg))" }}
                 >
                   <div className="flex items-center gap-2">
@@ -543,7 +539,7 @@ export default function DemoPage() {
           </div>
 
           {/* ═══ Risk Zone ═══ */}
-          <div className="mb-5">
+          <div className="risk-zone-section mb-5">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
               <h2
@@ -563,7 +559,7 @@ export default function DemoPage() {
               {RISK_ITEMS.map((risk) => (
                 <div
                   key={risk.label}
-                  className="rounded-xl border p-3"
+                  className="risk-item-card rounded-xl border p-3"
                   style={{
                     background: "var(--bg-card)",
                     borderColor:
@@ -605,7 +601,7 @@ export default function DemoPage() {
 
           {/* ═══ Deal Pipeline (collapsible) ═══ */}
           <div
-            className="mb-5 rounded-xl border p-4"
+            className="deal-pipeline-card mb-5 rounded-xl border p-4"
             style={{
               background: "var(--bg-card)",
               borderColor: "var(--border)",
@@ -651,7 +647,7 @@ export default function DemoPage() {
                 {DEALS.map((deal) => (
                   <div
                     key={deal.name}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
+                    className="deal-pipeline-row flex items-center gap-3 px-3 py-2.5 rounded-lg"
                     style={{ background: "var(--bg-surface, var(--bg))" }}
                   >
                     <div className="flex-1 min-w-0">
@@ -663,11 +659,10 @@ export default function DemoPage() {
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <span
-                          className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
+                          className="text-[10px] px-1.5 py-0.5 rounded font-semibold opacity-90"
                           style={{
                             background: "var(--primary)",
                             color: "#fff",
-                            opacity: 0.9,
                           }}
                         >
                           {deal.stage}
@@ -707,7 +702,7 @@ export default function DemoPage() {
           </div>
 
           {/* ═══ Quick Links ═══ */}
-          <div className="mb-5">
+          <div className="quick-links-section mb-5">
             <div className="flex items-center gap-2 mb-3">
               <div
                 className="w-2 h-2 rounded-full"
@@ -724,7 +719,7 @@ export default function DemoPage() {
               {QUICK_LINKS.map((link) => (
                 <div
                   key={link.label}
-                  className="rounded-xl border p-4 opacity-60 cursor-default"
+                  className="quick-link-card rounded-xl border p-4 opacity-60 cursor-default"
                   style={{
                     background: "var(--bg-card)",
                     borderColor: "var(--border)",
@@ -750,11 +745,10 @@ export default function DemoPage() {
 
           {/* ═══ CTA ═══ */}
           <div
-            className="rounded-2xl border p-8 text-center mb-10"
+            className="cta-card rounded-2xl border p-8 text-center mb-10 border-2"
             style={{
               background: "var(--bg-card)",
               borderColor: "var(--primary)",
-              borderWidth: 2,
             }}
           >
             <h3

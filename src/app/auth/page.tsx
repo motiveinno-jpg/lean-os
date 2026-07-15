@@ -223,10 +223,10 @@ export default function AuthPage() {
   // 이메일 발송 완료 화면
   if (emailSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="email-sent-screen min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           {/* Logo */}
-          <div className="text-center mb-8">
+          <div className="auth-logo text-center mb-8">
             <Link href="/" aria-label="오너뷰 홈으로" title="오너뷰 홈으로" className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 hover:opacity-80 transition cursor-pointer">
               <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
                 <rect width="40" height="40" rx="10" fill="#111"/>
@@ -239,11 +239,10 @@ export default function AuthPage() {
           </div>
 
           {/* Card */}
-          <div className="glass-card p-8"
-            style={{ boxShadow: 'var(--shadow-lg)' }}>
+          <div className="email-sent-card glass-card p-8 shadow-[var(--shadow-lg)]">
             <div className="text-center">
               {/* 이메일 아이콘 */}
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-[var(--info-dim)]">
+              <div className="email-sent-icon inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-[var(--info-dim)]">
                 <svg className="w-10 h-10 text-[var(--info)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
@@ -260,7 +259,7 @@ export default function AuthPage() {
               </p>
 
               {/* 안내사항 */}
-              <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-6 text-left">
+              <div className="email-sent-steps bg-[var(--bg-surface)] rounded-xl p-4 mb-6 text-left">
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-[var(--info-dim)] flex items-center justify-center shrink-0 mt-0.5">
@@ -293,7 +292,7 @@ export default function AuthPage() {
               </div>
 
               {/* 스팸 안내 */}
-              <div className="bg-[var(--warning-dim)] border border-[var(--warning)]/25 rounded-xl p-3 mb-6 text-left">
+              <div className="spam-notice bg-[var(--warning-dim)] border border-[var(--warning)]/25 rounded-xl p-3 mb-6 text-left">
                 <div className="flex items-start gap-2">
                   <svg className="w-4 h-4 text-[var(--warning)] mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -306,7 +305,7 @@ export default function AuthPage() {
               </div>
 
               {error && (
-                <div className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
+                <div className="auth-error-banner mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
                   {error}
                 </div>
               )}
@@ -315,7 +314,7 @@ export default function AuthPage() {
               <button
                 onClick={handleResendEmail}
                 disabled={loading || resendCooldown > 0}
-                className="w-full py-3 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl font-semibold text-sm transition border border-[var(--border)] disabled:opacity-50 mb-3"
+                className="resend-email-btn w-full py-3 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl font-semibold text-sm transition border border-[var(--border)] disabled:opacity-50 mb-3"
               >
                 {loading ? "발송 중..." : resendCooldown > 0 ? `${resendCooldown}초 후 재발송 가능` : "인증 메일 다시 보내기"}
               </button>
@@ -323,7 +322,7 @@ export default function AuthPage() {
               {/* 뒤로 */}
               <button
                 onClick={() => { setEmailSent(false); setError(""); }}
-                className="w-full py-3 text-[var(--text-muted)] hover:text-[var(--text)] text-sm font-medium transition"
+                className="change-email-btn w-full py-3 text-[var(--text-muted)] hover:text-[var(--text)] text-sm font-medium transition"
               >
                 다른 이메일로 가입하기
               </button>
@@ -339,10 +338,10 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="auth-page min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="auth-logo text-center mb-8">
           <Link href="/" aria-label="오너뷰 홈으로" title="오너뷰 홈으로" className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 hover:opacity-80 transition cursor-pointer">
             <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
               <rect width="40" height="40" rx="10" fill="#111"/>
@@ -357,10 +356,9 @@ export default function AuthPage() {
         </div>
 
         {/* Card */}
-        <div className="glass-card p-8"
-          style={{ boxShadow: 'var(--shadow-lg)' }}>
+        <div className="auth-card glass-card p-8 shadow-[var(--shadow-lg)]">
           {/* Tabs */}
-          <div className="seg-bar w-full mb-6">
+          <div className="auth-mode-tabs seg-bar w-full mb-6">
             {(["login", "signup"] as const).map((m) => (
               <button
                 key={m}
@@ -373,13 +371,13 @@ export default function AuthPage() {
           </div>
 
           {error && (
-            <div role="alert" className="mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
+            <div role="alert" className="auth-error-banner mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
               {error}
             </div>
           )}
 
           {/* OAuth 소셜 로그인 */}
-          <div className="space-y-2.5 mb-5">
+          <div className="oauth-buttons space-y-2.5 mb-5">
             <button
               type="button"
               onClick={async () => {
@@ -390,7 +388,7 @@ export default function AuthPage() {
                 });
                 if (error) setError(translateAuthError(error.message));
               }}
-              className="w-full flex items-center justify-center gap-2.5 py-3 bg-[#FEE500] hover:bg-[#F5DC00] text-[#191919] rounded-xl font-semibold text-sm transition shadow-sm"
+              className="oauth-kakao-btn w-full flex items-center justify-center gap-2.5 py-3 bg-[#FEE500] hover:bg-[#F5DC00] text-[#191919] rounded-xl font-semibold text-sm transition shadow-sm"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M9 1C4.58 1 1 3.79 1 7.21c0 2.17 1.45 4.08 3.63 5.17l-.93 3.42c-.08.29.25.52.5.35l4.09-2.72c.24.02.47.03.71.03 4.42 0 8-2.79 8-6.25S13.42 1 9 1z" fill="#191919"/>
@@ -407,7 +405,7 @@ export default function AuthPage() {
                 });
                 if (error) setError(translateAuthError(error.message));
               }}
-              className="w-full flex items-center justify-center gap-2.5 py-3 bg-white hover:bg-gray-50 text-gray-700 rounded-xl font-semibold text-sm transition shadow-sm border border-gray-200"
+              className="oauth-google-btn w-full flex items-center justify-center gap-2.5 py-3 bg-white hover:bg-gray-50 text-gray-700 rounded-xl font-semibold text-sm transition shadow-sm border border-gray-200"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -420,16 +418,16 @@ export default function AuthPage() {
           </div>
 
           {/* 구분선 */}
-          <div className="flex items-center gap-3 mb-5">
+          <div className="auth-divider flex items-center gap-3 mb-5">
             <div className="flex-1 h-px bg-[var(--border)]" />
             <span className="text-xs text-[var(--text-dim)]">또는 이메일로</span>
             <div className="flex-1 h-px bg-[var(--border)]" />
           </div>
 
-          <form onSubmit={mode === "login" ? handleLogin : handleSignup}>
+          <form onSubmit={mode === "login" ? handleLogin : handleSignup} className="auth-form">
             {mode === "signup" && (
               <>
-              <div className="mb-4">
+              <div className="company-name-field mb-4">
                 <label htmlFor="company-name" className="field-label">회사명</label>
                 <input
                   id="company-name"
@@ -443,7 +441,7 @@ export default function AuthPage() {
                   required
                 />
               </div>
-              <div className="mb-4">
+              <div className="biz-no-field mb-4">
                 <label htmlFor="biz-no" className="field-label">사업자등록번호</label>
                 <input
                   id="biz-no"
@@ -460,7 +458,7 @@ export default function AuthPage() {
               </div>
               {/* 대표자 인증 (2026-07-06) — 국세청 진위확인으로 사업자번호 선점 방지. 합류 요청 경로에선 불필요 */}
               {!joinPrompt && (
-                <div className="mb-4 grid grid-cols-2 gap-3">
+                <div className="owner-verify-fields mb-4 grid grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="owner-name" className="field-label">대표자 성명</label>
                     <input
@@ -490,7 +488,7 @@ export default function AuthPage() {
                 </div>
               )}
               {joinPrompt && (
-                <div className="mb-4 p-4 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/25">
+                <div className="join-prompt-card mb-4 p-4 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/25">
                   <p className="text-sm font-semibold text-[var(--info)] mb-1">이미 오너뷰에 등록된 회사입니다 — <b>{joinPrompt}</b></p>
                   <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
                     회사를 새로 만들 수 없습니다. 계정을 만든 뒤 이 회사의 대표/관리자에게 <b>합류 요청</b>을 보내고, 승인되면 회사 페이지를 함께 사용합니다.
@@ -510,7 +508,7 @@ export default function AuthPage() {
               )}
               </>
             )}
-            <div className="mb-4">
+            <div className="email-field mb-4">
               <label htmlFor="auth-email" className="field-label">이메일</label>
               <input
                 id="auth-email"
@@ -523,7 +521,7 @@ export default function AuthPage() {
                 required
               />
             </div>
-            <div className="mb-6">
+            <div className="password-field mb-6">
               <label htmlFor="auth-password" className="field-label">비밀번호</label>
               <div className="relative">
                 <input
@@ -542,7 +540,7 @@ export default function AuthPage() {
                 </button>
               </div>
               {mode === "signup" && password && (
-                <div className="mt-2">
+                <div className="password-strength-hints mt-2">
                   <div className="flex flex-wrap gap-2">
                     {[
                       { ok: password.length >= 8, label: "8자 이상" },
@@ -559,7 +557,7 @@ export default function AuthPage() {
               )}
             </div>
             {mode === "signup" && (
-              <div className="mb-4">
+              <div className="terms-agree-field mb-4">
                 <label className="flex items-start gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -578,14 +576,14 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={loading || (mode === "signup" && !agreed)}
-              className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 shadow-sm"
+              className="auth-submit-btn w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 shadow-sm"
             >
               {loading ? "처리 중..." : mode === "login" ? "로그인" : "무료 시작하기"}
             </button>
           </form>
 
           {mode === "login" && (
-            <div className="flex items-center justify-center gap-3 mt-4">
+            <div className="auth-helper-links flex items-center justify-center gap-3 mt-4">
               <Link href="/auth/find-email" className="text-xs text-[var(--primary)] hover:underline">
                 이메일 찾기
               </Link>

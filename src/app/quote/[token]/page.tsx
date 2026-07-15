@@ -400,9 +400,9 @@ export default function QuoteApprovalPage() {
   const stageLabel = stageKo(row.stage);
   return (
     <Shell>
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="quote-approval-card bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         {/* 헤더 */}
-        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white px-6 py-6">
+        <div className="quote-approval-header bg-gradient-to-br from-indigo-600 to-purple-700 text-white px-6 py-6">
           <div className="text-xs opacity-80 mb-1">{row.company_name} 발송</div>
           <h1 className="text-xl font-bold">{stageLabel} 확인 요청</h1>
           {row.recipient_name && (
@@ -411,7 +411,7 @@ export default function QuoteApprovalPage() {
         </div>
 
         {/* 본문 */}
-        <div className="p-6 space-y-5">
+        <div className="quote-approval-body p-6 space-y-5">
           {/* 회사 정보 */}
           <section>
             <Label>발송 회사</Label>
@@ -433,7 +433,7 @@ export default function QuoteApprovalPage() {
           {/* L 계약: stage='contract' — 양식 본문(template_snapshot_html) 또는 PDF 직접 노출.
               2026-05-21 보강: 둘 다 null 일 때 fallback 메시지 (옛 견적/공백 회귀 차단) */}
           {row.stage === "contract" && (
-            <section>
+            <section className="contract-body-section">
               <Label>{stageLabel} 본문</Label>
               {contractSnapshot.html ? (
                 <div
@@ -464,7 +464,7 @@ export default function QuoteApprovalPage() {
 
           {/* 품목 표 — estimate 또는 contract 미상시 fallback */}
           {items.length > 0 && row.stage !== "contract" && (
-            <section>
+            <section className="quote-items-table-section">
               <Label>{stageLabel} 품목 ({items.length}건)</Label>
               <div className="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
                 <table className="w-full text-xs">
@@ -515,7 +515,7 @@ export default function QuoteApprovalPage() {
 
           {/* 결제 단계 — estimate 또는 contract 미상시 fallback */}
           {stages.length > 0 && row.stage !== "contract" && (
-            <section>
+            <section className="payment-stages-section">
               <Label>결제 단계 ({stages.length}단계)</Label>
               <div className="border border-gray-200 rounded-lg p-3 space-y-1.5">
                 {stages.map((st, idx) => (
@@ -555,14 +555,14 @@ export default function QuoteApprovalPage() {
           </section>
 
           {/* 결정 영역 */}
-          <section className="pt-4 border-t border-gray-200">
+          <section className="decision-section pt-4 border-t border-gray-200">
             {errMsg && (
               <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/25 text-xs text-[var(--danger)]">
                 {errMsg}
               </div>
             )}
             {!showRejectInput ? (
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="decision-buttons-row flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
                   onClick={handleApproveClick}
@@ -581,7 +581,7 @@ export default function QuoteApprovalPage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="reject-note-form space-y-2">
                 <Label>거절 사유 (필수)</Label>
                 <textarea
                   value={rejectNote}
@@ -620,9 +620,9 @@ export default function QuoteApprovalPage() {
 
       {/* L 계약: stage='contract' 승인 시 서명 모달 */}
       {showSignatureModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowSignatureModal(false)}>
+        <div className="signature-modal-overlay fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowSignatureModal(false)}>
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6"
+            className="signature-modal-card bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
@@ -699,7 +699,7 @@ export default function QuoteApprovalPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-[var(--bg)] py-8 px-4">
+    <main className="quote-approval-shell min-h-screen bg-[var(--bg)] py-8 px-4">
       <div className="max-w-2xl mx-auto">{children}</div>
       <p className="text-[10px] text-gray-400 text-center mt-8">
         Powered by OwnerView · 본 페이지는 안전한 1회용 링크로 보호됩니다
@@ -714,7 +714,7 @@ function Label({ children }: { children: React.ReactNode }) {
 
 function Notice({ icon, title, message }: { icon: string; title: string; message: string }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-6 py-10 text-center">
+    <div className="quote-notice-card bg-white rounded-2xl shadow-sm border border-gray-200 px-6 py-10 text-center">
       <div className="text-4xl mb-3">{icon}</div>
       <h1 className="text-lg font-bold text-gray-900 mb-2">{title}</h1>
       <p className="text-sm text-gray-600">{message}</p>
