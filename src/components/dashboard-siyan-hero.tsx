@@ -162,7 +162,7 @@ export function DashboardCostBars({ costBreakdown }: { costBreakdown?: Breakdown
         card
         title="이번 달 비용 데이터가 없습니다"
         desc="거래내역이 등록·분류되면 비용 구성이 여기에 표시됩니다."
-        action={<Link href="/transactions" className="btn-secondary">거래내역 보기</Link>}
+        action={<Link href="/transactions" className="btn-secondary">거래 자동화 보기</Link>}
       />
     );
   }

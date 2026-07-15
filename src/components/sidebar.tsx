@@ -71,6 +71,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
+      // 2026-07-15 재노출: 미분류 거래 정리 + 자동 분류 규칙·AI 허브(구 "거래내역" — 조회 중복이라 숨겼다가 자동화 도구로 재정의).
+      { href: "/transactions", label: "거래 자동화", icon: "sparkles", roles: ["owner", "admin"] },
       // 2026-07-08 "정기 지출" 재편 — 자동 추천 중심. 지출결의→결재관리, 급여→인사, 구독→정기지출 "구독" 탭 흡수.
       { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"] },
       { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
