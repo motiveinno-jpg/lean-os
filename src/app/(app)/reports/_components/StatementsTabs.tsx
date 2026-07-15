@@ -15,14 +15,14 @@ const TABS = [
 export function StatementsTabs() {
   const pathname = usePathname() || "";
   return (
-    <div className="no-print flex flex-wrap gap-1.5 -mt-2 mb-5">
+    <div className="statements-tabs-list no-print flex flex-wrap gap-1.5 -mt-2 mb-5">
       {TABS.map((t) => {
         const active = pathname === t.href || pathname.startsWith(t.href + "/");
         return (
           <Link
             key={t.href}
             href={t.href}
-            className={`px-3 py-1 rounded-lg text-[12px] font-semibold no-underline transition ${
+            className={`statements-tab-link px-3 py-1 rounded-lg text-[12px] font-semibold no-underline transition ${
               active
                 ? "bg-[var(--primary)]/12 text-[var(--primary)] border border-[var(--primary)]/30"
                 : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"

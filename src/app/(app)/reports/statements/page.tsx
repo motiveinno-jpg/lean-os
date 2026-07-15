@@ -26,10 +26,10 @@ export default function StatementsHub() {
         <div className="text-sm font-bold text-[var(--text)]">정식 회계 자료</div>
         <p className="text-xs text-[var(--text-muted)] mt-0.5">세무사 제출·정밀 확인용 정식 재무제표입니다. 회사 상태를 빠르게 보려면 <Link href="/reports/summary" className="text-[var(--primary)] font-semibold hover:underline">경영 요약</Link>을 이용하세요.</p>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="statements-hub-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {DOCS.map((d) => (
           <Link key={d.href} href={d.href}
-            className="glass-card group flex flex-col p-5 no-underline transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--primary)]">
+            className="statements-hub-card glass-card group flex flex-col p-5 no-underline transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--primary)]">
             <div className="text-[15px] font-bold text-[var(--text)]">{d.title}</div>
             <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-muted)]">{d.desc}</p>
             <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[var(--primary)] transition-transform group-hover:translate-x-0.5">

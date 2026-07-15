@@ -68,7 +68,7 @@ function StepCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="glass-card relative flex flex-col overflow-hidden p-5 transition-shadow hover:shadow-lg hover:shadow-black/5">
+    <div className="flow-step-card glass-card relative flex flex-col overflow-hidden p-5 transition-shadow hover:shadow-lg hover:shadow-black/5">
       {/* 단계 액센트 라인 — 흐름의 연속성을 색으로 표현 */}
       {/* <div
         className="absolute top-0 left-0 right-0 h-[3px]"
@@ -106,7 +106,7 @@ function StepCard({
 
 function Row({ label, value, color, bold }: { label: string; value: string; color?: string; bold?: boolean }) {
   return (
-    <div className="flex items-center justify-between py-[5px]">
+    <div className="flow-metric-row flex items-center justify-between py-[5px]">
       <span className="text-[12.5px] text-[var(--text-muted)]">{label}</span>
       <span
         className={`mono-number ${bold ? "text-[15px] font-extrabold" : "text-[13px] font-semibold"}`}
@@ -122,7 +122,7 @@ function Row({ label, value, color, bold }: { label: string; value: string; colo
 function MiniBar({ pct, color, label }: { pct: number; color: string; label?: string }) {
   const clamped = Math.max(0, Math.min(100, Math.round(pct)));
   return (
-    <div className="mt-1.5 mb-0.5">
+    <div className="flow-mini-bar mt-1.5 mb-0.5">
       <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-surface)]">
         <div
           className="h-full rounded-full transition-[width] duration-500 ease-out"
@@ -311,9 +311,9 @@ export default function BusinessFlowPage() {
     <div className="space-y-6">
       <ReportsTabs />
       {/* ═══ 툴바 — 뷰 전환(좌) + 기간·기본값 저장(우). 타이틀은 공통 헤더바가 표시 ═══ */}
-      <div className="no-print flex flex-wrap items-center justify-between gap-2">
+      <div className="flow-toolbar no-print flex flex-wrap items-center justify-between gap-2">
         {/* 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) / 월별표 */}
-        <div className="seg-bar">
+        <div className="flow-view-switch seg-bar">
           {([{ k: "month", l: "이번달 흐름" }, { k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }] as const).map((t) => (
             <button key={t.k} onClick={() => setFlowView(t.k)}
               className={`seg-item ${flowView === t.k ? "seg-item-active" : ""}`}>
@@ -325,10 +325,7 @@ export default function BusinessFlowPage() {
           <MonthField
             value={month}
             onChange={(e) => e.target.value && setMonth(e.target.value)}
-            style={{
-              padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border)",
-              background: "var(--bg-surface)", color: "var(--text)", fontSize: 13,
-            }}
+            className="px-3 py-2 rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text)] text-[13px]"
           />
           <button
             onClick={saveFlowSettings}
@@ -342,10 +339,10 @@ export default function BusinessFlowPage() {
 
       {/* ═══ 콕핏 — 미래 현금 예측 + 다각도 (P1~) ═══ */}
       {flowView === "cockpit" && companyId && (
-        <div className="space-y-4">
+        <div className="flow-cockpit-view space-y-4">
           <div className="no-print -mb-1 flex items-center justify-end gap-2">
             <span className="text-[11px] text-[var(--text-muted)]">과거 범위</span>
-            <div className="seg-bar">
+            <div className="flow-past-range-switch seg-bar">
               {[6, 12].map((n) => (
                 <button key={n} onClick={() => setPastN(n)}
                   className={`seg-item ${pastN === n ? "seg-item-active" : ""}`}>
@@ -367,14 +364,14 @@ export default function BusinessFlowPage() {
       {flowView === "month" && (
       <>
       {/* ═══ 핵심 요약 스트립 — KPI ═══ */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="flow-kpi-strip grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { label: `${monthLabel} 발행 매출`, value: issuedThisMonth, color: "var(--primary)", hint: "세금계산서 합계 (부가세 포함)" },
           { label: `${monthLabel} 수금`, value: settledThisMonth, color: "var(--success)", hint: "확정 매칭 입금 (부가세 포함)" },
           { label: `${monthLabel} 지출`, value: monthBudget?.expenseTotal ?? 0, color: "var(--warning)", hint: "고정비 + 변동비" },
           { label: "부가세 예상", value: monthVat?.netVAT ?? 0, color: "var(--primary)", hint: `${quarter.split("-")[1]} 분기 누적` },
         ].map((c) => (
-          <div key={c.label} className="glass-card flex flex-col gap-3 p-5">
+          <div key={c.label} className="flow-kpi-card glass-card flex flex-col gap-3 p-5">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">{c.label}</span>
             <div className="flex items-end gap-2">
               <span className="mono-number truncate text-[26px] leading-8 font-extrabold" style={{ color: c.color }}>₩{fmtKrw(c.value)}</span>
@@ -386,11 +383,11 @@ export default function BusinessFlowPage() {
 
       {/* ═══ 흐름 경고 — 단계 사이가 막힌 곳 ═══ */}
       {((receivable?.over30 ?? 0) > 0 || monthGap > 0 || (vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0)) && (
-        <div className="flex flex-col gap-2">
+        <div className="flow-alerts flex flex-col gap-2">
           {(receivable?.over30 ?? 0) > 0 && (
             <Link
               href="/partners/ledger"
-              className="block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90"
+              className="flow-alert-receivable block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90"
               style={{
                 background: "color-mix(in srgb, var(--danger) 8%, transparent)",
                 border: "1px solid color-mix(in srgb, var(--danger) 25%, transparent)",
@@ -404,7 +401,7 @@ export default function BusinessFlowPage() {
           {monthGap > 0 && (
             <Link
               href="/partners/reconciliation"
-              className="block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90"
+              className="flow-alert-gap block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90"
               style={{
                 background: "color-mix(in srgb, var(--warning) 8%, transparent)",
                 border: "1px solid color-mix(in srgb, var(--warning) 25%, transparent)",
@@ -418,7 +415,7 @@ export default function BusinessFlowPage() {
           {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && (
             <Link
               href="/tax-invoices"
-              className="block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90"
+              className="flow-alert-vat-dday block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90"
               style={{
                 background: "color-mix(in srgb, var(--primary) 8%, transparent)",
                 border: "1px solid color-mix(in srgb, var(--primary) 25%, transparent)",
@@ -435,7 +432,7 @@ export default function BusinessFlowPage() {
       {/* ═══ 6단계 흐름 — 가로 타임라인 + 카드 그리드 ═══ */}
       <div>
         {/* 흐름 타임라인 — 단계 노드 + 연결선 (넓은 화면 전용 오리엔테이션) */}
-        <div className="mb-4 hidden items-center px-1 lg:flex" aria-hidden="true">
+        <div className="flow-timeline mb-4 hidden items-center px-1 lg:flex" aria-hidden="true">
           {FLOW_STEPS.map((s, i) => (
             <div key={s.no} className={`flex items-center ${i < FLOW_STEPS.length - 1 ? "flex-1" : "flex-none"}`}>
               <div className="flex items-center gap-2">
@@ -464,7 +461,7 @@ export default function BusinessFlowPage() {
           ))}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="flow-steps-grid grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {/* ① 영업 */}
           <StepCard no={1} title="영업" accent="var(--primary)"
             links={[{ href: "/projects", label: "프로젝트" }, { href: "/partners", label: "거래처" }]}>
@@ -545,7 +542,7 @@ export default function BusinessFlowPage() {
       </div>
 
       {/* Footer note */}
-      <div className="glass-card px-5 py-4 text-xs leading-relaxed text-[var(--text-dim)]">
+      <div className="flow-footer-note glass-card px-5 py-4 text-xs leading-relaxed text-[var(--text-dim)]">
         <strong className="text-[var(--text-muted)]">숫자 기준</strong>
         <br />- 매출·부가세는 세금계산서(발행) 기준, 수금은 입금 매칭 확정 기준, 비용은 정기결제+카드+일회성 지출 기준입니다.
         <br />- 각 카드의 숫자는 해당 상세 화면(세금계산서·거래처 원장·고정비/변동비·손익계산서)과 동일한 집계를 사용합니다.

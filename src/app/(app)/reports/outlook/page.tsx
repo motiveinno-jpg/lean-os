@@ -63,7 +63,7 @@ export default function OutlookPage() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <div className="space-y-5 mt-1">
+        <div className="outlook-page-content space-y-5 mt-1">
           <IntroCard
             eyebrow="운영 가능 기간 (현재 지출 기준)"
             title={runwayTxt}
@@ -75,12 +75,12 @@ export default function OutlookPage() {
 
           {/* 통장 잔액 예측(오늘~D+90) */}
           <Section title="현금 잔액 전망" desc="향후 90일 예측">
-            <div className="flex items-end gap-3 h-36">
+            <div className="outlook-forecast-bars flex items-end gap-3 h-36">
               {points.map((p) => {
                 const neg = p.balance < 0;
                 const h = Math.max(3, Math.round((Math.abs(p.balance) / maxAbs) * 100));
                 return (
-                  <div key={p.label} className="flex-1 flex flex-col items-center justify-end gap-1 min-w-0">
+                  <div key={p.label} className="outlook-forecast-bar flex-1 flex flex-col items-center justify-end gap-1 min-w-0">
                     <span className="mono-number text-[10px] font-semibold" style={{ color: neg ? "var(--danger)" : "var(--text-muted)" }}>{fmt(p.balance)}</span>
                     <div className="w-full rounded-t-md" style={{ height: `${h}%`, background: neg ? "var(--danger)" : "color-mix(in srgb, var(--primary) 55%, transparent)" }} title={`${p.label}: ${fmt(p.balance)}`} />
                     <span className="text-[10px] text-[var(--text-dim)]">{p.label}</span>
@@ -92,9 +92,9 @@ export default function OutlookPage() {
 
           {/* 시나리오 */}
           <Section title="시나리오 분석" desc="지출 변동 시 운영 가능 기간">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="outlook-scenario-grid grid grid-cols-1 sm:grid-cols-3 gap-3">
               {scen.map((s) => (
-                <div key={s.label} className="stat-tile">
+                <div key={s.label} className="outlook-scenario-tile stat-tile">
                   <div className="stat-tile-label">{s.label}</div>
                   <div className="stat-tile-value mono-number" style={{ color: TONE[s.tone] }}>{s.months >= 999 ? "무기한" : `${s.months.toFixed(1)}개월`}</div>
                 </div>

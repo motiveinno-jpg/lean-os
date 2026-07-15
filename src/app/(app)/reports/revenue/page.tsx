@@ -86,7 +86,7 @@ export default function RevenuePage() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <div className="space-y-5 mt-1">
+        <div className="revenue-page-content space-y-5 mt-1">
           <IntroCard
             eyebrow="이번 달 매출"
             title={fmt(sales)}
@@ -107,9 +107,9 @@ export default function RevenuePage() {
             {top.length === 0 ? (
               <div className="text-xs text-[var(--text-dim)] py-6 text-center">올해 매출 세금계산서가 없습니다.</div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="revenue-top-partners-list space-y-2.5">
                 {top.map((t) => (
-                  <div key={t.name} className="flex items-center gap-3">
+                  <div key={t.name} className="revenue-partner-row flex items-center gap-3">
                     <span className="text-sm text-[var(--text)] w-28 shrink-0 truncate">{t.name}</span>
                     <div className="flex-1 h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${Math.round((t.amt / topMax) * 100)}%`, background: "var(--success)" }} />
@@ -123,12 +123,12 @@ export default function RevenuePage() {
 
           {/* 아직 못 받은 돈 (미수금) */}
           <Section title="미수금" desc="아직 못 받은 돈 (회수 예정)">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="stat-tile">
+            <div className="revenue-ar-summary-grid grid grid-cols-2 gap-4">
+              <div className="revenue-ar-total-tile stat-tile">
                 <div className="stat-tile-label">미수금 합계</div>
                 <div className="stat-tile-value mono-number text-[var(--text)]">{fmt(salesData?.arTotal ?? 0)}</div>
               </div>
-              <Link href="/partners/ledger" className="stat-tile no-underline hover:border-[var(--primary)] transition" style={{ borderColor: (salesData?.arOver30 ?? 0) > 0 ? "color-mix(in srgb, var(--danger) 30%, transparent)" : undefined }}>
+              <Link href="/partners/ledger" className="revenue-ar-over30-tile stat-tile no-underline hover:border-[var(--primary)] transition" style={{ borderColor: (salesData?.arOver30 ?? 0) > 0 ? "color-mix(in srgb, var(--danger) 30%, transparent)" : undefined }}>
                 <div className="stat-tile-label">30일 이상 경과</div>
                 <div className="stat-tile-value mono-number" style={{ color: (salesData?.arOver30 ?? 0) > 0 ? "var(--danger)" : "var(--text)" }}>{fmt(salesData?.arOver30 ?? 0)}</div>
               </Link>

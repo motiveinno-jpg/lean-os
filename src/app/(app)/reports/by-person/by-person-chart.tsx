@@ -49,12 +49,12 @@ export default function ByPersonChart({ people, payByPerson }: ByPersonChartProp
   const gridVals = Array.from({ length: GRID_COUNT }, (_, i) => (yMax * (i + 1)) / (GRID_COUNT + 1));
 
   return (
-    <div className="glass-card p-5">
-      <div className="mb-4">
+    <div className="by-person-chart-card glass-card p-5">
+      <div className="by-person-chart-header mb-4">
         <h3 className="text-sm font-bold text-[var(--text)]">인원별 급여</h3>
         <p className="text-[10px] text-[var(--text-dim)] mt-0.5">상위 {MAX_BARS}명 · 연 급여 합계</p>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" className="by-person-chart-svg block">
         <defs>
           <linearGradient id="bpPayGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--warning)" stopOpacity="0.95" />
@@ -108,7 +108,7 @@ export default function ByPersonChart({ people, payByPerson }: ByPersonChartProp
           );
         })}
       </svg>
-      <div className="flex flex-wrap gap-2 justify-center mt-3">
+      <div className="by-person-chart-legend flex flex-wrap gap-2 justify-center mt-3">
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--warning)]/30 bg-[var(--warning-dim)] text-[var(--warning)]">
           <span className="w-2 h-2 rounded-full bg-[var(--warning)]" />급여
         </span>

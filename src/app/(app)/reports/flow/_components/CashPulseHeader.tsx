@@ -23,7 +23,7 @@ const RUNWAY_TONE: Record<string, { color: string; label: string }> = {
 function StatPill({ label, value, unit, sub, color }: { label: string; value: string; unit?: string; sub?: string; color: string }) {
   return (
     <div
-      className="px-4 py-2.5 rounded-2xl min-w-[92px]"
+      className="cash-pulse-stat-pill px-4 py-2.5 rounded-2xl min-w-[92px]"
       style={{
         background: `color-mix(in srgb, ${color} 9%, transparent)`,
         border: `1px solid color-mix(in srgb, ${color} 22%, transparent)`,
@@ -68,22 +68,22 @@ export function CashPulseHeader({ companyId, userId }: { companyId: string; user
   }));
 
   return (
-    <div className="glass-card p-5 sm:p-6 space-y-5">
+    <div className="cash-pulse-header glass-card p-5 sm:p-6 space-y-5">
       {/* 카드 헤더 행 — 타이틀 + 우측 범위 라벨 */}
-      <div className="flex items-center justify-between">
+      <div className="cash-pulse-title-row flex items-center justify-between">
         <h3 className="m-0 text-sm font-bold text-[var(--text)]">미래 현금 예측</h3>
         <span className="text-[10px] text-[var(--text-dim)]">오늘 → D+90</span>
       </div>
       {/* 상단: 현재 잔액 + 런웨이 / 펄스 */}
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="cash-pulse-balance">
           <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-1.5">현재 현금 잔액</div>
-          <div className="mono-number font-extrabold text-[var(--text)] leading-none" style={{ fontSize: 34 }}>₩{won(pulse.currentBalance)}</div>
+          <div className="mono-number font-extrabold text-[var(--text)] leading-none text-[34px]">₩{won(pulse.currentBalance)}</div>
           <div className="text-xs text-[var(--text-dim)] mt-2">
             월 소진(burn) <span className="mono-number font-semibold text-[var(--text-muted)]">₩{won(pulse.monthlyBurn)}</span>
           </div>
         </div>
-        <div className="flex items-stretch gap-2.5">
+        <div className="cash-pulse-stats flex items-stretch gap-2.5">
           <StatPill label="런웨이" value={runway >= 999 ? "∞" : String(runway)} unit={runway >= 999 ? undefined : "개월"} sub={runwayTone.label} color={runwayTone.color} />
           <StatPill label="펄스 점수" value={String(pulse.pulseScore)} unit="/100" color={pulseColor} />
         </div>
@@ -91,13 +91,13 @@ export function CashPulseHeader({ companyId, userId }: { companyId: string; user
 
       {/* 자금부족 경고 */}
       {shortfall && (
-        <div className="kpi-callout danger">
+        <div className="cash-pulse-shortfall kpi-callout danger">
           ⚠ {shortfall.label} 시점 현금 부족 예상 (<b>₩{won(shortfall.balance)}</b>) — 입금 일정·지출 조정이 필요합니다
         </div>
       )}
 
       {/* 미래 잔액 추이 (예측) */}
-      <div className="rounded-2xl border border-[var(--border)] p-4" style={{ background: "color-mix(in srgb, var(--primary) 4%, transparent)" }}>
+      <div className="cash-pulse-trend rounded-2xl border border-[var(--border)] p-4" style={{ background: "color-mix(in srgb, var(--primary) 4%, transparent)" }}>
         <div className="flex items-center justify-between mb-3">
           <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">미래 잔액 추이 (예측)</div>
           <div className="text-[10px] text-[var(--text-dim)]">오늘 → D+90</div>
@@ -105,7 +105,7 @@ export function CashPulseHeader({ companyId, userId }: { companyId: string; user
         <AreaTrend points={forecastPts} height={124} showValues markerIndex={0} />
       </div>
 
-      <div className="text-xs text-[var(--text-muted)] leading-relaxed border-t border-[var(--border)] pt-3">{pulse.briefing}</div>
+      <div className="cash-pulse-briefing text-xs text-[var(--text-muted)] leading-relaxed border-t border-[var(--border)] pt-3">{pulse.briefing}</div>
     </div>
   );
 }

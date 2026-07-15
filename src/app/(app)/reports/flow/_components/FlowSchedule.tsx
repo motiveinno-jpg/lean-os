@@ -49,10 +49,10 @@ export function FlowSchedule({ companyId, userId }: { companyId: string; userId?
   }, [items]);
 
   return (
-    <div className="glass-card p-5 space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="flow-schedule-card glass-card p-5 space-y-3">
+      <div className="flow-schedule-header flex items-center justify-between gap-2 flex-wrap">
         <h3 className="text-sm font-bold text-[var(--text)]">입금 / 지출 예정 <span className="font-normal text-[var(--text-dim)] text-xs">앞으로 90일</span></h3>
-        <div className="flex gap-3 text-xs">
+        <div className="flow-schedule-totals flex gap-3 text-xs">
           <span className="text-[var(--success)] font-semibold mono-number">입금 +₩{won(inTotal)}</span>
           <span className="text-[var(--danger)] font-semibold mono-number">지출 -₩{won(outTotal)}</span>
         </div>
@@ -61,7 +61,7 @@ export function FlowSchedule({ companyId, userId }: { companyId: string; userId?
       {isLoading ? (
         <div className="text-sm text-[var(--text-muted)] py-6 text-center">불러오는 중…</div>
       ) : items.length === 0 ? (
-        <div className="text-sm text-[var(--text-muted)] py-6 text-center">
+        <div className="flow-schedule-empty text-sm text-[var(--text-muted)] py-6 text-center">
           예정된 입출금이 없습니다.
           <div className="text-[11px] text-[var(--text-dim)] mt-1">매출·비용 일정(예정 입금/정기결제)이 등록되면 여기에 표시됩니다.</div>
         </div>
@@ -71,14 +71,14 @@ export function FlowSchedule({ companyId, userId }: { companyId: string; userId?
             const mi = list.filter((i) => i.kind === "in").reduce((s, i) => s + i.amount, 0);
             const mo = list.filter((i) => i.kind === "out").reduce((s, i) => s + i.amount, 0);
             return (
-              <div key={ym}>
-                <div className="flex items-center justify-between text-[11px] font-bold text-[var(--text-muted)] mb-1 px-1">
+              <div key={ym} className="flow-schedule-month-group">
+                <div className="flow-schedule-month-header flex items-center justify-between text-[11px] font-bold text-[var(--text-muted)] mb-1 px-1">
                   <span>{ym}</span>
                   <span className="mono-number">순 {mi - mo >= 0 ? "+" : ""}₩{won(mi - mo)}</span>
                 </div>
                 <div className="space-y-1">
                   {list.map((it, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)]">
+                    <div key={i} className="flow-schedule-item flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)]">
                       <span className="text-[var(--text-muted)] mono-number">{it.date.slice(5)}</span>
                       <span className={`font-semibold mono-number ${it.kind === "in" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                         {it.kind === "in" ? "+" : "-"}₩{won(it.amount)}

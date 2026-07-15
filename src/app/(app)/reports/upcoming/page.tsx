@@ -83,7 +83,7 @@ export default function UpcomingPage() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <div className="space-y-5 mt-1">
+        <div className="upcoming-page-content space-y-5 mt-1">
           <IntroCard
             eyebrow="다음 30일"
             title={fmt(next30)}
@@ -101,9 +101,9 @@ export default function UpcomingPage() {
             {items.length === 0 ? (
               <div className="text-xs text-[var(--text-dim)] py-6 text-center">예정된 세금·대출·고정 지출이 없습니다.</div>
             ) : (
-              <div className="space-y-2">
+              <div className="upcoming-item-list space-y-2">
                 {items.map((it, i) => (
-                  <Link key={i} href={it.href || "#"} className="flex items-center justify-between px-4 py-3 rounded-xl no-underline transition hover:border-[var(--primary)]"
+                  <Link key={i} href={it.href || "#"} className="upcoming-item-row flex items-center justify-between px-4 py-3 rounded-xl no-underline transition hover:border-[var(--primary)]"
                     style={{ background: it.danger ? "color-mix(in srgb, var(--danger) 8%, transparent)" : "var(--bg-surface)", border: `1px solid ${it.danger ? "color-mix(in srgb, var(--danger) 25%, transparent)" : "var(--border)"}` }}>
                     <span className={`text-sm ${it.danger ? "font-semibold text-[var(--danger)]" : "text-[var(--text)]"}`}>{it.icon} {it.title} <span className="text-[var(--text-dim)] text-xs font-normal ml-1">{it.note}</span></span>
                     <span className="mono-number font-bold shrink-0" style={{ color: it.danger ? "var(--danger)" : "var(--text)" }}>{fmt(it.amount)}</span>

@@ -171,10 +171,11 @@ export default function ByPersonPage() {
   return (
     <div>
       {/* 툴바 — 연도 필터. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
+      <div className="by-person-toolbar page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
+          className="by-person-year-select"
           style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text)", fontSize: 13 }}
         >
           {[YEAR_NOW, YEAR_NOW - 1, YEAR_NOW - 2].map((y) => (
@@ -194,7 +195,7 @@ export default function ByPersonPage() {
       )}
 
       {!isLoading && !error && rows && rows.length === 0 && (
-        <div className="py-16 text-center">
+        <div className="by-person-empty-state py-16 text-center">
           <div className="text-4xl mb-3">👥</div>
           <div className="text-sm font-semibold text-[var(--text)]">{year}년 집계할 급여 데이터가 없습니다.</div>
           <div className="text-xs text-[var(--text-dim)] mt-1.5">직원 등록 후 급여(기본급여 또는 명세서)가 있으면 자동 집계됩니다.</div>
@@ -204,13 +205,13 @@ export default function ByPersonPage() {
       {!isLoading && !error && rows && rows.length > 0 && (
         <>
           {/* 스탯 3카드 — 대시보드 글래스카드 (2026-06-10) */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 24 }}>
+          <div className="by-person-stat-cards grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 24 }}>
             {[
               { label: `${year}년 급여 합계`, big: `₩${fmtKrw(totals.pay)}`, color: "var(--warning)", hint: "명세서/기본급여 추정" },
               { label: "인원 수", big: `${rows.length}명`, color: "var(--primary)", hint: "급여 집계 인원" },
               { label: "1인 평균", big: `₩${fmtKrw(Math.round(totals.pay / Math.max(rows.length, 1)))}`, color: "var(--success)", hint: "합계 ÷ 인원" },
             ].map((c) => (
-              <div key={c.label} className="stat-tile">
+              <div key={c.label} className="by-person-stat-tile stat-tile">
                 <div className="stat-tile-label">{c.label}</div>
                 <div className="stat-tile-value mono-number truncate" style={{ color: c.color }}>{c.big}</div>
                 <div className="text-[10px] text-[var(--text-dim)] truncate">{c.hint}</div>
@@ -224,8 +225,8 @@ export default function ByPersonPage() {
           />
 
           {/* 인원별 급여 — 아바타 랭크 바 리스트 (2026-06-10 리디자인) */}
-          <div className="glass-card overflow-hidden" style={{ marginTop: 24 }}>
-            <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", fontSize: 14, fontWeight: 700, color: "var(--text)" }}>인원별 급여 명단</div>
+          <div className="by-person-ranked-list glass-card overflow-hidden" style={{ marginTop: 24 }}>
+            <div className="by-person-ranked-list-header" style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", fontSize: 14, fontWeight: 700, color: "var(--text)" }}>인원별 급여 명단</div>
             {(() => {
               const ranked = [...rows].sort((a, b) => b.payroll - a.payroll);
               const maxPay = ranked.length ? ranked[0].payroll : 0;
@@ -234,9 +235,9 @@ export default function ByPersonPage() {
                 const share = totals.pay > 0 ? (r.payroll / totals.pay) * 100 : 0;
                 const barPct = maxPay > 0 ? (r.payroll / maxPay) * 100 : 0;
                 return (
-                  <div key={r.key} className="flex items-center gap-3" style={{ padding: "12px 18px", borderTop: i === 0 ? "none" : "1px solid color-mix(in srgb, var(--border) 55%, transparent)" }}>
+                  <div key={r.key} className="by-person-row flex items-center gap-3" style={{ padding: "12px 18px", borderTop: i === 0 ? "none" : "1px solid color-mix(in srgb, var(--border) 55%, transparent)" }}>
                     <span className="mono-number" style={{ fontSize: 11, color: "var(--text-dim)", width: 16, textAlign: "center", flexShrink: 0 }}>{i + 1}</span>
-                    <span className={`bg-gradient-to-br ${AVA[i % AVA.length]} shrink-0`} style={{ width: 36, height: 36, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 700 }}>{(r.key || "?").slice(0, 1)}</span>
+                    <span className={`by-person-avatar bg-gradient-to-br ${AVA[i % AVA.length]} shrink-0`} style={{ width: 36, height: 36, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 700 }}>{(r.key || "?").slice(0, 1)}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="flex items-center justify-between" style={{ gap: 8, marginBottom: 6 }}>
                         <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.key}</span>
@@ -253,20 +254,20 @@ export default function ByPersonPage() {
                 );
               });
             })()}
-            <div className="flex items-center justify-between" style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", background: "color-mix(in srgb, var(--bg-surface) 50%, transparent)" }}>
+            <div className="by-person-ranked-list-footer flex items-center justify-between" style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", background: "color-mix(in srgb, var(--bg-surface) 50%, transparent)" }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>합계 · {rows.length}명</span>
               <span className="mono-number" style={{ fontSize: 14, fontWeight: 800, color: "var(--warning)" }}>₩{fmtKrw(totals.pay)}</span>
             </div>
           </div>
 
           {/* 월추이 표 (인원 x 월, 카드+급여 합) — 섹션 제목을 카드 안 헤더로 흡수 (2026-07-03 라운드6.5) */}
-          <div style={{ marginTop: 24 }}>
-            <div className="glass-card overflow-hidden">
-              <div className="flex items-center justify-between" style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
+          <div className="by-person-monthly-trend mt-6">
+            <div className="by-person-monthly-trend-card glass-card overflow-hidden">
+              <div className="by-person-monthly-trend-header flex items-center justify-between" style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
                 <h3 className="m-0 text-sm font-bold text-[var(--text)]">월별 급여 추이</h3>
               </div>
-              <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>
+              <div className="by-person-monthly-trend-scroll overflow-x-auto">
+              <table className="by-person-monthly-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 760 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
                     <th style={{ textAlign: "left", padding: "10px 14px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600, position: "sticky", left: 0, background: "var(--bg-card)" }}>인원</th>
@@ -297,6 +298,7 @@ export default function ByPersonPage() {
           </div>
 
           <div
+            className="by-person-note"
             style={{
               marginTop: 16,
               padding: "12px 16px",

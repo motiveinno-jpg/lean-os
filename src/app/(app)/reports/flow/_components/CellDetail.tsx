@@ -58,9 +58,9 @@ export function CellDetail({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+    <div className="flow-cell-detail-overlay fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="flow-cell-detail-panel bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flow-cell-detail-header flex items-center justify-between px-5 pt-4 pb-2">
           <div>
             <div className="text-sm font-bold text-[var(--text)]">{title}</div>
             <div className="text-[11px] text-[var(--text-dim)]">{subtitle ?? `${year}년 ${month}월 · 산출 내역`}</div>
@@ -68,7 +68,7 @@ export function CellDetail({
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg leading-none">×</button>
         </div>
 
-        {note && <div className="mx-5 mb-2 text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-lg px-3 py-2 leading-relaxed">{note}</div>}
+        {note && <div className="flow-cell-detail-note mx-5 mb-2 text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-lg px-3 py-2 leading-relaxed">{note}</div>}
 
         <div className="flex-1 overflow-y-auto px-5">
           {isRecord && isLoading ? (
@@ -76,9 +76,9 @@ export function CellDetail({
           ) : items.length === 0 ? (
             <div className="py-8 text-center text-xs text-[var(--text-dim)]">표시할 내역이 없습니다.</div>
           ) : (
-            <div className="divide-y divide-[var(--border)]/50">
+            <div className="flow-cell-detail-list divide-y divide-[var(--border)]/50">
               {items.map((it, i) => (
-                <div key={i} className="flex items-center justify-between gap-3 py-2">
+                <div key={i} className="flow-cell-detail-item flex items-center justify-between gap-3 py-2">
                   <div className="min-w-0">
                     <div className="text-sm text-[var(--text)] truncate">{it.label}</div>
                     {it.sub && <div className="text-[10px] text-[var(--text-dim)]">{it.sub}</div>}
@@ -100,7 +100,7 @@ export function CellDetail({
         </div>
 
         {showTotal && items.length > 0 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border)] mt-1">
+          <div className="flow-cell-detail-total flex items-center justify-between px-5 py-3 border-t border-[var(--border)] mt-1">
             <span className="text-xs font-semibold text-[var(--text-muted)]">합계 ({items.length}건)</span>
             <span className="text-sm font-bold mono-number text-[var(--primary)]">{won(total)}</span>
           </div>

@@ -24,9 +24,9 @@ export default function MonthlyDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="monthly-detail-page space-y-6">
       <ReportsTabs />
-      <p className="text-xs text-[var(--text-muted)] -mt-2">
+      <p className="monthly-detail-intro text-xs text-[var(--text-muted)] -mt-2">
         월별로 계정별 금액을 보고, 셀을 클릭하면 그 금액이 어떻게 구성됐는지 확인할 수 있습니다.
         상단 토글로 <b>전월·전년동월 비교</b>, 누계, 구성비도 볼 수 있습니다.
       </p>

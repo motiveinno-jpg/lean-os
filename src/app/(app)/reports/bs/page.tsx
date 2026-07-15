@@ -639,7 +639,7 @@ export default function BalanceSheetPage() {
       <ReportsTabs />
       <StatementsTabs />
       {/* 툴바 — 기준일·채권채무 필터(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
+      <div className="bs-toolbar page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
         <div className="no-print flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex items-center gap-2">
             <label className="text-xs font-semibold text-[var(--text-dim)]">기준일</label>
@@ -675,7 +675,7 @@ export default function BalanceSheetPage() {
       </div>
 
       {/* Summary Cards — 그라데이션 액센트 + 전월 델타 (2026-06-25 리디자인) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="bs-summary-cards grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           { key: "asset", label: "총 자산", value: data.totalAssets, prev: prevData?.totalAssets, tone: "",
             icon: <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M18 12a2 2 0 000 4h3v-4h-3z" /> },
@@ -686,7 +686,7 @@ export default function BalanceSheetPage() {
         ].map((card) => {
           const delta = isCompareMode && card.prev !== undefined ? card.value - card.prev : undefined;
           return (
-            <div key={card.key} className="glass-card p-5 flex flex-col gap-3">
+            <div key={card.key} className="bs-summary-card glass-card p-5 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-[13px] font-semibold text-[var(--text-muted)]">{card.label}</span>
                 <span className={`kpi-icon ${card.tone}`}>
@@ -709,9 +709,9 @@ export default function BalanceSheetPage() {
       </div>
 
       {/* Balance Sheet — T자 레이아웃 (좌: 자산 / 우: 부채 + 자본) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bs-balance-sheet-grid grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* ── 좌: 자산 ── */}
-        <div className="glass-card" style={{ overflow: "auto" }}>
+        <div className="bs-assets-card glass-card" style={{ overflow: "auto" }}>
           <div style={{ padding: "14px 16px", borderBottom: "2px solid var(--border)", background: "var(--bg-surface)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>자산 (Assets)</div>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-dim)" }}>금액 (원)</div>
@@ -763,7 +763,7 @@ export default function BalanceSheetPage() {
         </div>
 
         {/* ── 우: 부채 + 자본 ── */}
-        <div className="glass-card" style={{ overflow: "auto" }}>
+        <div className="bs-liabilities-equity-card glass-card" style={{ overflow: "auto" }}>
           <div style={{ padding: "14px 16px", borderBottom: "2px solid var(--border)", background: "var(--bg-surface)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>부채 + 자본 (Liabilities + Equity)</div>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-dim)" }}>금액 (원)</div>
@@ -811,7 +811,7 @@ export default function BalanceSheetPage() {
       </div>
 
       {/* 합계 요약 — 자산 vs 부채+자본 (표 바로 아래 정적 요약, sticky 제거: 하단 콘텐츠 위로 떠다니고 헤더와 z충돌하던 문제 수정 2026-06-10) */}
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-[var(--shadow-sm)]">
+      <div className="bs-balance-summary mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-[var(--shadow-sm)]">
         <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--primary)]/8 border border-[var(--primary)]/20">
           <div className="text-xs font-bold text-[var(--primary)]">자산 합계</div>
           <div className="text-base font-extrabold text-[var(--primary)] mono-number">₩{Math.round(data.totalAssets).toLocaleString("ko-KR")}</div>
@@ -829,7 +829,7 @@ export default function BalanceSheetPage() {
       </div>
 
       {/* Asset vs Liability Composition Bar — 섹션 제목을 카드 안 헤더로 흡수 (2026-07-03 라운드6.5) */}
-      <div className="glass-card mt-8 p-5">
+      <div className="bs-composition-chart glass-card mt-8 p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="m-0 text-sm font-bold text-[var(--text)]">자산/부채 구성</h3>
         </div>
@@ -959,7 +959,7 @@ export default function BalanceSheetPage() {
 
       {/* 데이터 신뢰도 배너 — 자본 섹션 추정값 안내 (정확도 투명성) */}
       {data.isCapitalDefault && (
-        <div className="kpi-callout warning mt-4 flex items-start gap-2.5">
+        <div className="bs-capital-warning kpi-callout warning mt-4 flex items-start gap-2.5">
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.86l-8.1 14A1 1 0 003 19.5h18a1 1 0 00.87-1.5l-8.1-14a1 1 0 00-1.74 0z" /></svg>
           <p className="text-[11.5px] leading-relaxed">
             <b>자본금이 미등록 상태입니다.</b> 기본값 {DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시 중이라 자본·이익잉여금이 부정확합니다. <Link href="/settings?tab=company" className="underline font-semibold">회사 설정 → 회사정보</Link>에서 자본금을 입력하면 정확해집니다.
@@ -969,7 +969,7 @@ export default function BalanceSheetPage() {
 
       {/* 정확도 개선 유도 — 매출채권/미지급금은 미매칭 계산서 기준이라 매칭할수록 정확해짐 (2026-07-06) */}
       {(data.receivableDetails.length > 0 || data.payableDetails.length > 0) && (
-        <div className="kpi-callout mt-4 flex items-start gap-2.5">
+        <div className="bs-accuracy-callout kpi-callout mt-4 flex items-start gap-2.5">
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <p className="text-[11.5px] leading-relaxed">
             매출채권 {data.receivableDetails.length}건 · 미지급금 {data.payableDetails.length}건이 <b>미매칭 세금계산서 기준</b>으로 집계 중입니다.
@@ -979,7 +979,7 @@ export default function BalanceSheetPage() {
       )}
 
       {/* 산출 기준 — 접이식 */}
-      <details className="mt-4 group rounded-xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+      <details className="bs-basis-details mt-4 group rounded-xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
         <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none list-none">
           <span className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
             <svg className="w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
@@ -1000,7 +1000,7 @@ export default function BalanceSheetPage() {
 
       {/* Monthly Trend Chart — 섹션 제목을 카드 안 헤더로 흡수 (2026-07-03 라운드6.5) */}
       {trend.length > 0 && (
-        <div className="mt-8">
+        <div className="bs-trend-section mt-8">
           <div style={{ padding: "20px", borderRadius: 12, background: "var(--bg-card)", border: "1px solid var(--border)" }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="m-0 text-sm font-bold text-[var(--text)]">월별 추이 (최근 6개월)</h3>
@@ -1052,14 +1052,14 @@ export default function BalanceSheetPage() {
       )}
 
       {/* Financial Ratios */}
-      <div className="mt-8">
+      <div className="bs-ratios-section mt-8">
         <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">Ratios</div>
         <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
           재무 비율 분석
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {computeRatios(data).map((ratio) => (
-            <div key={ratio.label} className="glass-card" style={{ padding: 20 }}>
+            <div key={ratio.label} className="bs-ratio-card glass-card" style={{ padding: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 <div style={{ width: 9, height: 9, borderRadius: "50%", background: HEALTH_COLORS[ratio.health], flexShrink: 0 }} />
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.02em", color: "var(--text-muted)" }}>
@@ -1096,7 +1096,7 @@ function ClickableRow({ label, amount, prevAmount, isCompareMode, onClick }: {
     <tr
       onClick={onClick}
       style={{ cursor: 'pointer' }}
-      className="hover:bg-[var(--bg-surface)] transition"
+      className="bs-clickable-row hover:bg-[var(--bg-surface)] transition"
       title="클릭해서 세부 보기"
     >
       <td style={{ padding: "10px 16px", paddingLeft: 32, fontSize: 13, fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
@@ -1142,9 +1142,9 @@ function DetailModalView({ modal, isCompareMode, onClose }: {
   const arrow = (k: SortKey) => sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
 
   return (
-    <div onClick={onClose}
+    <div onClick={onClose} className="bs-detail-modal-overlay"
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()}
+      <div onClick={(e) => e.stopPropagation()} className="bs-detail-modal"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 640, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

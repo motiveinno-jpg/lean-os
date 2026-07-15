@@ -69,9 +69,9 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
   if (hasRemovable) {
     const total = items.reduce((s, i) => s + i.amount, 0);
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
-          <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+      <div className="cost-detail-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+        <div className="cost-detail-modal-box bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="cost-detail-modal-header px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
             <div>
               <div className="text-sm font-bold text-[var(--text)]">{label} — 고정비 산출 내역</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{year}년 · 정기결제 등록 항목은 여기서 바로 제거할 수 있습니다</div>
@@ -79,7 +79,7 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
             <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
           </div>
           <div className="flex-1 overflow-auto">
-            <table className="w-full text-xs">
+            <table className="cost-detail-table w-full text-xs">
               <tbody>
                 {items.map((it, i) => (
                   <tr key={i} className="border-t border-[var(--border)]/40 first:border-t-0">
@@ -103,7 +103,7 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
               </tbody>
             </table>
           </div>
-          <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between">
+          <div className="cost-detail-modal-footer px-5 py-3 border-t border-[var(--border)] flex items-center justify-between">
             <span className="text-[10px] text-[var(--text-dim)] leading-relaxed max-w-[70%]">{FIXED_NOTE}</span>
             <span className="text-sm font-bold mono-number text-[var(--text)]">{fmtKrw(total)}</span>
           </div>
@@ -172,11 +172,11 @@ export default function CostsPage() {
   }
 
   return (
-    <div>
+    <div className="report-costs-page">
       <ReportsTabs />
       <StatementsTabs />
       {/* 툴바 — 연도 필터. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
+      <div className="costs-toolbar page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
@@ -210,13 +210,13 @@ export default function CostsPage() {
       {!isLoading && !error && rows && (
         <>
           {/* Summary cards — 그라데이션 + 아이콘칩 (2026-06-30 손익계산서 카드와 일관) */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 24 }}>
+          <div className="costs-summary-cards grid grid-cols-3 gap-3 sm:gap-4" style={{ marginBottom: 24 }}>
             {[
               { label: `${year}년 고정비`, value: totals.fixed, tone: "warning", hint: "임대료·급여·4대보험 등", icon: "M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6" },
               { label: `${year}년 변동비`, value: totals.variable, tone: "info", hint: "카드·일회성 지출 등", icon: "M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" },
               { label: `${year}년 총비용`, value: totals.total, tone: "", hint: "고정비 + 변동비", icon: "M12 6v12m0-12c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2-3-.9-3-2" },
             ].map((c) => (
-              <div key={c.label} className="glass-card p-5 flex flex-col gap-3">
+              <div key={c.label} className="costs-summary-card glass-card p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] font-semibold text-[var(--text-muted)] truncate">{c.label}</span>
                   <span className={`kpi-icon shrink-0 ${c.tone}`}>
@@ -237,7 +237,7 @@ export default function CostsPage() {
           />
 
           {/* Monthly table */}
-          <div className="glass-card" style={{ overflowX: "auto", marginTop: 24 }}>
+          <div className="costs-monthly-table-card glass-card" style={{ overflowX: "auto", marginTop: 24 }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -253,20 +253,20 @@ export default function CostsPage() {
                   const sum = r.fixedCosts + r.variableCosts;
                   const fixedPct = sum > 0 ? Math.round((r.fixedCosts / sum) * 100) : 0;
                   return (
-                    <tr key={r.month} className="hover:bg-[var(--bg-surface)]/60 transition" style={{ borderTop: "1px solid var(--border)" }}>
+                    <tr key={r.month} className="costs-monthly-table-row hover:bg-[var(--bg-surface)]/60 transition" style={{ borderTop: "1px solid var(--border)" }}>
                       <td style={{ padding: "11px 16px", color: "var(--text)" }}>{monthLabel(r.month)}</td>
                       <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--warning)", fontWeight: 600, cursor: "pointer" }}
                         title="클릭하면 이 달 고정비 산출 내역을 봅니다"
                         onClick={() => setMonthDetail({ month: r.month, rowKey: "fixedCosts", title: `${monthLabel(r.month)} 고정비` })}
-                        className="hover:underline">{fmtKrw(r.fixedCosts)}</td>
+                        className="costs-fixed-cell hover:underline">{fmtKrw(r.fixedCosts)}</td>
                       <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--info)", fontWeight: 600, cursor: "pointer" }}
                         title="클릭하면 이 달 변동비 산출 내역을 봅니다"
                         onClick={() => setMonthDetail({ month: r.month, rowKey: "variableCosts", title: `${monthLabel(r.month)} 변동비` })}
-                        className="hover:underline">{fmtKrw(r.variableCosts)}</td>
+                        className="costs-variable-cell hover:underline">{fmtKrw(r.variableCosts)}</td>
                       <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--text)", fontWeight: 700 }}>{fmtKrw(sum)}</td>
                       <td style={{ padding: "11px 16px" }}>
                         {sum > 0 ? (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="costs-fixed-ratio-bar flex items-center justify-end gap-2">
                             <div className="hidden sm:block w-16 h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)]">
                               <div className="h-full rounded-full" style={{ width: `${fixedPct}%`, background: "var(--warning)" }} />
                             </div>
@@ -294,9 +294,9 @@ export default function CostsPage() {
 
           {/* 고정비/변동비 세부내역 (category별) */}
           {breakdown && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, marginTop: 24 }}>
+            <div className="costs-breakdown-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, marginTop: 24 }}>
               {/* 고정비 세부내역 */}
-              <div className="glass-card" style={{ overflow: "hidden" }}>
+              <div className="costs-fixed-breakdown-card glass-card" style={{ overflow: "hidden" }}>
                 <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "var(--warning)" }}>
                   고정비 세부내역 ({year}년)
                 </div>
@@ -318,7 +318,7 @@ export default function CostsPage() {
                       {breakdown.fixed.map((r) => (
                         <tr key={r.category} style={{ borderTop: "1px solid var(--border)", cursor: "pointer" }}
                           title="클릭하면 이 항목의 산출 내역을 봅니다"
-                          className="hover:bg-[var(--bg-surface)]/60"
+                          className="costs-fixed-breakdown-row hover:bg-[var(--bg-surface)]/60"
                           onClick={() => setCatDetail({ kind: "fixed", category: r.category, label: r.label })}>
                           <td style={{ padding: "10px 16px", color: "var(--text)" }}>{r.label}</td>
                           <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--text-muted)" }}>{fmtKrw(r.monthly)}</td>
@@ -338,7 +338,7 @@ export default function CostsPage() {
               </div>
 
               {/* 변동비 세부내역 */}
-              <div className="glass-card" style={{ overflow: "hidden" }}>
+              <div className="costs-variable-breakdown-card glass-card" style={{ overflow: "hidden" }}>
                 <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "var(--info)" }}>
                   변동비 세부내역 ({year}년)
                 </div>
@@ -359,7 +359,7 @@ export default function CostsPage() {
                       {breakdown.variable.map((r) => (
                         <tr key={r.category} style={{ borderTop: "1px solid var(--border)", cursor: "pointer" }}
                           title="클릭하면 이 항목의 산출 내역을 봅니다"
-                          className="hover:bg-[var(--bg-surface)]/60"
+                          className="costs-variable-breakdown-row hover:bg-[var(--bg-surface)]/60"
                           onClick={() => setCatDetail({ kind: "variable", category: r.category, label: r.label })}>
                           <td style={{ padding: "10px 16px", color: "var(--text)" }}>{r.label}</td>
                           <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--info)", fontWeight: 600 }}>{fmtKrw(r.amount)}</td>
@@ -380,6 +380,7 @@ export default function CostsPage() {
 
           {/* Footer note */}
           <div
+            className="costs-footer-note"
             style={{
               marginTop: 16,
               padding: "12px 16px",

@@ -143,7 +143,7 @@ export default function ManagementSummaryPage() {
           <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="space-y-5 mt-1">
+        <div className="summary-body space-y-5 mt-1">
           <IntroCard
             eyebrow="이번 달 상태"
             title={summaryLine}
@@ -157,16 +157,16 @@ export default function ManagementSummaryPage() {
             box={nextVat && vatDday !== null ? { label: `다가오는 부가세 · D-${Math.max(0, vatDday)}`, value: fmt(Math.abs(nextVat.netVAT)), sub: nextVat.dueDate, tone: "warning" } : undefined}
           />
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="summary-stat-grid grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard label="이번 달 손익" value={`${profit >= 0 ? "+" : "−"}${fmt(Math.abs(profit))}`} caption="매출 − 비용" tone={profit >= 0 ? "success" : "danger"} icon="📊" />
             <StatCard label="이번 달 매출" value={fmt(sales)} caption="세금계산서 기준" tone="success" icon="💰" href="/reports/revenue" />
             <StatCard label="이번 달 비용" value={fmt(expense)} caption="지출 합계" tone="warning" icon="⚡" href="/reports/expense" />
             <StatCard label="통장 잔액" value={fmt(balance)} caption={`월 평균 지출 ${fmtMan(burn)}`} tone="primary" icon="🏦" />
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-3">
-            <Section title="이번 달 손익 요약" desc="매출에서 비용을 뺀 이번 달 손익입니다." className="lg:col-span-2">
-              <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="summary-sections-grid grid gap-5 lg:grid-cols-3">
+            <Section title="이번 달 손익 요약" desc="매출에서 비용을 뺀 이번 달 손익입니다." className="summary-pnl-section lg:col-span-2">
+              <div className="summary-pnl-breakdown grid grid-cols-3 gap-3 mb-5">
                 {[
                   { l: "매출", v: fmt(sales), c: "var(--success)", cur: sales, prev: lastSales, invert: false, href: "/reports/revenue" },
                   { l: "비용", v: fmt(expense), c: "var(--warning)", cur: expense, prev: lastExpense, invert: true, href: "/reports/expense" },
@@ -185,7 +185,7 @@ export default function ManagementSummaryPage() {
                 })}
               </div>
               {recent.length > 1 && (
-                <div>
+                <div className="summary-profit-trend">
                   <div className="text-[11px] text-[var(--text-dim)] mb-2">최근 손익 추이</div>
                   <div className="flex items-end gap-2">
                     {recent.map((r, i) => (
@@ -201,8 +201,8 @@ export default function ManagementSummaryPage() {
               )}
             </Section>
 
-            <Section title="주요 예정 항목" desc="곧 나갈 돈·받을 돈을 미리 챙깁니다.">
-              <div className="space-y-2">
+            <Section title="주요 예정 항목" desc="곧 나갈 돈·받을 돈을 미리 챙깁니다." className="summary-upcoming-section">
+              <div className="summary-upcoming-list space-y-2">
                 {nextVat && vatDday !== null && (
                   <Link href="/tax-invoices" className="flex items-center justify-between px-3.5 py-3 rounded-xl bg-[var(--bg-surface)] no-underline hover:ring-1 hover:ring-[var(--primary)]/30 transition">
                     <span className="text-sm text-[var(--text)]">🧾 부가세 납부 <span className="text-[var(--text-dim)] text-xs">D-{Math.max(0, vatDday)}</span></span>

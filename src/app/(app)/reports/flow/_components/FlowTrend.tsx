@@ -125,10 +125,10 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
   }, [pastMonths, lens]);
 
   return (
-    <div className="glass-card p-5 sm:p-6 space-y-5">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="flow-trend-card glass-card p-5 sm:p-6 space-y-5">
+      <div className="flow-trend-header flex items-center justify-between gap-2 flex-wrap">
         <h3 className="text-sm font-bold text-[var(--text)]">과거 → 미래 흐름 <span className="font-normal text-[var(--text-dim)] text-xs">과거 {pastN}개월 실적 + 예측 3개월</span></h3>
-        <div className="seg-bar">
+        <div className="flow-lens-switch seg-bar">
           {LENSES.map((l) => (
             <button key={l.key} onClick={() => onLensChange(l.key)}
               className={`seg-item ${lens === l.key ? "seg-item-active" : ""}`}>
@@ -139,7 +139,7 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
       </div>
 
       {/* 잔액 추이 (과거 월말 → 미래 예측 관통) */}
-      <div className="rounded-2xl border border-[var(--border)] p-4" style={{ background: "color-mix(in srgb, var(--primary) 4%, transparent)" }}>
+      <div className="flow-balance-trend rounded-2xl border border-[var(--border)] p-4" style={{ background: "color-mix(in srgb, var(--primary) 4%, transparent)" }}>
         <div className="flex items-center justify-between mb-3">
           <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">잔액 추이</div>
           <div className="text-[10px] text-[var(--text-dim)]">점선 = 오늘 · 회색 점 = 예측</div>
@@ -148,7 +148,7 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
       </div>
 
       {/* 렌즈별 월 막대 (과거 실적) — 풀하이트 트랙 위 실적 */}
-      <div>
+      <div className="flow-lens-bars">
         <div className="flex items-end gap-2">
           {pastMonths.map((b, idx) => {
             const isCur = idx === todayIdx;
@@ -158,7 +158,7 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
             const neg = lens === "net" && net < 0;
             const labelColor = neg ? "text-[var(--danger)]" : "text-[var(--text-muted)]";
             return (
-              <div key={b.month} className="flex-1 flex flex-col items-center gap-1.5" title={`${b.month}: ${fmtShort(total)}`}>
+              <div key={b.month} className="flow-bar-col flex-1 flex flex-col items-center gap-1.5" title={`${b.month}: ${fmtShort(total)}`}>
                 <span className={`text-[9px] mono-number ${labelColor}`}>{fmtShort(total)}</span>
                 <div className="w-full rounded-xl flex items-end overflow-hidden" style={{ height: BAR_H, background: "var(--bg-surface)" }}>
                   {lens === "net" ? (
@@ -180,7 +180,7 @@ export function FlowTrend({ companyId, userId, anchorMonth, pastN = 6, lens, onL
         </div>
         {/* 범례 */}
         {parts && (
-          <div className="flex flex-wrap gap-3 mt-3">
+          <div className="flow-bar-legend flex flex-wrap gap-3 mt-3">
             {parts.map((pt) => (
               <span key={pt.key} className="inline-flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
                 <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: pt.color }} />{pt.label}
