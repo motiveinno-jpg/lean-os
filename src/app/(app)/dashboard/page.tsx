@@ -46,6 +46,7 @@ import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, Anno
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
+import { SyncFreshness } from "@/components/sync-freshness"; // 데이터 신선도(마지막 동기화 시각) 표시
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -554,6 +555,7 @@ export default function DashboardPage() {
         <div className="mb-3">
           {/* 라운드7.1 — MorningBrief 는 대시보드 최상단(시안 메인)으로 이동. 여기엔 도구 버튼만 유지 */}
           <div className="flex items-center gap-1.5 justify-end mb-2">
+            {companyId && <SyncFreshness companyId={companyId} />}
             {role === "owner" && (
               <button onClick={handleDataSync} disabled={syncing}
                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 ${
