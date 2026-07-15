@@ -16,6 +16,13 @@ import { useUser } from "@/components/user-context";
 import { GRANTABLE_TABS, getUserTabAccess, setTabAccess, effectiveTabAccess } from "@/lib/tab-access";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
+// 구성원 디렉토리(flex-people-directory)와 동일한 해시 팔레트 — 같은 직원은 어디서나 같은 아바타 색.
+function avatarColor(id: string): string {
+  let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  const palette = ["#6C5CE7", "#0984E3", "#00B894", "#E17055", "#00CEC9", "#A29BFE", "#FF7675", "#55A3FF"];
+  return palette[Math.abs(h) % palette.length];
+}
+
 // ── Employee Detail Panel ──
 export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
   const [detailTab, setDetailTab] = useState<"info" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave" | "access">("info");
@@ -149,23 +156,23 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
   if (!emp) return null;
 
   return (
-    <div className="glass-card overflow-hidden shadow-2xl">
-      {/* 상단 액션 바 — 라운드6.5: 인물 정보는 좌측 프로필 카드로 이동, 액션만 유지 */}
-      <div className="px-6 py-3 border-b border-[var(--border)]">
+    <div className="employee-detail-modal glass-card overflow-hidden shadow-2xl animate-slide-in">
+      {/* 상단 액션 바 — 라운드6.5: 인물 정보는 좌측 프로필 카드로 이동, 액션만 유지. 2026-07-15: 유리질감 헤더로 정제 */}
+      <div className="employee-detail-header px-6 py-4 border-b border-[var(--border)] bg-gradient-to-b from-[var(--bg-surface)]/70 to-transparent">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-bold text-[var(--text)]">구성원 상세</h3>
+          <h3 className="text-[15px] font-extrabold text-[var(--text)] tracking-tight">구성원 상세</h3>
           <div className="flex items-center gap-2 shrink-0">
             {!isEditing && detailTab === "info" && (
-              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3 py-1.5 text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 rounded-lg transition">
+              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3.5 py-1.5 text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 rounded-xl transition">
                 ✏ 수정
               </button>
             )}
             {emp.status !== "inactive" && emp.status !== "resigned" && (
-              <button onClick={() => setShowTermModal(true)} className="px-3 py-1.5 text-[11px] font-semibold text-[var(--danger)] bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 rounded-lg transition">
+              <button onClick={() => setShowTermModal(true)} className="px-3.5 py-1.5 text-[11px] font-semibold text-[var(--danger)] bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 rounded-xl transition">
                 퇴사 처리
               </button>
             )}
-            <button onClick={onClose} className="p-2 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] transition">
+            <button onClick={onClose} className="p-2 hover:bg-[var(--bg-surface)] rounded-xl text-[var(--text-dim)] hover:text-[var(--text)] transition">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
@@ -176,8 +183,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
       <div className="grid gap-5 lg:grid-cols-3 p-6 bg-[var(--bg-surface)]/30 max-h-[74vh] overflow-y-auto">
         {/* 좌 — 프로필 카드 */}
         <div className="lg:col-span-1">
-          <div className="glass-card p-5 text-center">
-            <div className="w-20 h-20 mx-auto rounded-3xl flex items-center justify-center text-white font-extrabold text-2xl shadow-lg bg-[var(--primary)]">
+          <div className="employee-profile-card glass-card p-5 text-center">
+            <div
+              className="w-20 h-20 mx-auto rounded-3xl flex items-center justify-center text-white font-extrabold text-2xl shadow-lg ring-4 ring-[var(--bg-card)]"
+              style={{ background: `linear-gradient(135deg, ${avatarColor(emp.id)}, ${avatarColor(emp.id)}99)` }}
+            >
               {emp.name?.charAt(0)}
             </div>
             <div className="mt-3 text-lg font-extrabold text-[var(--text)]">{emp.name}</div>
@@ -238,7 +248,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
               </div>
             )}
             {/* 인사 정보 */}
-            <div>
+            <div className="employee-info-section">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 인사 정보
@@ -266,7 +276,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
               </div>
             </div>
             {/* 근무시간 (개인 설정) */}
-            <div>
+            <div className="employee-info-section">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
                 근무시간 (개인 설정)
@@ -283,7 +293,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
               <div className="text-[10px] text-[var(--text-dim)] mt-1.5">비워두면 회사 설정(설정 &gt; 근태)의 기본 출퇴근 시간이 적용됩니다.</div>
             </div>
             {/* 기본 정보 */}
-            <div>
+            <div className="employee-info-section">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 기본 정보
@@ -307,7 +317,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
               </div>
             </div>
             {/* 급여/계좌 정보 */}
-            <div>
+            <div className="employee-info-section">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                 급여 · 계좌
@@ -468,11 +478,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                     <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] overflow-hidden max-h-[300px] overflow-y-auto">
                       {empPackages.map((p: any) => {
                         const PKG_STATUS: Record<string, { label: string; color: string }> = {
-                          draft: { label: "임시저장", color: "text-gray-400 bg-gray-500/10" },
+                          draft: { label: "임시저장", color: "text-[var(--text-dim)] bg-[var(--bg-surface)]" },
                           sent: { label: "발송됨", color: "text-[var(--info)] bg-[var(--info)]/10" },
                           partially_signed: { label: "일부 서명", color: "text-[var(--warning)] bg-[var(--warning)]/10" },
                           completed: { label: "서명 완료", color: "text-[var(--success)] bg-[var(--success)]/10" },
-                          cancelled: { label: "취소", color: "text-gray-400 bg-gray-500/10" },
+                          cancelled: { label: "취소", color: "text-[var(--text-dim)] bg-[var(--bg-surface)]" },
                         };
                         const st = PKG_STATUS[p.status] || PKG_STATUS.draft;
                         const items = p.hr_contract_package_items || [];
@@ -512,7 +522,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                             <div className="text-xs font-medium truncate">{c.contract_type === "regular" ? "정규직 근로계약서" : c.contract_type === "contract" ? "계약직 근로계약서" : c.contract_type || "근로계약서"}</div>
                             <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{c.start_date}{c.end_date ? ` ~ ${c.end_date}` : " ~ 현재"}</div>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${c.status === "active" ? "bg-[var(--success)]/10 text-[var(--success)]" : "bg-gray-500/10 text-gray-400"}`}>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${c.status === "active" ? "bg-[var(--success)]/10 text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>
                             {c.status === "active" ? "유효" : "종료"}
                           </span>
                         </div>
@@ -621,7 +631,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
                           <div className="text-xs font-medium">{typeLabel} · {r.days}일</div>
                           <div className="caption">{r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""}</div>
                         </div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColors[r.status] || "text-gray-400 bg-gray-500/10"}`}>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColors[r.status] || "text-[var(--text-dim)] bg-[var(--bg-surface)]"}`}>
                           {r.status === "pending" ? "대기" : r.status === "approved" ? "승인" : "반려"}
                         </span>
                       </div>
@@ -927,7 +937,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
                   {item.label}
                 </span>
                 {item.optional && (
-                  <span className="text-[9px] px-1.5 py-0.5 bg-gray-500/10 text-[var(--text-dim)] rounded-full">선택</span>
+                  <span className="text-[9px] px-1.5 py-0.5 bg-[var(--bg-surface)] text-[var(--text-dim)] rounded-full">선택</span>
                 )}
                 {item.autoGen && (
                   <span className="text-[9px] px-1.5 py-0.5 bg-[var(--info)]/10 text-[var(--info)] rounded-full font-medium">자동생성</span>

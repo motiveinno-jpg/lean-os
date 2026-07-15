@@ -573,6 +573,14 @@ input, textarea, [contenteditable="true"] {
 /* 7) 섹션 제목 위계 미세 정제 — 살짝 더 또렷한 tracking. */
 .section-title { letter-spacing: -0.01em; }
 
+/* 구성원 상세 팝업 리디자인 (2026-07-15) — 정보 탭 섹션을 카드로 분리해 위계 부여 */
+.employee-info-section {
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  padding: 1.125rem 1.25rem;
+}
+
 /* ══════════════════════════════════════════════════════════════════
    2026-07-03 TeamHub 라운드 — KPI 카드 시그니처 요소 (레퍼런스 대시보드 패턴)
    KPI 카드 = glass-card p-5 + [라벨행: 라벨 + .kpi-icon] + [값행: 큰 숫자 + .delta-chip]
