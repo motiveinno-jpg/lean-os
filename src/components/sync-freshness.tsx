@@ -43,7 +43,7 @@ export function SyncFreshness({ companyId }: { companyId: string }) {
   const stale = staleH > 26; // 자동 동기화가 하루 2회라 26시간 넘게 밀리면 주의 색.
 
   return (
-    <div className="sync-freshness flex items-center gap-1.5 text-[10px] text-[var(--text-dim)] mr-auto"
+    <div className="sync-freshness flex items-center gap-1.5 text-[10px] text-[var(--text-dim)]"
       title="자동 동기화는 하루 2회(오전·오후) 실행됩니다. 지금 최신화하려면 '동기화' 버튼을 누르세요.">
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${stale ? "bg-[var(--warning)]" : "bg-[var(--success)]"}`} />
       <span className="whitespace-nowrap">통장 {rel(bank)} · 카드 {rel(card)} 동기화</span>

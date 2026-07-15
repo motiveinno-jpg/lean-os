@@ -73,28 +73,41 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
     queryKey: ["dash-approvals-pending", companyId],
     enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => {
-      const [docRes, payCnt] = await Promise.all([
+      // 문서결재(doc_approvals) + 지출결재(payment_queue) 둘 다 목록에 — 건수와 표시가 일치하도록.
+      const [docRes, payRes] = await Promise.all([
         db.from("doc_approvals").select("id, created_at, documents(content_type, contract_amount)")
-          .eq("company_id", companyId).eq("status", "pending").order("created_at", { ascending: false }).limit(5),
-        db.from("payment_queue").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "pending"),
+          .eq("company_id", companyId).eq("status", "pending").order("created_at", { ascending: false }).limit(8),
+        db.from("payment_queue").select("id, amount, description, recipient_name, created_at")
+          .eq("company_id", companyId).eq("status", "pending").order("created_at", { ascending: false }).limit(8),
       ]);
-      return { docs: (docRes.data || []) as any[], total: (docRes.data?.length || 0) + (payCnt.count || 0) };
+      const docs = (docRes.data || []) as any[];
+      const pays = (payRes.data || []) as any[];
+      return { docs, pays, total: docs.length + pays.length };
     },
   });
-  const docs = data?.docs || [];
+  const items = [
+    ...(data?.docs || []).map((a) => ({
+      kind: "doc" as const, id: a.id, href: "/approvals", badge: DOC_KIND[a.documents?.content_type] || "결재 문서",
+      amt: Number(a.documents?.contract_amount || 0), date: a.created_at as string,
+    })),
+    ...(data?.pays || []).map((p) => ({
+      kind: "pay" as const, id: p.id, href: "/payments", badge: "지출",
+      label: (p.description || p.recipient_name || "지출 결재") as string, amt: Number(p.amount || 0), date: p.created_at as string,
+    })),
+  ].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 6);
+
   return (
     <ActivityCard title="결재 대기" href="/approvals" count={data?.total} empty={(data?.total ?? 0) === 0}>
-      {docs.map((a) => {
-        const kind = DOC_KIND[a.documents?.content_type] || "결재 문서";
-        const amt = Number(a.documents?.contract_amount || 0);
-        return (
-          <Link key={a.id} href="/approvals" className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
-            <Badge label={kind} tone="var(--warning)" />
-            <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{amt ? won(amt) : md(a.created_at)}</span>
-            <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(a.created_at)}</span>
-          </Link>
-        );
-      })}
+      {items.map((it) => (
+        <Link key={`${it.kind}-${it.id}`} href={it.href} className="flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition">
+          <Badge label={it.badge} tone="var(--warning)" />
+          <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">
+            {it.kind === "pay" ? (it as any).label : (it.amt ? won(it.amt) : "결재 문서")}
+          </span>
+          {it.amt > 0 && <span className="text-[11px] mono-number text-[var(--text-muted)] shrink-0">{won(it.amt)}</span>}
+          <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(it.date)}</span>
+        </Link>
+      ))}
     </ActivityCard>
   );
 }

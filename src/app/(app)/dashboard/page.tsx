@@ -512,6 +512,14 @@ export default function DashboardPage() {
             />
           </div>
 
+          {/* 데이터 신선도 + 미분류 정리 — owner·admin 공용(admin도 자금 데이터 관리). */}
+          {companyId && (
+            <div className="flex items-center justify-end">
+              <SyncFreshness companyId={companyId} />
+            </div>
+          )}
+          {companyId && <UnclassifiedPrompt companyId={companyId} />}
+
           {/* 대시보드 통합 위젯 그리드 — 카탈로그 기반: 개인별 위젯 추가/삭제 자유(2026-07-15).
               기본 활성 위젯 = 사장님 확정 배치(DEFAULT_WIDGET_POS), 그 외는 편집 모드 '위젯 추가'로. */}
           {(() => {
@@ -560,7 +568,6 @@ export default function DashboardPage() {
         <div className="mb-3">
           {/* 라운드7.1 — MorningBrief 는 대시보드 최상단(시안 메인)으로 이동. 여기엔 도구 버튼만 유지 */}
           <div className="flex items-center gap-1.5 justify-end mb-2">
-            {companyId && <SyncFreshness companyId={companyId} />}
             {role === "owner" && (
               <button onClick={handleDataSync} disabled={syncing}
                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 ${
@@ -609,9 +616,6 @@ export default function DashboardPage() {
         )}
 
       </div>
-
-      {/* 미분류 거래 정리 — 계정과목 미지정 통장·카드 거래 건수 + 원클릭 자동정리(CODEF 호출 없음) */}
-      {companyId && <UnclassifiedPrompt companyId={companyId} />}
 
       {/* ═══ ① CEO 커맨드 센터 — 액션(결재 즉시승인·매칭·미수금·위험) + 펄스/목표/리스크 ═══ */}
       {companyId && (
