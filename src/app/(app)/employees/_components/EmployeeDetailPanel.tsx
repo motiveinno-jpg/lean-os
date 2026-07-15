@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
-import { updateEmployee, LEAVE_TYPES } from "@/lib/hr";
+import { updateEmployee, LEAVE_TYPES, initLeaveBalance, calculateAnnualLeave } from "@/lib/hr";
 import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
 import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insurance-edi";
@@ -192,6 +192,20 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       return data;
     },
     enabled: !!employeeId && detailTab === "leave",
+  });
+
+  // 연차 설정(관리자) — 휴가 신청은 전자결재로 이관됨(2026-07-15). 여기선 구성원 총괄 관점의
+  //   연차 총 부여일수 설정/조정만 담당(초기화·수정). initLeaveBalance = upsert.
+  const [leaveDaysInput, setLeaveDaysInput] = useState<string>("");
+  const setLeaveMut = useMutation({
+    mutationFn: (totalDays: number) => initLeaveBalance(companyId, employeeId, currentYear, totalDays),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emp-leave-balance", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["leave-balances-list"] });
+      setLeaveDaysInput("");
+      toast("연차가 설정되었습니다", "success");
+    },
+    onError: (e: any) => toast("연차 설정 실패: " + friendlyError(e, "알 수 없는 오류"), "error"),
   });
 
   const { data: empLeaveRequests = [] } = useQuery({
@@ -714,6 +728,46 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             ) : (
               <div className="glass-card p-4 text-center text-xs text-[var(--text-dim)]">
                 {currentYear}년 연차가 아직 설정되지 않았습니다
+              </div>
+            )}
+
+            {/* 연차 설정(관리자) — 총 부여일수 초기화/조정. 휴가 신청/승인은 전자결재. */}
+            {canManageAccess && (
+              <div className="employee-leave-setter glass-card p-4">
+                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                  <div className="text-xs font-bold text-[var(--text-muted)]">{currentYear}년 총 부여일수 설정</div>
+                  {emp?.hire_date && (() => {
+                    const calc = calculateAnnualLeave(emp.hire_date, `${currentYear}-12-31`);
+                    return (
+                      <button
+                        onClick={() => setLeaveMut.mutate(calc.totalDays)}
+                        disabled={setLeaveMut.isPending}
+                        className="btn-ghost btn-sm text-[var(--primary)] disabled:opacity-50"
+                        title={calc.formula}
+                      >
+                        입사일 기준 자동 {calc.totalDays}일
+                      </button>
+                    );
+                  })()}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={leaveDaysInput}
+                    onChange={(e) => setLeaveDaysInput(e.target.value.replace(/[^0-9.]/g, ""))}
+                    placeholder={empLeaveBalance ? String(empLeaveBalance.total_days) : "예: 15"}
+                    className="field-input w-28"
+                  />
+                  <button
+                    onClick={() => { const v = Number(leaveDaysInput); if (v >= 0) setLeaveMut.mutate(v); }}
+                    disabled={setLeaveMut.isPending || leaveDaysInput === ""}
+                    className="btn-primary btn-sm disabled:opacity-50"
+                  >
+                    {setLeaveMut.isPending ? "저장 중..." : empLeaveBalance ? "수정" : "설정"}
+                  </button>
+                </div>
+                <p className="text-[11px] text-[var(--text-dim)] mt-2">사용일수는 승인된 휴가에 따라 자동 반영됩니다.</p>
               </div>
             )}
 

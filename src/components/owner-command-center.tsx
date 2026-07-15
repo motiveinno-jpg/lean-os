@@ -29,7 +29,7 @@ const ACTION_META: Record<string, { icon: string; label: string; href: string }>
   payment: { icon: "💸", label: "결제", href: "/payments" },
   expense: { icon: "🧾", label: "경비", href: "/payments" },
   document: { icon: "📄", label: "문서", href: "/documents" },
-  leave: { icon: "🏖", label: "휴가", href: "/attendance?section=leave" },
+  leave: { icon: "🏖", label: "휴가", href: "/approvals" },
   signature: { icon: "✍️", label: "서명", href: "/signatures" },
   cost: { icon: "📦", label: "프로젝트 비용", href: "/projects" },
   approval: { icon: "✅", label: "결재", href: "/approvals" },

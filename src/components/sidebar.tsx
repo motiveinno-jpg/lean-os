@@ -113,7 +113,7 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
   {
     label: "나의 업무",
     items: [
-      { href: "/attendance", label: "근태 / 휴가", icon: "clock" },
+      { href: "/attendance", label: "근태", icon: "clock" },
       { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3" },
       { href: "/signatures", label: "전자계약", icon: "edit-3" },
       { href: "/approvals", label: "결재관리", icon: "clipboard-check", badgeKey: "approvals" },

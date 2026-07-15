@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
-import { AttendanceTab, LeaveTab } from "@/app/(app)/employees/page";
+import { AttendanceTab } from "@/app/(app)/employees/page";
 import { OvertimeRequestCard } from "@/components/overtime-request-card";
 import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
 import { OvertimeStats } from "@/components/overtime-stats";
@@ -31,18 +31,16 @@ export default function AttendancePage() {
   // 플렉스 스타일 워크보드(주간 52h·타임라인) ↔ 기존 기록 상세 토글.
   //   관리자 기본 = 워크보드(조망), 직원 기본 = 기록 상세(본인 출퇴근/수정 동선 유지).
   const [attView, setAttView] = useState<"work" | "records">(isEmployee ? "records" : "work");
-  // 상위 섹션: 근무현황 / 휴가 / 연장근무 — 휴가·연장 신청/승인을 근태관리로 통합.
-  const [section, setSection] = useState<"work" | "leave" | "overtime">("work");
-  const [leaveFocusPending, setLeaveFocusPending] = useState(false);
-  // ?view=records/work + ?section=leave/overtime + ?focus=pending 딥링크.
-  //   근태 수정요청 알림 → records, 미검토 휴가 알림 → leave 섹션(+승인 영역 스크롤).
+  // 상위 섹션: 근무현황 / 연장근무. 휴가 신청·승인은 전자결재로, 연차 설정은 인사관리로 이관(2026-07-15).
+  const [section, setSection] = useState<"work" | "overtime">("work");
+  // ?view=records/work + ?section=overtime/work 딥링크(근태 수정요청 알림 → records).
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const v = sp.get("view");
     if (v === "records" || v === "work") setAttView(v);
     const s = sp.get("section");
-    if (s === "leave" || s === "overtime" || s === "work") setSection(s);
-    if (sp.get("focus") === "pending") { setLeaveFocusPending(true); setSection((cur) => (sp.get("section") ? cur : "leave")); }
+    if (s === "overtime" || s === "work") setSection(s);
+    // 휴가(section=leave/focus=pending) 딥링크는 전자결재로 이관 → /leave 리다이렉트가 처리.
   }, []);
 
   const { data: employees = [] } = useQuery({
@@ -58,34 +56,6 @@ export default function AttendancePage() {
     enabled: !!companyId,
   });
 
-  // 휴가 캘린더용 사내 디렉토리(이름만) — employees 테이블은 RESTRICTIVE RLS 로 직원 role 은
-  //   본인 1행만 SELECT 가능(20260519040000). 위 employees 쿼리도 같은 제약이라 동료 이름을
-  //   못 읽어 휴가 캘린더에 "Unknown" 으로 뜨던 원인. get_company_directory() 는 SECURITY DEFINER
-  //   RPC 로 salary 등 민감컬럼 제외한 안전 필드(이름 포함)만 회사 전체 반환 — /team 과 동일 패턴.
-  const { data: directory = [] } = useQuery({
-    queryKey: ["company-directory", companyId],
-    queryFn: async () => {
-      const { data } = await (supabase as any).rpc("get_company_directory");
-      return data || [];
-    },
-    enabled: !!companyId && section === "leave",
-  });
-
-  // 미검토(승인 대기) 휴가 건수 — 공지 alert 실데이터. RLS 회사 격리. 표시 전용.
-  const { data: pendingLeave = 0 } = useQuery<number>({
-    queryKey: ["pending-leave-count", companyId],
-    queryFn: async () => {
-      const { count } = await (supabase as any)
-        .from("leave_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("company_id", companyId)
-        .eq("status", "pending");
-      return count || 0;
-    },
-    enabled: !!companyId && isManager,
-    staleTime: 60_000,
-  });
-
   if (!companyId) {
     return <div className="py-16 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   }
@@ -94,10 +64,10 @@ export default function AttendancePage() {
 
   return (
     <div className="attendance-page">
-      {/* 상위 섹션 탭 — 근무현황 / 휴가 / 연장근무 (라운드6.5: 타이틀 제거 → 필형 seg-bar 툴바) */}
+      {/* 상위 섹션 탭 — 근무현황 / 연장근무 (휴가는 전자결재로 이관, 2026-07-15) */}
       <div className="attendance-section-tabbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <div className="seg-bar">
-          {([["work", "근무 현황"], ["leave", "휴가"], ["overtime", "연장근무"]] as const).map(([k, l]) => (
+          {([["work", "근무 현황"], ["overtime", "연장근무"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setSection(k)}
               className={`seg-item ${section === k ? "seg-item-active" : ""}`}>
               {l}
@@ -106,20 +76,6 @@ export default function AttendancePage() {
         </div>
         {isManager && <span className="text-xs text-[var(--text-muted)]">재직 {activeEmp.toLocaleString()}명</span>}
       </div>
-
-      {/* 공지 — 미검토 휴가(승인 대기). 클릭 시 휴가 섹션 승인 영역으로 이동. */}
-      {isManager && pendingLeave > 0 && (
-        <button
-          onClick={() => {
-            setSection("leave"); setLeaveFocusPending(true);
-            setTimeout(() => document.getElementById("leave-approve-section")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
-          }}
-          className="attendance-pending-leave-banner w-full mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--warning-dim)] border border-[var(--warning)]/30 text-left hover:opacity-90 transition"
-        >
-          <span className="text-sm font-semibold text-[var(--warning)]">⚠️ 미검토 휴가 신청 {pendingLeave}건 — 클릭해서 승인하세요</span>
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--warning)] text-white whitespace-nowrap">휴가 승인하기 →</span>
-        </button>
-      )}
 
       {section === "work" && (
         <>
@@ -145,20 +101,6 @@ export default function AttendancePage() {
             />
           )}
         </>
-      )}
-
-      {/* 휴가 — 신청(전원) + 승인(관리자/지정 승인자). LeaveTab 공용 컴포넌트. */}
-      {section === "leave" && companyId && (
-        <LeaveTab
-          employees={employees}
-          directory={directory}
-          companyId={companyId}
-          userId={userId}
-          queryClient={queryClient}
-          isEmployee={isEmployee}
-          autoNew={false}
-          focusPending={leaveFocusPending}
-        />
       )}
 
       {/* 연장근무 — 본인 신청(전원) + 관리자 승인 인박스. */}

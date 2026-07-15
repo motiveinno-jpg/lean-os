@@ -41,7 +41,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/employees": { group: "인사관리", title: "구성원", desc: "직원 정보·급여·계약을 관리합니다." },
   "/team": { group: "인사관리", title: "구성원", desc: "구성원을 관리합니다." },
   "/attendance": { group: "인사관리", title: "근태 관리", desc: "출퇴근·근태 현황을 관리합니다." },
-  "/leave": { group: "인사관리", title: "휴가", desc: "휴가를 신청·관리합니다." },
+  "/leave": { group: "워크스페이스", title: "휴가 신청", desc: "휴가 신청은 전자결재에서 처리합니다." },
   "/hr-templates": { group: "인사관리", title: "양식 관리", desc: "인사 문서 양식을 관리합니다." },
   "/documents": { group: "인사관리", title: "파일보관함", desc: "회사 파일·문서를 보관합니다." },
 

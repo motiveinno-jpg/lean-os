@@ -27,7 +27,7 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   signature: (id) => `/contracts/signed/${id}`,
   company_join_request: () => `/settings?tab=team`,
   hr_contract_package: () => `/my-contracts`,
-  leave_request: () => `/attendance?section=leave&focus=pending`,
+  leave_request: () => `/approvals`,
   overtime_request: () => `/attendance?section=overtime`,
   project_checkin: (id) => `/projecthub/${id}?tab=performance`,
   attendance_edit_request: () => `/attendance?view=records`,

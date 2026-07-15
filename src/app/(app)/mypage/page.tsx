@@ -150,18 +150,31 @@ export default function MyPage() {
     enabled: !!employee?.id,
   });
 
+  // 최근 휴가 — 네이티브 leave_requests(과거) + 전자결재 approval_requests(휴가, 2026-07-15 일원화) 병합.
   const { data: recentLeaves = [] } = useQuery({
-    queryKey: ["my-recent-leaves", employee?.id],
+    queryKey: ["my-recent-leaves", employee?.id, userId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("leave_requests")
-        .select("*")
-        .eq("employee_id", employee!.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      return data || [];
+      const db = supabase as any;
+      const [{ data: native }, { data: approvals }] = await Promise.all([
+        db.from("leave_requests").select("*").eq("employee_id", employee!.id).order("created_at", { ascending: false }).limit(5),
+        db.from("approval_requests").select("id, status, created_at, custom_fields, description").eq("request_type", "leave").eq("requester_id", userId!).order("created_at", { ascending: false }).limit(5),
+      ]);
+      const mappedApprovals = (approvals || []).map((a: any) => {
+        const lv = a.custom_fields?.leave || {};
+        return {
+          id: `approval-${a.id}`,
+          leave_type: lv.leave_type || a.description?.match(/유형:\s*(\S+)/)?.[1] || "annual",
+          start_date: lv.start_date || a.created_at?.slice(0, 10),
+          end_date: lv.end_date || lv.start_date || a.created_at?.slice(0, 10),
+          status: a.status,
+          created_at: a.created_at,
+        };
+      });
+      return [...(native || []), ...mappedApprovals]
+        .sort((x: any, y: any) => (y.created_at || "").localeCompare(x.created_at || ""))
+        .slice(0, 5);
     },
-    enabled: !!employee?.id,
+    enabled: !!employee?.id && !!userId,
   });
 
   if (!userId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
@@ -288,7 +301,7 @@ export default function MyPage() {
           <div className="text-center py-12">
             <div className="text-3xl mb-3">🌴</div>
             <div className="text-sm font-semibold text-[var(--text-muted)]">연차 정보가 설정되지 않았습니다.</div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">인력관리 &gt; 휴가 탭에서 연차를 초기화해주세요.</div>
+            <div className="text-xs text-[var(--text-dim)] mt-1">관리자가 연차를 설정하면 이곳에 표시됩니다. (휴가 신청은 전자결재에서)</div>
           </div>
         )}
 
