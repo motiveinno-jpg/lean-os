@@ -111,6 +111,38 @@ export default function PartnerLedgerPage() {
     enabled: !!companyId,
   });
 
+  // 미수 경과(에이징) — 세금계산서 발행분 기준 잔액을 발행일 경과일로 버킷팅(매출처 뷰 전용, 표시만).
+  //   ⚠️ 원장 '총 미수금'(RPC)은 전표·이월 포함이라 이 에이징 합계와 다를 수 있음 → 라벨로 구분.
+  const { data: aging } = useQuery<{ buckets: { label: string; amount: number; count: number }[]; total: number } | null>({
+    queryKey: ["ledger-ar-aging", companyId],
+    enabled: !!companyId && ledgerType === "sales",
+    staleTime: 60_000,
+    queryFn: async () => {
+      const since = new Date(); since.setDate(since.getDate() - 730);
+      const { data: inv } = await db.from("tax_invoices")
+        .select("total_amount, supply_amount, settled_amount, issue_date, status")
+        .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
+        .gte("issue_date", since.toISOString().slice(0, 10)).limit(5000);
+      const buckets = [
+        { label: "0–30일", min: 0, max: 30, amount: 0, count: 0 },
+        { label: "31–60일", min: 31, max: 60, amount: 0, count: 0 },
+        { label: "61–90일", min: 61, max: 90, amount: 0, count: 0 },
+        { label: "90일+", min: 91, max: Infinity, amount: 0, count: 0 },
+      ];
+      const now = new Date();
+      const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      for (const r of (inv || []) as any[]) {
+        if (r.status === "draft") continue;
+        const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
+        if (bal <= 1) continue;
+        const days = r.issue_date ? Math.floor((todayMs - new Date(String(r.issue_date).slice(0, 10)).getTime()) / 86400000) : 0;
+        const b = buckets.find((x) => days >= x.min && days <= x.max) || buckets[3];
+        b.amount += bal; b.count += 1;
+      }
+      return { buckets: buckets.map(({ label, amount, count }) => ({ label, amount, count })), total: buckets.reduce((s, b) => s + b.amount, 0) };
+    },
+  });
+
   // 홈택스 거래처 연결 — 세금계산서↔거래처 사업자번호 자동 연결 (원장의 전제 데이터)
   const linkMut = useMutation({
     mutationFn: async () => {
@@ -274,6 +306,31 @@ export default function PartnerLedgerPage() {
         </button>
       </div>
       <p className="text-[11px] text-[var(--text-dim)]">잔액 = 전기이월 + 당기 잔액 · 확정된 매칭(거래 매칭)만 정산으로 반영</p>
+
+      {/* 미수 경과(에이징) — 세금계산서 발행 기준. 회수 우선순위 판단용(오래 밀린 미수 강조). 매출처 뷰 전용. */}
+      {ledgerType === "sales" && aging && aging.total > 0 && (
+        <div className="ledger-ar-aging glass-card p-4">
+          <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+            <span className="text-[12px] font-bold text-[var(--text)]">미수 경과 · 세금계산서 발행 기준</span>
+            <span className="text-[10px] text-[var(--text-dim)]">합계 {won(aging.total)} · 원장 총 미수금은 전표·이월 포함(차이 정상)</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {aging.buckets.map((b, i) => {
+              const cls = ["bg-[var(--bg-surface)] text-[var(--text)]",
+                "bg-[var(--warning)]/10 text-[var(--warning)]",
+                "bg-[var(--warning)]/18 text-[var(--warning)]",
+                "bg-[var(--danger)]/12 text-[var(--danger)]"][i];
+              return (
+                <div key={b.label} className={`ar-aging-bucket rounded-lg px-3 py-2.5 ${cls}`}>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{b.label}</div>
+                  <div className="text-[15px] font-black mono-number leading-tight mt-0.5">{won(b.amount)}</div>
+                  <div className="text-[9px] opacity-70 mt-0.5">{b.count}건</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {lLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
