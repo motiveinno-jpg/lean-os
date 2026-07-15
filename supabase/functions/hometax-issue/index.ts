@@ -93,8 +93,8 @@ function buildIssuePayload(args: {
   const buyerCorpName = invoice.counterparty_name || partner?.company_name || partner?.name || "";
   const buyerCEO = partner?.representative || "";
   const buyerAddr = partner?.address || "";
-  const buyerBizClass = invoice.counterparty_business_type || partner?.business_type || "";
-  const buyerBizType = invoice.counterparty_business_item || partner?.business_item || "";
+  const buyerBizType = invoice.counterparty_business_type || partner?.business_type || "";
+  const buyerBizClass = invoice.counterparty_business_item || partner?.business_item || "";
   const buyerEmail = partner?.contact_email || "";
 
   // CODEF 발행 API(/a/tax-invoice/regist-invoicer-trustee) 명세는 한글 코드값을 받는다.
