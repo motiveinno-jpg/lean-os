@@ -820,11 +820,14 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .rgl-editing .react-resizable-handle-sw::after { left: 4px; bottom: 4px; border-left: 2px solid var(--primary); border-bottom: 2px solid var(--primary); }
 .rgl-editing .react-resizable-handle-ne::after { right: 4px; top: 4px; border-right: 2px solid var(--primary); border-top: 2px solid var(--primary); }
 .rgl-editing .react-resizable-handle-nw::after { left: 4px; top: 4px; border-left: 2px solid var(--primary); border-top: 2px solid var(--primary); }
-/* 가장자리(엣지) 4방향 — 변 전체를 잡기 영역으로 + 얇은 바 */
+/* 가장자리(엣지) 핸들 — 변 전체를 잡기 영역으로 + 얇은 바.
+   ⚠️ react-resizable 기본 CSS가 핸들에 transform:rotate(45deg 등)를 걸어둠 — 20px 그립일 땐 무해하나
+   폭/높이 100% 바로 키우면 바 전체가 회전해 위젯 본문을 대각선으로 덮음(본문↔가장자리 커서 반대로).
+   → transform:none 으로 축 정렬 고정(2026-07-15). */
 .rgl-editing .react-resizable-handle-n,
-.rgl-editing .react-resizable-handle-s { left: 0 !important; margin-left: 0 !important; width: 100% !important; height: 12px; }
+.rgl-editing .react-resizable-handle-s { left: 0 !important; margin-left: 0 !important; width: 100% !important; height: 12px; transform: none !important; }
 .rgl-editing .react-resizable-handle-e,
-.rgl-editing .react-resizable-handle-w { top: 0 !important; margin-top: 0 !important; height: 100% !important; width: 12px; }
+.rgl-editing .react-resizable-handle-w { top: 0 !important; margin-top: 0 !important; height: 100% !important; width: 12px; transform: none !important; }
 .rgl-editing .react-resizable-handle-n::after,
 .rgl-editing .react-resizable-handle-s::after { content: ""; position: absolute; left: 12%; right: 12%; height: 3px; border-radius: 2px; background: var(--primary); opacity: 0.22; }
 .rgl-editing .react-resizable-handle-n::after { top: 3px; }
