@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TileIcon } from "@/components/ui/icon-tile";
 import { getRecurringPayments } from "@/lib/approval-center";
+import { supabase } from "@/lib/supabase";
 
 interface Props {
   companyId: string;
@@ -21,11 +22,14 @@ interface UpcomingItem {
   accountLabel: string;       // "농협 1234"
   accountAliasOrDisplay: string;
   recipient?: string;
+  kind: 'recurring' | 'loan';
+  balance?: number;           // loan: 남은 대출 잔액(리마인더용 — 상환액이 아님)
 }
 
 const CAT_LABEL: Record<string, string> = {
   rent: '임대료', utility: '공과금', insurance: '보험료',
   subscription: '구독', salary: '급여', tax: '세금', other: '기타',
+  loan: '대출상환',
 };
 
 function fmtKRW(n: number): string {
@@ -79,6 +83,21 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
     staleTime: 60_000,
   });
 
+  // 대출 상환일 리마인더(표시만 — 실행/이체는 사람). payment_day 기준 다음 상환일 산출.
+  const { data: loans = [] } = useQuery({
+    queryKey: ['loans-upcoming', companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('loans')
+        .select('id, name, lender, payment_day, remaining_balance, maturity_date, status')
+        .eq('company_id', companyId)
+        .eq('status', 'active');
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+
   const items = useMemo<UpcomingItem[]>(() => {
     const today = startOfDay(new Date());
     const horizon = new Date(today);
@@ -114,13 +133,39 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
         accountLabel,
         accountAliasOrDisplay: aliasOrDisplay,
         recipient: r.recipient_name || undefined,
+        kind: 'recurring',
       });
     }
+
+    // 대출 상환일 — 상환액은 알 수 없어(스케줄 미저장) 금액 대신 '잔액'을 리마인더로 표시.
+    for (const l of loans as any[]) {
+      const day = Number(l.payment_day || 0);
+      if (!day || day < 1 || day > 31) continue;
+      const due = computeNextDue({ day_of_month: day }, today);
+      if (!due) continue;
+      if (due.getTime() > horizon.getTime()) continue;
+      const ms = due.getTime() - today.getTime();
+      const daysLeft = Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
+      list.push({
+        id: `loan-${l.id}`,
+        name: l.name || l.lender || '대출',
+        amount: 0,
+        category: 'loan',
+        dueDate: due,
+        daysLeft,
+        accountLabel: l.lender || '',
+        accountAliasOrDisplay: '',
+        kind: 'loan',
+        balance: Number(l.remaining_balance || 0),
+      });
+    }
+
     list.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     return list.slice(0, maxItems);
-  }, [rows, windowDays, maxItems]);
+  }, [rows, loans, windowDays, maxItems]);
 
-  const totalAmount = items.reduce((s, it) => s + it.amount, 0);
+  // 총 출금 예정 = 정기지출 금액만(대출은 상환액 미상 → 합산 제외).
+  const totalAmount = items.reduce((s, it) => s + (it.kind === 'loan' ? 0 : it.amount), 0);
 
   return (
     <div className="mb-3 glass-card p-5">
@@ -128,8 +173,8 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
         <div className="flex items-center gap-2.5">
           <span className="kpi-icon warning"><TileIcon name="clock" className="w-5 h-5" /></span>
           <div>
-            <h2 className="text-[15px] font-bold text-[var(--text)]">고정비 지출예정</h2>
-            <span className="caption">{windowDays}일 안 · {items.length}건</span>
+            <h2 className="text-[15px] font-bold text-[var(--text)]">지출·상환 예정</h2>
+            <span className="caption">{windowDays}일 안 · {items.length}건 (고정비·대출)</span>
           </div>
         </div>
         {items.length > 0 && (
@@ -178,9 +223,16 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
                 </div>
               </div>
 
-              {/* 금액 */}
+              {/* 금액(정기지출) 또는 잔액(대출 리마인더) */}
               <div className="text-right shrink-0">
-                <div className="text-sm font-bold mono-number text-[var(--text)]">₩{fmtKRW(it.amount)}</div>
+                {it.kind === 'loan' ? (
+                  <>
+                    <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider">상환일 · 잔액</div>
+                    <div className="text-xs font-bold mono-number text-[var(--text-muted)]">₩{fmtKRW(it.balance || 0)}</div>
+                  </>
+                ) : (
+                  <div className="text-sm font-bold mono-number text-[var(--text)]">₩{fmtKRW(it.amount)}</div>
+                )}
               </div>
             </div>
           ))}
