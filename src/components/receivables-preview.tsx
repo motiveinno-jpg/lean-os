@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/toast";
 
 const db = supabase as any;
 
@@ -20,7 +21,26 @@ function won(n: number): string {
 
 type CpGroup = { name: string; outstanding: number; oldestDays: number; count: number };
 
-export function ReceivablesPreview({ companyId }: { companyId: string }) {
+export function ReceivablesPreview({ companyId, companyName }: { companyId: string; companyName?: string }) {
+  const { toast } = useToast();
+  // 독촉 문구 생성·복사 — 자동 발송이 아니라 사람이 검토 후 직접(카톡/문자/메일) 발송(확정은 사람 원칙).
+  const copyDunning = async (g: CpGroup) => {
+    const amt = Math.round(g.outstanding).toLocaleString("ko");
+    const co = companyName ? `${companyName} ` : "";
+    const aging = g.oldestDays >= 30 ? `${g.oldestDays}일 경과` : `발행 후 ${g.oldestDays}일 경과`;
+    const msg =
+      `안녕하세요, ${g.name} 담당자님.\n` +
+      `${co}미수금 안내드립니다.\n` +
+      `현재 미결제 금액 ${amt}원이 ${aging}되어 확인 요청드립니다.\n` +
+      `확인 후 입금 부탁드리며, 이미 처리하셨다면 양해 부탁드립니다. 감사합니다.`;
+    try {
+      await navigator.clipboard.writeText(msg);
+      toast("독촉 문구를 복사했습니다 — 카톡/문자/메일에 붙여넣어 보내세요", "success");
+    } catch {
+      window.prompt("아래 문구를 복사하세요", msg);
+    }
+  };
+
   const { data } = useQuery({
     queryKey: ["dash-receivables", companyId],
     enabled: !!companyId,
@@ -68,16 +88,21 @@ export function ReceivablesPreview({ companyId }: { companyId: string }) {
       </div>
       <div className="flex flex-col gap-0.5">
         {top.map((g) => (
-          <Link key={g.name} href="/partners/ledger?type=sales"
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--bg-surface)] transition no-underline">
-            <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{g.name}<span className="text-[var(--text-dim)]">{g.count > 1 ? ` · ${g.count}건` : ""}</span></span>
-            {g.oldestDays > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${g.oldestDays >= 30 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>
-                {g.oldestDays >= 30 ? `${g.oldestDays}일 지연` : `발행 D+${g.oldestDays}`}
-              </span>
-            )}
+          <div key={g.name} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--bg-surface)] transition">
+            <Link href="/partners/ledger?type=sales" className="flex items-center gap-2 min-w-0 flex-1 no-underline">
+              <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{g.name}<span className="text-[var(--text-dim)]">{g.count > 1 ? ` · ${g.count}건` : ""}</span></span>
+              {g.oldestDays > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${g.oldestDays >= 30 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>
+                  {g.oldestDays >= 30 ? `${g.oldestDays}일 지연` : `발행 D+${g.oldestDays}`}
+                </span>
+              )}
+            </Link>
             <span className="text-[11px] mono-number font-bold shrink-0" style={{ color: "var(--danger)" }}>{won(g.outstanding)}</span>
-          </Link>
+            <button onClick={() => copyDunning(g)} title="독촉 문구 복사 (직접 발송)"
+              className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md border border-[var(--border)] text-[var(--text-dim)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition">
+              독촉
+            </button>
+          </div>
         ))}
         {data.list.length > 5 && (
           <Link href="/partners/ledger?type=sales" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] px-2 pt-1 no-underline transition">외 {data.list.length - 5}곳 더 보기 →</Link>

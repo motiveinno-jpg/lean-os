@@ -531,7 +531,7 @@ export default function DashboardPage() {
               { id: "biz", name: "경영 요약", icon: "📊", desc: "손익·잔액·런웨이 + 매출·비용", category: "경영", ...P.biz,
                 render: () => <DashboardBizSummary monthRevenue={dashboard.growth.monthRevenue} expense={(realBurnData ?? 0) + (realVariableData ?? 0)} balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0} runwayMonths={dashboard.sixPack.runwayMonths} /> },
               { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", ...P.revenue, render: () => <RecentRevenue companyId={companyId} /> },
-              { id: "receivables", name: "미수금", icon: "💸", desc: "미수금·연체 현황", category: "경영", ...P.receivables, render: () => <ReceivablesPreview companyId={companyId} /> },
+              { id: "receivables", name: "미수금", icon: "💸", desc: "미수금·연체 현황", category: "경영", ...P.receivables, render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
               { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", ...P.projects, render: () => <RecentProjects companyId={companyId} /> },
               { id: "tax", name: "세금 일정", icon: "🧾", desc: "다가오는 세금 마감", category: "경영", ...P.tax, render: () => <TaxScheduleWidget items={taxItems} /> },
               { id: "cards", name: "카드", icon: "💳", desc: "이번 달 카드 사용액", category: "자금", ...P.cards, render: () => <CardsSummaryCard companyId={companyId} /> },
