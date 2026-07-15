@@ -23,7 +23,7 @@ import { forceApproveDocument } from "@/lib/deal-pipeline";
 import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntelligence, extractContractFields } from "@/lib/doc-intelligence";
 import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
-import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile } from "@/lib/file-storage";
+import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles } from "@/lib/file-storage";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
 import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib/form-templates";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
@@ -271,7 +271,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   };
 
   const saveMut = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       // 변수 하이라이트 토큰(data-doc-var) 제거 → 저장본은 값/텍스트만 깔끔하게
       const cleanBody = (editContent || "").replace(/<span[^>]*data-doc-var[^>]*>([\s\S]*?)<\/span>/gi, "$1");
       const cj = { ...(doc?.content_json as any || {}), body: cleanBody };
@@ -281,12 +281,14 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       if (editPaymentSchedule.length > 0) cj.paymentSchedule = editPaymentSchedule;
       // 견적서 헤더 포함
       cj.header = quoteHeader;
-      return saveRevision({
+      await saveRevision({
         documentId: id,
         authorId: userId!,
         contentJson: cj as unknown as Json,
         comment: comment || undefined,
       });
+      // PDF 페이지 이미지 재삽입 등으로 본문에서 빠진 첨부(고아)를 정리 — 파일보관함에 안 쌓이게
+      pruneUnreferencedDocumentFiles(id, cleanBody).catch(() => {});
     },
     onSuccess: () => { invalidate(); setComment(""); },
     onError: (err: any) => toast(`저장 실패: ${err.message || err}`, "error"),
@@ -309,6 +311,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       if (editItems.length > 0) cj.items = editItems;
       if (editPaymentSchedule.length > 0) cj.paymentSchedule = editPaymentSchedule;
       await saveRevision({ documentId: id, authorId: userId!, contentJson: cj as unknown as Json, comment: comment || "저장/전표" });
+      pruneUnreferencedDocumentFiles(id, cleanBody).catch(() => {});
       // 저장만 — 세금계산서 발행 방식(품목 일괄/품목별 개별)은 저장 후 팝업에서 선택
       void counterparty;
     },

@@ -1044,7 +1044,11 @@ export async function getDocuments(companyId: string) {
 
 // 문서 영구삭제 — delete_document RPC (SECURITY DEFINER, 회사격리+서명요청 보호+부속데이터 정리).
 // 서명 요청이 있는 문서는 RPC 가 예외 발생 → 호출부에서 메시지 표시.
+// RPC는 Storage 버킷을 지울 수 없어(SQL 직접 접근 차단) document_files 첨부(PDF 삽입 이미지 등)는
+//   여기서 먼저 정리 — 안 그러면 문서 삭제 후에도 파일이 고아로 남아 파일보관함에 계속 쌓임.
 export async function deleteDocument(documentId: string): Promise<void> {
+  const { deleteFilesForDocument } = await import('./file-storage');
+  await deleteFilesForDocument(documentId).catch(() => {});
   const { error } = await (supabase as any).rpc('delete_document', { p_doc_id: documentId });
   if (error) throw new Error(error.message || '문서 삭제에 실패했습니다.');
 }

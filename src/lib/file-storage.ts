@@ -403,6 +403,44 @@ export async function deleteFile(
   }).catch(() => {});
 }
 
+// ── 4b. Delete all files attached to a document (storage + rows) — used on document delete ──
+
+export async function deleteFilesForDocument(documentId: string): Promise<void> {
+  const { data: files } = await db
+    .from("document_files")
+    .select("id, bucket, storage_path")
+    .eq("document_id", documentId);
+  if (!files?.length) return;
+  await removeFileRows(files);
+}
+
+// ── 4c. Prune files no longer referenced in a document's saved HTML body —
+//   리치에디터로 PDF 페이지 이미지를 재삽입할 때마다 이전 삽입분이 고아로 남는 것 방지.
+export async function pruneUnreferencedDocumentFiles(documentId: string, contentHtml: string): Promise<void> {
+  const { data: files } = await db
+    .from("document_files")
+    .select("id, bucket, storage_path, file_url")
+    .eq("document_id", documentId)
+    .is("parent_file_id", null);
+  if (!files?.length) return;
+  const stale = files.filter((f: any) => f.file_url && !contentHtml.includes(f.file_url));
+  await removeFileRows(stale);
+}
+
+async function removeFileRows(files: { id: string; bucket?: string | null; storage_path?: string | null }[]): Promise<void> {
+  if (!files.length) return;
+  const byBucket = new Map<string, string[]>();
+  for (const f of files) {
+    if (!f.storage_path) continue;
+    const b = f.bucket || "document-files";
+    (byBucket.get(b) || byBucket.set(b, []).get(b)!).push(f.storage_path);
+  }
+  for (const [bucket, paths] of byBucket) {
+    await supabase.storage.from(bucket).remove(paths);
+  }
+  await db.from("document_files").delete().in("id", files.map((f) => f.id));
+}
+
 // ── 5. Get files for a document ──
 
 export async function getFilesForDocument(documentId: string) {
