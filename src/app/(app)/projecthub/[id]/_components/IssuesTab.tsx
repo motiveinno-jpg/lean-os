@@ -138,7 +138,7 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
 
   return (
     <div className="issues-tab space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="issues-toolbar flex items-center justify-between gap-2 flex-wrap">
         <div className="seg-bar flex-wrap max-w-full">
           {([["all", "전체"], ["open", "열림"], ["in_progress", "진행"], ["resolved", "해결"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setFilter(k)} className={`seg-item ${filter === k ? "seg-item-active" : ""}`}>{l} <span className="text-[var(--text-dim)]">{counts[k] ?? 0}</span></button>
@@ -148,13 +148,13 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
       </div>
 
       {isLoading ? (
-        <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>
+        <div className="issues-loading-state glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>
       ) : shown.length === 0 ? (
-        <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">
+        <div className="issues-empty-state glass-card p-10 text-center text-sm text-[var(--text-muted)]">
           {filter === "all" ? "등록된 이슈가 없습니다. 문제점·리스크를 ‘+ 이슈 등록’으로 기록하고 해결까지 추적하세요." : "해당 상태의 이슈가 없습니다."}
         </div>
       ) : (
-        <div className="glass-card overflow-x-auto">
+        <div className="issues-table-wrap glass-card overflow-x-auto">
           <table className="w-full text-sm border-collapse min-w-[720px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)]">
@@ -170,7 +170,7 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
               {shown.map((iss) => {
                 const overdue = iss.due_date && iss.status !== "resolved" && iss.due_date < todayStr;
                 return (
-                  <tr key={iss.id} className="hover:bg-[var(--bg-surface)]/50">
+                  <tr key={iss.id} className="issues-row hover:bg-[var(--bg-surface)]/50">
                     <td className="px-3 py-2.5 border-b border-[var(--border)]/40">
                       <button onClick={() => openEdit(iss)} className={`text-left font-medium hover:text-[var(--primary)] hover:underline ${iss.status === "resolved" ? "text-[var(--text-muted)] line-through" : "text-[var(--text)]"}`}>{iss.title}</button>
                       {iss.description && <div className="text-[11px] text-[var(--text-dim)] truncate max-w-[360px]">{iss.description}</div>}
@@ -199,9 +199,9 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
 
       {/* 등록/수정 모달 */}
       {showForm && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
+        <div className="issues-modal-overlay fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowForm(false)}>
+          <div className="issues-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="issues-modal-header flex items-center justify-between mb-4">
               <h3 className="text-base font-bold">{form.id ? "이슈 수정" : "이슈 등록"}</h3>
               <button onClick={() => setShowForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
             </div>
@@ -249,7 +249,7 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-between gap-2.5 mt-5">
+            <div className="issues-modal-footer flex items-center justify-between gap-2.5 mt-5">
               {form.id ? (
                 <button onClick={() => { const iss = (issues as Issue[]).find((x) => x.id === form.id); if (iss) taskMut.mutate(iss); }} disabled={taskMut.isPending}
                   className="text-[13px] font-semibold text-[var(--primary)] hover:underline disabled:opacity-50" title="이 이슈로 실행 과제 생성">→ 실행 과제로 만들기</button>

@@ -185,23 +185,23 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="goal-overview space-y-5">
       {/* 히어로 */}
-      <div className="glass-card p-5 flex flex-wrap items-center gap-6">
+      <div className="goal-overview-hero glass-card p-5 flex flex-wrap items-center gap-6">
         <RadialGauge pct={overallPct} label="종합 달성률" />
-        <div className="flex-1 min-w-[200px] space-y-2">
-          <div className="flex items-center gap-2">
-            <span style={{ width: 12, height: 12, borderRadius: 999, background: STATUS_META[status].dot, display: "inline-block" }} />
+        <div className="goal-overview-hero-info flex-1 min-w-[200px] space-y-2">
+          <div className="goal-overview-status-row flex items-center gap-2">
+            <span className="inline-block w-3 h-3 rounded-full" style={{ background: STATUS_META[status].dot }} />
             <span className="text-sm font-bold text-[var(--text)]">{STATUS_META[status].label}</span>
           </div>
           {worstPace && (
-            <div className="text-xs" style={{ color: worstPace.tone === "danger" ? DANGER : worstPace.tone === "warn" ? AMBER : "var(--text-muted)" }}>
+            <div className="goal-overview-pace-warning text-xs" style={{ color: worstPace.tone === "danger" ? DANGER : worstPace.tone === "warn" ? AMBER : "var(--text-muted)" }}>
               {worstPace.message}
             </div>
           )}
           {prog ? (
-            <div>
-              <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] mb-1">
+            <div className="goal-overview-period-progress">
+              <div className="goal-overview-period-progress-header flex items-center justify-between text-[11px] text-[var(--text-muted)] mb-1">
                 <span>기간 진행 (영업일)</span>
                 <span className="mono-number">{prog.elapsed} / {prog.total}일</span>
               </div>
@@ -212,22 +212,22 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
       </div>
 
       {/* 지금 볼 것 — 열린 이슈 · 지연 과제 (개선 유도), 전체 폭 2열로 상단 배치 */}
-      <div className="grid gap-5 sm:grid-cols-2">
-        <section className="glass-card p-4">
-          <div className="flex items-center justify-between mb-3">
+      <div className="goal-overview-alerts-grid grid gap-5 sm:grid-cols-2">
+        <section className="goal-overview-issues-card glass-card p-4">
+          <div className="goal-overview-issues-header flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-[var(--text)]">열린 이슈 <span className="font-normal text-[var(--text-dim)] text-xs">문제점·리스크</span></h3>
             <span className={`text-xs font-bold ${(openIssues as any[]).length ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{(openIssues as any[]).length}건</span>
           </div>
           {(openIssues as any[]).length === 0 ? (
             <div className="text-xs text-[var(--text-dim)]">열린 이슈가 없습니다. 👍</div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="goal-overview-issues-list space-y-1.5">
               {(openIssues as any[]).slice(0, 6).map((i) => {
                 const sevColor = i.severity === "critical" ? DANGER : i.severity === "high" ? AMBER : i.severity === "medium" ? "var(--primary)" : "var(--text-dim)";
                 const overdue = i.due_date && i.due_date < new Date().toISOString().slice(0, 10);
                 return (
-                  <div key={i.id} className="flex items-center gap-2 text-xs">
-                    <span style={{ width: 7, height: 7, borderRadius: 999, background: sevColor, flexShrink: 0 }} />
+                  <div key={i.id} className="goal-overview-issue-row flex items-center gap-2 text-xs">
+                    <span className="inline-block w-[7px] h-[7px] rounded-full shrink-0" style={{ background: sevColor }} />
                     <span className="flex-1 truncate text-[var(--text)]">{i.title}</span>
                     {i.due_date && <span className={`mono-number text-[10px] ${overdue ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>{String(i.due_date).slice(5, 10)}{overdue ? "⚠" : ""}</span>}
                   </div>
@@ -236,18 +236,18 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
             </div>
           )}
         </section>
-        <section className="glass-card p-4">
-          <div className="flex items-center justify-between mb-3">
+        <section className="goal-overview-tasks-card glass-card p-4">
+          <div className="goal-overview-tasks-header flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-[var(--text)]">지연 과제 <span className="font-normal text-[var(--text-dim)] text-xs">마감 초과</span></h3>
             <span className={`text-xs font-bold ${(overdueTasks as any[]).length ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{(overdueTasks as any[]).length}건</span>
           </div>
           {(overdueTasks as any[]).length === 0 ? (
             <div className="text-xs text-[var(--text-dim)]">마감 지난 과제가 없습니다. 👍</div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="goal-overview-tasks-list space-y-1.5">
               {(overdueTasks as any[]).slice(0, 6).map((t) => (
-                <div key={t.id} className="flex items-center gap-2 text-xs">
-                  <span style={{ width: 7, height: 7, borderRadius: 999, background: DANGER, flexShrink: 0 }} />
+                <div key={t.id} className="goal-overview-task-row flex items-center gap-2 text-xs">
+                  <span className="inline-block w-[7px] h-[7px] rounded-full shrink-0 bg-[var(--danger)]" />
                   <span className="flex-1 truncate text-[var(--text)]">{t.title}</span>
                   <span className="mono-number text-[10px] text-[var(--danger)] font-semibold">{String(t.due_date).slice(5, 10)}⚠</span>
                 </div>
@@ -258,18 +258,18 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
       </div>
 
       {/* KPI 현황 — 전체 폭, 3열 그리드 */}
-      <section>
+      <section className="goal-overview-kpi-section">
         <h3 className="text-sm font-bold text-[var(--text)] mb-2">KPI 현황</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="goal-overview-kpi-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {rows.map(({ k, actual, pct }) => {
             const sp = sparkOf(k);
             return (
-              <div key={k.id} className="glass-card p-4">
-                <div className="flex items-center justify-between gap-2 mb-1">
+              <div key={k.id} className="goal-overview-kpi-card glass-card p-4">
+                <div className="goal-overview-kpi-card-header flex items-center justify-between gap-2 mb-1">
                   <span className="text-sm font-semibold text-[var(--text)] truncate">{k.label}</span>
                   {k.source !== "manual" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] shrink-0">{KPI_SOURCE_LABEL[k.source]}</span>}
                 </div>
-                <div className="flex items-end justify-between gap-2 mb-1.5">
+                <div className="goal-overview-kpi-card-values flex items-end justify-between gap-2 mb-1.5">
                   <div className="text-xs text-[var(--text-muted)]">
                     <span className="mono-number text-[var(--text)] font-bold text-sm">{fmtNum(actual, k.unit)}</span>
                     <span className="text-[var(--text-dim)]"> / {fmtNum(Number(k.target_value), k.unit)}</span>
@@ -285,8 +285,8 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
       </section>
 
       {/* 추세 — 전체 폭(차트 가독성) */}
-      <section className="glass-card p-4">
-        <div className="flex items-center justify-between gap-2 mb-4">
+      <section className="goal-overview-trend-card glass-card p-4">
+        <div className="goal-overview-trend-header flex items-center justify-between gap-2 mb-4">
           <h3 className="text-sm font-bold text-[var(--text)]">누적 실적 vs 목표 페이스</h3>
           <select value={selKpi?.id || ""} onChange={(e) => setTrendKpiId(e.target.value)} className="px-2.5 py-1 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]">
             {kpiList.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
@@ -307,9 +307,9 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
       </section>
 
       {/* 분석 — 매출 분해 · 성과 기여 · 체크인 (하단 3열) */}
-      <div className="grid gap-5 lg:grid-cols-3">
-        <section className="glass-card p-4">
-          <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+      <div className="goal-overview-analysis-grid grid gap-5 lg:grid-cols-3">
+        <section className="goal-overview-breakdown-card glass-card p-4">
+          <div className="goal-overview-breakdown-header flex items-center justify-between gap-2 mb-4 flex-wrap">
             <h3 className="text-sm font-bold text-[var(--text)]">매출 분해</h3>
             <div className="seg-bar flex-wrap max-w-full">
               {([["channel", "채널"], ["campaign", "세부"], ["manager", "담당자"]] as const).map(([k, l]) => (
@@ -321,8 +321,8 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
         </section>
 
         {selKpi && selKpi.source === "manual" && (
-          <section className="glass-card p-4">
-            <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+          <section className="goal-overview-contribution-card glass-card p-4">
+            <div className="goal-overview-contribution-header flex items-center justify-between gap-2 mb-4 flex-wrap">
               <h3 className="text-sm font-bold text-[var(--text)]">성과 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label}</span></h3>
               <div className="seg-bar">
                 {([["dept", "부서"], ["member", "개인"]] as const).map(([k, l]) => (
@@ -334,11 +334,11 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
           </section>
         )}
 
-        <section className="glass-card p-4">
+        <section className="goal-overview-checkin-card glass-card p-4">
           <h3 className="text-sm font-bold text-[var(--text)] mb-4">성과 체크인 추이</h3>
           <StatusTimeline points={checkinPoints} />
           {latestUpdate && (latestUpdate.did || latestUpdate.issues || latestUpdate.next_plan) && (
-            <div className="mt-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)] pt-2 space-y-0.5">
+            <div className="goal-overview-checkin-note mt-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)] pt-2 space-y-0.5">
               <div className="text-[10px] text-[var(--text-dim)]">최근 체크인 · {nameOf(latestUpdate.created_by)} · {String(latestUpdate.update_date || "").slice(0, 10)}</div>
               {latestUpdate.did && <div>✅ {latestUpdate.did}</div>}
               {latestUpdate.issues && <div className="text-amber-600">🚧 {latestUpdate.issues}</div>}

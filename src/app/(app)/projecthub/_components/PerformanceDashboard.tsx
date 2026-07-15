@@ -299,9 +299,9 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   const byManager = groupDim((d) => d.internal_manager_id, (k) => (k === "__none" ? "미지정" : nameOf(k)));
 
   const DimTable = ({ title, rows }: { title: string; rows: { label: string; count: number; revenue: number; avgAch: number | null }[] }) => (
-    <div>
+    <div className="dim-table-block">
       <div className="text-xs font-bold text-[var(--text-muted)] mb-1.5">{title}</div>
-      <div className="overflow-x-auto">
+      <div className="dim-table-wrap overflow-x-auto">
         <table className="w-full text-sm border-collapse min-w-[420px]">
           <thead>
             <tr className="text-xs text-[var(--text-dim)]">
@@ -329,13 +329,13 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   );
 
   return (
-    <div className="glass-card p-5 space-y-4 border-2 border-[var(--primary)]/20">
-      <div className="flex items-center justify-between gap-2">
+    <div className="perf-dashboard-panel glass-card p-5 space-y-4 border-2 border-[var(--primary)]/20">
+      <div className="perf-dashboard-header flex items-center justify-between gap-2">
         <h3 className="text-sm font-bold text-[var(--text)]">🎯 성과 대시보드 <span className="text-xs font-normal text-[var(--text-dim)]">목표형 {goalDeals.length}건</span></h3>
         <button onClick={onClose} className="btn-ghost text-xs">닫기 ✕</button>
       </div>
 
-      <div className="seg-bar flex-wrap max-w-full">
+      <div className="perf-view-toggle seg-bar flex-wrap max-w-full">
         {VIEWS.map((v) => (
           <button key={v.key} onClick={() => setView(v.key)}
             className={`seg-item ${view === v.key ? "seg-item-active" : ""}`}>
@@ -345,9 +345,9 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
       </div>
 
       {goalDeals.length === 0 ? (
-        <div className="p-10 text-center text-sm text-[var(--text-muted)]">목표형 프로젝트가 없습니다.</div>
+        <div className="perf-dashboard-empty p-10 text-center text-sm text-[var(--text-muted)]">목표형 프로젝트가 없습니다.</div>
       ) : view === "briefing" ? (
-        <div className="overflow-x-auto">
+        <div className="briefing-table-wrap overflow-x-auto">
           <table className="w-full text-sm border-collapse min-w-[820px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)]">
@@ -386,14 +386,14 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           </table>
         </div>
       ) : view === "multi" ? (
-        <div className="space-y-4">
+        <div className="perf-multi-dim-view space-y-4">
           <div className="text-[11px] text-[var(--text-dim)]">매출 = 태깅 세금계산서(sales) 기준 · 평균달성 = 종합 달성률 평균. 거래처=채널, 팀=담당자 부서.</div>
           <DimTable title="거래처별" rows={byChannel} />
           <DimTable title="팀별" rows={byTeamDim} />
           <DimTable title="담당자별" rows={byManager} />
         </div>
       ) : view === "people" ? (
-        <div className="overflow-x-auto">
+        <div className="people-table-wrap overflow-x-auto">
           <table className="w-full text-sm border-collapse min-w-[640px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)]">
@@ -427,7 +427,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           </table>
         </div>
       ) : view === "teams" ? (
-        <div className="overflow-x-auto">
+        <div className="teams-table-wrap overflow-x-auto">
           <table className="w-full text-sm border-collapse min-w-[480px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)]">
@@ -450,7 +450,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           </table>
         </div>
       ) : view === "dept" ? (
-        <div className="overflow-x-auto">
+        <div className="dept-table-wrap overflow-x-auto">
           <div className="text-[11px] text-[var(--text-dim)] mb-2">실적 입력 시 지정한 부서 기준 집계. 합계는 KPI 단위가 섞일 수 있어 참고용(건수·참여 인원 우선).</div>
           <table className="w-full text-sm border-collapse min-w-[480px]">
             <thead>
@@ -477,8 +477,8 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
         </div>
       ) : (
         // 입력률
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
+        <div className="perf-rate-view space-y-3">
+          <div className="perf-rate-summary flex items-center gap-3">
             <div className="text-2xl font-extrabold text-[var(--text)] mono-number">
               {rateStats.target === 0 ? "—" : `${Math.round((rateStats.done / rateStats.target) * 100)}%`}
             </div>
@@ -487,7 +487,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           {rateStats.perDeal.length === 0 ? (
             <div className="p-8 text-center text-sm text-[var(--text-muted)]">체크인 주기가 설정된 목표형 프로젝트가 없습니다. (성과 탭 ⓪에서 주기·멤버를 설정하세요)</div>
           ) : rateStats.perDeal.map(({ deal: d, assigned, missing }) => (
-            <div key={d.id} className="rounded-xl bg-[var(--bg-surface)] p-3 flex items-center justify-between gap-3">
+            <div key={d.id} className="perf-rate-row rounded-xl bg-[var(--bg-surface)] p-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium text-[var(--text)] truncate">{d.name}</div>
                 <div className="text-xs text-[var(--text-muted)] mt-0.5">

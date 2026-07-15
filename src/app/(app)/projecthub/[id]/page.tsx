@@ -919,7 +919,7 @@ export default function ProjectHubDetailPage() {
   const stepReached = (sigRequests as any[]).length > 0 ? 2 : contractDocsShown.length > 0 ? 1 : quoteDocsShown.length > 0 ? 0 : -1;
 
   return (
-    <div className="space-y-6">
+    <div className="project-detail-page space-y-6">
       <div className="page-sticky-header flex flex-wrap items-center gap-2">
         {deal.parent_deal_id ? (
           <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]" title="상위 프로젝트의 세부 프로젝트 목록으로">← {parentDeal?.name || "상위 프로젝트"}</Link>
@@ -939,11 +939,11 @@ export default function ProjectHubDetailPage() {
             onChange={(e) => setNameInput(e.target.value)}
             onBlur={commitRename}
             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
-            className="text-lg font-bold bg-transparent border-b-2 border-[var(--primary)] text-[var(--text)] focus:outline-none w-full max-w-md"
+            className="project-name-input text-lg font-bold bg-transparent border-b-2 border-[var(--primary)] text-[var(--text)] focus:outline-none w-full max-w-md"
           />
         ) : (
           <h1 onClick={() => { setNameInput(deal.name || ""); setEditingName(true); }}
-            className="text-lg font-bold text-[var(--text)] truncate cursor-text hover:opacity-80 inline-flex items-center gap-1.5 min-w-0"
+            className="project-name-heading text-lg font-bold text-[var(--text)] truncate cursor-text hover:opacity-80 inline-flex items-center gap-1.5 min-w-0"
             title="클릭하여 프로젝트명 수정">
             {deal.name || "(이름 없음)"}
             <svg className="w-3.5 h-3.5 text-[var(--text-dim)] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -980,7 +980,7 @@ export default function ProjectHubDetailPage() {
         (planRevenue === 0 && totalCost === 0 && subPurchaseSum === 0) ? (
           <MarginOnboarding onTab={setTab} />
         ) : (
-        <div className="space-y-5">
+        <div className="margin-overview-panel space-y-5">
           <MarginCockpit
             revenue={salesSoT}
             revenueBasis={revenueBasis}
@@ -1011,14 +1011,14 @@ export default function ProjectHubDetailPage() {
                 </div>
                 <div className="divide-y divide-[var(--border)]/40">
                   {COST_SOURCES.map((s) => (
-                    <details key={s.key} className="group">
-                      <summary className="px-4 py-3 flex items-center gap-2 cursor-pointer hover:bg-[var(--bg-surface)]/50 list-none">
+                    <details key={s.key} className="cost-source-item group">
+                      <summary className="cost-source-summary px-4 py-3 flex items-center gap-2 cursor-pointer hover:bg-[var(--bg-surface)]/50 list-none">
                         <span className="text-[var(--text-dim)] text-[10px] group-open:rotate-90 transition-transform">▶</span>
                         <span className="text-sm text-[var(--text)] flex-1">{s.label}</span>
                         <span className="text-[11px] text-[var(--text-dim)]">{s.count}건</span>
                         <span className="text-sm font-bold mono-number text-[var(--text)] w-32 text-right">{won(s.total)}</span>
                       </summary>
-                      <div className="px-4 pb-3 pl-9 space-y-0.5">
+                      <div className="cost-source-detail px-4 pb-3 pl-9 space-y-0.5">
                         {s.count === 0 ? (
                           <div className="text-[11px] text-[var(--text-dim)]">태그된 {s.label} 없음 — 각 내역 화면에서 이 프로젝트로 지정하세요.</div>
                         ) : s.items.slice(0, 80).map((it: any) => <CostItemRow key={it.id} kind={s.key} it={it} />)}
@@ -1044,7 +1044,7 @@ export default function ProjectHubDetailPage() {
                   <Info label="다음 액션" value={deal.next_action_text || "—"} />
                 </div>
               </div>
-              <div className="glass-card p-4 text-[11px] text-[var(--text-muted)] leading-relaxed">
+              <div className="cost-note-card glass-card p-4 text-[11px] text-[var(--text-muted)] leading-relaxed">
                 · <b className="text-[var(--text)]">확정 비용</b> = 태그된 세금계산서·현금영수증·카드·전표 합계. 각 내역 화면에서 이 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳에 중복 태그하지 마세요</b>(이중 계상).
               </div>
             </div>
@@ -1059,20 +1059,20 @@ export default function ProjectHubDetailPage() {
       {/* 견적서 */}
       {/* 방향별 파이프라인 스텝 인디케이터 (수주/발주 탭 상단) */}
       {pipelineDir && (
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <div className="pipeline-direction-header glass-card p-5">
+          <div className="pipeline-direction-toolbar flex items-center justify-between mb-4 gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-[var(--text)]">{pipelineDir === "sales" ? "📤 수주(매출) 파이프라인" : "📥 발주(매입) 파이프라인"}</h3>
             <span className="text-[11px] text-[var(--text-dim)]">{pipelineDir === "sales" ? "고객 견적 발송 → 승인 → 계약 생성 → 서명 → 정산" : "협력사 견적 등록 → 발주 계약 → 서명 → 검수 → 정산"}</span>
           </div>
-          <div className="flex items-center gap-0.5 overflow-x-auto pb-1">
+          <div className="pipeline-steps flex items-center gap-0.5 overflow-x-auto pb-1">
             {["견적", "계약", "서명", "진행", "정산"].map((s, i) => (
-              <div key={s} className="flex items-center">
+              <div key={s} className="pipeline-step-item flex items-center">
                 <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${i <= stepReached ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>{s}</span>
                 {i < 4 && <span className={`mx-0.5 text-xs ${i < stepReached ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>▶</span>}
               </div>
             ))}
           </div>
-          <label className="mt-2 flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer w-fit">
+          <label className="auto-contract-toggle mt-2 flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer w-fit">
             <input type="checkbox" checked={autoContractOn} onChange={(e) => toggleAutoContract(e.target.checked)} className="accent-[var(--primary)]" />
             견적 승인 시 계약서 자동 생성 (회사 전체 설정)
           </label>
@@ -1081,8 +1081,8 @@ export default function ProjectHubDetailPage() {
 
       {/* 거래 탭 — 부호 기반 매출·매입 원장(상단) + 견적/계약/계산서 문서 흐름(하단) */}
       {isTransTab && companyId && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
+        <div className="transactions-ledger-section space-y-2">
+          <div className="transactions-ledger-header flex items-center gap-2">
             <h3 className="text-sm font-bold text-[var(--text)]">거래 원장</h3>
             <span className="text-[11px] text-[var(--text-dim)]">매출·매입 항목 · 마진 산정 기준</span>
           </div>
@@ -1092,11 +1092,11 @@ export default function ProjectHubDetailPage() {
       )}
 
       {(tab === "quote" || pipelineDir || isTransTab) && (
-        <div className="space-y-3">
+        <div className="quote-list-section space-y-3">
           {isTransTab && <div className="pt-2 mt-2 border-t border-[var(--border)]/50" />}
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="quote-list-toolbar flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
-            <div className="flex items-center gap-2 relative">
+            <div className="quote-list-actions flex items-center gap-2 relative">
               {companyId && <button onClick={() => setTplManagerKind("quote")} className="btn-secondary text-xs">📄 양식 관리</button>}
               <button onClick={() => setShowColSettings((v) => !v)}
                 className="btn-secondary text-xs">⚙ 열 설정</button>
@@ -1105,7 +1105,7 @@ export default function ProjectHubDetailPage() {
               {showColSettings && (
                 <>
                   <div className="fixed inset-0 z-[60]" onClick={() => setShowColSettings(false)} />
-                  <div className="absolute right-0 top-full mt-1.5 z-[61] w-52 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-2">
+                  <div className="quote-col-settings-dropdown absolute right-0 top-full mt-1.5 z-[61] w-52 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-2">
                     <div className="text-[11px] font-bold text-[var(--text-muted)] px-2 py-1.5">리스트에 표시할 항목</div>
                     {QUOTE_LIST_COLS.map((c) => (
                       <label key={c.key} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer text-sm">
@@ -1122,7 +1122,7 @@ export default function ProjectHubDetailPage() {
           {quoteDocsShown.length === 0 ? (
             <Empty text="이 프로젝트에 연결된 견적서가 없습니다. 위 “+ 견적서 작성”으로 만들어 보세요." />
           ) : (
-            <div className="glass-card overflow-x-auto">
+            <div className="quote-table-card glass-card overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)]">
@@ -1155,7 +1155,7 @@ export default function ProjectHubDetailPage() {
                           return <td key={c.key} className={cellCls(c)}>—</td>;
                         })}
                         <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="quote-row-actions flex items-center justify-center gap-1">
                             <button
                               onClick={(e) => { e.stopPropagation(); setPayMode("full"); setPayAdv(30); setPayMid(30); setPayModalQuote(doc); }}
                               disabled={creatingContractFrom === doc.id}
@@ -1177,7 +1177,7 @@ export default function ProjectHubDetailPage() {
             </div>
           )}
           {approvals.filter((a) => a.stage === "견적" || a.stage === "estimate").length > 0 && (
-            <div className="glass-card p-5">
+            <div className="quote-approval-panel glass-card p-5">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2">견적 승인 흐름</div>
               {approvals.filter((a) => a.stage === "견적" || a.stage === "estimate").map((a) => (
                 <ApprovalRow key={a.id} a={a} />
@@ -1189,10 +1189,10 @@ export default function ProjectHubDetailPage() {
 
       {/* 계약 */}
       {(tab === "contract" || pipelineDir || isTransTab) && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="contract-list-section space-y-3">
+          <div className="contract-list-toolbar flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
-            <div className="flex items-center gap-2">
+            <div className="contract-list-actions flex items-center gap-2">
               {companyId && <button onClick={() => setTplManagerKind("contract")} className="btn-secondary text-xs">📄 양식 관리</button>}
               <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setPayMode("full"); setPayAdv(30); setPayMid(30); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
                 className="btn-primary text-xs hover:opacity-90">+ 계약서 작성</button>
@@ -1203,10 +1203,10 @@ export default function ProjectHubDetailPage() {
 
           {/* 계약 문서 (견적서 제외) — 작성·편집 */}
           {contractDocsShown.length > 0 && (
-            <div className="glass-card overflow-hidden divide-y divide-[var(--border)]/40">
-              <div className="px-4 py-2.5 bg-[var(--bg-surface)] text-[11px] font-bold text-[var(--text-muted)]">계약 문서</div>
+            <div className="contract-doc-card glass-card overflow-hidden divide-y divide-[var(--border)]/40">
+              <div className="contract-doc-card-header px-4 py-2.5 bg-[var(--bg-surface)] text-[11px] font-bold text-[var(--text-muted)]">계약 문서</div>
               {contractDocsShown.map((doc) => (
-                <div key={doc.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
+                <div key={doc.id} className="contract-doc-row px-4 py-3 flex items-center gap-3 flex-wrap">
                   <Link href={`/documents?id=${doc.id}`} className="min-w-0 flex-1 text-sm text-[var(--primary)] font-medium hover:underline truncate">{doc.name || "계약서"}</Link>
                   {doc.source_document_id && (() => {
                     const src = (documents as any[]).find((x) => x.id === doc.source_document_id);
@@ -1243,9 +1243,9 @@ export default function ProjectHubDetailPage() {
           ) : (
             <>
               {sigRequests.length > 0 && (
-                <div className="glass-card overflow-hidden divide-y divide-[var(--border)]/40">
+                <div className="signature-request-card glass-card overflow-hidden divide-y divide-[var(--border)]/40">
                   {sigRequests.map((s) => (
-                    <div key={s.id} className="px-4 py-3 flex items-center gap-3 flex-wrap">
+                    <div key={s.id} className="signature-request-row px-4 py-3 flex items-center gap-3 flex-wrap">
                       <div className="min-w-0 flex-1">
                         <div className="text-sm text-[var(--text)] truncate">{s.title || "계약서"}</div>
                         <div className="text-[11px] text-[var(--text-dim)]">{s.signer_name || "—"}{s.signer_email ? ` · ${s.signer_email}` : ""}</div>
@@ -1258,7 +1258,7 @@ export default function ProjectHubDetailPage() {
                 </div>
               )}
               {approvals.length > 0 && (
-                <div className="glass-card p-5">
+                <div className="contract-approval-panel glass-card p-5">
                   <div className="text-xs font-bold text-[var(--text-muted)] mb-2">단계별 승인</div>
                   {approvals.map((a) => <ApprovalRow key={a.id} a={a} />)}
                 </div>
@@ -1270,7 +1270,7 @@ export default function ProjectHubDetailPage() {
 
       {/* 매출/매입 관리 — 파이프라인 탭(방향별) 하단 */}
       {pipelineDir && companyId && (
-        <div>
+        <div className="subdeal-management-section">
           <div className="text-xs font-bold text-[var(--text-muted)] mb-2 mt-1">{pipelineDir === "sales" ? "매출 항목 관리" : "매입 항목 관리"}</div>
           {/* 최상위 프로젝트에서만 '캠페인으로도 생성' 허용 (세부 프로젝트 2단계 제한) */}
           <SubDealsTab dealId={dealId} companyId={companyId} direction={pipelineDir}
@@ -1280,16 +1280,16 @@ export default function ProjectHubDetailPage() {
 
       {/* 세부 프로젝트 (캠페인 속 캠페인) */}
       {tab === "subprojects" && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="subprojects-section space-y-3">
+          <div className="subprojects-toolbar flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트 안의 세부 프로젝트입니다. <span className="text-[var(--text-dim)]">행을 클릭하면 해당 세부 프로젝트의 개요·거래·문서로 이동합니다(상위와 동일 구조).</span></p>
             <button onClick={() => { resetChildForm(); setChildName(`${deal.name || "프로젝트"} 세부`); setShowChildForm(true); }}
               className="btn-primary text-xs hover:opacity-90">+ 세부 프로젝트 추가</button>
           </div>
 
           {showChildForm && (
-            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowChildForm(false)}>
-              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="add-subproject-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowChildForm(false)}>
+              <div className="add-subproject-modal-card bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold">세부 프로젝트(캠페인) 추가</h3>
                   <button onClick={() => setShowChildForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
@@ -1300,7 +1300,7 @@ export default function ProjectHubDetailPage() {
                   className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
                 <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">초기 금액 <span className="font-normal text-[var(--text-dim)]">(선택 · 매출 또는 매입 하나)</span></div>
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="flex rounded-lg overflow-hidden border border-[var(--border)] shrink-0">
+                  <div className="subproject-kind-toggle flex rounded-lg overflow-hidden border border-[var(--border)] shrink-0">
                     <button type="button" onClick={() => setChildKind("sales")} className={`px-3 h-10 text-xs font-bold transition ${childKind === "sales" ? "bg-[var(--success)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매출</button>
                     <button type="button" onClick={() => setChildKind("purchase")} className={`px-3 h-10 text-xs font-bold border-l border-[var(--border)] transition ${childKind === "purchase" ? "bg-[var(--danger)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매입</button>
                   </div>
@@ -1322,7 +1322,7 @@ export default function ProjectHubDetailPage() {
           {(children as any[]).length === 0 ? (
             <Empty text="세부 프로젝트가 없습니다. 위 “+ 세부 프로젝트 추가”로 만들어 보세요. 세부 프로젝트도 상위와 동일하게 거래·문서·정산을 갖습니다." />
           ) : (
-            <div className="glass-card overflow-x-auto">
+            <div className="subprojects-table-card glass-card overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)]">
@@ -1342,7 +1342,7 @@ export default function ProjectHubDetailPage() {
                     const cMargin = cs.sales - cs.purchase;
                     return (
                       <tr key={c.id} onClick={() => router.push(`/projecthub/${c.id}`)}
-                        className="hover:bg-[var(--bg-surface)]/50 cursor-pointer">
+                        className="subproject-row hover:bg-[var(--bg-surface)]/50 cursor-pointer">
                         <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text)] font-medium">{c.name || "(이름 없음)"}</td>
                         <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center"><span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${csc.bg} ${csc.text}`}>{STAGE_LABEL[cst]}</span></td>
                         <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{won(cs.sales)}</td>
@@ -1359,7 +1359,7 @@ export default function ProjectHubDetailPage() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-[var(--bg-surface)]/60">
+                  <tr className="subprojects-table-footer bg-[var(--bg-surface)]/60">
                     <td className="px-3 py-2.5 text-xs font-bold text-[var(--text-muted)]">합계 (세부 {(children as any[]).length}개)</td>
                     <td className="px-3 py-2.5"></td>
                     <td className="px-3 py-2.5 text-right mono-number font-bold text-[var(--text)]">{won((children as any[]).reduce((a, c) => a + (subByDeal[c.id]?.sales || 0), 0))}</td>
@@ -1376,8 +1376,8 @@ export default function ProjectHubDetailPage() {
 
           {/* 캠페인 수정 모달 */}
           {editChild && (
-            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setEditChild(null)}>
-              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="edit-subproject-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setEditChild(null)}>
+              <div className="edit-subproject-modal-card bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold">캠페인 수정</h3>
                   <button onClick={() => setEditChild(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
@@ -1414,8 +1414,8 @@ export default function ProjectHubDetailPage() {
 
           {/* 캠페인 삭제 확인 모달 */}
           {deleteTarget && (
-            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteTarget(null)}>
-              <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="delete-subproject-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteTarget(null)}>
+              <div className="delete-subproject-modal-card bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
                 <h3 className="text-base font-bold mb-2">캠페인 삭제</h3>
                 <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{deleteTarget.name || "(이름 없음)"}</b> 캠페인을 목록에서 삭제할까요?</p>
                 <p className="text-[11px] text-[var(--text-dim)] mb-5">매출·매입·견적·계약 등 회계 데이터는 보존되며, 목록에서만 숨겨집니다.</p>
@@ -1457,8 +1457,8 @@ export default function ProjectHubDetailPage() {
       {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
       {/* 양식 관리 모달 — 회사 견적/계약 양식 PDF 업로드·인식(버튼으로 열기, 화면 상단 점유 제거) */}
       {tplManagerKind && companyId && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setTplManagerKind(null)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="template-manager-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setTplManagerKind(null)}>
+          <div className="template-manager-modal-card bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold">{tplManagerKind === "quote" ? "견적서" : "계약서"} 양식 관리 <span className="font-normal text-xs text-[var(--text-dim)]">회사 양식 PDF 업로드 → 자동 인식</span></h3>
               <button onClick={() => setTplManagerKind(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
@@ -1470,8 +1470,8 @@ export default function ProjectHubDetailPage() {
 
       {/* 견적/계약 문서 삭제 확인 */}
       {delDoc && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setDelDoc(null)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="delete-document-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setDelDoc(null)}>
+          <div className="delete-document-modal-card bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold mb-2">{docKind(delDoc) === "quote" ? "견적서" : "계약서"} 삭제</h3>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{delDoc.name || fmtNo(delDoc) || "문서"}</b> 를 삭제할까요?</p>
             <p className="text-[11px] text-[var(--text-dim)] mb-5">문서와 연결된 추적·승인·서명요청 기록이 함께 삭제됩니다. <b className="text-[var(--text-muted)]">이미 발행된 세금계산서는 삭제되지 않습니다.</b> 되돌릴 수 없습니다.</p>
@@ -1487,8 +1487,8 @@ export default function ProjectHubDetailPage() {
       {payModalQuote && (() => {
         const supply = quoteAmount(payModalQuote);
         return (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setPayModalQuote(null)}>
-            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="contract-payment-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setPayModalQuote(null)}>
+            <div className="contract-payment-modal-card bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold">계약 생성 — 결제 조건</h3>
                 <button onClick={() => setPayModalQuote(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
@@ -1522,8 +1522,8 @@ export default function ProjectHubDetailPage() {
         });
         const existingCount = ((pipe?.invoices || []) as any[]).length;
         return (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setInvoiceModal(null)}>
-            <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="invoice-issue-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setInvoiceModal(null)}>
+            <div className="invoice-issue-modal-card bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold">계산서 발행</h3>
                 <button onClick={() => setInvoiceModal(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
@@ -1534,9 +1534,9 @@ export default function ProjectHubDetailPage() {
               </div>
               <PaymentTermsField mode={payMode} onMode={setPayMode} adv={payAdv} onAdv={setPayAdv} mid={payMid} onMid={setPayMid} supply={supply} />
               {preview.length > 0 ? (
-                <div className="rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50 divide-y divide-[var(--border)]/40 mt-3">
+                <div className="invoice-schedule-preview rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50 divide-y divide-[var(--border)]/40 mt-3">
                   {preview.map((t, i) => (
-                    <div key={t.label} className="flex items-center justify-between px-3 py-2.5">
+                    <div key={t.label} className="invoice-schedule-row flex items-center justify-between px-3 py-2.5">
                       <span className="text-sm text-[var(--text)]">{t.label} <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ml-1 ${i === 0 ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{i === 0 ? "즉시 발행" : "초안(입금 후 발행)"}</span></span>
                       <span className="mono-number font-bold text-[var(--text)]">{won(t.amount)}</span>
                     </div>
@@ -1560,8 +1560,8 @@ export default function ProjectHubDetailPage() {
       })()}
 
       {showQuoteForm && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQuoteForm(false)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="document-create-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQuoteForm(false)}>
+          <div className="document-create-modal-card bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold">{formKind === "quote" ? "견적서 작성" : "계약서(전자계약) 작성"}</h3>
               <button onClick={() => setShowQuoteForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
@@ -1617,13 +1617,13 @@ export default function ProjectHubDetailPage() {
 
       {/* 견적서 PDF 미리보기 팝업 (실제 인쇄될 PDF) — body 포털, 화면 중앙. 인쇄/저장 직접 처리. */}
       {previewDoc && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setPreviewDoc(null)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-3xl h-[88vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="quote-preview-modal fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setPreviewDoc(null)}>
+          <div className="quote-preview-modal-card bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-3xl h-[88vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
               <h2 className="text-base font-bold text-[var(--text)]">{previewDoc.name || "견적서"} <span className="text-xs font-normal text-[var(--text-dim)]">미리보기</span></h2>
               <button onClick={() => setPreviewDoc(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl">×</button>
             </div>
-            <div className="flex-1 bg-[var(--bg-surface)] overflow-hidden">
+            <div className="quote-preview-body flex-1 bg-[var(--bg-surface)] overflow-hidden">
               {previewLoading ? (
                 <div className="h-full flex items-center justify-center text-sm text-[var(--text-muted)]">견적서 생성 중…</div>
               ) : previewUrl ? (
@@ -1632,7 +1632,7 @@ export default function ProjectHubDetailPage() {
                 <div className="h-full flex items-center justify-center text-sm text-[var(--text-muted)]">미리보기를 불러오지 못했습니다.</div>
               )}
             </div>
-            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[var(--border)] shrink-0">
+            <div className="quote-preview-footer flex items-center justify-end gap-2 px-4 py-3 border-t border-[var(--border)] shrink-0">
               <button onClick={() => setPreviewDoc(null)} className="px-4 py-2 text-sm text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-surface)]">닫기</button>
               <button
                 disabled={!previewBlob}
@@ -1671,7 +1671,7 @@ function PaymentTermsField({ mode, onMode, adv, onAdv, mid, onMid, supply }: {
     { key: "three", label: "선금·중도금·잔금" },
   ];
   const pctInput = (label: string, val: number, on: (v: number) => void) => (
-    <div className="flex items-center gap-2">
+    <div className="payment-pct-row flex items-center gap-2">
       <span className="text-xs text-[var(--text-muted)] w-12 shrink-0">{label}</span>
       <input type="number" min={0} max={100} value={val}
         onChange={(e) => on(clampPct(Number(e.target.value)))}
@@ -1683,17 +1683,17 @@ function PaymentTermsField({ mode, onMode, adv, onAdv, mid, onMid, supply }: {
   return (
     <div className="payment-terms-field">
       <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">결제 조건 <span className="font-normal text-[var(--text-dim)]">(선금/중도금/잔금)</span></div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="payment-mode-selector grid grid-cols-3 gap-2">
         {modes.map((mo) => (
           <button key={mo.key} type="button" onClick={() => onMode(mo.key)}
             className={`h-10 rounded-xl text-[12px] font-semibold border transition ${mode === mo.key ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>{mo.label}</button>
         ))}
       </div>
       {mode !== "full" && (
-        <div className="space-y-2 mt-2.5">
+        <div className="payment-percent-inputs space-y-2 mt-2.5">
           {pctInput("선금", adv, onAdv)}
           {mode === "three" && pctInput("중도금", mid, onMid)}
-          <div className="flex items-center gap-2">
+          <div className="payment-balance-row flex items-center gap-2">
             <span className="text-xs text-[var(--text-muted)] w-12 shrink-0">잔금</span>
             <span className={`text-sm font-semibold mono-number ${over ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{mode === "three" ? bal3 : 100 - a}%</span>
             {over && <span className="text-[11px] text-[var(--danger)]">선금+중도금이 100%를 초과합니다</span>}
@@ -1719,11 +1719,11 @@ function MarginCockpit({ revenue, revenueBasis, planCost, actualCost, hasActual,
   const sc = STAGE_COLOR[stage];
   return (
     <div className="margin-cockpit glass-card p-5">
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="margin-cockpit-header flex items-center justify-between gap-2 mb-3">
         <h3 className="text-sm font-bold text-[var(--text)]">마진 <span className="text-[var(--text-dim)] font-normal">(수익성)</span>{rolled > 0 && <span className="ml-1.5 text-[11px] text-[var(--text-dim)] font-normal">· 세부 {rolled}개 합산</span>}</h3>
         <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
       </div>
-      <div className="flex items-end gap-5 flex-wrap">
+      <div className="margin-cockpit-figures flex items-end gap-5 flex-wrap">
         <div>
           <div className="text-[11px] text-[var(--text-dim)] mb-0.5">{hasActual ? "확정" : "예상"} 마진률</div>
           <div className={`text-[40px] leading-none font-black mono-number ${danger ? "text-[var(--danger)]" : "text-[var(--primary)]"}`}>{headRate == null ? "—" : `${Math.round(headRate * 100)}%`}</div>
@@ -1734,7 +1734,7 @@ function MarginCockpit({ revenue, revenueBasis, planCost, actualCost, hasActual,
         </div>
       </div>
       {hasActual ? (
-        <div className="mt-4">
+        <div className="margin-progress-bar mt-4">
           <div className="flex items-center justify-between text-[11px] mb-1">
             <span className="text-[var(--text-muted)]">예상 마진 <b className="mono-number text-[var(--text)]">{won(planMargin)}</b></span>
             <span className={over ? "text-[var(--warning)]" : "text-[var(--success)]"}>확정 마진 <b className="mono-number">{won(actualMargin)}</b></span>
@@ -1747,7 +1747,7 @@ function MarginCockpit({ revenue, revenueBasis, planCost, actualCost, hasActual,
       ) : (
         <div className="mt-3 text-[11px] text-[var(--text-dim)]">예상(계획) 기준입니다. 비용을 프로젝트에 태그하면 <b className="text-[var(--text-muted)]">확정 마진</b>이 채워집니다.</div>
       )}
-      <div className="mt-4 pt-3 border-t border-[var(--border)]/40 flex flex-wrap gap-x-6 gap-y-1.5 text-[12px]">
+      <div className="margin-cockpit-footer mt-4 pt-3 border-t border-[var(--border)]/40 flex flex-wrap gap-x-6 gap-y-1.5 text-[12px]">
         <span className="text-[var(--text-muted)]">매출 <b className="mono-number text-[var(--text)]">{won(revenue)}</b> <span className="text-[10px] text-[var(--text-dim)]">({revenueBasis})</span></span>
         <span className="text-[var(--text-muted)]">예상 비용 <b className="mono-number text-[var(--text)]">{won(planCost)}</b></span>
         <span className="text-[var(--text-muted)]">확정 비용 <b className="mono-number text-[var(--text)]">{won(actualCost)}</b></span>
@@ -1783,13 +1783,13 @@ function PipelineRibbon({ pipe, contractTotal, onOpen }: { pipe: any; contractTo
   ];
   return (
     <div className="pipeline-ribbon glass-card p-4">
-      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+      <div className="pipeline-ribbon-header flex items-center justify-between mb-3 gap-2 flex-wrap">
         <h3 className="text-sm font-bold text-[var(--text)]">진행 파이프라인 <span className="text-[var(--text-dim)] font-normal text-xs">견적 → 계약 → 계산서 → 정산</span></h3>
         <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">수주(매출) 열기 →</button>
       </div>
-      <div className="flex items-stretch gap-1 overflow-x-auto pb-1">
+      <div className="pipeline-stages-row flex items-stretch gap-1 overflow-x-auto pb-1">
         {stages.map((st, i) => (
-          <div key={st.key} className="flex items-stretch shrink-0">
+          <div key={st.key} className="pipeline-stage-item flex items-stretch shrink-0">
             <button onClick={() => onOpen("sales_pipeline")}
               className={`min-w-[124px] text-left px-3 py-2.5 rounded-xl border transition ${st.done ? "border-[var(--primary)]/40 bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10" : "border-[var(--border)] bg-[var(--bg-surface)]/40 hover:bg-[var(--bg-surface)]"}`}>
               <div className="flex items-center gap-1.5">
@@ -1838,29 +1838,29 @@ function SettlementPanel({ pipe, contractTotal, onOpen }: { pipe: any; contractT
 
   return (
     <div className="settlement-panel glass-card p-4">
-      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+      <div className="settlement-panel-header flex items-center justify-between mb-3 gap-2 flex-wrap">
         <h3 className="text-sm font-bold text-[var(--text)]">정산 현황 <span className="text-[var(--text-dim)] font-normal text-xs">발행 → 입금 → 미수 (통장 매칭 기준)</span></h3>
         <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">계산서 열기 →</button>
       </div>
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="settlement-stats-grid grid grid-cols-3 gap-2 mb-3">
         <SettleStat label="발행액" value={billedAmt} tone="text" />
         <SettleStat label="실입금" value={paidAmt} tone="success" />
         <SettleStat label="미수금" value={outstanding} tone={outstanding > 1 ? "danger" : "success"} />
       </div>
       {flags.length > 0 && (
-        <div className="space-y-1.5 mb-3">
+        <div className="settlement-flags-list space-y-1.5 mb-3">
           {flags.map((f, i) => (
             <div key={i} className={`flex items-center gap-2 text-[12px] rounded-lg px-3 py-2 ${f.tone === "danger" ? "bg-[var(--danger)]/8 text-[var(--danger)]" : "bg-[var(--warning)]/8 text-[var(--warning)]"}`}>
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "currentColor" }} />
+              <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-current" />
               <span>{f.text}</span>
             </div>
           ))}
         </div>
       )}
       {overdueRows.length > 0 ? (
-        <div className="divide-y divide-[var(--border)]/50">
+        <div className="settlement-overdue-list divide-y divide-[var(--border)]/50">
           {overdueRows.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 py-2 text-[12px]">
+            <div key={r.id} className="settlement-overdue-row flex items-center gap-3 py-2 text-[12px]">
               <span className="flex-1 min-w-0 truncate text-[var(--text)]">{r.counterparty_name || "—"}<span className="text-[var(--text-dim)]"> · {r.issue_date || ""}</span></span>
               {r.days > 0 && <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${r.days >= 30 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>발행 D+{r.days}</span>}
               <span className="mono-number font-bold text-[var(--danger)] shrink-0">{won(r.bal)}</span>
@@ -1877,7 +1877,7 @@ function SettlementPanel({ pipe, contractTotal, onOpen }: { pipe: any; contractT
 function SettleStat({ label, value, tone }: { label: string; value: number; tone: "text" | "success" | "danger" }) {
   const color = tone === "danger" ? "text-[var(--danger)]" : tone === "success" ? "text-[var(--success)]" : "text-[var(--text)]";
   return (
-    <div className="rounded-xl bg-[var(--bg-surface)]/50 px-3 py-2.5">
+    <div className="settle-stat-card rounded-xl bg-[var(--bg-surface)]/50 px-3 py-2.5">
       <div className="text-[10px] text-[var(--text-dim)] mb-0.5">{label}</div>
       <div className={`text-sm font-black mono-number ${color}`}>{value > 0 ? won(value) : "—"}</div>
     </div>
@@ -1889,11 +1889,11 @@ function StageStepper({ stage, onPick, pending }: { stage: ProjectStage; onPick:
   const idx = STAGE_ORDER.indexOf(stage);
   return (
     <div className="stage-stepper glass-card p-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="stage-stepper-header flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-[var(--text)]">영업 단계 <span className="text-[var(--text-dim)] font-normal text-xs">대시보드·위험 판정 기준</span></h3>
         <span className="text-[11px] text-[var(--text-dim)]">단계를 클릭해 변경</span>
       </div>
-      <div className="flex items-center gap-0.5 overflow-x-auto pb-1">
+      <div className="stage-stepper-steps flex items-center gap-0.5 overflow-x-auto pb-1">
         {STAGE_ORDER.map((st, i) => (
           <div key={st} className="flex items-center">
             <button disabled={pending} onClick={() => onPick(st)}
@@ -1920,9 +1920,9 @@ function MarginOnboarding({ onTab }: { onTab: (t: TabKey) => void }) {
     <div className="margin-onboarding glass-card p-6">
       <h3 className="text-base font-bold text-[var(--text)]">수익형 프로젝트 시작하기</h3>
       <p className="text-xs text-[var(--text-muted)] mt-1 mb-5">계약·매출·매입으로 <b className="text-[var(--text)]">마진(수익성)</b>을 관리합니다. 아래 순서로 채워 보세요.</p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="onboarding-steps-grid grid gap-3 sm:grid-cols-2">
         {steps.map((s) => (
-          <div key={s.n} className="flex gap-3 p-4 rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
+          <div key={s.n} className="onboarding-step-card flex gap-3 p-4 rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
             <span className="w-7 h-7 rounded-full bg-[var(--primary)] text-white text-sm font-bold flex items-center justify-center shrink-0">{s.n}</span>
             <div className="min-w-0">
               <div className="text-sm font-bold text-[var(--text)]">{s.t}</div>
@@ -1941,7 +1941,7 @@ function Metric({ label, value, hint, accent }: { label: string; value: string; 
     : accent === "primary" ? "text-[var(--primary)]"
     : "text-[var(--text)]";
   return (
-    <div className="glass-card p-5">
+    <div className="metric-card glass-card p-5">
       <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{label}</div>
       <div className={`text-xl font-black mono-number mt-1 ${color}`} title={hint}>{value}</div>
     </div>
@@ -1956,7 +1956,7 @@ function CostItemRow({ kind, it }: { kind: string; it: any }) {
 }
 function CostRow({ date, name, amt }: { date: string | null; name: string | null; amt: number }) {
   return (
-    <div className="flex items-center gap-2 text-xs py-0.5">
+    <div className="cost-row flex items-center gap-2 text-xs py-0.5">
       <span className="text-[var(--text-dim)] mono-number w-[78px] shrink-0">{date ? String(date).slice(0, 10) : "—"}</span>
       <span className="text-[var(--text)] flex-1 truncate">{name || "—"}</span>
       <span className="mono-number text-[var(--text-muted)] shrink-0">{Math.round(Number(amt || 0)).toLocaleString("ko-KR")}원</span>
@@ -1965,7 +1965,7 @@ function CostRow({ date, name, amt }: { date: string | null; name: string | null
 }
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline gap-2">
+    <div className="info-row flex items-baseline gap-2">
       <span className="text-xs text-[var(--text-muted)] w-20 shrink-0">{label}</span>
       <span className="text-sm text-[var(--text)] min-w-0 break-words">{value}</span>
     </div>
@@ -1973,7 +1973,7 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 function Empty({ text }: { text: string }) {
   return (
-    <div className="glass-card py-14 px-6 flex flex-col items-center justify-center text-center gap-2">
+    <div className="list-empty-state glass-card py-14 px-6 flex flex-col items-center justify-center text-center gap-2">
       <div className="text-4xl">📂</div>
       <div className="text-sm font-semibold text-[var(--text)]">{text}</div>
       <div className="text-xs text-[var(--text-dim)]">추가하면 이 목록에 바로 나타납니다.</div>
@@ -2032,8 +2032,8 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
   const budget = Number(deal.contract_total || 0);
   const endOver = deal.end_date && String(deal.end_date).slice(0, 10) < today && runState !== "완료";
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="delivery-overview-panel space-y-5">
+      <div className="delivery-metrics-grid grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Metric label="진행률" value={total > 0 ? `${pct}%` : "—"} accent={pct >= 100 && total > 0 ? "primary" : undefined} />
         <Metric label="완료 / 전체" value={`${done} / ${total}`} />
         <Metric label="지연" value={String(delayed)} accent={delayed > 0 ? "danger" : undefined} />
@@ -2041,7 +2041,7 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
       </div>
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">
-          <div className="glass-card p-5">
+          <div className="task-progress-card glass-card p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold">태스크 진행률</h3>
               <span className="text-xs mono-number text-[var(--text)]">{done} / {total}</span>
@@ -2049,7 +2049,7 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
             <div className="h-3 rounded-full bg-[var(--bg-surface)] overflow-hidden">
               <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%` }} />
             </div>
-            <div className="grid grid-cols-4 gap-2 mt-4">
+            <div className="task-status-grid grid grid-cols-4 gap-2 mt-4">
               {DELIVERY_STATUS_META.map((s) => (
                 <div key={s.key} className="rounded-xl bg-[var(--bg-surface)] px-3 py-2 text-center">
                   <div className={`text-[11px] font-semibold ${s.color}`}>{s.label}</div>
@@ -2058,7 +2058,7 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
               ))}
             </div>
           </div>
-          <div className="glass-card p-5">
+          <div className="upcoming-deadlines-card glass-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold">다가오는 마감</h3>
               <Link href={`/projecthub/${dealId}?tab=tasks`} className="text-[11px] text-[var(--primary)] hover:underline">태스크 탭 →</Link>
@@ -2070,7 +2070,7 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
                 {upcoming.map((t) => {
                   const late = String(t.due_date).slice(0, 10) < today;
                   return (
-                    <div key={t.id} className="py-2 flex items-center gap-2 text-sm">
+                    <div key={t.id} className="upcoming-deadline-row py-2 flex items-center gap-2 text-sm">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold mono-number shrink-0 ${late ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{dday(t.due_date)}</span>
                       <span className="flex-1 truncate text-[var(--text)]">{t.title || "(제목 없음)"}</span>
                       <span className="text-[11px] text-[var(--text-dim)] shrink-0">{assigneesOf(t).map(userName).join(", ") || "미지정"}</span>
@@ -2082,13 +2082,13 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
             )}
           </div>
           {assigneeRows.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="assignee-progress-card glass-card p-5">
               <h3 className="text-sm font-bold mb-3">담당자별 현황</h3>
               <div className="space-y-2.5">
                 {assigneeRows.map(([id, v]) => {
                   const p = v.total > 0 ? Math.round((v.done / v.total) * 100) : 0;
                   return (
-                    <div key={id} className="flex items-center gap-3">
+                    <div key={id} className="assignee-progress-row flex items-center gap-3">
                       <span className="text-xs text-[var(--text)] w-24 truncate shrink-0">{userName(id)}</span>
                       <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
                         <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${p}%` }} />
@@ -2103,7 +2103,7 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
           <p className="text-[11px] text-[var(--text-dim)]">※ 태스크 추가·칸반·간트는 <b className="text-[var(--text-muted)]">태스크</b> 탭에서 관리합니다.</p>
         </div>
         <div className="space-y-5">
-          <div className="glass-card p-5">
+          <div className="execution-info-card glass-card p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold">실행 정보</h3>
             </div>
@@ -2122,7 +2122,7 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
 }
 function ApprovalRow({ a }: { a: any }) {
   return (
-    <div className="flex items-center gap-2 py-1.5 text-xs border-b border-[var(--border)]/30 last:border-0">
+    <div className="approval-row flex items-center gap-2 py-1.5 text-xs border-b border-[var(--border)]/30 last:border-0">
       <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{a.stage || "—"}</span>
       <span className="text-[var(--text)] flex-1 truncate">{a.recipient || a.recipient_name || "—"}</span>
       <span className="text-[var(--text-muted)] shrink-0">{a.status || "—"}</span>

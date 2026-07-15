@@ -312,11 +312,11 @@ export default function ProjectHubPage() {
   if (!tabAllowed) return <AccessDenied detail="프로젝트 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
 
   return (
-    <div className="space-y-6">
+    <div className="projecthub-page space-y-6">
       {/* 툴바 — 검색·내담당·성과대시보드·생성 */}
-      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2">
+      <div className="projecthub-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <div className="relative flex-1 max-w-[320px]">
+          <div className="search-input-wrap relative flex-1 max-w-[320px]">
             <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" /></svg>
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="프로젝트·거래처·담당 검색"
               className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--primary)]" />
@@ -333,7 +333,7 @@ export default function ProjectHubPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+          <div className="sort-control flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
             <select value={sortKey} onChange={(e) => setSortKey(e.target.value as PSortKey)}
               className="h-full pl-3 pr-1 bg-transparent text-[13px] text-[var(--text-muted)] focus:outline-none cursor-pointer" title="정렬 기준">
               {SORT_OPTIONS.map(([k, label]) => <option key={k} value={k}>{label}순</option>)}
@@ -351,7 +351,7 @@ export default function ProjectHubPage() {
       </div>
 
       {/* 유형 필터 — 전체 + 3유형 칩. 전체가 기본(모든 유형 한눈에), 클릭 시 그 유형만 */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="type-filter-chips flex flex-wrap gap-1.5">
         {([["all", "전체", topDeals.length]] as [string, string, number][])
           .concat(PROJECT_TYPE_ORDER.map((t) => [t, `${PROJECT_TYPES[t].icon} ${PROJECT_TYPES[t].label}`, typeSummary[t].count] as [string, string, number]))
           .map(([key, label, count]) => {
@@ -412,7 +412,7 @@ export default function ProjectHubPage() {
       )}
 
       {/* 요약 카드 — 현재 필터(전체/유형) 기준 (stat-tile 표준) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="projecthub-summary-grid grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-tile">
           <div className="flex items-center justify-between">
             <span className="stat-tile-label">{typeFilter === "all" ? "📁 전체 프로젝트" : `${PROJECT_TYPES[typeFilter].icon} ${PROJECT_TYPES[typeFilter].label} 프로젝트`}</span>
@@ -491,7 +491,7 @@ export default function ProjectHubPage() {
           </>}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="project-card-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rows.map((d) => {
             const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
             const sc = STAGE_COLOR[stage];
@@ -506,7 +506,7 @@ export default function ProjectHubPage() {
               : fmtDate(d.start_date) ? `${fmtDate(d.start_date)}${d.end_date ? ` ~ ${fmtDate(d.end_date)}` : ""}` : "기간 미정";
             return (
               <div key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
-                className={`glass-card p-4 cursor-pointer transition hover:-translate-y-0.5 hover:border-[var(--primary)] flex flex-col gap-2.5 ${risk ? "!border-[var(--danger)]/40" : ""}`}>
+                className={`project-card glass-card p-4 cursor-pointer transition hover:-translate-y-0.5 hover:border-[var(--primary)] flex flex-col gap-2.5 ${risk ? "!border-[var(--danger)]/40" : ""}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap">{tc.icon} {tc.label}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
@@ -669,9 +669,9 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   useModalKeys(true, onClose, !isEdit && step === 1 ? () => setStep(2) : (saving || !form.name.trim() ? undefined : submit));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div className="project-form-modal fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+        <div className="project-form-modal-header px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <div className="text-sm font-bold text-[var(--text)]">
             {isEdit ? "프로젝트 수정" : step === 1 ? "+ 프로젝트 생성 · 유형 선택" : `+ ${cfg.icon} ${cfg.label} 프로젝트`}
           </div>
@@ -680,7 +680,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
 
         {/* 1단계 — 유형 선택 (생성 시에만) */}
         {!isEdit && step === 1 && (
-          <div className="p-5 space-y-3">
+          <div className="project-type-step p-5 space-y-3">
             <p className="text-xs text-[var(--text-muted)]">프로젝트 유형을 선택하세요. 유형에 따라 히어로 지표와 탭이 달라집니다.</p>
             <div className="grid grid-cols-1 gap-2.5">
               {PROJECT_TYPE_ORDER.map((t) => {
@@ -688,7 +688,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                 const active = projectType === t;
                 return (
                   <button key={t} onClick={() => setProjectType(t)}
-                    className={`text-left px-4 py-3 rounded-xl border transition ${active ? "border-[var(--primary)] bg-[var(--primary)]/5 ring-1 ring-[var(--primary)]/30" : "border-[var(--border)] hover:bg-[var(--bg-surface)]"}`}>
+                    className={`project-type-option text-left px-4 py-3 rounded-xl border transition ${active ? "border-[var(--primary)] bg-[var(--primary)]/5 ring-1 ring-[var(--primary)]/30" : "border-[var(--border)] hover:bg-[var(--bg-surface)]"}`}>
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{c.icon}</span>
                       <span className="text-sm font-bold text-[var(--text)]">{c.label}</span>
@@ -709,7 +709,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
         {/* 2단계 — 유형별 입력 */}
         {(isEdit || step === 2) && (
           <>
-            <div className="p-5 space-y-3">
+            <div className="project-form-fields p-5 space-y-3">
               {!isEdit && (
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-[var(--text-dim)]">유형:</span>
@@ -724,7 +724,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               <div className="grid grid-cols-2 gap-3">
                 {/* 거래처 — 실행형(내부 태스크)은 숨김, 목표형은 선택 */}
                 {projectType !== "delivery" && (
-                  <div className="relative">
+                  <div className="partner-search-field relative">
                     <label className={LB}>거래처 {projectType === "goal" && <span className="font-normal text-[var(--text-dim)]">(선택)</span>}</label>
                     <input
                       value={ptSearch}
@@ -735,7 +735,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                       className={IN}
                     />
                     {ptOpen && (
-                      <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg">
+                      <div className="partner-search-dropdown absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg">
                         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { set({ partner_id: "" }); setPtSearch(""); setPtOpen(false); }}
                           className={`block w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-surface)] ${!form.partner_id ? "text-[var(--primary)] font-semibold" : "text-[var(--text-muted)]"}`}>
                           미지정
@@ -763,7 +763,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
 
               {/* 수익형(margin) — 분류 + 계약금액 (현행) */}
               {projectType === "margin" && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="margin-type-fields grid grid-cols-2 gap-3">
                   <div>
                     <label className={LB}>분류</label>
                     <select value={form.classification} onChange={(e) => set({ classification: e.target.value })} className={IN}>
@@ -784,13 +784,13 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
 
               {/* 목표형(goal) — 다중 KPI 정의 (생성 시). 수정은 '성과' 탭에서 관리. */}
               {projectType === "goal" && !isEdit && (
-                <div className="space-y-2">
+                <div className="goal-kpi-drafts space-y-2">
                   <div className="flex items-center justify-between">
                     <label className={`${LB} mb-0`}>KPI <span className="font-normal text-[var(--text-dim)]">(1개 이상 — 이름·목표값 필수)</span></label>
                     <button type="button" onClick={addKpi} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ KPI 추가</button>
                   </div>
                   {kpiDrafts.map((k, i) => (
-                    <div key={i} className="rounded-xl border border-[var(--border)] p-2.5 space-y-2 bg-[var(--bg-surface)]/40">
+                    <div key={i} className="kpi-draft-row rounded-xl border border-[var(--border)] p-2.5 space-y-2 bg-[var(--bg-surface)]/40">
                       <div className="flex items-center gap-2">
                         <input value={k.label} onChange={(e) => setKpi(i, { label: e.target.value })} placeholder="KPI 이름 (예: 신규 매출)" className={`${IN} flex-1`} />
                         {kpiDrafts.length > 1 && <button type="button" onClick={() => removeKpiDraft(i)} className="px-2 py-1 text-[11px] rounded-md text-[var(--danger)] hover:bg-[var(--danger)]/10" aria-label="KPI 삭제">✕</button>}
@@ -820,7 +820,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
 
               {/* 실행형(delivery) — (선택) 예산 */}
               {projectType === "delivery" && (
-                <div>
+                <div className="delivery-type-fields">
                   <label className={LB}>예산 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
                   <div className="flex gap-1">
                     <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="0" className={`${IN} text-right mono-number`} />
@@ -831,7 +831,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="project-date-fields grid grid-cols-2 gap-3">
                 <div>
                   <label className={LB}>시작일</label>
                   <DateField value={form.start_date} onChange={(e) => set({ start_date: e.target.value })} className={`${IN} mono-number`} />
@@ -842,7 +842,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                 </div>
               </div>
             </div>
-            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2">
+            <div className="project-form-modal-footer px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2">
               {!isEdit ? (
                 <button onClick={() => setStep(1)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">← 이전</button>
               ) : <span />}
@@ -895,13 +895,13 @@ function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
   useModalKeys(!busy, () => !busy && onClose(), canDelete && !busy ? del : undefined);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4" onClick={() => !busy && onClose()}>
+    <div className="delete-project-modal fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4" onClick={() => !busy && onClose()}>
       <div className="bg-[var(--bg-card)] border border-red-500/30 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+        <div className="delete-project-modal-header px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <div className="text-sm font-bold text-red-400">프로젝트 삭제</div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
-        <div className="p-5 space-y-3">
+        <div className="delete-project-modal-body p-5 space-y-3">
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
             <span className="font-bold text-[var(--text)]">{deal.name || "(이름 없음)"}</span> 프로젝트를 삭제하면 목록·보드 어디에서도 보이지 않습니다. (회계·자식 데이터는 보존되며, 복구 가능)
           </p>
@@ -911,7 +911,7 @@ function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
               className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]" autoFocus />
           </div>
         </div>
-        <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+        <div className="delete-project-modal-footer px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
           <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
           <button onClick={del} disabled={!canDelete || busy} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-red-500 text-white hover:opacity-90 disabled:opacity-40">
             {busy ? "삭제 중..." : "삭제"}

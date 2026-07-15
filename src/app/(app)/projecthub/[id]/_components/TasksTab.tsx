@@ -118,13 +118,13 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
   const openEdit = (t: any) => { setEditTask(t); setShowForm(true); };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
+    <div className="tasks-tab-root space-y-4">
+      <div className="tasks-toolbar flex items-center justify-between gap-3 flex-wrap">
+        <div className="tasks-progress-summary flex items-center gap-3">
           <div className="text-xs text-[var(--text-muted)]">진행률 <b className="text-[var(--text)] mono-number">{pct}%</b> <span className="text-[var(--text-dim)]">({doneCount}/{total})</span></div>
           {delayedCount > 0 && <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 font-semibold">지연 {delayedCount}</span>}
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="tasks-toolbar-controls flex items-center gap-2 flex-wrap">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="제목·담당자·라벨 검색"
             className="h-8 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs w-36 sm:w-44" />
           <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}
@@ -141,30 +141,30 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
       </div>
 
       {view === "kanban" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="kanban-board grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {COLUMNS.map((col) => (
             <div key={col.key}
               onDragOver={(e) => { e.preventDefault(); setDragOver(col.key); }}
               onDragLeave={() => setDragOver((c) => (c === col.key ? null : c))}
               onDrop={(e) => { e.preventDefault(); if (dragId) moveTask(dragId, col.key); setDragId(null); setDragOver(null); }}
-              className={`rounded-xl p-2.5 min-h-[120px] transition border ${dragOver === col.key ? "border-[var(--primary)] bg-[var(--primary)]/5" : "border-transparent bg-[var(--bg-surface)]"}`}>
-              <div className="flex items-center justify-between px-1 mb-2">
+              className={`kanban-column rounded-xl p-2.5 min-h-[120px] transition border ${dragOver === col.key ? "border-[var(--primary)] bg-[var(--primary)]/5" : "border-transparent bg-[var(--bg-surface)]"}`}>
+              <div className="kanban-column-header flex items-center justify-between px-1 mb-2">
                 <span className={`text-xs font-bold ${col.color}`}>{col.label}</span>
                 <span className="text-[10px] text-[var(--text-dim)] mono-number">{byStatus[col.key].length}</span>
               </div>
-              <div className="space-y-2">
+              <div className="kanban-column-cards space-y-2">
                 {byStatus[col.key].map((t) => (
                   <div key={t.id} draggable
                     onDragStart={() => setDragId(t.id)} onDragEnd={() => { setDragId(null); setDragOver(null); }}
                     onClick={() => openEdit(t)}
-                    className={`rounded-lg border bg-[var(--bg-card)] p-2.5 cursor-grab active:cursor-grabbing hover:border-[var(--primary)]/40 transition ${dragId === t.id ? "opacity-50" : ""} ${isDelayed(t) ? "border-red-500/40" : "border-[var(--border)]"}`}>
+                    className={`kanban-task-card rounded-lg border bg-[var(--bg-card)] p-2.5 cursor-grab active:cursor-grabbing hover:border-[var(--primary)]/40 transition ${dragId === t.id ? "opacity-50" : ""} ${isDelayed(t) ? "border-red-500/40" : "border-[var(--border)]"}`}>
                     {taskLabels(t).length > 0 && (
-                      <div className="flex items-center gap-1 mb-1 flex-wrap">
+                      <div className="task-card-labels flex items-center gap-1 mb-1 flex-wrap">
                         {taskLabels(t).map((l, i) => <LabelChip key={i} l={l} />)}
                       </div>
                     )}
                     <div className="text-sm font-medium text-[var(--text)] break-words">{t.title}</div>
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <div className="task-card-meta flex items-center gap-1.5 mt-1.5 flex-wrap">
                       {taskAssignees(t).length > 0 && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]"
                           title={taskAssignees(t).map((id) => userName[id] || "담당").join(", ")}>
@@ -233,18 +233,18 @@ function GanttChart({ tasks, userName, onTaskClick }: { tasks: any[]; userName: 
   }
 
   return (
-    <div className="glass-card p-4 overflow-x-auto">
+    <div className="gantt-chart-wrap glass-card p-4 overflow-x-auto">
       <div className="min-w-[600px]">
         {/* 눈금 */}
-        <div className="relative h-5 mb-2 border-b border-[var(--border)]">
+        <div className="gantt-ticks relative h-5 mb-2 border-b border-[var(--border)]">
           {ticks.map((tk, i) => (
             <span key={i} className="absolute text-[9px] text-[var(--text-dim)] mono-number -translate-x-1/2" style={{ left: `${tk.left}%` }}>{tk.label}</span>
           ))}
         </div>
-        <div className="relative space-y-1.5">
+        <div className="gantt-bars relative space-y-1.5">
           {/* today 라인 */}
           {todayPct >= 0 && todayPct <= 100 && (
-            <div className="absolute top-0 bottom-0 w-px bg-red-500/60 z-10" style={{ left: `${todayPct}%` }} title="오늘">
+            <div className="gantt-today-line absolute top-0 bottom-0 w-px bg-red-500/60 z-10" style={{ left: `${todayPct}%` }} title="오늘">
               <span className="absolute -top-1 -translate-x-1/2 text-[8px] text-red-500 font-bold">오늘</span>
             </div>
           )}
@@ -257,10 +257,10 @@ function GanttChart({ tasks, userName, onTaskClick }: { tasks: any[]; userName: 
             const done = t.status === "done";
             const barColor = done ? "bg-green-500" : delayed ? "bg-red-500" : "bg-[var(--primary)]";
             return (
-              <div key={t.id} className="relative h-7 flex items-center">
+              <div key={t.id} className="gantt-task-row relative h-7 flex items-center">
                 <div className="absolute inset-0 flex items-center">
                   <div onClick={() => onTaskClick(t)}
-                    className={`absolute h-5 rounded ${barColor} opacity-85 hover:opacity-100 cursor-pointer flex items-center px-1.5 overflow-hidden`}
+                    className={`gantt-task-bar absolute h-5 rounded ${barColor} opacity-85 hover:opacity-100 cursor-pointer flex items-center px-1.5 overflow-hidden`}
                     style={{ left: `${left}%`, width: `${width}%` }}
                     title={`${t.title} · ${t.start_date ? String(t.start_date).slice(0, 10) : "?"} ~ ${t.due_date ? String(t.due_date).slice(0, 10) : "?"}${taskAssignees(t).length > 0 ? ` · ${taskAssignees(t).map((id) => userName[id] || "").filter(Boolean).join(", ")}` : ""}`}>
                     <span className="text-[10px] text-white font-medium truncate">{t.title}</span>
@@ -325,9 +325,9 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
 
   // 재귀 렌더 — depth 만큼 들여쓰기 + 세로 가이드라인. (컴포넌트가 아닌 함수라 입력 포커스 안전)
   const renderNode = (c: any, depth: number): React.ReactNode => (
-    <div key={c.id} className={depth > 0 ? "ml-3 pl-3 border-l-2 border-[var(--border)]" : ""}>
+    <div key={c.id} className={`comment-node ${depth > 0 ? "ml-3 pl-3 border-l-2 border-[var(--border)]" : ""}`}>
       <div className="py-1.5">
-        <div className="flex items-center gap-2 text-[11px] text-[var(--text-dim)]">
+        <div className="comment-header flex items-center gap-2 text-[11px] text-[var(--text-dim)]">
           <b className="text-[var(--text-muted)]">{nameOf(c.created_by)}</b>
           <span className="mono-number">{fmtAt(c.created_at)}</span>
           <button type="button" onClick={() => { setReplyTo(replyTo === c.id ? null : c.id); setReplyText(""); }}
@@ -336,7 +336,7 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
         </div>
         <div className="text-sm text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed mt-0.5">{c.body}</div>
         {replyTo === c.id && (
-          <div className="flex items-center gap-1.5 mt-1.5">
+          <div className="comment-reply-row flex items-center gap-1.5 mt-1.5">
             <input value={replyText} onChange={(e) => setReplyText(e.target.value)} autoFocus
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); add(c.id, replyText); } }}
               placeholder={`${nameOf(c.created_by)}님에게 답글 (Enter로 등록)`}
@@ -351,14 +351,14 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
   );
 
   return (
-    <div>
+    <div className="task-comments-block">
       <div className="text-xs text-[var(--text-muted)] mb-1">💬 댓글{comments.length > 0 ? ` ${comments.length}` : ""} <span className="font-normal text-[var(--text-dim)]">— 답글에 계속 답글을 달 수 있습니다</span></div>
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/40 px-4 py-1.5 max-h-[38vh] overflow-y-auto">
+      <div className="task-comments-thread rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/40 px-4 py-1.5 max-h-[38vh] overflow-y-auto">
         {(children["root"] || []).length === 0 ? (
           <div className="py-3 text-xs text-[var(--text-dim)]">아직 댓글이 없습니다. 아래에 첫 댓글을 남겨보세요.</div>
         ) : (children["root"] || []).map((c) => renderNode(c, 0))}
       </div>
-      <div className="flex items-center gap-1.5 mt-2">
+      <div className="task-comment-input-row flex items-center gap-1.5 mt-2">
         <input value={text} onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); add(null, text); } }}
           placeholder="댓글 입력 (Enter로 등록)"
@@ -529,9 +529,9 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   useModalKeys(!!lightbox, () => setLightbox(null));
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+    <div className="task-form-modal-backdrop fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="task-form-modal-panel bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="task-form-modal-header px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <div className="text-sm font-bold text-[var(--text)]">{!isEdit ? "+ 태스크 추가" : editing ? "태스크 수정" : "태스크"}</div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
@@ -539,19 +539,19 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
         {/* ── 보기 모드 — 저장된 태스크 클릭 시 기본. 넓은 설명 영역으로 가독성 우선 ── */}
         {isEdit && !editing && (
           <>
-            <div className="p-5 space-y-4">
+            <div className="task-view-body p-5 space-y-4">
               {labels.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="task-view-labels flex items-center gap-1.5 flex-wrap">
                   {labels.map((l, i) => <LabelChip key={i} l={l} />)}
                 </div>
               )}
               <h3 className="text-lg font-bold text-[var(--text)] break-words leading-snug">{title || "(제목 없음)"}</h3>
-              <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap text-xs text-[var(--text-muted)]">
+              <div className="task-view-meta flex items-center gap-x-4 gap-y-1.5 flex-wrap text-xs text-[var(--text-muted)]">
                 <span>담당 <b className="text-[var(--text)]">{assignees.length === 0 ? "미지정" : assignees.map((id) => users.find((u) => u.id === id)?.name || "구성원").join(", ")}</b></span>
                 <span>상태 <b className={COLUMNS.find((c) => c.key === status)?.color || "text-[var(--text)]"}>{COLUMNS.find((c) => c.key === status)?.label || status}</b></span>
                 {(start || due) && <span className="mono-number">기간 <b className="text-[var(--text)]">{start || "?"} ~ {due || "?"}</b></span>}
               </div>
-              <div>
+              <div className="task-view-description">
                 <div className="text-xs text-[var(--text-muted)] mb-1">설명</div>
                 <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-4 py-3 text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap break-words min-h-[96px] max-h-[45vh] overflow-y-auto">
                   {desc.trim() ? desc : <span className="text-[var(--text-dim)]">설명이 없습니다.</span>}
@@ -560,7 +560,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
               {/* 설명에 대한 댓글·답글 스레드 (무한 중첩) */}
               <TaskComments taskId={task.id} companyId={companyId} userId={userId} users={users} />
               {atts.length > 0 && (
-                <div>
+                <div className="task-view-attachments">
                   <div className="text-xs text-[var(--text-muted)] mb-1">첨부 {atts.length}개 <span className="text-[var(--text-dim)]">— 이미지는 클릭해 크게 보기, 파일명 클릭 시 다운로드</span></div>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {atts.map((a) => (
@@ -579,7 +579,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
                 </div>
               )}
             </div>
-            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2">
+            <div className="task-view-footer px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2">
               <button onClick={remove} disabled={saving} className="px-3 py-1.5 text-xs text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-lg">삭제</button>
               <div className="flex gap-2">
                 <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">닫기</button>
@@ -591,13 +591,13 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
 
         {/* ── 편집 모드 — 새 태스크 또는 '수정' 클릭 후 ── */}
         {(!isEdit || editing) && (<>
-        <div className="p-5 space-y-3" onPaste={onPaste}>
+        <div className="task-edit-body p-5 space-y-3" onPaste={onPaste}>
           <div>
             <label className={LB}>태스크명 *</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="할 일" className={IN} autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="relative">
+            <div className="assignee-dropdown relative">
               <label className={LB}>담당 <span className="font-normal text-[var(--text-dim)]">(여러 명)</span></label>
               <button type="button" onClick={() => setAssigneeOpen((v) => !v)} className={`${IN} text-left truncate`}>
                 {assignees.length === 0
@@ -607,7 +607,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
               {assigneeOpen && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setAssigneeOpen(false)} />
-                  <div className="absolute z-40 mt-1 w-full max-h-52 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl p-1.5">
+                  <div className="assignee-dropdown-menu absolute z-40 mt-1 w-full max-h-52 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl p-1.5">
                     {users.length === 0 ? (
                       <div className="px-2 py-2 text-xs text-[var(--text-dim)]">구성원이 없습니다</div>
                     ) : users.map((u) => (
@@ -651,7 +651,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
                 className="text-[10px] font-semibold text-[var(--primary)] hover:underline">{showLabelMaker ? "닫기 ▲" : "+ 새 라벨 만들기"}</button>
             </div>
             {showLabelMaker && (
-              <div className="flex items-center gap-1.5 mb-2 p-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]/50">
+              <div className="label-maker-row flex items-center gap-1.5 mb-2 p-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]/50">
                 <input value={labelText} onChange={(e) => setLabelText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); createLabel(); } }}
                   placeholder="새 라벨 이름" className={`${IN} flex-1 min-w-0`} />
@@ -666,7 +666,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
                   className="shrink-0 px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">{labelSaving ? "…" : "만들기"}</button>
               </div>
             )}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="label-chips-row flex items-center gap-1.5 flex-wrap">
               {dictLabels.map((dl) => {
                 const sel = hasLabel(dl.name);
                 return (
@@ -695,13 +695,13 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
           </div>
           <div>
             <label className={LB}>첨부 <span className="font-normal text-[var(--text-dim)]">(이미지·파일 · Ctrl+V 붙여넣기)</span></label>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="attachment-upload-controls flex items-center gap-2 mb-2">
               <button type="button" onClick={() => fileRef.current?.click()} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">파일 선택</button>
               <span className="text-[11px] text-[var(--text-dim)]">{uploading ? "업로드 중…" : "이미지는 캡처 후 Ctrl+V로 바로 붙여넣기"}</span>
               <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => { addFiles(Array.from(e.target.files || [])); e.target.value = ""; }} />
             </div>
             {atts.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="attachment-edit-grid grid grid-cols-3 gap-2">
                 {atts.map((a) => (
                   <div key={a.id} className="relative group rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--bg-surface)]">
                     <button type="button" onClick={() => removeAtt(a)} className="absolute top-0.5 right-0.5 z-10 w-5 h-5 rounded-full bg-black/60 text-white text-xs leading-none opacity-0 group-hover:opacity-100 transition" aria-label="첨부 삭제">×</button>
@@ -719,7 +719,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
             )}
           </div>
         </div>
-        <div className="px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2">
+        <div className="task-edit-footer px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2">
           {isEdit ? <button onClick={remove} disabled={saving} className="px-3 py-1.5 text-xs text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-lg">삭제</button> : <span />}
           <div className="flex gap-2">
             <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
@@ -730,7 +730,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
         </div>
         </>)}
         {lightbox && (
-          <div className="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+          <div className="task-lightbox-overlay fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
             <button type="button" onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl leading-none">✕</button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={lightbox} alt="첨부 이미지" className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
