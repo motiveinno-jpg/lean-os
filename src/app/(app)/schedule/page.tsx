@@ -43,9 +43,9 @@ export default function SchedulePage() {
   }, []);
 
   return (
-    <div className="space-y-6 mx-auto">
+    <div className="schedule-page space-y-6 mx-auto">
       {/* Tabs — 라운드6.5: 타이틀 제거, 필형 탭만 스티키 툴바로 */}
-      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2">
+      <div className="schedule-tabbar page-sticky-header flex flex-wrap items-center justify-between gap-2">
         <div className="seg-bar">
           {([["calendar", "📅 캘린더"], ["todo", "✓ 할 일"]] as [Tab, string][]).map(([k, label]) => (
             <button
@@ -187,9 +187,9 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
   };
 
   return (
-    <div className="space-y-4">
+    <div className="schedule-calendar-tab space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="schedule-calendar-header flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <button onClick={prevMonth} className="btn-ghost btn-sm">‹</button>
           <div className="text-sm font-bold min-w-[110px] text-center">
@@ -240,9 +240,9 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       </p>
 
       {/* Calendar Grid */}
-      <div className="glass-card overflow-hidden">
+      <div className="schedule-calendar-grid glass-card overflow-hidden">
         {/* Weekday header */}
-        <div className="grid grid-cols-7 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+        <div className="schedule-weekday-header grid grid-cols-7 border-b border-[var(--border)] bg-[var(--bg-surface)]">
           {["일", "월", "화", "수", "목", "금", "토"].map((w, i) => (
             <div key={w} className={`px-2 py-2 text-[10px] font-bold text-center ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-[var(--text-dim)]"}`}>
               {w}
@@ -250,7 +250,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
           ))}
         </div>
         {/* Cells */}
-        <div className="grid grid-cols-7">
+        <div className="schedule-cells-grid grid grid-cols-7">
           {grid.map((cell, i) => {
             const dateStr = toLocalDateStr(cell.date);
             const cellEvents = eventsByDate.get(dateStr) || [];
@@ -260,7 +260,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
               <button
                 key={i}
                 onClick={() => openAdd(dateStr)}
-                className={`min-h-[88px] p-1.5 border-r border-b border-[var(--border)]/50 text-left transition hover:bg-[var(--bg-surface)] ${
+                className={`schedule-day-cell min-h-[88px] p-1.5 border-r border-b border-[var(--border)]/50 text-left transition hover:bg-[var(--bg-surface)] ${
                   !cell.inMonth ? "bg-[var(--bg)] opacity-50" : ""
                 } ${isToday ? "ring-1 ring-inset ring-[var(--primary)]" : ""}`}
               >
@@ -364,7 +364,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       {/* R5: 일정 클릭 → 수정/완료 선택 팝업 (즉시 완료 토글 방지) */}
       {actionEvent && (
         <div
-          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          className="schedule-event-action-popup fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setActionEvent(null)}
         >
           <div
@@ -465,7 +465,7 @@ function EventModal({
   const colorOptions: EventColor[] = ["blue", "green", "red", "amber", "violet", "gray"];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
+    <div className="schedule-event-modal fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div className="glass-card w-full max-w-md my-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">{form.id ? "일정 수정" : "일정 추가"}</h3>
@@ -639,9 +639,9 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="space-y-4">
+    <div className="schedule-todo-tab space-y-4">
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="schedule-todo-stats grid grid-cols-3 gap-4">
         <div className="stat-tile">
           <div className="flex items-center justify-between">
             <span className="stat-tile-label">할 일</span>
@@ -676,7 +676,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
       </div>
 
       {/* Add form */}
-      <div className="glass-card p-5">
+      <div className="schedule-todo-add-form glass-card p-5">
         <div className="flex gap-2 flex-wrap items-end">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-[10px] text-[var(--text-muted)] mb-1">새 할 일</label>
@@ -713,7 +713,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
       </label>
 
       {/* List */}
-      <div className="glass-card overflow-hidden">
+      <div className="schedule-todo-list glass-card overflow-hidden">
         {todos.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-3xl mb-3">✓</div>
@@ -726,7 +726,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
               const overdue = !t.done && t.due_date && t.due_date < today;
               const pri = PRIORITY_LABEL[t.priority];
               return (
-                <div key={t.id} className={`flex items-start gap-3 px-4 py-3 hover:bg-[var(--bg-surface)] transition ${t.done ? "opacity-50" : ""}`}>
+                <div key={t.id} className={`schedule-todo-row flex items-start gap-3 px-4 py-3 hover:bg-[var(--bg-surface)] transition ${t.done ? "opacity-50" : ""}`}>
                   <input
                     type="checkbox"
                     checked={t.done}
@@ -795,7 +795,7 @@ function TodoEditModal({
   useModalKeys(true, onClose, !form.title.trim() || saving ? undefined : submitEdit);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+    <div className="schedule-todo-edit-modal fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <div className="glass-card w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">할 일 수정</h3>

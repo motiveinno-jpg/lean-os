@@ -80,9 +80,9 @@ export default function AttendancePage() {
   const activeEmp = (employees as any[]).filter((e) => !["invited", "inactive", "resigned"].includes(e.status)).length;
 
   return (
-    <div>
+    <div className="attendance-page">
       {/* 상위 섹션 탭 — 근무현황 / 휴가 / 연장근무 (라운드6.5: 타이틀 제거 → 필형 seg-bar 툴바) */}
-      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="attendance-section-tabbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <div className="seg-bar">
           {([["work", "근무 현황"], ["leave", "휴가"], ["overtime", "연장근무"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setSection(k)}
@@ -101,7 +101,7 @@ export default function AttendancePage() {
             setSection("leave"); setLeaveFocusPending(true);
             setTimeout(() => document.getElementById("leave-approve-section")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
           }}
-          className="w-full mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--warning-dim)] border border-[var(--warning)]/30 text-left hover:opacity-90 transition"
+          className="attendance-pending-leave-banner w-full mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--warning-dim)] border border-[var(--warning)]/30 text-left hover:opacity-90 transition"
         >
           <span className="text-sm font-semibold text-[var(--warning)]">⚠️ 미검토 휴가 신청 {pendingLeave}건 — 클릭해서 승인하세요</span>
           <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--warning)] text-white whitespace-nowrap">휴가 승인하기 →</span>
@@ -111,7 +111,7 @@ export default function AttendancePage() {
       {section === "work" && (
         <>
           {/* 플렉스 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
-          <div className="seg-bar mb-4">
+          <div className="attendance-view-tabbar seg-bar mb-4">
             {([["work", "워크보드 (주간)"], ["records", "기록 상세"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setAttView(k)}
                 className={`seg-item ${attView === k ? "seg-item-active" : ""}`}>
@@ -149,7 +149,7 @@ export default function AttendancePage() {
 
       {/* 연장근무 — 본인 신청(전원) + 관리자 승인 인박스. */}
       {section === "overtime" && userId && (
-        <div className="space-y-4">
+        <div className="attendance-overtime-section space-y-4">
           {isManager && companyId && <OvertimeStats companyId={companyId} />}
           {isManager && <OvertimeApprovalInbox companyId={companyId} reviewerId={userId} />}
           <OvertimeRequestCard companyId={companyId} userId={userId} />

@@ -256,7 +256,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       </div>
 
       {/* 탭 바 — 히어로 아래, 전체 폭 */}
-      <div className="px-6 pt-3 pb-0 border-b border-[var(--border)] bg-[var(--bg-surface)]/20">
+      <div className="employee-detail-tabbar px-6 pt-3 pb-0 border-b border-[var(--border)] bg-[var(--bg-surface)]/20">
         <div className="seg-bar flex-wrap mb-3">
           {[
             { key: "info", label: "정보" },
@@ -277,10 +277,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       </div>
 
       {/* 본문 — 단일 컬럼 전체폭(좌우 분할 폐기), 정보 탭은 2열 카드 그리드로 재배치 */}
-      <div className="p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto">
+      <div className="employee-detail-body p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto">
         {/* Info Tab — Flex-style sections */}
         {detailTab === "info" && (
-          <div className="space-y-5">
+          <div className="employee-info-tab space-y-5">
             {isEditing && (
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-[var(--info)]">정보 수정 중</span>
@@ -426,7 +426,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               const tenureDays = totalDaysRaw % 365 % 30;
 
               return (
-                <div>
+                <div className="employee-retirement-calc">
                   <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                     퇴직금 계산
@@ -508,7 +508,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
         {/* Contracts Tab — Flex-style 계약서 목록 */}
         {detailTab === "contracts" && (
-          <div className="space-y-3">
+          <div className="employee-contracts-tab space-y-3">
             <div className="flex items-center justify-end">
               <button onClick={() => (showCreateContract ? setShowCreateContract(false) : openCreateContract())} className="btn-secondary text-xs">
                 {showCreateContract ? "취소" : "+ 계약서 보내기"}
@@ -516,7 +516,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             </div>
 
             {showCreateContract && (
-              <div className="glass-card p-4 space-y-3">
+              <div className="contract-create-form glass-card p-4 space-y-3">
                 <div>
                   <label className="block text-[10px] text-[var(--text-dim)] mb-1">계약 제목</label>
                   <input value={contractTitle} onChange={(e) => setContractTitle(e.target.value)}
@@ -660,7 +660,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
         {/* Certificates Tab — 증명서 발급/이력 */}
         {detailTab === "certificates" && (
-          <div className="space-y-4">
+          <div className="employee-certificates-tab space-y-4">
             {/* Quick issue buttons */}
             <div className="flex gap-3">
               <CertQuickIssue type="employment" label="재직증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
@@ -692,10 +692,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
         {/* Leave Tab — 휴가 잔여/사용 기록 */}
         {detailTab === "leave" && (
-          <div className="space-y-4">
+          <div className="employee-leave-tab space-y-4">
             {/* Leave balance summary */}
             {empLeaveBalance ? (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="leave-balance-summary grid grid-cols-3 gap-3">
                 <div className="glass-card p-3 text-center">
                   <div className="caption">총 부여</div>
                   <div className="text-lg font-bold text-[var(--text)] mt-0.5">{empLeaveBalance.total_days}일</div>
@@ -779,7 +779,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         const allChecked = termAllChecked;
 
         return createPortal(
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowTermModal(false)}>
+          <div className="employee-termination-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowTermModal(false)}>
             <div className="w-full max-w-md max-h-[88vh] flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               {/* 헤더 — 흰 카드 + 레드 포인트 아이콘 (라운드6: 그라데이션 제거) */}
               <div className="relative px-5 py-4 border-b border-[var(--border)] shrink-0">
@@ -1020,7 +1020,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
   }
 
   return (
-    <div className="space-y-4">
+    <div className="employee-docs-checklist space-y-4">
       {/* Progress summary */}
       <div className="flex items-center justify-between px-4 py-3 glass-card">
         <div className="flex items-center gap-2">
@@ -1135,7 +1135,7 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
   }
 
   return (
-    <div className="space-y-3">
+    <div className="employee-notes-section space-y-3">
       {/* 노트 입력 */}
       <div>
         <textarea
@@ -1205,7 +1205,7 @@ function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId
   }
 
   return (
-    <div className="space-y-3">
+    <div className="employee-history-section space-y-3">
       {/* 발령 추가 버튼 */}
       <div className="flex justify-end">
         <button
@@ -1415,7 +1415,7 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
 
   const groups = [...new Set(GRANTABLE_TABS.map((t) => t.group))];
   return (
-    <div className="space-y-4">
+    <div className="employee-tab-access-section space-y-4">
       <p className="text-xs text-[var(--text-muted)] leading-relaxed">
         {isOwner ? (
           <><b className="text-[var(--text)]">{empName}</b> 님은 <b className="text-[var(--primary)]">대표</b>라 모든 탭에 접근합니다(끌 수 없음).</>

@@ -49,7 +49,7 @@ export default function HrTemplatesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="hr-templates-page space-y-6">
       {companyId && userId ? (
         <>
           <TemplatesTab

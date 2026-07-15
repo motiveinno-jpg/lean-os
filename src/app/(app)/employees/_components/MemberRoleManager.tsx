@@ -46,7 +46,7 @@ export function MemberRoleManager({ companyId }: { companyId: string }) {
 
   return (
     <div className="space-y-3">
-      <div>
+      <div className="member-role-header">
         <h3 className="text-sm font-bold text-[var(--text)]">구성원 권한 관리</h3>
         <p className="text-xs text-[var(--text-muted)] mt-0.5">
           <strong>역할</strong>: OwnerView 로그인 권한 (대표/관리자/직원/파트너) ·
@@ -54,12 +54,12 @@ export function MemberRoleManager({ companyId }: { companyId: string }) {
         </p>
       </div>
       {members.length === 0 ? (
-        <div className="bg-[var(--bg-card)] rounded-xl p-8 text-center border border-[var(--border)]">
+        <div className="member-role-empty bg-[var(--bg-card)] rounded-xl p-8 text-center border border-[var(--border)]">
           <p className="text-[var(--text-muted)] text-sm">회사 멤버가 없습니다</p>
         </div>
       ) : (
         members.map((m: any) => (
-          <div key={m.id} className="bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] flex flex-wrap items-center gap-3">
+          <div key={m.id} className="member-role-row bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="font-semibold text-sm">{m.name || m.email}</span>

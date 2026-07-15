@@ -203,7 +203,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
   return (
     <div>
       {/* 상단 헤더 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+      <div className="contract-admin-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
           <h3 className="text-base font-bold text-[var(--text)]">전자계약 서식 · 발송 현황</h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">계약서/서약서 서식을 관리하고, 발송된 계약의 서명 현황을 확인합니다. 개별 직원에게 새 계약서를 보내려면 구성원 &gt; 인력관리 &gt; 디렉토리에서 해당 직원의 계약서 탭을 이용하세요.</p>
@@ -216,7 +216,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
 
       {/* 서식 에디터 (WYSIWYG) */}
       {showTemplateEditor && (
-        <div className="glass-card mb-6 flex flex-col" style={{ height: "80vh" }}>
+        <div className="contract-template-editor glass-card mb-6 flex flex-col h-[80vh]">
           <div className="p-6 pb-3 shrink-0">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -233,14 +233,14 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
               <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} placeholder="예: 2026년 정규직 근로계약서" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
           </div>
-          <div className="flex-1 flex gap-4 px-6 min-h-0">
+          <div className="contract-template-editor-body flex-1 flex gap-4 px-6 min-h-0">
             <div className="flex-1 flex flex-col min-h-0">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">서식 내용 *</label>
               <div className="flex-1 overflow-y-auto bg-[var(--bg)] border border-[var(--border)] rounded-xl">
                 <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
               </div>
             </div>
-            <div className="w-52 shrink-0 flex flex-col min-h-0">
+            <div className="contract-template-variable-panel w-52 shrink-0 flex flex-col min-h-0">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">변수 삽입</label>
               <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3 flex-1 overflow-y-auto flex flex-col gap-1.5">
                 <p className="text-[9px] text-[var(--text-dim)] mb-1 shrink-0">클릭하면 커서 위치에 삽입됩니다</p>
@@ -316,7 +316,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
             </div>
           </div>
           {(allTemplates.length > 0 || templates.some((t: any) => t.is_builtin)) && (
-            <div className="px-6 pb-3 shrink-0">
+            <div className="contract-template-existing-list px-6 pb-3 shrink-0">
               <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">기존 서식</div>
               <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
                 {[
@@ -342,7 +342,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
               <p className="text-[10px] text-[var(--text-dim)] mt-1">🔒 내장 · 📝 임시저장 · 클릭하면 에디터에 로드</p>
             </div>
           )}
-          <div className="shrink-0 border-t border-[var(--border)] px-6 py-4 flex items-center gap-3 bg-[var(--bg-card)] rounded-b-2xl">
+          <div className="contract-template-editor-footer shrink-0 border-t border-[var(--border)] px-6 py-4 flex items-center gap-3 bg-[var(--bg-card)] rounded-b-2xl">
             <button
               onClick={() => { setShowTemplateEditor(false); setNewTemplateName(""); setNewTemplateBody(""); setEditingTemplateId(null); }}
               className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-sm font-semibold transition"
@@ -445,14 +445,14 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
       )}
 
       {/* 서브탭: 계약 관리 / 회사 문서 */}
-      <div className="flex gap-1 mb-5 bg-[var(--bg-surface)] rounded-lg p-0.5 w-fit">
+      <div className="contract-subtab-bar flex gap-1 mb-5 bg-[var(--bg-surface)] rounded-lg p-0.5 w-fit">
         <button onClick={() => setContractSubTab("contracts")} className={`px-4 py-2 rounded-md text-xs font-semibold transition ${contractSubTab === "contracts" ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>발송 현황</button>
         <button onClick={() => setContractSubTab("company_docs")} className={`px-4 py-2 rounded-md text-xs font-semibold transition ${contractSubTab === "company_docs" ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>회사 문서</button>
       </div>
 
       {/* 회사 문서 관리 */}
       {contractSubTab === "company_docs" && (
-        <div>
+        <div className="contract-company-docs-panel">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {[
               { key: "business_reg", label: "사업자등록증", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", desc: "사업자등록증 사본" },
@@ -462,7 +462,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
               { key: "bank_cert", label: "통장사본", icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z", desc: "법인 통장 사본" },
               { key: "etc_docs", label: "기타 문서", icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z", desc: "기타 회사 필수 문서" },
             ].map(doc => (
-              <div key={doc.key} className="glass-card p-5 hover:border-[var(--primary)]/30 transition group">
+              <div key={doc.key} className="contract-doc-upload-card glass-card p-5 hover:border-[var(--primary)]/30 transition group">
                 <div className="flex items-start justify-between mb-3">
                   <svg className="w-6 h-6 text-[var(--text-dim)] group-hover:text-[var(--primary)] transition" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={doc.icon} /></svg>
                   <label className="px-2.5 py-1 bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] font-semibold rounded-lg cursor-pointer hover:bg-[var(--primary)]/20 transition">
@@ -491,7 +491,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
 
       {contractSubTab === "contracts" && <>
       {/* 상태 필터 탭 + 일괄 발송 */}
-      <div className="flex items-center justify-between gap-3 mb-4">
+      <div className="contract-status-filter-bar flex items-center justify-between gap-3 mb-4">
         <div className="flex gap-1 overflow-x-auto scrollbar-hide">
           {[
             { key: "all", label: "전체" },
@@ -525,9 +525,9 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
       </div>
 
       {/* 계약 내역 리스트 */}
-      <div className="space-y-3 mb-8">
+      <div className="contract-package-list space-y-3 mb-8">
         {filteredContracts.length === 0 ? (
-          <div className="glass-card p-12 text-center">
+          <div className="contract-package-empty glass-card p-12 text-center">
             <svg className="w-12 h-12 mx-auto mb-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <div className="text-sm text-[var(--text-muted)]">계약 내역이 없습니다</div>
             <div className="text-xs text-[var(--text-dim)] mt-1">구성원 &gt; 인력관리 &gt; 디렉토리에서 직원을 선택해 계약서를 발송하세요</div>
@@ -559,7 +559,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
           {filteredContracts.map((p: any) => {
             const st = PACKAGE_STATUS[p.status as keyof typeof PACKAGE_STATUS] || PACKAGE_STATUS.draft;
             return (
-              <div key={p.id} className="glass-card p-4">
+              <div key={p.id} className="contract-package-row glass-card p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     {p.status === "draft" && (
@@ -645,7 +645,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
       {contracts.length > 0 && (
         <>
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">계약 이력</h3>
-          <div className="glass-card overflow-hidden">
+          <div className="contract-history-table glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead className="sticky-bar"><tr className="table-head-row">
                 <th className="th-cell text-left">구성원</th>
