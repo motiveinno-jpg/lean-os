@@ -467,6 +467,22 @@ export default function CardsPage() {
       try { window.dispatchEvent(new CustomEvent("ownerview:codef-synced")); } catch { /* ignore */ }
       if (synced > 0) toast(`카드 거래 ${synced}건 불러옴`, "success");
       else toast("카드 연동 완료 — 새 거래 없음", "info");
+
+      // 동기화 후 카드 자동분류(비차단) — 학습규칙(learned_from_count≥1)만. UI 비차단, 매칭분 있을 때만 토스트+갱신.
+      //   분류는 되돌림 가능(대외·비가역 아님) → '확정은 사람' 원칙 위배 없음. 반복 실행 시 대상 수렴.
+      import("@/lib/automation")
+        .then(({ applyCardTransactionRules }) => applyCardTransactionRules(companyId))
+        .then((r) => {
+          const n = r?.matched || 0;
+          if (n > 0) {
+            toast(`미분류 카드거래 ${n}건 자동분류 완료`, "success");
+            queryClient.invalidateQueries({ queryKey: ["cards-page-month-tx"] });
+            queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] });
+            queryClient.invalidateQueries({ queryKey: ["cards-page-recent-tx"] });
+            queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
+          }
+        })
+        .catch(() => { /* 자동분류 실패는 비차단 — 수동 분류로 진행 가능 */ });
     } catch (e) {
       toast(friendlyError(e, "카드 연동 오류"), "error");
     } finally {
