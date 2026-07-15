@@ -1539,7 +1539,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
         customApprovers: (canEditLine && selectedApprovers.length > 0) ? selectedApprovers : undefined,
         formId: selectedForm?.id,
-        customFields: selectedForm ? customFieldValues : undefined,
+        // 휴가는 승인 시 연차 차감에 쓰이는 구조화 데이터를 저장(description 텍스트 파싱 의존 제거)
+        customFields: selectedForm
+          ? customFieldValues
+          : isLeave
+            ? { leave: { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays } }
+            : undefined,
         referenceUserIds: selectedForm?.reference_user_ids?.length ? selectedForm.reference_user_ids : undefined,
       });
     },

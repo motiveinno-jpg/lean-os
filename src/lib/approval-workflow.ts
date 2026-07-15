@@ -220,7 +220,7 @@ export async function createApprovalRequest(params: {
   attachments?: string[];
   customApprovers?: { userId: string; name: string }[];
   formId?: string;                          // 커스텀 결재 양식 사용 시
-  customFields?: Record<string, string>;    // 양식 커스텀 필드 값
+  customFields?: Record<string, unknown>;    // 양식 커스텀 필드 값(+휴가 구조화 데이터 등 jsonb)
   referenceUserIds?: string[];              // 참조(CC) — 결재선과 별개, 통보만 받는 인원
 }): Promise<ApprovalRequest> {
   const amount = params.amount ?? 0;
@@ -285,6 +285,10 @@ export async function createApprovalRequest(params: {
 
   // If auto-approved, log and return
   if (isAutoApproved) {
+    // 자동승인된 휴가도 연차 차감(approveStep 을 거치지 않으므로 여기서 처리)
+    if (params.requestType === 'leave') {
+      await applyLeaveDeduction(request);
+    }
     await logAudit({
       companyId: params.companyId,
       userId: params.requesterId,
@@ -412,6 +416,51 @@ export async function createApprovalRequest(params: {
  * Approve a single step.
  * If all steps in current stage are approved, advance to next stage or mark request approved.
  */
+// 휴가 결재 최종 승인 시 연차 차감 — 사내 결재 전자결재 일원화(2026-07-15).
+//   전자결재(approval_requests, request_type='leave')는 그동안 승인돼도 leave_balances 를
+//   차감하지 않는 버그가 있었다(네이티브 leave_requests 경로만 차감). 여기서 동일 규칙으로 차감한다.
+//   구조화 필드(custom_fields.leave) 우선, 없으면 description 텍스트 파싱(구버전 호환). 비차단.
+async function applyLeaveDeduction(request: any): Promise<void> {
+  try {
+    const leave = request?.custom_fields?.leave;
+    const rawStart: string | undefined =
+      leave?.start_date ||
+      request?.description?.match(/기간:\s*([0-9.\-]+)/)?.[1] ||
+      request?.description?.match(/일자:\s*([0-9.\-]+)/)?.[1];
+    const days = Number(leave?.days ?? request?.description?.match(/(\d+(?:\.\d+)?)일/)?.[1]);
+    if (!rawStart || !days || days <= 0) return;
+
+    // requester(user id) → employee 매핑: user_id 우선, 실패 시 email 매칭(네이티브 경로와 동일 폴백).
+    let employeeId: string | null = null;
+    const { data: empByUser } = await db
+      .from('employees').select('id')
+      .eq('company_id', request.company_id).eq('user_id', request.requester_id).maybeSingle();
+    if (empByUser) employeeId = empByUser.id;
+    else {
+      const { data: user } = await db.from('users').select('email').eq('id', request.requester_id).maybeSingle();
+      if (user?.email) {
+        const { data: empByEmail } = await db
+          .from('employees').select('id')
+          .eq('company_id', request.company_id).eq('email', user.email).maybeSingle();
+        if (empByEmail) employeeId = empByEmail.id;
+      }
+    }
+    if (!employeeId) return;
+
+    const year = new Date(rawStart.replace(/\./g, '-')).getFullYear();
+    const { data: balance } = await db
+      .from('leave_balances').select('id, used_days')
+      .eq('employee_id', employeeId).eq('year', year).maybeSingle();
+    if (balance) {
+      await db.from('leave_balances')
+        .update({ used_days: Number(balance.used_days) + days })
+        .eq('id', balance.id);
+    }
+  } catch {
+    // 연차 차감 실패는 승인 자체를 막지 않는다(비차단).
+  }
+}
+
 export async function approveStep(
   stepId: string,
   approverId: string,
@@ -489,8 +538,13 @@ export async function approveStep(
         })
         .eq('id', step.request_id);
 
-      // Auto-queue to payment if expense/payment/purchase type
+      // 휴가 결재 최종 승인 → 연차 차감(전자결재 일원화, 2026-07-15)
       const reqType = request.request_type;
+      if (reqType === 'leave') {
+        await applyLeaveDeduction(request);
+      }
+
+      // Auto-queue to payment if expense/payment/purchase type
       if (['expense', 'payment', 'purchase'].includes(reqType)) {
         const amount = Number(request.amount || 0);
         if (amount > 0) {

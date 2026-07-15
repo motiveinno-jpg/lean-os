@@ -6,7 +6,7 @@
 import { supabase } from './supabase';
 import { approvePayment, rejectPayment } from './payment-queue';
 import { approveExpense, rejectExpense } from './expenses';
-import { rejectLeaveRequest } from './hr';
+import { approveLeaveRequest, rejectLeaveRequest } from './hr';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -310,9 +310,9 @@ export async function approveAction(
       break;
 
     case 'leave':
-      await db.from('leave_requests')
-        .update({ status: 'approved', approved_by: userId, approved_at: new Date().toISOString() })
-        .eq('id', actionId);
+      // 네이티브 휴가 승인 — approveLeaveRequest 로 단계 처리 + 연차 차감(직접 status 변경은
+      //   결재 단계·연차 차감을 건너뛰던 버그, 2026-07-15 수정).
+      await approveLeaveRequest(actionId, userId);
       break;
 
     case 'signature':
