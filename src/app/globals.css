@@ -811,37 +811,16 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 기본 그립 아이콘 제거 · 편집 아닐 땐 핸들 숨김 */
 .dashboard-grid .react-resizable-handle { background-image: none !important; z-index: 6; }
 .dashboard-grid:not(.rgl-editing) .react-resizable-handle { display: none !important; }
-/* 모서리(코너) 4방향 — 인디고 ㄱ자 그립 */
-.rgl-editing .react-resizable-handle-se::after,
-.rgl-editing .react-resizable-handle-sw::after,
-.rgl-editing .react-resizable-handle-ne::after,
-.rgl-editing .react-resizable-handle-nw::after { content: ""; position: absolute; width: 9px; height: 9px; opacity: 0.85; }
-.rgl-editing .react-resizable-handle-se::after { right: 4px; bottom: 4px; border-right: 2px solid var(--primary); border-bottom: 2px solid var(--primary); }
-.rgl-editing .react-resizable-handle-sw::after { left: 4px; bottom: 4px; border-left: 2px solid var(--primary); border-bottom: 2px solid var(--primary); }
-.rgl-editing .react-resizable-handle-ne::after { right: 4px; top: 4px; border-right: 2px solid var(--primary); border-top: 2px solid var(--primary); }
-.rgl-editing .react-resizable-handle-nw::after { left: 4px; top: 4px; border-left: 2px solid var(--primary); border-top: 2px solid var(--primary); }
-/* 가장자리(엣지) 핸들 — 변 전체를 잡기 영역으로 + 얇은 바.
-   ⚠️ react-resizable 기본 CSS가 핸들에 transform:rotate(45deg 등)를 걸어둠 — 20px 그립일 땐 무해하나
-   폭/높이 100% 바로 키우면 바 전체가 회전해 위젯 본문을 대각선으로 덮음(본문↔가장자리 커서 반대로).
-   → transform:none 으로 축 정렬 고정(2026-07-15). */
+/* 그립 표식(점/바) 완전 제거 — 우측·하단에 옅은 점이 보이던 문제(2026-07-15 사장님).
+   react-resizable/RGL 기본 코너 ::after 표식까지 함께 제거. 리사이즈 안내는 커서로만. 그랩 영역·기능 유지. */
+.dashboard-grid .react-resizable-handle::after { content: none !important; }
+/* 가장자리(엣지) 핸들 — 변 전체를 잡기 영역으로.
+   ⚠️ react-resizable 기본 CSS가 핸들에 transform:rotate(45deg 등)를 걸어둠 — 폭/높이 100% 로 키우면
+   바 전체가 회전해 본문↔가장자리 커서가 반대로 나옴 → transform:none 으로 축 정렬 고정(2026-07-15). */
 .rgl-editing .react-resizable-handle-n,
 .rgl-editing .react-resizable-handle-s { left: 0 !important; margin-left: 0 !important; width: 100% !important; height: 12px; transform: none !important; }
 .rgl-editing .react-resizable-handle-e,
 .rgl-editing .react-resizable-handle-w { top: 0 !important; margin-top: 0 !important; height: 100% !important; width: 12px; transform: none !important; }
-.rgl-editing .react-resizable-handle-n::after,
-.rgl-editing .react-resizable-handle-s::after { content: ""; position: absolute; left: 12%; right: 12%; height: 3px; border-radius: 2px; background: var(--primary); opacity: 0.22; }
-.rgl-editing .react-resizable-handle-n::after { top: 3px; }
-.rgl-editing .react-resizable-handle-s::after { bottom: 3px; }
-.rgl-editing .react-resizable-handle-e::after,
-.rgl-editing .react-resizable-handle-w::after { content: ""; position: absolute; top: 12%; bottom: 12%; width: 3px; border-radius: 2px; background: var(--primary); opacity: 0.22; }
-.rgl-editing .react-resizable-handle-e::after { right: 3px; }
-.rgl-editing .react-resizable-handle-w::after { left: 3px; }
-/* 그립을 상시 노출하지 않음 — 위젯이 많으면 화면에 그립(점)이 잔뜩 보이는 문제(2026-07-15 사장님).
-   해당 위젯에 마우스를 올릴 때만 그립 표시. 그랩 영역·리사이즈 기능은 그대로. */
-.rgl-editing .react-resizable-handle::after { opacity: 0; transition: opacity .15s ease; }
-.rgl-editing .react-grid-item:hover .react-resizable-handle-se::after { opacity: 0.85; }
-.rgl-editing .react-grid-item:hover .react-resizable-handle-s::after,
-.rgl-editing .react-grid-item:hover .react-resizable-handle-e::after { opacity: 0.22; }
 /* 드래그 이동 시 놓일 자리 미리보기 */
 .react-grid-item.react-grid-placeholder {
   background: var(--primary) !important; opacity: 0.14; border-radius: 16px;
