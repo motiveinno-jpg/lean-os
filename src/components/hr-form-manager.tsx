@@ -27,7 +27,12 @@ function contentVarKeys(html: string): string[] {
 }
 async function renderHtmlPdf(html: string): Promise<Blob> {
   const res = await fetch("/api/html-pdf", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ html }) });
-  if (!res.ok) throw new Error("PDF 렌더 실패");
+  if (!res.ok) {
+    // 2026-07-15 QA: 서버가 준 실제 오류(err.message)를 버리고 항상 "PDF 렌더 실패"만 던져서
+    //   원인 파악이 불가능했음 — 응답 JSON의 error 를 읽어 그대로 노출.
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || `PDF 렌더 실패 (HTTP ${res.status})`);
+  }
   return res.blob();
 }
 

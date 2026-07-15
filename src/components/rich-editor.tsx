@@ -24,6 +24,10 @@ interface RichEditorProps {
   // 2026-05-22 PDF 페이지 이미지·일반 이미지를 회사격리 스토리지에 올릴 때 주입.
   //   미지정 시 dataURL 인라인 (간단·소용량). 대용량 PDF 는 업로더 주입 권장.
   onUploadImage?: (file: File) => Promise<string>;
+  // 2026-07-15 QA: 호출부가 RichEditor 전체(툴바 포함)를 max-h+overflow-auto 로 감싸면
+  //   스크롤 시 툴바(표·서식 버튼)가 같이 밀려 올라가 안 보이는 문제(사장님 리포트).
+  //   지정 시 본문 영역만 내부 스크롤하고 툴바는 항상 상단 고정.
+  maxHeight?: string;
 }
 
 function escapeHtml(s: string): string {
@@ -50,7 +54,7 @@ const FONT_FAMILIES = [
 ];
 
 export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function RichEditor(
-  { content = "", onChange, placeholder = "내용을 입력하세요...", editable = true, onUploadImage },
+  { content = "", onChange, placeholder = "내용을 입력하세요...", editable = true, onUploadImage, maxHeight },
   ref
 ) {
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -302,10 +306,12 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           {pdfProgress && <span className="text-[11px] text-[var(--primary)] self-center ml-2 animate-pulse">{pdfProgress}</span>}
         </div>
       )}
-      <EditorContent
-        editor={editor}
-        className="prose prose-sm max-w-none px-4 py-3 min-h-[200px] focus:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[180px] [&_.tiptap_img]:max-w-full [&_.tiptap_img]:rounded-lg [&_.tiptap_img]:my-2 [&_.tiptap_table]:border-collapse [&_.tiptap_table]:w-full [&_.tiptap_table]:my-2 [&_.tiptap_td]:border [&_.tiptap_td]:border-[var(--border)] [&_.tiptap_td]:p-2 [&_.tiptap_th]:border [&_.tiptap_th]:border-[var(--border)] [&_.tiptap_th]:p-2 [&_.tiptap_th]:bg-[var(--bg-surface)] [&_.tiptap_th]:font-bold [&_.is-editor-empty:first-child::before]:text-[var(--text-dim)] [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:pointer-events-none"
-      />
+      <div style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
+        <EditorContent
+          editor={editor}
+          className="prose prose-sm max-w-none px-4 py-3 min-h-[200px] focus:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[180px] [&_.tiptap_img]:max-w-full [&_.tiptap_img]:rounded-lg [&_.tiptap_img]:my-2 [&_.tiptap_table]:border-collapse [&_.tiptap_table]:w-full [&_.tiptap_table]:my-2 [&_.tiptap_td]:border [&_.tiptap_td]:border-[var(--border)] [&_.tiptap_td]:p-2 [&_.tiptap_th]:border [&_.tiptap_th]:border-[var(--border)] [&_.tiptap_th]:p-2 [&_.tiptap_th]:bg-[var(--bg-surface)] [&_.tiptap_th]:font-bold [&_.is-editor-empty:first-child::before]:text-[var(--text-dim)] [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:pointer-events-none"
+        />
+      </div>
     </div>
   );
 });

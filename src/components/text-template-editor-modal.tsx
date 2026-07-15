@@ -61,9 +61,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
         <div className={`grid gap-3 ${showPreview ? "lg:grid-cols-2" : "grid-cols-1"}`}>
           <div>
             <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">편집</div>
-            <div className="max-h-[58vh] overflow-auto rounded-xl">
-              <RichEditor ref={editorRef} content={initialHtml} onChange={setHtml} placeholder="양식 내용을 입력하세요..." />
-            </div>
+            <RichEditor ref={editorRef} content={initialHtml} onChange={setHtml} placeholder="양식 내용을 입력하세요..." maxHeight="52vh" />
           </div>
           {showPreview && (
             <div>
