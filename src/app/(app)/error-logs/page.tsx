@@ -149,9 +149,9 @@ export default function ErrorLogsPage() {
   return (
     <div className="bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
       {/* 툴바 — 필터(좌) + 액션(우) */}
-      <div className="page-sticky-header mb-4">
+      <div className="error-log-toolbar page-sticky-header mb-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="error-log-filter-bar flex flex-wrap items-center gap-2">
             <div className="seg-bar">
               {[
                 { k: "unresolved" as const, label: "미해결" },
@@ -183,7 +183,7 @@ export default function ErrorLogsPage() {
               {liveCount > 0 && <span className="text-emerald-500">· 세션 중 신규 {liveCount}건 수신</span>}
             </span>
           </div>
-          <div className="flex gap-2">
+          <div className="error-log-toolbar-actions flex gap-2">
             <button
               onClick={() => refetch()}
               disabled={isFetching}
@@ -204,30 +204,30 @@ export default function ErrorLogsPage() {
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
-        <div className="glass-card p-16 text-center">
+        <div className="error-log-empty-state glass-card p-16 text-center">
           <div className="text-4xl mb-3">✅</div>
           <div className="text-sm text-[var(--text-muted)]">
             {filter === "unresolved" ? "미해결 에러가 없습니다" : "에러 로그가 없습니다"}
           </div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="error-log-list space-y-2">
           {filtered.map((r) => {
             const ex = explainError(r.message, r.context);
             const expanded = expandedId === r.id;
             return (
               <div
                 key={r.id}
-                className={`bg-[var(--bg-card)] rounded-2xl border transition ${
+                className={`error-log-card bg-[var(--bg-card)] rounded-2xl border transition ${
                   r.resolved ? "border-[var(--border)] opacity-60" : "border-red-500/20"
                 }`}
               >
-                <div className="w-full px-5 py-4 flex items-start gap-3">
+                <div className="error-log-card-header w-full px-5 py-4 flex items-start gap-3">
                   <button
                     onClick={() => setExpandedId(expanded ? null : r.id)}
                     className="flex-1 text-left min-w-0"
                   >
-                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                    <div className="error-log-badges flex items-center gap-2 flex-wrap mb-1.5">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${SEVERITY_META[ex.severity]?.cls || ""}`}>
                         {SEVERITY_META[ex.severity]?.label || ex.severity}
                       </span>
@@ -277,22 +277,22 @@ export default function ErrorLogsPage() {
                   </button>
                 </div>
                 {expanded && (
-                  <div className="px-5 pb-4 border-t border-[var(--border)] pt-3 space-y-3">
+                  <div className="error-log-detail px-5 pb-4 border-t border-[var(--border)] pt-3 space-y-3">
                     {/* 한국어 설명 */}
-                    <div className="bg-[var(--bg-surface)] rounded-xl p-3">
+                    <div className="error-log-explain bg-[var(--bg-surface)] rounded-xl p-3">
                       <div className="text-xs font-semibold text-[var(--text)] mb-1">🔎 무슨 에러인가요?</div>
                       <div className="text-xs text-[var(--text-muted)] leading-relaxed">{ex.detail}</div>
                       <div className="text-[11px] text-[var(--text-dim)] mt-1.5">원인 요약: {ex.hint}</div>
                     </div>
                     {/* 어떻게 고치나요 */}
-                    <div className="bg-[var(--primary)]/5 border border-[var(--primary)]/15 rounded-xl p-3">
+                    <div className="error-log-fix bg-[var(--primary)]/5 border border-[var(--primary)]/15 rounded-xl p-3">
                       <div className="text-xs font-semibold text-[var(--primary)] mb-1.5">🛠 어떻게 고치나요?</div>
                       <ol className="text-xs text-[var(--text-muted)] leading-relaxed list-decimal pl-4 space-y-1">
                         {ex.fix.map((step, i) => <li key={i}>{step}</li>)}
                       </ol>
                     </div>
                     {/* 발생 맥락 */}
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="error-log-context-grid grid grid-cols-2 gap-2 text-[11px]">
                       <div className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
                         <div className="text-[var(--text-dim)]">사용자</div>
                         <div className="text-[var(--text)] font-medium truncate">{r.user_name || "-"} {r.user_email ? `(${r.user_email})` : ""}</div>

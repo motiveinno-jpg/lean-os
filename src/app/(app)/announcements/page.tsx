@@ -118,7 +118,7 @@ export default function AnnouncementsPage() {
   return (
     <div className="">
       {canWrite && !showForm && (
-        <div className="page-sticky-header flex flex-wrap items-center justify-end gap-2 mb-6">
+        <div className="announcement-toolbar page-sticky-header flex flex-wrap items-center justify-end gap-2 mb-6">
           <button
             onClick={() => { resetForm(); setShowForm(true); }}
             className="btn-primary"
@@ -130,7 +130,7 @@ export default function AnnouncementsPage() {
 
       {/* 작성/수정 폼 (운영자만) */}
       {canWrite && showForm && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5 mb-6">
+        <div className="announcement-form bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5 mb-6">
           <h3 className="section-title">{editing ? "공지 수정" : "새 공지 작성"}</h3>
           <div className="space-y-3">
             <div className="flex gap-2">
@@ -188,18 +188,18 @@ export default function AnnouncementsPage() {
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
-        <div className="glass-card py-16 text-center">
+        <div className="announcement-empty glass-card py-16 text-center">
           <div className="text-4xl mb-3">📢</div>
           <div className="text-sm font-semibold text-[var(--text)]">등록된 공지가 없습니다</div>
           <div className="text-[11px] text-[var(--text-dim)] mt-1.5">서비스 공지·업데이트 소식이 등록되면 여기에 표시됩니다.</div>
         </div>
       ) : (
-        <div className="glass-card overflow-hidden divide-y divide-[var(--border)]">
+        <div className="announcement-list glass-card overflow-hidden divide-y divide-[var(--border)]">
           {[...pinnedRows, ...normalRows].map((a) => {
             const cat = CATEGORY_META[a.category] || CATEGORY_META.notice;
             const expanded = expandedId === a.id;
             return (
-              <div key={a.id} className={a.pinned ? "bg-[var(--primary)]/[0.03]" : ""}>
+              <div key={a.id} className={`announcement-item ${a.pinned ? "bg-[var(--primary)]/[0.03]" : ""}`}>
                 <button
                   onClick={() => setExpandedId(expanded ? null : a.id)}
                   className="w-full text-left px-5 py-4 flex items-start gap-3 hover:bg-[var(--bg-surface)]/60 transition"

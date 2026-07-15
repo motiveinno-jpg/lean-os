@@ -75,7 +75,7 @@ export default function NotificationsPage() {
 
   return (
     <div>
-      <div className="page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="notification-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
         <p className="text-xs text-[var(--text-dim)]">
           전체 <span className="mono-number font-semibold text-[var(--text-muted)]">{rows.length}</span>건 · 안읽음{" "}
           <span className={`mono-number font-semibold ${unread > 0 ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>{unread}</span>건
@@ -98,14 +98,14 @@ export default function NotificationsPage() {
           action={<Link href="/dashboard" className="btn-secondary">대시보드로 이동</Link>}
         />
       ) : (
-        <div className="glass-card overflow-hidden divide-y divide-[var(--border)]">
+        <div className="notification-list glass-card overflow-hidden divide-y divide-[var(--border)]">
           {rows.map(n => {
             const href = resolveNotificationHref(n, quoteMap);
             const date = n.created_at ? new Date(n.created_at).toLocaleString('ko-KR') : '';
             return (
               <Link key={n.id} href={href}
                 onClick={() => { if (!n.is_read) markOneRead(n.id); }}
-                className={`flex items-start gap-3 px-5 py-3.5 transition ${
+                className={`notification-item flex items-start gap-3 px-5 py-3.5 transition ${
                   n.is_read
                     ? 'hover:bg-[var(--bg-surface)]/60'
                     : 'bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10'
