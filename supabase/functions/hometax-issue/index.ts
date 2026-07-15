@@ -63,6 +63,7 @@ function codefErrorHint(code?: string): string {
   if (code === "CF-00003") return "CODEF 대시보드에서 '전자세금계산서 발행 (popbill-taxinvoice-regist-invoicer-trustee)' 상품을 신청하지 않았습니다. CODEF 관리자 페이지 → 상품 관리 → 사용 API 변경 신청에서 추가하세요.";
   if (code === "CF-00401") return "발행 API 권한 없음. 발행 product (popbill-taxinvoice-*) 가 승인되었는지 CODEF 대시보드에서 확인하세요.";
   if (code === "CF-04015" || code.startsWith("CF-0401")) return "Connected ID/인증 정보가 만료. 설정 → API 연동에서 홈택스 계정을 다시 등록하세요.";
+  if (code === "CF-05001") return "공동인증서가 팝빌에 등록되지 않았습니다. 이 화면의 '① 발행 등록 (회원가입+인증서)' 버튼을 눌러 뜨는 팝업에서 인증서를 먼저 등록하세요. (윈도우 PC 전용, URL 30초 유효 — 전자세금용/표준/범용 인증서만 가능, 인터넷뱅킹·보험·증권·우체국용 인증서는 등록 불가)";
   if (code.startsWith("CF-03") || code.startsWith("CF-04")) return "인증 실패. 공동인증서 상태/비밀번호를 확인하세요.";
   if (code.startsWith("CF-12")) return "기관(국세청) 응답 지연/오류. 점검 시간을 피해 재시도하세요.";
   return `CODEF 발행 오류 (${code}). 자세한 내용은 nts_response_payload 또는 CODEF 대시보드 오류 로그를 확인하세요.`;
