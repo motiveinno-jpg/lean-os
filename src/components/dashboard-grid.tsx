@@ -36,12 +36,13 @@ function buildDefault(cat: CatalogWidget[]): Layout[] {
 }
 
 export function DashboardGrid({
-  storageKey, catalog, defaultActiveIds, title = "",
+  storageKey, catalog, defaultActiveIds, title = "", recommended = [],
 }: {
   storageKey: string;
   catalog: CatalogWidget[];
   defaultActiveIds: string[];
   title?: string;
+  recommended?: string[]; // 지금 신호가 있어 추천하는 위젯 id(비활성일 때만 편집모드 칩·picker 상단 노출)
 }) {
   const [edit, setEdit] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -76,6 +77,20 @@ export function DashboardGrid({
     () => catalog.filter((c) => !activeIds.includes(c.id)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeIds, catalogIds],
+  );
+
+  // 추천(신호 있음 + 현재 비활성) — 편집모드 칩 + picker 상단.
+  const recSet = recommended.join(",");
+  const recAddable = useMemo(
+    () => addable.filter((c) => recommended.includes(c.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [addable, recSet],
+  );
+  // picker 정렬 — 추천을 위로.
+  const pickerList = useMemo(
+    () => [...addable].sort((a, b) => (recommended.includes(b.id) ? 1 : 0) - (recommended.includes(a.id) ? 1 : 0)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [addable, recSet],
   );
 
   // 렌더용 배치 — 활성 위젯마다 항상 항목 보장(저장분 우선, 없으면 기본값).
@@ -139,12 +154,15 @@ export function DashboardGrid({
             {addable.length === 0 ? (
               <div className="text-[12px] text-[var(--text-dim)] text-center py-6">추가할 수 있는 위젯이 없습니다.<br />모든 위젯이 이미 표시 중입니다.</div>
             ) : (
-              addable.map((c) => (
+              pickerList.map((c) => (
                 <button key={c.id} onClick={() => addWidget(c.id)}
                   className="w-full flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[var(--bg-surface)] transition">
                   <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[14px] shrink-0">{c.icon || "🧩"}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[12px] font-bold text-[var(--text)] truncate">{c.name}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-[12px] font-bold text-[var(--text)] truncate">{c.name}</span>
+                      {recommended.includes(c.id) && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)]">추천</span>}
+                    </span>
                     {c.desc && <span className="block text-[11px] text-[var(--text-dim)] truncate">{c.desc}</span>}
                   </span>
                   <span className="text-[16px] text-[var(--primary)] font-bold shrink-0 leading-none mt-1">＋</span>
@@ -171,6 +189,18 @@ export function DashboardGrid({
   return (
     <div className={`dashboard-grid ${edit ? "rgl-editing" : ""}`}>
       {Header}
+      {/* 상황 기반 추천 — 신호가 있는데 꺼진 위젯을 편집모드에서 원클릭 추가 칩으로 안내 */}
+      {edit && recAddable.length > 0 && (
+        <div className="mb-3 flex items-center gap-1.5 flex-wrap text-[11px]">
+          <span className="text-[var(--text-dim)]">💡 지금 유용한 위젯:</span>
+          {recAddable.map((c) => (
+            <button key={c.id} onClick={() => addWidget(c.id)}
+              className="no-drag inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition">
+              {c.icon} {c.name} 추가 ＋
+            </button>
+          ))}
+        </div>
+      )}
       <RGL
         className="layout"
         layout={effective}

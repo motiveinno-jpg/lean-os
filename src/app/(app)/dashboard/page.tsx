@@ -540,7 +540,11 @@ export default function DashboardPage() {
               { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 5, render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
             ];
             const defaultActiveIds = ["attendance", "calendar", "work-tasks", "projects", "revenue", "tax", "biz", "receivables", "assets", "cards"];
-            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={catalog} defaultActiveIds={defaultActiveIds} />;
+            // 상황 기반 추천 — 신호가 있는 위젯을 편집모드에서 추천(비활성일 때만 칩 노출).
+            const recommended: string[] = [];
+            if ((dashboard.sixPack.arOver30 ?? 0) > 0) recommended.push("receivables");
+            if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
+            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={catalog} defaultActiveIds={defaultActiveIds} recommended={recommended} />;
           })()}
         </div>
       )}
