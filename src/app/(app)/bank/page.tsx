@@ -442,14 +442,14 @@ export default function BankPage() {
         <span className="stat-tile-label">{label}</span>
         <span className={`kpi-icon ${tone}`}>{icon}</span>
       </div>
-      <div className="flex items-end gap-2">
-        <span className="stat-tile-value mono-number">{value}</span>
+      <div className="flex items-end gap-2 min-w-0">
+        <span className="stat-tile-value mono-number truncate min-w-0">{value}</span>
         {delta != null ? (
-          <span className={`delta-chip ${(invertDeltaColor ? delta < 0 : delta >= 0) ? "delta-up" : "delta-down"} mb-1`}>
+          <span className={`delta-chip shrink-0 ${(invertDeltaColor ? delta < 0 : delta >= 0) ? "delta-up" : "delta-down"} mb-1`}>
             {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(1)}%
           </span>
         ) : sub ? (
-          <span className="text-[11px] text-[var(--text-dim)] mb-1.5">{sub}</span>
+          <span className="text-[11px] text-[var(--text-dim)] mb-1.5 shrink-0">{sub}</span>
         ) : null}
       </div>
     </div>
@@ -480,7 +480,7 @@ export default function BankPage() {
         {/* 우측 — [연동 기간] + [통장 연동] 한 묶음. 이 기간이 곧 CODEF 연동 대상 범위라 버튼 옆에 배치. */}
         <div className="flex flex-wrap items-center gap-2">
           {tab === "accounts" && (
-            <div className="no-print flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div className="no-print flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
               <span className="text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap">거래기간</span>
               <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="연동 시작일"
                 className="px-2 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
@@ -633,7 +633,7 @@ export default function BankPage() {
                     )}
                   </div>
                 </div>
-                <p className="text-lg font-bold text-[var(--text)] mb-1.5 mono-number">{fmtW(bal)}</p>
+                <p className="text-lg font-bold text-[var(--text)] mb-1.5 mono-number truncate">{fmtW(bal)}</p>
                 {Math.round(change) !== 0 ? (
                   <div className={`delta-chip ${change >= 0 ? "delta-up" : "delta-down"}`}>
                     {change >= 0 ? "+" : "-"}{fmtW(Math.abs(change))}
@@ -654,7 +654,7 @@ export default function BankPage() {
       {tab === "transactions" && (
         <>
           {/* 직원 QA #2 — 거래내역 탭에서 조회기간 직접 설정 (표 필터). 통장 탭의 sync 범위와 동일 상태 공유 */}
-          <div className="no-print flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="no-print flex flex-wrap items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
             <span className="text-xs font-semibold text-[var(--text-muted)]">조회기간</span>
             <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="시작일"
               className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
