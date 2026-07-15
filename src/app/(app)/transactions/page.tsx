@@ -32,6 +32,15 @@ type FilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'igno
 type CardFilterStatus = 'all' | 'unmapped' | 'auto_mapped' | 'manual_mapped' | 'ignored';
 
 const BANK_TABS: Tab[] = ['inbox', 'all', 'manual', 'rules'];
+
+// AI 제안 계정과목 code → 한글 라벨(엣지 classify-transactions 의 ACCOUNT_CATEGORIES 와 동기화). 확정 시 이 라벨로 분류.
+const AI_CATEGORY_LABEL: Record<string, string> = {
+  revenue: "매출", other_revenue: "기타수익", outsourcing: "외주비", infrastructure: "인프라/서버",
+  salary: "급여/인건비", rent: "임대료/관리비", software: "소프트웨어/SaaS", professional: "전문서비스",
+  welfare: "복리후생", insurance: "4대보험", marketing: "마케팅/광고", supplies: "소모품/사무용품",
+  travel: "출장/교통비", communication: "통신비", tax: "세금/공과금", depreciation: "감가상각비",
+  interest: "이자비용", other_expense: "기타 운영비",
+};
 const CARD_TABS: Tab[] = ['cards'];
 
 interface TransactionsViewProps {
@@ -87,6 +96,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const [codefSyncing, setCodefSyncing] = useState(false);
   const [bankFetching, setBankFetching] = useState(false);
   const [aiClassifying, setAiClassifying] = useState(false);
+  // AI 제안(suggest 모드) — DB 미적용, 화면에만 추천 보관. 확정은 사람이 [확정] 클릭.
+  const [aiSug, setAiSug] = useState<Record<string, { category: string; confidence: number }>>({});
+  const [aiSugLoading, setAiSugLoading] = useState(false);
   // Manual entry state
   const [manualForm, setManualForm] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -708,6 +720,41 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     },
     onError: (err: any) => toast("카드 거래 무시 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
+
+  // AI 추천 받기(제안 모드) — 미분류 지출 최대 20건에 AI 계정과목 추천을 받아 화면에만 보관(확정은 사람).
+  const runAiSuggest = useCallback(async () => {
+    if (!companyId) return;
+    setAiSugLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { toast("로그인이 필요합니다", "error"); return; }
+      const ids = (bankTx as any[]).filter((t) => t.mapping_status === 'unmapped' && t.type === 'expense').slice(0, 20).map((t) => t.id);
+      if (ids.length === 0) { toast("추천할 미분류 지출이 없습니다", "info"); return; }
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/classify-transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ transaction_ids: ids, suggest: true }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "AI 추천 실패");
+      const map: Record<string, { category: string; confidence: number }> = {};
+      for (const r of (result.results || [])) map[r.id] = { category: r.category, confidence: r.confidence };
+      setAiSug((prev) => ({ ...prev, ...map }));
+      toast(Object.keys(map).length > 0 ? `AI 추천 ${Object.keys(map).length}건 — 확인 후 [확정]하세요` : "AI가 추천할 거래를 찾지 못했습니다", Object.keys(map).length > 0 ? "success" : "info");
+    } catch (err: any) {
+      toast(friendlyError(err, "AI 추천 실패"), "error");
+    } finally {
+      setAiSugLoading(false);
+    }
+  }, [companyId, bankTx]);
+
+  // AI 추천 확정 — 사람이 [확정] 클릭 시 그 계정과목(한글 라벨)으로 분류(+학습). mapMut 재사용.
+  const confirmAiSug = useCallback((txId: string, code: string, confidence: number) => {
+    const label = AI_CATEGORY_LABEL[code] || code;
+    void confidence; // (확정 시엔 라벨만 저장 — 수동 분류와 동일 형식으로 일관 + 학습)
+    mapMut.mutate({ id: txId, category: label, classification: label });
+    setAiSug((prev) => { const n = { ...prev }; delete n[txId]; return n; });
+  }, [mapMut]);
 
   const cardRestoreMut = useMutation({
     mutationFn: (id: string) => restoreCardTransaction(id),
@@ -1592,6 +1639,13 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                       거래처순 {bankSortBy === 'counterparty' ? (bankSortDir === 'asc' ? '↑' : '↓') : ''}
                     </button>
                   </div>
+                  {tab === 'inbox' && (
+                    <button onClick={runAiSuggest} disabled={aiSugLoading}
+                      className="ai-suggest-btn ml-auto btn-secondary btn-sm inline-flex items-center gap-1 disabled:opacity-50"
+                      title="미분류 지출(최대 20건)에 AI 계정과목 추천 — 확정은 직접">
+                      {aiSugLoading ? "AI 추천 중…" : "🤖 AI 추천 받기"}
+                    </button>
+                  )}
                 </div>
 
                 {/* 거래 카드 행 (시안) */}
@@ -1602,8 +1656,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     : tx.mapping_status === 'manual_mapped' ? { c: 'bg-[var(--success)]/10 text-[var(--success)]', t: '수동' }
                     : { c: 'bg-[var(--text-muted)]/10 text-[var(--text-muted)]', t: '무시' };
                   return (
-                    <div key={tx.id} onClick={() => setMapModal(tx)} title="클릭해서 분류·매핑"
-                      className="bank-tx-row group glass-card p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:shadow-md">
+                    <div key={tx.id}
+                      className="bank-tx-row group glass-card p-4 transition-all duration-200 hover:shadow-md">
+                      <div className="tx-row-main flex items-center gap-3 cursor-pointer" onClick={() => setMapModal(tx)} title="클릭해서 상세 분류">
                       {tab === 'inbox' && tx.mapping_status === 'unmapped' && (
                         <input type="checkbox" checked={selectedIds.has(tx.id)} onClick={e => e.stopPropagation()}
                           onChange={e => { const next = new Set(selectedIds); if (e.target.checked) next.add(tx.id); else next.delete(tx.id); setSelectedIds(next); }}
@@ -1649,6 +1704,23 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                         </p>
                         {tab !== 'inbox' && <p className="text-[10px] text-[var(--text-dim)] mono-number mt-0.5 hidden md:block">잔액 ₩{Number(tx.balance_after || 0).toLocaleString()}</p>}
                       </div>
+                      </div>
+                      {/* AI 추천(제안) — 사람이 [확정] 클릭해야 적용(확정은 사람). 미분류 지출 + 추천 있을 때만. */}
+                      {tab === 'inbox' && tx.mapping_status === 'unmapped' && tx.type === 'expense' && aiSug[tx.id] && (() => {
+                        const s = aiSug[tx.id];
+                        const label = AI_CATEGORY_LABEL[s.category] || s.category;
+                        return (
+                          <div className="tx-ai-suggestion mt-2.5 pt-2.5 border-t border-[var(--border)] flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}>🤖 AI 추천</span>
+                            <span className="text-[12px] font-bold text-[var(--text)]">{label}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{s.confidence}%</span>
+                            <button onClick={() => confirmAiSug(tx.id, s.category, s.confidence)}
+                              className="ml-auto px-3 py-1 rounded-lg text-[11px] font-bold text-white bg-[var(--primary)] hover:opacity-90 transition">확정</button>
+                            <button onClick={() => setMapModal(tx)}
+                              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">수정</button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}

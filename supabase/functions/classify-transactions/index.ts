@@ -141,6 +141,8 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json().catch(() => ({}));
     const txIds: string[] | undefined = body.transaction_ids;
+    // 제안 모드(suggest:true) — DB에 적용하지 않고 추천만 반환. 확정은 사람이 UI에서(확정은 사람 원칙).
+    const suggestOnly = body.suggest === true;
 
     let query = supabase
       .from("bank_transactions")
@@ -169,18 +171,20 @@ Deno.serve(async (req: Request) => {
     const classifications = await classifyWithClaude(transactions as TxRow[]);
 
     let classified = 0;
-    for (const [txId, result] of Object.entries(classifications)) {
-      const { error: updateErr } = await supabase
-        .from("bank_transactions")
-        .update({
-          category: result.category,
-          classification: `ai_classified (${result.confidence}%)`,
-          mapping_status: result.confidence >= 70 ? "auto_mapped" : "unmapped",
-        })
-        .eq("id", txId)
-        .eq("company_id", userData.company_id);
+    if (!suggestOnly) {
+      for (const [txId, result] of Object.entries(classifications)) {
+        const { error: updateErr } = await supabase
+          .from("bank_transactions")
+          .update({
+            category: result.category,
+            classification: `ai_classified (${result.confidence}%)`,
+            mapping_status: result.confidence >= 70 ? "auto_mapped" : "unmapped",
+          })
+          .eq("id", txId)
+          .eq("company_id", userData.company_id);
 
-      if (!updateErr) classified++;
+        if (!updateErr) classified++;
+      }
     }
 
     return new Response(JSON.stringify({
