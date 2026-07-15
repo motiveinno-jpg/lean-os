@@ -112,6 +112,18 @@ function PopupWindow({ win }: { win: Win }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [win.id]);
 
+  // 새 OS 창으로 분리 — window.open 은 진짜 브라우저 창이라 모니터 밖·다른 화면까지 이동 가능(OS 창 컨트롤 제공).
+  const detach = (w: Win) => {
+    const width = w.max ? 1024 : w.w;
+    const height = w.max ? 720 : w.h;
+    const left = (window.screenX || 0) + (w.max ? 60 : w.x);
+    const top = (window.screenY || 0) + (w.max ? 60 : w.y) + 72; // 대략 브라우저 크롬 높이 보정
+    const feat = `popup=yes,noopener=no,width=${width},height=${height},left=${Math.max(0, left)},top=${Math.max(0, top)}`;
+    const wref = window.open(`${w.href}?embed=1`, `ovpop-${w.id}`, feat);
+    if (wref) close(w.id); // 성공 시 인앱 팝업 닫음. 차단되면(null) 인앱 팝업 유지.
+    else alert("팝업 차단으로 새 창을 열 수 없습니다. 브라우저 팝업 허용 후 다시 시도해주세요.");
+  };
+
   if (win.min) return null;
 
   const style: React.CSSProperties = win.max
@@ -127,6 +139,10 @@ function PopupWindow({ win }: { win: Win }) {
       <div className="popup-titlebar flex items-center gap-1 h-9 pl-3 pr-1.5 bg-[var(--bg-surface)] border-b border-[var(--border)] cursor-move select-none shrink-0"
         onMouseDown={begin("move")} onDoubleClick={() => toggleMax(win.id)}>
         <span className="text-[12px] font-bold text-[var(--text)] truncate flex-1">{win.title}</span>
+        <button onClick={() => detach(win)} title="새 창으로 분리 (브라우저 밖으로 이동 가능)"
+          className="w-7 h-7 rounded flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--primary)] transition">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3h7v7" /><path d="M21 3l-9 9" /><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5" /></svg>
+        </button>
         <button onClick={() => toggleMin(win.id)} title="최소화"
           className="w-7 h-7 rounded flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text)] transition">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="5" y1="19" x2="19" y2="19" /></svg>
