@@ -12,7 +12,8 @@ const securityHeaders = [
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net",
       "frame-src 'self' blob: https://*.daumcdn.net https://*.daum.net https://*.kakao.com",
-      "frame-ancestors 'none'",
+      // 'self' — 자사 페이지가 자사 페이지를 iframe 으로 임베드(메뉴 팝업 기능) 허용. 외부 출처 임베드는 여전히 차단.
+      "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",
     ].join("; "),
@@ -22,8 +23,9 @@ const securityHeaders = [
     value: "nosniff",
   },
   {
+    // SAMEORIGIN — 메뉴 팝업(자사 iframe) 허용. 외부 사이트의 임베드는 차단(클릭재킹 방어 유지).
     key: "X-Frame-Options",
-    value: "DENY",
+    value: "SAMEORIGIN",
   },
   {
     key: "X-XSS-Protection",

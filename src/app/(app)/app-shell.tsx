@@ -18,6 +18,7 @@ import { OwnerViewIcon } from "@/components/brand-logo";
 import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
 import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
+import { PopupProvider, PopupWindowsHost } from "@/components/popup-windows";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { AccessDenied } from "@/components/access-denied";
 import { useMyTabOverrides, effectiveTabAccess, matchGrantableRoute } from "@/lib/tab-access";
@@ -188,6 +189,10 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const isLimitedRole = role === "partner" || role === "employee";
   const [mutationError, setMutationError] = useState<string | null>(null);
 
+  // 팝업 임베드 모드 — 메뉴 팝업 iframe(`?embed=1`)로 열렸을 땐 셸 크롬(사이드바/헤더/네비/플로팅) 숨기고
+  //   페이지 본문만 렌더. useState 지연 초기화로 최초 마운트 시 1회 확정(iframe 내부 이동에도 유지).
+  const [isEmbed] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1");
+
   // 라운드6.5 TeamHub 헤더바 — 브레드크럼. 알림 벨 배지/최근목록은 NotificationBell 컴포넌트가 자체 관리.
   const crumb = getRouteCrumb(pathname);
 
@@ -260,6 +265,19 @@ function AppContent({ children }: { children: React.ReactNode }) {
       window.removeEventListener("unhandledrejection", onRejection);
     };
   }, []);
+
+  // ── 팝업 임베드 모드 — 크롬 없이 본문만(권한·구독 게이트는 유지) ──
+  if (isEmbed) {
+    return (
+      <div className="embed-page min-h-screen p-4 md:p-5">
+        <div className="app-content-scale w-full max-w-[1440px]">
+          <RouteGuard>
+            <SubscriptionGate>{children}</SubscriptionGate>
+          </RouteGuard>
+        </div>
+      </div>
+    );
+  }
 
   return (
     // 새 디자인 시스템(시안) — 전 페이지 공통 배경: 그라데이션 + 점 패턴 + 그라데이션 orbs.
@@ -386,6 +404,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <GlobalSearch />
       {/* 플로팅 팝업 메신저 — 영속 셸 마운트(페이지 이동에도 유지). 데스크톱 전용, /chat 에선 숨김. */}
       <FloatingMessenger />
+      {/* 메뉴 팝업 창 — 사이드바에서 팝업으로 연 메뉴들(드래그·최소/최대/닫기). 셸 상주로 페이지 이동에도 유지. */}
+      <PopupWindowsHost />
       {/* 글로벌 Mutation 에러 토스트 */}
       {mutationError && (
         <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-red-500/95 text-white text-xs font-medium shadow-lg max-w-sm text-center animate-[slide-in_0.3s_ease]">
@@ -424,9 +444,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <UserProvider>
       <SidebarProvider>
         <BoardProvider>
-          <GuideProvider>
-            <AppContent>{children}</AppContent>
-          </GuideProvider>
+          <PopupProvider>
+            <GuideProvider>
+              <AppContent>{children}</AppContent>
+            </GuideProvider>
+          </PopupProvider>
           {/* 페이지 무관 백그라운드 sync chain — 어떤 페이지에서든 작동 */}
           <HometaxBackgroundChain />
         </BoardProvider>

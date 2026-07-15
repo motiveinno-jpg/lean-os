@@ -13,6 +13,7 @@ import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
 import { matchGrantableRoute, effectiveTabAccess, useMyTabOverrides } from "@/lib/tab-access";
+import { usePopups } from "@/components/popup-windows";
 
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; children?: NavItem[] };
 type NavGroup = { label: string; items: NavItem[] };
@@ -264,6 +265,7 @@ export function Sidebar() {
   const { collapsed, toggleSidebar, mobileOpen, setMobileOpen, pinnedPages, togglePin, isPinned } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const { user, role } = useUser();
+  const popups = usePopups(); // 메뉴 팝업 열기 (셸 PopupProvider). null 가능(안전 처리).
   const [chatUnread, setChatUnread] = useState(0);
   const [approvalsPending, setApprovalsPending] = useState(0);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
@@ -318,6 +320,16 @@ export function Sidebar() {
               </>
             )}
           </Link>
+          {/* 팝업으로 열기 — hover 시 우측에 등장. 현재 페이지 유지하며 이 메뉴를 플로팅 창으로. */}
+          {!collapsed && popups && (
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); popups.open(item.href, item.label); }}
+              className="absolute right-7 top-1/2 -translate-y-1/2 p-1 rounded text-[var(--text-dim)] opacity-0 group-hover:opacity-70 hover:!opacity-100 hover:text-[var(--primary)] hover:bg-[var(--bg-elevated)] transition-all"
+              title="팝업 창으로 열기" aria-label={`${item.label} 팝업으로 열기`}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18" /><path d="M13 13h4v4" /><path d="M17 13l-4 4" />
+              </svg>
+            </button>
+          )}
           {!collapsed && hasChildren ? (
             <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleParent(item.href); }}
               className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded text-[var(--text-dim)] hover:text-[var(--text)]" title={open ? "접기" : "펼치기"}>
