@@ -1574,7 +1574,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             </div>
           )}
 
-          <div className="bank-tx-list-card glass-card overflow-hidden">
+          <div className="bank-tx-list-card glass-card overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[440px]">
             {isLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : filteredBankTx.length === 0 ? (
@@ -1584,9 +1584,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 desc={tab === 'inbox' ? '모든 거래가 분류되었습니다.' : searchQuery ? '다른 키워드로 검색해보세요.' : 'CSV를 업로드하거나 n8n 자동 수집을 설정하세요'}
               />
             ) : (
-              <div className="overflow-auto max-h-[600px] space-y-2.5 pr-1">
-                {/* 정렬·전체선택 툴바 (시안) */}
-                <div className="bank-tx-sort-toolbar flex items-center gap-2 pb-1 text-xs">
+              <>
+                {/* 정렬·전체선택 툴바 — 스크롤과 분리해 항상 상단 고정 */}
+                <div className="bank-tx-sort-toolbar shrink-0 flex items-center gap-2 px-3 pt-3 pb-2 text-xs border-b border-[var(--border)]">
                   {tab === 'inbox' && (
                     <label className="flex items-center gap-1.5 text-[var(--text-muted)] cursor-pointer mr-1">
                       <input type="checkbox"
@@ -1624,6 +1624,8 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   )}
                 </div>
 
+                {/* 스크롤 영역 — 거래 행만(툴바·합계는 고정) */}
+                <div className="overflow-auto flex-1 space-y-2.5 p-3">
                 {/* 거래 카드 행 (시안) */}
                 {filteredBankTx.map((tx: any) => {
                   const isIncome = tx.type === 'income';
@@ -1700,6 +1702,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     </div>
                   );
                 })}
+                </div>
 
                 {(() => {
                   const sumIncome = filteredBankTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
@@ -1707,7 +1710,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   const net = sumIncome - sumExpense;
                   const selSum = filteredBankTx.filter((t: any) => selectedIds.has(t.id)).reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
                   return (
-                    <div className="bank-tx-summary-bar sticky bottom-0 glass-card p-3 flex flex-wrap items-center justify-between gap-2 text-xs mt-1">
+                    <div className="bank-tx-summary-bar shrink-0 border-t border-[var(--border)] p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
                       <span className="text-[var(--text-dim)] uppercase tracking-wider">
                         합계 ({filteredBankTx.length}건)
                         {selectedIds.size > 0 && <span className="ml-2 text-[var(--primary)] font-semibold">· 선택 {selectedIds.size}건 ₩{selSum.toLocaleString()}</span>}
@@ -1722,7 +1725,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                     </div>
                   );
                 })()}
-              </div>
+              </>
             )}
           </div>
 
