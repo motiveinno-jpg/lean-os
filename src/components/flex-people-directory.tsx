@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { EmployeeDetailPanel } from "@/app/(app)/employees/_components/EmployeeDetailPanel";
 
 const db = supabase as any;
 
@@ -68,6 +69,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
   const [statusF, setStatusF] = useState<"active" | "all" | "left">("active");
   const [view, setView] = useState<"card" | "list">("card");
   const [sel, setSel] = useState<Emp | null>(null);
+  const [contractsEmpId, setContractsEmpId] = useState<string | null>(null);
 
   const depts = useMemo(() => [...new Set(employees.map((e) => e.department).filter(Boolean))] as string[], [employees]);
 
@@ -181,12 +183,29 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
       )}
 
       {/* ── 프로필 슬라이드 패널 ── */}
-      {sel && <ProfilePanel companyId={companyId} emp={sel} isManager={isManager} onClose={() => setSel(null)} />}
+      {sel && (
+        <ProfilePanel
+          companyId={companyId}
+          emp={sel}
+          isManager={isManager}
+          onClose={() => setSel(null)}
+          onOpenContracts={(id) => { setSel(null); setContractsEmpId(id); }}
+        />
+      )}
+
+      {/* ── 직원 상세(계약서 탭) — 디렉토리에서 "계약서" 클릭 시 ── */}
+      {contractsEmpId && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40" onClick={() => setContractsEmpId(null)}>
+          <div className="w-full max-w-5xl my-6" onClick={(e) => e.stopPropagation()}>
+            <EmployeeDetailPanel employeeId={contractsEmpId} companyId={companyId} initialTab="contracts" onClose={() => setContractsEmpId(null)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ProfilePanel({ companyId, emp, isManager, onClose }: { companyId: string; emp: Emp; isManager: boolean; onClose: () => void }) {
+function ProfilePanel({ companyId, emp, isManager, onClose, onOpenContracts }: { companyId: string; emp: Emp; isManager: boolean; onClose: () => void; onOpenContracts: (employeeId: string) => void }) {
   const sm = statusMeta(emp.status);
   const year = new Date().getFullYear();
 
@@ -280,7 +299,7 @@ function ProfilePanel({ companyId, emp, isManager, onClose }: { companyId: strin
           </Link>
           {isManager && (
             <div className="grid grid-cols-2 gap-2">
-              <Link href="/employees?tab=contracts" className="text-center px-3 py-2 rounded-xl text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">계약서</Link>
+              <button onClick={() => onOpenContracts(emp.id)} className="text-center px-3 py-2 rounded-xl text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">계약서</button>
               <Link href="/employees?tab=payroll" className="text-center px-3 py-2 rounded-xl text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">급여명세</Link>
             </div>
           )}

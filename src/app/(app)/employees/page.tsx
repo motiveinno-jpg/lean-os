@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { friendlyError } from "@/lib/friendly-error";
 import {
-  getSalaryHistory, addSalaryRecord, getActiveContracts,
+  getSalaryHistory, addSalaryRecord,
   // Attendance & Leave
   getAttendanceRecords, getMonthlyAttendanceSummary,
   recomputeAttendance,
@@ -24,7 +24,6 @@ import {
   // Leave Promotion
   getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
 } from "@/lib/hr";
-import { ContractTab } from "./_components/ContractTab";
 import { EmployeeDetailPanel } from "./_components/EmployeeDetailPanel";
 import { MemberRoleManager } from "./_components/MemberRoleManager";
 import {
@@ -47,12 +46,12 @@ import {
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
 import { useConfirm } from "@/components/confirm-dialog";
-import { PayrollHero, ContractsHero, CertificatesHero } from "@/components/flex-hr-heroes";
+import { PayrollHero, CertificatesHero } from "@/components/flex-hr-heroes";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
 
-type Tab = "employees" | "salary" | "payroll" | "contracts" | "expenses" | "leave" | "certificates";
+type Tab = "employees" | "salary" | "payroll" | "expenses" | "leave" | "certificates";
 
 // Employee 역할은 자기 관련 탭만 접근 가능
 // 근태 관리는 /attendance 별도 페이지로 분리됨. employees 페이지엔 휴가/경비/증명서만.
@@ -67,7 +66,7 @@ export default function EmployeesPage() {
   const sp = useSearchParams();
   const urlTab = sp?.get('tab') as Tab | null;
   const isValidTab = (t: string | null): t is Tab =>
-    !!t && (['employees','salary','payroll','contracts','expenses','leave','certificates'] as const).includes(t as Tab);
+    !!t && (['employees','salary','payroll','expenses','leave','certificates'] as const).includes(t as Tab);
   // V1: '급여이력' 완전 제거. '급여' 탭 = 급여 명세(PayrollPreviewTab)만.
   //   ?tab=salary / ?tab=payroll 딥링크 모두 '급여' 탭(명세)으로 정규화.
   const normalizeTab = (t: Tab): Tab => (t === "payroll" ? "salary" : t);
@@ -119,13 +118,6 @@ export default function EmployeesPage() {
   // 플렉스 스타일: 인력관리 탭 = [디렉토리](카드·프로필 패널) 기본 / [관리·수정](기존 EmployeeTab) 토글
   const [empView, setEmpView] = useState<"dir" | "manage">("dir");
 
-  // ── Contracts ──
-  const { data: contracts = [] } = useQuery({
-    queryKey: ["contracts", companyId],
-    queryFn: () => getActiveContracts(companyId!),
-    enabled: !!companyId && tab === "contracts",
-  });
-
   // ── Expenses ──
   const { data: expenses = [] } = useQuery({
     queryKey: ["expenses", companyId],
@@ -141,7 +133,6 @@ export default function EmployeesPage() {
   const allTabs: { key: Tab; label: string; count?: number }[] = [
     { key: "employees", label: "인력관리", count: activeCount },
     { key: "salary", label: "급여" },
-    { key: "contracts", label: "계약서" },
     { key: "certificates", label: "증명서 발급" },
   ];
   const tabs = isEmployee ? allTabs.filter(t => EMPLOYEE_ROLE_TABS.includes(t.key)) : allTabs;
@@ -257,13 +248,9 @@ export default function EmployeesPage() {
         </>
       )}
 
-      {effectiveTab === "contracts" && (
-        <>
-          <ContractsHero contracts={contracts} />
-          <div className="flex-skin"><ContractTab employees={employees} contracts={contracts} companyId={companyId} queryClient={queryClient} /></div>
-        </>
-      )}
       {/* 경비청구 탭은 구성원에서 제거(2026-06-29) — 경비/지출결의는 결재관리(/approvals)에서 처리(2026-07-08 이관). 미결 경비 요약 카드는 상단 유지. 휴가 탭은 근태관리로 이동. */}
+      {/* 계약서 탭은 구성원에서 제거(2026-07-15) — 개별 발송은 인력관리 > 디렉토리에서 직원 선택 후 계약서 탭으로,
+          서식 관리/회사 문서/발송 현황(일괄발송)은 인사관리 > 양식 관리(/hr-templates)로 이관됨. */}
       {effectiveTab === "certificates" && (
         <>
           <CertificatesHero companyId={companyId} />

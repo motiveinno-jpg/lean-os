@@ -62,6 +62,36 @@ export const CONTRACT_TEMPLATE_CATEGORIES = [
   { value: 'comprehensive_labor', label: '포괄임금 근로계약서' },
 ] as const;
 
+// ── Contract Field Table — 계약서 발송 시 채워 넣는 변수 입력 폼(직원상세패널 "+ 계약서 보내기"에서 사용) ──
+
+export type ContractFieldType = "text" | "date" | "number" | "select";
+export interface ContractField {
+  key: string;          // 템플릿 변수 키 (영문 가능)
+  label: string;        // 표시 + {{label}} 변수
+  type: ContractFieldType;
+  value: string;
+  included: boolean;
+  options?: string[];   // type=select 용
+  custom?: boolean;     // 사용자 추가 필드
+}
+
+export function buildDefaultContractFields(emp: any | null): ContractField[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const year = new Date().getFullYear();
+  return [
+    { key: "직원명", label: "구성원 이름", type: "text", value: emp?.name || "", included: true },
+    { key: "계약일", label: "계약일", type: "date", value: today, included: true },
+    { key: "생년월일", label: "생년월일", type: "date", value: emp?.birth_date || "", included: true },
+    { key: "수습시작일", label: "수습기간 시작일", type: "date", value: "", included: true },
+    { key: "수습종료일", label: "수습기간 종료일", type: "date", value: "", included: true },
+    { key: "수습급여율", label: "수습기간 급여지급률", type: "text", value: "90%", included: true },
+    { key: "직무", label: "직무", type: "text", value: emp?.position || emp?.department || "", included: true },
+    { key: "계약시작일", label: "임금계약 시작일", type: "date", value: `${year}-01-01`, included: true },
+    { key: "급여기준", label: "급여기준", type: "select", value: "연봉", included: true, options: ["연봉", "월급", "시급"] },
+    { key: "계약금액", label: "계약 금액", type: "number", value: emp?.salary ? String(Number(emp.salary) * 12) : "", included: true },
+  ];
+}
+
 // ── Built-in HR Document Templates (fallback when DB is empty) ──
 
 export interface BuiltInTemplate {

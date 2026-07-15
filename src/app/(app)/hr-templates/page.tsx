@@ -9,8 +9,10 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocTemplates } from "@/lib/queries";
+import { getActiveContracts } from "@/lib/hr";
 import { TemplatesTab } from "@/components/templates-tab";
 import { HrFormManager } from "@/components/hr-form-manager";
+import { ContractAdminPanel } from "./_components/ContractAdminPanel";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 
@@ -35,6 +37,12 @@ export default function HrTemplatesPage() {
     enabled: !!companyId,
   });
 
+  const { data: contracts = [] } = useQuery({
+    queryKey: ["contracts", companyId],
+    queryFn: () => getActiveContracts(companyId!),
+    enabled: !!companyId,
+  });
+
   // 외부 파트너 차단 (인사 양식은 회사 관리자 전용)
   if (role === "partner" || role === "employee") {
     return <AccessDenied detail="인사 양식 관리는 회사 관리자 전용입니다." />;
@@ -53,6 +61,8 @@ export default function HrTemplatesPage() {
           />
           {/* PDF 양식 — 회사 PDF를 올려 채울 필드를 지정해 재사용 양식으로 저장 */}
           <HrFormManager companyId={companyId} />
+          {/* 전자계약 서식/회사 문서/발송 현황 — 구성원 계약서 탭에서 이관(2026-07-15) */}
+          <ContractAdminPanel companyId={companyId} contracts={contracts} />
         </>
       ) : (
         <div className="py-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>

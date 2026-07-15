@@ -1,75 +1,28 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { DateField } from "@/components/date-field";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/components/user-context";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
-import { createContract, CONTRACT_TYPES } from "@/lib/hr";
-import { getContractPackages, createContractPackage, sendContractPackage, getContractTemplates, cancelContractPackage, PACKAGE_STATUS } from "@/lib/hr-contracts";
+import { CONTRACT_TYPES } from "@/lib/hr";
+import { getContractPackages, sendContractPackage, getContractTemplates, cancelContractPackage, PACKAGE_STATUS } from "@/lib/hr-contracts";
 import type { RichEditorRef } from "@/components/rich-editor";
 
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
-// ── HR 기본 서식 정의 ──
-const HR_TEMPLATES = [
-  { key: "comprehensive_labor", label: "포괄근로계약서", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-  { key: "salary_contract", label: "연봉계약서", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
-  { key: "nda", label: "비밀유지서약서", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" },
-  { key: "non_compete", label: "겸업금지서약서", icon: "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" },
-  { key: "personal_info_consent", label: "개인정보이용동의서", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" },
-];
-
-// ── Contract Tab — 플렉스 스타일 계약 입력 필드 ──
-type ContractFieldType = "text" | "date" | "number" | "select";
-interface ContractField {
-  key: string;          // 템플릿 변수 키 (영문 가능)
-  label: string;        // 표시 + {{label}} 변수
-  type: ContractFieldType;
-  value: string;
-  included: boolean;
-  options?: string[];   // type=select 용
-  custom?: boolean;     // 사용자 추가 필드
-}
-
-function buildDefaultContractFields(emp: any | null): ContractField[] {
-  const today = new Date().toISOString().slice(0, 10);
-  const year = new Date().getFullYear();
-  return [
-    { key: "직원명", label: "구성원 이름", type: "text", value: emp?.name || "", included: true },
-    { key: "계약일", label: "계약일", type: "date", value: today, included: true },
-    { key: "생년월일", label: "생년월일", type: "date", value: emp?.birth_date || "", included: true },
-    { key: "수습시작일", label: "수습기간 시작일", type: "date", value: "", included: true },
-    { key: "수습종료일", label: "수습기간 종료일", type: "date", value: "", included: true },
-    { key: "수습급여율", label: "수습기간 급여지급률", type: "text", value: "90%", included: true },
-    { key: "직무", label: "직무", type: "text", value: emp?.position || emp?.department || "", included: true },
-    { key: "계약시작일", label: "임금계약 시작일", type: "date", value: `${year}-01-01`, included: true },
-    { key: "급여기준", label: "급여기준", type: "select", value: "연봉", included: true, options: ["연봉", "월급", "시급"] },
-    { key: "계약금액", label: "계약 금액", type: "number", value: emp?.salary ? String(Number(emp.salary) * 12) : "", included: true },
-  ];
-}
-
-export function ContractTab({ employees, contracts, companyId, queryClient }: any) {
+// ── 계약서/서약서 템플릿 편집 + 회사 문서 + 발송 현황 — 구성원 상세패널의 "+ 계약서 보내기"로
+//   개별 발송이 이관된 뒤, 회사 전체 관점(서식 관리·회사 문서·발송 현황/일괄발송)만 여기 남음.
+//   (2026-07-15 employees/_components/ContractTab.tsx 에서 이관)
+export function ContractAdminPanel({ companyId, contracts }: { companyId: string; contracts: any[] }) {
   const { toast } = useToast();
-  const { user } = useUser();
-  const [showCreate, setShowCreate] = useState(false);
-  const [reqForm, setReqForm] = useState({ employeeId: "", title: "", templateIds: [] as string[] });
+  const queryClient = useQueryClient();
   const [sending, setSending] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchSending, setBatchSending] = useState(false);
-  const [selectedHrTemplate, setSelectedHrTemplate] = useState<string | null>(null);
   const [sealApplying, setSealApplying] = useState<string | null>(null);
-  const [templatePreview, setTemplatePreview] = useState<{
-    salary: string;
-    workHours: string;
-    duty: string;
-    includeMealAllowance: boolean;
-  }>({ salary: "", workHours: "09:00~18:00", duty: "", includeMealAllowance: false });
-  const [wizardStep, setWizardStep] = useState(1); // 1: 대상 선택, 2: 서식 선택, 3: 미리보기/확인
   const [contractSubTab, setContractSubTab] = useState<"contracts" | "company_docs">("contracts");
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
@@ -80,21 +33,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
   const [newVarName, setNewVarName] = useState("");
   const [newVarDesc, setNewVarDesc] = useState("");
   const editorRef = useRef<RichEditorRef>(null);
-  // Flex 스타일 계약 입력 테이블 필드
-  const [contractFields, setContractFields] = useState<ContractField[]>(() => buildDefaultContractFields(null));
-  const [newFieldLabel, setNewFieldLabel] = useState("");
-  const [newFieldType, setNewFieldType] = useState<ContractFieldType>("text");
-
-  // 회사 직인 URL 로드 (계약완료 시 PDF/화면에 표시)
-  const { data: companySeal } = useQuery({
-    queryKey: ["company-seal", companyId],
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("companies").select("seal_url, name, representative").eq("id", companyId!).maybeSingle();
-      return data || null;
-    },
-    enabled: !!companyId,
-  });
-  void companySeal; // ContractTab 자체엔 직접 표시 안 함, sign 페이지에서 사용
 
   function startEditTemplate(t: any) {
     setEditingTemplateId(t.is_builtin ? null : t.id); // 내장은 신규 저장으로 떨어짐 (복제 편집)
@@ -126,7 +64,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
     enabled: !!companyId,
   });
 
-  // 계약서 서식 (활성만 — 발송 마법사용)
+  // 계약서 서식 (활성만)
   const { data: templates = [] } = useQuery({
     queryKey: ["contract-templates", companyId],
     queryFn: () => getContractTemplates(companyId!),
@@ -147,38 +85,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
     enabled: !!companyId,
   });
 
-  // 계약 요청 생성
-  const createContract = useMutation({
-    mutationFn: async () => {
-      const emp = employees.find((e: any) => e.id === reqForm.employeeId);
-      // 계약 필드 값 → variableOverrides 매핑 (체크된 필드만)
-      const overrides: Record<string, string> = {};
-      for (const f of contractFields) {
-        if (f.included && f.value) {
-          // key 와 한글 라벨 둘 다 등록 — 템플릿에서 {{key}} 또는 {{label}} 모두 동작하게.
-          overrides[f.label] = String(f.value);
-          if (f.key && f.key !== f.label) overrides[f.key] = String(f.value);
-        }
-      }
-      return createContractPackage({
-        companyId: companyId!,
-        employeeId: reqForm.employeeId,
-        title: reqForm.title || `${emp?.name || ""} ${new Date().getFullYear()}년 계약`,
-        templateIds: reqForm.templateIds,
-        createdBy: user?.id ?? null,
-        variableOverrides: overrides,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
-      setShowCreate(false);
-      setReqForm({ employeeId: "", title: "", templateIds: [] });
-      setContractFields(buildDefaultContractFields(null));
-    },
-    onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
-  });
-
-  // 서명 요청 발송
+  // 서명 요청 발송/재발송
   async function handleSendSignRequest(contractId: string) {
     setSending(contractId);
     try {
@@ -186,7 +93,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
       if (!result.success) {
         const msg = result.error || "알 수 없는 오류";
         console.error('[handleSendSignRequest] 실패:', msg);
-        // 메시지 종류별 안내
         if (/RESEND_API_KEY/i.test(msg)) {
           toast("Supabase secrets 에 RESEND_API_KEY 미등록 — Edge Function Secrets 페이지에서 등록하세요.", "error");
         } else if (/verify|verif|domain|not\s*verified/i.test(msg)) {
@@ -200,12 +106,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
         const channels: string[] = [];
         if ((result as any).inAppDelivered) channels.push("OwnerView 알림");
         if ((result as any).emailSent) channels.push("이메일");
-        toast(
-          channels.length > 0
-            ? `서명 요청 발송 완료 (${channels.join(" + ")})`
-            : "서명 요청 발송 완료",
-          "success",
-        );
+        toast(channels.length > 0 ? `서명 요청 발송 완료 (${channels.join(" + ")})` : "서명 요청 발송 완료", "success");
       }
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
     } catch (err: any) {
@@ -248,37 +149,11 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
     });
   }
 
-  const allEmployees = employees.filter((e: any) => ["active", "joined", "contract_pending"].includes(e.status));
-
-  // 선택된 직원 데이터로 템플릿 미리보기 자동 채움
-  const selectedEmployee = employees.find((e: any) => e.id === reqForm.employeeId);
-
-  // 직원 선택이 바뀌면 기본 필드값을 직원 정보로 자동 채움 (사용자가 직접 수정/추가한 건 유지)
-  useEffect(() => {
-    if (!selectedEmployee) return;
-    setContractFields((prev) => {
-      const defaults = buildDefaultContractFields(selectedEmployee);
-      // 기존 사용자 추가 필드 보존
-      const customs = prev.filter((f) => f.custom);
-      // 기존 included 상태 + 사용자가 이미 수정한 값 우선
-      const merged = defaults.map((d) => {
-        const old = prev.find((p) => p.key === d.key);
-        if (!old) return d;
-        // 직원 자동 채움 필드(생년월일, 직원명, 직무, 계약금액)는 새 직원 값 우선
-        const autoFillKeys = ["직원명", "생년월일", "직무", "계약금액"];
-        if (autoFillKeys.includes(d.key)) return { ...d, included: old.included };
-        return { ...d, value: old.value || d.value, included: old.included };
-      });
-      return [...merged, ...customs];
-    });
-  }, [selectedEmployee?.id]);
-
   // 직인 적용 핸들러 — 패키지 단위로 적용 (notes JSON 에 seal_applied 표시 + 회사 seal_url 스냅샷)
   async function handleApplySeal(contractId: string) {
     if (!companyId) return;
     setSealApplying(contractId);
     try {
-      // 회사 seal_url 조회
       const { data: company } = await (supabase as any)
         .from("companies").select("seal_url, name").eq("id", companyId).maybeSingle();
       if (!company?.seal_url) {
@@ -286,7 +161,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
         setSealApplying(null);
         return;
       }
-      // 기존 notes 파싱
       const { data: pkg } = await (supabase as any)
         .from("hr_contract_packages").select("notes").eq("id", contractId).maybeSingle();
       let notesObj: Record<string, any> = {};
@@ -312,15 +186,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
     }
   }
 
-  function toggleTemplate(id: string) {
-    setReqForm(prev => ({
-      ...prev,
-      templateIds: prev.templateIds.includes(id)
-        ? prev.templateIds.filter(t => t !== id)
-        : [...prev.templateIds, id],
-    }));
-  }
-
   // 상태 필터링
   const filteredContracts = statusFilter === "all"
     ? contractList
@@ -340,25 +205,13 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
       {/* 상단 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <h3 className="text-base font-bold text-[var(--text)]">전자계약</h3>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">구성원에게 계약서를 발송하고 전자서명을 받습니다</p>
+          <h3 className="text-base font-bold text-[var(--text)]">전자계약 서식 · 발송 현황</h3>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">계약서/서약서 서식을 관리하고, 발송된 계약의 서명 현황을 확인합니다. 개별 직원에게 새 계약서를 보내려면 구성원 &gt; 인력관리 &gt; 디렉토리에서 해당 직원의 계약서 탭을 이용하세요.</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowTemplateEditor(!showTemplateEditor)}
-            className="btn-secondary flex items-center gap-1.5"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            + 계약서식 추가
-          </button>
-          <button
-            onClick={() => { setShowCreate(!showCreate); setWizardStep(1); }}
-            className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition flex items-center gap-1.5"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            계약 요청
-          </button>
-        </div>
+        <button onClick={() => setShowTemplateEditor(!showTemplateEditor)} className="btn-secondary flex items-center gap-1.5">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          + 계약서식 추가
+        </button>
       </div>
 
       {/* 서식 에디터 (WYSIWYG) */}
@@ -381,19 +234,16 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
             </div>
           </div>
           <div className="flex-1 flex gap-4 px-6 min-h-0">
-            {/* 서식 내용 — 자체 스크롤 */}
             <div className="flex-1 flex flex-col min-h-0">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">서식 내용 *</label>
               <div className="flex-1 overflow-y-auto bg-[var(--bg)] border border-[var(--border)] rounded-xl">
                 <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." />
               </div>
             </div>
-            {/* 변수 삽입 — 자체 스크롤 */}
             <div className="w-52 shrink-0 flex flex-col min-h-0">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">변수 삽입</label>
               <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3 flex-1 overflow-y-auto flex flex-col gap-1.5">
                 <p className="text-[9px] text-[var(--text-dim)] mb-1 shrink-0">클릭하면 커서 위치에 삽입됩니다</p>
-                {/* 기본 변수 */}
                 {[
                   { v: "{{직원명}}", desc: "직원 이름" },
                   { v: "{{부서}}", desc: "소속 부서" },
@@ -412,7 +262,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                     <div className="text-[9px] text-[var(--text-dim)]">{desc}</div>
                   </button>
                 ))}
-                {/* 사용자 추가 변수 */}
                 {customVariables.length > 0 && (
                   <div className="border-t border-[var(--border)] my-1 pt-2 shrink-0">
                     <p className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1">사용자 추가</p>
@@ -429,7 +278,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                       className="px-1.5 text-[var(--text-dim)] hover:text-red-500 transition text-xs">×</button>
                   </div>
                 ))}
-                {/* 새 변수 추가 폼 */}
                 <div className="border-t border-[var(--border)] mt-2 pt-2 shrink-0">
                   <p className="text-[9px] font-semibold text-[var(--text-dim)] uppercase mb-1.5">+ 새 변수 추가</p>
                   <input
@@ -467,7 +315,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
               </div>
             </div>
           </div>
-          {/* 기존 서식 목록 (수정/삭제) — 활성+임시저장 모두 */}
           {(allTemplates.length > 0 || templates.some((t: any) => t.is_builtin)) && (
             <div className="px-6 pb-3 shrink-0">
               <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">기존 서식</div>
@@ -504,7 +351,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
             </button>
             <button
               onClick={async () => {
-                // 임시저장 — 이름만 있으면 가능. is_active=false 로 비활성 상태로 저장.
                 if (!newTemplateName.trim() || !companyId) return;
                 setSavingTemplate(true);
                 try {
@@ -553,7 +399,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                 try {
                   const variables = Array.from(new Set((newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, ""))));
                   if (editingTemplateId) {
-                    // UPDATE 기존 서식 — 임시저장 prefix 제거
                     const { error } = await (supabase as any).from("doc_templates").update({
                       name: newTemplateName.trim().replace(/^\[임시\]\s*/, ''),
                       content_json: { body: newTemplateBody },
@@ -601,7 +446,7 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
 
       {/* 서브탭: 계약 관리 / 회사 문서 */}
       <div className="flex gap-1 mb-5 bg-[var(--bg-surface)] rounded-lg p-0.5 w-fit">
-        <button onClick={() => setContractSubTab("contracts")} className={`px-4 py-2 rounded-md text-xs font-semibold transition ${contractSubTab === "contracts" ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>계약 관리</button>
+        <button onClick={() => setContractSubTab("contracts")} className={`px-4 py-2 rounded-md text-xs font-semibold transition ${contractSubTab === "contracts" ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>발송 현황</button>
         <button onClick={() => setContractSubTab("company_docs")} className={`px-4 py-2 rounded-md text-xs font-semibold transition ${contractSubTab === "company_docs" ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>회사 문서</button>
       </div>
 
@@ -645,383 +490,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
       )}
 
       {contractSubTab === "contracts" && <>
-      {/* 기본 HR 서식 */}
-      <div className="mb-6">
-        <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3 flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-          기본 HR 서식
-        </h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-          {HR_TEMPLATES.map((ht) => (
-            <button
-              key={ht.key}
-              onClick={() => {
-                setSelectedHrTemplate(selectedHrTemplate === ht.key ? null : ht.key);
-                if (selectedHrTemplate !== ht.key) setShowCreate(true);
-              }}
-              className={`text-left px-4 py-3 rounded-xl border transition group ${
-                selectedHrTemplate === ht.key
-                  ? "border-[var(--primary)] bg-[var(--primary)]/5"
-                  : "border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--primary)]/40"
-              }`}
-            >
-              <svg className={`w-5 h-5 mb-1.5 ${selectedHrTemplate === ht.key ? "text-[var(--primary)]" : "text-[var(--text-dim)] group-hover:text-[var(--primary)]"}`} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d={ht.icon} />
-              </svg>
-              <div className={`text-xs font-medium ${selectedHrTemplate === ht.key ? "text-[var(--primary)]" : "text-[var(--text)]"}`}>{ht.label}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 인라인 서식 미리보기/편집 */}
-      {selectedHrTemplate && (
-        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-sm font-bold text-[var(--primary)]">
-              {HR_TEMPLATES.find(t => t.key === selectedHrTemplate)?.label} 미리보기
-            </h4>
-            <button onClick={() => setSelectedHrTemplate(null)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
-          </div>
-
-          {/* 직원 자동 채움 필드 */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직원명</label>
-              <div className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm">
-                {selectedEmployee?.name || "(직원 선택 필요)"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직급</label>
-              <div className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm">
-                {selectedEmployee?.job_grade || selectedEmployee?.position || "—"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직책</label>
-              <div className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm">
-                {selectedEmployee?.position || "—"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">부서</label>
-              <div className="px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm">
-                {selectedEmployee?.department || "—"}
-              </div>
-            </div>
-          </div>
-
-          {/* 편집 가능 필드 */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">연봉</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={(() => { const v = templatePreview.salary || (selectedEmployee ? String(Number(selectedEmployee.salary || 0) * 12) : ""); return v ? Number(v).toLocaleString('ko-KR') : ''; })()}
-                onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setTemplatePreview({ ...templatePreview, salary: raw }); }}
-                placeholder="36,000,000"
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">근무시간</label>
-              <input
-                type="text"
-                value={templatePreview.workHours}
-                onChange={(e) => setTemplatePreview({ ...templatePreview, workHours: e.target.value })}
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직무</label>
-              <input
-                type="text"
-                value={templatePreview.duty}
-                onChange={(e) => setTemplatePreview({ ...templatePreview, duty: e.target.value })}
-                placeholder="소프트웨어 개발"
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 cursor-pointer px-3 py-2">
-                <input
-                  type="checkbox"
-                  checked={templatePreview.includeMealAllowance}
-                  onChange={(e) => setTemplatePreview({ ...templatePreview, includeMealAllowance: e.target.checked })}
-                  className="rounded border-[var(--border)]"
-                />
-                <span className="text-xs text-[var(--text)]">식대포함</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-4 text-xs text-[var(--text-muted)] leading-relaxed">
-            <p className="font-semibold text-[var(--text)] mb-2">{HR_TEMPLATES.find(t => t.key === selectedHrTemplate)?.label}</p>
-            <p>상기 {selectedHrTemplate === "nda" ? "비밀유지서약" : selectedHrTemplate === "non_compete" ? "겸업금지서약" : selectedHrTemplate === "personal_info_consent" ? "개인정보 이용 동의" : "근로계약"}에 관하여, 아래와 같이 체결합니다.</p>
-            <div className="mt-2 space-y-1">
-              <p>성명: {selectedEmployee?.name || "________"}</p>
-              <p>부서: {selectedEmployee?.department || "________"} / 직책: {selectedEmployee?.position || "________"}</p>
-              {(selectedHrTemplate === "comprehensive_labor" || selectedHrTemplate === "salary_contract") && (
-                <>
-                  <p>연봉: {templatePreview.salary ? `₩${Number(templatePreview.salary).toLocaleString()}` : "________"}{templatePreview.includeMealAllowance ? " (식대 포함)" : ""}</p>
-                  <p>근무시간: {templatePreview.workHours || "________"}</p>
-                  <p>직무: {templatePreview.duty || "________"}</p>
-                </>
-              )}
-            </div>
-            <p className="mt-3 text-[10px] text-[var(--text-dim)]">* 위 내용은 미리보기이며, 최종 계약서는 서식에 따라 생성됩니다.</p>
-          </div>
-        </div>
-      )}
-
-      {/* 계약 요청 스텝 위저드 */}
-      {showCreate && (
-        <div className="glass-card p-6 mb-6">
-          {/* 스텝 인디케이터 */}
-          <div className="flex items-center gap-2 mb-6">
-            {[{ n: 1, label: "대상 선택" }, { n: 2, label: "서식 선택" }, { n: 3, label: "확인 및 발송" }].map((s, i) => (
-              <div key={s.n} className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition ${wizardStep >= s.n ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-dim)] border border-[var(--border)]"}`}>{s.n}</div>
-                <span className={`text-xs font-medium ${wizardStep >= s.n ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{s.label}</span>
-                {i < 2 && <div className={`w-8 h-px ${wizardStep > s.n ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`} />}
-              </div>
-            ))}
-          </div>
-
-          {/* Step 1: 대상 선택 */}
-          {wizardStep === 1 && (
-            <div>
-              <h4 className="section-title">Step 1: 구성원 선택</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">구성원 *</label>
-                  <select value={reqForm.employeeId} onChange={e => setReqForm({...reqForm, employeeId: e.target.value})} className="field-input">
-                    <option value="">구성원을 선택하세요</option>
-                    {allEmployees.map((e: any) => (<option key={e.id} value={e.id}>{e.name} · {e.department || "미배정"} · {e.position || "미지정"}</option>))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">계약 제목</label>
-                  <input value={reqForm.title} onChange={e => setReqForm({...reqForm, title: e.target.value})} placeholder={`${new Date().getFullYear()}년 연봉계약`} className="field-input" />
-                </div>
-              </div>
-              {reqForm.employeeId && selectedEmployee && (
-                <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] font-bold">{(selectedEmployee.name || "?")[0]}</div>
-                    <div>
-                      <div className="text-sm font-semibold">{selectedEmployee.name}</div>
-                      <div className="text-xs text-[var(--text-muted)]">{selectedEmployee.department || "미배정"} · {selectedEmployee.position || "미지정"} · {selectedEmployee.email || ""}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button onClick={() => reqForm.employeeId && setWizardStep(2)} disabled={!reqForm.employeeId} className="px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">다음</button>
-                <button onClick={() => { setShowCreate(false); setWizardStep(1); setReqForm({ employeeId: "", title: "", templateIds: [] }); }} className="px-4 py-2.5 text-sm text-[var(--text-muted)]">취소</button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: 서식 선택 */}
-          {wizardStep === 2 && (
-            <div>
-              <h4 className="section-title">Step 2: 계약서 서식 선택</h4>
-              {templates.length === 0 ? (
-                <p className="text-xs text-[var(--text-dim)] mb-4">등록된 서식이 없습니다. HR 서식을 사용해주세요.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
-                  {templates.map((t: any) => {
-                    const selected = reqForm.templateIds.includes(t.id);
-                    return (
-                      <button key={t.id} onClick={() => toggleTemplate(t.id)} className={`text-left px-4 py-3 rounded-xl border transition ${selected ? "border-[var(--primary)] bg-[var(--primary)]/5" : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--primary)]/50"}`}>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${selected ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--border)]"}`}>
-                            {selected && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>}
-                          </div>
-                          <span className="text-sm font-medium">{t.name}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button onClick={() => setWizardStep(1)} className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-xl">이전</button>
-                <button onClick={() => reqForm.templateIds.length > 0 && setWizardStep(3)} disabled={reqForm.templateIds.length === 0} className="px-5 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">다음</button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: 필수 입력 정보 (플렉스 스타일 테이블) */}
-          {wizardStep === 3 && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold">Step 3: 필수 입력 정보</h4>
-                <span className="caption">서식의 {"{{변수명}}"} 자리에 자동 치환됨</span>
-              </div>
-
-              {/* 발송 요약 */}
-              <div className="bg-[var(--bg-surface)] rounded-xl p-3 mb-3 flex items-center justify-between text-xs">
-                <div className="flex gap-4">
-                  <span className="text-[var(--text-muted)]">대상 <strong className="text-[var(--text)] ml-1">{selectedEmployee?.name || "—"}</strong></span>
-                  <span className="text-[var(--text-muted)]">서식 <strong className="text-[var(--text)] ml-1">{reqForm.templateIds.length}건</strong></span>
-                </div>
-                <button onClick={() => setContractFields(buildDefaultContractFields(selectedEmployee))} className="text-[var(--primary)] hover:underline">기본값으로 초기화</button>
-              </div>
-
-              {/* 필수 입력 정보 테이블 */}
-              <div className="border border-[var(--border)] rounded-xl overflow-hidden mb-3">
-                <div className="bg-[var(--bg-surface)] px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--text)]">필수 입력 정보</span>
-                  <span className="caption">체크 해제 시 해당 필드 미사용</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs" style={{ minWidth: contractFields.length * 130 }}>
-                    {/* 컬럼 헤더 — 필드명 + 포함 체크박스 */}
-                    <thead>
-                      <tr className="border-b border-[var(--border)] bg-[var(--bg-surface)]/30">
-                        {contractFields.map((f, i) => (
-                          <th key={f.key + i} className="px-3 py-2 text-left font-semibold text-[var(--text)] whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="checkbox"
-                                checked={f.included}
-                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, included: e.target.checked } : p))}
-                                className="rounded"
-                              />
-                              <span>{f.label}</span>
-                              {f.custom && (
-                                <button
-                                  onClick={() => setContractFields(prev => prev.filter((_, idx) => idx !== i))}
-                                  className="text-red-400 hover:text-red-500 text-[10px] ml-0.5"
-                                  title="삭제"
-                                >×</button>
-                              )}
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                      {/* 변수 키 표시 행 */}
-                      <tr className="border-b border-[var(--border)] bg-[var(--bg)]">
-                        {contractFields.map((f, i) => (
-                          <th key={f.key + i + 'k'} className="px-3 py-1.5 text-left font-normal text-[10px] text-[var(--text-dim)] whitespace-nowrap font-mono">
-                            {`{{${f.key}}}`}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* 값 입력 행 */}
-                      <tr>
-                        {contractFields.map((f, i) => (
-                          <td key={f.key + i + 'v'} className={`px-2 py-2 ${f.included ? '' : 'opacity-40'}`}>
-                            {f.type === "date" ? (
-                              <DateField
-                                value={f.value}
-                                disabled={!f.included}
-                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}
-                                className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
-                              />
-                            ) : f.type === "number" ? (
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={f.value ? Number(f.value.replace(/[^0-9]/g, '') || 0).toLocaleString('ko-KR') : ''}
-                                disabled={!f.included}
-                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value.replace(/[^0-9]/g, '') } : p))}
-                                placeholder="0"
-                                className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs text-right focus:outline-none focus:border-[var(--primary)]"
-                              />
-                            ) : f.type === "select" ? (
-                              <select
-                                value={f.value}
-                                disabled={!f.included}
-                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}
-                                className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
-                              >
-                                {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                              </select>
-                            ) : (
-                              <input
-                                type="text"
-                                value={f.value}
-                                disabled={!f.included}
-                                onChange={(e) => setContractFields(prev => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}
-                                placeholder="입력"
-                                className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
-                              />
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* 필드 추가 */}
-              <div className="bg-[var(--bg-card)] border border-dashed border-[var(--border)] rounded-xl p-3 mb-3">
-                <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase mb-2">+ 필드 추가</div>
-                <div className="flex flex-wrap gap-2 items-end">
-                  <div className="flex-1 min-w-[140px]">
-                    <label className="block text-[10px] text-[var(--text-muted)] mb-0.5">필드 이름</label>
-                    <input
-                      value={newFieldLabel}
-                      onChange={(e) => setNewFieldLabel(e.target.value)}
-                      placeholder="예: 인센티브, 직책수당"
-                      className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-[var(--text-muted)] mb-0.5">타입</label>
-                    <select
-                      value={newFieldType}
-                      onChange={(e) => setNewFieldType(e.target.value as ContractFieldType)}
-                      className="px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
-                    >
-                      <option value="text">텍스트</option>
-                      <option value="date">날짜</option>
-                      <option value="number">숫자</option>
-                    </select>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const label = newFieldLabel.trim();
-                      if (!label) return;
-                      if (contractFields.some(f => f.label === label)) {
-                        toast("같은 이름의 필드가 이미 있습니다.", "error");
-                        return;
-                      }
-                      setContractFields(prev => [...prev, {
-                        key: label, label, type: newFieldType, value: "", included: true, custom: true,
-                      }]);
-                      setNewFieldLabel("");
-                    }}
-                    disabled={!newFieldLabel.trim()}
-                    className="px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
-                  >
-                    + 추가
-                  </button>
-                </div>
-                <p className="text-[10px] text-[var(--text-dim)] mt-2">
-                  추가한 필드는 서식에서 {"{{필드이름}}"} 변수로 사용 가능 (예: 인센티브 필드 → 서식에 {`{{인센티브}}`} 작성)
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                <button onClick={() => setWizardStep(2)} className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-xl">이전</button>
-                <button onClick={() => { createContract.mutate(); setWizardStep(1); }} disabled={createContract.isPending} className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition">
-                  {createContract.isPending ? "생성 중..." : "계약 요청 발송"}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* 상태 필터 탭 + 일괄 발송 */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex gap-1 overflow-x-auto scrollbar-hide">
@@ -1062,11 +530,10 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
           <div className="glass-card p-12 text-center">
             <svg className="w-12 h-12 mx-auto mb-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <div className="text-sm text-[var(--text-muted)]">계약 내역이 없습니다</div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">상단의 &quot;계약 요청&quot; 버튼으로 구성원에게 계약서를 발송하세요</div>
+            <div className="text-xs text-[var(--text-dim)] mt-1">구성원 &gt; 인력관리 &gt; 디렉토리에서 직원을 선택해 계약서를 발송하세요</div>
           </div>
         ) : (
           <>
-            {/* 전체선택 체크박스 */}
             {filteredContracts.some((c: any) => c.status === "draft") && (
               <div className="flex items-center gap-2 px-1">
                 <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-muted)]">
@@ -1157,7 +624,6 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
                         </button>
                       </>
                     )}
-                    {/* 직인 적용 버튼 — 모든 상태에서 사용 가능 */}
                     <button
                       onClick={() => handleApplySeal(p.id)}
                       disabled={sealApplying === p.id}
@@ -1209,4 +675,3 @@ export function ContractTab({ employees, contracts, companyId, queryClient }: an
     </div>
   );
 }
-

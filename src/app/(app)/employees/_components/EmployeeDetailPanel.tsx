@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DateField } from "@/components/date-field";
 import { createPortal } from "react-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
@@ -15,6 +15,7 @@ import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
 import { GRANTABLE_TABS, getUserTabAccess, setTabAccess, effectiveTabAccess } from "@/lib/tab-access";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { getContractTemplates, createContractPackage, sendContractPackage, buildDefaultContractFields, type ContractField } from "@/lib/hr-contracts";
 
 // 구성원 디렉토리(flex-people-directory)와 동일한 해시 팔레트 — 같은 직원은 어디서나 같은 아바타 색.
 function avatarColor(id: string): string {
@@ -24,8 +25,10 @@ function avatarColor(id: string): string {
 }
 
 // ── Employee Detail Panel ──
-export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employeeId: string; companyId: string; onClose: () => void }) {
-  const [detailTab, setDetailTab] = useState<"info" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave" | "access">("info");
+type DetailTab = "info" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave" | "access";
+
+export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab }: { employeeId: string; companyId: string; onClose: () => void; initialTab?: DetailTab }) {
+  const [detailTab, setDetailTab] = useState<DetailTab>(initialTab || "info");
   const { user: viewer } = useUser();
   const canManageAccess = viewer?.role === "owner" || viewer?.role === "admin";
   const queryClient = useQueryClient();
@@ -116,6 +119,59 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
       return data || [];
     },
     enabled: !!employeeId && detailTab === "contracts",
+  });
+
+  // "+ 계약서 보내기" — 이 직원 전용 발송 폼(직원 선택 스텝 없이 서식선택→필드입력→발송).
+  //   회사 전체 서식 편집/발송현황/일괄발송은 인사관리 > 양식 관리로 이관됨(2026-07-15).
+  const [showCreateContract, setShowCreateContract] = useState(false);
+  const [contractTitle, setContractTitle] = useState("");
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+  const [contractFields, setContractFields] = useState<ContractField[]>(() => buildDefaultContractFields(null));
+
+  const { data: contractTemplates = [] } = useQuery({
+    queryKey: ["contract-templates", companyId],
+    queryFn: () => getContractTemplates(companyId!),
+    enabled: !!companyId && showCreateContract,
+  });
+
+  function openCreateContract() {
+    setContractTitle(`${emp?.name || ""} ${new Date().getFullYear()}년 계약`);
+    setSelectedTemplateIds([]);
+    setContractFields(buildDefaultContractFields(emp));
+    setShowCreateContract(true);
+  }
+
+  function toggleContractTemplate(id: string) {
+    setSelectedTemplateIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+  }
+
+  const sendContractMut = useMutation({
+    mutationFn: async () => {
+      const overrides: Record<string, string> = {};
+      for (const f of contractFields) {
+        if (f.included && f.value) {
+          overrides[f.label] = String(f.value);
+          if (f.key && f.key !== f.label) overrides[f.key] = String(f.value);
+        }
+      }
+      const pkg = await createContractPackage({
+        companyId,
+        employeeId,
+        title: contractTitle || `${emp?.name || ""} ${new Date().getFullYear()}년 계약`,
+        templateIds: selectedTemplateIds,
+        createdBy: viewer?.id ?? null,
+        variableOverrides: overrides,
+      });
+      const result = await sendContractPackage(pkg.package.id);
+      if (!result.success) throw new Error(result.error || "발송에 실패했습니다");
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emp-hr-packages", employeeId] });
+      setShowCreateContract(false);
+      toast("계약서를 발송했습니다.", "success");
+    },
+    onError: (err: any) => toast("계약서 발송 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // Fetch certificate logs for this employee
@@ -452,7 +508,85 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose }: { employ
 
         {/* Contracts Tab — Flex-style 계약서 목록 */}
         {detailTab === "contracts" && (
-          <div className="space-y-2">
+          <div className="space-y-3">
+            <div className="flex items-center justify-end">
+              <button onClick={() => (showCreateContract ? setShowCreateContract(false) : openCreateContract())} className="btn-secondary text-xs">
+                {showCreateContract ? "취소" : "+ 계약서 보내기"}
+              </button>
+            </div>
+
+            {showCreateContract && (
+              <div className="glass-card p-4 space-y-3">
+                <div>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-1">계약 제목</label>
+                  <input value={contractTitle} onChange={(e) => setContractTitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-1.5">서식 선택 *</label>
+                  {contractTemplates.length === 0 ? (
+                    <p className="text-xs text-[var(--text-dim)]">등록된 서식이 없습니다. 인사관리 &gt; 양식 관리에서 먼저 서식을 추가하세요.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {contractTemplates.map((t: any) => {
+                        const selected = selectedTemplateIds.includes(t.id);
+                        return (
+                          <button key={t.id} type="button" onClick={() => toggleContractTemplate(t.id)}
+                            className={`text-left px-3 py-2 rounded-lg border transition text-xs ${selected ? "border-[var(--primary)] bg-[var(--primary)]/5" : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--primary)]/50"}`}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 ${selected ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--border)]"}`}>
+                                {selected && <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>}
+                              </div>
+                              <span className="font-medium">{t.name}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-1.5">필수 입력 정보 <span className="text-[var(--text-dim)] font-normal">— 서식의 {"{{변수명}}"} 자리에 자동 치환됨</span></label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {contractFields.map((f, i) => (
+                      <div key={f.key + i} className={f.included ? "" : "opacity-40"}>
+                        <label className="flex items-center gap-1 text-[10px] text-[var(--text-dim)] mb-0.5">
+                          <input type="checkbox" checked={f.included}
+                            onChange={(e) => setContractFields((prev) => prev.map((p, idx) => idx === i ? { ...p, included: e.target.checked } : p))}
+                            className="rounded" />
+                          {f.label}
+                        </label>
+                        {f.type === "date" ? (
+                          <DateField value={f.value} disabled={!f.included}
+                            onChange={(e) => setContractFields((prev) => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}
+                            className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]" />
+                        ) : f.type === "select" ? (
+                          <select value={f.value} disabled={!f.included}
+                            onChange={(e) => setContractFields((prev) => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}
+                            className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]">
+                            {(f.options || []).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                        ) : (
+                          <input type="text" value={f.value} disabled={!f.included}
+                            onChange={(e) => setContractFields((prev) => prev.map((p, idx) => idx === i ? { ...p, value: e.target.value } : p))}
+                            className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => sendContractMut.mutate()} disabled={selectedTemplateIds.length === 0 || sendContractMut.isPending}
+                    className="btn-primary text-xs">
+                    {sendContractMut.isPending ? "발송 중..." : "생성 및 서명 요청 발송"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {empContracts.length === 0 && empPackages.length === 0 ? (
               <div className="text-center py-8 text-sm text-[var(--text-dim)]">계약서가 없습니다</div>
             ) : (
