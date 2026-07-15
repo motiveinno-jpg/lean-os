@@ -36,16 +36,16 @@ function RadioInline({ field, value, onChange }: {
   onChange: (v: string) => void;
 }) {
   return (
-    <span style={{ display: "inline-flex", flexWrap: "wrap", gap: "6px 14px", verticalAlign: "middle" }}>
+    <span className="signature-radio-inline inline-flex flex-wrap gap-[6px_14px] align-middle">
       {field.options.map((opt) => (
-        <label key={opt} style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer", fontSize: 13, userSelect: "none" }}>
+        <label key={opt} className="inline-flex items-center gap-1 cursor-pointer text-[13px] select-none">
           <input
             type="radio"
             name={field.key}
             value={opt}
             checked={value === opt}
             onChange={() => onChange(opt)}
-            style={{ accentColor: "#4f46e5", margin: 0 }}
+            className="accent-[#4f46e5] m-0"
           />
           <span style={{ color: value === opt ? "#4f46e5" : "#334155", fontWeight: value === opt ? 600 : 400 }}>{opt}</span>
         </label>
@@ -68,19 +68,8 @@ function TextInline({ field, value, onChange, active }: {
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={`${field.key} 입력`}
-      style={{
-        display: "inline-block",
-        // 2026-05-28 모바일 반응형 — 화면 폭 초과 방지(maxWidth 100%) + 모바일에서 최소폭 줄임.
-        minWidth: 140,
-        maxWidth: "100%",
-        padding: "4px 8px",
-        border: "1px solid #cbd5e1",
-        borderRadius: 4,
-        fontSize: 14,
-        verticalAlign: "middle",
-        outline: "none",
-        marginLeft: 4,
-      }}
+      // 2026-05-28 모바일 반응형 — 화면 폭 초과 방지(maxWidth 100%) + 모바일에서 최소폭 줄임.
+      className="signature-text-inline inline-block min-w-[140px] max-w-full px-2 py-1 border border-[#cbd5e1] rounded text-sm align-middle outline-none ml-1"
     />
   );
 }
@@ -228,9 +217,9 @@ function ContractSignatureFooter(props: {
     return m ? `${m[1]}년 ${m[2]}월 ${m[3]}일` : String(d);
   };
   return (
-    <div className="mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-12 print:break-inside-avoid">
+    <div className="contract-signature-footer mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-12 print:break-inside-avoid">
       {/* 갑 (회사) */}
-      <div>
+      <div className="contract-party-a-box">
         <div className="text-sm font-bold mb-2">갑 (회사)</div>
         <div className="text-xs space-y-1.5 text-gray-900">
           <div>회사명: {companyName || "—"}</div>
@@ -247,7 +236,7 @@ function ContractSignatureFooter(props: {
         </div>
       </div>
       {/* 을 (서명자) */}
-      <div>
+      <div className="contract-party-b-box">
         <div className="text-sm font-bold mb-2">을 ({signerIsCompany ? "회사" : "서명자"})</div>
         <div className="text-xs space-y-1.5 text-gray-900">
           {signerIsCompany ? (
@@ -259,7 +248,7 @@ function ContractSignatureFooter(props: {
                 {(signature?.type === "draw" || signature?.type === "upload") && typeof signature.data === "string" ? (
                   <img src={signature.data} alt="서명" className="h-12 inline-block" />
                 ) : signature?.type === "type" ? (
-                  <span className="text-2xl italic text-gray-900" style={{ fontFamily: "cursive, serif" }}>{signature.data}</span>
+                  <span className="text-2xl italic text-gray-900 font-[cursive,_serif]">{signature.data}</span>
                 ) : (
                   <span className="inline-flex items-center justify-center w-12 h-12 rounded-full border border-dashed border-gray-300 text-[9px] text-gray-400">서명</span>
                 )}
@@ -275,7 +264,7 @@ function ContractSignatureFooter(props: {
             {(signature?.type === "draw" || signature?.type === "upload") && typeof signature.data === "string" ? (
               <img src={signature.data} alt="서명" className="h-12 inline-block" />
             ) : signature?.type === "type" ? (
-              <span className="text-2xl italic text-gray-900" style={{ fontFamily: "cursive, serif" }}>{signature.data}</span>
+              <span className="text-2xl italic text-gray-900 font-[cursive,_serif]">{signature.data}</span>
             ) : (
               <span className="inline-flex items-center justify-center w-12 h-12 rounded-full border border-dashed border-gray-300 text-[9px] text-gray-400">서명</span>
             )}
@@ -905,7 +894,7 @@ function SignContent() {
   // ── Loading ──
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
+      <div className="sign-loading-screen min-h-screen flex items-center justify-center bg-[var(--bg)]">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm text-gray-500">계약서를 불러오는 중...</p>
@@ -917,7 +906,7 @@ function SignContent() {
   // ── Invalid ──
   if (invalid || !pkg) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
+      <div className="sign-invalid-screen min-h-screen flex items-center justify-center px-4 bg-gray-50">
         <div className="w-full max-w-md text-center">
           <div className="w-14 h-14 rounded-2xl bg-[var(--danger-dim)] text-[var(--danger)] text-xl font-black flex items-center justify-center mx-auto mb-4">
             !
@@ -934,7 +923,7 @@ function SignContent() {
   // ── Expired ──
   if (pkg.expired) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
+      <div className="sign-expired-screen min-h-screen flex items-center justify-center px-4 bg-gray-50">
         <div className="w-full max-w-md text-center">
           <div className="w-14 h-14 rounded-2xl bg-[var(--warning-dim)] text-[var(--warning)] text-xl font-black flex items-center justify-center mx-auto mb-4">
             !
@@ -953,9 +942,9 @@ function SignContent() {
   // ── Completed ──
   if (completed) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="sign-completed-screen min-h-screen bg-gray-50">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10 print:hidden">
+        <header className="sign-completed-header bg-white border-b border-gray-200 sticky top-0 z-10 print:hidden">
           <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
             <div>
               <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -981,7 +970,7 @@ function SignContent() {
             const sig: any = (item as any).signature_data;
             const signedAt = (item as any).signed_at;
             return (
-              <div key={item.id} className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-4 shadow-sm print:border-0 print:shadow-none print:rounded-none print:p-0 print:mb-8 print:break-inside-avoid">
+              <div key={item.id} className="sign-completed-doc-card bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-4 shadow-sm print:border-0 print:shadow-none print:rounded-none print:p-0 print:mb-8 print:break-inside-avoid">
                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 print:hidden">
                   <h3 className="text-sm font-bold text-gray-800">
                     문서 {idx + 1} · {item.title}
@@ -1001,7 +990,7 @@ function SignContent() {
                 )}
                 {Array.isArray(cj?.items) && cj.items.length > 0 && (
                   <div className="mb-5 overflow-x-auto">
-                    <table className="w-full text-sm border-collapse">
+                    <table className="sign-completed-items-table w-full text-sm border-collapse">
                       <thead>
                         <tr className="bg-gray-50 text-gray-600">
                           <th className="px-3 py-2 text-left border-b border-gray-200">품목명</th>
@@ -1124,9 +1113,9 @@ function SignContent() {
   const inputsOk = inputsValidation.ok;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="sign-page-shell min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="sign-page-header bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-gray-900">{pkg.title}</h1>
@@ -1143,7 +1132,7 @@ function SignContent() {
       </header>
 
       {/* Document Tabs */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="sign-document-tabs bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 flex gap-1 overflow-x-auto py-2">
           {pkg.items.map((item, idx) => (
             <button
@@ -1179,9 +1168,9 @@ function SignContent() {
       </div>
 
       {/* Document Content */}
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="sign-document-content max-w-3xl mx-auto px-4 py-6">
         {currentItem?.status === "signed" ? (
-          <div className="bg-white rounded-2xl border border-[var(--success)]/30 p-6 md:p-8 shadow-sm">
+          <div className="sign-signed-doc-card bg-white rounded-2xl border border-[var(--success)]/30 p-6 md:p-8 shadow-sm">
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
               <div className="w-8 h-8 rounded-full bg-[var(--success-dim)] flex items-center justify-center">
                 <svg className="w-4 h-4 text-[var(--success)]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -1235,7 +1224,7 @@ function SignContent() {
         ) : (
           <>
             {/* Document body */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-6 shadow-sm">
+            <div className="sign-doc-body-card bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-6 shadow-sm">
               {content?.title && (
                 <h2 className="text-xl font-bold text-center text-gray-900 mb-6 pb-4 border-b border-gray-100">
                   {content.title}
@@ -1277,7 +1266,7 @@ function SignContent() {
             {/* 2026-05-28 서명자 입력 — 본문 토큰 자리에 인라인 렌더(html-react-parser).
                 별도 입력 카드 제거. 미입력 항목만 작은 알림 바로 표시(서명 완료 가드). */}
             {hasSignerInputs && !inputsOk && (
-              <div className="mb-6 px-4 py-3 rounded-xl bg-[var(--warning-dim)] border border-[var(--warning)]/25 text-xs text-[var(--warning)] flex items-start gap-2">
+              <div className="sign-inputs-warning mb-6 px-4 py-3 rounded-xl bg-[var(--warning-dim)] border border-[var(--warning)]/25 text-xs text-[var(--warning)] flex items-start gap-2">
                 <span className="text-base leading-none mt-0.5">⚠️</span>
                 <span>
                   본문에서 <strong>{inputsValidation.missing.join(", ")}</strong> 항목을 선택·입력해 주세요.
@@ -1286,11 +1275,11 @@ function SignContent() {
             )}
 
             {/* Signature Area */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="signature-area-card bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <h3 className="text-sm font-bold text-gray-800 mb-4">서명</h3>
 
               {!signMode && (
-                <div className="space-y-3">
+                <div className="signature-method-picker space-y-3">
                   {/* 저장된 서명 (있을 때만) */}
                   {savedSignature && (
                     <button
@@ -1304,7 +1293,7 @@ function SignContent() {
                         <span className="text-sm font-semibold text-blue-700">저장된 서명 사용</span>
                       </div>
                       {savedSignature.type === "type" ? (
-                        <span className="text-xl italic text-blue-800" style={{ fontFamily: "cursive, serif" }}>{savedSignature.data}</span>
+                        <span className="text-xl italic text-blue-800 font-[cursive,_serif]">{savedSignature.data}</span>
                       ) : (
                         <img src={savedSignature.data} alt="저장된 서명" className="h-12 mx-auto opacity-60" />
                       )}
@@ -1335,11 +1324,11 @@ function SignContent() {
               )}
 
               {signMode === "saved" && savedSignature && (
-                <div>
+                <div className="signature-saved-panel">
                   <div className="p-6 bg-[var(--bg-surface)] rounded-xl border-2 border-[var(--info)]/30 text-center mb-4">
                     <p className="text-xs text-gray-500 mb-2">저장된 서명</p>
                     {savedSignature.type === "type" ? (
-                      <p className="text-3xl italic text-gray-800" style={{ fontFamily: "cursive, serif" }}>{savedSignature.data}</p>
+                      <p className="text-3xl italic text-gray-800 font-[cursive,_serif]">{savedSignature.data}</p>
                     ) : (
                       <img src={savedSignature.data} alt="서명" className="h-16 mx-auto" />
                     )}
@@ -1363,12 +1352,11 @@ function SignContent() {
               )}
 
               {signMode === "draw" && (
-                <div>
-                  <div className="relative border-2 border-gray-200 rounded-xl overflow-hidden mb-3 bg-white">
+                <div className="signature-draw-panel">
+                  <div className="signature-canvas-wrapper relative border-2 border-gray-200 rounded-xl overflow-hidden mb-3 bg-white">
                     <canvas
                       ref={canvasRef}
-                      className="w-full h-[180px] cursor-crosshair touch-none select-none"
-                      style={{ touchAction: "none" }}
+                      className="signature-canvas w-full h-[180px] cursor-crosshair touch-none select-none"
                       onMouseDown={startDraw}
                       onMouseMove={draw}
                       onMouseUp={endDraw}
@@ -1431,7 +1419,7 @@ function SignContent() {
               )}
 
               {signMode === "upload" && (
-                <div>
+                <div className="signature-upload-panel">
                   {uploadedSeal ? (
                     <div className="p-6 bg-[var(--bg-surface)] rounded-xl border-2 border-[var(--info)]/30 text-center mb-4">
                       <p className="text-xs text-gray-500 mb-2">첨부한 도장/직인</p>
@@ -1506,7 +1494,7 @@ function SignContent() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 bg-white mt-8">
+      <footer className="sign-page-footer border-t border-gray-200 bg-white mt-8">
         <div className="max-w-3xl mx-auto px-4 py-4 text-center">
           <p className="text-xs text-gray-400">OwnerView 전자서명 시스템</p>
         </div>

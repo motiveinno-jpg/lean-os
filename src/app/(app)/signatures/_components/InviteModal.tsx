@@ -88,7 +88,7 @@ export function InviteModal({
   useModalKeys(true, onClose, submitting || validSigners.length === 0 || !docId ? undefined : submit);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="signature-invite-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
@@ -148,7 +148,7 @@ export function InviteModal({
               <label className="text-xs font-semibold text-[var(--text-muted)]">서명자 ({validSigners.length}명)</label>
               <button onClick={addRow} className="text-xs text-[var(--primary)] hover:underline">+ 서명자 추가</button>
             </div>
-            <div className="space-y-2">
+            <div className="signature-invite-signer-rows space-y-2">
               {signers.map((s, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-center">
                   <input

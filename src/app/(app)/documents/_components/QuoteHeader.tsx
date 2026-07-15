@@ -66,11 +66,11 @@ export function QuoteHeader({
   );
 
   return (
-    <div className="glass-card p-4 mb-3">
+    <div className="quote-header-panel glass-card p-4 mb-3">
       <div className="text-xs text-[var(--text-dim)] font-medium mb-3">견적 정보</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2.5">
         {/* 거래처 — 검색 */}
-        <div className="flex items-center gap-2 relative">
+        <div className="quote-header-partner-search flex items-center gap-2 relative">
           <span className={LB}>거래처</span>
           <div className="flex-1 relative">
             <input
@@ -91,7 +91,7 @@ export function QuoteHeader({
               className={IN}
             />
             {pOpen && editable && filtered.length > 0 && (
-              <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg max-h-72 overflow-y-auto">
+              <div className="quote-header-partner-dropdown absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg max-h-72 overflow-y-auto">
                 {filtered.slice(0, 200).map((p, i) => (
                   <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
                     onMouseEnter={() => setPIdx(i)}
