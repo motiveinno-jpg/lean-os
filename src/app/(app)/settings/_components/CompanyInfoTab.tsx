@@ -245,7 +245,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     <div className="space-y-6">
       {/* Onboarding prompt for new companies */}
       {isNewCompany && (
-        <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5 shadow-md">
+        <div className="company-info-onboarding-banner bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5 shadow-md">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -265,7 +265,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       )}
 
       {/* Company Basic Info */}
-      <div className="glass-card p-6">
+      <div className="company-info-basic-form glass-card p-6">
         <h2 className="section-title">기본 정보</h2>
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -356,14 +356,14 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* Seal & Logo Upload */}
-      <div className="glass-card p-6">
+      <div className="company-seal-logo-panel glass-card p-6">
         <h2 className="section-title">직인 및 로고</h2>
         {uploadError && (
           <div className="p-3 rounded-xl bg-red-500/10 text-red-400 text-xs mb-4">{uploadError}</div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Seal Upload */}
-          <div>
+          <div className="company-seal-upload">
             <label className="field-label mb-2">직인 (회사 도장)</label>
             <div className="border-2 border-dashed border-[var(--border)] rounded-xl p-4 text-center min-h-[160px] flex flex-col items-center justify-center gap-2">
               {sealUrl ? (
@@ -441,7 +441,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
             {/* 자동 생성 미리보기 + 스타일 선택 */}
             {sealPreview && (
-              <div className="mt-3 p-4 bg-[var(--bg-card)] border border-[var(--success)]/30 rounded-xl">
+              <div className="company-seal-preview-panel mt-3 p-4 bg-[var(--bg-card)] border border-[var(--success)]/30 rounded-xl">
                 <div className="flex items-start gap-4">
                   <img src={sealPreview} alt="직인 미리보기" className="w-32 h-32 object-contain bg-white rounded-lg p-2" />
                   <div className="flex-1">
@@ -488,7 +488,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           </div>
 
           {/* Logo Upload */}
-          <div>
+          <div className="company-logo-upload">
             <label className="field-label mb-2">회사 로고</label>
             <div className="border-2 border-dashed border-[var(--border)] rounded-xl p-4 text-center min-h-[160px] flex flex-col items-center justify-center gap-2">
               {logoUrl ? (

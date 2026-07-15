@@ -78,7 +78,7 @@ export function AccountTab() {
   return (
     <div className="space-y-6">
       {/* 계정 정보 */}
-      <div className="glass-card p-6">
+      <div className="account-info-card glass-card p-6">
         <div className="flex items-center gap-3 mb-4">
           <span className="kpi-icon">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM5 21a7 7 0 0114 0" /></svg>
@@ -91,7 +91,7 @@ export function AccountTab() {
       </div>
 
       {/* 비밀번호 변경 */}
-      <div className="glass-card p-6">
+      <div className="account-password-card glass-card p-6">
         <div className="flex items-center gap-3 mb-5">
           <span className="kpi-icon warning">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M17 11V7a5 5 0 00-10 0v4M6 11h12v9a1 1 0 01-1 1H7a1 1 0 01-1-1z" /></svg>
@@ -108,7 +108,7 @@ export function AccountTab() {
           </div>
         )}
 
-        <form onSubmit={handleChangePw} className="space-y-4">
+        <form onSubmit={handleChangePw} className="account-password-form space-y-4">
           <div>
             <label className="field-label">현재 비밀번호</label>
             <input
@@ -131,7 +131,7 @@ export function AccountTab() {
               required
             />
             {strength && (
-              <div className="mt-2">
+              <div className="account-password-strength mt-2">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-[var(--text-muted)]">비밀번호 강도</span>
                   <span className="text-xs font-semibold" style={{ color: strength.color }}>{strength.label}</span>

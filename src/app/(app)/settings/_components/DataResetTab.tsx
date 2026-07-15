@@ -247,7 +247,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
   return (
     <div className="space-y-6">
       {/* 경고 배너 */}
-      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 shadow-md">
+      <div className="data-reset-warning-banner bg-red-500/5 border border-red-500/20 rounded-2xl p-6 shadow-md">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg shrink-0">
             <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -264,7 +264,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
       </div>
 
       {/* 전체 데이터 초기화 */}
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-red-500/20 p-6">
+      <div className="data-reset-panel bg-[var(--bg-card)] rounded-2xl border border-red-500/20 p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg">
             <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -278,7 +278,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
         </div>
 
         {/* 삭제 대상 목록 */}
-        <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-5">
+        <div className="data-reset-delete-list bg-[var(--bg-surface)] rounded-xl p-4 mb-5">
           <p className="text-xs font-semibold text-[var(--text)] mb-3">삭제되는 데이터:</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
             {[
@@ -300,7 +300,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
               </div>
             ))}
           </div>
-          <div className="mt-3 pt-3 border-t border-[var(--border)]">
+          <div className="data-reset-keep-list mt-3 pt-3 border-t border-[var(--border)]">
             <p className="text-xs font-semibold text-[var(--text)] mb-1.5">유지되는 데이터:</p>
             <div className="flex flex-wrap gap-3">
               {["계정 (이메일/비밀번호)", "회사명", "직원 / 관리자 정보", "구독/결제 정보"].map((item) => (
@@ -323,7 +323,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
         )}
 
         {step === "confirm" && (
-          <div className="space-y-4">
+          <div className="data-reset-confirm-form space-y-4">
             <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 shadow-sm">
               <p className="text-sm font-bold text-red-500 mb-2">
                 정말 모든 데이터를 삭제하시겠습니까?
@@ -358,7 +358,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
         )}
 
         {step === "processing" && (
-          <div className="space-y-4">
+          <div className="data-reset-progress space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
               <span className="text-sm font-semibold text-[var(--text)]">초기화 진행 중...</span>
@@ -380,7 +380,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
         )}
 
         {step === "done" && (
-          <div className="space-y-4">
+          <div className="data-reset-done-summary space-y-4">
             <div className={`p-4 rounded-xl border ${errors.length === 0 ? "bg-green-500/10 border-green-500/20" : "bg-amber-500/10 border-amber-500/20"}`}>
               <div className="flex items-center gap-2 mb-2">
                 {errors.length === 0 ? (

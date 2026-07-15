@@ -236,7 +236,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
   const isReady = authMethod === "cert" ? isCertReady : isIdPwReady;
 
   return (
-    <div className="glass-card p-6">
+    <div className="bank-integration-register-form glass-card p-6">
       <h2 className="text-sm font-bold mb-1">금융기관 연결</h2>
       <p className="text-xs text-[var(--text-dim)] mb-4">공동인증서 또는 인터넷뱅킹 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
 
@@ -278,14 +278,14 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
         <p className="text-xs font-semibold text-[var(--text)] mb-3">실제 금융기관 연결</p>
 
         {/* 은행/카드/홈택스 선택 */}
-        <div className="flex gap-2 mb-3">
+        <div className="bank-integration-account-type-toggle flex gap-2 mb-3">
           <button onClick={() => { setAccountType("bank"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "bank" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>은행</button>
           <button onClick={() => { setAccountType("card"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "card" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>카드</button>
           <button onClick={() => { setAccountType("hometax"); setOrganization("0001"); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "hometax" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>홈택스</button>
         </div>
 
         {/* 개인/법인 선택 */}
-        <div className="flex gap-2 mb-3">
+        <div className="bank-integration-client-type-toggle flex gap-2 mb-3">
           <button onClick={() => setClientType("P")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "P" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             개인
           </button>
@@ -295,7 +295,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
         </div>
 
         {/* 인증 방식 선택 */}
-        <div className="flex gap-2 mb-4">
+        <div className="bank-integration-auth-method-toggle flex gap-2 mb-4">
           <button onClick={() => setAuthMethod("cert")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "cert" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             공동인증서
           </button>
@@ -305,7 +305,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
         </div>
 
         {/* 금융기관 선택 */}
-        <div className="space-y-3">
+        <div className="bank-integration-org-select space-y-3">
           <div>
             <label className="field-label">{accountType === "bank" ? "은행" : accountType === "card" ? "카드사" : "공공기관"} 선택</label>
             <select value={organization} onChange={(e) => setOrganization(e.target.value)} className="field-input">
@@ -317,7 +317,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           </div>
 
           {accountType === "hometax" && (
-            <div>
+            <div className="bank-integration-hometax-identity">
               <label className="field-label">대표자 주민번호 앞 7자리 <span className="caption">(선택, ID/PW 방식 또는 검증 필요시)</span></label>
               <input
                 type="password"
@@ -338,7 +338,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           {authMethod === "cert" ? (
             <>
               {/* 공동인증서 입력 */}
-              <div>
+              <div className="certificate-upload-panel">
                 <label className="field-label">공동인증서 파일</label>
                 <div className="relative">
                   <input
@@ -351,7 +351,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
                 {certFileName && <p className="text-[10px] text-green-600 mt-1">선택됨: {certFileName}</p>}
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">signCert.der + signPri.key 또는 .pfx 파일을 선택하세요</p>
               </div>
-              <div>
+              <div className="certificate-password-field">
                 <label className="field-label">인증서 비밀번호</label>
                 <div className="relative">
                   <input type={showCertPw ? "text" : "password"} value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="인증서 비밀번호" className="field-input pr-16" />
@@ -363,7 +363,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           ) : (
             <>
               {/* ID/PW 입력 */}
-              <div>
+              <div className="bank-integration-idpw-fields">
                 <label className="field-label">인터넷뱅킹 아이디</label>
                 <input value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder={accountType === "bank" ? "인터넷뱅킹 아이디" : "카드 홈페이지 아이디"} className="field-input" />
               </div>
@@ -381,7 +381,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       </div>
 
       {result && (
-        <div className={`mt-3 p-3 rounded-xl text-xs font-medium whitespace-pre-wrap break-all ${result.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+        <div className={`bank-integration-result-message mt-3 p-3 rounded-xl text-xs font-medium whitespace-pre-wrap break-all ${result.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
           {result.msg}
         </div>
       )}
@@ -419,7 +419,7 @@ function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () =>
   const friendlyMain = item.hint || item.message || "동기화에 실패했습니다.";
 
   return (
-    <li className="p-3 rounded-xl bg-red-500/8 border border-red-500/15 shadow-sm">
+    <li className="bank-integration-error-card p-3 rounded-xl bg-red-500/8 border border-red-500/15 shadow-sm">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex-1 min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-red-500/70 font-mono mb-0.5">
@@ -710,9 +710,9 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
   if (!companyId) return <div className="text-center py-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="bank-integration-tab space-y-6">
       {/* 금융 연결 상태 */}
-      <div className="glass-card p-6">
+      <div className="bank-integration-status-card glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold">금융 데이터 연동</h2>
@@ -743,7 +743,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
 
         {/* 기간 선택 sync — 펼침 */}
         {showRangeSync && hasCodefConnection && (
-          <div className="mb-4 p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="bank-integration-range-sync-panel mb-4 p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="text-xs font-bold text-[var(--text)]">📅 기간 선택해서 다시 동기화</div>
@@ -825,7 +825,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             ) : (
               <>
                 {codefAccounts.bank.length > 0 && (
-                  <div>
+                  <div className="bank-integration-connected-bank-list">
                     <h3 className="text-xs font-semibold text-[var(--text-muted)] mb-2">연결된 은행 계좌</h3>
                     <div className="space-y-1.5">
                       {codefAccounts.bank.map((acc: any, i: number) => (
@@ -846,7 +846,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                   </div>
                 )}
                 {codefAccounts.card.length > 0 && (
-                  <div>
+                  <div className="bank-integration-connected-card-list">
                     <h3 className="text-xs font-semibold text-[var(--text-muted)] mb-2">연결된 카드</h3>
                     <div className="space-y-1.5">
                       {codefAccounts.card.map((card: any, i: number) => (
@@ -873,7 +873,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
               // P0-C: CODEF 연결 에러 친절도 — code 별로 사용자 언어 안내 + 다음
               //   액션 버튼. 작은 회색 hint 한 줄에 묻혀 사용자가 "무엇을 하면 되는지"
               //   모르던 문제 해소. codefErrorHint() 가 만든 메시지를 큰 박스로 노출.
-              <div className={`p-3 rounded-xl text-xs font-medium ${syncResult.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+              <div className={`bank-integration-sync-result p-3 rounded-xl text-xs font-medium ${syncResult.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
                 <div>{syncResult.msg}</div>
                 {syncResult.errors && syncResult.errors.length > 0 && (
                   <ul className="mt-3 space-y-2 text-xs font-normal">
@@ -901,7 +901,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             )}
 
             {recentSyncLogs.length > 0 && (
-              <div className="mt-2 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+              <div className="bank-integration-sync-log-list mt-2 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs font-semibold">최근 CODEF 동기화 이력</div>
                   <button onClick={loadRecentSyncLogs} className="text-[10px] text-[var(--primary)] hover:underline">새로고침</button>
@@ -939,7 +939,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       <CodefAccountRegister companyId={companyId} onRegistered={() => { refetchConnection(); }} />
 
       {/* 수동 등록 계좌 */}
-      <div className="glass-card p-6">
+      <div className="bank-integration-manual-accounts glass-card p-6">
         <h2 className="section-title">수동 등록 계좌</h2>
         {bankAccounts.length === 0 ? (
           <div className="text-center py-6 text-sm text-[var(--text-muted)]">등록된 계좌가 없습니다. 일반 설정에서 통장을 추가하세요.</div>

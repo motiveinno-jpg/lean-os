@@ -155,10 +155,10 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
 
   // 거래처별 하위행 (차변/대변)
   const renderParties = (key: string, l: OpeningLine) => (
-    <div className="mt-2 pl-2 sm:pl-6 space-y-1.5 border-l-2 border-[var(--border)]/60">
+    <div className="closing-party-list mt-2 pl-2 sm:pl-6 space-y-1.5 border-l-2 border-[var(--border)]/60">
       {l.parties.length === 0 && <div className="text-[11px] text-[var(--text-dim)]">거래처를 추가하세요 (통장·카드·등록거래처).</div>}
       {l.parties.map((pt) => (
-        <div key={pt.id} className="flex flex-wrap sm:flex-nowrap items-center gap-1.5">
+        <div key={pt.id} className="closing-party-row flex flex-wrap sm:flex-nowrap items-center gap-1.5">
           <select value={pt.party_id ? `${pt.party_type}:${pt.party_id}` : "manual"} onChange={(e) => pickParty(key, pt.id, e.target.value)}
             className="w-36 h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs">
             <optgroup label={PARTY_TYPE_LABEL.bank}>{partyGroups.bank.map((o) => <option key={o.key} value={o.key}>{o.name}</option>)}</optgroup>
@@ -185,7 +185,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
     const isParty = l?.mode === "party";
     const d = l ? lineDebit(l) : 0, c = l ? lineCredit(l) : 0;
     return (
-      <div key={acc.id} className={`px-3 py-2 ${(d || c) ? "bg-[var(--primary)]/5" : ""}`}>
+      <div key={acc.id} className={`closing-account-row px-3 py-2 ${(d || c) ? "bg-[var(--primary)]/5" : ""}`}>
         <div className="flex items-center gap-2">
           <span className="w-12 shrink-0 text-[11px] text-[var(--text-dim)] mono-number">{acc.code}</span>
           <span className="flex-1 min-w-0 text-sm text-[var(--text)] truncate">{acc.name}</span>
@@ -211,7 +211,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
   };
 
   return (
-    <div className="glass-card p-6 space-y-4">
+    <div className="closing-panel glass-card p-6 space-y-4">
       <div>
         <h2 className="text-sm font-bold">회계 마감시점 · 계정별 기초잔액</h2>
         <p className="text-xs text-[var(--text-dim)] mt-0.5">
@@ -219,7 +219,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
         </p>
       </div>
 
-      <div>
+      <div className="closing-date-field">
         <label className="field-label">회계 마감일 (이 날짜까지 결산 완료)</label>
         <DateField value={closingDate} onChange={(e) => setClosingDate(e.target.value)}
           className="field-input" />
@@ -227,7 +227,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       </div>
 
       {/* PDF 자동 채우기 — 수동입력과 투트랙. 마감 자료 PDF를 올리면 계정별 금액을 읽어 아래 폼을 채움 */}
-      <div className="rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/5 p-4 shadow-sm">
+      <div className="closing-pdf-upload-panel rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/5 p-4 shadow-sm">
         <div className="flex items-start gap-3">
           <span className="p-2 rounded-lg bg-[var(--primary)]/12 text-[var(--primary)] shrink-0 text-base leading-none">📄</span>
           <div className="flex-1 min-w-0">
@@ -261,7 +261,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       </div>
 
       {/* 계정별 기초잔액 — 유형별 그룹 접기 + 검색 + 차변/대변 */}
-      <div>
+      <div className="closing-opening-balance-panel">
         <label className="block text-xs text-[var(--text-muted)] mb-2">마감시점 기초잔액 (계정별 · 거래처별 · 차변/대변)</label>
 
         {hasCoa ? (
@@ -308,7 +308,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
         {manualLines.length > 0 && (
           <div className="mt-2 space-y-1.5">
             {manualLines.map((l) => (
-              <div key={l.id} className="rounded-xl border border-dashed border-[var(--border)] p-2.5">
+              <div key={l.id} className="closing-manual-line rounded-xl border border-dashed border-[var(--border)] p-2.5">
                 <div className="flex items-center gap-2">
                   <input value={l.name} onChange={(e) => setLine(l.id, (x) => ({ ...x, name: e.target.value }))} placeholder="계정명 직접입력"
                     className="flex-1 min-w-[120px] h-8 px-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm" />
@@ -335,7 +335,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
         <button onClick={addManual} className="mt-2 text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold">+ 목록에 없는 계정 직접 추가</button>
 
         {/* 차변/대변 합계 + 균형 */}
-        <div className="mt-3 flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+        <div className="closing-summary-bar mt-3 flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
           <span className="text-xs text-[var(--text-muted)]">차변 합계 / 대변 합계</span>
           <span className="text-sm font-bold mono-number">
             <span className="text-[var(--text)]">{fmtNum(totalDebit) || "0"}</span>
@@ -346,7 +346,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
         </div>
       </div>
 
-      <div>
+      <div className="closing-note-field">
         <label className="field-label">메모 (선택)</label>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="예: 2025년 재무제표 기준 마감"
           className="field-input" />
