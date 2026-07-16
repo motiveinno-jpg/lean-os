@@ -250,6 +250,8 @@ serve(async (req) => {
             codef_issuer_debug: {
               at: new Date().toISOString(),
               corpNum,
+              codefEnv: CODEF_ENV,
+              codefBase: CODEF_BASE,
               joinResult: joinResp?.result,
               certResult: certResp?.result,
               hadCertURL: !!certURL,
@@ -456,7 +458,9 @@ serve(async (req) => {
       nts_issue_status: "failed",
       nts_error_code: resultCode || "UNKNOWN",
       nts_error_message: errorMsg,
-      nts_response_payload: codefResp,
+      // 2026-07-16 QA: CODEF_ENV/BASE 어느 환경으로 나갔는지 응답에 같이 남겨 sandbox
+      //   폴백(문서에 없는 URL) 사용 여부를 즉시 대조할 수 있게 한다.
+      nts_response_payload: { ...codefResp, _codefEnv: CODEF_ENV, _codefBase: CODEF_BASE },
     }).eq("id", invoice_id);
 
     return new Response(JSON.stringify({
