@@ -5,7 +5,7 @@
 
 import { supabase } from './supabase';
 
-const db = supabase as any;
+const db = supabase;
 
 // ── 공제 가능 업종/카테고리 (VAT Deductible Categories) ──
 

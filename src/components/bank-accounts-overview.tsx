@@ -211,7 +211,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
   const { data: flow } = useQuery({
     queryKey: ["bank-period-flow", companyId, fromStr, toStr],
     queryFn: async () => {
-      const data = logRead('components/bank-accounts-overview:data', await (supabase as any)
+      const data = logRead('components/bank-accounts-overview:data', await supabase
         .from("bank_transactions")
         .select("amount, type")
         .eq("company_id", companyId)

@@ -5,7 +5,7 @@
 
 import { supabase } from './supabase';
 
-const db = supabase as any;
+const db = supabase;
 
 // ── Notification Type Constants ──
 export const NOTIFICATION_TYPES: Record<string, { label: string; icon: string; color: string; bg: string }> = {

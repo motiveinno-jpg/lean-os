@@ -37,7 +37,7 @@ export async function logAudit(entry: AuditLogEntry) {
       ...(entity_name ? { entity_name } : {}),
       ...(changes ? { changes } : {}),
     };
-    await (supabase as any).from('audit_logs').insert({
+    await supabase.from('audit_logs').insert({
       company_id: rest.company_id,
       user_id: safeUserId,
       action: rest.action,
@@ -63,7 +63,7 @@ export async function getAuditLogs(params: {
   limit?: number;
   offset?: number;
 }) {
-  let query = (supabase as any)
+  let query = supabase
     .from('audit_logs')
     .select('*, profiles:user_id(email, display_name)')
     .eq('company_id', params.companyId)

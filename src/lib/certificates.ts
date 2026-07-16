@@ -20,7 +20,7 @@ async function setupKoreanFont(doc: jsPDF) {
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 

@@ -57,7 +57,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
         scope === "hr" ? isHrType(tpl.type) : !isHrType(tpl.type)
       );
       for (const tpl of rows) {
-        await (supabase as any).from("doc_templates").insert({
+        await supabase.from("doc_templates").insert({
           company_id: companyId,
           name: tpl.name,
           type: tpl.type,
@@ -112,10 +112,10 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
         variables: form.variables,
       };
       if (editingId) {
-        const { error } = await (supabase as any).from("doc_templates").update(payload).eq("id", editingId);
+        const { error } = await supabase.from("doc_templates").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await (supabase as any).from("doc_templates").insert({
+        const { error } = await supabase.from("doc_templates").insert({
           ...payload,
           company_id: companyId,
           is_active: true,
@@ -135,7 +135,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
 
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("doc_templates").update({ is_active: false }).eq("id", id);
+      const { error } = await supabase.from("doc_templates").update({ is_active: false }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

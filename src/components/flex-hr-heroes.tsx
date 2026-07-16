@@ -9,7 +9,7 @@ import { logRead } from "@/lib/log-read";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
 
 // ── 공통 히어로 셸 (라운드6: 흰 카드 + 인디고 포인트, 그라데이션 제거) ──

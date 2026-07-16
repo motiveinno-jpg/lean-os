@@ -97,7 +97,7 @@ export async function getDistinctCardNames(companyId: string) {
       .eq('company_id', companyId)
       .not('card_name', 'is', null)
       .order('id', { ascending: true }), 50000),
-    (supabase as any)
+    supabase
       .from('card_aliases')
       .select('source_card_name, alias')
       .eq('company_id', companyId),
@@ -182,7 +182,7 @@ export async function getCardSpendByCompany(
 
   // 사용자 별명(card_aliases) — 하단 카드별 사용액 그리드에서 설정한 이름을 상단 개요에도 반영.
   const aliasMap = new Map<string, string>();
-  const aliases = logRead('lib/card-transactions:aliases', await (supabase as any)
+  const aliases = logRead('lib/card-transactions:aliases', await supabase
     .from('card_aliases')
     .select('source_card_name, alias')
     .eq('company_id', companyId));
@@ -271,7 +271,7 @@ export async function upsertCardAlias(params: {
     // 빈 별명은 삭제로 간주
     return deleteCardAlias(params.companyId, params.sourceCardName);
   }
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('card_aliases')
     .upsert(
       {
@@ -285,7 +285,7 @@ export async function upsertCardAlias(params: {
 }
 
 export async function deleteCardAlias(companyId: string, sourceCardName: string) {
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('card_aliases')
     .delete()
     .eq('company_id', companyId)
@@ -389,7 +389,7 @@ export async function toggleDeductible(id: string, isDeductible: boolean) {
 
 // ── Card Deduction Summary by month ──
 export async function getCardDeductionSummary(companyId: string, year: number) {
-  const db = supabase as any;
+  const db = supabase;
   const data = logRead('lib/card-transactions:data', await db
     .from('card_deduction_summary')
     .select('*')

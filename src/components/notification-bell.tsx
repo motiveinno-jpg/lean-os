@@ -43,7 +43,7 @@ export function NotificationBell() {
     async function loadBell() {
       if (!user) return;
       try {
-        const { count } = await (supabase as any)
+        const { count } = await supabase
           .from("notifications")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
@@ -64,7 +64,7 @@ export function NotificationBell() {
     (async () => {
       const u = await getCurrentUser();
       if (!u) return;
-      const nRows = logRead('components/notification-bell:nRows', await (supabase as any)
+      const nRows = logRead('components/notification-bell:nRows', await supabase
         .from("notifications")
         .select("id, type, title, message, entity_type, entity_id, is_read, created_at")
         .eq("user_id", u.id)
@@ -77,7 +77,7 @@ export function NotificationBell() {
       ));
       const map: Record<string, { deal_id: string; stage: string }> = {};
       if (quoteIds.length > 0) {
-        const qaRows = logRead('components/notification-bell:qaRows', await (supabase as any)
+        const qaRows = logRead('components/notification-bell:qaRows', await supabase
           .from("quote_approvals")
           .select("id, deal_id, stage")
           .in("id", quoteIds));
@@ -116,7 +116,7 @@ export function NotificationBell() {
 
   const goTo = async (n: NotificationRow) => {
     if (!n.is_read) {
-      await (supabase as any).from("notifications").update({ is_read: true }).eq("id", n.id);
+      await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
       // 읽음 처리된 항목은 목록에서 즉시 사라지도록 (안읽은 알림만 보여주는 목록이라 유지 안 함)
       setRows((prev) => prev?.filter((r) => r.id !== n.id) ?? prev);
       setUnread((v) => Math.max(0, v - 1));
@@ -130,7 +130,7 @@ export function NotificationBell() {
   const markRead = async (n: NotificationRow, e: React.MouseEvent) => {
     e.stopPropagation();
     if (n.is_read) return;
-    await (supabase as any).from("notifications").update({ is_read: true }).eq("id", n.id);
+    await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
     setRows((prev) => prev?.filter((r) => r.id !== n.id) ?? prev);
     setUnread((v) => Math.max(0, v - 1));
     window.dispatchEvent(new Event("sidebar-refresh-badges"));
@@ -140,7 +140,7 @@ export function NotificationBell() {
   const markAllRead = async () => {
     const u = await getCurrentUser();
     if (!u) return;
-    await (supabase as any).from("notifications").update({ is_read: true }).eq("user_id", u.id).eq("is_read", false);
+    await supabase.from("notifications").update({ is_read: true }).eq("user_id", u.id).eq("is_read", false);
     setRows([]);
     setUnread(0);
     window.dispatchEvent(new Event("sidebar-refresh-badges"));

@@ -9,7 +9,7 @@ import { createQueueEntry } from './payment-queue';
 import { getRecurringPayments } from './approval-center';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 

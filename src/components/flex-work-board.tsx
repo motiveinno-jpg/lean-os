@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 // 라운드6: 시그니처 색 = 오너뷰 인디고 토큰 (라이트/다크 자동 대응)
 const FLEX = {

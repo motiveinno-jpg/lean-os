@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { notifyOvertimeDecision } from "@/lib/notifications";
 
-const db = supabase as any;
+const db = supabase;
 const hm = (t: string | null | undefined) => String(t || "").slice(0, 5);
 
 export function OvertimeApprovalInbox({ companyId, reviewerId }: { companyId: string; reviewerId: string }) {

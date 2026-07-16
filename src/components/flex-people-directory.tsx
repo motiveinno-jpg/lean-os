@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { EmployeeDetailPanel } from "@/app/(app)/employees/_components/EmployeeDetailPanel";
 
-const db = supabase as any;
+const db = supabase;
 
 type Emp = {
   id: string; name: string; email?: string | null; phone?: string | null;

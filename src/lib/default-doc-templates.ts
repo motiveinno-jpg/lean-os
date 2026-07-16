@@ -249,6 +249,6 @@ export async function seedDefaultDocTemplates(companyId: string, _userId?: strin
     variables: (tpl as any).variables,
     is_active: true,
   }));
-  const { error } = await (supabase as any).from("doc_templates").insert(rows);
+  const { error } = await supabase.from("doc_templates").insert(rows);
   if (error) throw error;
 }

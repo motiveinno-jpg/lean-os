@@ -134,7 +134,7 @@ function DocumentEditModal({ doc, userId, onClose, onSaved }: {
     setSaving(true);
     try {
       if (name.trim() && name !== doc.name) {
-        const { error } = await (supabase as any).from("documents").update({ name: name.trim() }).eq("id", doc.id);
+        const { error } = await supabase.from("documents").update({ name: name.trim() }).eq("id", doc.id);
         if (error) throw error;
       }
       await saveRevision({

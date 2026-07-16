@@ -56,7 +56,7 @@ export async function listUnmatchedInvoices(
 ): Promise<ThreeWayInvoice[]> {
   const limit = opts?.limit ?? 100;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let q = (supabase as any)
+  let q = supabase
     .from('tax_invoices')
     .select('id, type, counterparty_name, total_amount, supply_amount, issue_date, status, partner_id')
     .eq('company_id', companyId)
@@ -76,7 +76,7 @@ export async function getThreeWayCandidates(
 ): Promise<ThreeWayCandidate[]> {
   // 거래처 정보 (대표자명 매칭용)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
+  const db = supabase;
   let partnerName = (invoice.counterparty_name || '').trim().toLowerCase();
   let repName = '';
   if (invoice.partner_id) {
@@ -154,7 +154,7 @@ export async function listMatchedInvoices(
 ): Promise<MatchedInvoice[]> {
   const limit = opts?.limit ?? 100;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
+  const db = supabase;
   // bank_transactions 에서 tax_invoice_id NOT NULL + 회사격리, 세금계산서 join
   let q = db
     .from('bank_transactions')
@@ -184,7 +184,7 @@ export async function listMatchedInvoices(
 // 매칭 해제 — confirm 한 매칭을 되돌림
 export async function unmatchInvoice(bankTxId: string, invoiceId: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
+  const db = supabase;
   const { error: txErr } = await db
     .from('bank_transactions')
     .update({ tax_invoice_id: null })
@@ -204,7 +204,7 @@ export async function unmatchInvoice(bankTxId: string, invoiceId: string): Promi
 // 매칭 확정 — bank_transactions.tax_invoice_id 갱신 + invoice status='matched'
 export async function confirmThreeWayMatch(bankTxId: string, invoiceId: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
+  const db = supabase;
   const { error: txErr } = await db
     .from('bank_transactions')
     .update({ tax_invoice_id: invoiceId })

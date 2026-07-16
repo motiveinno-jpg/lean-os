@@ -47,7 +47,7 @@ export async function createChannel(params: {
 
   // Auto-add creator. chat_members = RLS 의 진실(SELECT 정책이 is_channel_member 로 chat_members lookup),
   // chat_participants = read tracking·role 메타. 둘 다 채워야 본인이 채널을 보고 메시지 last_read_at 이 동작.
-  const db = supabase as any;
+  const db = supabase;
   await db.from('chat_members').insert({
     channel_id: data.id,
     user_id: params.creatorUserId,
@@ -130,7 +130,7 @@ export async function inviteParticipant(params: {
 
   // RLS SELECT 는 chat_members 기반 — 초대된 사용자가 채널/메시지를 보려면 chat_members 도 채워야 함.
   // 이미 존재하면 unique 위반 무시(legacy 채널 호환).
-  const db = supabase as any;
+  const db = supabase;
   await db.from('chat_members').upsert(
     {
       channel_id: params.channelId,
@@ -168,7 +168,7 @@ export async function leaveChannel(channelId: string, userId: string, userName: 
   await sendSystemMessage(channelId, userId, `${userName}님이 대화방을 나갔습니다.`);
   await logEvent(channelId, 'user_left', { user_id: userId });
 
-  const db = supabase as any;
+  const db = supabase;
   await db.from('chat_participants').delete().eq('channel_id', channelId).eq('user_id', userId);
   await db.from('chat_members').delete().eq('channel_id', channelId).eq('user_id', userId);
 }
@@ -310,7 +310,7 @@ export async function sendMessageWithMentions(params: {
     try {
       const recipients = params.mentionedUserIds.filter((uid) => uid && uid !== params.senderId);
       if (recipients.length > 0) {
-        const db = supabase as any;
+        const db = supabase;
         const ch = logRead('lib/chat:ch', await db.from('chat_channels').select('company_id, name, is_dm').eq('id', params.channelId).maybeSingle());
         const sender = logRead('lib/chat:sender', await db.from('users').select('name, email').eq('id', params.senderId).maybeSingle());
         if (ch?.company_id) {
@@ -423,7 +423,7 @@ export async function createTeamChannel(params: {
   description?: string;
   creatorUserId: string;
 }) {
-  const db = supabase as any;
+  const db = supabase;
   const { data, error } = await db
     .from('chat_channels')
     .insert({
@@ -457,7 +457,7 @@ export async function createDMChannel(params: {
   companyId: string;
   participantIds: string[];
 }) {
-  const db = supabase as any;
+  const db = supabase;
   const name = `DM-${Date.now()}`;
   const { data, error } = await db
     .from('chat_channels')
@@ -511,7 +511,7 @@ export async function createDMChannel(params: {
 
 // Get channels by type
 export async function getChannelsByType(companyId: string, type: 'deal' | 'team' | 'dm') {
-  const db = supabase as any;
+  const db = supabase;
   let query = db
     .from('chat_channels')
     .select('*, chat_members(user_id)')
@@ -531,7 +531,7 @@ export async function getChannelsByType(companyId: string, type: 'deal' | 'team'
 
 // ── Get or create invite token for guest access ──
 export async function getOrCreateInviteToken(channelId: string): Promise<string> {
-  const db = supabase as any;
+  const db = supabase;
   const data = logRead('lib/chat:data', await db
     .from('chat_channels')
     .select('invite_token')

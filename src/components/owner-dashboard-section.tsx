@@ -20,7 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { STAGE_LABEL, STAGE_COLOR, type ProjectStage } from "@/lib/project-rules";
 
-const db = supabase as any;
+const db = supabase;
 
 type StageDist = { stage: string; count: number; contract_sum: number };
 type TopPartner = { id: string; name: string; representative: string | null; deal_count: number; revenue_q: number };

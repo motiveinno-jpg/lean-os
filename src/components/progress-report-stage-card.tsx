@@ -68,7 +68,7 @@ export function ProgressReportStageCard({
     let cancelled = false;
     (async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = supabase as any;
+      const db = supabase;
       if (approval?.id) {
         const data = logRead('components/progress-report-stage-card:data', await db.from("quote_approvals").select("payload").eq("id", approval.id).maybeSingle());
         if (cancelled || !data) return;
@@ -118,7 +118,7 @@ export function ProgressReportStageCard({
     queryKey: ["deal-progress-reports", dealId],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = logRead('components/progress-report-stage-card:data', await (supabase as any)
+      const data = logRead('components/progress-report-stage-card:data', await supabase
         .from("quote_approvals")
         .select("id, status, payload, created_at, sent_at, decided_at, recipient_email")
         .eq("deal_id", dealId)
@@ -195,7 +195,7 @@ export function ProgressReportStageCard({
         _token = created.token;
       }
       if (!_token && approvalId) {
-        const row = logRead('components/progress-report-stage-card:row', await (supabase as any)
+        const row = logRead('components/progress-report-stage-card:row', await supabase
           .from("quote_approvals")
           .select("approval_token")
           .eq("id", approvalId)
@@ -214,7 +214,7 @@ export function ProgressReportStageCard({
       });
 
       try {
-        await (supabase as any).functions.invoke("send-signature-email", {
+        await supabase.functions.invoke("send-signature-email", {
           body: {
             type: "quote",
             stage: "progress_report",
@@ -234,7 +234,7 @@ export function ProgressReportStageCard({
       // 발송 완료 후 deals.custom_scope.progress_report draft 정리 (다음 보고서 작성 시 빈 상태)
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const db = supabase as any;
+        const db = supabase;
         const deal = logRead('components/progress-report-stage-card:deal', await db.from("deals").select("custom_scope").eq("id", dealId).maybeSingle());
         const cur = (deal?.custom_scope as Record<string, unknown>) || {};
         const { progress_report: _drop, ...rest } = cur as { progress_report?: unknown };
@@ -272,7 +272,7 @@ export function ProgressReportStageCard({
         expiresInDays: 14,
       });
       try {
-        await (supabase as any).functions.invoke("send-signature-email", {
+        await supabase.functions.invoke("send-signature-email", {
           body: {
             type: "quote",
             stage: "progress_report",

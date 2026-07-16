@@ -3,7 +3,7 @@ import { logRead } from "@/lib/log-read";
  * OwnerView Invitations (Partner + Employee)
  */
 import { supabase } from './supabase';
-const db = supabase as any;
+const db = supabase;
 
 // ── Partner Invitations ──
 

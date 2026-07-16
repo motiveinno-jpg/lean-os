@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 export type SyncType = "hometax" | "bank" | "card" | "match";
 export const COOLDOWN_MS = 30 * 60 * 1000; // 30분

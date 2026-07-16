@@ -1058,7 +1058,7 @@ export async function getDocuments(companyId: string) {
 export async function deleteDocument(documentId: string): Promise<void> {
   const { deleteFilesForDocument } = await import('./file-storage');
   await deleteFilesForDocument(documentId).catch(() => {});
-  const { error } = await (supabase as any).rpc('delete_document', { p_doc_id: documentId });
+  const { error } = await supabase.rpc('delete_document', { p_doc_id: documentId });
   if (error) throw new Error(error.message || '문서 삭제에 실패했습니다.');
 }
 
@@ -1119,7 +1119,7 @@ export async function getChannels(companyId: string, userId?: string) {
     .eq('is_archived', false)
     .order('created_at', { ascending: false }));
   if (!data || !userId) return data || [];
-  const db = supabase as any;
+  const db = supabase;
   const myMemberships = logRead('getChannels', await db
     .from('chat_members')
     .select('channel_id')
@@ -2218,7 +2218,7 @@ export async function getDealMatchingStatuses(companyId: string): Promise<DealMa
 
 // Mark deals as dormant (30 days no activity)
 export async function markDormantDeals() {
-  const db = supabase as any;
+  const db = supabase;
   const { data, error } = await db.rpc('mark_dormant_deals');
   if (error) throw error;
   return data;
@@ -2226,7 +2226,7 @@ export async function markDormantDeals() {
 
 // Get dormant deals
 export async function getDormantDeals(companyId: string) {
-  const db = supabase as any;
+  const db = supabase;
   return fetchPaged('getDormantDeals', () => db
     .from('deals')
     .select('*')
@@ -2238,7 +2238,7 @@ export async function getDormantDeals(companyId: string) {
 
 // Reactivate dormant deal
 export async function reactivateDeal(dealId: string) {
-  const db = supabase as any;
+  const db = supabase;
   const { error } = await db
     .from('deals')
     .update({ is_dormant: false, last_activity_at: new Date().toISOString() })
@@ -2248,7 +2248,7 @@ export async function reactivateDeal(dealId: string) {
 
 // Update deal activity timestamp
 export async function touchDealActivity(dealId: string) {
-  const db = supabase as any;
+  const db = supabase;
   const { error } = await db
     .from('deals')
     .update({ last_activity_at: new Date().toISOString() })
@@ -2260,7 +2260,7 @@ export async function touchDealActivity(dealId: string) {
 // Cash Pulse Data (for buildCashPulse engine)
 // ═══════════════════════════════════════════════
 export async function getCashPulseData(companyId: string, userId?: string) {
-  const db = supabase as any;
+  const db = supabase;
 
   const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems, myApprovalSteps, snapshot] = await Promise.all([
     // 1. Bank balances
@@ -2366,7 +2366,7 @@ export async function getArchivedDeals(companyId: string) {
 //   /projects?deal=<id> 슬라이드 패널 마운트 시 호출. 7개 쿼리 병렬.
 //   기존 RPC 무수정 — 각 테이블 RLS(company_id) 그대로 사용.
 export async function getProjectDetail(dealId: string, companyId: string) {
-  const db = supabase as any;
+  const db = supabase;
   const [deal, partner, revenue, costs, subs, assignments, files, audits, approvals] = await Promise.all([
     supabase.from('deals').select('*').eq('id', dealId).maybeSingle(),
     // partner는 deal 가져온 후 별도로 부르고 싶지만 round-trip 1회 줄이려고 deal 안에서 join 도 가능.

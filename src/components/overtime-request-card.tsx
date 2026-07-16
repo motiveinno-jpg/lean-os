@@ -20,7 +20,7 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { notifyOvertimeRequest } from "@/lib/notifications";
 
-const db = supabase as any;
+const db = supabase;
 
 // KST 오늘 (YYYY-MM-DD)
 function kstTodayStr(): string {

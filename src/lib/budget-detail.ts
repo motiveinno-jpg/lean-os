@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from "@/lib/supabase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 export interface BudgetDetailItem {
   label: string;

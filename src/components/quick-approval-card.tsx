@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 // 전자결재 빠른작성 카드 — 직원/관리자 공통. 본인 결재 대기 건수 배지 포함.
 export function QuickApprovalCard({ companyId, userId }: { companyId: string; userId: string }) {

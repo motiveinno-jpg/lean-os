@@ -3,7 +3,7 @@ import { logRead } from "@/lib/log-read";
 // 회사 설정에 webhook URL 등록 후 결제/결재/큰 거래 발생 시 자동 알림
 import { supabase } from "./supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 export type SlackEvent =
   | "payment_request"      // 결제 요청 (payment_queue 추가)

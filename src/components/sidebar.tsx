@@ -382,7 +382,7 @@ export function Sidebar() {
         setChatUnread(total);
       } catch {}
       try {
-        const db = supabase as any;
+        const db = supabase;
         // 사용자가 /approvals 페이지를 마지막으로 방문한 시각 — 그 이후 created 항목만 카운트.
         const dismissedAt = typeof window !== 'undefined'
           ? localStorage.getItem('approvals-dismissed-at')
@@ -410,7 +410,7 @@ export function Sidebar() {
       } catch {}
       // notifications unread count — 모든 역할(대표/관리자/직원) 공통
       try {
-        const db = supabase as any;
+        const db = supabase;
         const { count } = await db
           .from("notifications")
           .select("id", { count: "exact", head: true })
@@ -435,7 +435,7 @@ export function Sidebar() {
         setChatUnread(total);
       } catch {}
       try {
-        const db = supabase as any;
+        const db = supabase;
         const { count } = await db
           .from("notifications")
           .select("id", { count: "exact", head: true })

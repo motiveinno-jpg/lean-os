@@ -6,7 +6,7 @@ import { logRead } from "@/lib/log-read";
 
 import { supabase } from './supabase';
 
-const db = supabase as any;
+const db = supabase;
 
 export interface CashReceipt {
   id: string;

@@ -20,7 +20,7 @@ import {
 } from "@/lib/approval-workflow";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 const uid = () => crypto.randomUUID();
 const ROLE_OPTS: { v: string; l: string }[] = [
   { v: "manager", l: "팀장/매니저" }, { v: "admin", l: "관리자" }, { v: "owner", l: "대표/CEO" },

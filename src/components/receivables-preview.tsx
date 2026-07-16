@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 
-const db = supabase as any;
+const db = supabase;
 
 function won(n: number): string {
   if (!n) return "0";

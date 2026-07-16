@@ -88,7 +88,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
   const { data: loans = [] } = useQuery({
     queryKey: ['loans-upcoming', companyId],
     queryFn: async () => {
-      const data = logRead('components/upcoming-auto-transfers:data', await (supabase as any)
+      const data = logRead('components/upcoming-auto-transfers:data', await supabase
         .from('loans')
         .select('id, name, lender, payment_day, remaining_balance, maturity_date, status')
         .eq('company_id', companyId)

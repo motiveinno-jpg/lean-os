@@ -70,7 +70,7 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
   const { data: revByMonth } = useQuery<Map<string, number>>({
     queryKey: ["analytics-revenue", companyId, year],
     queryFn: async () => {
-      const data = logRead('components/dashboard-analytics:data', await (supabase as any)
+      const data = logRead('components/dashboard-analytics:data', await supabase
         .from("tax_invoices")
         .select("supply_amount, issue_date")
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
@@ -93,7 +93,7 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
   const { data: monthlyPnl = [] } = useQuery({
     queryKey: ["analytics-monthly-pnl", companyId, year, revByMonth?.size ?? -1],
     queryFn: async () => {
-      const data = logRead('components/dashboard-analytics:data', await (supabase as any)
+      const data = logRead('components/dashboard-analytics:data', await supabase
         .from("monthly_financials")
         .select("month, total_expense")
         .eq("company_id", companyId));

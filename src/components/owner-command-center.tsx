@@ -13,7 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { getCEOPendingActions, approveAction, rejectAction, canRejectAction, type PendingAction } from "@/lib/approval-center";
 import { useToast } from "@/components/toast";
 
-const db = supabase as any;
+const db = supabase;
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
 const fmtW = (n: number) => {
   const abs = Math.abs(n);

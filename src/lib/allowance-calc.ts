@@ -29,7 +29,7 @@ import { supabase } from './supabase';
 import { getAttendanceCompanySettings } from './hr';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── 타입 ──
 

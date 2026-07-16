@@ -151,7 +151,7 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
   let tolerance = 0.01;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const company = logRead('lib/tax-invoice:company', await (supabase as any)
+    const company = logRead('lib/tax-invoice:company', await supabase
       .from('companies')
       .select('tax_settings')
       .eq('id', companyId)
@@ -433,7 +433,7 @@ export interface VATPreview {
 }
 
 export async function getVATPreview(companyId: string, year: number): Promise<VATPreview[]> {
-  const db = supabase as any;
+  const db = supabase;
 
   // Get tax invoice summary by quarter
   const quarterly = await getTaxInvoiceSummary(companyId, year, 'quarterly');
@@ -591,7 +591,7 @@ export async function modifyTaxInvoice(params: {
 
 // ── Get invoice queue (자동발행 대기 큐) ──
 export async function getInvoiceQueue(companyId: string) {
-  const db = supabase as any;
+  const db = supabase;
   const { data, error } = await db
     .from('tax_invoice_queue')
     .select('*, deals(name)')
@@ -604,7 +604,7 @@ export async function getInvoiceQueue(companyId: string) {
 
 // ── Approve queue item ──
 export async function approveQueueItem(queueId: string, userId: string) {
-  const db = supabase as any;
+  const db = supabase;
   const { error } = await db
     .from('tax_invoice_queue')
     .update({ status: 'pending', approved_by: userId, approved_at: new Date().toISOString() })
@@ -614,7 +614,7 @@ export async function approveQueueItem(queueId: string, userId: string) {
 
 // ── Get sync logs ──
 export async function getHomeTaxSyncLogs(companyId: string, limit = 20) {
-  const db = supabase as any;
+  const db = supabase;
   const { data, error } = await db
     .from('hometax_sync_log')
     .select('*')

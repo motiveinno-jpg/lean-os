@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 

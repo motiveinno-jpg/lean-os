@@ -22,7 +22,7 @@ import { getCurrentUser } from "@/lib/queries";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 type Col = { id: string; name: string; type: string; settings: any; position: number; in_list?: boolean };
 type Grp = { id: string; name: string; color: string; position: number };

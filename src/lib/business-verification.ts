@@ -24,7 +24,7 @@ export async function verifyBusinessNumber(bizNo: string): Promise<{
   }
 
   try {
-    const { data, error } = await (supabase as any).functions.invoke('verify-business-number', {
+    const { data, error } = await supabase.functions.invoke('verify-business-number', {
       body: { businessNumbers: [cleaned] },
     });
     if (error) throw error;
@@ -62,7 +62,7 @@ export async function validateBusinessOwnership(
   const sdt = startDateYYYYMMDD.replace(/[^0-9]/g, '');
   if (cleaned.length !== 10 || !ownerName.trim() || sdt.length !== 8) return { result: 'mismatch' };
   try {
-    const { data, error } = await (supabase as any).functions.invoke('verify-business-number', {
+    const { data, error } = await supabase.functions.invoke('verify-business-number', {
       body: { owner: { businessNumber: cleaned, ownerName: ownerName.trim(), startDate: sdt } },
     });
     if (error) throw error;

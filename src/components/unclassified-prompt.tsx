@@ -22,7 +22,7 @@ export function UnclassifiedPrompt({ companyId }: { companyId: string }) {
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const [b, c] = await Promise.all([
         db.from("bank_transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("mapping_status", "unmapped"),
         db.from("card_transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("mapping_status", "unmapped"),

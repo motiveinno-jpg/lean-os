@@ -101,7 +101,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const deal = logRead('components/project-quote-stages:deal', await (supabase as any)
+      const deal = logRead('components/project-quote-stages:deal', await supabase
         .from("deals")
         .select("name, contract_total, custom_scope, partner_id, partners:partners!deals_partner_id_fkey(id, name, contact_email)")
         .eq("id", dealId)
@@ -168,13 +168,13 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
     if (readonly) return;
     setSaving(true);
     try {
-      const deal = logRead('components/project-quote-stages:deal', await (supabase as any)
+      const deal = logRead('components/project-quote-stages:deal', await supabase
         .from("deals")
         .select("custom_scope")
         .eq("id", dealId)
         .maybeSingle());
       const scope = { ...((deal?.custom_scope as any) || {}), quoteItems: items, paymentStages: stages, quoteContent: content };
-      const { error } = await (supabase as any).from("deals").update({ custom_scope: scope }).eq("id", dealId);
+      const { error } = await supabase.from("deals").update({ custom_scope: scope }).eq("id", dealId);
       if (error) throw error;
 
       // 2026-05-21 v5 Q1·Q2: 활동탭 파일 섹션에 저장 즉시 표시되도록 quote_approvals draft upsert
@@ -183,7 +183,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
       try {
         const payload = { items, paymentStages: stages, quoteContent: content };
         if (approval?.id && approval.status === 'draft') {
-          await (supabase as any)
+          await supabase
             .from('quote_approvals')
             .update({ payload })
             .eq('id', approval.id);
@@ -242,7 +242,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
       // 안전망 (2026-05-21): 기존 draft 재사용 분기에서 _token 미할당 → 메일 링크 깨짐 회귀.
       //   어느 경로든 _token 확보. approval_token 컬럼은 RLS 상 작성자/회사구성원 select 허용.
       if (!_token && approvalId) {
-        const row = logRead('components/project-quote-stages:row', await (supabase as any)
+        const row = logRead('components/project-quote-stages:row', await supabase
           .from('quote_approvals')
           .select('approval_token')
           .eq('id', approvalId)
@@ -264,7 +264,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
       // 3) 이메일 발송 (PR-D edge 분기 — 미배포 시 RESEND_API_KEY fallback 으로 success 반환)
       //   엣지 배포 전엔 fallback 으로 패스 → 패널 StatusBadge 는 정상 발송됨 표시.
       try {
-        await (supabase as any).functions.invoke("send-signature-email", {
+        await supabase.functions.invoke("send-signature-email", {
           body: {
             type: "quote",
             stage,                       // 엣지가 stage 라벨로 메일 제목·본문·CTA 분기
@@ -313,7 +313,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
         expiresInDays: 14,
       });
       try {
-        await (supabase as any).functions.invoke("send-signature-email", {
+        await supabase.functions.invoke("send-signature-email", {
           body: {
             type: "quote",
             stage,                       // 엣지가 stage 라벨로 분기

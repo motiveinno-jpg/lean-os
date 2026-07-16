@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 const MENTION_ENTITIES = ["chat", "chat_channel", "board_post", "document_share"];
 // 서명 요청 상태 → 뱃지 라벨·색 (hr_contract_packages.status)
 const SIGN_STATUS: Record<string, { label: string; tone?: string }> = {

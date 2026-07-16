@@ -9,7 +9,7 @@ import { createTrialingSubscription } from "./billing";
 import { verifyBusinessNumber, validateBusinessOwnership } from "./business-verification";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 export const bizNoDigits = (input: string) => String(input || "").replace(/[^0-9]/g, "").slice(0, 10);
 export const formatBizNo = (digits: string) =>

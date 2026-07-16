@@ -108,7 +108,7 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
       windowEnd.setDate(windowEnd.getDate() + windowDays);
       const windowEndIso = fmtDateKey(windowEnd);
 
-      const db = supabase as any;
+      const db = supabase;
       const [loans, docs, vault] = await Promise.all([
         db.from("loans")
           .select("id, name, lender, maturity_date, remaining_balance")

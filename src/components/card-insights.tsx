@@ -48,7 +48,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
   const { data: rows = [] } = useQuery({
     queryKey: ['card-top-expenses-month-simple', companyId, dateFrom, dateTo],
     queryFn: async () => {
-      const data = logRead('components/card-insights:data', await (supabase as any)
+      const data = logRead('components/card-insights:data', await supabase
         .from('card_transactions')
         .select('id, transaction_date, amount, merchant_name, merchant_category, card_name, category, classification')
         .eq('company_id', companyId)
@@ -148,7 +148,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
     queryKey: ['card-auto-transfer', companyId, monthLabel],
     queryFn: async () => {
       const [cardRes, bankRes] = await Promise.all([
-        (supabase as any)
+        supabase
           .from('card_transactions')
           .select('id, transaction_date, amount, merchant_name, merchant_category, card_name, category, classification, is_fixed_cost')
           .eq('company_id', companyId)
@@ -157,7 +157,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
           .lte('transaction_date', dateTo)
           .gt('amount', 0)
           .order('transaction_date', { ascending: false }),
-        (supabase as any)
+        supabase
           .from('bank_transactions')
           .select('id, transaction_date, amount, counterparty, description, category, classification, is_fixed_cost')
           .eq('company_id', companyId)
@@ -284,7 +284,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
   const { data: txAll = [] } = useQuery({
     queryKey: ['card-tx-6mo-paginated', companyId, sixMonthFrom],
     queryFn: () => fetchAllPaginated<any>((from, to) =>
-      (supabase as any)
+      supabase
         .from('card_transactions')
         .select('id, transaction_date, amount, card_id, card_name')
         .eq('company_id', companyId)

@@ -107,7 +107,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   const { data: txAll = [] } = useQuery({
     queryKey: ['card-tx-recent-90-paginated', companyId, dateFrom],
     queryFn: () => fetchAllPaginated<any>((from, to) =>
-      (supabase as any)
+      supabase
         .from('card_transactions')
         .select('id, transaction_date, amount, card_id, card_name')
         .eq('company_id', companyId)
@@ -379,7 +379,7 @@ function BillingDetailModal({
   const { data: txs = [], isLoading } = useQuery({
     queryKey: ['card-billing-detail', companyId, billing.cardId, startISO, endISO],
     queryFn: () => fetchAllPaginated<any>((from, to) =>
-      (supabase as any)
+      supabase
         .from('card_transactions')
         .select('id, transaction_date, merchant_name, card_name, card_id, amount')
         .eq('company_id', companyId)

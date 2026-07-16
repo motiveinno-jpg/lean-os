@@ -31,7 +31,7 @@ export const EXPENSE_STATUS = {
 
 // Use `any` cast for tables not yet in the generated DB types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Create expense request ──
 export async function createExpenseRequest(params: {

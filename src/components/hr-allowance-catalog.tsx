@@ -22,7 +22,7 @@ import {
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 const fmtKRW = (n: number) => `${(n || 0).toLocaleString("ko-KR")}원`;
 

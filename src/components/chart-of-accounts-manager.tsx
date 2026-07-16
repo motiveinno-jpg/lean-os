@@ -12,7 +12,7 @@ import { useToast } from "@/components/toast";
 import { STANDARD_ACCOUNTS } from "@/lib/standard-accounts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 type Acct = { id: string; code: string; name: string; account_type: string; is_system: boolean };
 type NewAcct = { code: string; name: string; type: string };

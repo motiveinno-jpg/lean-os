@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { ActivityCard } from "./dashboard-activity";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 function won(n: number): string {
   const a = Math.abs(n);

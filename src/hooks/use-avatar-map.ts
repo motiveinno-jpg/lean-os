@@ -13,7 +13,7 @@ export function useAvatarMap(userIds: (string | null | undefined)[]): Record<str
   const { data } = useQuery({
     queryKey: ["avatar-map", ids.join(",")],
     queryFn: async () => {
-      const { data: rows } = await (supabase as any)
+      const { data: rows } = await supabase
         .from("users")
         .select("id, avatar_url")
         .in("id", ids);

@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 import { logAudit } from './audit-log';
 import { getSlackSettings, sendSlackNotification } from './slack';
 
-const db = supabase as any;
+const db = supabase;
 
 // ── Month range helper (YYYY-MM → [startISO, endISO)) ──
 function monthRange(month: string): { startDate: string; endDate: string } {

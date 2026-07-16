@@ -6,7 +6,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 
 // Use any cast for columns not in generated types yet
-const db = supabase as any;
+const db = supabase;
 
 // Document types and classification rules
 export const DOC_INTEL_TYPES = [
