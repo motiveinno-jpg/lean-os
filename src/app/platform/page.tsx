@@ -96,14 +96,14 @@ export default function PlatformOverview() {
       </div>
 
       {/* KPI Row 1 */}
-      <div className="platform-kpi-grid grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="platform-kpi-grid">
         {[
           { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}` },
           { label: "총 사용자", value: totalUsers, sub: `회사당 ${totalCompanies ? (totalUsers / totalCompanies).toFixed(1) : 0}명` },
           { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%` },
           { label: "활성 구독", value: activeSubs, sub: "체험+유료 포함" },
         ].map((kpi) => (
-          <div key={kpi.label} className="platform-kpi-card glass-card p-5 flex flex-col gap-3">
+          <div key={kpi.label} className="platform-kpi-card glass-card">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">{kpi.label}</span>
             <div className="flex items-end gap-2">
               <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{kpi.value}</span>
@@ -114,7 +114,7 @@ export default function PlatformOverview() {
       </div>
 
       {/* Revenue Row */}
-      <div className="platform-revenue-row grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="platform-revenue-row">
         <div className="glass-card p-5 flex flex-col gap-3">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR (월간 반복 매출)</span>
           <div className="flex items-end gap-2">
@@ -141,7 +141,7 @@ export default function PlatformOverview() {
       </div>
 
       {/* OP-A: 운영 신호 (24h 에러 + 사고) */}
-      <div className="platform-ops-signal-row grid grid-cols-2 gap-4">
+      <div className="platform-ops-signal-row">
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">최근 24시간 에러</span>
@@ -167,7 +167,7 @@ export default function PlatformOverview() {
       </div>
 
       {/* Recent signups */}
-      <div className="platform-recent-signups-card glass-card p-5">
+      <div className="platform-recent-signups-card glass-card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-[var(--text)]">최근 가입</h3>
           <Link href="/platform/customers" className="text-xs text-[var(--primary)] hover:underline">전체 보기</Link>
@@ -177,7 +177,7 @@ export default function PlatformOverview() {
             const sub = c.subscriptions?.[0];
             const plan = sub?.subscription_plans;
             return (
-              <div key={c.id} className="platform-signup-row flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)]/60 hover:bg-[var(--bg-surface)] transition">
+              <div key={c.id} className="platform-signup-row">
                 <div>
                   <div className="font-semibold text-sm text-[var(--text)]">{c.name}</div>
                   <div className="text-xs text-[var(--text-dim)]">

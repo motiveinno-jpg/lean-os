@@ -102,7 +102,7 @@ export default function PlatformErrorsPage() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="platform-error-toolbar flex flex-wrap items-center justify-between gap-2">
+      <div className="platform-error-toolbar">
         <div className="flex flex-wrap items-baseline gap-2">
           <h1 className="text-2xl font-extrabold text-[var(--text)]">에러 해석</h1>
           <span className="text-sm text-[var(--text-muted)]">
@@ -139,7 +139,7 @@ export default function PlatformErrorsPage() {
 
       {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
       {!isLoading && errors.length === 0 && (
-        <div className="platform-error-empty glass-card p-8 text-center text-sm text-[var(--success)]">
+        <div className="platform-error-empty glass-card">
           🎉 이 기간에 에러 없음.
         </div>
       )}
@@ -151,7 +151,7 @@ export default function PlatformErrorsPage() {
             const tone = SEVERITY_TONE[g.explanation.severity];
             const unresolvedCount = g.rows.filter((r) => !r.resolved).length;
             return (
-              <div key={g.code} className="platform-error-group-card glass-card overflow-hidden">
+              <div key={g.code} className="platform-error-group-card glass-card">
                 <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${SEVERITY_CLS[g.explanation.severity] || SEVERITY_CLS.medium}`}>
@@ -166,7 +166,7 @@ export default function PlatformErrorsPage() {
                     </span>
                   </div>
                 </div>
-                <div className="platform-error-explanation px-5 py-4 bg-[var(--bg-surface)]/60">
+                <div className="platform-error-explanation">
                   <div className="text-sm text-[var(--text)] font-semibold mb-1">{g.explanation.what}</div>
                   <div className="text-xs text-[var(--text-muted)] mb-1">
                     <span className="text-[var(--text-dim)]">왜 났을까?</span> {g.explanation.why}
@@ -175,12 +175,12 @@ export default function PlatformErrorsPage() {
                     <span className="text-[var(--text-dim)]">어떻게 고치나?</span> {g.explanation.fix}
                   </div>
                 </div>
-                <div className="platform-error-row-list divide-y divide-[var(--border)]">
+                <div className="platform-error-row-list">
                   {g.rows.slice(0, 5).map((r) => (
                     <button
                       key={r.id}
                       onClick={() => setSelectedId(r.id)}
-                      className={`platform-error-row w-full text-left px-5 py-2.5 hover:bg-[var(--bg-surface)]/60 transition ${
+                      className={`platform-error-row ${
                         selectedId === r.id ? "bg-[var(--primary-light)]" : ""
                       }`}
                     >
@@ -210,7 +210,7 @@ export default function PlatformErrorsPage() {
         {/* 우: 선택 상세 */}
         <div className="lg:col-span-1">
           {selected && selectedExp ? (
-            <div className="platform-error-detail glass-card p-5 sticky top-4">
+            <div className="platform-error-detail glass-card">
               <div className="flex items-center justify-between mb-3">
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${SEVERITY_CLS[selectedExp.severity] || SEVERITY_CLS.medium}`}>
                   {SEVERITY_TONE[selectedExp.severity].label}
@@ -280,7 +280,7 @@ export default function PlatformErrorsPage() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="platform-error-detail-row flex items-start gap-2">
+    <div className="platform-error-detail-row">
       <div className="w-12 shrink-0 text-[var(--text-dim)]">{label}</div>
       <div className="text-[var(--text)] break-all">{value}</div>
     </div>

@@ -2029,3 +2029,96 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .billing-feedback-card { @apply p-6; }
 .billing-upgrade-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
 .billing-cancel-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
+
+/* ═══ 클래스명 가독성 정리 재작업 — 배치8(platform) 마커 스타일 (2026-07-16) ═══ */
+.platform-error-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.platform-error-empty { @apply p-8 text-center text-sm text-[var(--success)]; }
+.platform-error-group-card { @apply overflow-hidden; }
+.platform-error-explanation { @apply px-5 py-4 bg-[var(--bg-surface)]/60; }
+.platform-error-row-list { @apply divide-y divide-[var(--border)]; }
+.platform-error-row { @apply w-full text-left px-5 py-2.5 hover:bg-[var(--bg-surface)]/60 transition; }
+.platform-error-detail { @apply p-5 sticky top-4; }
+.platform-error-detail-row { @apply flex items-start gap-2; }
+.platform-metric-card { @apply p-5; }
+.platform-boxplot { @apply relative h-7 bg-[var(--bg-surface)] rounded-lg overflow-hidden; }
+.platform-metric-stats-grid { @apply grid grid-cols-2 md:grid-cols-5 gap-2 mt-3 text-[11px]; }
+.platform-dependency-status-badge { @apply px-2.5 py-1 rounded-full text-[10px] font-bold; }
+.platform-dependencies-header { @apply flex items-end justify-between gap-4; }
+.platform-dependency-card-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-4; }
+.platform-dependency-card { @apply p-5; }
+.platform-dependency-links { @apply flex flex-wrap gap-2; }
+.platform-audit-header { @apply flex items-end justify-between gap-4; }
+.platform-audit-hours-filter { @apply px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.platform-audit-empty { @apply p-8 text-center text-sm text-[var(--text-dim)]; }
+.platform-audit-table { @apply overflow-hidden; }
+.platform-audit-row { @apply border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition; }
+.platform-feedback-header { @apply flex flex-wrap items-center justify-between gap-2; }
+.platform-feedback-status-summary { @apply flex flex-wrap gap-2 text-xs; }
+.platform-feedback-list { @apply overflow-hidden; }
+.platform-feedback-row { @apply p-5 hover:bg-[var(--bg-surface)]/60 transition; }
+.platform-feedback-actions { @apply flex gap-1 shrink-0; }
+
+/* Left as-is (no change needed, do not add to globals.css):
+   - platform-audit-footnote kpi-callout (audit/page.tsx line ~120) — marker + existing custom class only, no raw utils
+   - kpi-callout warning (averages/page.tsx line ~95) — existing BEM modifier (.kpi-callout.warning already in globals.css)
+   - glass-card p-8 ... (errors/page.tsx line ~265, "왼쪽에서 에러를 선택하면...") — no distinct marker prefixed, out of scope
+   - seg-bar / seg-item / seg-item-active (errors/page.tsx) — pure existing semantic classes, no utils attached
+   - btn-secondary text-xs (dependencies/page.tsx) — btn-secondary is forbidden-@apply existing class, text-xs is a single dynamic-ish util kept literal alongside (not marker+util pattern, no new marker)
+*/
+.platform-db-stats-card { @apply p-5; }
+.platform-company-list { @apply max-h-72 overflow-y-auto rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]; }
+.platform-company-row { @apply flex items-center justify-between px-3 py-2.5 hover:bg-[var(--bg-surface)]/60 transition; }
+.platform-user-list { @apply max-h-72 overflow-y-auto rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]; }
+.platform-user-row { @apply flex items-center justify-between px-3 py-2.5 hover:bg-[var(--bg-surface)]/60 transition; }
+.platform-role-count-row { @apply flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]; }
+.platform-plans-card { @apply p-5; }
+.platform-plan-row { @apply p-4 rounded-xl bg-[var(--bg-surface)]; }
+.platform-env-card { @apply p-5 md:col-span-2; }
+.platform-env-item { @apply p-3 rounded-xl bg-[var(--bg-surface)]; }
+.platform-release-log-card { @apply p-5 md:col-span-2; }
+.platform-release-item { @apply p-4 rounded-xl bg-[var(--bg-surface)]; }
+.platform-kpi-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.platform-kpi-card { @apply p-5 flex flex-col gap-3; }
+.platform-revenue-row { @apply grid grid-cols-2 lg:grid-cols-3 gap-4; }
+.platform-ops-signal-row { @apply grid grid-cols-2 gap-4; }
+.platform-recent-signups-card { @apply p-5; }
+.platform-signup-row { @apply flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)]/60 hover:bg-[var(--bg-surface)] transition; }
+.platform-company-header { @apply flex items-start justify-between gap-4; }
+.platform-company-plan-badge { @apply px-3 py-1.5 rounded-full text-xs font-bold; }
+.platform-company-kpi-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.platform-company-kpi-card { @apply p-5 flex flex-col gap-3; }
+.platform-company-ops-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-4; }
+.platform-company-errors-card { @apply p-5 flex flex-col gap-3; }
+.platform-company-last-login-card { @apply p-5 flex flex-col gap-3; }
+.platform-company-subscription-card { @apply p-5; }
+.platform-support-ticket-list { @apply overflow-hidden; }
+.platform-support-ticket-row { @apply p-5; }
+.platform-support-answer-block { @apply mt-3 rounded-xl bg-[var(--bg-surface)] p-3.5; }
+.platform-support-answer-form { @apply mt-3; }
+.platform-referral-kpi-grid { @apply grid grid-cols-1 md:grid-cols-3 gap-4; }
+.platform-referral-kpi-card { @apply p-5 flex flex-col gap-3; }
+.platform-referral-ranking { @apply overflow-hidden; }
+.platform-referral-row { @apply flex items-center justify-between p-4 hover:bg-[var(--bg-surface)]/60 transition; }
+.platform-incident-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.platform-incident-list { @apply space-y-4; }
+.platform-incident-card { @apply p-5; }
+.platform-incident-field { @apply p-3 rounded-lg; }
+.platform-incident-form { @apply p-5 space-y-3; }
+.platform-industry-distribution-card { @apply p-5; }
+.platform-industry-bar-row { @apply w-full flex items-center gap-3 text-left; }
+.platform-industry-average-card { @apply p-5; }
+.platform-metric-tile { @apply bg-[var(--bg-surface)] rounded-lg p-3; }
+.platform-unclassified-card { @apply p-5; }
+.platform-unclassified-row { @apply flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-surface)]; }
+.platform-sidebar { @apply w-56 rounded-[20px] border border-[var(--border)]/60 flex flex-col fixed left-3 top-3 bottom-3 z-40; }
+.platform-nav-item { @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition; }
+.platform-sidebar-footer { @apply p-4 border-t border-[var(--border)]; }
+.platform-main-content { @apply flex-1 ml-[248px] p-6 lg:p-8 lg:pr-6; }
+.platform-customers-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.platform-customers-table { @apply overflow-hidden; }
+.platform-customer-row { @apply border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition cursor-pointer; }
+.platform-revenue-header { @apply flex flex-wrap items-center justify-between gap-2; }
+.platform-revenue-kpi-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.platform-revenue-kpi-card { @apply p-5 flex flex-col gap-3; }
+.platform-revenue-invoice-list { @apply overflow-hidden; }
+.platform-revenue-invoice-row { @apply flex items-center justify-between p-4 hover:bg-[var(--bg-surface)]/60 transition; }

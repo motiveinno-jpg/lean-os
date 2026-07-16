@@ -125,7 +125,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
     //   래퍼 배경 제거(body::before 앰비언트 캔버스가 비쳐 보이게) + 사이드바를 떠 있는 유리 패널로.
     <div className="min-h-screen flex">
       {/* Sidebar — 고객 앱 sidebar.tsx 와 동일한 인셋 플로팅 유리 패널 */}
-      <aside className="platform-sidebar chrome-glass w-56 rounded-[20px] border border-[var(--border)]/60 flex flex-col fixed left-3 top-3 bottom-3 z-40">
+      <aside className="platform-sidebar chrome-glass">
         <div className="p-5 border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center">
@@ -153,7 +153,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`platform-nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                      className={`platform-nav-item ${
                         active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                       }`}
                     >
@@ -167,7 +167,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           ))}
         </nav>
 
-        <div className="platform-sidebar-footer p-4 border-t border-[var(--border)]">
+        <div className="platform-sidebar-footer">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs font-bold">
               {userName.charAt(0)}
@@ -181,7 +181,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         </div>
       </aside>
 
-      <main className="platform-main-content flex-1 ml-[248px] p-6 lg:p-8 lg:pr-6">
+      <main className="platform-main-content">
         {children}
       </main>
     </div>

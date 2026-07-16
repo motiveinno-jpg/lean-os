@@ -45,32 +45,32 @@ export default function RevenuePage() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="platform-revenue-header flex flex-wrap items-center justify-between gap-2">
+      <div className="platform-revenue-header">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">수익 관리</h1>
       </div>
 
       {/* Revenue KPI */}
-      <div className="platform-revenue-kpi-grid grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="platform-revenue-kpi-card glass-card p-5 flex flex-col gap-3">
+      <div className="platform-revenue-kpi-grid">
+        <div className="platform-revenue-kpi-card glass-card">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR</span>
           <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">{fmtW(mrr)}</span>
         </div>
-        <div className="platform-revenue-kpi-card glass-card p-5 flex flex-col gap-3">
+        <div className="platform-revenue-kpi-card glass-card">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">ARR</span>
           <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmtW(mrr * 12)}</span>
         </div>
-        <div className="platform-revenue-kpi-card glass-card p-5 flex flex-col gap-3">
+        <div className="platform-revenue-kpi-card glass-card">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">누적 매출</span>
           <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)]">{fmtW(totalRevenue)}</span>
         </div>
-        <div className="platform-revenue-kpi-card glass-card p-5 flex flex-col gap-3">
+        <div className="platform-revenue-kpi-card glass-card">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">미수금</span>
           <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)]">{fmtW(pendingAmount)}</span>
         </div>
       </div>
 
       {/* Invoice list */}
-      <div className="platform-revenue-invoice-list glass-card overflow-hidden">
+      <div className="platform-revenue-invoice-list glass-card">
         <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
           <h3 className="text-sm font-bold text-[var(--text)]">전체 결제 내역</h3>
         </div>
@@ -79,7 +79,7 @@ export default function RevenuePage() {
         ) : (
           <div className="divide-y divide-[var(--border)]">
             {invoices.map((inv: any) => (
-              <div key={inv.id} className="platform-revenue-invoice-row flex items-center justify-between p-4 hover:bg-[var(--bg-surface)]/60 transition">
+              <div key={inv.id} className="platform-revenue-invoice-row">
                 <div className="flex items-center gap-3">
                   <div className={`w-2.5 h-2.5 rounded-full ${
                     inv.status === "paid" ? "bg-[var(--success)]" : inv.status === "failed" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"

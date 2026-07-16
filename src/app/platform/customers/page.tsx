@@ -41,7 +41,7 @@ export default function CustomersPage() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="platform-customers-toolbar flex flex-wrap items-center justify-between gap-2">
+      <div className="platform-customers-toolbar">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">고객사 관리</h1>
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -72,7 +72,7 @@ export default function CustomersPage() {
       <div className="text-xs text-[var(--text-dim)]">{filtered.length}개 고객사</div>
 
       {/* Table */}
-      <div className="platform-customers-table glass-card overflow-hidden">
+      <div className="platform-customers-table glass-card">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -94,7 +94,7 @@ export default function CustomersPage() {
                   <tr
                     key={c.id}
                     onClick={() => router.push(`/platform/companies/${c.id}`)}
-                    className="platform-customer-row border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition cursor-pointer"
+                    className="platform-customer-row"
                   >
                     <td className="px-5 py-3.5">
                       <div className="font-semibold text-[var(--text)]">{c.name}</div>

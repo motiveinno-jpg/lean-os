@@ -120,7 +120,7 @@ export default function PlatformAveragesPage() {
           const max = Number(r.max_value || 0);
           const pct = (v: number) => Math.min(100, Math.max(0, (Math.abs(v) / globalMax) * 100));
           return (
-            <div key={r.metric} className="platform-metric-card glass-card p-5">
+            <div key={r.metric} className="platform-metric-card glass-card">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <div className="text-[var(--text)] font-bold text-sm">{r.label}</div>
@@ -133,7 +133,7 @@ export default function PlatformAveragesPage() {
               </div>
 
               {/* 박스 플롯 스타일 — min, p25, median, p75, max */}
-              <div className="platform-boxplot relative h-7 bg-[var(--bg-surface)] rounded-lg overflow-hidden">
+              <div className="platform-boxplot">
                 {/* 전체 min~max 가로선 */}
                 <div
                   className="absolute top-1/2 -translate-y-1/2 h-px bg-[var(--border-light)]"
@@ -159,7 +159,7 @@ export default function PlatformAveragesPage() {
                 />
               </div>
 
-              <div className="platform-metric-stats-grid grid grid-cols-2 md:grid-cols-5 gap-2 mt-3 text-[11px]">
+              <div className="platform-metric-stats-grid">
                 <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5">
                   <div className="text-[var(--text-dim)]">최소</div>
                   <div className="text-[var(--text)] font-semibold mono-number">{fmtW(min)}</div>
