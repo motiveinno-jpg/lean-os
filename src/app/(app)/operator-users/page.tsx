@@ -113,7 +113,7 @@ export default function OperatorUsersPage() {
   return (
     <div className="bg-[var(--bg)] text-[var(--text)] -mx-6 -my-6 px-6 py-6 min-h-screen rounded-none">
       {/* 툴바 — 탭(좌) + 검색(우) */}
-      <div className="operator-toolbar page-sticky-header mb-6">
+      <div className="operator-toolbar page-sticky-header">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="seg-bar">
             {[
@@ -150,7 +150,7 @@ export default function OperatorUsersPage() {
 
       {/* 후보 목록 */}
       {result && !result.found && (
-        <div className="operator-candidate-list glass-card p-5">
+        <div className="operator-candidate-list glass-card">
           {result.candidates && result.candidates.length > 0 ? (
             <>
               <div className="text-xs text-[var(--text-muted)] mb-2">정확히 일치하는 계정이 없습니다. 유사 계정:</div>
@@ -179,7 +179,7 @@ export default function OperatorUsersPage() {
           {/* 회원 조회 탭 */}
           {tab === "view" && (
             <>
-              <div className="operator-account-info glass-card p-5">
+              <div className="operator-account-info glass-card">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-bold">계정 정보</h3>
                 </div>
@@ -203,7 +203,7 @@ export default function OperatorUsersPage() {
               </div>
 
               {/* 에러 발생 이력 */}
-              <div className="operator-error-history glass-card p-5">
+              <div className="operator-error-history glass-card">
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                   <h3 className="text-sm font-bold">에러 발생 이력</h3>
                   {errors?.stats && (
@@ -237,7 +237,7 @@ export default function OperatorUsersPage() {
                     )}
                     <div className="space-y-1.5 max-h-[480px] overflow-y-auto">
                       {errors.logs.slice(0, 20).map((l: any) => (
-                        <div key={l.id} className={`error-log-item rounded-lg border px-3 py-2 ${l.resolved ? "border-[var(--border)] opacity-60" : "border-red-500/30 bg-red-500/5"}`}>
+                        <div key={l.id} className={`error-log-item ${l.resolved ? "border-[var(--border)] opacity-60" : "border-red-500/30 bg-red-500/5"}`}>
                           <div className="flex items-center gap-2 mb-1 text-[11px] flex-wrap">
                             <span className="font-semibold text-[var(--text)]">{l.error_type || "unknown"}</span>
                             <span className="text-[var(--text-dim)]">·</span>
@@ -271,7 +271,7 @@ export default function OperatorUsersPage() {
 
           {/* 계정 수정 탭 */}
           {tab === "edit" && (
-            <div className="operator-edit-form glass-card p-5">
+            <div className="operator-edit-form glass-card">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold text-[var(--primary)]">정보 수정</h3>
               </div>

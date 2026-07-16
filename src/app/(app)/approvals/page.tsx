@@ -164,7 +164,7 @@ function attachmentFileName(url: string): string {
 function AttachmentList({ attachments }: { attachments?: string[] }) {
   if (!attachments || attachments.length === 0) return null;
   return (
-    <div className="approval-attachment-list mt-3">
+    <div className="approval-attachment-list">
       <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">첨부파일 ({attachments.length})</div>
       <div className="flex flex-wrap gap-2">
         {attachments.map((url, i) => (
@@ -202,7 +202,7 @@ function fieldTypeIcon(type: string) {
 function FormFieldRows({ fields }: { fields: { label: string; type: string; value: string }[] }) {
   if (fields.length === 0) return null;
   return (
-    <div className="approval-form-field-rows py-1">
+    <div className="approval-form-field-rows">
       {fields.map((f, i) => (
         <div key={i} className="flex items-center gap-3 py-2">
           <span className="w-7 h-7 rounded-lg bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center shrink-0">
@@ -390,13 +390,13 @@ export default function ApprovalsPage() {
   return (
     <div className="space-y-6">
       {/* Toolbar — icon tab navigation */}
-      <div className="approval-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2">
+      <div className="approval-toolbar page-sticky-header">
         <div className="approval-tab-bar seg-bar">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`approval-tab-item seg-item inline-flex items-center gap-1.5 ${tab === t.key ? "seg-item-active" : ""}`}
+              className={`approval-tab-item seg-item ${tab === t.key ? "seg-item-active" : ""}`}
             >
               {tabIcon(t.icon)}
               {t.label}
@@ -409,7 +409,7 @@ export default function ApprovalsPage() {
       </div>
 
       {/* Summary stats — 클릭 시 전체 현황 탭으로 이동 + 해당 상태 필터 적용 */}
-      <div className="approval-summary-stats grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="approval-summary-stats">
         {[
           { label: "대기 중", value: stats?.pending ?? 0, tone: "warning", valueCls: "text-[var(--warning)]", status: "pending", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" /></svg> },
           { label: "승인 완료", value: stats?.approved ?? 0, tone: "success", valueCls: "text-[var(--success)]", status: "approved", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
@@ -419,7 +419,7 @@ export default function ApprovalsPage() {
           <div
             key={k.label}
             onClick={() => goToAllWithStatus(k.status)}
-            className="approval-stat-card glass-card card-hover p-5 flex flex-col gap-3 cursor-pointer"
+            className="approval-stat-card glass-card card-hover"
           >
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-muted)]">{k.label}</span>
@@ -576,11 +576,11 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
           <div className="text-[var(--text-muted)] text-sm">대기 중인 연장근무 신청이 없습니다</div>
         </div>
       ) : (
-        <div className="approval-overtime-list space-y-3">
+        <div className="approval-overtime-list">
           {rows.map((row) => {
             const empName: string = row?.employees?.name || "(이름 없음)";
             return (
-              <div key={row.id} className="approval-overtime-row glass-card p-5">
+              <div key={row.id} className="approval-overtime-row glass-card">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
@@ -737,7 +737,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   return (
     <div className="flex flex-col lg:flex-row gap-4 items-start">
       {/* LEFT — 결재 대기 목록 (분할 패널: 목록 컬럼) */}
-      <div className="approval-queue-list w-full lg:w-[300px] shrink-0 space-y-2">
+      <div className="approval-queue-list">
         {pendingApprovals.map((item: any) => {
           const m = typeMeta(item.requestType);
           const active = item.stepId === selectedStepId;
@@ -745,7 +745,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
             <button
               key={item.stepId}
               onClick={() => { setSelectedStepId(item.stepId); setComment(""); }}
-              className={`approval-queue-row w-full text-left p-3.5 rounded-xl border transition ${active ? "border-[var(--primary)] bg-[var(--primary)]/6" : "border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--primary)]/30"}`}
+              className={`approval-queue-row ${active ? "border-[var(--primary)] bg-[var(--primary)]/6" : "border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--primary)]/30"}`}
             >
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
@@ -764,7 +764,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       {/* RIGHT — 문서 패널 + 승인·참조 사이드바 */}
       {selected && (
         <div className="flex-1 w-full min-w-0 flex flex-col xl:flex-row gap-4 items-start">
-          <div className="approval-detail-panel flex-1 w-full min-w-0 glass-card p-6">
+          <div className="approval-detail-panel glass-card">
             <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold mb-3 bg-[var(--warning-dim)] text-[var(--warning)]">
               승인 필요
             </span>
@@ -822,7 +822,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
           </div>
 
           {/* 승인·참조 사이드바 */}
-          <div className="approval-stage-sidebar w-full xl:w-[240px] shrink-0 glass-card p-4">
+          <div className="approval-stage-sidebar glass-card">
             <ApprovalStageSidebar requestId={selected.requestId} referenceUsers={selected.referenceUsers} />
           </div>
         </div>
@@ -868,12 +868,12 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
           <div className="text-sm text-[var(--text-muted)]">&ldquo;새 요청&rdquo; 탭에서 결재를 요청할 수 있습니다</div>
         </div>
       ) : (
-        <div className="approval-my-requests-list space-y-3">
+        <div className="approval-my-requests-list">
           {requests.map((req: any) => {
             const m = typeMeta(req.request_type);
             const open = expandedId === req.id;
             return (
-              <div key={req.id} className="approval-request-card glass-card card-hover overflow-hidden animate-slide-in">
+              <div key={req.id} className="approval-request-card glass-card card-hover animate-slide-in">
                 <div
                   className="p-5 cursor-pointer"
                   onClick={() => setExpandedId(open ? null : req.id)}
@@ -921,7 +921,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
 
                 {/* Expanded: Timeline */}
                 {open && (
-                  <div className="approval-timeline-panel border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60">
+                  <div className="approval-timeline-panel">
                     <ApprovalTimelineView requestId={req.id} currentStage={req.current_stage} totalStages={req.total_stages} requestStatus={req.status} currentUserId={userId} />
                   </div>
                 )}
@@ -1071,7 +1071,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
   return (
     <div>
       {/* Filters — 상태는 필 칩, 유형은 pill select */}
-      <div className="approval-filters flex flex-wrap items-center gap-3 mb-4">
+      <div className="approval-filters">
         <div className="seg-bar">
           {statusOptions.map((o) => (
             <button
@@ -1098,7 +1098,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
 
       {/* Table */}
       <div className="approval-table-wrap glass-card overflow-x-auto">
-        <table className="approval-table w-full text-left min-w-[720px]">
+        <table className="approval-table">
           <thead>
             <tr className="border-b border-[var(--border)]">
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
@@ -1128,7 +1128,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                 return (
                   <tr
                     key={req.id}
-                    className="approval-table-row border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition"
+                    className="approval-table-row"
                     onClick={() => setExpandedId(req.id)}
                   >
                     <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
@@ -1198,7 +1198,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
         const reqFormFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
         const reqContentText = contentWithoutFieldLines(req.description || "", reqFormFields);
         return (
-          <div className="approval-detail-modal fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setExpandedId(null)}>
+          <div className="approval-detail-modal" onClick={() => setExpandedId(null)}>
             <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-start justify-between gap-3 mb-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1564,7 +1564,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Form */}
-      <div className="approval-new-request-form lg:col-span-2">
+      <div className="approval-new-request-form">
         <div className="glass-card p-6">
           <h3 className="text-sm font-bold mb-5">새 결재 요청</h3>
 
@@ -1572,7 +1572,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             {/* Request Type — 아이콘 칩 피커 */}
             <div>
               <label className="field-label">요청 유형 *</label>
-              <div className="approval-type-picker flex flex-wrap gap-2">
+              <div className="approval-type-picker">
                 {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
                   const m = typeMeta(k);
                   const on = form.requestType === k;
@@ -1653,7 +1653,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               <>
                 {/* Leave balance info */}
                 {leaveForm.leaveType === "annual" && (
-                  <div className="approval-leave-balance-card flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20 shadow-sm">
+                  <div className="approval-leave-balance-card">
                     <div className="text-2xl font-extrabold text-blue-500">
                       {remainingLeave !== null ? remainingLeave : "-"}
                     </div>
@@ -1993,10 +1993,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       </div>
 
       {/* Right sidebar */}
-      <div className="approval-new-request-sidebar space-y-4">
+      <div className="approval-new-request-sidebar">
         {/* Auto-generated document preview (leave) */}
         {isLeave && leaveForm.startDate && (
-          <div className="approval-document-preview glass-card p-5">
+          <div className="approval-document-preview glass-card">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-6 h-6 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
                 <TypeIcon name="doc" className="w-3.5 h-3.5" />
@@ -2010,7 +2010,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         )}
 
         {/* Policy Preview — 결재선 스텝퍼 */}
-        <div className="approval-policy-preview glass-card p-5 sticky top-4">
+        <div className="approval-policy-preview glass-card">
           <div className="flex items-center gap-2 mb-4">
             <span className="w-6 h-6 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>
@@ -2243,7 +2243,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
 
       {/* Policy Form */}
       {showForm && (
-        <div className="approval-policy-form glass-card p-6 mb-6">
+        <div className="approval-policy-form glass-card">
           <h3 className="section-title">{editingPolicy ? "양식 · 결재선 수정" : "새 양식 · 결재선"}</h3>
 
           <div className="grid grid-cols-3 gap-4 mb-4">
@@ -2344,7 +2344,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             </div>
             <div className="space-y-2">
               {form.stages.map((stage, idx) => (
-                <div key={idx} className="approval-stage-row flex items-center gap-3 bg-[var(--bg)] rounded-xl p-3 border border-[var(--border)]">
+                <div key={idx} className="approval-stage-row">
                   <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-xs font-bold text-[var(--primary)] shrink-0">
                     {stage.stage}
                   </div>
@@ -2432,12 +2432,12 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
           <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary">+ 정책 추가</button>
         </div>
       ) : (
-        <div className="approval-policy-list grid gap-4 md:grid-cols-2">
+        <div className="approval-policy-list">
           {policies.map((policy: ApprovalPolicy) => {
             const m = typeMeta(policy.document_type);
             const stages = policy.stages as ApprovalStageConfig[];
             return (
-              <div key={policy.id} className="approval-policy-card glass-card card-hover p-5 group">
+              <div key={policy.id} className="approval-policy-card glass-card card-hover group">
                 <div className="flex items-start gap-3 mb-4">
                   <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
                     <TypeIcon name={m.icon} className="w-5 h-5" />
@@ -2551,7 +2551,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
       <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4">결재 타임라인</div>
 
       {/* Horizontal stage stepper */}
-      <div className="approval-timeline-stepper flex items-center gap-0 mb-5 overflow-x-auto pb-1">
+      <div className="approval-timeline-stepper overflow-x-auto">
         {stages.map(([stageNum, steps], idx) => {
           const allApproved = steps.every((s) => s.status === "approved");
           const anyRejected = steps.some((s) => s.status === "rejected");
@@ -2777,7 +2777,7 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
       </div>
 
       {/* 댓글 스레드 — 결정 후에도 대화 가능 */}
-      <div className="approval-comment-thread mt-4 pt-3 border-t border-[var(--border)]/60">
+      <div className="approval-comment-thread">
         <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">댓글 {comments.length > 0 && <span className="text-[var(--text-dim)]">{comments.length}</span>}</div>
         {comments.length > 0 && (
           <div className="space-y-2 mb-3">

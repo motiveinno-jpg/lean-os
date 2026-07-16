@@ -466,7 +466,7 @@ export default function DashboardPage() {
 
   return (
     <div
-      className="dashboard-page-root pb-20 md:pb-0"
+      className="dashboard-page-root"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -497,7 +497,7 @@ export default function DashboardPage() {
       {/* ═══ 시안 메인 (라운드6.5 레퍼런스 골격) — KPI 4카드 행 → 본문 2/3+1/3 그리드 → 하단 풀폭.
            owner/admin 기본 노출(뷰 토글과 무관). ═══ */}
       {(role === "owner" || role === "admin") && companyId && (
-        <div className="dashboard-owner-widgets-section space-y-4 mb-6">
+        <div className="dashboard-owner-widgets-section">
           {/* (0) AI 브리핑 + 오늘의 액션 — 라운드7.1(컨셉 1안). 문장 요약은 MorningBrief(규칙 기반) 재사용,
                버튼은 이미 계산된 sixPack·세금 마감에서 파생 — 신규 쿼리 0. */}
           <div>
@@ -563,11 +563,11 @@ export default function DashboardPage() {
 
       {/* ═══ 경영 종합 — CEO 커맨드 센터(액션·펄스·목표·리스크). owner 전용, 상시 노출. ═══ */}
       {role === "owner" && (<>
-      <div className="dashboard-toolbar mb-4">
+      <div className="dashboard-toolbar">
         {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
         <div className="mb-3">
           {/* 라운드7.1 — MorningBrief 는 대시보드 최상단(시안 메인)으로 이동. 여기엔 도구 버튼만 유지 */}
-          <div className="dashboard-toolbar-actions flex items-center gap-1.5 justify-end mb-2">
+          <div className="dashboard-toolbar-actions">
             {role === "owner" && (
               <button onClick={handleDataSync} disabled={syncing}
                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 ${
@@ -594,7 +594,7 @@ export default function DashboardPage() {
 
         {/* Toast 영역 (파싱/동기화 결과) */}
         {parseResult && (
-          <div className={`dashboard-parse-toast mb-3 p-2.5 rounded-lg text-xs whitespace-pre-line ${
+          <div className={`dashboard-parse-toast ${
             parseResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
               : 'bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]'
           }`}>
@@ -603,7 +603,7 @@ export default function DashboardPage() {
           </div>
         )}
         {syncResult && (
-          <div className={`dashboard-sync-toast mb-3 p-2.5 rounded-lg text-xs flex items-center justify-between ${
+          <div className={`dashboard-sync-toast ${
             syncResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
               : 'bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]'
           }`}>
@@ -632,7 +632,7 @@ export default function DashboardPage() {
 
       {/* ═══ 데이터 없음 — 시작 CTA ═══ */}
       {!hasData && (
-        <div className="dashboard-empty-state-cta mb-4 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
+        <div className="dashboard-empty-state-cta">
           <div className="text-sm font-bold text-[var(--text)] mb-1">아직 재무 데이터가 없습니다</div>
           <p className="text-xs text-[var(--text-muted)] mb-4">아래 방법 중 하나를 선택해 시작하세요.</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -674,14 +674,14 @@ export default function DashboardPage() {
 function TaxScheduleWidget({ items }: { items: ReturnType<typeof getUpcomingTaxDeadlines> }) {
   if (items.length === 0) {
     return (
-      <div className="dashboard-tax-schedule-widget glass-card px-4 py-3 flex flex-col h-full">
+      <div className="dashboard-tax-schedule-empty glass-card">
         <span className="text-[11px] font-bold uppercase tracking-wider mb-2 text-[var(--warning)]">세금 일정</span>
         <div className="flex-1 flex items-center justify-center text-[11px] text-[var(--text-dim)]">다가오는 세금 일정이 없습니다.</div>
       </div>
     );
   }
   return (
-    <Link href={items[0].href} className="dashboard-tax-schedule-widget glass-card px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition">
+    <Link href={items[0].href} className="dashboard-tax-schedule-link glass-card">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--warning)]">세금 일정</span>
         <span className="text-[11px] font-semibold text-[var(--primary)]">이동 →</span>
@@ -714,7 +714,7 @@ const QUICK_NAV_LINKS: { icon: string; label: string; href: string }[] = [
 
 function QuickNavWidget() {
   return (
-    <div className="dashboard-quick-nav-widget mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="dashboard-quick-nav-widget">
       <div className="flex items-center gap-2 mb-3">
         <div className="dot-primary" />
         <h2 className="eyebrow">빠른 이동</h2>
@@ -814,7 +814,7 @@ function SummaryKpisWidget({
   ];
 
   return (
-    <div className="dashboard-summary-kpis-widget mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="dashboard-summary-kpis-widget">
       <div className="flex items-center gap-2 mb-3">
         <div className="dot-primary" />
         <h2 className="eyebrow">요약</h2>
@@ -884,7 +884,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
 
   return (
     // 루트가 glass-card(흰 박스) — 제목·목록 모두 박스 안. h-full 로 셀 높이를 꽉 채움(다른 위젯과 통일).
-    <div className="dashboard-todos-widget glass-card p-4 flex flex-col h-full">
+    <div className="dashboard-todos-widget glass-card">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="dot-primary" />
@@ -957,7 +957,7 @@ function SixPackCell({ label, value, sub, color, highlight }: {
   label: string; value: string; sub?: string; color: string; highlight?: boolean;
 }) {
   return (
-    <div className={`dashboard-six-pack-cell px-3 py-3 ${highlight ? 'animate-pulse-danger' : ''}`}>
+    <div className={`dashboard-six-pack-cell ${highlight ? 'animate-pulse-danger' : ''}`}>
       <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">{label}</div>
       <div className="text-sm font-black mono-number" style={{ color }}>{value}</div>
       {sub && <div className="text-[9px] text-[var(--danger)] font-semibold mt-0.5">{sub}</div>}
@@ -969,7 +969,7 @@ function CashPulseWidget({ pulse }: { pulse: CashPulseResult }) {
   const maxBalance = Math.max(...pulse.forecastPoints.map(p => Math.abs(p.balance)), 1);
 
   return (
-    <div className="dashboard-cash-pulse-widget mb-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="dashboard-cash-pulse-widget">
       <div className="flex items-center gap-2 mb-3">
         <div className="dot-primary" />
         <h2 className="eyebrow">현금 펄스</h2>
@@ -1088,7 +1088,7 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
   const totalPending = invoices.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0);
 
   return (
-    <div className="dashboard-overdue-receivables-widget mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
+    <div className="dashboard-overdue-receivables-widget">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-base">💰</span>
         <h3 className="text-sm font-bold text-[var(--text)]">미수금 현황</h3>
@@ -1152,7 +1152,7 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
   const maxVal = Math.max(...trends.map(t => Math.max(t.expense, t.income)), 1);
 
   return (
-    <div className="dashboard-burn-rate-trend-widget mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]">
+    <div className="dashboard-burn-rate-trend-widget">
       <div className="flex items-center gap-2 mb-4">
         <span className="text-base">📊</span>
         <h3 className="text-sm font-bold text-[var(--text)]">번레이트 추이</h3>
@@ -1276,7 +1276,7 @@ function GrowthSection({ growth }: { growth: FounderDashboardData['growth'] }) {
       {metrics.map(m => {
         const pct = m.target > 0 ? Math.min(100, (m.revenue / m.target) * 100) : 0;
         return (
-          <div key={m.label} className="dashboard-growth-metric-card glass-card p-4">
+          <div key={m.label} className="dashboard-growth-metric-card glass-card">
             <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">
               {m.label} 매출
             </div>
@@ -1393,7 +1393,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
     : [];
 
   return (
-    <div className="dashboard-financial-overview mb-5">
+    <div className="dashboard-financial-overview">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="dot-primary" />
@@ -1861,7 +1861,7 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
   const autoClosed = (checklist as any).auto_closed as boolean | undefined;
 
   return (
-    <div className="dashboard-closing-checklist-widget mb-5">
+    <div className="dashboard-closing-checklist-widget">
       <div className="flex items-center gap-2 mb-3">
         <div className={`w-2 h-2 rounded-full ${checklist.status === 'completed' ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`} />
         <h2 className="eyebrow">월 마감 체크리스트</h2>
@@ -2027,7 +2027,7 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
   const overdue = pendingRevenue.filter((r: any) => r.due_date && new Date(r.due_date) < new Date());
 
   return (
-    <div className="dashboard-pipeline-summary-widget mb-5">
+    <div className="dashboard-pipeline-summary-widget">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-2 h-2 rounded-full bg-blue-500" />
         <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">프로젝트 진행 현황</h2>
@@ -2200,7 +2200,7 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
 
   if (allDone) {
     return (
-      <div className="dashboard-onboarding-done-banner mb-4 rounded-xl border border-[var(--success)]/30 bg-[var(--success)]/[.05] p-3 flex items-center justify-between">
+      <div className="dashboard-onboarding-done-banner">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--success)] text-white">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -2225,7 +2225,7 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="dashboard-onboarding-collapsed-banner w-full mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-3 flex items-center gap-3 hover:bg-[var(--primary)]/[.06] transition text-left"
+        className="dashboard-onboarding-collapsed-banner"
       >
         <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0 bg-[var(--primary)]">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -2246,7 +2246,7 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
 
   // 펼친 상태
   return (
-    <div className="dashboard-onboarding-expanded-panel mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-4">
+    <div className="dashboard-onboarding-expanded-panel">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold bg-[var(--primary)]">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -2370,7 +2370,7 @@ function AutomationWidget({ companyId }: { companyId: string | null }) {
   };
 
   return (
-    <div className="dashboard-automation-widget mb-5">
+    <div className="dashboard-automation-widget">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -2508,7 +2508,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
   if (total === 0) return null;
 
   return (
-    <div className="approval-center-widget mb-5 rounded-xl border bg-[var(--bg-card)] p-4"
+    <div className="approval-center-widget"
       style={{ borderColor: total > 0 ? 'rgba(245,158,11,0.3)' : 'var(--border)' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
@@ -2560,7 +2560,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
           return (
             <div key={`${action.type}-${action.id}`}>
               <div
-                className="approval-queue-row flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition cursor-pointer"
+                className="dashboard-approval-queue-row"
                 onClick={() => setDetailId(detailId === action.id ? null : action.id)}
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -2962,7 +2962,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
   const isCheckedOut = !!todayAttendance?.check_out;
 
   return (
-    <div className="employee-dashboard-root space-y-5">
+    <div className="employee-dashboard-root">
       {/* 내 업무 — 관리자와 동일한 위젯 추가/삭제 기능. 재무 등 권한 밖 위젯은 카탈로그에서 제외(2026-07-15). */}
       {companyId && userId && (() => {
         const P = DEFAULT_WIDGET_POS;
@@ -2988,7 +2988,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
         </div>
 
         {/* 출퇴근 — 빠른 기록 (상세 관리는 근태 페이지 한 곳에서) */}
-        <div className="employee-attendance-card rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 mb-3">
+        <div className="employee-attendance-card">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
@@ -3140,7 +3140,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
         </div>
 
         {/* 처리 대기 4종 — 라운드7.2: 파스텔 타일 → 오너 KPI 동일 언어(.stat-tile, 값 색은 의미 있을 때만) */}
-        <div className="employee-task-tiles grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="employee-task-tiles">
           {[
             { href: "/approvals", label: "승인 대기", value: `${pendingCount}건`, alert: pendingCount > 0, tint: "var(--warning)" },
             { href: "/my-contracts", label: "서명 요청", value: `${signPending}건`, alert: signPending > 0, tint: "var(--primary)" },
@@ -3173,7 +3173,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
             <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">알림</h2>
             <span className="text-[10px] text-[var(--warning)] font-bold">{notifications.length}건</span>
           </div>
-          <div className="employee-notifications-list glass-card divide-y divide-[var(--border)]">
+          <div className="employee-notifications-list glass-card">
             {notifications.map((n: any) => (
               <div key={n.id} className="flex items-center gap-3 px-4 py-3">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] shrink-0" />
@@ -3343,7 +3343,7 @@ function PartnerDashboard({ companyId, userId }: {
 
       {/* 즉시 해야 할 일 알림 */}
       {hasTodo && (
-        <div className="partner-todo-alert mb-4 p-4 rounded-xl border border-orange-400/30 bg-orange-400/5">
+        <div className="partner-todo-alert">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
             <span className="text-xs font-bold text-orange-500">지금 해야 할 일</span>
@@ -3366,7 +3366,7 @@ function PartnerDashboard({ companyId, userId }: {
       )}
 
       {/* Dynamic count cards */}
-      <div className="partner-count-cards grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4 mb-5">
+      <div className="partner-count-cards">
         {cards.map((card) => (
           <Link
             key={card.label}
@@ -3395,7 +3395,7 @@ function PartnerDashboard({ companyId, userId }: {
 
       {/* 최근 활동 타임라인 */}
       {recentActivity.length > 0 && (
-        <div className="partner-recent-activity mb-5">
+        <div className="partner-recent-activity">
           <div className="flex items-center gap-2 mb-3">
             <div className="dot-primary" />
             <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">최근 활동</h2>
@@ -3413,7 +3413,7 @@ function PartnerDashboard({ companyId, userId }: {
       )}
 
       {/* Info card */}
-      <div className="partner-info-card glass-card p-5 md:p-6">
+      <div className="partner-info-card glass-card">
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shrink-0">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>

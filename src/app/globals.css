@@ -1586,3 +1586,117 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .my-items-picker-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
 .column-editor-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
 .signed-contract-page { @apply max-w-[var(--content-max)] mx-auto p-6; }
+
+/* ═══ 클래스명 가독성 정리 재작업 — 배치5(ops-core) 마커 스타일 (2026-07-16) ═══ */
+/* dashboard/page.tsx — marker+utility 병기 분리 (batch5 groupA) */
+.dashboard-page-root { @apply pb-20 md:pb-0; }
+.dashboard-owner-widgets-section { @apply space-y-4 mb-6; }
+.dashboard-toolbar { @apply mb-4; }
+.dashboard-toolbar-actions { @apply flex items-center gap-1.5 justify-end mb-2; }
+.dashboard-parse-toast { @apply mb-3 p-2.5 rounded-lg text-xs whitespace-pre-line; }
+.dashboard-sync-toast { @apply mb-3 p-2.5 rounded-lg text-xs flex items-center justify-between; }
+.dashboard-empty-state-cta { @apply mb-4 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.dashboard-tax-schedule-empty { @apply px-4 py-3 flex flex-col h-full; }
+.dashboard-tax-schedule-link { @apply px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition; }
+.dashboard-quick-nav-widget { @apply mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
+.dashboard-summary-kpis-widget { @apply mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
+.dashboard-todos-widget { @apply p-4 flex flex-col h-full; }
+.dashboard-six-pack-cell { @apply px-3 py-3; }
+.dashboard-cash-pulse-widget { @apply mb-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
+.dashboard-overdue-receivables-widget { @apply mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.dashboard-burn-rate-trend-widget { @apply mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.dashboard-growth-metric-card { @apply p-4; }
+.dashboard-financial-overview { @apply mb-5; }
+.dashboard-closing-checklist-widget { @apply mb-5; }
+.dashboard-pipeline-summary-widget { @apply mb-5; }
+.dashboard-onboarding-done-banner { @apply mb-4 rounded-xl border border-[var(--success)]/30 bg-[var(--success)]/[.05] p-3 flex items-center justify-between; }
+.dashboard-onboarding-collapsed-banner { @apply w-full mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-3 flex items-center gap-3 hover:bg-[var(--primary)]/[.06] transition text-left; }
+.dashboard-onboarding-expanded-panel { @apply mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[.03] p-4; }
+.dashboard-automation-widget { @apply mb-5; }
+.approval-center-widget { @apply mb-5 rounded-xl border bg-[var(--bg-card)] p-4; }
+.dashboard-approval-queue-row { @apply flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition cursor-pointer; }
+.employee-dashboard-root { @apply space-y-5; }
+.employee-attendance-card { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 mb-3; }
+.employee-task-tiles { @apply grid grid-cols-2 sm:grid-cols-4 gap-2.5; }
+.employee-notifications-list { @apply divide-y divide-[var(--border)]; }
+.partner-todo-alert { @apply mb-4 p-4 rounded-xl border border-orange-400/30 bg-orange-400/5; }
+.partner-count-cards { @apply grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4 mb-5; }
+.partner-recent-activity { @apply mb-5; }
+.partner-info-card { @apply p-5 md:p-6; }
+.approval-attachment-list { @apply mt-3; }
+.approval-form-field-rows { @apply py-1; }
+.approval-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.approval-tab-item { @apply inline-flex items-center gap-1.5; }
+.approval-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.approval-stat-card { @apply p-5 flex flex-col gap-3 cursor-pointer; }
+.approval-overtime-list { @apply space-y-3; }
+.approval-overtime-row { @apply p-5; }
+.approval-queue-list { @apply w-full lg:w-[300px] shrink-0 space-y-2; }
+.approval-queue-row { @apply w-full text-left p-3.5 rounded-xl border transition; }
+.approval-detail-panel { @apply flex-1 w-full min-w-0 p-6; }
+.approval-stage-sidebar { @apply w-full xl:w-[240px] shrink-0 p-4; }
+.approval-my-requests-list { @apply space-y-3; }
+.approval-request-card { @apply overflow-hidden; }
+.approval-timeline-panel { @apply border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60; }
+.approval-filters { @apply flex flex-wrap items-center gap-3 mb-4; }
+.approval-table { @apply w-full text-left min-w-[720px]; }
+.approval-table-row { @apply border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition; }
+.approval-detail-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
+.approval-new-request-form { @apply lg:col-span-2; }
+.approval-type-picker { @apply flex flex-wrap gap-2; }
+.approval-leave-balance-card { @apply flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20 shadow-sm; }
+.approval-new-request-sidebar { @apply space-y-4; }
+.approval-document-preview { @apply p-5; }
+.approval-policy-preview { @apply p-5 sticky top-4; }
+.approval-policy-form { @apply p-6 mb-6; }
+.approval-stage-row { @apply flex items-center gap-3 bg-[var(--bg)] rounded-xl p-3 border border-[var(--border)]; }
+.approval-policy-list { @apply grid gap-4 md:grid-cols-2; }
+.approval-policy-card { @apply p-5; }
+.approval-timeline-stepper { @apply flex items-center gap-0 mb-5 pb-1; }
+.approval-comment-thread { @apply mt-4 pt-3 border-t border-[var(--border)]/60; }
+.board-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+.board-filter-bar { @apply flex-wrap; }
+.board-toolbar-actions { @apply flex flex-wrap items-center gap-2 ml-auto; }
+.board-post-form-overlay { @apply fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto; }
+.board-post-form-modal { @apply p-5 sm:p-6 my-8 w-full max-w-2xl space-y-3 shadow-2xl; }
+.board-empty-state { @apply py-16 text-center; }
+.board-post-list { @apply space-y-3; }
+.board-post-card { @apply bg-[var(--bg-card)] rounded-2xl border transition; }
+.board-post-header { @apply w-full text-left px-5 py-4 flex items-start gap-3; }
+.board-post-badges { @apply flex items-center gap-2 flex-wrap mb-1; }
+.board-post-detail { @apply px-5 pb-4; }
+.board-poll-block { @apply mt-3 rounded-xl border border-[var(--border)] p-3; }
+.board-poll-option { @apply w-full text-left relative overflow-hidden rounded-lg border px-3 py-2 transition; }
+.board-attachments { @apply mt-3; }
+.board-post-actions { @apply flex gap-2 mt-3 flex-wrap; }
+.board-comments-section { @apply mt-4 border-t border-[var(--border)] pt-3; }
+.board-comment-item { @apply flex items-start gap-2 text-sm; }
+.board-reply-item { @apply flex items-start gap-2 text-sm; }
+.board-reply-form { @apply ml-6 mt-2 pl-3 border-l-2 border-[var(--primary)]/30 relative; }
+.board-comment-input-row { @apply flex gap-2 items-start; }
+.board-lightbox { @apply fixed inset-0 z-[100] flex items-center justify-center bg-black/85 select-none; }
+.announcement-toolbar { @apply flex flex-wrap items-center justify-end gap-2 mb-6; }
+.announcement-form { @apply bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5 mb-6; }
+.announcement-empty { @apply py-16 text-center; }
+.announcement-list { @apply overflow-hidden divide-y divide-[var(--border)]; }
+.notification-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+.notification-list { @apply overflow-hidden divide-y divide-[var(--border)]; }
+.notification-item { @apply flex items-start gap-3 px-5 py-3.5 transition; }
+.error-log-toolbar { @apply mb-4; }
+.error-log-filter-bar { @apply flex flex-wrap items-center gap-2; }
+.error-log-toolbar-actions { @apply flex gap-2; }
+.error-log-empty-state { @apply p-16 text-center; }
+.error-log-list { @apply space-y-2; }
+.error-log-card { @apply bg-[var(--bg-card)] rounded-2xl border transition; }
+.error-log-card-header { @apply w-full px-5 py-4 flex items-start gap-3; }
+.error-log-badges { @apply flex items-center gap-2 flex-wrap mb-1.5; }
+.error-log-detail { @apply px-5 pb-4 border-t border-[var(--border)] pt-3 space-y-3; }
+.error-log-explain { @apply bg-[var(--bg-surface)] rounded-xl p-3; }
+.error-log-fix { @apply bg-[var(--primary)]/5 border border-[var(--primary)]/15 rounded-xl p-3; }
+.error-log-context-grid { @apply grid grid-cols-2 gap-2 text-[11px]; }
+.operator-toolbar { @apply mb-6; }
+.operator-candidate-list { @apply p-5; }
+.operator-account-info { @apply p-5; }
+.operator-error-history { @apply p-5; }
+.error-log-item { @apply rounded-lg border px-3 py-2; }
+.operator-edit-form { @apply p-5; }

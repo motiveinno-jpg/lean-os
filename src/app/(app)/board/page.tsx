@@ -641,8 +641,8 @@ export default function BoardPage() {
   return (
     <div className="">
       {/* 컴팩트 툴바 — 좌: 필터, 우: 검색 + 글쓰기 */}
-      <div className="board-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
-        <div className="board-filter-bar seg-bar flex-wrap">
+      <div className="board-toolbar page-sticky-header">
+        <div className="board-filter-bar seg-bar">
           {(
             [
               ["all", `전체 ${posts.length}`],
@@ -662,7 +662,7 @@ export default function BoardPage() {
             </button>
           ))}
         </div>
-        <div className="board-toolbar-actions flex flex-wrap items-center gap-2 ml-auto">
+        <div className="board-toolbar-actions">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -684,8 +684,8 @@ export default function BoardPage() {
       </div>
 
       {showForm && (
-        <div className="board-post-form-overlay fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto" onClick={resetForm}>
-        <div className="board-post-form-modal glass-card p-5 sm:p-6 my-8 w-full max-w-2xl space-y-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="board-post-form-overlay" onClick={resetForm}>
+        <div className="board-post-form-modal glass-card" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
             <h3 className="text-sm font-bold">
               {editing ? "글 수정" : "새 글 작성"}
@@ -857,7 +857,7 @@ export default function BoardPage() {
           불러오는 중...
         </div>
       ) : filteredPosts.length === 0 ? (
-        <div className="board-empty-state glass-card py-16 text-center">
+        <div className="board-empty-state glass-card">
           <div className="text-4xl mb-3">📝</div>
           <div className="text-sm font-semibold text-[var(--text)]">
             {posts.length === 0
@@ -882,7 +882,7 @@ export default function BoardPage() {
           )}
         </div>
       ) : (
-        <div className="board-post-list space-y-3">
+        <div className="board-post-list">
           {filteredPosts.map((p) => {
             const open = openId === p.id;
             const isMine = mine(p.author_id);
@@ -891,7 +891,7 @@ export default function BoardPage() {
             return (
               <div
                 key={p.id}
-                className={`board-post-card bg-[var(--bg-card)] rounded-2xl border transition ${
+                className={`board-post-card ${
                   p.pinned
                     ? "border-[var(--primary)]/30"
                     : "border-[var(--border)]"
@@ -899,13 +899,13 @@ export default function BoardPage() {
               >
                 <button
                   onClick={() => setOpenId(open ? null : p.id)}
-                  className="board-post-header w-full text-left px-5 py-4 flex items-start gap-3"
+                  className="board-post-header"
                 >
                   <div className="w-9 h-9 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-sm font-bold shrink-0">
                     {(p.author_name || p.author_email || "?")[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="board-post-badges flex items-center gap-2 flex-wrap mb-1">
+                    <div className="board-post-badges">
                       {p.pinned && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
                           📌 고정
@@ -949,7 +949,7 @@ export default function BoardPage() {
                   </svg>
                 </button>
                 {open && (
-                  <div className="board-post-detail px-5 pb-4">
+                  <div className="board-post-detail">
                     <div className="text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed border-t border-[var(--border)] pt-3">
                       {p.content}
                     </div>
@@ -968,7 +968,7 @@ export default function BoardPage() {
                     {p.poll_question && opts.length > 0 && (() => {
                       const { expired, label } = pollExpiry(p.poll_deadline);
                       return (
-                      <div className="board-poll-block mt-3 rounded-xl border border-[var(--border)] p-3">
+                      <div className="board-poll-block">
                         <div className="text-sm font-semibold text-[var(--text)] mb-2 flex items-center gap-2 flex-wrap">
                           <span>🗳️ {p.poll_question}</span>
                           {label && (
@@ -1002,7 +1002,7 @@ export default function BoardPage() {
                                   })
                                 }
                                 disabled={castVote.isPending || expired}
-                                className={`board-poll-option w-full text-left relative overflow-hidden rounded-lg border px-3 py-2 transition ${
+                                className={`board-poll-option ${
                                   voted
                                     ? "border-[var(--primary)] bg-[var(--primary)]/5"
                                     : "border-[var(--border)] hover:border-[var(--primary)]/40"
@@ -1041,7 +1041,7 @@ export default function BoardPage() {
 
                     {/* 첨부 (사진/파일) */}
                     {(p.attachments?.length ?? 0) > 0 && (
-                      <div className="board-attachments mt-3">
+                      <div className="board-attachments">
                         <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
                           첨부 {p.attachments!.length}
                         </div>
@@ -1084,7 +1084,7 @@ export default function BoardPage() {
                       </div>
                     )}
 
-                    <div className="board-post-actions flex gap-2 mt-3 flex-wrap">
+                    <div className="board-post-actions">
                       {canPin && (
                         <button
                           onClick={() => togglePin.mutate(p)}
@@ -1139,7 +1139,7 @@ export default function BoardPage() {
                     </div>
 
                     {/* 댓글 (v4 B1: 트리 + 답글 + @멘션) */}
-                    <div className="board-comments-section mt-4 border-t border-[var(--border)] pt-3">
+                    <div className="board-comments-section">
                       <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
                         댓글 {comments.length}
                       </div>
@@ -1150,7 +1150,7 @@ export default function BoardPage() {
                           const replyOpen = replyTo === c.id;
                           return (
                             <div key={c.id}>
-                              <div className="board-comment-item flex items-start gap-2 text-sm">
+                              <div className="board-comment-item">
                                 <div className="flex-1 min-w-0 bg-[var(--bg-surface)] rounded-lg px-3 py-2">
                                   <div className="text-[11px] text-[var(--text-dim)] mb-0.5">
                                     {c.author_name || "익명"} ·{" "}
@@ -1205,7 +1205,7 @@ export default function BoardPage() {
                               {replies.length > 0 && (
                                 <div className="ml-6 mt-2 space-y-2 border-l-2 border-[var(--border)] pl-3">
                                   {replies.map((r) => (
-                                    <div key={r.id} className="board-reply-item flex items-start gap-2 text-sm">
+                                    <div key={r.id} className="board-reply-item">
                                       <div className="flex-1 min-w-0 bg-[var(--bg-surface)] rounded-lg px-3 py-2">
                                         <div className="text-[11px] text-[var(--text-dim)] mb-0.5">
                                           ↳ {r.author_name || "익명"} ·{" "}
@@ -1230,7 +1230,7 @@ export default function BoardPage() {
 
                               {/* 답글 입력 — root 댓글에만 (depth-1 강제) */}
                               {replyOpen && (
-                                <div className="board-reply-form ml-6 mt-2 pl-3 border-l-2 border-[var(--primary)]/30 relative">
+                                <div className="board-reply-form">
                                   <div className="flex gap-2">
                                     <div className="relative flex-1">
                                       <textarea
@@ -1294,7 +1294,7 @@ export default function BoardPage() {
                           ))}
                         </div>
                       )}
-                      <div className="board-comment-input-row flex gap-2 items-start">
+                      <div className="board-comment-input-row">
                         <div className="relative flex-1">
                           <textarea
                             ref={(el) => { inputRefs.current[p.id] = el; }}
@@ -1406,7 +1406,7 @@ function BoardLightbox({ images, index, onIndex, onClose }: {
 
   if (!cur) return null;
   return (
-    <div className="board-lightbox fixed inset-0 z-[100] flex items-center justify-center bg-black/85 select-none" onClick={onClose}>
+    <div className="board-lightbox" onClick={onClose}>
       <button onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white text-xl flex items-center justify-center" aria-label="닫기">✕</button>
       {images.length > 1 && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-white/10 text-white text-xs">{index + 1} / {images.length}</div>
