@@ -6,9 +6,18 @@ const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-api-key, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-api-key, x-ingest-secret, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// 공유 시크릿 게이트 — x-api-key(=company_id)는 비밀이 아니므로 시크릿 헤더가 없으면 크로스테넌트 주입 가능.
+// n8n 은 x-ingest-secret 헤더에 N8N_INGEST_SECRET 값을 실어 보내야 함. 미설정/불일치 시 거부(fail-closed).
+function checkIngestSecret(req: Request): boolean {
+  const expected = Deno.env.get("N8N_INGEST_SECRET");
+  if (!expected) return false;
+  const provided = req.headers.get("x-ingest-secret");
+  return !!provided && provided === expected;
+}
 
 interface TaxInvoiceInput {
   approval_no?: string;
@@ -31,6 +40,13 @@ Deno.serve(async (req: Request) => {
   let runId: string | null = null;
 
   try {
+    // 공유 시크릿 필수 — company_id(UUID)만으로는 인증 불가
+    if (!checkIngestSecret(req)) {
+      return new Response(JSON.stringify({ error: "Unauthorized (invalid or missing ingest secret)" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     // Auth: x-api-key = company_id (same pattern as receive-bank-transactions)
     const apiKey = req.headers.get("x-api-key");
     if (!apiKey) {

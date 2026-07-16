@@ -26,6 +26,24 @@ const ACTION_TYPE_LABELS: Record<string, string> = {
   leave: '휴가', signature: '서명', cost: '비용', approval: '결재',
 };
 
+// 호출자 사용자 JWT 검증 — anon 키만으로는 통과 못 함(오픈 이메일 릴레이 차단).
+async function verifyUser(req: Request): Promise<boolean> {
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  const url = Deno.env.get("SUPABASE_URL");
+  const anon = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!token || !url || !anon) return false;
+  try {
+    const res = await fetch(`${url}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: anon },
+    });
+    if (!res.ok) return false;
+    const u = await res.json();
+    return !!u?.id;
+  } catch {
+    return false;
+  }
+}
+
 function buildEmailHtml(p: ApprovalPayload): string {
   const typeLabel = ACTION_TYPE_LABELS[p.actionType] || p.actionType;
   const isApproved = p.result === 'approved';
@@ -87,6 +105,11 @@ Deno.serve(async (req: Request) => {
     });
   }
   try {
+    if (!(await verifyUser(req))) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
     const payload: ApprovalPayload = await req.json();
     if (!payload.email || !payload.actionType || !payload.actionTitle || !payload.result) {

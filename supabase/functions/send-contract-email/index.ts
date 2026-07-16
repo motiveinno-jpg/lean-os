@@ -1,7 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
 const FROM_EMAIL = 'OwnerView <noreply@owner-view.com>';
+const APP_URL = Deno.env.get('PUBLIC_APP_URL') || 'https://www.owner-view.com';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -14,10 +16,48 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, employeeName, companyName, packageTitle, documentCount, signUrl, expiresAt } = await req.json();
+    // /sign 은 익명(anon) 컨텍스트라 사용자 JWT 로 잠글 수 없다. 대신 sign_token(=secret)에 바인딩:
+    // 토큰으로 패키지를 조회해 수신자·회사명·링크를 전부 서버에서 파생 → 임의 수신자/링크 발송(오픈 릴레이) 차단.
+    const { token } = await req.json();
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'token required' }), { status: 400 });
+    }
 
-    if (!to || !signUrl) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const { data: pkg } = await admin
+      .from('hr_contract_packages')
+      .select('id, title, expires_at, sign_token, employees(name, email), companies(name)')
+      .eq('sign_token', token)
+      .maybeSingle();
+
+    if (!pkg) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 404 });
+    }
+
+    const emp = (pkg as any).employees || {};
+    const comp = (pkg as any).companies || {};
+    const to: string = emp.email || '';
+    const employeeName: string = emp.name || '';
+    const companyName: string = comp.name || '';
+    const packageTitle: string = (pkg as any).title || '';
+    const expiresAt: string | null = (pkg as any).expires_at || null;
+    const signUrl = `${APP_URL}/sign?token=${(pkg as any).sign_token}`;
+
+    // documentCount 는 표시용 — items 카운트 (실패해도 발송 진행)
+    let documentCount = 0;
+    try {
+      const { count } = await admin
+        .from('hr_contract_package_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('package_id', (pkg as any).id);
+      documentCount = count || 0;
+    } catch { /* 표시용이므로 무시 */ }
+
+    if (!to) {
+      return new Response(JSON.stringify({ error: 'No recipient email on package' }), { status: 400 });
     }
 
     const expiresDate = expiresAt ? new Date(expiresAt).toLocaleDateString('ko-KR') : '14일 후';
