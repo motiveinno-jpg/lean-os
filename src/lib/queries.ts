@@ -1,7 +1,16 @@
 import { supabase } from './supabase';
 import { encryptCredential } from './crypto';
 import { createTrialingSubscription } from './billing';
+import { reportError } from './friendly-error';
 import type { User, Company, Deal, DealNode, CashSnapshot, BankAccount, SubDeal, DealMilestone, DealAssignment, PaymentQueue, DocTemplate, TaxInvoice, ChatChannel, ChatMessage, ChatParticipant, VaultAccount, VaultAsset, VaultDoc, AutoDiscoveryResult, DealClassification, CorporateCard, CardTransaction, ClosingChecklist, ClosingChecklistItem, AuditLog, Partner } from '@/types/models';
+
+// ── 읽기 쿼리 무음 실패 방지 ──
+// 에러를 무시하던 읽기 쿼리들의 공통 통과 지점. 실패 시 Sentry/콘솔로 보고하고
+// data 는 그대로 반환해 기존 빈 폴백(`data || []` 등) 동작을 바꾸지 않는다.
+function logRead<T extends { data: unknown; error: unknown }>(scope: string, res: T): T['data'] {
+  if (res.error) reportError(`queries.${scope}`, res.error);
+  return res.data;
+}
 
 // ── Auth helpers ──
 export type CurrentUser = {
@@ -49,11 +58,11 @@ async function _fetchCurrentUser(): Promise<CurrentUser | null> {
   if (error) { console.error('getCurrentUser error:', error.message); return null; }
   // auth_id로 못 찾으면 id로 폴백 (이전 데이터 호환)
   if (!data) {
-    const { data: fallback } = await supabase
+    const fallback = logRead('_fetchCurrentUser', await supabase
       .from('users')
       .select('*, companies(*)')
       .eq('id', user.id)
-      .maybeSingle();
+      .maybeSingle());
     if (fallback?.company_id) return fallback as unknown as CurrentUser;
 
     // 인증은 됐지만 users 레코드가 없는 경우 — 자동 생성 (verify 페이지 실패 복구)
@@ -100,11 +109,11 @@ async function autoSetupUser(authUser: { id: string; email?: string; user_metada
   }
 
   // 생성 후 다시 조회
-  const { data: created } = await supabase
+  const created = logRead('autoSetupUser', await supabase
     .from('users')
     .select('*, companies(*)')
     .eq('auth_id', authUser.id)
-    .maybeSingle();
+    .maybeSingle());
   return created as unknown as CurrentUser;
 }
 
@@ -449,51 +458,51 @@ export async function getDashboardKPIs(companyId: string) {
 // ── Deals ──
 export async function getDeals(companyId: string) {
   // 2026-05-21 소프트 삭제(archived_at IS NOT NULL) 제외 — 칸반/리스트에서 삭제된 행 0 노출.
-  const { data } = await supabase
+  const data = logRead('getDeals', await supabase
     .from('deals')
     .select('*')
     .eq('company_id', companyId)
     .is('archived_at', null)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
 export async function getPartnerDeals(companyId: string, userEmail: string) {
   // 1. Deals linked via partner_invitations (accepted, specific deal_id)
-  const { data: invites } = await supabase
+  const invites = logRead('getPartnerDeals', await supabase
     .from('partner_invitations')
     .select('deal_id')
     .eq('company_id', companyId)
     .eq('email', userEmail)
     .eq('status', 'accepted')
-    .not('deal_id', 'is', null);
+    .not('deal_id', 'is', null));
 
   const inviteDealIds = (invites || []).map((i: any) => i.deal_id).filter(Boolean);
 
   // 2. Deals where custom_scope contactEmail matches
-  const { data: scopeDeals } = await supabase
+  const scopeDeals = logRead('getPartnerDeals', await supabase
     .from('deals')
     .select('*')
     .eq('company_id', companyId)
     .filter('custom_scope->>contactEmail', 'eq', userEmail)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
 
   // 3. Deals from invitation deal_ids
   let inviteDeals: any[] = [];
   if (inviteDealIds.length > 0) {
-    const { data } = await supabase
+    const data = logRead('getPartnerDeals', await supabase
       .from('deals')
       .select('*')
       .in('id', inviteDealIds)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }));
     inviteDeals = data || [];
   }
 
   // 4. Deals assigned via deal_assignments
-  const { data: assignments } = await supabase
+  const assignments = logRead('getPartnerDeals', await supabase
     .from('deal_assignments')
     .select('deal_id')
-    .eq('is_active', true);
+    .eq('is_active', true));
   // Filter by user — need user_id, but we only have email here
   // For now, combine invitation + scope matches
 
@@ -772,11 +781,11 @@ export async function saveExcelData(
 
 // ── Bank Accounts ──
 export async function getBankAccounts(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getBankAccounts', await supabase
     .from('bank_accounts')
     .select('*')
     .eq('company_id', companyId)
-    .order('is_primary', { ascending: false });
+    .order('is_primary', { ascending: false }));
   return (data || []) as BankAccount[];
 }
 
@@ -825,12 +834,12 @@ export async function setBankAccountAlias(
   opts?: { bankName?: string; balance?: number },
 ) {
   const trimmed = alias.trim();
-  const { data: updated } = await supabase
+  const updated = logRead('setBankAccountAlias', await supabase
     .from('bank_accounts')
     .update({ alias: trimmed || null })
     .eq('company_id', companyId)
     .eq('account_number', accountNumber)
-    .select('id');
+    .select('id'));
   if (updated && updated.length > 0) return;
   const { error } = await supabase.from('bank_accounts').insert({
     company_id: companyId,
@@ -849,13 +858,13 @@ export async function getBankAccountChanges(
   dateFrom: string,
   dateTo: string,
 ): Promise<{ byAccount: Record<string, number>; total: number }> {
-  const { data } = await supabase
+  const data = logRead('getBankAccountChanges', await supabase
     .from('bank_transactions')
     .select('raw_data, amount, type')
     .eq('company_id', companyId)
     .gte('transaction_date', dateFrom)
     .lte('transaction_date', dateTo)
-    .limit(50000);
+    .limit(50000));
   const byAccount: Record<string, number> = {};
   let total = 0;
   for (const r of (data || []) as Array<{ raw_data?: { accountNo?: string }; amount: number; type: string }>) {
@@ -870,11 +879,11 @@ export async function getBankAccountChanges(
 
 // ── Routing Rules ──
 export async function getRoutingRules(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getRoutingRules', await supabase
     .from('routing_rules')
     .select('*, bank_accounts(*)')
     .eq('company_id', companyId)
-    .order('priority', { ascending: false });
+    .order('priority', { ascending: false }));
   return data || [];
 }
 
@@ -905,22 +914,22 @@ export async function upsertRoutingRule(rule: {
 
 // ── Sub Deals ──
 export async function getSubDeals(dealId: string) {
-  const { data } = await supabase
+  const data = logRead('getSubDeals', await supabase
     .from('sub_deals')
     .select('*, vendors(*), bank_accounts(*)')
     .eq('parent_deal_id', dealId)
-    .order('created_at');
+    .order('created_at'));
   return data || [];
 }
 
 // ── Deal Milestones ──
 export async function getMilestones(dealId: string) {
-  const { data } = await supabase
+  const data = logRead('getMilestones', await supabase
     .from('deal_milestones')
     .select('*')
     .eq('deal_id', dealId)
     .order('sort_order')
-    .order('due_date');
+    .order('due_date'));
   return (data || []) as DealMilestone[];
 }
 
@@ -952,11 +961,11 @@ export async function upsertMilestone(milestone: {
 }
 
 export async function completeMilestone(id: string, userId?: string) {
-  const { data: ms } = await supabase
+  const ms = logRead('completeMilestone', await supabase
     .from('deal_milestones')
     .select('deal_id, name')
     .eq('id', id)
-    .maybeSingle();
+    .maybeSingle());
 
   const { error } = await supabase
     .from('deal_milestones')
@@ -983,22 +992,22 @@ export async function completeMilestone(id: string, userId?: string) {
 
 // ── Deal Assignments ──
 export async function getAssignments(dealId: string) {
-  const { data } = await supabase
+  const data = logRead('getAssignments', await supabase
     .from('deal_assignments')
     .select('*, users(*)')
     .eq('deal_id', dealId)
     .eq('is_active', true)
-    .order('assigned_at');
+    .order('assigned_at'));
   return data || [];
 }
 
 // ── Payment Queue ──
 export async function getPaymentQueue(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getPaymentQueue', await supabase
     .from('payment_queue')
     .select('*, bank_accounts(*), deal_cost_schedule(*)')
     .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
@@ -1024,22 +1033,22 @@ export async function getDealWithExtras(dealId: string) {
 
 // ── Doc Templates ──
 export async function getDocTemplates(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getDocTemplates', await supabase
     .from('doc_templates')
     .select('*')
     .eq('company_id', companyId)
     .eq('is_active', true)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return (data || []) as DocTemplate[];
 }
 
 // ── Documents ──
 export async function getDocuments(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getDocuments', await supabase
     .from('documents')
     .select('*, deals(name), doc_templates(name, type), users!documents_created_by_fkey(name, email)')
     .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
@@ -1066,20 +1075,20 @@ export async function getDocument(documentId: string, companyId: string) {
 }
 
 export async function getDocRevisions(documentId: string) {
-  const { data } = await supabase
+  const data = logRead('getDocRevisions', await supabase
     .from('doc_revisions')
     .select('*, users(name, email)')
     .eq('document_id', documentId)
-    .order('version', { ascending: false });
+    .order('version', { ascending: false }));
   return data || [];
 }
 
 export async function getDocApprovals(documentId: string) {
-  const { data } = await supabase
+  const data = logRead('getDocApprovals', await supabase
     .from('doc_approvals')
     .select('*, users(name, email)')
     .eq('document_id', documentId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
@@ -1104,28 +1113,28 @@ export async function getTaxInvoices(companyId: string) {
 // 2026-05-20: RLS 가 chat_members 기반으로 RESTRICTIVE SELECT 격리 후, DM 필터도 chat_members 기준으로 통일.
 // chat_participants 는 read tracking·role 메타 보존 용도이지 멤버십의 진실의 원천이 아님.
 export async function getChannels(companyId: string, userId?: string) {
-  const { data } = await supabase
+  const data = logRead('getChannels', await supabase
     .from('chat_channels')
     .select('*, deals(name), sub_deals(name)')
     .eq('company_id', companyId)
     .eq('is_archived', false)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   if (!data || !userId) return data || [];
   const db = supabase as any;
-  const { data: myMemberships } = await db
+  const myMemberships = logRead('getChannels', await db
     .from('chat_members')
     .select('channel_id')
-    .eq('user_id', userId);
+    .eq('user_id', userId));
   const myChannelIds = new Set((myMemberships || []).map((p: any) => p.channel_id));
   const visible = data.filter((ch: any) => !ch.is_dm || myChannelIds.has(ch.id));
 
   // DM 채널은 저장명이 "DM-<timestamp>" 이므로 상대 참가자 이름을 dm_name 으로 부착해 표시용으로 쓴다.
   const dmIds = visible.filter((ch: any) => ch.is_dm).map((ch: any) => ch.id);
   if (dmIds.length > 0) {
-    const { data: parts } = await db
+    const parts = logRead('getChannels', await db
       .from('chat_participants')
       .select('channel_id, user_id, users(name, email)')
-      .in('channel_id', dmIds);
+      .in('channel_id', dmIds));
     const byChannel = new Map<string, any[]>();
     for (const p of (parts || []) as any[]) {
       const arr = byChannel.get(p.channel_id) || [];
@@ -1168,12 +1177,12 @@ export async function getChannelByDeal(dealId: string, companyId: string) {
 
 // ── Chat Messages ──
 export async function getMessages(channelId: string, limit = 100) {
-  const { data } = await supabase
+  const data = logRead('getMessages', await supabase
     .from('chat_messages')
     .select('*, users:sender_id(name, email)')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: true })
-    .limit(limit);
+    .limit(limit));
   return data || [];
 }
 
@@ -1195,7 +1204,7 @@ export async function getMessagesPaginated(
     query = query.lt('created_at', beforeCreatedAt);
   }
 
-  const { data } = await query;
+  const data = logRead('getMessagesPaginated', await query);
   const rows = data || [];
   const hasMore = rows.length > pageSize;
   const sliced = hasMore ? rows.slice(0, pageSize) : rows;
@@ -1205,58 +1214,58 @@ export async function getMessagesPaginated(
 }
 
 export async function getPinnedMessages(channelId: string) {
-  const { data } = await supabase
+  const data = logRead('getPinnedMessages', await supabase
     .from('chat_messages')
     .select('*, users:sender_id(name, email)')
     .eq('channel_id', channelId)
     .eq('pinned', true)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
 // ── Chat Participants ──
 export async function getParticipants(channelId: string) {
-  const { data } = await supabase
+  const data = logRead('getParticipants', await supabase
     .from('chat_participants')
     .select('*, users(name, email)')
     .eq('channel_id', channelId)
-    .order('invited_at');
+    .order('invited_at'));
   return data || [];
 }
 
 // ── Chat Events ──
 export async function getChannelEvents(channelId: string) {
-  const { data } = await supabase
+  const data = logRead('getChannelEvents', await supabase
     .from('chat_events')
     .select('*')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(50));
   return data || [];
 }
 
 // ── Search messages in a channel ──
 export async function searchChannelMessages(channelId: string, query: string, limit = 50) {
-  const { data } = await supabase
+  const data = logRead('searchChannelMessages', await supabase
     .from('chat_messages')
     .select('*, users:sender_id(name, email)')
     .eq('channel_id', channelId)
     .is('deleted_at', null)
     .ilike('content', `%${query}%`)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(limit));
   return data || [];
 }
 
 // ── Unread mentions for a user ──
 export async function getUnreadMentions(userId: string) {
-  const { data } = await supabase
+  const data = logRead('getUnreadMentions', await supabase
     .from('chat_mentions')
     .select('*, chat_messages(content, channel_id, sender_id, created_at, users:sender_id(name))')
     .eq('mentioned_user_id', userId)
     .eq('read', false)
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(50));
   return data || [];
 }
 
@@ -1271,20 +1280,20 @@ export async function markMentionRead(mentionId: string) {
 
 // ── Reactions for a message ──
 export async function getMessageReactions(messageId: string) {
-  const { data } = await supabase
+  const data = logRead('getMessageReactions', await supabase
     .from('chat_reactions')
     .select('*, users(name)')
-    .eq('message_id', messageId);
+    .eq('message_id', messageId));
   return data || [];
 }
 
 // ── Reactions for multiple messages (batch) ──
 export async function getBatchReactions(messageIds: string[]) {
   if (messageIds.length === 0) return new Map<string, any[]>();
-  const { data } = await supabase
+  const data = logRead('getBatchReactions', await supabase
     .from('chat_reactions')
     .select('*, users(name)')
-    .in('message_id', messageIds);
+    .in('message_id', messageIds));
   const map = new Map<string, any[]>();
   (data || []).forEach((r: any) => {
     if (!map.has(r.message_id)) map.set(r.message_id, []);
@@ -1295,39 +1304,39 @@ export async function getBatchReactions(messageIds: string[]) {
 
 // ── Action cards for a channel ──
 export async function getActionCards(channelId: string) {
-  const { data } = await supabase
+  const data = logRead('getActionCards', await supabase
     .from('chat_action_cards')
     .select('*')
     .eq('channel_id', channelId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
 // ── Chat files for a channel ──
 export async function getChannelFiles(channelId: string) {
-  const { data } = await supabase
+  const data = logRead('getChannelFiles', await supabase
     .from('chat_files')
     .select('*, chat_messages!message_id(sender_id, users:sender_id(name, email))')
     .eq('channel_id', channelId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
 // ── Company users for @mention dropdown ──
 export async function getCompanyUsers(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getCompanyUsers', await supabase
     .from('users')
     .select('id, name, email')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
   return data || [];
 }
 
 // ── Unread count per channel ──
 export async function getUnreadCounts(companyId: string, userId: string) {
-  const { data: participants } = await supabase
+  const participants = logRead('getUnreadCounts', await supabase
     .from('chat_participants')
     .select('channel_id, last_read_at')
-    .eq('user_id', userId);
+    .eq('user_id', userId));
 
   if (!participants || participants.length === 0) return new Map<string, number>();
 
@@ -1353,11 +1362,11 @@ export async function getUnreadCounts(companyId: string, userId: string) {
 
 // ── Vault Accounts (SaaS/구독) ──
 export async function getVaultAccounts(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getVaultAccounts', await supabase
     .from('vault_accounts')
     .select('*, users:owner_id(name, email)')
     .eq('company_id', companyId)
-    .order('monthly_cost', { ascending: false, nullsFirst: false });
+    .order('monthly_cost', { ascending: false, nullsFirst: false }));
   return data || [];
 }
 
@@ -1432,11 +1441,11 @@ export async function deleteVaultAccount(id: string) {
 
 // ── Vault Assets (유형/무형 자산) ──
 export async function getVaultAssets(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getVaultAssets', await supabase
     .from('vault_assets')
     .select('*')
     .eq('company_id', companyId)
-    .order('value', { ascending: false, nullsFirst: false });
+    .order('value', { ascending: false, nullsFirst: false }));
   return data || [];
 }
 
@@ -1489,11 +1498,11 @@ export async function deleteVaultAsset(id: string) {
 
 // ── Vault Docs (중요 문서) ──
 export async function getVaultDocs(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getVaultDocs', await supabase
     .from('vault_docs')
     .select('*, deals:linked_deal_id(name)')
     .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
@@ -1541,21 +1550,21 @@ export async function deleteVaultDoc(id: string) {
 
 // ── Auto-Discovery Results ──
 export async function getDiscoveryResults(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getDiscoveryResults', await supabase
     .from('auto_discovery_results')
     .select('*, vault_accounts:vault_account_id(service_name)')
     .eq('company_id', companyId)
-    .order('estimated_monthly_cost', { ascending: false, nullsFirst: false });
+    .order('estimated_monthly_cost', { ascending: false, nullsFirst: false }));
   return data || [];
 }
 
 export async function getPendingDiscoveries(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getPendingDiscoveries', await supabase
     .from('auto_discovery_results')
     .select('*')
     .eq('company_id', companyId)
     .eq('status', 'pending')
-    .order('estimated_monthly_cost', { ascending: false, nullsFirst: false });
+    .order('estimated_monthly_cost', { ascending: false, nullsFirst: false }));
   return data || [];
 }
 
@@ -1598,11 +1607,11 @@ export async function getVaultSummary(companyId: string) {
 
 // ── Deal Classifications ──
 export async function getDealClassifications(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getDealClassifications', await supabase
     .from('deal_classifications')
     .select('*')
     .eq('company_id', companyId)
-    .order('sort_order');
+    .order('sort_order'));
   return (data || []) as DealClassification[];
 }
 
@@ -1715,7 +1724,7 @@ export async function getBankTransactions(companyId: string, filters?: {
   // raw_data->>accountNo 필터 — codef sync 가 채움
   if (filters?.accountNo) q = (q as any).eq('raw_data->>accountNo', filters.accountNo);
 
-  const { data } = await q.limit(2000);
+  const data = logRead('getBankTransactions', await q.limit(2000));
   return data || [];
 }
 
@@ -1803,10 +1812,10 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
 }
 
 export async function getBankTransactionStats(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getBankTransactionStats', await supabase
     .from('bank_transactions')
     .select('mapping_status, type, amount')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   const items = data || [];
   return {
@@ -1830,12 +1839,12 @@ export async function getMonthlyIncomeExpense(companyId: string): Promise<Monthl
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
   const startDate = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
 
-  const { data } = await supabase
+  const data = logRead('getMonthlyIncomeExpense', await supabase
     .from('bank_transactions')
     .select('transaction_date, type, amount')
     .eq('company_id', companyId)
     .gte('transaction_date', startDate)
-    .order('transaction_date', { ascending: true });
+    .order('transaction_date', { ascending: true }));
 
   const items = data || [];
   const buckets: Record<string, { income: number; expense: number }> = {};
@@ -1874,12 +1883,12 @@ export async function getYesterdayTransactions(companyId: string): Promise<Yeste
   yesterday.setDate(yesterday.getDate() - 1);
   const dateStr = yesterday.toISOString().split('T')[0];
 
-  const { data } = await supabase
+  const data = logRead('getYesterdayTransactions', await supabase
     .from('bank_transactions')
     .select('amount, type, description, counterparty, category, transaction_date')
     .eq('company_id', companyId)
     .eq('transaction_date', dateStr)
-    .order('amount', { ascending: false });
+    .order('amount', { ascending: false }));
 
   const items = data || [];
   const income = items.filter(i => i.type === 'income');
@@ -1931,11 +1940,11 @@ export async function mapBankTransaction(id: string, params: {
   if (error) throw error;
 
   // Rule learning: extract counterparty and learn
-  const { data: tx } = await supabase
+  const tx = logRead('mapBankTransaction', await supabase
     .from('bank_transactions')
     .select('counterparty, company_id')
     .eq('id', id)
-    .maybeSingle();
+    .maybeSingle());
   if (tx?.counterparty) {
     const { learnRuleFromMapping } = await import('./card-transactions');
     await learnRuleFromMapping(tx.company_id, {
@@ -1957,11 +1966,11 @@ export async function ignoreBankTransaction(id: string) {
 }
 
 export async function getClassificationRules(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getClassificationRules', await supabase
     .from('bank_classification_rules')
     .select('*, deals(name)')
     .eq('company_id', companyId)
-    .order('priority', { ascending: false });
+    .order('priority', { ascending: false }));
   return data || [];
 }
 
@@ -2017,18 +2026,18 @@ export interface DrillLevel3Item {
 
 export async function getDrillDownLevel2(companyId: string, month: string): Promise<DrillLevel2Item[]> {
   // Aggregate financial_items + bank_transactions by category for a given month
-  const { data: fiItems } = await supabase
+  const fiItems = logRead('getDrillDownLevel2', await supabase
     .from('financial_items')
     .select('category, amount')
     .eq('company_id', companyId)
-    .eq('month', month);
+    .eq('month', month));
 
-  const { data: bankTx } = await supabase
+  const bankTx = logRead('getDrillDownLevel2', await supabase
     .from('bank_transactions')
     .select('category, amount, transaction_date')
     .eq('company_id', companyId)
     .gte('transaction_date', `${month}-01`)
-    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`);
+    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`));
 
   const groups = new Map<string, { count: number; totalAmount: number }>();
 
@@ -2054,20 +2063,20 @@ export async function getDrillDownLevel2(companyId: string, month: string): Prom
 }
 
 export async function getDrillDownLevel3(companyId: string, month: string, category: string): Promise<DrillLevel3Item[]> {
-  const { data: bankTx } = await supabase
+  const bankTx = logRead('getDrillDownLevel3', await supabase
     .from('bank_transactions')
     .select('counterparty, amount')
     .eq('company_id', companyId)
     .eq('category', category)
     .gte('transaction_date', `${month}-01`)
-    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`);
+    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`));
 
-  const { data: fiItems } = await supabase
+  const fiItems = logRead('getDrillDownLevel3', await supabase
     .from('financial_items')
     .select('name, amount')
     .eq('company_id', companyId)
     .eq('category', category)
-    .eq('month', month);
+    .eq('month', month));
 
   const groups = new Map<string, { count: number; totalAmount: number }>();
 
@@ -2094,7 +2103,7 @@ export async function getDrillDownLevel3(companyId: string, month: string, categ
 
 export async function getDrillDownLevel4(companyId: string, month: string, category: string, counterparty: string) {
   // Full ledger items
-  const { data: bankTx } = await supabase
+  const bankTx = logRead('getDrillDownLevel4', await supabase
     .from('bank_transactions')
     .select('id, transaction_date, amount, type, description, counterparty, deal_id, deals(name)')
     .eq('company_id', companyId)
@@ -2102,7 +2111,7 @@ export async function getDrillDownLevel4(companyId: string, month: string, categ
     .eq('counterparty', counterparty)
     .gte('transaction_date', `${month}-01`)
     .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`)
-    .order('transaction_date', { ascending: true });
+    .order('transaction_date', { ascending: true }));
 
   return bankTx || [];
 }
@@ -2121,37 +2130,37 @@ export interface DealMatchingStatus {
 
 export async function getDealMatchingStatuses(companyId: string): Promise<DealMatchingStatus[]> {
   // Get all active deals
-  const { data: deals } = await supabase
+  const deals = logRead('getDealMatchingStatuses', await supabase
     .from('deals')
     .select('id, name, contract_total')
     .eq('company_id', companyId)
     .is('archived_at', null)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
 
   if (!deals?.length) return [];
 
   const dealIds = deals.map(d => d.id);
 
   // Get revenue schedule per deal (actual invoiced amounts)
-  const { data: revenueSchedules } = await supabase
+  const revenueSchedules = logRead('getDealMatchingStatuses', await supabase
     .from('deal_revenue_schedule')
     .select('deal_id, amount')
-    .in('deal_id', dealIds);
+    .in('deal_id', dealIds));
 
   // Get tax invoices per deal
-  const { data: taxInvoices } = await supabase
+  const taxInvoices = logRead('getDealMatchingStatuses', await supabase
     .from('tax_invoices')
     .select('deal_id, total_amount, type')
     .eq('company_id', companyId)
-    .in('deal_id', dealIds);
+    .in('deal_id', dealIds));
 
   // Get bank transactions per deal (income)
-  const { data: bankPayments } = await supabase
+  const bankPayments = logRead('getDealMatchingStatuses', await supabase
     .from('bank_transactions')
     .select('deal_id, amount, type')
     .eq('company_id', companyId)
     .eq('type', 'income')
-    .in('deal_id', dealIds);
+    .in('deal_id', dealIds));
 
   // Aggregate revenue schedule per deal
   const revByDeal = new Map<string, number>();
@@ -2208,12 +2217,12 @@ export async function markDormantDeals() {
 // Get dormant deals
 export async function getDormantDeals(companyId: string) {
   const db = supabase as any;
-  const { data } = await db
+  const data = logRead('getDormantDeals', await db
     .from('deals')
     .select('*')
     .eq('company_id', companyId)
     .eq('is_dormant', true)
-    .order('last_activity_at', { ascending: true });
+    .order('last_activity_at', { ascending: true }));
   return data || [];
 }
 
@@ -2334,12 +2343,12 @@ export async function getCashPulseData(companyId: string, userId?: string) {
 
 // ── Archived Deals ──
 export async function getArchivedDeals(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('getArchivedDeals', await supabase
     .from('deals')
     .select('*')
     .eq('company_id', companyId)
     .not('archived_at', 'is', null)
-    .order('archived_at', { ascending: false });
+    .order('archived_at', { ascending: false }));
   return data || [];
 }
 
@@ -2386,11 +2395,11 @@ export async function getProjectDetail(dealId: string, companyId: string) {
   // partner 후처리: deal.partner_id 있으면 1회 추가 조회 (slowpath, 사용자 수 적음)
   let partnerRow: { id: string; name: string } | null = null;
   if (deal.data?.partner_id) {
-    const { data: p } = await supabase
+    const p = logRead('getProjectDetail', await supabase
       .from('partners')
       .select('id, name')
       .eq('id', deal.data.partner_id)
-      .maybeSingle();
+      .maybeSingle());
     if (p) partnerRow = { id: p.id, name: p.name };
   }
 
