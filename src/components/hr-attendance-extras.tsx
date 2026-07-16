@@ -61,7 +61,7 @@ export function ExtraPaySummaryCard({
   }
 
   return (
-    <div className="extra-pay-summary-card glass-card p-4">
+    <div className="extra-pay-summary-card glass-card">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold">이번 달 가산수당 (예상)</h3>
         {result.cap_exceeded && (
@@ -70,7 +70,7 @@ export function ExtraPaySummaryCard({
           </span>
         )}
       </div>
-      <div className="extra-pay-cells grid grid-cols-4 gap-2 mb-2">
+      <div className="extra-pay-cells">
         <Cell label="연장" value={`${minToH(result.overtime_pay > 0 ? result.overtime_pay : 0)}`} hint={fmtKRW(result.overtime_pay)} />
         <Cell label="야간" value={fmtKRW(result.night_pay)} />
         <Cell label="휴일" value={fmtKRW(result.holiday_pay)} />
@@ -164,16 +164,16 @@ export function AttendanceEditRequestDialog({
   if (!open) return null;
 
   return (
-    <div className="attendance-edit-dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="attendance-edit-dialog-overlay fixed inset-0" onClick={onClose}>
       <div
-        className="attendance-edit-dialog-panel glass-card p-6 w-[420px] max-w-[90vw]"
+        className="attendance-edit-dialog-panel glass-card"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="section-title">근태 수정 요청</h3>
         <p className="text-[10px] text-[var(--text-dim)] mb-4">
           잘못 찍은 출퇴근 기록의 변경을 관리자에게 요청합니다(직접 수정 불가). <b className="text-[var(--text-muted)]">변경할 항목만 입력</b>하세요 — 출근·퇴근을 따로 요청할 수 있습니다.
         </p>
-        <div className="attendance-edit-form space-y-3">
+        <div className="attendance-edit-form">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">출근 시각 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 현재: {fmtCur(initial?.check_in)}</span></label>
             <DateTimeField
@@ -265,14 +265,14 @@ export function EditRequestInbox({ companyId, reviewerId }: { companyId: string;
   if (requests.length === 0) return null;
 
   return (
-    <div className="edit-request-inbox glass-card p-4 mb-4">
+    <div className="edit-request-inbox glass-card">
       <h3 className="text-sm font-bold mb-3">근태 수정 요청 ({requests.length}건)</h3>
       <div className="space-y-2">
         {requests.map((r: any) => {
           const rec = r.attendance_records;
           const changes = r.requested_changes || {};
           return (
-            <div key={r.id} className="edit-request-row px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div key={r.id} className="edit-request-row">
               <div className="flex items-center justify-between mb-1">
                 <div className="text-xs font-semibold">
                   {rec?.employees?.name || "직원"} — {rec?.date}

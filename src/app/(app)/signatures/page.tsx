@@ -609,7 +609,7 @@ export default function SignaturesDashboardPage() {
 
       {/* PR-3: 서명본 보기 모달 (status='signed' 행) */}
       {viewSignedRow && (
-        <div className="signature-proof-modal" onClick={() => setViewSignedRow(null)}>
+        <div className="signature-proof-modal fixed inset-0" onClick={() => setViewSignedRow(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div>

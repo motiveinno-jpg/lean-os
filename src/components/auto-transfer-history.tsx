@@ -60,8 +60,8 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
   );
 
   return (
-    <div className="auto-transfer-history-card mb-3 glass-card p-5">
-      <div className="auto-transfer-history-header flex items-center justify-between mb-3">
+    <div className="auto-transfer-history-card glass-card">
+      <div className="auto-transfer-history-header">
         <div className="flex items-center gap-2.5">
           <span className="kpi-icon info"><TileIcon name="repeat" className="w-5 h-5" /></span>
           <div>
@@ -78,14 +78,14 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
       </div>
 
       {items.length === 0 ? (
-        <div className="auto-transfer-history-empty text-center py-6 text-xs text-[var(--text-dim)]">
+        <div className="auto-transfer-history-empty">
           이번달 자동이체 연결 내역이 없습니다.
           <div className="text-[10px] mt-1">
             <Link href="/transactions" className="text-[var(--primary)] hover:underline font-medium">거래 자동화</Link> 페이지에서 거래를 &quot;자동이체&quot;로 표시하면 여기에 모입니다.
           </div>
         </div>
       ) : (
-        <div className="auto-transfer-history-list space-y-2">
+        <div className="auto-transfer-history-list">
           {items.map((t: any) => {
             const amount = Math.abs(Number(t.amount || 0));
             const dateStr = t.transaction_date || "";
@@ -94,7 +94,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
             const counterparty = t.counterparty || "(거래처 미상)";
             const bank = t.bank_accounts?.alias || t.bank_accounts?.bank_name || "";
             return (
-              <div key={t.id} className="auto-transfer-history-row flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
+              <div key={t.id} className="auto-transfer-history-row">
                 <div className="text-[10px] text-[var(--text-dim)] w-10 mono-number">{dateDisplay}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">

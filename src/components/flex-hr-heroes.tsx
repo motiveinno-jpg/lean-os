@@ -18,17 +18,17 @@ export function FlexTabHero({ icon, title, desc, chips }: {
 }) {
   const toneColor: Record<string, string> = { violet: "var(--primary)", green: "var(--success)", amber: "var(--warning)", red: "var(--danger)", blue: "var(--info)", dim: "var(--text-muted)" };
   return (
-    <div className="flex-tab-hero glass-card mb-4 px-5 py-4 flex flex-wrap items-center gap-x-6 gap-y-3">
-      <div className="hero-title-block flex items-center gap-3 min-w-0">
+    <div className="flex-tab-hero glass-card">
+      <div className="hero-title-block">
         <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0 bg-[var(--primary-light)]">{icon}</span>
         <span className="min-w-0">
           <span className="block text-[15px] font-bold text-[var(--text)]">{title}</span>
           <span className="block text-[11px] text-[var(--text-dim)] truncate">{desc}</span>
         </span>
       </div>
-      <div className="hero-chips-row flex items-center gap-2 flex-wrap ml-auto">
+      <div className="hero-chips-row">
         {chips.map((c) => (
-          <div key={c.label} className="hero-chip px-3 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div key={c.label} className="hero-chip">
             <div className="text-[9px] font-semibold text-[var(--text-dim)] uppercase tracking-wide">{c.label}</div>
             <div className="text-[13px] font-bold mono-number" style={{ color: toneColor[c.tone || "violet"] }}>{c.value}</div>
           </div>

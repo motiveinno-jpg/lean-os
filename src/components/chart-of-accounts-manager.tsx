@@ -74,8 +74,8 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
   const grouped = TYPES.map((t) => ({ ...t, items: (accounts as Acct[]).filter((a) => a.account_type === t.v) }));
 
   return (
-    <div className="coa-manager glass-card p-5">
-      <div className="coa-header flex items-center justify-between mb-1 gap-2 flex-wrap">
+    <div className="coa-manager glass-card">
+      <div className="coa-header">
         <h2 className="text-base font-bold text-[var(--text)]">계정과목 관리</h2>
         <div className="flex items-center gap-2">
           <button onClick={fillStandard} disabled={busy} className="btn-secondary">{busy ? "추가 중…" : "표준 계정과목 채우기"}</button>
@@ -85,7 +85,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
       <p className="text-xs text-[var(--text-muted)] mb-4">회사 회계의 계정과목 마스터입니다. 기본 계정은 읽기전용, 회사 자체 계정만 추가·삭제할 수 있습니다. “표준 계정과목 채우기”로 일반기업회계 기준 ~90개 계정을 한 번에 등록할 수 있습니다. (거래매칭 직접입력·전표 처리에서 사용)</p>
 
       {newAcct && (
-        <div className="coa-new-row flex flex-wrap items-center gap-1.5 mb-4 bg-[var(--bg-surface)] rounded-lg p-2.5">
+        <div className="coa-new-row">
           <input value={newAcct.code} onChange={(e) => setNewAcct({ ...newAcct, code: e.target.value })} placeholder="코드 (예: 176)" className="w-28 h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]" />
           <input value={newAcct.name} onChange={(e) => setNewAcct({ ...newAcct, name: e.target.value })} placeholder="계정명 (예: 임차보증금)" className="flex-1 min-w-[140px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]" />
           <select value={newAcct.type} onChange={(e) => setNewAcct({ ...newAcct, type: e.target.value })} className="h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]">
@@ -96,13 +96,13 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
         </div>
       )}
 
-      <div className="coa-groups space-y-4">
+      <div className="coa-groups">
         {grouped.filter((g) => g.items.length > 0).map((g) => (
           <div key={g.v} className="coa-group">
             <div className="text-[11px] font-bold text-[var(--text-dim)] mb-1.5">{g.l} <span className="font-normal">({g.items.length})</span></div>
             <div className="space-y-1">
               {g.items.map((a) => (
-                <div key={a.id} className="coa-account-row flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+                <div key={a.id} className="coa-account-row">
                   <span className="text-xs mono-number text-[var(--text-muted)] w-12 shrink-0">{a.code}</span>
                   <span className="flex-1 text-sm text-[var(--text)] truncate">{a.name}</span>
                   {a.is_system ? (

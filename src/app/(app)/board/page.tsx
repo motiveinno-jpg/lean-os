@@ -684,7 +684,7 @@ export default function BoardPage() {
       </div>
 
       {showForm && (
-        <div className="board-post-form-overlay" onClick={resetForm}>
+        <div className="board-post-form-overlay fixed inset-0" onClick={resetForm}>
         <div className="board-post-form-modal glass-card" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
             <h3 className="text-sm font-bold">
@@ -1406,7 +1406,7 @@ function BoardLightbox({ images, index, onIndex, onClose }: {
 
   if (!cur) return null;
   return (
-    <div className="board-lightbox" onClick={onClose}>
+    <div className="board-lightbox fixed inset-0" onClick={onClose}>
       <button onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white text-xl flex items-center justify-center" aria-label="닫기">✕</button>
       {images.length > 1 && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-white/10 text-white text-xs">{index + 1} / {images.length}</div>

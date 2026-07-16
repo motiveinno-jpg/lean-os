@@ -8,7 +8,7 @@
 export function QueryErrorBanner({ error, onRetry }: { error: Error | null; onRetry?: () => void }) {
   if (!error) return null;
   return (
-    <div className="query-error-banner mb-4 p-3 rounded-xl bg-[var(--danger)]/10 border border-[var(--danger)]/20 shadow-sm flex items-center justify-between gap-3">
+    <div className="query-error-banner">
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-[var(--danger)] flex-shrink-0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -33,7 +33,7 @@ export function QueryErrorBanner({ error, onRetry }: { error: Error | null; onRe
 
 export function PageLoadingSpinner() {
   return (
-    <div className="page-loading-spinner flex items-center justify-center py-20">
+    <div className="page-loading-spinner">
       <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
     </div>
   );
@@ -46,7 +46,7 @@ export function EmptyState({ icon, title, description, action }: {
   action?: { label: string; onClick: () => void };
 }) {
   return (
-    <div className="empty-state-block p-12 text-center glass-card">
+    <div className="empty-state-block glass-card">
       <div className="text-4xl mb-3">{icon}</div>
       <div className="text-base font-bold mb-1">{title}</div>
       {description && <div className="text-xs text-[var(--text-muted)] mb-4">{description}</div>}

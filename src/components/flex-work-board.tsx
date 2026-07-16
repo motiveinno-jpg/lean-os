@@ -175,7 +175,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
   return (
     <div className="space-y-4">
       {/* ── 주차 네비 + 요약 칩 ── */}
-      <div className="flex-work-week-nav glass-card px-4 py-3 flex flex-wrap items-center gap-3">
+      <div className="flex-work-week-nav glass-card">
         <div className="flex items-center gap-1">
           <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="w-8 h-8 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]" aria-label="이전 주">◀</button>
           <button onClick={() => setWeekStart(mondayOf(kstToday()))} className="px-3 h-8 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">이번 주</button>
@@ -194,7 +194,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
       </div>
 
       {/* ── 워크보드 ── */}
-      <div className="flex-work-board-table-card glass-card overflow-hidden">
+      <div className="flex-work-board-table-card glass-card">
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse min-w-[860px]">
             <thead>
@@ -219,7 +219,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
                 <tr><td colSpan={9} className="p-10 text-center text-[var(--text-muted)]">표시할 구성원이 없습니다.</td></tr>
               )}
               {rows.map(({ emp, total, overtime, lateDays }) => (
-                <tr key={emp.id} className="flex-work-employee-row border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/40">
+                <tr key={emp.id} className="flex-work-employee-row">
                   {/* 구성원 */}
                   <td className="px-4 py-2 sticky left-0 z-[5] bg-[var(--bg-card)]">
                     <div className="flex items-center gap-2.5 min-w-0">

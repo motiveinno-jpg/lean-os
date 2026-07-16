@@ -61,7 +61,7 @@ export function FileUploadZone({ onFileSelect, disabled, maxSize = 10 }: FileUpl
         onDrop={handleDrop}
         disabled={disabled}
         aria-label="파일 첨부"
-        className={`file-upload-zone-btn p-2 rounded-lg transition text-[var(--text-dim)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-30 ${
+        className={`file-upload-zone-btn ${
           isDragging ? 'bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]' : ''
         }`}
         title="파일 첨부 (10MB 이하)"
@@ -71,7 +71,7 @@ export function FileUploadZone({ onFileSelect, disabled, maxSize = 10 }: FileUpl
         </svg>
       </button>
       {error && (
-        <div className="file-upload-zone-error text-[10px] text-[var(--danger)] mt-1">{error}</div>
+        <div className="file-upload-zone-error">{error}</div>
       )}
     </>
   );

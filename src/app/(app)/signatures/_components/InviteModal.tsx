@@ -88,7 +88,7 @@ export function InviteModal({
   useModalKeys(true, onClose, submitting || validSigners.length === 0 || !docId ? undefined : submit);
 
   return (
-    <div className="signature-invite-modal">
+    <div className="signature-invite-modal fixed inset-0">
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}

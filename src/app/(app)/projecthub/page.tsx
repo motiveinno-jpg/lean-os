@@ -669,7 +669,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   useModalKeys(true, onClose, !isEdit && step === 1 ? () => setStep(2) : (saving || !form.name.trim() ? undefined : submit));
 
   return (
-    <div className="project-form-modal" onClick={onClose}>
+    <div className="project-form-modal fixed inset-0" onClick={onClose}>
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="project-form-modal-header">
           <div className="text-sm font-bold text-[var(--text)]">
@@ -895,7 +895,7 @@ function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
   useModalKeys(!busy, () => !busy && onClose(), canDelete && !busy ? del : undefined);
 
   return (
-    <div className="delete-project-modal" onClick={() => !busy && onClose()}>
+    <div className="delete-project-modal fixed inset-0" onClick={() => !busy && onClose()}>
       <div className="bg-[var(--bg-card)] border border-red-500/30 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="delete-project-modal-header">
           <div className="text-sm font-bold text-red-400">프로젝트 삭제</div>

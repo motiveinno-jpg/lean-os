@@ -91,12 +91,12 @@ function BankStat({ tone, icon, label, value, sub, valueTone }: {
   icon: string; label: string; value: string; sub: string; valueTone: string;
 }) {
   return (
-    <div className="bank-stat-card glass-card p-5 flex flex-col gap-3">
-      <div className="bank-stat-header flex items-center justify-between">
+    <div className="bank-stat-card glass-card">
+      <div className="bank-stat-header">
         <span className="text-[13px] font-semibold text-[var(--text-muted)]">{label}</span>
         <span className={`kpi-icon ${tone === "brand" ? "" : tone}`}><TileIcon name={icon} className="w-5 h-5" /></span>
       </div>
-      <div className="bank-stat-value-row flex items-end gap-2">
+      <div className="bank-stat-value-row">
         <span className={`text-[26px] leading-8 font-extrabold mono-number ${valueTone}`}>{value}</span>
         <span className="text-[11px] text-[var(--text-dim)] mb-1.5">{sub}</span>
       </div>
@@ -125,16 +125,16 @@ function BankCardItem({ acc, change, selected, onSelect, onEdit }: {
       onClick={onSelect}
       role="button"
       tabIndex={0}
-      className={`bank-card-item group relative overflow-hidden rounded-2xl p-5 sm:p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer text-white ${selected ? "ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--bg)]" : ""}`}
+      className={`bank-card-item group ${selected ? "ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--bg)]" : ""}`}
       style={{ background: grad }}
     >
       {/* 블러 장식 (/cards 와 동일 톤) */}
-      <div className="bank-card-item-decor absolute inset-0 opacity-10 pointer-events-none">
+      <div className="bank-card-item-decor">
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white rounded-full blur-3xl" />
         <div className="absolute -bottom-12 -left-10 w-40 h-40 bg-white rounded-full blur-3xl" />
       </div>
-      <div className="bank-card-item-content relative z-10">
-        <div className="bank-card-item-header flex items-start justify-between mb-7">
+      <div className="bank-card-item-content">
+        <div className="bank-card-item-header">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60 mb-1 truncate">{acc.bankName || "ACCOUNT"}</p>
             <div className="flex items-center gap-1.5">
@@ -144,7 +144,7 @@ function BankCardItem({ acc, change, selected, onSelect, onEdit }: {
           </div>
           <BankIcon name={acc.bankName} size={36} />
         </div>
-        <div className="bank-card-item-balance mb-5">
+        <div className="bank-card-item-balance">
           <p className="text-[10px] uppercase tracking-wider text-white/60 mb-1.5">잔액</p>
           <div className="flex items-center gap-2">
             <p className="text-2xl font-bold mono-number leading-none">{visible ? won(bal) : "••••••"}</p>
@@ -163,7 +163,7 @@ function BankCardItem({ acc, change, selected, onSelect, onEdit }: {
             </span>
           )}
         </div>
-        <div className="bank-card-item-footer flex items-center justify-between border-t border-white/15 pt-3">
+        <div className="bank-card-item-footer">
           <span className="text-xs text-white/70 mono-number tracking-wider">•••• {acc.accountNo.slice(-4)}</span>
           <button type="button" onClick={(e) => { e.stopPropagation(); onEdit(); }}
             className="p-1.5 rounded-lg bg-white/15 hover:bg-white/30 transition opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label="별칭 편집" title="별칭 편집">
@@ -292,20 +292,20 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
   };
 
   return (
-    <div className="bank-accounts-overview space-y-6">
+    <div className="bank-accounts-overview">
       {/* 통계 3개 (시안) */}
-      <div className="bank-accounts-stats grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="bank-accounts-stats">
         <BankStat tone="brand" icon="wallet" label="전체 잔액" value={won(totalBalance)} sub={`${accounts.length}개 계좌`} valueTone="text-[var(--text)]" />
         <BankStat tone="success" icon="trendingUp" label="기간 수입" value={`+${won(flow?.income ?? 0)}`} sub="이 기간" valueTone="text-[var(--success)]" />
         <BankStat tone="danger" icon="trendingDown" label="기간 지출" value={`-${won(flow?.expense ?? 0)}`} sub="이 기간" valueTone="text-[var(--danger)]" />
       </div>
 
       {/* 컨트롤 — 기간/새로고침/다운로드 + 검색/정렬 */}
-      <div className="bank-accounts-controls glass-card p-4">
-        <div className="bank-accounts-toolbar flex flex-wrap items-center justify-between gap-3">
+      <div className="bank-accounts-controls glass-card">
+        <div className="bank-accounts-toolbar">
           <h3 className="text-sm font-bold text-[var(--text)]">내 계좌 <span className="text-xs font-normal text-[var(--text-dim)]">{accounts.length}개</span></h3>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="bank-accounts-date-range flex items-center gap-1 bg-[var(--bg-surface)] rounded-xl px-1 py-1 border border-[var(--border)]">
+            <div className="bank-accounts-date-range">
               <button onClick={() => shiftMonths(-1)} className="px-2 py-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition" aria-label="이전 달">◀</button>
               <DateField value={fromStr} max={toStr} onChange={(e) => { const d = parseYmd(e.target.value); if (d) setRange((r) => ({ ...r, from: d })); }}
                 className="bg-transparent text-xs font-semibold text-[var(--text)] mono-number px-1 outline-none" aria-label="시작일" />
@@ -324,7 +324,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
             </button>
           </div>
         </div>
-        <div className="bank-accounts-search-row flex items-center gap-2 mt-3 flex-wrap">
+        <div className="bank-accounts-search-row">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="계좌명·끝번호·은행 검색"
             className="flex-1 min-w-[180px] px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "balance" | "name")}
@@ -337,7 +337,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
 
       {/* 그라데이션 계좌 카드 그리드 (시안) */}
       {flatAccounts.length === 0 ? (
-        <div className="bank-accounts-empty flex items-center justify-center py-16 glass-card">
+        <div className="bank-accounts-empty glass-card">
           <div className="text-center">
             <svg className="w-12 h-12 text-[var(--text-dim)] mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11m16-11v11" />
@@ -347,7 +347,7 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
           </div>
         </div>
       ) : (
-        <div className="bank-accounts-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="bank-accounts-grid">
           {flatAccounts.map((a) => (
             <BankCardItem
               key={a.accountNo}

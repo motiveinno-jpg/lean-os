@@ -58,7 +58,7 @@ export function CellDetail({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="flow-cell-detail-overlay" onClick={onClose}>
+    <div className="flow-cell-detail-overlay fixed inset-0" onClick={onClose}>
       <div className="flow-cell-detail-panel" onClick={(e) => e.stopPropagation()}>
         <div className="flow-cell-detail-header">
           <div>

@@ -135,9 +135,9 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
   );
 
   return (
-    <div className="dashboard-analytics space-y-4">
+    <div className="dashboard-analytics">
       {/* 탭 + 연도 네비 */}
-      <div className="dashboard-analytics-toolbar flex flex-wrap items-center justify-between gap-3">
+      <div className="dashboard-analytics-toolbar">
         <div className="seg-bar">
           {TABS.map((t) => (
             <button
@@ -165,7 +165,7 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
       {/* ── 소비 탭 ── */}
       {tab === "consume" && (
         <>
-          <div className="consume-total-card glass-card p-4 sm:p-5">
+          <div className="consume-total-card glass-card">
             <div className="text-[11px] text-[var(--text-dim)] mb-1">{year}년 총 지출</div>
             <div className="text-2xl sm:text-3xl font-extrabold mono-number text-[var(--danger)]">{wonOut(totalExpense)}</div>
           </div>
@@ -173,7 +173,7 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
           {bdLoading ? (
             <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : (
-            <div className="consume-cost-columns grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="consume-cost-columns">
               <CostColumn title="고정비" accent="#f97316" total={fixedTotal} share={pct(fixedTotal, totalExpense)}
                 items={(breakdown?.fixed || []).map((r) => ({ label: r.label, amount: r.amount }))} />
               <CostColumn title="변동비" accent="#8b5cf6" total={variableTotal} share={pct(variableTotal, totalExpense)}
@@ -183,7 +183,7 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
           )}
 
           {/* 하단 요약 3열: 카드 / 통장 / 매출 */}
-          <div className="consume-summary-cards grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="consume-summary-cards">
             {/* 카드 */}
             <SummaryCard title="카드" total={wonOut(cardTotal)} accent="var(--danger)" href="/cards" allLabel={`${cardList.length}개 전체보기`}>
               {cardList.slice(0, 4).map((c) => (
@@ -253,8 +253,8 @@ function CostColumn({ title, accent, total, share, items }: {
   const sorted = [...items].sort((a, b) => b.amount - a.amount);
   const shown = expanded ? sorted : sorted.slice(0, 4);
   return (
-    <div className="cost-column glass-card p-4">
-      <div className="cost-column-header flex items-center justify-between mb-1">
+    <div className="cost-column glass-card">
+      <div className="cost-column-header">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: accent }} />
           <span className="text-sm font-bold text-[var(--text)]">{title}</span>
@@ -265,7 +265,7 @@ function CostColumn({ title, accent, total, share, items }: {
       {sorted.length === 0 ? (
         <div className="text-[11px] text-[var(--text-dim)] py-2">항목 없음</div>
       ) : (
-        <div className="cost-column-items space-y-2.5">
+        <div className="cost-column-items">
           {shown.map((it) => {
             const p = pct(it.amount, total);
             return (
@@ -298,8 +298,8 @@ function SummaryCard({ title, total, accent, href, allLabel, children }: {
   title: string; total: string; accent: string; href: string; allLabel: string; children: React.ReactNode;
 }) {
   return (
-    <div className="summary-card glass-card p-4 flex flex-col">
-      <div className="summary-card-header flex items-center justify-between mb-2">
+    <div className="summary-card glass-card">
+      <div className="summary-card-header">
         <span className="text-sm font-bold text-[var(--info)]">{title}</span>
         <span className="text-base font-extrabold mono-number" style={{ color: accent }}>{total}</span>
       </div>
@@ -327,7 +327,7 @@ function StatPanel({ title, big, bigColor, rows, href, hrefLabel }: {
   rows: { label: string; value: string }[]; href: string; hrefLabel: string;
 }) {
   return (
-    <div className="stat-panel glass-card p-5 max-w-xl">
+    <div className="stat-panel glass-card">
       <div className="text-[11px] text-[var(--text-dim)] mb-1">{title}</div>
       <div className="text-2xl sm:text-3xl font-extrabold mono-number mb-4" style={{ color: bigColor }}>{big}</div>
       <div className="space-y-2">
@@ -354,13 +354,13 @@ function PnlDetail({ year, revenue, totalExpense, fixedTotal, variableTotal, mon
 }) {
   const profit = revenue - totalExpense;
   return (
-    <div className="pnl-detail space-y-4">
-      <div className="pnl-hero-card glass-card p-4 sm:p-5">
+    <div className="pnl-detail">
+      <div className="pnl-hero-card glass-card">
         <div className="text-[11px] text-[var(--text-dim)] mb-1">{year}년 영업이익</div>
         <div className="text-2xl sm:text-3xl font-extrabold mono-number" style={{ color: profit >= 0 ? "var(--success)" : "var(--danger)" }}>
           {won(profit)}
         </div>
-        <div className="pnl-stat-grid grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+        <div className="pnl-stat-grid">
           <PnlStat label="매출" value={won(revenue)} color="var(--success)" />
           <PnlStat label="총 비용" value={wonOut(totalExpense)} color="var(--danger)" />
           <PnlStat label="고정비" value={wonOut(fixedTotal)} color="#f97316" />
@@ -368,8 +368,8 @@ function PnlDetail({ year, revenue, totalExpense, fixedTotal, variableTotal, mon
         </div>
       </div>
 
-      <div className="pnl-table-card glass-card overflow-hidden">
-        <div className="pnl-table-header px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+      <div className="pnl-table-card glass-card">
+        <div className="pnl-table-header">
           <div className="text-sm font-bold text-[var(--text)]">월별 손익</div>
           <Link href="/reports/pnl" className="text-[11px] font-semibold text-[var(--primary)] hover:underline">손익계산서 자세히 →</Link>
         </div>
@@ -421,15 +421,15 @@ function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] })
   const max = sorted.length > 0 ? sorted[0].payroll : 0;
   const avg = sorted.length > 0 ? Math.round(total / sorted.length) : 0;
   return (
-    <div className="people-detail space-y-5">
+    <div className="people-detail">
       {/* 스탯 3카드 */}
-      <div className="people-stat-grid grid grid-cols-3 gap-3 sm:gap-4">
+      <div className="people-stat-grid">
         {[
           { label: "급여 합계", value: won(total), color: "#f97316", sub: `${sorted.length}명 기준` },
           { label: "인원", value: `${sorted.length}명`, color: "var(--info)", sub: "명세서/기본급여" },
           { label: "1인 평균", value: won(avg), color: "#10b981", sub: "합계 ÷ 인원" },
         ].map((s) => (
-          <div key={s.label} className="people-stat-card glass-card p-4">
+          <div key={s.label} className="people-stat-card glass-card">
             <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-2">{s.label}</div>
             <div className="text-lg sm:text-xl font-extrabold mono-number tracking-tight truncate" style={{ color: s.color }}>{s.value}</div>
             <div className="text-[10px] text-[var(--text-dim)] mt-1.5 truncate">{s.sub}</div>
@@ -442,8 +442,8 @@ function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] })
       )}
 
       {/* 인원별 랭크 바 리스트 */}
-      <div className="people-rank-card glass-card overflow-hidden">
-        <div className="people-rank-header px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between">
+      <div className="people-rank-card glass-card">
+        <div className="people-rank-header">
           <div className="text-sm font-bold text-[var(--text)]">인원별 급여 명단</div>
           {/* 인원별 급여 페이지 링크 제거(2026-06-29 사용자 요청) — 페이지·코드는 유지, 링크만 비연동 */}
         </div>
@@ -455,7 +455,7 @@ function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] })
               const share = total > 0 ? (r.payroll / total) * 100 : 0;
               const barPct = max > 0 ? (r.payroll / max) * 100 : 0;
               return (
-                <div key={r.key} className="people-rank-row px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-[var(--bg-surface)]/40 transition">
+                <div key={r.key} className="people-rank-row">
                   <span className="text-[11px] text-[var(--text-dim)] w-4 text-center shrink-0 mono-number">{i + 1}</span>
                   <span className="w-9 h-9 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-sm font-bold shrink-0 shadow">{(r.key || "?").slice(0, 1)}</span>
                   <div className="flex-1 min-w-0">
@@ -473,7 +473,7 @@ function PeopleDetail({ year, rows }: { year: number; rows: PersonSalaryRow[] })
                 </div>
               );
             })}
-            <div className="people-rank-total px-4 sm:px-5 py-3 flex items-center justify-between bg-[var(--bg-surface)]/50">
+            <div className="people-rank-total">
               <span className="text-sm font-bold text-[var(--text)]">합계 · {sorted.length}명</span>
               <span className="text-sm font-extrabold mono-number" style={{ color: "var(--primary)" }}>{won(total)}</span>
             </div>

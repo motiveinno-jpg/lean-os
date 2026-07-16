@@ -50,23 +50,23 @@ export function OvertimeStats({ companyId }: { companyId: string }) {
   const totalCnt = rows.reduce((s, r) => s + r.count, 0);
 
   return (
-    <div className="overtime-stats-card glass-card p-5">
-      <div className="overtime-stats-header flex items-center justify-between mb-3 gap-2 flex-wrap">
+    <div className="overtime-stats-card glass-card">
+      <div className="overtime-stats-header">
         <h3 className="text-sm font-bold text-[var(--text)]">
           연장근무 현황 <span className="text-xs font-normal text-[var(--text-dim)]">누가 · 몇 번 · 몇 시간</span>
         </h3>
         <select value={year} onChange={(e) => setYear(Number(e.target.value))}
-          className="overtime-stats-year-select px-2 py-1 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]">
+          className="overtime-stats-year-select">
           {[nowYear, nowYear - 1, nowYear - 2].map((y) => <option key={y} value={y}>{y}년</option>)}
         </select>
       </div>
 
       {isLoading ? (
-        <div className="overtime-stats-loading py-8 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>
+        <div className="overtime-stats-loading">불러오는 중…</div>
       ) : rows.length === 0 ? (
-        <div className="overtime-stats-empty py-8 text-center text-sm text-[var(--text-muted)]">{year}년 연장근무 기록이 없습니다.</div>
+        <div className="overtime-stats-empty">{year}년 연장근무 기록이 없습니다.</div>
       ) : (
-        <table className="overtime-stats-table w-full text-sm">
+        <table className="overtime-stats-table">
           <thead className="text-[var(--text-muted)] border-b border-[var(--border)]">
             <tr>
               <th className="text-left py-2 font-semibold">직원</th>
@@ -76,7 +76,7 @@ export function OvertimeStats({ companyId }: { companyId: string }) {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="overtime-stats-row border-b border-[var(--border)]/40">
+              <tr key={i} className="overtime-stats-row">
                 <td className="py-2 text-[var(--text)]">{r.name}</td>
                 <td className="py-2 text-right mono-number text-[var(--text-muted)]">{r.count}회</td>
                 <td className="py-2 text-right mono-number font-semibold text-[var(--text)]">{hm(r.minutes)}</td>
@@ -84,7 +84,7 @@ export function OvertimeStats({ companyId }: { companyId: string }) {
             ))}
           </tbody>
           <tfoot>
-            <tr className="overtime-stats-footer border-t border-[var(--border)]">
+            <tr className="overtime-stats-footer">
               <td className="py-2 font-bold text-[var(--text)]">합계</td>
               <td className="py-2 text-right font-bold mono-number text-[var(--text)]">{totalCnt}회</td>
               <td className="py-2 text-right font-bold mono-number text-[var(--primary)]">{hm(totalMin)}</td>
@@ -92,7 +92,7 @@ export function OvertimeStats({ companyId }: { companyId: string }) {
           </tfoot>
         </table>
       )}
-      <p className="overtime-stats-note text-[10px] text-[var(--text-dim)] mt-2">* 출퇴근 기록의 연장근무 시간(overtime) 기준 — 실제 기록된 연장근무입니다.</p>
+      <p className="overtime-stats-note">* 출퇴근 기록의 연장근무 시간(overtime) 기준 — 실제 기록된 연장근무입니다.</p>
     </div>
   );
 }

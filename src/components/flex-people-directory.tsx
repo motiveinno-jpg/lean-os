@@ -80,9 +80,9 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
   }, [employees, search, dept, statusF]);
 
   return (
-    <div className="flex-people-directory space-y-4">
+    <div className="flex-people-directory">
       {/* ── 필터 바 ── */}
-      <div className="flex-people-filter-bar glass-card px-4 py-3 flex flex-wrap items-center gap-2">
+      <div className="flex-people-filter-bar glass-card">
         <div className="relative">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="이름·팀·직책 검색"
             className="pl-8 pr-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-52 focus:outline-none focus:border-[var(--primary)]" />
@@ -110,13 +110,13 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
 
       {/* ── 카드 그리드 ── */}
       {view === "card" ? (
-        <div className="flex-people-card-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="flex-people-card-grid">
           {shown.length === 0 && <div className="col-span-full glass-card p-12 text-center text-sm text-[var(--text-muted)]">조건에 맞는 구성원이 없습니다.</div>}
           {shown.map((e) => {
             const sm = statusMeta(e.status);
             return (
               <button key={e.id} onClick={() => setSel(e)}
-                className="flex-people-card glass-card p-4 text-left hover:-translate-y-0.5 hover:shadow-lg transition group">
+                className="flex-people-card glass-card group">
                 <div className="flex items-center gap-3">
                   <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-[15px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>
                     {initials(e.name)}
@@ -139,7 +139,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
         </div>
       ) : (
         /* ── 리스트 ── */
-        <div className="flex-people-list glass-card overflow-hidden">
+        <div className="flex-people-list glass-card">
           <table className="w-full text-xs">
             <thead className="text-xs text-[var(--text-dim)]">
               <tr className="border-b border-[var(--border)]">
@@ -155,7 +155,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
               {shown.map((e) => {
                 const sm = statusMeta(e.status);
                 return (
-                  <tr key={e.id} onClick={() => setSel(e)} className="flex-people-list-row border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/50 cursor-pointer">
+                  <tr key={e.id} onClick={() => setSel(e)} className="flex-people-list-row">
                     <td className="px-4 py-2">
                       <span className="flex items-center gap-2">
                         <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>{initials(e.name)}</span>
@@ -189,7 +189,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
 
       {/* ── 직원 상세(계약서 탭) — 디렉토리에서 "계약서" 클릭 시 ── */}
       {contractsEmpId && (
-        <div className="flex-people-contracts-modal-backdrop fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40" onClick={() => setContractsEmpId(null)}>
+        <div className="flex-people-contracts-modal-backdrop fixed inset-0" onClick={() => setContractsEmpId(null)}>
           <div className="w-full max-w-5xl my-6" onClick={(e) => e.stopPropagation()}>
             <EmployeeDetailPanel employeeId={contractsEmpId} companyId={companyId} initialTab="contracts" onClose={() => setContractsEmpId(null)} />
           </div>
@@ -246,11 +246,11 @@ function ProfilePanel({ companyId, emp, isManager, onClose, onOpenContracts }: {
   );
 
   return (
-    <div className="flex-people-profile-backdrop fixed inset-0 z-[70] flex justify-end" onClick={onClose}>
+    <div className="flex-people-profile-backdrop fixed inset-0" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
-      <div className="flex-people-profile-panel relative w-full max-w-sm h-full bg-[var(--bg-card)] border-l border-[var(--border)] shadow-2xl flex flex-col overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="flex-people-profile-panel" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
-        <div className="flex-people-profile-header px-5 pt-6 pb-5 text-center border-b border-[var(--border)] bg-[var(--bg-surface)]/60">
+        <div className="flex-people-profile-header">
           <button onClick={onClose} className="absolute top-4 right-4 text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none">✕</button>
           <span className="inline-flex w-20 h-20 rounded-3xl items-center justify-center text-2xl font-bold text-white" style={{ background: avatarColor(emp.id) }}>
             {initials(emp.name)}
@@ -261,12 +261,12 @@ function ProfilePanel({ companyId, emp, isManager, onClose, onOpenContracts }: {
         </div>
 
         {/* 핵심 지표 2 */}
-        <div className="flex-people-profile-metrics grid grid-cols-2 gap-2 px-5 py-4">
-          <div className="flex-people-metric-work rounded-2xl p-3 text-center bg-[var(--primary-light)]">
+        <div className="flex-people-profile-metrics">
+          <div className="flex-people-metric-work">
             <div className="text-[10px] font-semibold text-[var(--primary)]">이번 주 근무</div>
             <div className="text-lg font-bold mono-number text-[var(--text)] mt-0.5">{hm(weekMin)}</div>
           </div>
-          <div className="flex-people-metric-leave rounded-2xl p-3 text-center bg-[var(--success-dim)]">
+          <div className="flex-people-metric-leave">
             <div className="text-[10px] font-semibold text-[var(--success)]">연차 잔여</div>
             <div className="text-lg font-bold mono-number text-[var(--text)] mt-0.5">
               {leave ? `${leave.remaining}일` : "—"}
@@ -276,7 +276,7 @@ function ProfilePanel({ companyId, emp, isManager, onClose, onOpenContracts }: {
         </div>
 
         {/* 인사 정보 */}
-        <div className="flex-people-profile-info px-5 pb-4">
+        <div className="flex-people-profile-info">
           <div className="text-[11px] font-bold text-[var(--text-muted)] mb-1">인사 정보</div>
           <InfoRow label="이메일" value={emp.email || "—"} />
           <InfoRow label="연락처" value={emp.phone || "—"} />
@@ -287,7 +287,7 @@ function ProfilePanel({ companyId, emp, isManager, onClose, onOpenContracts }: {
         </div>
 
         {/* 바로가기 */}
-        <div className="flex-people-profile-shortcuts px-5 pb-6 mt-auto space-y-2">
+        <div className="flex-people-profile-shortcuts">
           <Link href="/attendance" className="block w-full text-center px-4 py-2.5 rounded-xl text-xs font-bold text-white transition hover:brightness-110 bg-[var(--primary)]">
             근태 기록 보기
           </Link>

@@ -146,7 +146,7 @@ export function FileList({
   // ── Empty state ──
   if (!files || files.length === 0) {
     return (
-      <div className="file-list-empty flex flex-col items-center justify-center py-12 text-center">
+      <div className="file-list-empty">
         <div className="w-12 h-12 rounded-full bg-[var(--border)]/50 flex items-center justify-center mb-3">
           <svg
             width="24"
@@ -174,18 +174,18 @@ export function FileList({
   return (
     <div className="w-full">
       {/* Header: count + layout toggle */}
-      <div className="file-list-header flex items-center justify-between mb-3">
+      <div className="file-list-header">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text)]">
             파일 목록
           </span>
-          <span className="file-list-count-badge inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold bg-[var(--primary)]/10 text-[var(--primary)]">
+          <span className="file-list-count-badge">
             {files.length}
           </span>
         </div>
 
         {/* Layout toggle */}
-        <div className="file-list-layout-toggle flex items-center gap-0.5 bg-[var(--border)]/30 rounded-lg p-0.5">
+        <div className="file-list-layout-toggle">
           <button
             type="button"
             onClick={() => setLayout("list")}
@@ -247,7 +247,7 @@ export function FileList({
       <div {...scrollProps} className={`file-list-scroll-area ${scrollProps.className || ""}`}>
       {/* ── List layout ── */}
       {layout === "list" && (
-        <div className="file-list-list space-y-1.5">
+        <div className="file-list-list">
           {files.map((file) => {
             const { icon, color, bgColor } = getFileIcon(file.mime_type);
             const isConfirming = confirmDeleteId === file.id;
@@ -255,17 +255,17 @@ export function FileList({
             return (
               <div
                 key={file.id}
-                className="file-row flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] group hover:border-[var(--primary)]/30 transition-colors"
+                className="file-row group"
               >
                 {/* Type icon */}
                 <div
-                  className={`file-row-icon shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-bold ${color} ${bgColor}`}
+                  className={`file-row-icon ${color} ${bgColor}`}
                 >
                   {icon}
                 </div>
 
                 {/* File info */}
-                <div className="file-row-info flex-1 min-w-0">
+                <div className="file-row-info">
                   <div className="flex items-center gap-2">
                     <a
                       href={file.file_url}
@@ -306,12 +306,12 @@ export function FileList({
                 </div>
 
                 {/* Actions */}
-                <div className="file-row-actions shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="file-row-actions">
                   {/* Download */}
                   <button
                     type="button"
                     onClick={() => handleDownload(file)}
-                    className="file-row-download-btn w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors"
+                    className="file-row-download-btn"
                     title="다운로드"
                   >
                     <svg
@@ -335,7 +335,7 @@ export function FileList({
                     <button
                       type="button"
                       onClick={() => onNewVersion(file.id)}
-                      className="file-row-version-btn w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
+                      className="file-row-version-btn"
                       title="새 버전 업로드"
                     >
                       <svg
@@ -360,7 +360,7 @@ export function FileList({
                     <button
                       type="button"
                       onClick={() => handleDelete(file.id)}
-                      className={`file-row-delete-btn w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                      className={`file-row-delete-btn ${
                         isConfirming
                           ? "text-white bg-[var(--danger)]"
                           : "text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10"
@@ -393,7 +393,7 @@ export function FileList({
 
       {/* ── Grid layout ── */}
       {layout === "grid" && (
-        <div className="file-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+        <div className="file-grid">
           {files.map((file) => {
             const { icon, color, bgColor } = getFileIcon(file.mime_type);
             const isConfirming = confirmDeleteId === file.id;
@@ -401,18 +401,18 @@ export function FileList({
             return (
               <div
                 key={file.id}
-                className="file-card relative flex flex-col items-center p-3 rounded-xl bg-[var(--bg)] border border-[var(--border)] group hover:border-[var(--primary)]/30 transition-colors"
+                className="file-card group"
               >
                 {/* Version badge */}
                 {showVersions && file.version > 0 && (
-                  <span className="file-card-badge absolute top-2 right-2 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]">
+                  <span className="file-card-badge">
                     v{file.version}
                   </span>
                 )}
 
                 {/* Type icon */}
                 <div
-                  className={`file-card-icon w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold mb-2 ${color} ${bgColor}`}
+                  className={`file-card-icon ${color} ${bgColor}`}
                 >
                   {icon}
                 </div>
@@ -437,7 +437,7 @@ export function FileList({
                 </p>
 
                 {/* Hover actions */}
-                <div className="file-card-actions absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="file-card-actions">
                   <button
                     type="button"
                     onClick={() => handleDownload(file)}

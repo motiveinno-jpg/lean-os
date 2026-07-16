@@ -39,7 +39,7 @@ export function FailurePanel({
   const total = summary.reduce((acc, r) => acc + Number(r.count || 0), 0);
 
   return (
-    <div className="signature-failure-panel" onClick={onClose}>
+    <div className="signature-failure-panel fixed inset-0" onClick={onClose}>
       <div
         className="signature-failure-card glass-card"
         onClick={(e) => e.stopPropagation()}

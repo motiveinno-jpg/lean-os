@@ -278,14 +278,14 @@ export function ContractStageCard({
   }
 
   return (
-    <div className="contract-stage-card bg-[var(--bg-surface)] rounded-xl p-4 space-y-4">
-      <div className="contract-stage-card-header flex items-center justify-between gap-2">
+    <div className="contract-stage-card">
+      <div className="contract-stage-card-header">
         <h3 className="text-xs font-bold text-[var(--text-muted)]">계약서 작성 / 발송</h3>
         {approval && <StatusBadgeMini approval={approval} />}
       </div>
 
       {approval?.status === "rejected" && approval.decision_note && (
-        <div className="contract-rejection-notice bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+        <div className="contract-rejection-notice">
           <div className="text-[11px] font-bold text-red-400 mb-1">❌ 거래처가 계약서를 거절했습니다</div>
           <div className="text-[11px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed">{approval.decision_note}</div>
         </div>
@@ -472,7 +472,7 @@ export function ContractStageCard({
 
       {/* 발송 */}
       {!readonly && (!approval || approval.status === "draft") && (
-        <div className="contract-send-section pt-3 border-t border-[var(--border)]/40">
+        <div className="contract-send-section">
           <div className="text-[10px] text-[var(--text-dim)] font-medium mb-1.5">
             거래처에 계약서 발송 {partnerName ? `· ${partnerName}` : ""}
           </div>
@@ -504,7 +504,7 @@ export function ContractStageCard({
 
       {/* 재발송 (거절 상태) */}
       {!readonly && approval?.status === "rejected" && (
-        <div className="contract-resend-section pt-3 border-t border-[var(--border)]/40">
+        <div className="contract-resend-section">
           <div className="text-[10px] text-amber-400 font-medium mb-1.5">거절된 계약서 — 양식·변수 수정 후 재발송</div>
           <div className="flex flex-col sm:flex-row gap-1.5">
             <input
@@ -553,7 +553,7 @@ function PendingOurSignatureCard({ approval, onClick }: { approval: ApprovalLite
     ? new Date(approval.signed_at_external).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
     : "—";
   return (
-    <div className="pending-our-signature-card bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 space-y-2">
+    <div className="pending-our-signature-card">
       <div className="text-[12px] font-bold text-orange-400">✍️ 거래처 서명 완료 — 우리(갑) 서명 대기</div>
       <div className="text-[11px] text-[var(--text)]">
         거래처가 {partnerMethodLabel}으로 승인했습니다 ({signedAt} KST).
@@ -597,8 +597,8 @@ function OurSignatureModal({
   void partnerName; void partnerRep; void partnerBiz;
   useModalKeys(true, onClose, submitting || !ourSignatureDataUrl ? undefined : onSubmit);
   return (
-    <div className="our-signature-modal-overlay fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="our-signature-modal glass-card w-full max-w-lg max-h-[92vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="our-signature-modal-overlay fixed inset-0" onClick={onClose}>
+      <div className="our-signature-modal glass-card" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-[var(--text)]">우리(갑) 서명 / 날인</h2>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl">×</button>
@@ -609,7 +609,7 @@ function OurSignatureModal({
         </p>
 
         {companyInfo.seal_url && (
-          <div className="default-seal-banner mb-3 flex items-center gap-2 p-2 rounded-lg bg-[var(--success-dim)] border border-[var(--success)]/25">
+          <div className="default-seal-banner">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={companyInfo.seal_url} alt="기본 직인" className="w-12 h-12 object-contain bg-white rounded" />
             <div className="flex-1 text-[11px] text-[var(--success)]">
@@ -669,7 +669,7 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
   const hasPdfUrl = !!approval.signed_contract_url;
 
   return (
-    <div className="signed-contract-card bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 space-y-2">
+    <div className="signed-contract-card">
       <div className="flex items-center justify-between gap-2">
         <div className="text-[11px] font-bold text-emerald-400">✅ 계약 승인 완료 — 서명·날인 회수됨</div>
       </div>
@@ -716,7 +716,7 @@ function StatusBadgeMini({ approval }: { approval: ApprovalLite }) {
     : "bg-gray-500/15 text-gray-400 border-gray-500/30";
   const icon = s === "approved" ? "✅" : s === "rejected" ? "❌" : s === "viewed" ? "👁" : s === "expired" ? "⏰" : s === "sent" ? "📤" : "📝";
   return (
-    <span className={`status-badge-mini inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${tone}`}>
+    <span className={`status-badge-mini ${tone}`}>
       <span>{icon}</span>
       <span className="truncate max-w-[180px]">{label}</span>
     </span>

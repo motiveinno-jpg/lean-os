@@ -226,9 +226,9 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
   };
 
   return (
-    <div className="rich-editor border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--bg)]">
+    <div className="rich-editor">
       {editable && (
-        <div className="rich-editor-toolbar flex flex-wrap gap-0.5 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+        <div className="rich-editor-toolbar">
           {/* 서식 */}
           <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btnCls(editor.isActive("bold"))} title="굵게"><strong>B</strong></button>
           <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={btnCls(editor.isActive("italic"))} title="기울임"><em>I</em></button>
@@ -238,7 +238,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           <div className="w-px h-5 bg-[var(--border)] mx-1 self-center" />
 
           {/* 글자 색상 */}
-          <div className="rich-editor-color-palette flex items-center gap-0.5 px-1" title="글자 색상">
+          <div className="rich-editor-color-palette" title="글자 색상">
             {COLORS.map((c) => (
               <button key={c} type="button" onClick={() => editor.chain().focus().setColor(c).run()}
                 className="w-4 h-4 rounded-full border border-[var(--border)] hover:scale-110 transition" style={{ background: c }} title={c} />

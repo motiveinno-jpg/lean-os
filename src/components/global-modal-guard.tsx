@@ -56,13 +56,13 @@ export function GlobalModalGuard() {
   return (
     <div
       data-guard-skip="1"
-      className="global-modal-guard fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 p-4"
+      className="global-modal-guard fixed inset-0"
       onClick={(e) => { e.stopPropagation(); keepEditing(); }}
     >
-      <div className="modal-guard-dialog bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-xs p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-guard-dialog bg-[var(--bg-card)] rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-sm font-bold text-[var(--text)]">작업을 취소하시겠습니까?</div>
         <div className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">입력한 내용이 저장되지 않고 닫힙니다.</div>
-        <div className="modal-guard-actions flex justify-end gap-2 mt-4">
+        <div className="modal-guard-actions">
           <button type="button" onClick={keepEditing} className="px-3 py-1.5 text-xs rounded-lg text-[var(--text-muted)] hover:text-[var(--text)]">계속 작성</button>
           <button type="button" onClick={closeAnyway} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--danger)] text-white hover:opacity-90">취소하고 닫기</button>
         </div>

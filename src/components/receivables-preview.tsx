@@ -77,8 +77,8 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
   const top = data.list.slice(0, 5);
 
   return (
-    <div className="receivables-preview glass-card px-4 py-3">
-      <div className="receivables-preview-header flex items-center justify-between gap-2 mb-2.5">
+    <div className="receivables-preview glass-card">
+      <div className="receivables-preview-header">
         <div className="min-w-0 flex items-baseline gap-2">
           <span className="text-[11px] font-bold uppercase tracking-wider shrink-0 text-[var(--danger)]">미수금</span>
           <span className="text-[17px] leading-none font-extrabold mono-number text-[var(--danger)]">{won(data.total)}</span>
@@ -86,9 +86,9 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
         </div>
         <Link href="/partners/ledger?type=sales" className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0 no-underline">이동 →</Link>
       </div>
-      <div className="receivables-preview-list flex flex-col gap-0.5">
+      <div className="receivables-preview-list">
         {top.map((g) => (
-          <div key={g.name} className="receivables-preview-row flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--bg-surface)] transition">
+          <div key={g.name} className="receivables-preview-row">
             <Link href="/partners/ledger?type=sales" className="flex items-center gap-2 min-w-0 flex-1 no-underline">
               <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{g.name}<span className="text-[var(--text-dim)]">{g.count > 1 ? ` · ${g.count}건` : ""}</span></span>
               {g.oldestDays > 0 && (

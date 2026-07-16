@@ -1075,7 +1075,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           {savedModal && (() => {
             const issItems = editItems.filter((i: any) => i && (i.name || Number(i.supplyAmount)));
             return (
-              <div className="invoice-issue-modal" onClick={() => setSavedModal(false)}>
+              <div className="invoice-issue-modal fixed inset-0" onClick={() => setSavedModal(false)}>
                 <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
                   <div className="text-base font-bold text-[var(--text)] mb-1">✅ 견적서가 저장되었습니다</div>
                   <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">매출 세금계산서를 <b className="text-[var(--text)]">견적서 품목대로</b> 발행할까요? (품목 {issItems.length}개)</p>

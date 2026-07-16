@@ -52,8 +52,8 @@ function WorkCard({ href, icon, label, count, tone = "primary", items, moreLabel
 }) {
   const color = toneColor(tone);
   return (
-    <div className="my-work-card glass-card px-3.5 py-3 flex flex-col">
-      <div className="my-work-card-header flex items-center gap-2 mb-2">
+    <div className="my-work-card glass-card">
+      <div className="my-work-card-header">
         <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[13px] shrink-0" style={{ background: soft(color, 12) }}>{icon}</span>
         <div className="min-w-0 flex-1 flex items-baseline gap-1.5">
           <span className="text-[12px] font-bold text-[var(--text)] leading-tight truncate">{label}</span>
@@ -61,10 +61,10 @@ function WorkCard({ href, icon, label, count, tone = "primary", items, moreLabel
         </div>
         <Link href={href} className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0 no-underline">이동 →</Link>
       </div>
-      <div className="my-work-card-item-list flex flex-col gap-0.5">
+      <div className="my-work-card-item-list">
         {items.map((it) => (
           <Link key={it.key} href={it.href}
-            className="my-work-card-item flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--bg-surface)] transition no-underline">
+            className="my-work-card-item">
             <span className="w-1 h-1 rounded-full shrink-0" style={{ background: it.tone ? toneColor(it.tone) : "var(--text-dim)" }} />
             <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{it.primary}</span>
             {it.secondary && (it.badge
@@ -181,15 +181,15 @@ export function useMyWorkCards(companyId: string, userId: string): MyWorkCard[] 
 export function MyWorkSection({ companyId, userId }: { companyId: string; userId: string }) {
   const cards = useMyWorkCards(companyId, userId);
   return (
-    <section className="my-work-section mb-6">
-      <div className="my-work-section-header mb-2.5">
+    <section className="my-work-section">
+      <div className="my-work-section-header">
         <h2 className="text-[15px] font-extrabold text-[var(--text)] tracking-tight">내 업무</h2>
         <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">담당·처리할 일을 미리 보고, 항목이나 “이동 →”으로 해당 메뉴로.</p>
       </div>
       {cards.length > 0 ? (
-        <div className="my-work-card-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{cards.map((c) => c.node)}</div>
+        <div className="my-work-card-grid">{cards.map((c) => c.node)}</div>
       ) : (
-        <div className="my-work-empty glass-card p-5 text-center text-xs text-[var(--text-dim)]">지금 처리할 내 업무가 없습니다. 👍</div>
+        <div className="my-work-empty glass-card">지금 처리할 내 업무가 없습니다. 👍</div>
       )}
     </section>
   );

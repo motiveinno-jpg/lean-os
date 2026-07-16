@@ -740,7 +740,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
 
       {/* Employee Detail Panel — 중앙 모달 팝업(기존엔 목록 하단 인라인이라 멀리 떠서 안 보였음) */}
       {detailEmpId && (
-        <div className="employee-detail-overlay animate-fade-in" onClick={() => setDetailEmpId(null)}>
+        <div className="employee-detail-overlay fixed inset-0 animate-fade-in" onClick={() => setDetailEmpId(null)}>
           <div className="w-full max-w-5xl my-6" onClick={(e) => e.stopPropagation()}>
             <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />
           </div>
@@ -1877,7 +1877,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         const allowanceLines = (monthlyAllowanceEntries as any[]).filter((r) => r.employee_id === summaryDetailId);
         const empRecords = (records as any[]).filter((r) => r.employee_id === summaryDetailId).sort((a, b) => String(a.date).localeCompare(String(b.date)));
         return (
-          <div className="attendance-summary-detail-modal" onClick={() => setSummaryDetailId(null)}>
+          <div className="attendance-summary-detail-modal fixed inset-0" onClick={() => setSummaryDetailId(null)}>
             <div className="glass-card p-6 w-full max-w-lg shadow-xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -2026,7 +2026,7 @@ function MissingCheckOutModal({
   useModalKeys(true, onClose, missingRows.length === 0 || saving.size > 0 ? undefined : saveAll);
 
   return (
-    <div className="attendance-checkout-modal" onClick={onClose}>
+    <div className="attendance-checkout-modal fixed inset-0" onClick={onClose}>
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}

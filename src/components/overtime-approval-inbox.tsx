@@ -87,16 +87,16 @@ export function OvertimeApprovalInbox({ companyId, reviewerId }: { companyId: st
   if (rows.length === 0) return null;
 
   return (
-    <div className="overtime-inbox glass-card p-4">
+    <div className="overtime-inbox glass-card">
       <h3 className="text-sm font-bold mb-3">연장근무 승인 대기 ({rows.length}건)</h3>
       <div className="space-y-2">
         {rows.map((r) => (
-          <div key={r.id} className="overtime-inbox-row px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-between gap-3">
+          <div key={r.id} className="overtime-inbox-row">
             <div className="min-w-0">
               <div className="text-xs font-semibold text-[var(--text)]">{r.employees?.name || "직원"} — {r.requested_date} {hm(r.requested_end_time)}까지</div>
               {r.reason && <div className="text-[11px] text-[var(--text-muted)] truncate">{r.reason}</div>}
             </div>
-            <div className="overtime-inbox-actions flex gap-1.5 shrink-0">
+            <div className="overtime-inbox-actions">
               <button onClick={() => approveMut.mutate(r)} disabled={approveMut.isPending}
                 className="px-2.5 py-1 bg-[var(--success)] hover:brightness-110 text-white rounded text-[10px] font-semibold disabled:opacity-40">승인</button>
               <button onClick={() => onReject(r)} disabled={rejectMut.isPending}

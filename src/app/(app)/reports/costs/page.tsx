@@ -69,7 +69,7 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
   if (hasRemovable) {
     const total = items.reduce((s, i) => s + i.amount, 0);
     return (
-      <div className="cost-detail-modal-overlay" onClick={onClose}>
+      <div className="cost-detail-modal-overlay fixed inset-0" onClick={onClose}>
         <div className="cost-detail-modal-box" onClick={(e) => e.stopPropagation()}>
           <div className="cost-detail-modal-header">
             <div>

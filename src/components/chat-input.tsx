@@ -135,7 +135,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
     <div className={`chat-input ${glass ? "border-t border-[var(--border)] bg-transparent rounded-b-3xl" : "border-t border-[var(--border)] bg-[var(--bg-card)] rounded-b-2xl"}`}>
       {/* Reply preview */}
       {replyTo && (
-        <div className="chat-reply-preview px-4 pt-2 flex items-center gap-2">
+        <div className="chat-reply-preview">
           <div className="w-0.5 h-5 bg-[var(--primary)] rounded-full" />
           <div className="flex-1 min-w-0">
             <span className="text-[10px] font-semibold text-[var(--primary)]">{replyTo.senderName}</span>
@@ -147,8 +147,8 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
         </div>
       )}
 
-      <div className="chat-input-body p-4">
-        <div className="chat-input-row flex items-end gap-2 relative">
+      <div className="chat-input-body">
+        <div className="chat-input-row">
           {/* File upload button */}
           {onFileUpload && (
             <FileUploadZone onFileSelect={onFileUpload} disabled={disabled} />

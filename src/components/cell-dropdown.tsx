@@ -39,7 +39,7 @@ export function CellDropdown({
   return createPortal(
     <div
       style={style}
-      className="cell-dropdown-panel overflow-y-auto overflow-x-hidden whitespace-normal rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1"
+      className="cell-dropdown-panel"
     >
       {children}
     </div>,

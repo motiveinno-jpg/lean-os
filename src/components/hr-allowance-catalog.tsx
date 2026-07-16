@@ -92,8 +92,8 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
   });
 
   return (
-    <div className="allowance-catalog glass-card p-6">
-      <div className="allowance-catalog-header flex items-center justify-between mb-4">
+    <div className="allowance-catalog glass-card">
+      <div className="allowance-catalog-header">
         <h2 className="text-sm font-bold">수당 관리</h2>
         <button
           onClick={() => { setEditing(null); setModalOpen(true); }}
@@ -123,7 +123,7 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
             </thead>
             <tbody>
               {types.map((t) => (
-                <tr key={t.id} className="allowance-row border-t border-[var(--border)]">
+                <tr key={t.id} className="allowance-row">
                   <td className="px-2 py-2">
                     <div className="flex items-center gap-1.5">
                       {t.is_legal_mandatory && <span title="법정 수당" className="text-[10px]">🔒</span>}
@@ -325,14 +325,14 @@ function AllowanceTypeModal({
   useModalKeys(true, onClose, saveMut.isPending || !canSubmit ? undefined : () => saveMut.mutate());
 
   return (
-    <div className="allowance-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="allowance-modal-overlay fixed inset-0" onClick={onClose}>
       <div
-        className="allowance-modal glass-card p-6 w-[520px] max-w-[92vw] max-h-[88vh] overflow-y-auto"
+        className="allowance-modal glass-card"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="section-title">{isEdit ? "수당 수정" : "수당 추가"}</h3>
         {isLegal && (
-          <div className="allowance-legal-notice mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-[11px] text-yellow-400">
+          <div className="allowance-legal-notice">
             🔒 법정 수당입니다. 단가·활성·적용대상·표시순서만 수정할 수 있습니다.
           </div>
         )}
@@ -425,7 +425,7 @@ function AllowanceTypeModal({
               >특정 직원</button>
             </div>
             {form.applies_to === "employees" && (
-              <div className="allowance-employee-picker flex flex-wrap gap-1.5 p-2 bg-[var(--bg)] border border-[var(--border)] rounded">
+              <div className="allowance-employee-picker">
                 {employees.length === 0 && <span className="caption">직원 없음</span>}
                 {employees.map((e) => {
                   const selected = form.target_employee_ids.includes(e.id);
@@ -471,7 +471,7 @@ function AllowanceTypeModal({
           </div>
         </div>
 
-        <div className="allowance-modal-actions flex gap-2 mt-5">
+        <div className="allowance-modal-actions">
           <button onClick={onClose} className="flex-1 py-2 bg-[var(--bg)] text-[var(--text-muted)] rounded-lg text-xs">
             취소
           </button>

@@ -133,10 +133,10 @@ function PopupWindow({ win }: { win: Win }) {
   const iframePE = ctx.dragging ? "none" : "auto";
 
   return (
-    <div className="popup-win fixed rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-card)] flex flex-col shadow-2xl"
+    <div className="popup-win"
       style={style} onMouseDown={() => focus(win.id)}>
       {/* 타이틀바 */}
-      <div className="popup-titlebar flex items-center gap-1 h-9 pl-3 pr-1.5 bg-[var(--bg-surface)] border-b border-[var(--border)] cursor-move select-none shrink-0"
+      <div className="popup-titlebar"
         onMouseDown={begin("move")} onDoubleClick={() => toggleMax(win.id)}>
         <span className="text-[12px] font-bold text-[var(--text)] truncate flex-1">{win.title}</span>
         <button onClick={() => detach(win)} title="새 창으로 분리 (브라우저 밖으로 이동 가능)"
@@ -159,7 +159,7 @@ function PopupWindow({ win }: { win: Win }) {
         </button>
       </div>
       {/* 본문 — 라우트를 embed 로 iframe */}
-      <div className="popup-body flex-1 relative bg-[var(--bg)]">
+      <div className="popup-body">
         <iframe src={`${win.href}?embed=1`} title={win.title}
           className="absolute inset-0 w-full h-full border-0" style={{ pointerEvents: iframePE }} />
       </div>
@@ -188,9 +188,9 @@ export function PopupWindowsHost() {
       {wins.map((w) => <PopupWindow key={w.id} win={w} />)}
       {/* 최소화된 창 — 하단 작업표시줄 칩 */}
       {minimized.length > 0 && (
-        <div className="popup-taskbar fixed bottom-3 left-1/2 -translate-x-1/2 z-[58] flex gap-2 max-w-[92vw] overflow-x-auto">
+        <div className="popup-taskbar overflow-x-auto">
           {minimized.map((w) => (
-            <div key={w.id} className="popup-taskbar-chip flex items-center gap-1.5 pl-3 pr-1.5 h-9 rounded-full bg-[var(--bg-card)] border border-[var(--border)] shadow-lg shrink-0">
+            <div key={w.id} className="popup-taskbar-chip">
               <button onClick={() => restore(w.id)} className="text-[12px] font-semibold text-[var(--text)] hover:text-[var(--primary)] transition max-w-[160px] truncate">
                 {w.title}
               </button>

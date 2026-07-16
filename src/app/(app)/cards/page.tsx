@@ -915,7 +915,7 @@ export default function CardsPage() {
 
       {/* 전표처리 모달 — 카드 1건을 수동으로 전표 생성 (회사별 매핑 기본계정 제안) */}
       {postCard && (
-        <div className="card-post-voucher-modal" onClick={() => setPostCard(null)}>
+        <div className="card-post-voucher-modal fixed inset-0" onClick={() => setPostCard(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">전표처리</div>
@@ -984,7 +984,7 @@ export default function CardsPage() {
 
       {/* 일괄 전표처리 모달 — 선택된 미처리 카드거래를 비용계정 1개로 일괄 생성 */}
       {showBulkPost && (
-        <div className="card-bulk-post-modal" onClick={() => setShowBulkPost(false)}>
+        <div className="card-bulk-post-modal fixed inset-0" onClick={() => setShowBulkPost(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>

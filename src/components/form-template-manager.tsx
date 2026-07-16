@@ -143,12 +143,12 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
   const byType = (dt: DocType) => (templates as PdfFormTemplate[]).filter((t) => t.doc_type === dt);
 
   return (
-    <div className="form-template-manager glass-card p-5">
+    <div className="form-template-manager glass-card">
       <h2 className="text-base font-bold text-[var(--text)] mb-1">{only ? `${DOC_LABEL[only]} 양식 PDF` : "회사 양식 PDF"}</h2>
       <p className="text-xs text-[var(--text-muted)] mb-4">회사가 쓰던 {only ? DOC_LABEL[only] : "견적서·전자계약"} PDF를 올리면 자동 인식해서, {only === "contract" ? "계약 서명" : only === "quote" ? "견적" : "견적/계약"} 생성 시 그 디자인 그대로 값(거래처·금액·날짜{only === "contract" ? "·서명" : "·품목"})만 채워 출력합니다. 활성 양식이 없으면 기본 디자인으로 생성됩니다.</p>
 
       {/* 업로드 폼 */}
-      <div className="template-upload-form flex flex-wrap items-end gap-2 mb-4">
+      <div className="template-upload-form">
         {!only && (
         <div>
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">종류</label>
@@ -177,14 +177,14 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
 
       {/* 양식 목록 */}
       {(only ? [only] : (["quote", "contract"] as DocType[])).map((dt) => (
-        <div key={dt} className="template-type-group mb-3">
+        <div key={dt} className="template-type-group">
           <div className="text-xs font-bold text-[var(--text-muted)] mb-1.5">{DOC_LABEL[dt]} 양식</div>
           {byType(dt).length === 0 ? (
             <div className="text-xs text-[var(--text-dim)] px-1 py-2">등록된 양식이 없습니다 (기본 디자인 사용 중).</div>
           ) : (
-            <div className="template-list space-y-1.5">
+            <div className="template-list">
               {byType(dt).map((t) => (
-                <div key={t.id} className="template-row flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+                <div key={t.id} className="form-template-row">
                   <span className="flex-1 text-sm text-[var(--text)] font-medium truncate">{t.name}
                     <span className="ml-1 text-[10px] text-[var(--text-dim)]">
                       {t.template_mode === "text" ? "텍스트" : `${t.page_count}p · 필드 ${t.fields?.length || 0}`}
@@ -206,8 +206,8 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
 
       {/* 매핑 보정 에디터 (모달) — body 포털(transform/backdrop-filter 조상 회피) */}
       {editing && typeof document !== "undefined" && createPortal(
-        <div className="template-editor-modal fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
-          <div className="template-editor-modal-body bg-[var(--bg-card)] rounded-xl max-w-[1000px] w-full max-h-[90vh] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="form-template-editor-modal fixed inset-0" onClick={() => setEditing(null)}>
+          <div className="form-template-editor-modal-body" onClick={(e) => e.stopPropagation()}>
             <div className="text-sm font-bold text-[var(--text)] mb-2">필드 위치 보정 — {DOC_LABEL[docType]} · {name}</div>
             <FormTemplateEditor
               docType={docType}

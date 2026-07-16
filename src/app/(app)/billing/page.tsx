@@ -790,7 +790,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
 
       {/* Upgrade Modal */}
       {showUpgradeModal && (
-        <div className="billing-upgrade-modal" onClick={() => setShowUpgradeModal(null)}>
+        <div className="billing-upgrade-modal fixed inset-0" onClick={() => setShowUpgradeModal(null)}>
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-extrabold text-[var(--text)] mb-2">플랜 변경</h3>
             <p className="text-sm text-[var(--text-muted)] mb-4">
@@ -832,7 +832,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
 
       {/* Cancel Modal */}
       {showCancelModal && (
-        <div className="billing-cancel-modal" onClick={() => setShowCancelModal(false)}>
+        <div className="billing-cancel-modal fixed inset-0" onClick={() => setShowCancelModal(false)}>
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-extrabold text-red-600 dark:text-red-400 mb-2">구독 해지</h3>
             <p className="text-sm text-[var(--text-muted)] mb-4">

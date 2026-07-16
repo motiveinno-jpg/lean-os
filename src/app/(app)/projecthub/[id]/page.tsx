@@ -1288,7 +1288,7 @@ export default function ProjectHubDetailPage() {
           </div>
 
           {showChildForm && (
-            <div className="add-subproject-modal" onClick={() => setShowChildForm(false)}>
+            <div className="add-subproject-modal fixed inset-0" onClick={() => setShowChildForm(false)}>
               <div className="add-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold">세부 프로젝트(캠페인) 추가</h3>
@@ -1376,7 +1376,7 @@ export default function ProjectHubDetailPage() {
 
           {/* 캠페인 수정 모달 */}
           {editChild && (
-            <div className="edit-subproject-modal" onClick={() => setEditChild(null)}>
+            <div className="edit-subproject-modal fixed inset-0" onClick={() => setEditChild(null)}>
               <div className="edit-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold">캠페인 수정</h3>
@@ -1414,7 +1414,7 @@ export default function ProjectHubDetailPage() {
 
           {/* 캠페인 삭제 확인 모달 */}
           {deleteTarget && (
-            <div className="delete-subproject-modal" onClick={() => setDeleteTarget(null)}>
+            <div className="delete-subproject-modal fixed inset-0" onClick={() => setDeleteTarget(null)}>
               <div className="delete-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
                 <h3 className="text-base font-bold mb-2">캠페인 삭제</h3>
                 <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{deleteTarget.name || "(이름 없음)"}</b> 캠페인을 목록에서 삭제할까요?</p>
@@ -1457,7 +1457,7 @@ export default function ProjectHubDetailPage() {
       {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
       {/* 양식 관리 모달 — 회사 견적/계약 양식 PDF 업로드·인식(버튼으로 열기, 화면 상단 점유 제거) */}
       {tplManagerKind && companyId && (
-        <div className="template-manager-modal" onClick={() => setTplManagerKind(null)}>
+        <div className="template-manager-modal fixed inset-0" onClick={() => setTplManagerKind(null)}>
           <div className="template-manager-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold">{tplManagerKind === "quote" ? "견적서" : "계약서"} 양식 관리 <span className="font-normal text-xs text-[var(--text-dim)]">회사 양식 PDF 업로드 → 자동 인식</span></h3>
@@ -1470,7 +1470,7 @@ export default function ProjectHubDetailPage() {
 
       {/* 견적/계약 문서 삭제 확인 */}
       {delDoc && (
-        <div className="delete-document-modal" onClick={() => setDelDoc(null)}>
+        <div className="delete-document-modal fixed inset-0" onClick={() => setDelDoc(null)}>
           <div className="delete-document-modal-card" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-bold mb-2">{docKind(delDoc) === "quote" ? "견적서" : "계약서"} 삭제</h3>
             <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{delDoc.name || fmtNo(delDoc) || "문서"}</b> 를 삭제할까요?</p>
@@ -1487,7 +1487,7 @@ export default function ProjectHubDetailPage() {
       {payModalQuote && (() => {
         const supply = quoteAmount(payModalQuote);
         return (
-          <div className="contract-payment-modal" onClick={() => setPayModalQuote(null)}>
+          <div className="contract-payment-modal fixed inset-0" onClick={() => setPayModalQuote(null)}>
             <div className="contract-payment-modal-card" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold">계약 생성 — 결제 조건</h3>
@@ -1522,7 +1522,7 @@ export default function ProjectHubDetailPage() {
         });
         const existingCount = ((pipe?.invoices || []) as any[]).length;
         return (
-          <div className="projecthub-invoice-issue-modal" onClick={() => setInvoiceModal(null)}>
+          <div className="projecthub-invoice-issue-modal fixed inset-0" onClick={() => setInvoiceModal(null)}>
             <div className="invoice-issue-modal-card" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold">계산서 발행</h3>
@@ -1560,7 +1560,7 @@ export default function ProjectHubDetailPage() {
       })()}
 
       {showQuoteForm && (
-        <div className="document-create-modal" onClick={() => setShowQuoteForm(false)}>
+        <div className="document-create-modal fixed inset-0" onClick={() => setShowQuoteForm(false)}>
           <div className="document-create-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold">{formKind === "quote" ? "견적서 작성" : "계약서(전자계약) 작성"}</h3>
@@ -1617,7 +1617,7 @@ export default function ProjectHubDetailPage() {
 
       {/* 견적서 PDF 미리보기 팝업 (실제 인쇄될 PDF) — body 포털, 화면 중앙. 인쇄/저장 직접 처리. */}
       {previewDoc && typeof document !== "undefined" && createPortal(
-        <div className="quote-preview-modal" onClick={() => setPreviewDoc(null)}>
+        <div className="quote-preview-modal fixed inset-0" onClick={() => setPreviewDoc(null)}>
           <div className="quote-preview-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
               <h2 className="text-base font-bold text-[var(--text)]">{previewDoc.name || "견적서"} <span className="text-xs font-normal text-[var(--text-dim)]">미리보기</span></h2>

@@ -104,7 +104,7 @@ export function OwnerDashboardSection() {
   }
 
   return (
-    <div className="owner-dashboard-section space-y-6 mb-8">
+    <div className="owner-dashboard-section">
       <KpiSection data={data} />
       <StageDistributionSection data={data.stage_distribution} />
       {/* 2026-05-22 사장님 요청 — 프로젝트 추이·진행 중 프로젝트 섹션 제거 */}
@@ -128,7 +128,7 @@ function KpiSection({ data }: { data: Summary }) {
           <p className="text-xs text-[var(--text-dim)]">{quarter.from} ~ {quarter.to} · 직전 {quarter.prev_label} 대비</p>
         </div>
       </div>
-      <div className="kpi-card-grid grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="kpi-card-grid">
         <KpiCard label="진행 중 프로젝트" value={`${kpi.active_count}건`} sub="견적·계약·진행" />
         <KpiCard label="이번 분기 완료" value={`${kpi.done_count_q}건`} sub={doneD.text} subColor={doneD.color} />
         <KpiCard label="이번 분기 매출" value={fmtW(kpi.revenue_q)} sub={revD.text} subColor={revD.color} />
@@ -158,7 +158,7 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
   return (
     <div className="stage-distribution-section">
       <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">프로젝트 현황</h2>
-      <div className="stage-card-grid grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="stage-card-grid">
         {STAGES.map((s) => {
           const d = map.get(s);
           const c = STAGE_COLOR[s];
@@ -166,7 +166,7 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
             <Link
               key={s}
               href={`/projects?stage=${s}`}
-              className={`stage-card glass-card block p-4 hover:border-[var(--primary)] hover:bg-[var(--bg-surface)] transition`}
+              className={`stage-card glass-card`}
             >
               <div className="flex items-center gap-1.5 mb-2">
                 <span className={`w-2 h-2 rounded-full ${c.dot}`} />
@@ -222,7 +222,7 @@ function ProjectTrendSection({ fallback }: { fallback: QTrend[] }) {
         <h2 className="text-lg font-extrabold text-[var(--text)]">📈 프로젝트 추이</h2>
         <div className="flex items-center gap-2 flex-wrap">
           {/* 기간 단위 토글 */}
-          <div className="trend-period-toggle flex gap-0.5 p-0.5 rounded-lg bg-[var(--bg-surface)] text-[11px]">
+          <div className="trend-period-toggle">
             {([
               { k: "month", l: "월" },
               { k: "quarter", l: "분기" },
@@ -242,7 +242,7 @@ function ProjectTrendSection({ fallback }: { fallback: QTrend[] }) {
             ))}
           </div>
           {/* metric 토글 */}
-          <div className="trend-metric-toggle flex gap-1 text-[11px]">
+          <div className="trend-metric-toggle">
             {[
               { k: "revenue", l: "매출" },
               { k: "profit", l: "이윤" },
@@ -263,12 +263,12 @@ function ProjectTrendSection({ fallback }: { fallback: QTrend[] }) {
           </div>
         </div>
       </div>
-      <div className="trend-chart-card rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]">
+      <div className="trend-chart-card rounded-2xl bg-[var(--bg-card)]">
         {/* 헤더 토글 — 접혀있으면 합계 1줄, 펼치면 큰 그래프 */}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="trend-chart-toggle w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--bg-surface)]/30 transition rounded-2xl"
+          className="trend-chart-toggle"
           aria-expanded={open}
         >
           <div className="flex items-center gap-2 min-w-0">
@@ -296,14 +296,14 @@ function ProjectTrendSection({ fallback }: { fallback: QTrend[] }) {
               </div>
             ) : (
             <div
-              className="trend-bar-grid grid gap-4 h-72 mt-3"
+              className="trend-bar-grid"
               style={{ gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))` }}
             >
               {data.map((q) => {
                 const v = Number(q[metric]) || 0;
                 const h = max > 0 ? (Math.abs(v) / max) * 100 : 0;
                 return (
-                  <div key={q.label} className="trend-bar-col flex flex-col items-center gap-2 h-full">
+                  <div key={q.label} className="trend-bar-col">
                     <div className="text-sm font-bold text-[var(--text)] tabular-nums">
                       {metric === "done_count" ? `${v}건` : fmtW(v)}
                     </div>
@@ -335,7 +335,7 @@ function InProgressListSection({ data }: { data: InProgress[] }) {
     return (
       <div className="in-progress-list-section">
         <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">🔄 진행 중 프로젝트</h2>
-        <div className="in-progress-empty rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-sm text-[var(--text-dim)]">
+        <div className="in-progress-empty rounded-2xl bg-[var(--bg-card)]">
           진행 중 프로젝트가 없습니다
         </div>
       </div>
@@ -347,7 +347,7 @@ function InProgressListSection({ data }: { data: InProgress[] }) {
         <h2 className="text-lg font-extrabold text-[var(--text)]">🔄 진행 중 프로젝트 ({data.length})</h2>
         <Link href="/projects" className="text-xs text-[var(--primary)] hover:underline">전체 칸반 →</Link>
       </div>
-      <div className="in-progress-list rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] divide-y divide-[var(--border)]">
+      <div className="in-progress-list rounded-2xl bg-[var(--bg-card)]">
         {data.map((d) => {
           const stagePct = STAGE_PROGRESS[d.stage] ?? 20;
           const pct = d.progress_pct_override ?? stagePct;
@@ -357,7 +357,7 @@ function InProgressListSection({ data }: { data: InProgress[] }) {
             <Link
               key={d.id}
               href={`/projects/${d.id}`}
-              className="in-progress-row flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-surface)] transition"
+              className="in-progress-row"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -418,21 +418,21 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
     <div className="completed-reports-section">
       <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">완료 보고서 보관함</h2>
       {groups.length === 0 ? (
-        <div className="completed-reports-empty glass-card p-8 text-center text-sm text-[var(--text-dim)]">
+        <div className="completed-reports-empty glass-card">
           완료된 프로젝트 보고서가 아직 없습니다
         </div>
       ) : (
-        <div className="completed-reports-groups space-y-2">
+        <div className="completed-reports-groups">
           {groups.map(([qLabel, items]) => {
             const isOpen = open.has(qLabel);
             const totalRev = items.reduce((s, x) => s + Number(x.revenue || 0), 0);
             const totalProf = items.reduce((s, x) => s + Number(x.profit || 0), 0);
             return (
-              <div key={qLabel} className="completed-reports-group glass-card overflow-hidden">
+              <div key={qLabel} className="completed-reports-group glass-card">
                 <button
                   type="button"
                   onClick={() => toggle(qLabel)}
-                  className="completed-reports-group-header w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--bg-surface)] transition text-left"
+                  className="completed-reports-group-header"
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-[var(--text)]">{qLabel}</span>
@@ -441,9 +441,9 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                   <span className="text-[var(--text-dim)] text-xs">{isOpen ? "▼" : "▶"}</span>
                 </button>
                 {isOpen && (
-                  <div className="completed-reports-group-list border-t border-[var(--border)] divide-y divide-[var(--border)]">
+                  <div className="completed-reports-group-list">
                     {items.map((r) => (
-                      <div key={r.id} className="completed-report-row flex items-center gap-3 px-4 py-2.5">
+                      <div key={r.id} className="completed-report-row">
                         <Link href={`/projects/${r.id}`} className="flex-1 min-w-0 hover:underline">
                           <div className="text-sm font-medium text-[var(--text)] truncate">{r.name}</div>
                           <div className="text-[11px] text-[var(--text-dim)] truncate">
@@ -455,7 +455,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                           <div className="text-xs font-bold text-[var(--text)] tabular-nums">{fmtW(r.revenue)}</div>
                           <div className="text-[10px] text-[var(--text-dim)] tabular-nums">이윤 {fmtW(r.profit)}</div>
                         </div>
-                        <div className="completed-report-actions flex gap-1 shrink-0">
+                        <div className="completed-report-actions">
                           {r.settlement_id && (
                             <button
                               onClick={() => openDocViewer({ type: 'contract', id: r.settlement_id! })}

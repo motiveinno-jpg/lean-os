@@ -23,8 +23,8 @@ export function SiyanSearchFilter({
   className?: string;
 }) {
   return (
-    <div className={`siyan-search-filter flex flex-col md:flex-row items-stretch md:items-center gap-3 ${className}`}>
-      <div className="siyan-search-input-wrap relative flex-1 min-w-[200px]">
+    <div className={`siyan-search-filter ${className}`}>
+      <div className="siyan-search-input-wrap">
         <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <circle cx="11" cy="11" r="7" strokeWidth={2} />
           <path strokeLinecap="round" strokeWidth={2} d="M21 21l-4.3-4.3" />
@@ -37,8 +37,8 @@ export function SiyanSearchFilter({
           className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-transparent transition"
         />
       </div>
-      {filters && <div className="siyan-search-filters flex gap-2 flex-wrap">{filters}</div>}
-      {sort && <div className="siyan-search-sort flex gap-2 flex-wrap">{sort}</div>}
+      {filters && <div className="siyan-search-filters">{filters}</div>}
+      {sort && <div className="siyan-search-sort">{sort}</div>}
       {trailing}
     </div>
   );

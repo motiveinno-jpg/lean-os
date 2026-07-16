@@ -833,7 +833,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         const allChecked = termAllChecked;
 
         return createPortal(
-          <div className="employee-termination-modal" onClick={() => setShowTermModal(false)}>
+          <div className="employee-termination-modal fixed inset-0" onClick={() => setShowTermModal(false)}>
             <div className="w-full max-w-md max-h-[88vh] flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               {/* 헤더 — 흰 카드 + 레드 포인트 아이콘 (라운드6: 그라데이션 제거) */}
               <div className="relative px-5 py-4 border-b border-[var(--border)] shrink-0">

@@ -114,10 +114,10 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
   const ar = pageSizes[pageIdx] ? pageSizes[pageIdx].w / pageSizes[pageIdx].h : 0.707;
 
   return (
-    <div className="form-template-editor flex gap-4">
+    <div className="form-template-editor">
       {/* 좌: PDF 미리보기 + 박스 오버레이 */}
-      <div className="template-editor-preview flex-1">
-        <div className="template-editor-page-toolbar mb-2 flex items-center gap-2">
+      <div className="template-editor-preview">
+        <div className="template-editor-page-toolbar">
           {pageImages.map((_, i) => (
             <button key={i} onClick={() => setPageIdx(i)} className={`rounded px-2 py-1 text-sm ${i === pageIdx ? "bg-indigo-600 text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>
               {i + 1}p
@@ -128,7 +128,7 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
         <div
           ref={pageRef}
           onPointerDown={() => setSelected(null)}
-          className="template-editor-page relative w-full select-none overflow-hidden rounded border border-gray-300"
+          className="template-editor-page"
           style={{ aspectRatio: String(ar) }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -137,7 +137,7 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
             <div
               key={i}
               onPointerDown={(e) => startMove(e, i)}
-              className={`template-field-box absolute cursor-move border-2 text-[10px] ${i === selected ? "border-indigo-600 bg-indigo-500/20" : "border-amber-500 bg-amber-400/15"}`}
+              className={`template-field-box ${i === selected ? "border-indigo-600 bg-indigo-500/20" : "border-amber-500 bg-amber-400/15"}`}
               style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%` }}
               title={f.label || f.key}
             >
@@ -153,9 +153,9 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
       </div>
 
       {/* 우: 속성 패널 */}
-      <div className="template-editor-properties w-72 shrink-0 space-y-3">
+      <div className="template-editor-properties">
         {sel ? (
-          <div className="template-field-properties space-y-3 rounded border border-gray-200 p-3">
+          <div className="template-field-properties">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500">{docType === "hr_form" ? "필드 이름" : "데이터 키"}</label>
               {docType === "hr_form" ? (
@@ -182,7 +182,7 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
                 {["text", "amount", "date", "signature", "items_table"].map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </div>
-            <div className="template-field-align-size-row flex gap-2">
+            <div className="template-field-align-size-row">
               <div className="flex-1">
                 <label className="mb-1 block text-xs font-medium text-gray-500">정렬</label>
                 <select value={sel.align ?? "left"} onChange={(e) => patchField(selected!, { align: e.target.value as OverlayField["align"] })} className="w-full rounded border px-2 py-1 text-sm">
@@ -200,7 +200,7 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
           <p className="rounded border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">필드 박스를 선택하면 속성이 표시됩니다.</p>
         )}
 
-        <div className="template-editor-footer-actions flex gap-2">
+        <div className="template-editor-footer-actions">
           {onCancel && <button onClick={onCancel} className="flex-1 rounded border py-2 text-sm">취소</button>}
           <button onClick={() => onSave(fields)} className="flex-1 rounded bg-indigo-600 py-2 text-sm font-medium text-white">양식 저장</button>
         </div>

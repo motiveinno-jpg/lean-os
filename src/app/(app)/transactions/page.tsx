@@ -1741,7 +1741,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               {monthlyData.length > 0 && <MonthlyChart data={monthlyData} />}
             </div>
             {categoryEntries.length > 0 && (
-              <div className="category-breakdown-card">
+              <div className="category-breakdown-card rounded-2xl bg-[var(--bg-card)]">
                 <p className="text-xs font-semibold text-[var(--text-muted)] mb-3">지출 카테고리 분포</p>
                 <div className="space-y-2">
                   {categoryEntries.slice(0, 6).map(([cat, amount]) => {

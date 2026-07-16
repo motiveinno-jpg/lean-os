@@ -15,7 +15,7 @@ const soft = (c: string, pct = 12) => `color-mix(in srgb, ${c} ${pct}%, transpar
 
 // 리포트 컬럼 — 풀폭(중앙 여백 없음). 여백 때문에 붕 뜨는 느낌 제거.
 export function ReportShell({ children }: { children: ReactNode }) {
-  return <div className="report-shell w-full">{children}</div>;
+  return <div className="report-shell">{children}</div>;
 }
 
 // 페이지 헤더 — 제목 + 한 줄 설명 + 출처 칩
@@ -40,9 +40,9 @@ export function IntroCard({ eyebrow, title, desc, tags, callout, box }: {
   box?: { label: string; value: string; sub?: string; tone?: string };
 }) {
   return (
-    <div className={`report-intro-card ${REPORT_CARD} p-6`}>
-      <div className="report-intro-grid grid gap-6 md:grid-cols-[1fr_260px]">
-        <div className="report-intro-text min-w-0">
+    <div className={`report-intro-card ${REPORT_CARD}`}>
+      <div className="report-intro-grid">
+        <div className="report-intro-text">
           {eyebrow && <div className="text-[11px] font-bold tracking-wider uppercase mb-2" style={{ color: "var(--primary)" }}>{eyebrow}</div>}
           <h2 className="text-xl font-extrabold text-[var(--text)] tracking-tight">{title}</h2>
           {desc && <p className="text-sm text-[var(--text-muted)] mt-2 leading-relaxed">{desc}</p>}
@@ -53,7 +53,7 @@ export function IntroCard({ eyebrow, title, desc, tags, callout, box }: {
           )}
         </div>
         {(callout || box) && (
-          <div className="report-intro-side md:border-l md:border-[var(--border)] md:pl-6 space-y-3">
+          <div className="report-intro-side">
             {callout && (
               <div className="report-intro-callout">
                 <div className="text-[11px] text-[var(--text-dim)]">{callout.label}</div>
@@ -62,7 +62,7 @@ export function IntroCard({ eyebrow, title, desc, tags, callout, box }: {
               </div>
             )}
             {box && (
-              <div className="report-intro-box rounded-xl p-3" style={{ background: soft(toneColor(box.tone), 10) }}>
+              <div className="report-intro-box" style={{ background: soft(toneColor(box.tone), 10) }}>
                 <div className="text-[11px] font-semibold" style={{ color: toneColor(box.tone) }}>{box.label}</div>
                 <div className="text-lg font-extrabold mono-number" style={{ color: toneColor(box.tone) }}>{box.value}</div>
                 {box.sub && <div className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-snug">{box.sub}</div>}
@@ -82,7 +82,7 @@ export function StatCard({ label, value, caption, icon, tone, href }: {
   const color = toneColor(tone);
   const inner = (
     <>
-      <div className="report-stat-head flex items-start justify-between gap-2">
+      <div className="report-stat-head">
         <span className="text-[13px] text-[var(--text-muted)]">{label}</span>
         {icon != null && <span className="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0" style={{ background: soft(color === "var(--text)" ? "var(--primary)" : color, 12) }}>{icon}</span>}
       </div>
@@ -91,15 +91,15 @@ export function StatCard({ label, value, caption, icon, tone, href }: {
     </>
   );
   return href
-    ? <Link href={href} className={`report-stat-card ${REPORT_CARD} p-5 block no-underline hover:border-[var(--primary)] transition`}>{inner}</Link>
-    : <div className={`report-stat-card ${REPORT_CARD} p-5`}>{inner}</div>;
+    ? <Link href={href} className={`report-stat-card ${REPORT_CARD} block no-underline hover:border-[var(--primary)] transition`}>{inner}</Link>
+    : <div className={`report-stat-card ${REPORT_CARD}`}>{inner}</div>;
 }
 
 // 섹션 — 헤딩 + 부제(+우측 컨트롤)
 export function Section({ title, desc, right, children, className }: { title: string; desc?: string; right?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={`report-section ${REPORT_CARD} p-5 ${className || ""}`}>
-      <div className="report-section-header flex items-start justify-between gap-2 mb-4 flex-wrap">
+    <section className={`report-section ${REPORT_CARD} ${className || ""}`}>
+      <div className="report-section-header">
         <div className="min-w-0">
           <h3 className="text-sm font-bold text-[var(--text)]">{title}</h3>
           {desc && <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{desc}</p>}

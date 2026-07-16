@@ -262,7 +262,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
 
   if (billings.length === 0) {
     return (
-      <div className="card-billing-empty glass-card p-5">
+      <div className="card-billing-empty glass-card">
         <div className="flex items-center gap-2.5 mb-2">
           <span className="kpi-icon warning"><TileIcon name="wallet" className="w-5 h-5" /></span>
           <h2 className="text-[15px] font-bold text-[var(--text)]">이용대금 / 청구서</h2>
@@ -278,8 +278,8 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   const grand = billings.reduce((s, b) => s + b.totalAmount, 0);
 
   return (
-    <div className="card-billing-summary glass-card p-5">
-      <div className="card-billing-header flex items-center justify-between mb-3">
+    <div className="card-billing-summary glass-card">
+      <div className="card-billing-header">
         <div className="flex items-center gap-2.5">
           <span className="kpi-icon warning"><TileIcon name="wallet" className="w-5 h-5" /></span>
           <h2 className="text-[15px] font-bold text-[var(--text)]">이용대금 / 청구서</h2>
@@ -294,11 +294,11 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
         </div>
       </div>
 
-      <div className="card-billing-info-banner mb-2 px-1 text-[10px] text-[var(--text-dim)]">
+      <div className="card-billing-info-banner">
         💡 CODEF 는 카드 종류(신용/체크) 정보를 안 줘서 자동 등록은 모두 <span className="text-[var(--primary)] font-semibold">신용</span> 으로 들어옵니다.
         체크/직불이면 아래 카드 옆 <span className="font-mono">신용▾</span> 클릭해 변경 → 즉시 청구서에서 사라집니다.
       </div>
-      <div className="card-billing-rows space-y-1">
+      <div className="card-billing-rows">
         {billings.map((b) => (
           <BillingRow
             key={b.cardId}
@@ -322,7 +322,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
       </div>
 
       {unregisteredCount > 0 && (
-        <div className="card-billing-unregistered-note mt-2 text-[10px] text-[var(--text-dim)]">
+        <div className="card-billing-unregistered-note">
           미등록 CODEF 카드 {unregisteredCount}개 — 카드를 등록하면 종류·결제일 지정 가능
         </div>
       )}
@@ -404,10 +404,10 @@ function BillingDetailModal({
   useModalKeys(true, onClose);
 
   return (
-    <div onClick={onClose} className="billing-detail-modal-backdrop fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-      <div onClick={(e) => e.stopPropagation()} className="billing-detail-modal-panel bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+    <div onClick={onClose} className="billing-detail-modal-backdrop fixed inset-0">
+      <div onClick={(e) => e.stopPropagation()} className="billing-detail-modal-panel">
         {/* 헤더 */}
-        <div className="billing-detail-modal-header px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+        <div className="billing-detail-modal-header">
           <div className="min-w-0">
             <div className="text-sm font-bold text-[var(--text)] truncate">🧾 {billing.cardName} 청구서</div>
             <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{billing.cardCompany}</div>
@@ -416,7 +416,7 @@ function BillingDetailModal({
         </div>
 
         {/* 사이클 전환 */}
-        <div className="billing-detail-cycle-switch px-4 py-2 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-surface)]/40">
+        <div className="billing-detail-cycle-switch">
           <button onClick={() => setOffset((o) => o - 1)} className="px-2 py-1 text-xs rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]" title="이전 사이클">‹ 이전</button>
           <div className="text-center">
             <div className="text-xs font-semibold text-[var(--text)]">{startISO} ~ {endISO}</div>
@@ -429,7 +429,7 @@ function BillingDetailModal({
         </div>
 
         {/* 합계 */}
-        <div className="billing-detail-summary px-4 py-3 border-b border-[var(--border)] grid grid-cols-3 gap-2 text-center">
+        <div className="billing-detail-summary">
           <div>
             <div className="text-[9px] text-[var(--text-dim)]">사용</div>
             <div className="text-xs font-bold mono-number text-[var(--text)]">₩{fmtKRW(usedSum)}</div>
@@ -445,7 +445,7 @@ function BillingDetailModal({
         </div>
 
         {/* 거래 리스트 */}
-        <div className="billing-detail-tx-list flex-1 overflow-y-auto">
+        <div className="billing-detail-tx-list">
           {isLoading ? (
             <div className="p-8 text-center text-xs text-[var(--text-dim)]">불러오는 중...</div>
           ) : cardTxs.length === 0 ? (
@@ -475,7 +475,7 @@ function BillingDetailModal({
         </div>
 
         {/* 푸터 — 결제예정 + 건수 */}
-        <div className="billing-detail-footer px-4 py-2.5 border-t border-[var(--border)] flex items-center justify-between text-[10px] text-[var(--text-dim)]">
+        <div className="billing-detail-footer">
           <span>{cardTxs.length}건</span>
           {billing.nextPaymentDate
             ? <span>결제예정 {billing.nextPaymentDate.getMonth() + 1}/{billing.nextPaymentDate.getDate()}{billing.daysToPayment != null ? ` (D-${billing.daysToPayment})` : ''}</span>
@@ -509,11 +509,11 @@ function NonCreditCardsSection({
     });
   };
   return (
-    <div className="noncredit-cards-section mt-3 pt-3 border-t border-[var(--border)]">
+    <div className="noncredit-cards-section">
       <button
         type="button"
         onClick={toggle}
-        className="noncredit-cards-toggle flex items-center justify-between w-full mb-1.5 hover:opacity-80 transition"
+        className="noncredit-cards-toggle"
       >
         <div className="flex items-center gap-1.5">
           <span className="inline-block w-3 text-center text-[10px] text-[var(--text-muted)]">{collapsed ? '▶' : '▼'}</span>
@@ -524,12 +524,12 @@ function NonCreditCardsSection({
         <div className="text-[9px] text-[var(--text-dim)]">청구 사이클 없음 · 종류 ▾ 로 신용 복원</div>
       </button>
       {!collapsed && (
-        <div className="noncredit-cards-list space-y-1">
+        <div className="noncredit-cards-list">
           {cards.map((c: any) => {
             const curType = c.card_type as 'check' | 'debit' | 'other';
             const typeLabel = curType === 'check' ? '체크' : curType === 'debit' ? '직불' : '기타';
             return (
-              <div key={c.id} className="noncredit-card-row flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50">
+              <div key={c.id} className="noncredit-card-row">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-semibold text-[var(--text-muted)] truncate">{c.card_name}</span>
@@ -620,8 +620,8 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
   };
 
   return (
-    <div className={`billing-row rounded-lg border ${rowBg}`}>
-      <div className="billing-row-main flex items-center gap-2 px-3 py-2">
+    <div className={`billing-row ${rowBg}`}>
+      <div className="billing-row-main">
         {/* 결제일 D-N (또는 미설정 안내) */}
         {b.nextPaymentDate ? (
           <div className={`flex flex-col items-center justify-center w-12 py-0.5 rounded shrink-0 ${
@@ -642,7 +642,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
         )}
 
         {/* 이름 + 회사 + 종류 토글 */}
-        <div className="billing-row-info flex-1 min-w-0">
+        <div className="billing-row-info">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold text-[var(--text)] truncate">{b.cardName}</span>
             {/* 카드 종류 토글 */}
@@ -650,7 +650,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
               <div className="relative">
                 <button
                   onClick={() => setTypeMenu(v => !v)}
-                  className="billing-row-type-toggle text-[9px] font-bold px-1.5 py-0.5 rounded transition shrink-0 bg-blue-500/12 text-blue-400"
+                  className="billing-row-type-toggle"
                   title="카드 종류 변경"
                 >
                   {typeLabel}▾
@@ -689,13 +689,13 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
         </div>
 
         {/* 금액 */}
-        <div className="billing-row-amount text-right shrink-0">
+        <div className="billing-row-amount">
           <div className="text-sm font-bold mono-number text-[var(--text)]">₩{fmtKRW(b.totalAmount)}</div>
           <div className="text-[8px] text-[var(--text-dim)] mono-number">{b.cycleStart.slice(5)} ~ {b.cycleEnd.slice(5)}</div>
         </div>
 
         {/* 액션 */}
-        <div className="billing-row-actions flex flex-col gap-1 shrink-0">
+        <div className="billing-row-actions">
           <button onClick={() => { onShowDetail?.(); onSelectCard?.(b.cardId); }}
             className="px-2 py-0.5 text-[9px] font-semibold rounded bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30 transition"
             title="청구 명세 보기 (사이클 거래·합계)"
@@ -715,7 +715,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
 
       {/* 편집 패널 — 인라인 펼침 (absolute 대신 row 아래) */}
       {editing && (
-        <div className="billing-row-edit-panel px-3 pb-2 pt-1 border-t border-[var(--border)]/40 flex items-center gap-2 flex-wrap text-xs">
+        <div className="billing-row-edit-panel">
           <div className="flex items-center gap-1">
             <label className="caption">결제일</label>
             <input type="number" min={1} max={31} value={payInput}

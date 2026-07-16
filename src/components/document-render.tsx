@@ -72,9 +72,9 @@ export function DocumentRender({
   const cleanedBody = items.length > 0 || paymentSchedule.length > 0 ? stripAsciiTable(rawBody) : rawBody;
 
   return (
-    <div className="document-render space-y-4">
+    <div className="document-render">
       {/* Header */}
-      <div className="doc-header-card bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <div className="doc-header-card">
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="text-xs text-gray-400 mb-1">{company?.name || ""}</div>
@@ -90,7 +90,7 @@ export function DocumentRender({
 
         {/* Company info */}
         {company && (
-          <div className="doc-company-info grid grid-cols-2 gap-3 text-xs text-gray-600 bg-gray-50 rounded-xl p-4">
+          <div className="doc-company-info">
             <div><span className="font-semibold text-gray-500">발신:</span> {company.name}</div>
             <div><span className="font-semibold text-gray-500">대표:</span> {company.representative || "-"}</div>
             <div><span className="font-semibold text-gray-500">사업자번호:</span> {company.business_number || "-"}</div>
@@ -104,7 +104,7 @@ export function DocumentRender({
 
       {/* Quote Items */}
       {isQuote && items.length > 0 && (
-        <div className="doc-items-card bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="doc-items-card">
           <h2 className="text-sm font-bold text-gray-900 mb-3">품목 내역</h2>
           <table className="w-full text-xs">
             <thead>
@@ -128,7 +128,7 @@ export function DocumentRender({
               ))}
             </tbody>
           </table>
-          <div className="doc-items-summary mt-3 pt-3 border-t border-gray-200 flex justify-end gap-6 text-xs flex-wrap">
+          <div className="doc-items-summary">
             <span className="text-gray-500">
               공급가액:{" "}
               <span className="font-semibold text-gray-900">
@@ -165,7 +165,7 @@ export function DocumentRender({
 
       {/* Payment Schedule (both quote and contract) */}
       {(isContract || isQuote) && paymentSchedule.length > 0 && (
-        <div className="doc-payment-schedule-card bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="doc-payment-schedule-card">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-gray-900">결제조건</h2>
             {/* v4 D3: 부가세 별도 표기 — 표 상단 캡션 */}
@@ -198,13 +198,13 @@ export function DocumentRender({
       )}
 
       {/* Document Content */}
-      <div className="doc-body-card bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <div className="doc-body-card">
         <h2 className="text-sm font-bold text-gray-900 mb-3">내용</h2>
         <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
           {cleanedBody || "(내용 없음)"}
         </div>
         {contentJson.notes && (
-          <div className="doc-notes mt-4 p-3 bg-yellow-50 rounded-lg text-xs text-yellow-800">
+          <div className="doc-notes">
             <span className="font-semibold">비고:</span> {contentJson.notes}
           </div>
         )}

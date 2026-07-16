@@ -1018,7 +1018,7 @@ export default function PartnersPage() {
         ].filter(t => t.date).sort((a, b) => (a.date < b.date ? 1 : -1));
 
         return (
-        <div className="partner-detail-panel" onClick={() => setDetailPartner(null)}>
+        <div className="partner-detail-panel fixed inset-0" onClick={() => setDetailPartner(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}>
             {/* Header */}
@@ -1453,7 +1453,7 @@ export default function PartnersPage() {
       {/* CSV Import Preview Modal */}
       {/* Import 결과 리포트 (confirm 완료 후) */}
       {importResult && (
-        <div className="partner-import-result-modal" onClick={() => setImportResult(null)}>
+        <div className="partner-import-result-modal fixed inset-0" onClick={() => setImportResult(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <h2 className="text-lg font-bold">임포트 결과</h2>
@@ -1514,7 +1514,7 @@ export default function PartnersPage() {
       )}
 
       {(importPreview || importError) && (
-        <div className="partner-import-preview-modal" onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}>
+        <div className="partner-import-preview-modal fixed inset-0" onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
@@ -1590,7 +1590,7 @@ export default function PartnersPage() {
 
       {/* Create / Edit Modal */}
       {showModal && (
-        <div className="partner-form-modal" onClick={closeModal}>
+        <div className="partner-form-modal fixed inset-0" onClick={closeModal}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[90vh] overflow-y-auto p-4 sm:p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
@@ -1723,7 +1723,7 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
   };
   useModalKeys(true, onClose, copy);
   return (
-    <div className="partner-portal-link-modal" onClick={onClose}>
+    <div className="partner-portal-link-modal fixed inset-0" onClick={onClose}>
       <div className="w-full max-w-md bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h2 className="text-base font-bold text-[var(--text)]">포털 링크가 발급되었습니다</h2>

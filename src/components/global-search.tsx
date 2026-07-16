@@ -96,14 +96,14 @@ export function GlobalSearch() {
   if (!open) return null;
 
   return (
-    <div className="global-search-modal fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]"
+    <div className="global-search-modal fixed inset-0"
       onClick={() => setOpen(false)}>
       <div className="absolute inset-0 bg-black/60" />
-      <div className="global-search-panel relative bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden"
+      <div className="global-search-panel"
         role="dialog" aria-modal="true" aria-label="전역 검색"
         onClick={(e) => e.stopPropagation()}>
         {/* Search input */}
-        <div className="global-search-input-row flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
+        <div className="global-search-input-row">
           <svg className="w-5 h-5 text-[var(--text-muted)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
           </svg>
@@ -114,7 +114,7 @@ export function GlobalSearch() {
           <kbd className="hidden sm:inline-block text-[10px] text-[var(--text-dim)] border border-[var(--border)] rounded px-1.5 py-0.5">ESC</kbd>
         </div>
         {/* Results */}
-        <div className="global-search-results max-h-[50vh] overflow-y-auto p-2">
+        <div className="global-search-results">
           {loading && (
             <div className="flex items-center justify-center py-8">
               <div className="w-5 h-5 border-2 border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
@@ -127,13 +127,13 @@ export function GlobalSearch() {
             const items = results[type];
             if (!items || items.length === 0) return null;
             return (
-              <div key={type} className="global-search-result-group mb-2">
+              <div key={type} className="global-search-result-group">
                 <p className="text-[var(--text-dim)] text-xs uppercase font-semibold px-3 py-1.5">{TYPE_LABELS[type]}</p>
                 {items.map((item: any) => {
                   const { primary, secondary } = getDisplayText(type, item);
                   return (
                     <button key={item.id} onClick={() => navigate(type)}
-                      className="global-search-result-item w-full text-left hover:bg-[var(--bg-surface)] rounded-lg px-3 py-2 cursor-pointer flex items-center justify-between gap-2 transition-colors">
+                      className="global-search-result-item">
                       <span className="text-sm text-[var(--text)] truncate">{primary}</span>
                       {secondary && <span className="text-xs text-[var(--text-muted)] shrink-0">{secondary}</span>}
                     </button>

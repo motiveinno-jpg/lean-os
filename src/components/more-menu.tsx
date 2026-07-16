@@ -17,12 +17,12 @@ export function MoreMenu({ children, label = "더보기", className = "" }: { ch
     return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onEsc); };
   }, [open]);
   return (
-    <div ref={ref} className={`more-menu-root relative ${className}`}>
-      <button type="button" onClick={() => setOpen((v) => !v)} className="more-menu-trigger btn-secondary btn-sm whitespace-nowrap" aria-haspopup="menu" aria-expanded={open} title="더 많은 작업">
+    <div ref={ref} className={`more-menu-root ${className}`}>
+      <button type="button" onClick={() => setOpen((v) => !v)} className="more-menu-trigger btn-secondary btn-sm" aria-haspopup="menu" aria-expanded={open} title="더 많은 작업">
         ⋯ {label}
       </button>
       {open && (
-        <div className="more-menu-panel absolute right-0 top-full mt-1 z-30 min-w-[168px] py-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg" role="menu" onClick={() => setOpen(false)}>
+        <div className="more-menu-panel" role="menu" onClick={() => setOpen(false)}>
           {children}
         </div>
       )}
@@ -31,7 +31,7 @@ export function MoreMenu({ children, label = "더보기", className = "" }: { ch
 }
 
 // 드롭다운 항목 공통 스타일 — 버튼/링크/파일 label 어디에나 붙일 수 있는 className 도 export.
-export const MORE_ITEM_CLS = "more-menu-item flex items-center gap-2 w-full text-left px-3 py-2 text-[13px] text-[var(--text)] hover:bg-[var(--bg-surface)] transition no-underline cursor-pointer";
+export const MORE_ITEM_CLS = "more-menu-item";
 
 export function MoreMenuItem({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
   return <button type="button" onClick={onClick} className={MORE_ITEM_CLS} role="menuitem">{children}</button>;

@@ -364,17 +364,17 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const firstGroupId = groups[0]?.id ?? null;
 
   return (
-    <div className="board-root pb-16">
+    <div className="board-root">
       {/* ── 먼데이 툴바: 파란 새 항목 + 검색 + 담당자 필터 ── */}
-      <div className="board-toolbar flex flex-wrap items-center gap-2 mb-4">
+      <div className="monday-board-toolbar">
         <button
           onClick={() => addItem(firstGroupId)}
-          className="toolbar-new-item-btn px-4 h-8 rounded text-[13px] font-semibold text-white transition hover:brightness-110"
+          className="toolbar-new-item-btn"
           style={{ background: "var(--primary)" }}
         >
           새 항목
         </button>
-        <div className="toolbar-search-box flex items-center gap-1.5 h-8 px-2.5 rounded border border-transparent hover:border-[var(--border)] focus-within:border-[var(--primary)] transition">
+        <div className="toolbar-search-box">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text-dim)] shrink-0"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.5" y2="16.5" /></svg>
           <input
             value={search}
@@ -387,7 +387,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
         {hiddenCount > 0 && (
           <button
             onClick={() => { if (confirm(`보드에서 숨긴 ${hiddenCount}개 항목을 다시 표시할까요?`)) unhideAll(); }}
-            className="toolbar-restore-hidden-btn ml-auto h-8 px-3 rounded text-[12px] font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition"
+            className="toolbar-restore-hidden-btn"
             title="워크플로우 보드에서 제거했던 항목 복원"
           >
             숨긴 항목 {hiddenCount}개 복원
@@ -395,7 +395,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
         )}
       </div>
 
-      <div className="board-groups space-y-7">
+      <div className="board-groups">
         {orderedGroups.map((g) => {
           const gid = g?.id ?? null;
           const rows = dealsByGroup.get(gid) || [];
@@ -406,7 +406,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
           return (
             <div key={gid ?? "none"}>
               {/* ── 그룹 헤더: caret + 그룹색 그룹명 + 카운트 + ⋯ ── */}
-              <div className="group-header flex items-center gap-1.5 mb-1.5 group/ghead">
+              <div className="group-header group/ghead">
                 <button
                   onClick={() => gid && toggleCollapse(gid)}
                   className="w-6 h-6 rounded flex items-center justify-center hover:bg-[var(--bg-surface)] transition shrink-0"
@@ -434,8 +434,8 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
 
               {/* ── 표 ── */}
               {!isCollapsed && (
-                <div className="group-table-wrap overflow-x-auto rounded-md" style={{ boxShadow: "var(--shadow-sm)" }}>
-                  <table className="board-table border-collapse bg-[var(--bg-card)]" style={{ minWidth: 760, width: "100%" }}>
+                <div className="group-table-wrap" style={{ boxShadow: "var(--shadow-sm)" }}>
+                  <table className="board-table" style={{ minWidth: 760, width: "100%" }}>
                     <thead>
                       <tr>
                         {/* 그룹색 스트립 (헤더는 둥근 모서리 시작) — 좌측 3칸은 가로 스크롤 시 고정(sticky) */}
@@ -476,7 +476,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                     </thead>
                     <tbody>
                       {rows.map((d) => (
-                        <tr key={d.id} className="board-row group/row hover:bg-[var(--bg-surface)]/50">
+                        <tr key={d.id} className="board-row group/row">
                           <td style={{ width: STRIP_W, background: color, position: "sticky", left: 0, zIndex: 5 }} />
                           <td className="border border-[var(--border)] text-center bg-[var(--bg-card)] group-hover/row:bg-[var(--bg-surface)]" style={{ height: ROW_H, position: "sticky", left: STRIP_W, zIndex: 5 }}>
                             <input
@@ -487,7 +487,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                               style={{ accentColor: "var(--primary)" }}
                             />
                           </td>
-                          <td className="row-name-cell border border-[var(--border)] px-3 bg-[var(--bg-card)] group-hover/row:bg-[var(--bg-surface)]" style={{ height: ROW_H, position: "sticky", left: STRIP_W + 36, zIndex: 5 }}>
+                          <td className="row-name-cell" style={{ height: ROW_H, position: "sticky", left: STRIP_W + 36, zIndex: 5 }}>
                             <div className="flex items-center justify-between gap-1.5">
                               <EditableText value={d.name} onSave={(v) => setName(d, v.trim() || d.name)} className="text-[14px] text-[var(--text)]" placeholder="업체명" />
                               <span className="flex items-center gap-1 shrink-0">
@@ -569,7 +569,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                                       rows: options.filter((o) => (counts.get(o.id) || 0) > 0).map((o) => ({ label: o.label, color: o.color, n: counts.get(o.id) || 0 })),
                                       total, empty,
                                     })}
-                                    className="footer-status-dist-bar block w-full transition hover:-translate-y-px hover:shadow-md rounded cursor-pointer"
+                                    className="footer-status-dist-bar"
                                     title="클릭하면 상태별 내역을 봅니다"
                                   >
                                     <span className="flex h-6 rounded overflow-hidden">
@@ -610,14 +610,14 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
       {/* ── 맨 아래: + 새 그룹 추가 (먼데이 위치) ── */}
       <button
         onClick={addGroup}
-        className="board-add-group-btn mt-6 inline-flex items-center gap-1.5 px-3 h-8 rounded border border-[var(--border)] text-[13px] font-medium text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition"
+        className="board-add-group-btn"
       >
         <span className="text-base leading-none">+</span> 새 그룹 추가
       </button>
 
       {/* ── 플로팅 선택바 (먼데이 하단 블루바) ── */}
       {selected.size > 0 && (
-        <div className="board-selection-bar fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center rounded-lg overflow-hidden shadow-xl border border-[var(--border)] bg-[var(--bg-card)]">
+        <div className="board-selection-bar">
           <div className="flex items-center justify-center w-12 self-stretch text-white text-lg font-bold" style={{ background: "var(--primary)" }}>
             {selected.size}
           </div>
@@ -646,8 +646,8 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
       {/* 푸터 분포 바 클릭 → 상태별 텍스트 내역 */}
       {distPop && (
         <DropMenu anchor={distPop.anchor} width={220} onClose={() => setDistPop(null)} pad="p-2.5">
-          <div className="dist-popover-title text-[11px] font-bold text-[var(--text)] mb-1.5 truncate">{distPop.title}</div>
-          <div className="dist-popover-rows space-y-1">
+          <div className="dist-popover-title">{distPop.title}</div>
+          <div className="dist-popover-rows">
             {distPop.rows.map((r) => (
               <div key={r.label} className="flex items-center gap-2 text-[12px]">
                 <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: r.color }} />
@@ -736,11 +736,11 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
   useModalKeys(true, onClose, !body.trim() || busy ? undefined : submit);
 
   return (
-    <div className="item-updates-panel fixed inset-0 z-[80] flex justify-end" onClick={onClose}>
+    <div className="item-updates-panel fixed inset-0" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
       <div className="relative w-full max-w-md h-full bg-[var(--bg-card)] border-l border-[var(--border)] shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
-        <div className="panel-header px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3">
+        <div className="panel-header-drawer">
           <div className="min-w-0">
             <div className="text-base font-bold text-[var(--text)] truncate">{subitem ? subitem.name : deal.name}</div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
@@ -750,7 +750,7 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none shrink-0">✕</button>
         </div>
         {/* 작성 박스 (먼데이처럼 상단) */}
-        <div className="panel-compose-box px-5 py-3 border-b border-[var(--border)]">
+        <div className="panel-compose-box">
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -769,14 +769,14 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
           </div>
         </div>
         {/* 피드 */}
-        <div className="panel-feed flex-1 overflow-y-auto px-5 py-3 space-y-3">
+        <div className="panel-feed">
           {updates.length === 0 ? (
-            <div className="panel-feed-empty py-12 text-center text-[13px] text-[var(--text-dim)]">
+            <div className="panel-feed-empty">
               <div className="text-3xl mb-2">💬</div>
               아직 업데이트가 없습니다.<br />첫 메모를 남겨보세요.
             </div>
           ) : updates.map((u) => (
-            <div key={u.id} className="panel-feed-item rounded-xl border border-[var(--border)] p-3 group/upd">
+            <div key={u.id} className="panel-feed-item group/upd">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
                   style={{ background: avatarColor(u.author_user_id || u.author_name || "?") }}>
@@ -803,7 +803,7 @@ function PersonFilterButton({ users, value, onChange }: { users: Person[]; value
   const [open, setOpen] = useState(false);
   const cur = users.find((u) => u.id === value);
   return (
-    <div className="person-filter relative">
+    <div className="person-filter">
       <button
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 h-8 px-2.5 rounded text-[13px] transition border ${value ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--text-muted)] hover:border-[var(--border)]"}`}
@@ -815,7 +815,7 @@ function PersonFilterButton({ users, value, onChange }: { users: Person[]; value
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="person-filter-dropdown absolute z-20 mt-1 left-0 min-w-[180px] max-h-64 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1">
+          <div className="person-filter-dropdown">
             {users.map((u) => (
               <button key={u.id} onClick={() => { onChange(u.id); setOpen(false); }}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
@@ -836,7 +836,7 @@ function PersonFilterButton({ users, value, onChange }: { users: Person[]; value
 function GroupMenu({ color, onRecolor, onDelete }: { color: string; onRecolor: (c: string) => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="group-menu relative">
+    <div className="group-menu">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-6 h-6 rounded flex items-center justify-center text-[var(--text-dim)] hover:bg-[var(--bg-surface)] opacity-0 group-hover/ghead:opacity-100 transition"
@@ -847,7 +847,7 @@ function GroupMenu({ color, onRecolor, onDelete }: { color: string; onRecolor: (
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="group-menu-dropdown absolute z-20 mt-1 left-0 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-2.5 w-[190px]">
+          <div className="group-menu-dropdown">
             <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">그룹 색상</div>
             <div className="grid grid-cols-6 gap-1.5 mb-2.5">
               {COLOR_PALETTE.map((c) => (
@@ -867,14 +867,14 @@ function GroupMenu({ color, onRecolor, onDelete }: { color: string; onRecolor: (
 function MoveToGroupButton({ groups, onMove }: { groups: Grp[]; onMove: (gid: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="move-to-group relative self-stretch">
+    <div className="move-to-group">
       <button onClick={() => setOpen((v) => !v)} className="h-full px-3 text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition border-l border-[var(--border)]">
         그룹 이동
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="move-to-group-dropdown absolute z-20 bottom-full mb-1 left-0 min-w-[160px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1">
+          <div className="move-to-group-dropdown">
             {groups.map((g) => (
               <button key={g.id} onClick={() => { onMove(g.id); setOpen(false); }}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)]">
@@ -971,9 +971,9 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
   };
 
   return (
-    <div className="deal-detail-view space-y-4 pb-10 panel-slide-in">
+    <div className="deal-detail-view panel-slide-in">
       {/* 뒤로가기 */}
-      <div className="detail-back-row flex items-center gap-3">
+      <div className="detail-back-row">
         <button onClick={onBack}
           className="inline-flex items-center gap-1.5 px-3 h-8 rounded text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] border border-[var(--border)] transition shrink-0">
           ← 프로젝트 목록
@@ -981,7 +981,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
       </div>
 
       {/* 프로젝트명 (먼데이 아이템 페이지 타이틀) + 말풍선 업데이트 */}
-      <div className="detail-title-row flex items-center gap-3">
+      <div className="detail-title-row">
         <input
           value={name}
           onChange={(e) => setNameLocal(e.target.value)}
@@ -1011,7 +1011,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
       </div>
 
       {/* 표: 헤더=컬럼(옆으로 추가), 행=항목(밑으로 추가) */}
-      <div className="detail-table-wrap overflow-x-auto rounded-md" style={{ boxShadow: "var(--shadow-sm)" }}>
+      <div className="detail-table-wrap" style={{ boxShadow: "var(--shadow-sm)" }}>
         <table className="border-collapse bg-[var(--bg-card)]" style={{ minWidth: 720, width: "100%" }}>
           <thead>
             <tr>
@@ -1040,9 +1040,9 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
           </thead>
           <tbody>
             {items.map((it) => (
-              <tr key={it.id} className="detail-row group/row hover:bg-[var(--bg-surface)]/50">
+              <tr key={it.id} className="detail-row group/row">
                 <td style={{ width: STRIP_W, background: SUB_COLOR, position: "sticky", left: 0, zIndex: 5 }} />
-                <td className="detail-name-cell border border-[var(--border)] px-3 bg-[var(--bg-card)] group-hover/row:bg-[var(--bg-surface)]" style={{ height: ROW_H, position: "sticky", left: STRIP_W, zIndex: 5 }}>
+                <td className="detail-name-cell" style={{ height: ROW_H, position: "sticky", left: STRIP_W, zIndex: 5 }}>
                   <div className="flex items-center gap-2">
                     <EditableText value={it.name} onSave={(v) => setItemName(it, v)} className="text-[14px] text-[var(--text)]" placeholder="항목명" />
                     <span className="ml-auto flex items-center gap-1 shrink-0">
@@ -1137,9 +1137,9 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
   useModalKeys(true, onClose, save);
 
   return (
-    <div className="column-config-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="column-config-modal fixed inset-0" onClick={onClose}>
       <div className="glass-card w-full max-w-md p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)" }}>
-        <div className="modal-header flex items-center justify-between mb-4">
+        <div className="modal-header">
           <h3 className="text-base font-bold text-[var(--text)]">컬럼 설정 <span className="text-[11px] font-normal text-[var(--text-dim)]">· {TYPE_LABEL[col.type] || col.type}</span></h3>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)]">✕</button>
         </div>
@@ -1151,7 +1151,7 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
         {isStatus && (
           <div className="mb-4">
             <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">상태 옵션 (라벨·색)</div>
-            <div className="status-options-list space-y-2">
+            <div className="status-options-list">
               {options.map((o, i) => (
                 <div key={o.id} className="flex items-center gap-2">
                   <ColorSwatch color={o.color} onChange={(c) => setOpt(i, { color: c })} />
@@ -1165,7 +1165,7 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
           </div>
         )}
 
-        <div className="modal-footer flex items-center justify-between pt-3 border-t border-[var(--border)]">
+        <div className="modal-footer">
           <button onClick={() => { if (confirm(`컬럼 "${col.name}" 삭제? 각 항목의 이 값도 사라집니다.`)) onDelete(); }}
             className="text-[12px] font-semibold text-[var(--danger)] hover:underline">컬럼 삭제</button>
           <div className="flex gap-2">
@@ -1181,12 +1181,12 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
 function ColorSwatch({ color, onChange }: { color: string; onChange: (c: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="color-swatch relative shrink-0">
+    <div className="color-swatch">
       <button onClick={() => setOpen((v) => !v)} className="w-7 h-7 rounded-lg border border-black/10" style={{ background: color }} title="색 변경" />
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="color-swatch-dropdown absolute z-20 mt-1 left-0 p-2 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-lg grid grid-cols-6 gap-1.5 w-[180px]">
+          <div className="color-swatch-dropdown">
             {COLOR_PALETTE.map((c) => (
               <button key={c} onClick={() => { onChange(c); setOpen(false); }} className="w-6 h-6 rounded-md border border-black/10" style={{ background: c }} />
             ))}
@@ -1277,7 +1277,7 @@ function DropMenu({ anchor, width, onClose, children, pad = "p-2" }: {
 function StatusCell({ options, current, onPick }: { options: { id: string; label: string; color: string }[]; current?: { id: string; label: string; color: string }; onPick: (id: string) => void }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   return (
-    <div className="status-cell relative w-full h-full">
+    <div className="status-cell">
       <button
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())}
         className="w-full h-full flex items-center justify-center text-[13px] font-medium text-white transition hover:brightness-95"
@@ -1310,7 +1310,7 @@ function PersonCell({ users, value, onChange }: { users: Person[]; value: any; o
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const cur = users.find((u) => u.id === value);
   return (
-    <div className="person-cell relative w-full h-full">
+    <div className="person-cell">
       <button onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())} className="w-full h-full flex items-center justify-center group/person" style={{ minHeight: ROW_H - 2 }}>
         {cur ? (
           <span className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: avatarColor(cur.id) }} title={cur.name || cur.email}>
@@ -1406,7 +1406,7 @@ function AddColumnButton({ onAdd }: { onAdd: (type: string) => void }) {
     { t: "date", label: "📅 날짜" }, { t: "number", label: "🔢 숫자" },
   ];
   return (
-    <div className="add-column-btn relative">
+    <div className="add-column-btn">
       <button onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())} className="w-7 h-7 rounded text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] text-lg leading-none" title="컬럼 추가">+</button>
       {anchor && (
         <DropMenu anchor={anchor} width={140} onClose={() => setAnchor(null)} pad="p-1">

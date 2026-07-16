@@ -174,8 +174,8 @@ export default function AllowanceAdminTab({
   };
 
   return (
-    <div className="allowance-admin-tab space-y-4">
-      <div className="allowance-admin-toolbar flex flex-wrap items-center gap-3">
+    <div className="allowance-admin-tab">
+      <div className="allowance-admin-toolbar">
         <div>
           <label className="block text-[10px] text-[var(--text-muted)] mb-1">대상 월</label>
           <MonthField
@@ -210,7 +210,7 @@ export default function AllowanceAdminTab({
         </div>
       </div>
 
-      <div className="allowance-matrix-card glass-card overflow-hidden">
+      <div className="allowance-matrix-card glass-card">
         <div className="overflow-x-auto">
           {entriesLoading ? (
             <div className="p-6 text-xs text-[var(--text-muted)]">불러오는 중…</div>

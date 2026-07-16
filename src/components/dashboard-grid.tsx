@@ -131,7 +131,7 @@ export function DashboardGrid({
   };
 
   const Header = (
-    <div className="dash-section-head flex items-start justify-between gap-2 mb-3">
+    <div className="dash-section-head">
       <div>
         {title && <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>{title}</div>}
         {edit && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 이동 · 우측/하단 모서리로 크기 조절 · 위젯 추가/삭제 (자동 저장)</p>}
@@ -150,7 +150,7 @@ export function DashboardGrid({
 
         {/* 위젯 추가 패널 */}
         {edit && picking && (
-          <div className="widget-picker absolute right-0 top-full mt-1.5 z-30 w-[300px] max-h-[60vh] overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-2">
+          <div className="widget-picker">
             {addable.length === 0 ? (
               <div className="text-[12px] text-[var(--text-dim)] text-center py-6">추가할 수 있는 위젯이 없습니다.<br />모든 위젯이 이미 표시 중입니다.</div>
             ) : (
@@ -191,7 +191,7 @@ export function DashboardGrid({
       {Header}
       {/* 상황 기반 추천 — 신호가 있는데 꺼진 위젯을 편집모드에서 원클릭 추가 칩으로 안내 */}
       {edit && recAddable.length > 0 && (
-        <div className="recommended-widgets-row mb-3 flex items-center gap-1.5 flex-wrap text-[11px]">
+        <div className="recommended-widgets-row">
           <span className="text-[var(--text-dim)]">💡 지금 유용한 위젯:</span>
           {recAddable.map((c) => (
             <button key={c.id} onClick={() => addWidget(c.id)}

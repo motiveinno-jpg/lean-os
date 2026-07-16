@@ -586,7 +586,7 @@ export default function ReconciliationPage() {
 
       {/* AI 전체 매칭 진행 오버레이 — 실시간 진행률 + 애니메이션 */}
       {aiMut.isPending && (
-        <div className="partner-ai-match-overlay">
+        <div className="partner-ai-match-overlay fixed inset-0">
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm p-7 text-center">
             <div className="relative mx-auto mb-3 w-16 h-16 flex items-center justify-center">
               <span className="absolute inset-0 rounded-full bg-purple-500/20 animate-ping" />
@@ -813,7 +813,7 @@ export default function ReconciliationPage() {
 
       {/* 수동 매칭 모달 */}
       {matchTx && (
-        <div className="partner-manual-match-modal" onClick={() => setMatchTx(null)}>
+        <div className="partner-manual-match-modal fixed inset-0" onClick={() => setMatchTx(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">거래 연결</div>
@@ -1018,7 +1018,7 @@ export default function ReconciliationPage() {
 
       {/* 확정 후 프로젝트 연결 제안 — 같은 거래처 프로젝트가 있으면 비용 구성에 연결 */}
       {linkPrompt && (
-        <div className="partner-project-link-modal" onClick={() => setLinkPrompt(null)}>
+        <div className="partner-project-link-modal fixed inset-0" onClick={() => setLinkPrompt(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-base font-bold text-[var(--text)]">프로젝트 비용에 연결</h3>

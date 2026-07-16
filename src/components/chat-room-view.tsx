@@ -57,13 +57,13 @@ function FilesGalleryView({ files }: { files: any[] }) {
   const others = files.filter((f) => !isImg(f) && !isPdf(f));
 
   return (
-    <div className="chat-files-gallery glass-card overflow-hidden flex-1 overflow-y-auto">
+    <div className="chat-files-gallery glass-card">
       {files.length === 0 ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">파일이 없습니다</div>
       ) : (
         <>
           {/* Filter + Layout Toolbar */}
-          <div className="chat-files-toolbar sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)] px-4 py-2.5 flex items-center justify-between gap-2">
+          <div className="chat-files-toolbar">
             <div className="seg-bar">
               {[
                 { key: "all", label: `전체 (${files.length})` },
@@ -99,12 +99,12 @@ function FilesGalleryView({ files }: { files: any[] }) {
           </div>
 
           {layout === "grid" ? (
-            <div className="chat-files-grid p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="chat-files-grid">
               {visible.map((f: any) => (
                 <button
                   key={f.id}
                   onClick={() => setPreview(f)}
-                  className="chat-file-card group text-left bg-[var(--bg-surface)] rounded-lg border border-[var(--border)]/60 overflow-hidden hover:border-[var(--primary)]/50 hover:shadow-lg transition"
+                  className="chat-file-card group"
                 >
                   <div className="aspect-square bg-[var(--bg)] flex items-center justify-center overflow-hidden relative">
                     {isImg(f) ? (
@@ -142,12 +142,12 @@ function FilesGalleryView({ files }: { files: any[] }) {
               ))}
             </div>
           ) : (
-            <div className="chat-files-list divide-y divide-[var(--border)]/50">
+            <div className="chat-files-list">
               {visible.map((f: any) => (
                 <button
                   key={f.id}
                   onClick={() => setPreview(f)}
-                  className="chat-file-row w-full px-5 py-3 flex items-center justify-between hover:bg-[var(--bg-surface)] transition text-left"
+                  className="chat-file-row"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {isImg(f) ? (
@@ -222,10 +222,10 @@ function FilePreviewModal({
   }, [onClose, onNavigate, prev, next]);
 
   return (
-    <div className="file-preview-modal fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col" onClick={onClose}>
+    <div className="file-preview-modal fixed inset-0" onClick={onClose}>
       {/* Header */}
       <div
-        className="file-preview-header flex items-center justify-between px-5 py-3 border-b border-white/10 text-white"
+        className="file-preview-header"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -268,11 +268,11 @@ function FilePreviewModal({
       </div>
 
       {/* Viewer */}
-      <div className="file-preview-viewer flex-1 flex items-center justify-center overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
+      <div className="file-preview-viewer" onClick={(e) => e.stopPropagation()}>
         {prev && (
           <button
             onClick={() => onNavigate(prev)}
-            className="file-preview-nav-prev absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full transition flex items-center justify-center"
+            className="file-preview-nav-prev"
             title="이전 (←)"
           >
             ‹
@@ -281,7 +281,7 @@ function FilePreviewModal({
         {next && (
           <button
             onClick={() => onNavigate(next)}
-            className="file-preview-nav-next absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full transition flex items-center justify-center"
+            className="file-preview-nav-next"
             title="다음 (→)"
           >
             ›
@@ -340,7 +340,7 @@ function FilePreviewModal({
       {/* Footer: thumb strip for images */}
       {files.filter(isImg).length > 1 && isImg(file) && (
         <div
-          className="file-preview-thumbstrip border-t border-white/10 px-4 py-2 overflow-x-auto flex gap-2 bg-black/40"
+          className="file-preview-thumbstrip"
           onClick={(e) => e.stopPropagation()}
         >
           {files.filter(isImg).map((f) => (
@@ -365,7 +365,7 @@ function FilePreviewModal({
 function EditInline({ content, onSave, onCancel }: { content: string; onSave: (c: string) => void; onCancel: () => void }) {
   const [text, setText] = useState(content);
   return (
-    <div className="chat-edit-inline flex items-center gap-2 px-4 py-2 bg-[var(--bg-surface)] rounded-xl my-1">
+    <div className="chat-edit-inline">
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -735,12 +735,12 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
 
   return (
     <div
-      className={embedded ? "chat-room-view flex flex-col h-full min-h-0 min-w-0" : "chat-room-view max-w-[900px] flex flex-col"}
+      className={`chat-room-view ${embedded ? "chat-room-view-embedded" : "chat-room-view-full"}`}
       style={!embedded ? { height: "calc(100dvh - 60px)" } : undefined}
     >
       {/* compact(플로팅 팝업): 팝업이 자체 헤더(채널명/뒤로/닫기)를 제공하므로 내부 헤더 숨김 — 중복·짤림 방지 */}
       {!compact && (
-      <div className="chat-room-header flex items-center justify-between mb-3 shrink-0">
+      <div className="chat-room-header">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className={`text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition ${embedded ? "lg:hidden" : ""}`}>
             &larr; 채널 목록
@@ -775,7 +775,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
       )}
 
       {pinnedMessages.length > 0 && tab === 'chat' && (
-        <div className="chat-pinned-banner bg-yellow-500/5 border border-yellow-500/20 rounded-lg px-3 py-2 mb-2 shrink-0">
+        <div className="chat-pinned-banner">
           <button
             onClick={() => setShowPinnedAll(v => !v)}
             className="flex items-center justify-between w-full text-[10px] font-semibold text-yellow-400 mb-1"
@@ -826,7 +826,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
         </div>
       )}
 
-      <div className="chat-tabs seg-bar flex w-full mb-3 shrink-0">
+      <div className="chat-tabs seg-bar">
         {([
           { key: "chat" as const, label: `채팅 (${messages.length})` },
           { key: "participants" as const, label: `참가자 (${participants.length})` },
@@ -841,10 +841,10 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
       </div>
 
       {tab === "chat" && (
-        <div className="chat-messages-panel flex flex-col flex-1 min-h-0">
+        <div className="chat-messages-panel">
           {/* Realtime connection status banner */}
           {rtStatus !== 'SUBSCRIBED' && (
-            <div className={`chat-realtime-banner px-4 py-2 text-xs font-medium flex items-center justify-between rounded-t-2xl ${
+            <div className={`chat-realtime-banner ${
               rtStatus === 'connecting' ? 'bg-[var(--warning-dim)] text-[var(--warning)]' :
               rtStatus === 'CHANNEL_ERROR' || rtStatus === 'TIMED_OUT' ? 'bg-[var(--danger-dim)] text-[var(--danger)]' :
               'bg-gray-500/10 text-gray-400'
@@ -862,10 +862,10 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
               )}
             </div>
           )}
-          <div ref={scrollContainerRef} className={`chat-messages-scroll flex-1 overflow-y-auto ${compact ? 'bg-transparent p-3' : `bg-[var(--bg-card)] border border-b-0 border-[var(--border)] p-5 ${rtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''}`}`}>
+          <div ref={scrollContainerRef} className={`chat-messages-scroll ${compact ? 'bg-transparent p-3' : `bg-[var(--bg-card)] border border-b-0 border-[var(--border)] p-5 ${rtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''}`}`}>
             {/* Load older messages button */}
             {hasOlderMessages && (
-              <div className="chat-load-older text-center mb-3">
+              <div className="chat-load-older">
                 <button
                   onClick={loadOlderMessages}
                   disabled={loadingOlder}
@@ -881,7 +881,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
               messages.map((msg: any) => {
                 const ac = actionCardMap.get(msg.id);
                 return (
-                  <div key={msg.id} id={`msg-${msg.id}`} className="chat-message-item transition-all duration-300 rounded-lg">
+                  <div key={msg.id} id={`msg-${msg.id}`} className="chat-message-item">
                     {editingId === msg.id ? (
                       <EditInline
                         content={msg.content}
@@ -921,9 +921,9 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
             <div ref={messagesEndRef} />
           </div>
           {sendError && (
-            <div className="chat-send-error px-4 py-2 bg-[var(--danger-dim)] text-[var(--danger)] text-xs font-medium">{sendError}</div>
+            <div className="chat-send-error">{sendError}</div>
           )}
-          <div className={compact ? "chat-input-wrapper rounded-b-3xl" : "chat-input-wrapper rounded-b-2xl border border-t-0 border-[var(--border)]"}>
+          <div className={`chat-input-wrapper ${compact ? "chat-input-wrapper-compact" : "chat-input-wrapper-full"}`}>
             <ChatInput
               glass={compact}
               onSend={(content, mentionedUserIds, replyToId) =>
@@ -940,9 +940,9 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
       )}
 
       {tab === "participants" && (
-        <div className="chat-participants-panel glass-card overflow-hidden flex-1 overflow-y-auto">
+        <div className="chat-participants-panel glass-card">
           {/* 초대 버튼 */}
-          <div className="chat-invite-button-wrap px-5 py-3 border-b border-[var(--border)]">
+          <div className="chat-invite-button-wrap">
             <button
               onClick={() => { setShowInvite(true); setInviteLink(""); setLinkCopied(false); setExtContact(""); }}
               className="btn-primary w-full"
@@ -960,7 +960,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
           ) : (
             <div className="divide-y divide-[var(--border)]/50">
               {participants.map((p: any) => (
-                <div key={p.id} className="chat-participant-row px-5 py-4 flex items-center justify-between">
+                <div key={p.id} className="chat-participant-row">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-xs font-bold text-[var(--primary)]">
                       {(p.users?.name || p.users?.email || "?")[0].toUpperCase()}
@@ -988,7 +988,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
           )}
 
           {/* 대화방 나가기 */}
-          <div className="chat-leave-wrap px-5 py-4 border-t border-[var(--border)] mt-2">
+          <div className="chat-leave-wrap">
             <button
               onClick={handleLeave}
               disabled={leaving}
@@ -1003,10 +1003,10 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
 
           {/* 초대 모달 */}
           {showInvite && (
-            <div className="invite-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowInvite(false)}>
-              <div className="invite-modal glass-card w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="invite-modal-overlay fixed inset-0" onClick={() => setShowInvite(false)}>
+              <div className="invite-modal glass-card" onClick={(e) => e.stopPropagation()}>
                 {/* 모달 헤더 */}
-                <div className="invite-modal-header flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+                <div className="invite-modal-header">
                   <h3 className="text-base font-bold text-[var(--text)]">멤버 초대</h3>
                   <button onClick={() => setShowInvite(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1016,7 +1016,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                 </div>
 
                 {/* 탭 */}
-                <div className="invite-modal-tabs mx-6 mt-4">
+                <div className="invite-modal-tabs">
                   <div className="seg-bar flex w-full">
                     {([
                       { key: "internal" as const, label: "내부 멤버" },
@@ -1047,7 +1047,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                       </select>
 
                       <label className="field-label">멤버 선택</label>
-                      <div className="invite-member-list max-h-48 overflow-y-auto border border-[var(--border)] rounded-xl">
+                      <div className="invite-member-list">
                         {companyUsers
                           .filter((u: any) => !participants.some((p: any) => p.user_id === u.id))
                           .map((u: any) => (
@@ -1061,7 +1061,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                                   queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
                                 } catch {}
                               }}
-                              className="invite-member-row w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--bg-surface)] transition text-left"
+                              className="invite-member-row"
                             >
                               <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-xs font-bold text-[var(--primary)]">
                                 {(u.name || u.email || "?")[0].toUpperCase()}
@@ -1100,7 +1100,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                       ) : (
                         <>
                           {/* 링크 표시 */}
-                          <div className="invite-link-row flex items-center gap-2 mb-4">
+                          <div className="invite-link-row">
                             <input
                               readOnly
                               value={inviteLink}
@@ -1125,7 +1125,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                           />
 
                           {/* 발송 버튼 */}
-                          <div className="invite-send-actions grid grid-cols-2 gap-2">
+                          <div className="invite-send-actions">
                             <a
                               href={`sms:${extContact.includes('@') ? '' : extContact.replace(/-/g, '')}?body=${encodeURIComponent(`[OwnerView] "${channel?.name || '채팅방'}" 에 초대되었습니다.\n아래 링크를 눌러 참가하세요:\n${inviteLink}`)}`}
                               className="btn-primary"
@@ -1161,13 +1161,13 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
       )}
 
       {tab === "events" && (
-        <div className="chat-events-panel glass-card overflow-hidden flex-1 overflow-y-auto">
+        <div className="chat-events-panel glass-card">
           {events.length === 0 ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">이벤트가 없습니다</div>
           ) : (
             <div className="divide-y divide-[var(--border)]/50">
               {events.map((ev: any) => (
-                <div key={ev.id} className="chat-event-row px-5 py-3 flex items-center justify-between">
+                <div key={ev.id} className="chat-event-row">
                   <div className="flex items-center gap-2">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">
                       {EVENT_LABELS[ev.event_type] || ev.event_type}

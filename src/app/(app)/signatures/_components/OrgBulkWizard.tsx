@@ -374,7 +374,7 @@ export function OrgBulkWizard({
 
   // ── 렌더 ──
   return (
-    <div className="bulk-wizard-modal">
+    <div className="bulk-wizard-modal fixed inset-0">
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-h-[92vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}

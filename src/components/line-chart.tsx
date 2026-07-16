@@ -35,7 +35,7 @@ export function LineChart({
   const [hover, setHover] = useState<number | null>(null);
 
   if (labels.length === 0 || series.length === 0) {
-    return <div className="line-chart-empty text-xs text-[var(--text-dim)] text-center py-8">데이터 없음</div>;
+    return <div className="line-chart-empty">데이터 없음</div>;
   }
 
   const allValues = series.flatMap((s) => s.values);
@@ -56,14 +56,14 @@ export function LineChart({
 
   return (
     // transform:translateZ(0) — 자체 컴포지팅 레이어 격리(스크롤 시 고정 배경 위 페인트 잔상 방지)
-    <div className="line-chart relative" style={{ height, transform: "translateZ(0)" }}>
-      <div className="line-chart-y-axis absolute left-0 top-0 bottom-5 w-12 flex flex-col justify-between text-[9px] text-[var(--text-dim)] mono-number text-right pr-1">
+    <div className="line-chart" style={{ height, transform: "translateZ(0)" }}>
+      <div className="line-chart-y-axis mono-number">
         <span>{formatY(yMax)}</span>
         <span>{formatY((yMax + yMin) / 2)}</span>
         <span>{formatY(yMin)}</span>
       </div>
 
-      <div className="line-chart-body ml-12 h-full flex flex-col">
+      <div className="line-chart-body">
         <div className="flex-1 relative">
           {/* Grid */}
           <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
@@ -190,7 +190,7 @@ export function LineChart({
           {/* Tooltip */}
           {hover !== null && (
             <div
-              className="line-chart-tooltip absolute -top-1 z-10 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-md px-2 py-1.5 text-[10px] shadow-md pointer-events-none whitespace-nowrap"
+              className="line-chart-tooltip"
               style={{
                 left: `${(stepX * hover * 100) / W}%`,
                 transform:
@@ -218,7 +218,7 @@ export function LineChart({
           )}
         </div>
 
-        <div className="line-chart-x-axis flex mt-1">
+        <div className="line-chart-x-axis">
           {labels.map((l, i) => (
             <div
               key={i}

@@ -717,7 +717,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
 
   if (!mounted) return null;
   return createPortal(
-    <div className="voucher-edit-overlay" onClick={onClose}>
+    <div className="voucher-edit-overlay fixed inset-0" onClick={onClose}>
       <div
         className="voucher-edit-modal"
         style={{ transform: `translate(calc(-50% + ${drag.x}px), calc(-50% + ${drag.y}px))` }}
@@ -981,7 +981,7 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
 
   if (!mounted) return null;
   return createPortal(
-    <div className="adj-voucher-overlay" onClick={onClose}>
+    <div className="adj-voucher-overlay fixed inset-0" onClick={onClose}>
       <div className="adj-voucher-modal" onClick={(e) => e.stopPropagation()}>
         <div className="adj-voucher-header">
           <div>
@@ -1128,7 +1128,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
   const agingDays = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
 
   return (
-    <div className="partner-detail-overlay" onClick={onClose}>
+    <div className="partner-detail-overlay fixed inset-0" onClick={onClose}>
       <div className="partner-detail-modal" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="ledger-partner-detail-header">
@@ -1285,7 +1285,7 @@ function CloseBalanceModal({ invoice, remaining, onClose, onDone, onError }: {
   useModalKeys(true, onClose, !reason || busy || !(amount > 0) ? undefined : submit);
 
   return (
-    <div className="close-balance-overlay" onClick={onClose}>
+    <div className="close-balance-overlay fixed inset-0" onClick={onClose}>
       <div className="close-balance-modal" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)]">
           <div className="text-sm font-bold text-[var(--text)]">차액 마감</div>

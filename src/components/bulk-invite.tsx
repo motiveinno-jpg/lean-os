@@ -208,7 +208,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
   const failureCount = results.filter((r) => !r.isSuccess).length;
 
   return (
-    <div className="bulk-invite-card glass-card p-6 space-y-5">
+    <div className="bulk-invite-card glass-card">
       <div>
         <h2 className="text-sm font-bold">대량 초대</h2>
         <p className="text-xs text-[var(--text-dim)] mt-0.5">
@@ -217,7 +217,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
       </div>
 
       {/* CSV Format Guide */}
-      <div className="csv-format-guide p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 space-y-1.5 shadow-sm">
+      <div className="csv-format-guide">
         <p className="font-semibold">CSV 형식 안내</p>
         <p>
           열 순서: <code className="bg-blue-500/20 px-1 rounded">email,name,role</code>
@@ -241,7 +241,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          className={`csv-upload-dropzone border-2 border-dashed rounded-xl p-8 text-center transition cursor-pointer ${
+          className={`csv-upload-dropzone ${
             isDragOver
               ? "border-[var(--primary)] bg-[var(--primary-light)]"
               : "border-[var(--border)] hover:border-[var(--text-muted)]"
@@ -277,7 +277,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
 
       {/* Preview Table */}
       {csvRows.length > 0 && results.length === 0 && (
-        <div className="csv-preview-table space-y-3">
+        <div className="csv-preview-table">
           <div className="flex items-center justify-between">
             <p className="text-xs text-[var(--text-muted)]">
               전체 <strong>{csvRows.length}</strong>건 / 유효{" "}
@@ -364,7 +364,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
 
       {/* Progress */}
       {isSending && (
-        <div className="invite-progress space-y-2">
+        <div className="invite-progress">
           <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
             <span>초대 전송 중...</span>
             <span>
@@ -382,7 +382,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
 
       {/* Results */}
       {!isSending && results.length > 0 && (
-        <div className="invite-results space-y-3">
+        <div className="invite-results">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-xs">
               <span className="text-green-500 font-semibold">

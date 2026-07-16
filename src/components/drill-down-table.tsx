@@ -56,10 +56,10 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
   );
 
   return (
-    <div className="drill-down-table glass-card p-4 mt-4 animate-[slide-in_0.3s]">
-      <div className="drill-down-header flex items-center justify-between mb-3">
+    <div className="drill-down-table glass-card">
+      <div className="drill-down-header">
         <h3 className="text-sm font-bold">{month} 상세 내역</h3>
-        <div className="drill-down-actions flex gap-2">
+        <div className="drill-down-actions">
           <button onClick={onExport} className="text-[10px] px-2 py-1 rounded bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 transition">
             Excel 다운로드
           </button>
@@ -70,7 +70,7 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
       </div>
 
       {/* Summary row */}
-      <div className="drill-down-summary-row flex gap-4 mb-3 text-[10px]">
+      <div className="drill-down-summary-row">
         <span className="text-[var(--success)] mono-number">수입 ₩{totalIncome.toLocaleString()}</span>
         <span className="text-[var(--danger)] mono-number">지출 ₩{totalExpense.toLocaleString()}</span>
         <span className={`mono-number ${totalIncome - totalExpense >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
@@ -81,7 +81,7 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
       {items.length === 0 ? (
         <div className="text-xs text-[var(--text-dim)] text-center py-4">해당 월 상세 데이터 없음</div>
       ) : (
-        <div className="drill-down-table-scroll overflow-x-auto">
+        <div className="drill-down-table-scroll">
           <table className="w-full text-xs">
             <thead>
               <tr className="text-[var(--text-dim)] text-xs border-b border-[var(--border)]">

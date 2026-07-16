@@ -1233,7 +1233,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
         const reqFormFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
         const reqContentText = contentWithoutFieldLines(req.description || "", reqFormFields);
         return (
-          <div className="approval-detail-modal" onClick={() => setExpandedId(null)}>
+          <div className="approval-detail-modal fixed inset-0" onClick={() => setExpandedId(null)}>
             <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-start justify-between gap-3 mb-1">
                 <div className="flex items-center gap-2 flex-wrap">

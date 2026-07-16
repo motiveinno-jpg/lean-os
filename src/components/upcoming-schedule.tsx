@@ -186,7 +186,7 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
   const visible = expanded ? items : items.slice(0, 5);
 
   return (
-    <div className="upcoming-schedule-card glass-card p-4">
+    <div className="upcoming-schedule-card glass-card">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-semibold text-[var(--text)]">이번 달 주요 일정</span>
@@ -201,7 +201,7 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
         <div className="text-[11px] text-[var(--text-dim)] text-center py-8">예정된 일정이 없습니다</div>
       ) : (
         <>
-          <ul className="upcoming-schedule-list space-y-1.5">
+          <ul className="upcoming-schedule-list">
             {visible.map((it) => {
               const meta = TYPE_META[it.type];
               const urgent = it.daysLeft <= 7;
@@ -209,7 +209,7 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
                 <li key={it.id}>
                   <Link
                     href={it.href}
-                    className="upcoming-schedule-row flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--bg-surface)] transition group"
+                    className="upcoming-schedule-row group"
                   >
                     <span
                       className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold"

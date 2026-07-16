@@ -529,7 +529,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   useModalKeys(!!lightbox, () => setLightbox(null));
 
   return (
-    <div className="task-form-modal-backdrop" onClick={onClose}>
+    <div className="task-form-modal-backdrop fixed inset-0" onClick={onClose}>
       <div className="task-form-modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="task-form-modal-header">
           <div className="text-sm font-bold text-[var(--text)]">{!isEdit ? "+ 태스크 추가" : editing ? "태스크 수정" : "태스크"}</div>
@@ -730,7 +730,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
         </div>
         </>)}
         {lightbox && (
-          <div className="task-lightbox-overlay" onClick={() => setLightbox(null)}>
+          <div className="task-lightbox-overlay fixed inset-0" onClick={() => setLightbox(null)}>
             <button type="button" onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl leading-none">✕</button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={lightbox} alt="첨부 이미지" className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />

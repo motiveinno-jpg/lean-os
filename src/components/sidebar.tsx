@@ -250,7 +250,7 @@ function Tooltip({ label, show, children }: { label: string; show: boolean; chil
     >
       {children}
       {visible && (
-        <div className="nav-item-tooltip absolute left-full top-1/2 -translate-y-1/2 ml-2 z-[100] whitespace-nowrap px-2.5 py-1.5 rounded-md text-xs font-medium bg-[var(--text)] text-[var(--bg)] shadow-lg pointer-events-none">
+        <div className="nav-item-tooltip">
           {label}
         </div>
       )}
@@ -302,9 +302,9 @@ export function Sidebar() {
     const pinned = isPinned(item.href);
     return (
       <Tooltip key={item.href} label={item.label} show={collapsed}>
-        <div className="nav-item-row group relative">
+        <div className="nav-item-row group">
           <Link href={item.href}
-            className={`nav-item-link flex items-center rounded-lg text-[13px] transition-all ${
+            className={`nav-item-link ${
               collapsed ? "justify-center px-0 py-2.5" : `gap-2.5 px-2.5 py-2 ${isChild ? "pl-8" : ""}`
             } ${active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
             <span className="relative">
@@ -325,7 +325,7 @@ export function Sidebar() {
           {/* 팝업으로 열기 — hover 시 우측에 등장. 현재 페이지 유지하며 이 메뉴를 플로팅 창으로. */}
           {!collapsed && popups && (
             <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); popups.open(item.href, item.label); }}
-              className="nav-item-popup-btn absolute right-7 top-1/2 -translate-y-1/2 p-1 rounded text-[var(--text-dim)] opacity-0 group-hover:opacity-70 hover:!opacity-100 hover:text-[var(--primary)] hover:bg-[var(--bg-elevated)] transition-all"
+              className="nav-item-popup-btn"
               title="팝업 창으로 열기" aria-label={`${item.label} 팝업으로 열기`}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18" /><path d="M13 13h4v4" /><path d="M17 13l-4 4" />
@@ -334,12 +334,12 @@ export function Sidebar() {
           )}
           {!collapsed && hasChildren ? (
             <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleParent(item.href); }}
-              className="nav-item-expand-btn absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded text-[var(--text-dim)] hover:text-[var(--text)]" title={open ? "접기" : "펼치기"}>
+              className="nav-item-expand-btn" title={open ? "접기" : "펼치기"}>
               <svg className={`w-3.5 h-3.5 transition-transform ${open ? "" : "-rotate-90"}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           ) : !collapsed ? (
             <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(item.href); }}
-              className={`nav-item-pin-btn absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded transition-all ${pinned ? "text-amber-500 opacity-100" : "text-[var(--text-dim)] opacity-0 group-hover:opacity-60 hover:!opacity-100"}`}
+              className={`nav-item-pin-btn ${pinned ? "text-amber-500 opacity-100" : "text-[var(--text-dim)] opacity-0 group-hover:opacity-60 hover:!opacity-100"}`}
               title={pinned ? "즐겨찾기 해제" : "즐겨찾기 추가"}>
               <svg className="w-3 h-3" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" strokeLinejoin="round" /></svg>
             </button>
@@ -356,16 +356,16 @@ export function Sidebar() {
     const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
     const pinned = isPinned(item.href);
     return (
-      <div key={item.href} className="mobile-nav-item-row relative flex items-center">
+      <div key={item.href} className="mobile-nav-item-row">
         <Link href={item.href}
-          className={`mobile-nav-item-link flex-1 flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${isChild ? "pl-8" : ""} ${active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+          className={`mobile-nav-item-link px-2.5 ${isChild ? "pl-8" : ""} ${active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
           <NavIcon name={item.icon} className={active ? "text-white" : ""} />
           <span className="flex-1">{item.label}</span>
           {badge > 0 && (
             <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">{badge > 99 ? "99+" : badge}</span>
           )}
         </Link>
-        <button onClick={() => togglePin(item.href)} className={`mobile-nav-item-pin-btn p-2 rounded transition-all ${pinned ? "text-amber-500" : "text-[var(--text-dim)] opacity-40"}`}>
+        <button onClick={() => togglePin(item.href)} className={`mobile-nav-item-pin-btn ${pinned ? "text-amber-500" : "text-[var(--text-dim)] opacity-40"}`}>
           <svg className="w-3.5 h-3.5" fill={pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" strokeLinejoin="round" /></svg>
         </button>
       </div>
@@ -464,18 +464,18 @@ export function Sidebar() {
 
   const sidebarContent = (
     <aside
-      className={`sidebar-panel chrome-glass ${sidebarWidth} h-full rounded-[20px] border border-[var(--border)]/60 flex flex-col transition-all duration-200 overflow-hidden shadow-[var(--shadow-lg)]`}
+      className={`sidebar-panel chrome-glass ${sidebarWidth}`}
     >
       {/* Logo — U1: 로고 클릭 → /dashboard */}
-      <div className={`sidebar-logo-block border-b border-[var(--border)] ${collapsed ? "px-3 py-4" : "px-5 py-4"}`}>
-        <Link href="/dashboard" className={`sidebar-brand-link flex items-center hover:opacity-80 transition ${collapsed ? "justify-center" : "gap-2.5"}`} aria-label="대시보드로 이동">
+      <div className={`sidebar-logo-block ${collapsed ? "px-3 py-4" : "px-5 py-4"}`}>
+        <Link href="/dashboard" className={`sidebar-brand-link ${collapsed ? "justify-center" : "gap-2.5"}`} aria-label="대시보드로 이동">
           <OwnerViewIcon size={28} />
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <div className="text-sm font-bold text-[var(--text)]"><RollingBrandText /></div>
               <div className="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
                 {user?.name || user?.email?.split("@")[0] || ""}
-                <span className={`sidebar-role-badge inline-block px-1.5 py-0.5 rounded-full text-[8px] font-bold ${
+                <span className={`sidebar-role-badge ${
                   role === "owner" ? "bg-[var(--primary-light)] text-[var(--primary)]" : role === "admin" ? "bg-cyan-500/12 text-cyan-600" : role === "partner" ? "bg-violet-500/12 text-violet-600" : "bg-emerald-500/12 text-emerald-600"
                 }`}>
                   {role === "owner" ? "대표" : role === "admin" ? "관리자" : role === "partner" ? "파트너" : "직원"}
@@ -487,11 +487,11 @@ export function Sidebar() {
       </div>
 
       {/* Search */}
-      <div className={`sidebar-search-block pt-3 pb-1 ${collapsed ? "px-2" : "px-3"}`}>
+      <div className={`sidebar-search-block ${collapsed ? "px-2" : "px-3"}`}>
         <Tooltip label="검색 (⌘K)" show={collapsed}>
           <button
             onClick={() => openGlobalSearch()}
-            className={`sidebar-search-btn w-full flex items-center rounded-xl text-xs text-[var(--text-dim)] bg-[var(--bg)]/70 hover:bg-[var(--bg-surface)] hover:text-[var(--text-muted)] transition border border-[var(--border)]/80 ${
+            className={`sidebar-search-btn ${
               collapsed ? "justify-center px-0 py-2" : "gap-2 px-3 py-2"
             }`}
           >
@@ -512,7 +512,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav Groups */}
-      <nav className={`sidebar-nav flex-1 py-2 overflow-y-auto space-y-4 ${collapsed ? "px-2" : "px-3"}`}>
+      <nav className={`sidebar-nav ${collapsed ? "px-2" : "px-3"}`}>
         {/* Pinned Pages */}
         {pinnedItems.length > 0 && (
           <div className="sidebar-pinned-block">
@@ -530,7 +530,7 @@ export function Sidebar() {
                   <Tooltip key={`pin-${item.href}`} label={item.label} show={collapsed}>
                     <Link
                       href={item.href}
-                      className={`sidebar-pinned-link flex items-center rounded-lg text-[13px] transition-all ${
+                      className={`sidebar-pinned-link ${
                         collapsed ? "justify-center px-0 py-2.5" : "gap-2.5 px-2.5 py-2"
                       } ${
                         active
@@ -554,14 +554,14 @@ export function Sidebar() {
           <div key={group.label} className="sidebar-nav-group">
             {!collapsed && (
               <button onClick={() => toggleGroup(group.label)}
-                className="sidebar-group-toggle-btn w-full flex items-center justify-between px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider hover:text-[var(--text-muted)] transition">
+                className="sidebar-group-toggle-btn">
                 <span>{group.label}</span>
                 <span className={`text-[11px] transition-transform ${groupClosed ? "" : "rotate-90"}`}>›</span>
               </button>
             )}
             {collapsed && <div className="my-1 border-t border-[var(--border)]" />}
             {!groupClosed && (
-            <div className="sidebar-group-list space-y-0.5">
+            <div className="sidebar-group-list">
               {group.items.map((item) => {
                 const kids = item.children;
                 if (kids && kids.length) {
@@ -584,10 +584,10 @@ export function Sidebar() {
       </nav>
 
       {/* Collapse Toggle (desktop only) */}
-      <div className="sidebar-collapse-block px-3 py-1 hidden md:block">
+      <div className="sidebar-collapse-block">
         <button
           onClick={toggleSidebar}
-          className="sidebar-collapse-btn w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition text-xs"
+          className="sidebar-collapse-btn"
           title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
         >
           <svg
@@ -607,11 +607,11 @@ export function Sidebar() {
       </div>
 
       {/* Theme Toggle */}
-      <div className={`sidebar-theme-block ${collapsed ? "px-2" : "px-3"} pb-1`}>
+      <div className={`sidebar-theme-block ${collapsed ? "px-2" : "px-3"}`}>
         <Tooltip label={theme === "light" ? "다크 모드" : "라이트 모드"} show={collapsed}>
           <button
             onClick={toggleTheme}
-            className={`sidebar-theme-btn w-full flex items-center rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition ${
+            className={`sidebar-theme-btn ${
               collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-2"
             }`}
           >
@@ -630,11 +630,11 @@ export function Sidebar() {
       </div>
 
       {/* Footer */}
-      <div className={`sidebar-footer-block border-t border-[var(--border)] ${collapsed ? "p-2" : "p-3"}`}>
+      <div className={`sidebar-footer-block ${collapsed ? "p-2" : "p-3"}`}>
         <Tooltip label="로그아웃" show={collapsed}>
           <button
             onClick={handleLogout}
-            className={`sidebar-logout-btn w-full flex items-center rounded-lg text-[13px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition ${
+            className={`sidebar-logout-btn ${
               collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-2 text-left"
             }`}
           >
@@ -661,38 +661,38 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop sidebar: 떠 있는 유리 패널 (여백 두고 둥글게 — 리퀴드글래스 목업 정합) */}
-      <div className="sidebar-desktop-wrapper hidden md:block fixed left-3 top-3 bottom-3 z-50">
+      <div className="sidebar-desktop-wrapper">
         {sidebarContent}
       </div>
 
       {/* Mobile overlay backdrop */}
       {mobileOpen && (
         <div
-          className="sidebar-mobile-backdrop md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          className="sidebar-mobile-backdrop fixed inset-0"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Mobile sidebar drawer */}
       <div
-        className={`sidebar-mobile-drawer md:hidden fixed left-0 top-0 z-50 h-[100dvh] w-60 max-w-[85vw] pb-[env(safe-area-inset-bottom)] transition-transform duration-200 ${
+        className={`sidebar-mobile-drawer ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Force expanded width on mobile */}
         <aside
-          className="sidebar-mobile-panel chrome-glass w-60 h-screen border-r border-[var(--border)]/60 flex flex-col overflow-hidden shadow-[var(--shadow-sm)]"
+          className="sidebar-mobile-panel chrome-glass"
         >
           {/* Mobile close button + Logo (U1: 로고 클릭 → /dashboard) */}
-          <div className="sidebar-mobile-logo-block px-5 py-4 border-b border-[var(--border)]">
+          <div className="sidebar-mobile-logo-block">
             <div className="flex items-center gap-2.5">
-              <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="sidebar-mobile-brand-link flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition" aria-label="대시보드로 이동">
+              <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="sidebar-mobile-brand-link" aria-label="대시보드로 이동">
                 <OwnerViewIcon size={28} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold text-[var(--text)]"><RollingBrandText /></div>
                   <div className="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
                     {user?.name || user?.email?.split("@")[0] || ""}
-                    <span className={`sidebar-mobile-role-badge inline-block px-1.5 py-0.5 rounded text-[8px] font-bold text-white ${
+                    <span className={`sidebar-mobile-role-badge ${
                       role === "owner" ? "bg-[#2563EB]" : role === "admin" ? "bg-[#0891B2]" : role === "partner" ? "bg-[#7C3AED]" : "bg-[#059669]"
                     }`}>
                       {role === "owner" ? "대표" : role === "admin" ? "관리자" : role === "partner" ? "파트너" : "직원"}
@@ -702,7 +702,7 @@ export function Sidebar() {
               </Link>
               <button
                 onClick={() => setMobileOpen(false)}
-                className="sidebar-mobile-close-btn p-2 rounded-md hover:bg-[var(--bg-surface)] text-[var(--text-dim)]"
+                className="sidebar-mobile-close-btn"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -713,13 +713,13 @@ export function Sidebar() {
           </div>
 
           {/* Mobile Search */}
-          <div className="sidebar-mobile-search-block px-3 pt-3 pb-1">
+          <div className="sidebar-mobile-search-block">
             <button
               onClick={() => {
                 setMobileOpen(false);
                 openGlobalSearch();
               }}
-              className="sidebar-mobile-search-btn w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs min-h-[44px] text-[var(--text-dim)] bg-[var(--bg-surface)] hover:bg-[var(--border)] transition border border-[var(--border)]"
+              className="sidebar-mobile-search-btn"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="8" />
@@ -733,7 +733,7 @@ export function Sidebar() {
           </div>
 
           {/* Mobile Nav Groups */}
-          <nav className="sidebar-mobile-nav flex-1 px-3 py-2 overflow-y-auto space-y-4">
+          <nav className="sidebar-mobile-nav">
             {/* Mobile Pinned Pages */}
             {pinnedItems.length > 0 && (
               <div className="sidebar-mobile-pinned-block">
@@ -746,7 +746,7 @@ export function Sidebar() {
                     const active = isActivePath(item.href, pathname, allHrefs);
                     return (
                       <Link key={`mpin-${item.href}`} href={item.href}
-                        className={`sidebar-mobile-pinned-link flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all ${
+                        className={`sidebar-mobile-pinned-link ${
                           active
                             ? "nav-active"
                             : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
@@ -765,12 +765,12 @@ export function Sidebar() {
               return (
               <div key={group.label} className="sidebar-mobile-group">
                 <button onClick={() => toggleGroup(group.label)}
-                  className="sidebar-mobile-group-toggle-btn w-full flex items-center justify-between px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
+                  className="sidebar-mobile-group-toggle-btn">
                   <span>{group.label}</span>
                   <span className={`text-[11px] transition-transform ${groupClosed ? "" : "rotate-90"}`}>›</span>
                 </button>
                 {!groupClosed && (
-                <div className="sidebar-mobile-group-list space-y-0.5">
+                <div className="sidebar-mobile-group-list">
                   {group.items.map((item) => {
                     const kids = item.children;
                     if (kids && kids.length) {
@@ -786,10 +786,10 @@ export function Sidebar() {
           </nav>
 
           {/* Mobile Theme Toggle */}
-          <div className="sidebar-mobile-theme-block px-3 pb-1">
+          <div className="sidebar-mobile-theme-block">
             <button
               onClick={toggleTheme}
-              className="sidebar-mobile-theme-btn w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition text-left"
+              className="sidebar-mobile-theme-btn"
             >
               {theme === "light" ? (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
@@ -805,10 +805,10 @@ export function Sidebar() {
           </div>
 
           {/* Mobile Footer */}
-          <div className="sidebar-mobile-footer-block p-3 border-t border-[var(--border)]">
+          <div className="sidebar-mobile-footer-block">
             <button
               onClick={handleLogout}
-              className="sidebar-mobile-logout-btn w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition text-left"
+              className="sidebar-mobile-logout-btn"
             >
               <svg
                 className="w-4 h-4"

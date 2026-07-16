@@ -25,7 +25,7 @@ function ChannelButton({ ch, unread, onClick }: { ch: any; unread: number; onCli
   const isDM = ch.is_dm;
   return (
     <button onClick={onClick}
-      className="channel-button w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition hover:bg-[var(--bg-surface)] text-[var(--text-muted)]">
+      className="channel-button">
       <span className="text-sm shrink-0 text-[var(--text-dim)]">{isDM ? "@" : "#"}</span>
       <span className={`flex-1 truncate text-sm ${unread > 0 ? "font-bold text-[var(--text)]" : "font-medium"}`}>
         {isDM ? (ch.dm_name || "1:1 대화") : ch.name}
@@ -179,22 +179,22 @@ export function FloatingMessenger() {
     <div className="hidden md:block">
       {/* 팝업 패널 */}
       {open && (
-        <div className={`messenger-panel fixed z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-3xl border border-[var(--border)] overflow-hidden backdrop-blur-2xl text-[var(--text)] ${panelStyle ? "" : "bottom-24 right-6"}`}
+        <div className={`messenger-panel ${panelStyle ? "" : "bottom-24 right-6"}`}
           style={{ background: "var(--glass-bg)", boxShadow: "0 24px 60px rgba(0,0,0,0.22)", ...(panelStyle || {}) }}>
           {/* 헤더 — 우측 원형 버튼. 색은 테마 토큰(라이트=밝게/다크=어둡게 자동 전환) */}
-          <div className="messenger-header shrink-0 flex items-center gap-2 px-4 h-14 border-b border-[var(--border)]">
+          <div className="messenger-header">
             {selected && (
-              <button onClick={() => setSelected(null)} title="채널 목록" className="messenger-back-btn w-7 h-7 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition shrink-0">
+              <button onClick={() => setSelected(null)} title="채널 목록" className="messenger-back-btn">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
               </button>
             )}
-            <span className="messenger-title flex-1 truncate text-base font-bold text-[var(--text)]">
+            <span className="messenger-title">
               {selectedChannel ? `${selectedChannel.is_dm ? "@" : "#"} ${selectedChannel.is_dm ? (selectedChannel.dm_name || "1:1 대화") : selectedChannel.name}` : "# 메신저"}
             </span>
-            <button onClick={openFull} title="전체화면" className="messenger-fullscreen-btn w-7 h-7 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition shrink-0">
+            <button onClick={openFull} title="전체화면" className="messenger-fullscreen-btn">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
             </button>
-            <button onClick={() => setOpen(false)} title="닫기" className="messenger-close-btn w-7 h-7 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition shrink-0">
+            <button onClick={() => setOpen(false)} title="닫기" className="messenger-close-btn">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>
@@ -204,34 +204,34 @@ export function FloatingMessenger() {
             <ChatRoomView channelId={selected} embedded compact onBack={() => setSelected(null)} />
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="messenger-search-row shrink-0 p-2 border-b border-[var(--border)] space-y-2">
+              <div className="messenger-search-row">
                 <div className="flex items-center gap-2">
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="채널 검색"
-                    className="messenger-search-input flex-1 px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]" />
+                    className="messenger-search-input" />
                   <button onClick={() => { setCreating((v) => !v); setNewName(""); }} title="새 채널 만들기"
-                    className="messenger-new-channel-btn shrink-0 w-8 h-8 rounded-full bg-[var(--primary)] hover:opacity-90 text-white flex items-center justify-center text-lg leading-none transition">
+                    className="messenger-new-channel-btn">
                     {creating ? "×" : "+"}
                   </button>
                 </div>
                 {creating && (
-                  <div className="messenger-create-row flex items-center gap-2">
+                  <div className="messenger-create-row">
                     <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter" && newName.trim() && !createMut.isPending) createMut.mutate(); }}
                       placeholder="새 채널 이름"
-                      className="messenger-create-input flex-1 px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]" />
+                      className="messenger-create-input" />
                     <button onClick={() => createMut.mutate()} disabled={!newName.trim() || createMut.isPending}
-                      className="messenger-create-submit shrink-0 px-3 h-8 rounded-full bg-[var(--primary)] hover:opacity-90 text-white text-xs font-semibold transition disabled:opacity-40">
+                      className="messenger-create-submit">
                       {createMut.isPending ? "생성중" : "만들기"}
                     </button>
                   </div>
                 )}
               </div>
-              <div className="messenger-channel-list flex-1 overflow-y-auto p-2 space-y-2">
+              <div className="messenger-channel-list">
                 {([["프로젝트", matched.deal], ["팀", matched.team], ["1:1", matched.dm]] as [string, any[]][]).map(([title, list]) =>
                   list.length === 0 ? null : (
                     <div key={title} className="messenger-channel-group">
-                      <div className="messenger-channel-group-label px-2 mb-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">{title} {list.length}</div>
-                      <div className="messenger-channel-group-items space-y-0.5">
+                      <div className="messenger-channel-group-label">{title} {list.length}</div>
+                      <div className="messenger-channel-group-items">
                         {list.map((ch) => (
                           <ChannelButton key={ch.id} ch={ch} unread={unreadMap?.get(ch.id) || 0} onClick={() => setSelected(ch.id)} />
                         ))}
@@ -240,7 +240,7 @@ export function FloatingMessenger() {
                   )
                 )}
                 {channels.length === 0 && (
-                  <div className="messenger-empty py-10 text-center text-xs text-[var(--text-dim)]">채널이 없습니다. 위 + 버튼으로 새 채널을 만들어 보세요.</div>
+                  <div className="messenger-empty">채널이 없습니다. 위 + 버튼으로 새 채널을 만들어 보세요.</div>
                 )}
               </div>
             </div>
@@ -256,7 +256,7 @@ export function FloatingMessenger() {
         onPointerUp={onFabPointerUp}
         aria-label="메신저 열기 (드래그로 이동)"
         title="드래그해서 위치를 옮길 수 있어요"
-        className={`messenger-fab fixed z-50 w-14 h-14 rounded-full text-white flex items-center justify-center hover:opacity-90 transition active:scale-95 border border-white/15 touch-none cursor-grab active:cursor-grabbing ${pos ? "" : "bottom-6 right-6"}`}
+        className={`messenger-fab ${pos ? "" : "bottom-6 right-6"}`}
         style={{ background: "linear-gradient(135deg, #4338ca, #6366f1)", boxShadow: "0 8px 24px rgba(0,0,0,0.35)", ...(pos ? { left: pos.x, top: pos.y } : {}) }}
       >
         {open ? (
@@ -265,7 +265,7 @@ export function FloatingMessenger() {
           <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
         )}
         {!open && totalUnread > 0 && (
-          <span className="messenger-fab-badge absolute -top-0.5 -right-0.5 min-w-[20px] h-5 flex items-center justify-center text-[10px] font-bold rounded-full px-1 bg-red-500 text-white border-2 border-[var(--bg-card)]">
+          <span className="messenger-fab-badge">
             {totalUnread > 99 ? "99+" : totalUnread}
           </span>
         )}

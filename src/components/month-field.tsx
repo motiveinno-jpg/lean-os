@@ -76,13 +76,13 @@ export function MonthField({
       </button>
       {name && <input type="hidden" name={name} value={value || ""} readOnly />}
       {open && typeof document !== "undefined" && createPortal(
-        <div id="monthfield-pop" style={popStyle} className="month-field-popover rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl p-2.5 select-none">
-          <div className="month-field-year-nav flex items-center justify-between mb-2 px-1">
+        <div id="monthfield-pop" style={popStyle} className="month-field-popover">
+          <div className="month-field-year-nav">
             <button type="button" onClick={() => setViewYear((y) => y - 1)} disabled={!!minYm && viewYear - 1 < minYm.y} className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center disabled:opacity-30">‹</button>
             <div className="text-sm font-bold text-[var(--text)] tabular-nums">{viewYear}년</div>
             <button type="button" onClick={() => setViewYear((y) => y + 1)} disabled={!!maxYm && viewYear + 1 > maxYm.y} className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center disabled:opacity-30">›</button>
           </div>
-          <div className="month-field-grid grid grid-cols-3 gap-1.5">
+          <div className="month-field-grid">
             {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
               const isSel = sel && sel.y === viewYear && sel.m === m;
               const isCur = today.getFullYear() === viewYear && today.getMonth() + 1 === m;
@@ -97,7 +97,7 @@ export function MonthField({
               );
             })}
           </div>
-          <div className="month-field-footer flex items-center justify-between mt-2 pt-2 border-t border-[var(--border)]/60">
+          <div className="month-field-footer">
             <button type="button" onClick={() => emit("")} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1.5 py-1">지우기</button>
             <button type="button" onClick={() => emit(ym(today.getFullYear(), today.getMonth() + 1))} className="text-[11px] font-semibold text-[var(--primary)] hover:underline px-1.5 py-1">이번 달</button>
           </div>

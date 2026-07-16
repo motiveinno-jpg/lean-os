@@ -79,7 +79,7 @@ export function BarList({ items, unit = "", emptyText = "데이터 없음" }: { 
   const max = Math.max(...rows.map((r) => r.value), 1);
   const total = rows.reduce((s, r) => s + r.value, 0);
   return (
-    <div className="bar-list space-y-2">
+    <div className="bar-list">
       {rows.map((r) => (
         <div key={r.label}>
           <div className="flex items-center justify-between text-[11px] mb-0.5">
@@ -139,7 +139,7 @@ const ST_COLOR: Record<string, string> = { green: "var(--primary)", yellow: AMBE
 export function StatusTimeline({ points }: { points: { label: string; status: string }[] }) {
   if (!points || points.length === 0) return <div className="text-xs text-[var(--text-dim)] py-2">체크인 기록 없음</div>;
   return (
-    <div className="status-timeline flex items-center gap-1.5 flex-wrap">
+    <div className="status-timeline">
       {points.map((p, i) => (
         <div key={i} className="flex flex-col items-center gap-0.5" title={`${p.label}: ${p.status}`}>
           <span style={{ width: 14, height: 14, borderRadius: 999, background: ST_COLOR[p.status] || DIM, display: "inline-block" }} />

@@ -44,23 +44,23 @@ export function SiyanCardRow({
   return (
     <div
       onClick={onClick}
-      className={`siyan-card-row group glass-card p-4 transition-all ${clickable ? "cursor-pointer hover:shadow-md" : ""} ${className}`}
+      className={`siyan-card-row group glass-card ${clickable ? "cursor-pointer hover:shadow-md" : ""} ${className}`}
     >
-      <div className="card-row-body flex items-start gap-3">
+      <div className="card-row-body">
         {checkbox}
         {leftIcon && <div className="shrink-0">{leftIcon}</div>}
         <div className="flex-1 min-w-0">
-          <div className="card-row-header flex items-start justify-between gap-2">
+          <div className="card-row-header">
             <div className="min-w-0">{header}</div>
-            {actions && <div className="card-row-actions flex items-center gap-1 shrink-0">{actions}</div>}
+            {actions && <div className="card-row-actions">{actions}</div>}
           </div>
           {meta && <div className="mt-1">{meta}</div>}
           {amounts && amounts.length > 0 && (
-            <div className={`card-row-amounts grid gap-2 mt-3 ${amounts.length === 3 ? "grid-cols-3" : amounts.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+            <div className={`card-row-amounts ${amounts.length === 3 ? "grid-cols-3" : amounts.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
               {amounts.map((a, i) => {
                 const t = A_TONE[a.tone];
                 return (
-                  <div key={i} className={`amount-box rounded-lg p-2.5 ${t.bg}`}>
+                  <div key={i} className={`amount-box ${t.bg}`}>
                     <p className={`text-[10px] mb-0.5 ${t.text}`}>{a.label}</p>
                     <p className="text-sm font-bold text-[var(--text)] mono-number">{a.value}</p>
                   </div>

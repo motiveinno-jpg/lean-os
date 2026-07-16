@@ -71,8 +71,8 @@ export function ActionInbox({
   const urgent = items.filter((i) => i.sev === 0).length;
 
   return (
-    <div className="action-inbox glass-card p-5">
-      <div className="action-inbox-header flex items-center justify-between mb-3">
+    <div className="action-inbox glass-card">
+      <div className="action-inbox-header">
         <h3 className="text-sm font-bold text-[var(--text)]">
           처리 대기
           {items.length > 0 && (
@@ -82,14 +82,14 @@ export function ActionInbox({
         <span className="text-[11px] text-[var(--text-dim)]">심각도순</span>
       </div>
       {items.length === 0 ? (
-        <div className="action-inbox-empty py-4 text-center">
+        <div className="action-inbox-empty">
           <div className="text-xs font-semibold text-[var(--success)]">지금 처리할 항목이 없습니다</div>
           <div className="text-[11px] text-[var(--text-dim)] mt-1">새 결재·지연·마감이 생기면 여기에 쌓입니다</div>
         </div>
       ) : (
-        <div className="action-inbox-list divide-y divide-[var(--border)]/50">
+        <div className="action-inbox-list">
           {items.map((it) => (
-            <div key={it.key} className="action-inbox-row py-2.5 flex items-center gap-2.5">
+            <div key={it.key} className="action-inbox-row">
               <span className={`w-2 h-2 rounded-full shrink-0 ${SEV_DOT[it.sev]}`} />
               <span className="flex-1 min-w-0 text-xs text-[var(--text)] truncate">{it.text}</span>
               {it.meta && (

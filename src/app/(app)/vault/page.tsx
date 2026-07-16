@@ -1262,7 +1262,7 @@ export default function VaultPage() {
         const u = usage[showAccessLogId] || {};
         const opens = (u.opens || []).slice().reverse();
         return (
-          <div className="vault-access-log-modal" onClick={() => setShowAccessLogId(null)}>
+          <div className="vault-access-log-modal fixed inset-0" onClick={() => setShowAccessLogId(null)}>
             <div className="glass-card w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
                 <div>

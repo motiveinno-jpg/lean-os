@@ -51,7 +51,7 @@ export function AccessDenied({
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-6">
-      <div className="access-denied-panel max-w-md w-full glass-card p-6 sm:p-8 text-center">
+      <div className="access-denied-panel glass-card">
         <div className="text-4xl mb-3">🔒</div>
         <h1 className="text-2xl font-extrabold text-[var(--text)] mb-2">{title}</h1>
         <p className="text-sm text-[var(--text-muted)] mb-1">
@@ -64,19 +64,19 @@ export function AccessDenied({
 
         <Link
           href="/dashboard"
-          className="access-denied-home-link inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-semibold transition active:scale-[0.98] mb-5"
+          className="access-denied-home-link"
         >
           ← 홈으로 돌아가기
         </Link>
 
-        <div className="access-denied-recommend border-t border-[var(--border)] pt-4">
-          <p className="access-denied-recommend-label text-[11px] text-[var(--text-dim)] mb-2">바로 갈 수 있는 곳</p>
-          <div className="access-denied-recommend-list flex flex-wrap gap-2 justify-center">
+        <div className="access-denied-recommend">
+          <p className="access-denied-recommend-label">바로 갈 수 있는 곳</p>
+          <div className="access-denied-recommend-list">
             {recs.map((m) => (
               <Link
                 key={m.href}
                 href={m.href}
-                className="access-denied-recommend-link inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] transition"
+                className="access-denied-recommend-link"
               >
                 <span>{m.emoji}</span>
                 {m.label}

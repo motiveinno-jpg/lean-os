@@ -1088,7 +1088,7 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
   const totalPending = invoices.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0);
 
   return (
-    <div className="dashboard-overdue-receivables-widget">
+    <div className="dashboard-overdue-receivables-widget rounded-2xl bg-[var(--bg-card)]">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-base">💰</span>
         <h3 className="text-sm font-bold text-[var(--text)]">미수금 현황</h3>
@@ -1152,7 +1152,7 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
   const maxVal = Math.max(...trends.map(t => Math.max(t.expense, t.income)), 1);
 
   return (
-    <div className="dashboard-burn-rate-trend-widget">
+    <div className="dashboard-burn-rate-trend-widget rounded-2xl bg-[var(--bg-card)]">
       <div className="flex items-center gap-2 mb-4">
         <span className="text-base">📊</span>
         <h3 className="text-sm font-bold text-[var(--text)]">번레이트 추이</h3>

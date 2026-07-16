@@ -982,7 +982,7 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
   const srcLabel = source === "computed" ? "산출 구성" : source === "opex" ? "분류된 거래내역" : source === "sales" ? "매출 세금계산서" : "매입 세금계산서";
 
   return (
-    <div className="pnl-drill-modal-overlay" onClick={onClose}>
+    <div className="pnl-drill-modal-overlay fixed inset-0" onClick={onClose}>
       <div className="pnl-drill-modal" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <div>

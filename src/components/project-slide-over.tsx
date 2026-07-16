@@ -178,7 +178,7 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal,
 
   // ── 모달 모드 (2026-05-26 화면 중앙 팝업 — 우측 슬라이드 → 중앙 모달) ──
   return (
-    <div className="project-slide-over-modal" aria-modal="true" role="dialog">
+    <div className="project-slide-over-modal fixed inset-0" aria-modal="true" role="dialog">
       {/* Backdrop */}
       <button
         type="button"
@@ -695,7 +695,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
       {/* 인라인 편집 모달 — 옛 /deals?detail= 화면 대체 (2026-05-21 사장님 요청) */}
       {editOpen && (
         <div
-          className="edit-modal-overlay"
+          className="edit-modal-overlay fixed inset-0"
           onClick={() => !editSaving && setEditOpen(false)}
         >
           <div
@@ -1140,7 +1140,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       {/* 받을 돈 수금 추가 모달 (인라인) */}
       {paymentModalOpen && (
         <div
-          className="payment-modal-overlay"
+          className="payment-modal-overlay fixed inset-0"
           onClick={() => !paymentSaving && setPaymentModalOpen(false)}
         >
           <div
@@ -1214,7 +1214,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       {/* 줄 돈 비용 추가 모달 (받을 돈 모달과 동일 패턴) */}
       {costModalOpen && (
         <div
-          className="cost-modal-overlay"
+          className="cost-modal-overlay fixed inset-0"
           onClick={() => !costSaving && setCostModalOpen(false)}
         >
           <div
@@ -1580,7 +1580,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
 
       {/* 담당자 추가 모달 */}
       {showAddAssignee && (
-        <div className="add-assignee-modal-overlay" onClick={() => setShowAddAssignee(false)}>
+        <div className="add-assignee-modal-overlay fixed inset-0" onClick={() => setShowAddAssignee(false)}>
           <div className="add-assignee-modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div className="text-sm font-bold">+ 담당자 추가</div>
@@ -1827,7 +1827,7 @@ function DeleteProjectModal({
 
   return (
     <div
-      className="delete-modal-overlay"
+      className="delete-modal-overlay fixed inset-0"
       onClick={() => !del.isPending && onClose()}
       role="dialog"
       aria-modal="true"

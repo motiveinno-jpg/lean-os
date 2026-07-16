@@ -40,25 +40,25 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="tpl-editor-overlay fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="tpl-editor-panel bg-[var(--bg-card)] rounded-xl max-w-[1100px] w-full max-h-[94vh] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
-        <div className="tpl-editor-header flex items-center justify-between mb-1">
+    <div className="tpl-editor-overlay fixed inset-0" onClick={onClose}>
+      <div className="tpl-editor-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="tpl-editor-header">
           <div className="text-sm font-bold text-[var(--text)]">텍스트 양식 편집 — {title}</div>
           <button type="button" onClick={() => setShowPreview((v) => !v)}
-            className="tpl-preview-toggle text-[11px] px-2 py-1 rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">
+            className="tpl-preview-toggle">
             {showPreview ? "미리보기 접기" : "미리보기 펼치기"}
           </button>
         </div>
-        <p className="tpl-editor-hint text-[11px] text-[var(--text-muted)] mb-2">
+        <p className="tpl-editor-hint">
           내용을 자유롭게 고치세요 — 굵게·정렬·글자크기·<b>표(▦)</b> 모두 툴바에서. 값이 채워질 자리는 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으면 발급 시 실제 값으로 채워집니다.
         </p>
-        <div className="tpl-var-buttons flex flex-wrap gap-1 mb-2">
+        <div className="tpl-var-buttons">
           {vars.map((v) => (
             <button key={v} type="button" onClick={() => insertVar(v)}
               className="text-[11px] px-2 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--primary)] hover:bg-[var(--primary)]/10 font-medium">{v}</button>
           ))}
         </div>
-        <div className={`tpl-editor-body grid gap-3 ${showPreview ? "lg:grid-cols-2" : "grid-cols-1"}`}>
+        <div className={`tpl-editor-body ${showPreview ? "lg:grid-cols-2" : "grid-cols-1"}`}>
           <div className="tpl-editor-col">
             <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">편집</div>
             <RichEditor ref={editorRef} content={initialHtml} onChange={setHtml} placeholder="양식 내용을 입력하세요..." maxHeight="52vh" />
@@ -72,7 +72,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
             </div>
           )}
         </div>
-        <div className="tpl-editor-footer flex justify-end gap-2 mt-3">
+        <div className="tpl-editor-footer">
           <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
           <button onClick={save} disabled={saving}
             className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">

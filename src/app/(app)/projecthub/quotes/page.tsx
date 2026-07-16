@@ -172,7 +172,7 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
   useModalKeys(true, onClose, busy ? undefined : create);
 
   return (
-    <div className="quote-create-modal-overlay" onClick={onClose}>
+    <div className="quote-create-modal-overlay fixed inset-0" onClick={onClose}>
       <div className="quote-create-modal" onClick={(e) => e.stopPropagation()}>
         <div className="quote-create-modal-header">
           <h3 className="text-base font-bold">견적서 작성</h3>

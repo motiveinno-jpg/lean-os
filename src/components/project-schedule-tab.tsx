@@ -107,9 +107,9 @@ export function ProjectScheduleTab({ dealId }: { dealId: string }) {
   });
 
   return (
-    <div className="project-schedule-tab space-y-4">
+    <div className="project-schedule-tab">
       {/* 뷰 토글 */}
-      <div className="schedule-view-toggle flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-surface)] w-fit">
+      <div className="schedule-view-toggle">
         {([
           { k: "checklist", l: "📋 체크리스트" },
           { k: "gantt", l: "📊 간트" },
@@ -186,13 +186,13 @@ function ChecklistView({
   };
 
   return (
-    <div className="milestone-checklist space-y-2">
+    <div className="milestone-checklist">
       {milestones.length === 0 ? (
-        <div className="milestone-empty rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-xs text-[var(--text-dim)]">
+        <div className="milestone-empty">
           등록된 마일스톤이 없습니다. 아래 “+ 마일스톤 추가”로 시작하세요.
         </div>
       ) : (
-        <ul className="milestone-list space-y-1.5">
+        <ul className="milestone-list">
           {milestones.map((m) => {
             const done = !!m.completed_at;
             const overdue = !done && m.due_date && new Date(m.due_date) < new Date(new Date().toDateString());
@@ -201,7 +201,7 @@ function ChecklistView({
             return (
               <li
                 key={m.id}
-                className={`milestone-row rounded-xl border px-3 py-2.5 transition ${
+                className={`milestone-row ${
                   done
                     ? "border-emerald-500/40 bg-emerald-500/5"
                     : overdue
@@ -219,13 +219,13 @@ function ChecklistView({
                     }}
                   />
                 ) : (
-                  <div className="milestone-row-body flex items-center gap-2.5">
+                  <div className="milestone-row-body">
                     <button
                       type="button"
                       onClick={() => onToggle(m)}
                       disabled={busy}
                       aria-label={done ? "완료 취소" : "완료 처리"}
-                      className={`milestone-toggle-btn w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition ${
+                      className={`milestone-toggle-btn ${
                         done
                           ? "bg-emerald-500 border-emerald-500 text-white"
                           : "border-[var(--border)] hover:border-[var(--primary)]"
@@ -233,7 +233,7 @@ function ChecklistView({
                     >
                       {done && <span className="text-xs leading-none">✓</span>}
                     </button>
-                    <div className="milestone-info min-w-0 flex-1">
+                    <div className="milestone-info">
                       <div
                         className={`text-sm font-medium truncate ${
                           done ? "text-[var(--text-dim)] line-through" : "text-[var(--text)]"
@@ -256,11 +256,11 @@ function ChecklistView({
                         </div>
                       )}
                     </div>
-                    <div className="milestone-actions flex items-center gap-1 shrink-0">
+                    <div className="milestone-actions">
                       <button
                         type="button"
                         onClick={() => setEditId(m.id)}
-                        className="milestone-edit-btn px-2 py-1 text-[11px] font-semibold rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]"
+                        className="milestone-edit-btn"
                       >
                         편집
                       </button>
@@ -269,7 +269,7 @@ function ChecklistView({
                         onClick={() => {
                           if (confirm(`'${m.name}' 마일스톤을 삭제할까요?`)) onDelete(m.id);
                         }}
-                        className="milestone-delete-btn px-2 py-1 text-[11px] font-semibold rounded-md text-red-500/80 hover:bg-red-500/10"
+                        className="milestone-delete-btn"
                       >
                         삭제
                       </button>
@@ -283,7 +283,7 @@ function ChecklistView({
       )}
 
       {addOpen ? (
-        <div className="milestone-add-form rounded-xl border border-[var(--primary)]/40 bg-[var(--primary)]/5 p-3 space-y-2">
+        <div className="milestone-add-form">
           <input
             type="text"
             value={name}
@@ -292,7 +292,7 @@ function ChecklistView({
             className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-card)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]"
             autoFocus
           />
-          <div className="milestone-date-grid grid grid-cols-2 gap-2">
+          <div className="milestone-date-grid">
             <label className="text-[11px] text-[var(--text-muted)]">
               <span className="block mb-1">시작일 (간트용)</span>
               <DateField
@@ -310,7 +310,7 @@ function ChecklistView({
               />
             </label>
           </div>
-          <div className="milestone-add-actions flex justify-end gap-2 pt-1">
+          <div className="milestone-add-actions">
             <button
               type="button"
               onClick={() => {
@@ -319,7 +319,7 @@ function ChecklistView({
                 setDue("");
                 setStart("");
               }}
-              className="milestone-add-cancel px-3 py-1.5 text-xs font-semibold rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"
+              className="milestone-add-cancel"
             >
               취소
             </button>
@@ -327,7 +327,7 @@ function ChecklistView({
               type="button"
               onClick={submitAdd}
               disabled={!name.trim() || busy}
-              className="milestone-add-save px-3 py-1.5 text-xs font-bold rounded-lg bg-[var(--primary)] text-white disabled:opacity-50"
+              className="milestone-add-save"
             >
               저장
             </button>
@@ -337,7 +337,7 @@ function ChecklistView({
         <button
           type="button"
           onClick={() => setAddOpen(true)}
-          className="milestone-add-trigger w-full px-3 py-2.5 text-xs font-semibold rounded-xl border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition"
+          className="milestone-add-trigger"
         >
           + 마일스톤 추가
         </button>
@@ -359,14 +359,14 @@ function EditRow({
   const [due, setDue] = useState(initial.due_date || "");
   const [start, setStart] = useState(initial.start_date || "");
   return (
-    <div className="milestone-edit-row space-y-2">
+    <div className="milestone-edit-row">
       <input
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
         className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--bg-card)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]"
       />
-      <div className="milestone-edit-date-grid grid grid-cols-2 gap-2">
+      <div className="milestone-edit-date-grid">
         <label className="text-[11px] text-[var(--text-muted)]">
           <span className="block mb-1">시작일</span>
           <DateField
@@ -384,7 +384,7 @@ function EditRow({
           />
         </label>
       </div>
-      <div className="milestone-edit-actions flex justify-end gap-2">
+      <div className="milestone-edit-actions">
         <button
           type="button"
           onClick={onCancel}
@@ -496,7 +496,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
 
   if (milestones.length === 0) {
     return (
-      <div className="gantt-empty rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-xs text-[var(--text-dim)]">
+      <div className="gantt-empty">
         마일스톤을 먼저 추가하면 간트차트가 표시됩니다.
       </div>
     );
@@ -510,18 +510,18 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
   const TIMELINE_MIN_W = Math.max(spanDays * 64, 480);
 
   return (
-    <div className="gantt-view rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden shadow-sm w-full">
+    <div className="gantt-view">
       {/* 가로 스크롤 컨테이너 — 좌측 라벨도 함께 스크롤. 진입 시 오늘 위치로 auto-scroll */}
-      <div className="gantt-scroll overflow-x-auto" ref={scrollRef}>
-        <div className="gantt-body flex" style={{ minWidth: LABEL_W + TIMELINE_MIN_W }}>
+      <div className="gantt-scroll" ref={scrollRef}>
+        <div className="gantt-body" style={{ minWidth: LABEL_W + TIMELINE_MIN_W }}>
           {/* ─── 좌측: 마일스톤 라벨 컬럼 (sticky) ─── */}
           <div
-            className="gantt-label-col shrink-0 border-r border-[var(--border)] bg-[var(--bg-card)] sticky left-0 z-30"
+            className="gantt-label-col"
             style={{ width: LABEL_W }}
           >
             {/* 헤더 */}
             <div
-              className="gantt-label-header px-3 flex items-center border-b border-[var(--border)] bg-[var(--bg-surface)]/30 text-[10px] font-bold uppercase text-[var(--text-muted)] tracking-wider"
+              className="gantt-label-header"
               style={{ height: HEADER_H }}
             >
               마일스톤
@@ -533,7 +533,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
               return (
                 <div
                   key={m.id}
-                  className={`gantt-label-row px-3 flex items-center gap-2 border-b border-[var(--border)]/60 last:border-b-0 ${
+                  className={`gantt-label-row ${
                     idx % 2 === 1 ? "bg-[var(--bg-surface)]/15" : ""
                   }`}
                   style={{ height: ROW_H }}
@@ -557,16 +557,16 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
           </div>
 
           {/* ─── 우측: 타임라인 컬럼 ─── */}
-          <div className="gantt-timeline-col relative flex-1 min-w-0" style={{ minWidth: TIMELINE_MIN_W }}>
+          <div className="gantt-timeline-col" style={{ minWidth: TIMELINE_MIN_W }}>
             {/* 헤더 — 일자 + 요일 */}
             <div
-              className="gantt-timeline-header relative border-b border-[var(--border)] bg-gradient-to-b from-[var(--bg-surface)]/40 to-transparent"
+              className="gantt-timeline-header"
               style={{ height: HEADER_H }}
             >
               {dayTicks.map((t, i) => (
                 <div
                   key={i}
-                  className={`gantt-day-tick absolute top-0 bottom-0 ${
+                  className={`gantt-day-tick ${
                     t.isMonthStart
                       ? "border-l border-[var(--border)]"
                       : t.weekday === 1
@@ -602,7 +602,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
               {/* 오늘 pill */}
               {todayInRange && (
                 <div
-                  className="gantt-today-pill absolute z-20 -translate-x-1/2 px-2 py-0.5 rounded-md bg-[var(--primary)] text-white text-[10px] font-bold shadow-md whitespace-nowrap"
+                  className="gantt-today-pill"
                   style={{ left: `${todayPct}%`, top: 4 }}
                 >
                   오늘
@@ -611,7 +611,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
             </div>
 
             {/* 막대 행들 */}
-            <div className="gantt-bars relative">
+            <div className="schedule-gantt-bars">
               {/* 주말 컬럼 음영 (선택) — 가독성 보조 */}
               {dayTicks.map((t, i) =>
                 t.isWeekend ? (
@@ -629,7 +629,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
               {/* today 수직선 */}
               {todayInRange && (
                 <div
-                  className="gantt-today-line absolute top-0 bottom-0 z-10 pointer-events-none"
+                  className="schedule-gantt-today-line"
                   style={{ left: `${todayPct}%`, transform: "translateX(-50%)", width: 2 }}
                   aria-hidden
                 >
@@ -667,7 +667,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
                 return (
                   <div
                     key={m.id}
-                    className={`gantt-bar-row relative border-b border-[var(--border)]/60 last:border-b-0 group/bar ${
+                    className={`gantt-bar-row group/bar ${
                       idx % 2 === 1 ? "bg-[var(--bg-surface)]/15" : ""
                     }`}
                     style={{ height: ROW_H }}
@@ -699,7 +699,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
                       const width = Math.min(widthRaw, 100 - left);
                       return (
                         <div
-                          className={`gantt-bar absolute top-2 bottom-2 rounded-lg bg-gradient-to-r ${gradient} shadow-sm group-hover/bar:shadow-xl group-hover/bar:brightness-110 group-hover/bar:scale-y-110 transition-all flex items-center px-2.5 overflow-hidden cursor-default ring-1 ring-white/10 z-[6]`}
+                          className={`gantt-bar ${gradient}`}
                           style={{ left: `${left}%`, width: `${width}%`, minWidth: 8 }}
                         >
                           <span className="text-[11px] font-bold text-white truncate drop-shadow">
@@ -712,7 +712,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
                     {/* 호버 D-day pill — 마감일 수직선 위에 떠오름 */}
                     {dDayText && dueDatePct !== null && dueDatePct >= 0 && dueDatePct <= 100 && (
                       <div
-                        className={`gantt-hover-pill absolute z-40 px-2 py-1 rounded-md text-[10px] font-bold shadow-xl whitespace-nowrap opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none ${pillBg} text-white`}
+                        className={`gantt-hover-pill ${pillBg}`}
                         style={{
                           left: `${dueDatePct}%`,
                           top: -6,
@@ -735,7 +735,7 @@ function GanttView({ milestones }: { milestones: Milestone[] }) {
       </div>
 
       {/* 범례 */}
-      <div className="gantt-legend flex items-center gap-3 px-3 py-2 border-t border-[var(--border)] bg-[var(--bg-surface)]/20 text-[10px] text-[var(--text-muted)] flex-wrap">
+      <div className="gantt-legend">
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-2 rounded-sm bg-gradient-to-r from-cyan-500 to-cyan-400" /> 진행중
         </span>
@@ -812,9 +812,9 @@ function CalendarView({ milestones }: { milestones: Milestone[] }) {
   const selectedItems = selectedDate ? byDate[selectedDate] || [] : [];
 
   return (
-    <div className="milestone-calendar rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+    <div className="milestone-calendar">
       {/* 헤더 */}
-      <div className="calendar-header flex items-center justify-between mb-2">
+      <div className="calendar-header">
         <button
           type="button"
           onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
@@ -833,7 +833,7 @@ function CalendarView({ milestones }: { milestones: Milestone[] }) {
       </div>
 
       {/* 요일 헤더 */}
-      <div className="calendar-weekday-header grid grid-cols-7 gap-1 mb-1">
+      <div className="calendar-weekday-header">
         {["일", "월", "화", "수", "목", "금", "토"].map((w, i) => (
           <div
             key={w}
@@ -847,9 +847,9 @@ function CalendarView({ milestones }: { milestones: Milestone[] }) {
       </div>
 
       {/* 셀 */}
-      <div className="calendar-weeks space-y-1">
+      <div className="calendar-weeks">
         {weeks.map((wk, wi) => (
-          <div key={wi} className="calendar-week-row grid grid-cols-7 gap-1">
+          <div key={wi} className="calendar-week-row">
             {wk.map((c, ci) => {
               if (!c) return <div key={ci} />;
               const items = byDate[c.key] || [];
@@ -861,7 +861,7 @@ function CalendarView({ milestones }: { milestones: Milestone[] }) {
                   type="button"
                   onClick={() => setSelectedDate(items.length > 0 ? c.key : null)}
                   disabled={items.length === 0}
-                  className={`calendar-day-cell min-h-[52px] p-1 rounded-md text-left transition border ${
+                  className={`calendar-day-cell ${
                     isSelected
                       ? "border-[var(--primary)] bg-[var(--primary)]/10"
                       : isToday
@@ -909,7 +909,7 @@ function CalendarView({ milestones }: { milestones: Milestone[] }) {
 
       {/* 선택일 팝오버 (간단히 인라인 패널) */}
       {selectedDate && selectedItems.length > 0 && (
-        <div className="calendar-selected-popover mt-3 pt-3 border-t border-[var(--border)]">
+        <div className="calendar-selected-popover">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-bold text-[var(--text)]">📅 {selectedDate}</div>
             <button
@@ -920,7 +920,7 @@ function CalendarView({ milestones }: { milestones: Milestone[] }) {
               닫기 ✕
             </button>
           </div>
-          <ul className="calendar-selected-list space-y-1">
+          <ul className="calendar-selected-list">
             {selectedItems.map((m) => {
               const done = !!m.completed_at;
               return (

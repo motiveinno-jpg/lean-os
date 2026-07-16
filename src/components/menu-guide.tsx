@@ -18,7 +18,7 @@ export function MenuGuide() {
   return (
     <button
       onClick={toggleGuide}
-      className={`menu-guide-toggle pointer-events-auto flex items-center justify-center w-8 h-8 rounded-full border transition shadow-[var(--shadow-sm)] ${
+      className={`menu-guide-toggle ${
         open
           ? "bg-[var(--primary)] text-white border-[var(--primary)]"
           : "bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
@@ -54,11 +54,11 @@ export function MenuGuideDrawer() {
     <>
       {/* 모바일 백드롭 (데스크톱은 콘텐츠가 밀려 나란히 보이므로 백드롭 없음) */}
       {open && (
-        <div className="menu-guide-backdrop fixed inset-0 z-[39] bg-black/30 md:hidden" onClick={closeGuide} aria-hidden />
+        <div className="menu-guide-backdrop fixed inset-0" onClick={closeGuide} aria-hidden />
       )}
 
       <aside
-        className={`menu-guide-drawer fixed top-0 right-0 h-[100dvh] w-full md:w-[400px] z-40 bg-[var(--bg-card)] border-l border-[var(--border)] flex flex-col transition-transform duration-200 ${
+        className={`menu-guide-drawer ${
           open ? "translate-x-0" : "translate-x-full pointer-events-none"
         }`}
         style={{ boxShadow: open ? "-12px 0 32px rgba(0,0,0,0.12)" : "none" }}
@@ -66,7 +66,7 @@ export function MenuGuideDrawer() {
         aria-label="메뉴 사용 가이드"
       >
         {/* 헤더 */}
-        <div className="guide-head flex items-start justify-between gap-3 px-5 py-4 border-b border-[var(--border)] shrink-0">
+        <div className="guide-head">
           <div className="flex items-start gap-2.5 min-w-0">
             <span className="text-2xl leading-none mt-0.5">{guide?.icon ?? "❓"}</span>
             <div className="min-w-0">
@@ -79,22 +79,22 @@ export function MenuGuideDrawer() {
         </div>
 
         {/* 본문 (스크롤) */}
-        <div className="guide-body flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        <div className="guide-body">
           {guide ? (
             <>
               {/* 이 메뉴는 */}
               <section className="guide-overview">
-                <h3 className="guide-section-title text-[11px] font-bold tracking-wide text-[var(--text-dim)] uppercase mb-1.5">이 메뉴는</h3>
+                <h3 className="guide-section-title mb-1.5">이 메뉴는</h3>
                 <p className="text-[13.5px] leading-relaxed text-[var(--text)]">{guide.overview}</p>
               </section>
 
               {/* 이 화면에서 할 수 있는 것 */}
               {guide.features.length > 0 && (
                 <section className="guide-features">
-                  <h3 className="guide-section-title text-[11px] font-bold tracking-wide text-[var(--text-dim)] uppercase mb-2">이 화면에서 할 수 있는 것</h3>
+                  <h3 className="guide-section-title mb-2">이 화면에서 할 수 있는 것</h3>
                   <ul className="space-y-2.5">
                     {guide.features.map((f, i) => (
-                      <li key={i} className="guide-feature-row flex gap-2.5">
+                      <li key={i} className="guide-feature-row">
                         <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[var(--primary)] shrink-0" />
                         <div className="min-w-0">
                           <div className="text-[13.5px] font-bold text-[var(--text)] leading-snug">{f.name}</div>
@@ -109,10 +109,10 @@ export function MenuGuideDrawer() {
               {/* 처음이라면 이렇게 */}
               {guide.steps.length > 0 && (
                 <section className="guide-steps">
-                  <h3 className="guide-section-title text-[11px] font-bold tracking-wide text-[var(--text-dim)] uppercase mb-2">처음이라면 이렇게</h3>
+                  <h3 className="guide-section-title mb-2">처음이라면 이렇게</h3>
                   <ol className="space-y-2">
                     {guide.steps.map((step, i) => (
-                      <li key={i} className="guide-step-row flex gap-2.5 text-[13px] leading-relaxed text-[var(--text-muted)]">
+                      <li key={i} className="guide-step-row">
                         <span className="shrink-0 w-5 h-5 mt-0.5 rounded-full bg-[var(--primary)]/12 text-[var(--primary)] text-[11px] font-bold flex items-center justify-center">{i + 1}</span>
                         <span className="pt-0.5">{step}</span>
                       </li>
@@ -123,10 +123,10 @@ export function MenuGuideDrawer() {
 
               {/* 알아두면 좋아요 */}
               {guide.tips && guide.tips.length > 0 && (
-                <section className="guide-tips space-y-2">
-                  <h3 className="guide-section-title text-[11px] font-bold tracking-wide text-[var(--text-dim)] uppercase">알아두면 좋아요</h3>
+                <section className="guide-tips">
+                  <h3 className="guide-section-title">알아두면 좋아요</h3>
                   {guide.tips.map((tip, i) => (
-                    <div key={i} className="guide-tip-item flex gap-2 rounded-xl bg-[var(--bg-surface)] px-3 py-2.5 text-[12.5px] leading-relaxed text-[var(--text-muted)]">
+                    <div key={i} className="guide-tip-item">
                       <span className="shrink-0">💡</span>
                       <span>{tip}</span>
                     </div>
@@ -137,10 +137,10 @@ export function MenuGuideDrawer() {
               {/* 자주 묻는 질문 */}
               {guide.faq && guide.faq.length > 0 && (
                 <section className="guide-faq">
-                  <h3 className="guide-section-title text-[11px] font-bold tracking-wide text-[var(--text-dim)] uppercase mb-2">자주 묻는 질문</h3>
+                  <h3 className="guide-section-title mb-2">자주 묻는 질문</h3>
                   <div className="space-y-2.5">
                     {guide.faq.map((item, i) => (
-                      <div key={i} className="guide-faq-item rounded-xl border border-[var(--border)] px-3.5 py-2.5">
+                      <div key={i} className="guide-faq-item">
                         <div className="text-[13px] font-bold text-[var(--text)] leading-snug">Q. {item.q}</div>
                         <div className="text-[12.5px] leading-relaxed text-[var(--text-muted)] mt-1">A. {item.a}</div>
                       </div>
@@ -157,7 +157,7 @@ export function MenuGuideDrawer() {
         </div>
 
         {/* 푸터 — 전체 가이드 */}
-        <div className="guide-foot px-5 py-3 border-t border-[var(--border)] shrink-0">
+        <div className="guide-foot">
           <Link
             href="/guide"
             onClick={closeGuide}

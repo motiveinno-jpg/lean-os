@@ -39,9 +39,9 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   // ── 하드 페이월: trial 만료 · 해지 후 기간 종료 ──
   if (gate.blocked && !onAllowedRoute) {
     return (
-      <div className="subscription-paywall glass-card max-w-[560px] my-16 mx-auto px-8 py-10 text-center">
+      <div className="subscription-paywall glass-card">
         <div
-          className="subscription-paywall-icon w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-[var(--primary)]"
+          className="subscription-paywall-icon"
         >
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -60,7 +60,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
         {isManager ? (
           <Link
             href="/billing"
-            className="subscription-paywall-cta inline-flex items-center gap-2 py-3 px-7 rounded-xl bg-[var(--primary)] text-white text-sm font-bold no-underline"
+            className="subscription-paywall-cta"
           >
             요금제 보기 →
           </Link>
@@ -86,7 +86,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
       {showTrialBanner && isManager && (
         <Link
           href="/billing"
-          className="subscription-trial-banner flex items-center justify-between gap-3 py-2.5 px-4 rounded-xl mb-4 no-underline bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] border border-[color-mix(in_srgb,var(--primary)_25%,transparent)]"
+          className="subscription-trial-banner"
         >
           <span className="text-[12.5px] text-[var(--text)] font-semibold">
             ⏳ 무료 체험이 <strong className="text-[var(--primary)]">{gate.daysLeft}일</strong> 남았습니다
@@ -98,7 +98,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
       {showPastDueBanner && isManager && (
         <Link
           href="/billing"
-          className="subscription-pastdue-banner flex items-center justify-between gap-3 py-2.5 px-4 rounded-xl mb-4 no-underline bg-[color-mix(in_srgb,#ef4444_8%,transparent)] border border-[color-mix(in_srgb,#ef4444_30%,transparent)]"
+          className="subscription-pastdue-banner"
         >
           <span className="text-[12.5px] text-[#ef4444] font-semibold">
             ⚠️ 결제에 실패했습니다 — 결제 수단을 확인해 주세요. 미해결 시 서비스가 제한될 수 있습니다.
@@ -108,7 +108,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
       )}
       {showBlockedAllowedBanner && (
         <div
-          className="subscription-blocked-banner py-2.5 px-4 rounded-xl mb-4 bg-[color-mix(in_srgb,#f59e0b_8%,transparent)] border border-[color-mix(in_srgb,#f59e0b_30%,transparent)] text-[12.5px] text-[#d97706] font-semibold"
+          className="subscription-blocked-banner"
         >
           🔒 구독이 만료되어 다른 화면은 잠겨 있습니다. {isManager ? "요금제를 선택하면 즉시 복구됩니다." : "관리자에게 문의해 주세요."}
         </div>

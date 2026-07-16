@@ -43,8 +43,8 @@ export function DocumentTemplatesPanel({ userId, documents, onSaved }: {
   const visible = expanded ? filtered : filtered.slice(0, 8);
 
   return (
-    <div className="doc-templates-panel glass-card p-6 space-y-4">
-      <div className="doc-templates-header flex items-center justify-between gap-2 flex-wrap">
+    <div className="doc-templates-panel glass-card">
+      <div className="doc-templates-header">
         <div>
           <h3 className="text-sm font-bold text-[var(--text)]">재사용 계약서 문서</h3>
           <p className="text-xs text-[var(--text-dim)] mt-1">
@@ -58,24 +58,24 @@ export function DocumentTemplatesPanel({ userId, documents, onSaved }: {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="문서명으로 검색... (예: 온라인홍보사업)"
-        className="doc-templates-search w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+        className="doc-templates-search"
       />
 
       {filtered.length === 0 ? (
-        <div className="doc-templates-empty px-3 py-8 text-center text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)]/40 rounded-lg border border-dashed border-[var(--border)]">
+        <div className="doc-templates-empty">
           {search ? "검색 결과가 없습니다" : "등록된 문서가 없습니다"}
         </div>
       ) : (
-        <div className="doc-templates-list divide-y divide-[var(--border)]/50">
+        <div className="doc-templates-list">
           {visible.map((d: any) => {
             const contentType = d.content_json?.type || d.auto_classified_type || "contract";
             const typeLabel = TYPE_LABELS[contentType] || contentType;
             const sc = (DOC_STATUS as any)[d.status] || DOC_STATUS.draft;
             return (
-              <div key={d.id} className="doc-template-row flex items-center justify-between gap-3 py-2.5">
-                <div className="doc-template-row-info min-w-0 flex-1">
+              <div key={d.id} className="doc-template-row">
+                <div className="doc-template-row-info">
                   <div className="text-sm font-medium text-[var(--text)] truncate">{d.name || "(제목 없음)"}</div>
-                  <div className="doc-template-row-badges flex items-center gap-1.5 mt-1">
+                  <div className="doc-template-row-badges">
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{typeLabel}</span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
                     <span className="text-[10px] text-[var(--text-dim)]">
@@ -99,7 +99,7 @@ export function DocumentTemplatesPanel({ userId, documents, onSaved }: {
       {filtered.length > 8 && (
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="doc-templates-expand-btn text-xs text-[var(--text-muted)] hover:text-[var(--text)] font-medium"
+          className="doc-templates-expand-btn"
         >
           {expanded ? "접기" : `전체 ${filtered.length}건 보기`}
         </button>
@@ -160,17 +160,17 @@ function DocumentEditModal({ doc, userId, onClose, onSaved }: {
   });
 
   return (
-    <div className="doc-edit-modal fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="doc-edit-modal fixed inset-0" onClick={onClose}>
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="doc-edit-modal-header flex items-center justify-between mb-4">
+        <div className="doc-edit-modal-header">
           <h2 className="text-lg font-bold text-[var(--text)]">문서 수정</h2>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">×</button>
         </div>
 
-        <div className="doc-edit-modal-body space-y-4">
+        <div className="doc-edit-modal-body">
           <div className="doc-edit-name-field">
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">문서 이름 *</label>
             <input
@@ -189,7 +189,7 @@ function DocumentEditModal({ doc, userId, onClose, onSaved }: {
             </div>
           </div>
 
-          <div className="doc-edit-modal-actions flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
+          <div className="doc-edit-modal-actions">
             <button type="button" onClick={onClose} className="btn-ghost">취소</button>
             <button
               type="button"

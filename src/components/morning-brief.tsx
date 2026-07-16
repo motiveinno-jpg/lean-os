@@ -210,7 +210,7 @@ export function MorningBrief({
   // 데이터 없음 — 온보딩 톤
   if (!hasData || !cashPulse) {
     return (
-      <section className="morning-brief-onboarding mb-4 glass-card p-4 sm:p-5">
+      <section className="morning-brief-onboarding glass-card">
         <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-2">{today}</p>
         <p className="text-xs sm:text-sm text-[var(--text-muted)] leading-relaxed break-keep">
           아직 {companyName || "회사"} 데이터가 충분하지 않습니다.
@@ -360,11 +360,11 @@ export function MorningBrief({
             <p className="text-[13px] sm:text-[15px] text-[var(--text-muted)] leading-relaxed">{renderTagged(briefPlan.summary)}</p>
 
             {briefPlan.actions.length > 0 && (
-              <ol className="brief-action-list mt-3 space-y-2">
+              <ol className="brief-action-list">
                 {briefPlan.actions.map((a, i) => {
                   const lk = ACTION_HREF[a.link];
                   return (
-                    <li key={i} className="brief-action-item flex items-start gap-2.5 rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/60 px-3 py-2.5">
+                    <li key={i} className="brief-action-item">
                       <span className={`shrink-0 mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE["권장"]}`}>{a.priority}</span>
                       <span className="flex-1 min-w-0">
                         <span className="block text-[13px] sm:text-[14px] font-bold leading-snug">{i + 1}. {a.title}</span>
@@ -422,7 +422,7 @@ export function MorningBrief({
         <div className={expanded ? "block" : "hidden sm:block"}>
         {hasTx && (
           <div
-            className="brief-yesterday-tx mt-4 pt-4 border-t border-[var(--border)]"
+            className="brief-yesterday-tx"
           >
             <p className="text-sm font-semibold text-[var(--text-muted)] mb-3">
               {yesterdayLabel} 거래 요약
@@ -456,11 +456,11 @@ export function MorningBrief({
 
             {/* 주요 거래 목록 */}
             {yesterdayTx!.topItems.length > 0 && (
-              <div className="brief-tx-item-list space-y-1.5">
+              <div className="brief-tx-item-list">
                 {yesterdayTx!.topItems.map((item, i) => (
                   <div
                     key={i}
-                    className="brief-tx-item flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-[var(--bg-surface)]"
+                    className="brief-tx-item"
                   >
                     <span className="text-[var(--text-muted)] truncate max-w-[60%]">
                       {item.counterparty || item.description || "미분류"}
@@ -498,7 +498,7 @@ export function MorningBrief({
         )}
 
         {!aiBrief && !aiBriefingEnabled && (
-          <p className="morning-brief-upsell text-[11px] text-[var(--text-dim)] mt-1">
+          <p className="morning-brief-upsell">
             ✦ 매일 아침 AI가 오늘의 우선순위를 액션 플랜으로 정리해 드리는 <b>AI 브리핑</b>은 울트라 요금제 전용입니다.{" "}
             <Link href="/billing" className="text-[var(--primary)] font-semibold hover:underline">업그레이드 →</Link>
           </p>

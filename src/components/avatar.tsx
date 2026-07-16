@@ -22,14 +22,14 @@ export function Avatar({
         src={src}
         alt={name || "프로필"}
         style={dim}
-        className={`avatar-img rounded-full object-cover shrink-0 ${className}`}
+        className={`avatar-img ${className}`}
       />
     );
   }
   return (
     <div
       style={{ ...dim, fontSize: Math.round(size * 0.4) }}
-      className={`avatar-initial rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0 ${className}`}
+      className={`avatar-initial ${className}`}
     >
       {initial}
     </div>

@@ -168,8 +168,8 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
   const totalAmount = items.reduce((s, it) => s + (it.kind === 'loan' ? 0 : it.amount), 0);
 
   return (
-    <div className="upcoming-transfers-card mb-3 glass-card p-5">
-      <div className="upcoming-transfers-header flex items-center justify-between mb-3">
+    <div className="upcoming-transfers-card glass-card">
+      <div className="upcoming-transfers-header">
         <div className="flex items-center gap-2.5">
           <span className="kpi-icon warning"><TileIcon name="clock" className="w-5 h-5" /></span>
           <div>
@@ -186,19 +186,19 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
       </div>
 
       {items.length === 0 ? (
-        <div className="upcoming-transfers-empty text-center py-5">
+        <div className="upcoming-transfers-empty">
           <div className="text-xs text-[var(--text-dim)] mb-2">예정된 고정비 지출이 없습니다.</div>
           <a href="/payments?tab=recurring" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition">
             + 자동이체 등록
           </a>
         </div>
       ) : (
-        <div className="upcoming-transfers-list space-y-2">
+        <div className="upcoming-transfers-list">
           {items.map((it) => (
             <div key={it.id}
-              className="upcoming-transfer-row flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition">
+              className="upcoming-transfer-row">
               {/* 날짜 박스 */}
-              <div className={`upcoming-transfer-date-box flex flex-col items-center justify-center w-14 py-1 rounded-md ${
+              <div className={`upcoming-transfer-date-box ${
                 it.daysLeft <= 3 ? 'bg-[var(--danger)]/15 text-[var(--danger)]' :
                 it.daysLeft <= 7 ? 'bg-[var(--warning)]/15 text-[var(--warning)]' :
                                    'bg-[var(--bg-card)] text-[var(--text-muted)]'
@@ -210,7 +210,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
               </div>
 
               {/* 상세 */}
-              <div className="upcoming-transfer-detail flex-1 min-w-0">
+              <div className="upcoming-transfer-detail">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-semibold text-[var(--text)] truncate">{it.name}</span>
                   <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-dim)] shrink-0">
@@ -224,7 +224,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
               </div>
 
               {/* 금액(정기지출) 또는 잔액(대출 리마인더) */}
-              <div className="upcoming-transfer-amount text-right shrink-0">
+              <div className="upcoming-transfer-amount">
                 {it.kind === 'loan' ? (
                   <>
                     <div className="text-[9px] text-[var(--text-dim)] uppercase tracking-wider">상환일 · 잔액</div>

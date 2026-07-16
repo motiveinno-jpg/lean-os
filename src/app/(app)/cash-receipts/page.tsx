@@ -1093,7 +1093,7 @@ export default function CashReceiptsPage() {
 
       {/* 국세청 실발행 모달 — CODEF·팝빌 연동 즉시발행 */}
       {showIssueModal && (
-        <div className="cash-receipt-issue-modal cashbill-issue-modal" onClick={() => !issuing && setShowIssueModal(false)}>
+        <div className="cash-receipt-issue-modal fixed inset-0 cashbill-issue-modal" onClick={() => !issuing && setShowIssueModal(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행</div>
@@ -1179,7 +1179,7 @@ export default function CashReceiptsPage() {
 
       {/* 일괄 전표처리 모달 — 선택된 미처리 현금영수증을 계정 1개로 일괄 생성 */}
       {showBulkPost && (
-        <div className="cash-receipt-bulk-post-modal" onClick={() => setShowBulkPost(false)}>
+        <div className="cash-receipt-bulk-post-modal fixed inset-0" onClick={() => setShowBulkPost(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>

@@ -89,7 +89,7 @@ export default function PartnerPortalPage() {
     <div className="portal-page">
       <div className="max-w-2xl mx-auto">
         {/* 헤더 */}
-        <div className="portal-header-card">
+        <div className="portal-header-card rounded-2xl bg-[var(--bg-card)]">
           <div className="text-[11px] text-[var(--text-dim)] uppercase tracking-wide">파트너 포털</div>
           <h1 className="text-xl font-extrabold text-[var(--text)] mt-1">{ctx.company.name}</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -98,7 +98,7 @@ export default function PartnerPortalPage() {
         </div>
 
         {/* 서류 목록 */}
-        <div className="portal-doc-list-card">
+        <div className="portal-doc-list-card rounded-2xl bg-[var(--bg-card)]">
           <div className="px-5 py-3 border-b border-[var(--border)] text-sm font-bold text-[var(--text)]">
             견적·계약 서류 ({ctx.documents.length})
           </div>
@@ -135,7 +135,7 @@ export default function PartnerPortalPage() {
         </div>
 
         {/* 문의 남기기 */}
-        <div className="portal-inquiry-card">
+        <div className="portal-inquiry-card rounded-2xl bg-[var(--bg-card)]">
           <div className="px-5 py-3 border-b border-[var(--border)] text-sm font-bold text-[var(--text)]">💬 문의 남기기</div>
           <div className="p-5">
             {sent ? (
@@ -174,7 +174,7 @@ export default function PartnerPortalPage() {
 
       {/* 서류 상세 모달 */}
       {openDoc && (
-        <div className="portal-doc-modal-overlay" onClick={() => setOpenDoc(null)}>
+        <div className="portal-doc-modal-overlay fixed inset-0" onClick={() => setOpenDoc(null)}>
           <div className="portal-doc-modal" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] sticky top-0 bg-[var(--bg-card)]">
               <div className="flex items-center gap-2 min-w-0">

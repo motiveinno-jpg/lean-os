@@ -150,7 +150,7 @@ export function NotificationBell() {
       <button
         ref={btnRef}
         onClick={() => setOpen((v) => !v)}
-        className="notification-bell-btn relative p-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition shrink-0"
+        className="notification-bell-btn"
         aria-label="알림"
         aria-expanded={open}
         title="알림"
@@ -167,13 +167,13 @@ export function NotificationBell() {
       </button>
 
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div className="notification-panel-backdrop fixed inset-0 z-[998]" onClick={() => setOpen(false)}>
+        <div className="notification-panel-backdrop fixed inset-0" onClick={() => setOpen(false)}>
           <div
-            className="notification-panel glass-card fixed z-[999] w-[min(92vw,380px)] max-h-[70vh] overflow-y-auto animate-[slide-in_0.15s_ease]"
+            className="notification-panel glass-card"
             style={{ top: pos.top, right: pos.right, boxShadow: "var(--shadow-lg, 0 12px 32px rgba(0,0,0,0.18))" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="notification-panel-header flex items-center justify-between px-4 py-3 border-b border-[var(--border)] sticky top-0 bg-[var(--bg-card)]">
+            <div className="notification-panel-header">
               <span className="text-sm font-bold text-[var(--text)]">알림</span>
               <div className="flex items-center gap-2">
                 {rows && rows.length > 0 && (
@@ -188,7 +188,7 @@ export function NotificationBell() {
             ) : rows.length === 0 ? (
               <div className="px-4 py-8 text-center text-xs text-[var(--text-dim)]">읽지 않은 알림이 없습니다.</div>
             ) : (
-              <div className="notification-panel-list divide-y divide-[var(--border)]">
+              <div className="notification-panel-list">
                 {rows.map((n) => (
                   <div
                     key={n.id}
@@ -196,7 +196,7 @@ export function NotificationBell() {
                     tabIndex={0}
                     onClick={() => goTo(n)}
                     onKeyDown={(e) => { if (e.key === "Enter") goTo(n); }}
-                    className="notification-panel-item w-full flex items-start gap-2.5 px-4 py-3 text-left transition bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 cursor-pointer"
+                    className="notification-panel-item"
                   >
                     <span className="flex-1 min-w-0">
                       <span className="block text-[13px] font-semibold text-[var(--text)]">

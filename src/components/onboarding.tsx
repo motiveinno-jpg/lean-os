@@ -359,9 +359,9 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   }
 
   return (
-    <div className="onboarding-wizard-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleDismiss}>
+    <div className="onboarding-wizard-overlay fixed inset-0" onClick={handleDismiss}>
       <div
-        className="onboarding-wizard-panel glass-card w-full max-w-[600px] mx-4 overflow-hidden relative"
+        className="onboarding-wizard-panel glass-card"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 닫기 버튼 */}
@@ -374,7 +374,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         </button>
 
         {/* ── Progress Bar ── */}
-        <div className="onboarding-progress px-6 pt-5 pb-3">
+        <div className="onboarding-progress">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-[var(--text)]">초기 설정</span>
             <span className="text-xs text-[var(--text-dim)]">{step} / {STEPS.length} 단계</span>
@@ -423,7 +423,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         </div>
 
         {/* ── Content ── */}
-        <div className="onboarding-content px-6 py-4 min-h-[360px] max-h-[60vh] overflow-y-auto flex flex-col">
+        <div className="onboarding-content">
           {step === 1 && (
             <StepCompanyInfo
               data={company}
@@ -538,7 +538,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
 // ═══════════════════════════════════════════
 function StepCompanyInfo({ data, set, isCompleted }: { data: any; set: (d: any) => void; isCompleted: boolean }) {
   return (
-    <div className="step-company-info flex-1">
+    <div className="step-company-info">
       <StepHeader
         title="회사 기본 정보"
         desc="사업자 정보를 입력하세요. 세금계산서, 문서 생성에 사용됩니다."
@@ -578,7 +578,7 @@ function StepBankSetup({ banks, form, setForm, add, remove, isCompleted }: {
   ];
 
   return (
-    <div className="step-bank-setup flex-1">
+    <div className="step-bank-setup">
       <StepHeader
         title="법인통장 등록"
         desc="회사 통장을 등록하면 잔고 현황과 거래 내역을 관리할 수 있습니다."
@@ -591,9 +591,9 @@ function StepBankSetup({ banks, form, setForm, add, remove, isCompleted }: {
 
       {/* Added banks */}
       {banks.length > 0 && (
-        <div className="bank-list space-y-2 mb-4">
+        <div className="bank-list">
           {banks.map((b, i) => (
-            <div key={i} className="bank-list-item flex items-center justify-between px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div key={i} className="bank-list-item">
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-[var(--text)]">{b.alias || b.bank_name}</div>
                 <div className="text-xs text-[var(--text-dim)]">{b.bank_name} {b.account_number}</div>
@@ -608,7 +608,7 @@ function StepBankSetup({ banks, form, setForm, add, remove, isCompleted }: {
       )}
 
       {/* Add form */}
-      <div className="bank-add-form p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+      <div className="bank-add-form">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[10px] font-semibold text-[var(--text-dim)] mb-1">은행 *</label>
@@ -657,7 +657,7 @@ function StepEmployeeSetup({ employees, form, setForm, add, remove, isCompleted 
   employees: any[]; form: any; setForm: (f: any) => void; add: () => void; remove: (i: number) => void; isCompleted: boolean;
 }) {
   return (
-    <div className="step-employee-setup flex-1">
+    <div className="step-employee-setup">
       <StepHeader
         title="직원 등록"
         desc="팀원을 등록하면 근태, 급여, 경비 관리를 바로 시작할 수 있습니다."
@@ -669,9 +669,9 @@ function StepEmployeeSetup({ employees, form, setForm, add, remove, isCompleted 
       )}
 
       {employees.length > 0 && (
-        <div className="employee-list space-y-2 mb-4">
+        <div className="employee-list">
           {employees.map((emp, i) => (
-            <div key={i} className="employee-list-item flex items-center justify-between px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div key={i} className="employee-list-item">
               <div>
                 <div className="text-sm font-medium text-[var(--text)]">{emp.name}</div>
                 <div className="text-xs text-[var(--text-dim)]">{[emp.department, emp.position].filter(Boolean).join(" · ") || "미지정"}</div>
@@ -682,7 +682,7 @@ function StepEmployeeSetup({ employees, form, setForm, add, remove, isCompleted 
         </div>
       )}
 
-      <div className="employee-add-form p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+      <div className="employee-add-form">
         <div className="grid grid-cols-2 gap-3">
           <Field label="이름 *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="홍길동" small />
           <Field label="직급" value={form.position} onChange={(v) => setForm({ ...form, position: v })} placeholder="사원/대리/과장..." small />
@@ -715,7 +715,7 @@ function StepFirstDeal({ dealName, setDealName, dealType, setDealType, dealAmoun
   isCompleted: boolean;
 }) {
   return (
-    <div className="step-first-deal flex-1">
+    <div className="step-first-deal">
       <StepHeader
         title="첫 프로젝트(거래) 만들기"
         desc="매출이든 비용이든, 첫 번째 거래를 등록하면 대시보드가 활성화됩니다."
@@ -943,7 +943,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
   };
 
   return (
-    <div className="step-cert-registration flex-1">
+    <div className="step-cert-registration">
       <StepHeader
         title="공동인증서 등록"
         desc="공동인증서(구 공인인증서)를 등록하면 은행, 카드, 홈택스가 자동 연동됩니다."
@@ -957,7 +957,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
       {!data.registered && (
         <div className="space-y-4">
           {/* Mode tabs */}
-          <div className="cert-mode-tabs flex rounded-xl overflow-hidden border border-[var(--border)]">
+          <div className="cert-mode-tabs">
             <button
               onClick={() => setMode("engine")}
               className="flex-1 py-2 text-xs font-semibold transition"
@@ -982,7 +982,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
 
           {/* ── Engine mode: CodefCert agent ── */}
           {mode === "engine" && (
-            <div className="cert-engine-panel p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+            <div className="cert-engine-panel">
               {engineStatus === "loading" && (
                 <div className="flex items-center justify-center gap-2 py-6 text-sm text-[var(--text-muted)]">
                   <span className="animate-spin w-4 h-4 border-2 border-[var(--primary)] border-t-transparent rounded-full" />
@@ -1019,7 +1019,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
                   ) : (
                     <div>
                       <label className="block text-xs font-semibold text-[var(--text-dim)] mb-2">인증서 선택 *</label>
-                      <div className="cert-list space-y-1.5 max-h-[160px] overflow-y-auto">
+                      <div className="cert-list">
                         {certList.map((c, i) => (
                           <button
                             key={i}
@@ -1081,7 +1081,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
 
           {/* ── Manual mode: PFX file upload ── */}
           {mode === "manual" && (
-            <div className="cert-manual-panel p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+            <div className="cert-manual-panel">
               <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">인증서 파일 (PFX/P12) *</label>
               <input ref={fileInputRef} type="file" accept=".pfx,.p12,.PFX,.P12" onChange={handleFileSelect} className="hidden" />
               <button
@@ -1116,7 +1116,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
           )}
 
           {/* Organization select (shared) */}
-          <div className="cert-org-panel p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="cert-org-panel">
             <label className="block text-xs font-semibold text-[var(--text-dim)] mb-1">주거래 은행 *</label>
             <select
               value={data.organization}
@@ -1145,7 +1145,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
             ) : "인증서 등록하기"}
           </button>
 
-          <div className="cert-info-notice flex items-start gap-2 px-3 py-2.5 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/20">
+          <div className="cert-info-notice">
             <svg className="w-3.5 h-3.5 text-[var(--info)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
@@ -1194,7 +1194,7 @@ function StepCodefConnect({ data, set, isCompleted }: {
   };
 
   return (
-    <div className="step-codef-connect flex-1">
+    <div className="step-codef-connect">
       <StepHeader
         title="금융 데이터 자동 연동"
         desc="은행 거래내역, 카드 승인내역, 홈택스 세금계산서를 자동 수집합니다."
@@ -1211,7 +1211,7 @@ function StepCodefConnect({ data, set, isCompleted }: {
           <label className="block text-xs font-semibold text-[var(--text-dim)] mb-2">
             연동할 은행 선택 <span className="text-[var(--text-dim)] font-normal">(복수 선택 가능)</span>
           </label>
-          <div className="codef-bank-grid grid grid-cols-3 gap-1.5">
+          <div className="codef-bank-grid">
             {BANK_LIST.map((bank) => (
               <button
                 key={bank}
@@ -1234,7 +1234,7 @@ function StepCodefConnect({ data, set, isCompleted }: {
           <label className="block text-xs font-semibold text-[var(--text-dim)] mb-2">
             연동할 카드사 선택 <span className="text-[var(--text-dim)] font-normal">(복수 선택 가능)</span>
           </label>
-          <div className="codef-card-grid grid grid-cols-3 gap-1.5">
+          <div className="codef-card-grid">
             {CARD_LIST.map((card) => (
               <button
                 key={card}
@@ -1253,7 +1253,7 @@ function StepCodefConnect({ data, set, isCompleted }: {
         </div>
 
         {/* Agreement */}
-        <label className="codef-agree-row flex items-start gap-2 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">
+        <label className="codef-agree-row">
           <input
             type="checkbox"
             checked={data.agreed}
@@ -1266,7 +1266,7 @@ function StepCodefConnect({ data, set, isCompleted }: {
         </label>
 
         {(data.banks.length === 0 && data.cards.length === 0) && (
-          <div className="codef-no-selection-notice p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="codef-no-selection-notice">
             <p className="text-xs text-[var(--text-dim)]">
               금융 연동 없이도 <strong>엑셀/CSV 업로드</strong>로 거래내역을 관리할 수 있습니다.
               나중에 설정 페이지에서 연동할 수 있습니다.
@@ -1295,8 +1295,8 @@ function StepComplete({ status }: { status: CompletionStatus }) {
   const totalCount = items.length;
 
   return (
-    <div className="step-complete flex-1 flex flex-col items-center">
-      <div className="step-complete-icon w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-[var(--primary)]">
+    <div className="step-complete">
+      <div className="step-complete-icon">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
@@ -1311,9 +1311,9 @@ function StepComplete({ status }: { status: CompletionStatus }) {
         }
       </p>
 
-      <div className="step-complete-list w-full space-y-2">
+      <div className="step-complete-list">
         {items.map((item) => (
-          <div key={item.label} className="step-complete-item flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div key={item.label} className="step-complete-item">
             <SectionIcon type={item.icon} />
             <span className="flex-1 text-sm font-medium text-[var(--text)]">{item.label}</span>
             {item.done ? (
@@ -1339,7 +1339,7 @@ function StepComplete({ status }: { status: CompletionStatus }) {
 // ═══════════════════════════════════════════
 function StepHeader({ title, desc, icon, whyItMatters }: { title: string; desc: string; icon: string; whyItMatters?: string }) {
   return (
-    <div className="step-header mb-5">
+    <div className="step-header">
       <div className="flex items-start gap-3">
         <SectionIcon type={icon} size="lg" />
         <div>
@@ -1348,7 +1348,7 @@ function StepHeader({ title, desc, icon, whyItMatters }: { title: string; desc: 
         </div>
       </div>
       {whyItMatters && (
-        <div className="step-why-matters mt-3 px-3 py-2.5 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/20">
+        <div className="step-why-matters">
           <div className="flex items-start gap-2">
             <svg className="w-3.5 h-3.5 text-[var(--info)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
@@ -1363,7 +1363,7 @@ function StepHeader({ title, desc, icon, whyItMatters }: { title: string; desc: 
 
 function CompletedBadge({ message }: { message: string }) {
   return (
-    <div className="completed-badge mb-4 px-3 py-2.5 rounded-xl bg-[var(--success-dim)] border border-[var(--success)]/25 flex items-start gap-2">
+    <div className="completed-badge">
       <svg className="w-4 h-4 text-[var(--success)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
       </svg>
@@ -1374,7 +1374,7 @@ function CompletedBadge({ message }: { message: string }) {
 
 function LinkHint({ href, label }: { href: string; label: string }) {
   return (
-    <div className="link-hint mt-4 text-center">
+    <div className="link-hint">
       <a
         href={href}
         className="inline-flex items-center gap-1 text-xs text-[var(--text-dim)] hover:text-[var(--primary)] transition"
