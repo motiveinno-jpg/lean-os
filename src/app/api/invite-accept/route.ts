@@ -36,6 +36,12 @@ export async function POST(req: NextRequest) {
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return NextResponse.json({ error: '만료된 초대입니다.' }, { status: 410 });
     }
+    // 토큰을 초대 대상 이메일에 바인딩 — 임의 이메일로 타인 계정 탈취 차단.
+    // (보안감사: 토큰만 알면 body 의 아무 이메일이나 넣어 그 계정 비번을 재설정할 수 있었음)
+    const inviteEmail = String(invite.email || '').trim().toLowerCase();
+    if (!inviteEmail || inviteEmail !== normEmail) {
+      return NextResponse.json({ error: '초대된 이메일과 일치하지 않습니다.' }, { status: 403 });
+    }
 
     const inviteType: 'employee' | 'partner' = ei ? 'employee' : 'partner';
     const role = inviteType === 'partner' ? 'partner' : (invite.role || 'employee');
