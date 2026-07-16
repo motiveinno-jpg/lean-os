@@ -1022,6 +1022,15 @@ export async function cancelContractPackage(packageId: string) {
 
 // ── Get Contract Templates ──
 
+// BuiltInTemplate.category(employment/consent/pledge/nda/salary) → doc_templates.category 매핑.
+const BUILTIN_CATEGORY_MAP: Record<BuiltInTemplate['category'], string> = {
+  employment: 'comprehensive_labor',
+  consent: 'privacy_consent',
+  pledge: 'non_compete',
+  nda: 'nda',
+  salary: 'salary_contract',
+};
+
 export async function getContractTemplates(companyId: string) {
   const { data } = await db
     .from('doc_templates')
@@ -1031,17 +1040,21 @@ export async function getContractTemplates(companyId: string) {
     .eq('is_active', true)
     .order('name');
 
-  // 사용자/회사 서식 + 내장 서식 항상 함께 노출 (커스텀 추가해도 기본 서식 사라지지 않게).
-  const builtins = getBuiltInHRTemplates().map((t) => ({
-    id: t.id,
-    name: t.name,
-    category: t.category,
-    content_json: { body: t.body },
-    required_variables: t.required_variables,
-    is_active: true,
-    is_builtin: true,
-    company_id: null,
-  }));
+  // 2026-07-16 QA: 내장 서식은 DB가 비어있을 때의 부트스트랩 폴백 — 회사가 해당 카테고리에
+  //   실제 서식을 이미 갖고 있으면(예: 내장 서식을 회사 서식으로 이관) 중복 표시하지 않는다.
+  const existingCategories = new Set((data || []).map((t: any) => t.category));
+  const builtins = getBuiltInHRTemplates()
+    .filter((t) => !existingCategories.has(BUILTIN_CATEGORY_MAP[t.category]))
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      category: t.category,
+      content_json: { body: t.body },
+      required_variables: t.required_variables,
+      is_active: true,
+      is_builtin: true,
+      company_id: null,
+    }));
 
   return [...(data || []), ...builtins];
 }
