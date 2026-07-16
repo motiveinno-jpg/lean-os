@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // Supabase Edge Function: parse-form-template (2026-06-29)
 //   회사 양식 PDF 페이지 이미지(PNG base64)를 Claude Vision 으로 분석 →
 //   동적으로 채워야 할 필드 영역을 정규화 좌표(0~1, 좌상단 원점)로 추출.
@@ -83,7 +84,7 @@ async function analyzePage(pngBase64: string, page: number, docType: string): Pr
 
 const clamp01 = (n: any) => Math.max(0, Math.min(1, Number(n) || 0));
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry("parse-form-template", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (!(await requireUser(req))) return new Response(JSON.stringify({ error: "인증이 필요합니다." }), { status: 401, headers: { ...CORS, "content-type": "application/json" } });
   try {
@@ -102,4 +103,4 @@ Deno.serve(async (req) => {
   } catch (e) {
     return new Response(JSON.stringify({ error: String((e as Error)?.message || e) }), { status: 500, headers: { ...CORS, "content-type": "application/json" } });
   }
-});
+}));

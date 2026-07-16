@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 /**
  * OwnerView — Stripe Webhook Handler
  * 구독 생성/변경/취소, 결제 성공/실패 처리
@@ -7,7 +8,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-serve(async (req) => {
+serve(withSentry("stripe-webhook", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200 });
   }
@@ -397,4 +398,4 @@ serve(async (req) => {
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
-});
+}));

@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // supabase/functions/auto-match-payments/index.ts
 // 입금 자동 매칭 Edge Function
 //
@@ -265,7 +266,7 @@ async function matchCompanyTransactions(
 
 // ── HTTP handler ────────────────────────────────────────────
 
-serve(async (req: Request) => {
+serve(withSentry("auto-match-payments", async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -356,7 +357,7 @@ serve(async (req: Request) => {
     },
     200,
   );
-});
+}));
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {

@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -278,7 +279,7 @@ async function runCron(admin: ReturnType<typeof createClient>): Promise<Response
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry("ai-briefing", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const fail = () => new Response(JSON.stringify({ content: null }), { headers: { ...CORS, "content-type": "application/json" } });
   try {
@@ -337,4 +338,4 @@ Deno.serve(async (req) => {
   } catch (_e) {
     return fail(); // fail-open → 규칙 브리핑 폴백
   }
-});
+}));

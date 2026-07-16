@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // supabase/functions/verify-business-number/index.ts
 // 국세청 사업자등록번호 진위확인 Edge Function (Deno runtime)
 // Uses 공공데이터포털 NTS Businessman API to verify Korean business registration numbers.
@@ -52,7 +53,7 @@ function isValidBusinessNumber(bno: string): boolean {
   return checkDigit === parseInt(cleaned[9]);
 }
 
-serve(async (req: Request) => {
+serve(withSentry("verify-business-number", async (req: Request) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -235,7 +236,7 @@ serve(async (req: Request) => {
       errors: [err.message || "Unknown error"],
     });
   }
-});
+}));
 
 function jsonResponse(status: number, body: VerifyResponse) {
   return new Response(JSON.stringify(body), {

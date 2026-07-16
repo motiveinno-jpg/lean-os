@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // Edge Function: complete-signing
 // 이메일 링크로 진입한 익명 사용자가 서명을 완료할 수 있도록 service role 로 RLS 우회.
 // - 직원 서명 저장 (hr_contract_package_items)
@@ -25,7 +26,7 @@ interface Body {
   saveAsDefault?: boolean;
 }
 
-serve(async (req) => {
+serve(withSentry("complete-signing", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -231,4 +232,4 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

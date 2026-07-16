@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // Edge Function: operator-user-admin
 // 운영자(@mo-tive.com) 전용 — 유저 계정 조회 및 수정.
 // 조회(lookup)는 운영자 인증만으로 가능, 수정(update)은 OPERATOR_ADMIN_KEY 추가 검증 필요.
@@ -15,7 +16,7 @@ const corsHeaders = {
 const USER_EDITABLE = ["name", "email", "role"] as const;
 const ALLOWED_ROLES = ["owner", "admin", "employee", "partner"];
 
-serve(async (req) => {
+serve(withSentry("operator-user-admin", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const json = (body: unknown, status = 200) =>
@@ -204,4 +205,4 @@ serve(async (req) => {
     console.error("[operator-user-admin]", msg);
     return json({ error: msg }, 500);
   }
-});
+}));

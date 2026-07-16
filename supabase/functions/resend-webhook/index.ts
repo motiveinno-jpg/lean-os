@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // Resend Webhook 수신 — 발송 후 반송(bounced)/스팸(complained)/전달(delivered)/지연(delivery_delayed)
 //   이벤트를 받아 signature_requests.delivery_status 갱신 + 반송/스팸은 signature_send_failures 에 기록.
 //   인증: Svix 서명(RESEND_WEBHOOK_SECRET) 검증. (Resend → 우리 endpoint, Supabase JWT 없음 → --no-verify-jwt 배포 필요)
@@ -33,7 +34,7 @@ async function verifySignature(headers: Headers, body: string): Promise<boolean>
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry("resend-webhook", async (req) => {
   if (req.method !== "POST") return new Response("ok");
   const body = await req.text();
   if (!(await verifySignature(req.headers, body))) {
@@ -85,4 +86,4 @@ Deno.serve(async (req) => {
   }
 
   return new Response("ok");
-});
+}));

@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // supabase/functions/confirm-toss-payment/index.ts
 // 토스페이먼츠 결제 승인 Edge Function (Deno runtime)
 //
@@ -50,7 +51,7 @@ interface TossErrorResponse {
   message: string;
 }
 
-serve(async (req: Request) => {
+serve(withSentry("confirm-toss-payment", async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -207,7 +208,7 @@ serve(async (req: Request) => {
     },
     200,
   );
-});
+}));
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {

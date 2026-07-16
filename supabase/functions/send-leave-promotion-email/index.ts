@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -17,7 +18,7 @@ async function requireUser(req: Request): Promise<boolean> {
   } catch { return false; }
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withSentry("send-leave-promotion-email", async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: {
@@ -130,4 +131,4 @@ Deno.serve(async (req: Request) => {
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }
-});
+}));

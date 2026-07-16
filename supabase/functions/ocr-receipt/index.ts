@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -89,7 +90,7 @@ JSON만 반환하세요. 이미지가 영수증이 아니거나 읽을 수 없�
   };
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withSentry("ocr-receipt", async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -133,4 +134,4 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

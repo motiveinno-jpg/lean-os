@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -5,7 +6,7 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
 const FROM_EMAIL = 'OwnerView <noreply@owner-view.com>';
 const APP_URL = Deno.env.get('PUBLIC_APP_URL') || 'https://www.owner-view.com';
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withSentry("send-contract-email", async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: {
@@ -125,4 +126,4 @@ Deno.serve(async (req: Request) => {
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500 });
   }
-});
+}));

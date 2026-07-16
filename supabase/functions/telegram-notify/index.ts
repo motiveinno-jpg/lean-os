@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // OwnerView — Telegram Notification Edge Function
 // Sends messages to Telegram (approval alerts, cash alerts, etc.)
 // Payload: { chatId, message, markdown?, keyboard?: InlineButton[][] }
@@ -22,7 +23,7 @@ const CORS_HEADERS = {
   "Content-Type": "application/json",
 };
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withSentry("telegram-notify", async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
   }
@@ -100,4 +101,4 @@ Deno.serve(async (req: Request) => {
       { status: 502, headers: CORS_HEADERS }
     );
   }
-});
+}));

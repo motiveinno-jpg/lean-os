@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // cashbill-issue: 현금영수증 국세청 실발행 (CODEF ↔ 팝빌 제휴)
 //
 // 액션 3종:
@@ -74,7 +75,7 @@ const json = (body: unknown, status = 200) =>
 // KST 오늘 (즉시발행이라 거래일 = 오늘)
 const todayKst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
-serve(async (req) => {
+serve(withSentry("cashbill-issue", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -315,4 +316,4 @@ serve(async (req) => {
   } catch (err: any) {
     return json({ error: err.message || "Internal error" }, 500);
   }
-});
+}));

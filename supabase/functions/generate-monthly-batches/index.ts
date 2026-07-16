@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -47,7 +48,7 @@ function calculatePayroll(baseSalary: number) {
   return { nationalPension: np, healthInsurance: hi + ltc, employmentInsurance: ei, incomeTax: it, localIncomeTax: lit, deductionsTotal: deductions, netPay: baseSalary - deductions };
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withSentry("generate-monthly-batches", async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -403,4 +404,4 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

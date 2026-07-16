@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 // 2026-07-06 보안감사 P0: 하드코딩 Resend 키 제거 — env 로만. (노출된 키는 사장님이 Resend 대시보드에서 로테이션 필요)
@@ -95,7 +96,7 @@ function buildEmailHtml(p: ApprovalPayload): string {
 </html>`;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withSentry("send-approval-email", async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -135,4 +136,4 @@ Deno.serve(async (req: Request) => {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

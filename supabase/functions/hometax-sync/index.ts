@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // supabase/functions/hometax-sync/index.ts
 // HomeTax API integration Edge Function (Deno runtime)
 // Reads NPKI cert files from Storage, validates credentials, and syncs HomeTax data.
@@ -620,7 +621,7 @@ async function upsertTaxInvoices(
 
 // ─── Main Handler ───
 
-serve(async (req: Request) => {
+serve(withSentry("hometax-sync", async (req: Request) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -866,7 +867,7 @@ serve(async (req: Request) => {
       errors: [err.message || "Unknown error"],
     });
   }
-});
+}));
 
 function jsonResponse(status: number, body: HometaxSyncResponse) {
   return new Response(JSON.stringify(body), {

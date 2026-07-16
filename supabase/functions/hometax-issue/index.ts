@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // hometax-issue: 홈택스(국세청) 전자세금계산서 정발행
 //
 // CODEF 발행 API(/v1/kr/public/a/tax-invoice/regist-invoicer-trustee) 호출 →
@@ -162,7 +163,7 @@ function buildIssuePayload(args: {
   };
 }
 
-serve(async (req) => {
+serve(withSentry("hometax-issue", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -484,4 +485,4 @@ serve(async (req) => {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

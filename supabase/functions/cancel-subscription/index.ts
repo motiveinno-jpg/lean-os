@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 /**
  * OwnerView — Stripe 구독 취소
  * cancel_at_period_end: true → 잔여기간까지 이용 후 해지
@@ -22,7 +23,7 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-serve(async (req) => {
+serve(withSentry("cancel-subscription", async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   function jsonResponse(body: Record<string, unknown>, status = 200): Response {
@@ -148,4 +149,4 @@ serve(async (req) => {
       500
     );
   }
-});
+}));

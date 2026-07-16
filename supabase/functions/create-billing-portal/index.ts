@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 /**
  * OwnerView — Stripe Billing Portal Session
  * 결제 수단 변경, 청구서 조회, 구독 관리
@@ -22,7 +23,7 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-serve(async (req) => {
+serve(withSentry("create-billing-portal", async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   function jsonResponse(body: Record<string, unknown>, status = 200): Response {
@@ -104,4 +105,4 @@ serve(async (req) => {
     console.error("[billing-portal] Error:", err);
     return jsonResponse({ error: "결제 관리 페이지를 열 수 없습니다." }, 500);
   }
-});
+}));

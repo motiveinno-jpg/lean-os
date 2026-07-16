@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // OwnerView — CODEF Transfer Edge Function
 // Execute a single payment_queue entry via CODEF bank transfer API.
 // Until the CODEF transfer API contract is approved (requires 가맹점 심사), this function runs in
@@ -74,7 +75,7 @@ async function codefTransfer(token: string, body: Record<string, unknown>) {
   }
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withSentry("codef-transfer", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -294,4 +295,4 @@ Deno.serve(async (req: Request) => {
     JSON.stringify({ success: true, mode, transferRef, codefResult }),
     { status: 200, headers: CORS_HEADERS }
   );
-});
+}));

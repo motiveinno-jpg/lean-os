@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // 자금일보 자동 발송 — 매일 KST 09:00 pg_cron 호출.
 // granter 같은 카카오 알림톡 패턴. 검수 전엔 이메일 fallback.
 //
@@ -154,7 +155,7 @@ async function sendForCompany(
   return { sent, total: phones.length, results, report: r };
 }
 
-serve(async (req) => {
+serve(withSentry("daily-report", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -273,4 +274,4 @@ serve(async (req) => {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}));

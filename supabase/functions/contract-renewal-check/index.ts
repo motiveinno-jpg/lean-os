@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // supabase/functions/contract-renewal-check/index.ts
 // Contract Renewal Check — Deno Edge Function
 // Designed to run on a daily cron schedule (pg_cron or external).
@@ -57,7 +58,7 @@ interface RunSummary {
 
 // ── Main Handler ──
 
-serve(async (req: Request) => {
+serve(withSentry("contract-renewal-check", async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -172,7 +173,7 @@ serve(async (req: Request) => {
       error: err.message,
     });
   }
-});
+}));
 
 // ── Company Processing ──
 

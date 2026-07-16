@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 /**
  * OwnerView — Stripe Checkout Session 생성
  * 구독 결제: Free / Starter ₩49,000 / Pro ₩149,000 / Enterprise ₩299,000
@@ -44,7 +45,7 @@ const CYCLE_MONTHS: Record<string, number> = {
   annual: 12,
 };
 
-serve(async (req) => {
+serve(withSentry("create-checkout-session", async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   function jsonResponse(body: Record<string, unknown>, status = 200): Response {
@@ -258,4 +259,4 @@ serve(async (req) => {
       500,
     );
   }
-});
+}));

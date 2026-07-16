@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 // Supabase Edge Function: parse-closing-pdf (2026-07-08)
 //   회계 마감 자료 PDF(합계잔액시산표·재무상태표·계정별 잔액명세 등) 스캔 이미지에서
 //   계정별 차변/대변 잔액을 Claude Vision 으로 추출 → 회계마감 탭 "PDF 자동 채우기"에 사용.
@@ -81,7 +82,7 @@ ${acctHint ? `- 아래는 이 회사의 계정과목 목록입니다. 추출한 
     .filter((r) => r.account_name && (r.debit !== 0 || r.credit !== 0));
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry("parse-closing-pdf", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (!(await requireUser(req))) return new Response(JSON.stringify({ error: "인증이 필요합니다." }), { status: 401, headers: { ...CORS, "content-type": "application/json" } });
   try {
@@ -96,4 +97,4 @@ Deno.serve(async (req) => {
   } catch (e) {
     return new Response(JSON.stringify({ error: String((e as Error)?.message || e) }), { status: 500, headers: { ...CORS, "content-type": "application/json" } });
   }
-});
+}));

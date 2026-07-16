@@ -1,3 +1,4 @@
+import { withSentry } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { publicEncrypt, constants } from "node:crypto";
@@ -1313,7 +1314,7 @@ async function syncHometaxCashReceipts(
   return { synced: totalSynced, responseCount: totalResponseCount, errors, debug };
 }
 
-serve(async (req) => {
+serve(withSentry("codef-sync", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   // 계측 스토어 — 이 invocation 의 CODEF 호출을 ALS 로 수집, 응답 후 원장 적재
@@ -2169,4 +2170,4 @@ serve(async (req) => {
     await flushCodefUsage(meterStore);
   }
   });
-});
+}));
