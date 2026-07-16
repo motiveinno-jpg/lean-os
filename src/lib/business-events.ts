@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Business Event Dispatcher
  * 비즈니스 이벤트 → 프로젝트 채팅에 자동 시스템 메시지 + 액션카드 생성
@@ -68,13 +69,13 @@ export async function dispatchBusinessEvent(params: BusinessEventParams) {
   const { dealId, eventType, userId, referenceId, referenceTable, summary = {} } = params;
 
   // Find the deal's chat channel
-  const { data: channel } = await supabase
+  const channel = logRead('lib/business-events:channel', await supabase
     .from('chat_channels')
     .select('id')
     .eq('deal_id', dealId)
     .eq('is_archived', false)
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
 
   if (!channel) return; // No channel for this deal, skip silently
 

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // 3-Way 매칭 v2 — 세금계산서 ↔ 거래처 ↔ 입출금 후보 추천
 //   사장님 요청 (2026-05-21):
 //     (A) 거래처명 == 입금자명 정확 일치
@@ -79,7 +80,7 @@ export async function getThreeWayCandidates(
   let partnerName = (invoice.counterparty_name || '').trim().toLowerCase();
   let repName = '';
   if (invoice.partner_id) {
-    const { data: p } = await db.from('partners').select('name, representative').eq('id', invoice.partner_id).maybeSingle();
+    const p = logRead('lib/three-way-match:p', await db.from('partners').select('name, representative').eq('id', invoice.partner_id).maybeSingle());
     if (p) {
       partnerName = (p.name || invoice.counterparty_name || '').trim().toLowerCase();
       repName = (p.representative || '').trim().toLowerCase();
@@ -89,14 +90,14 @@ export async function getThreeWayCandidates(
   // 미매칭 bank_transactions — 회사격리 + tax_invoice_id NULL.
   //   sales(매출) 행은 입금(income), purchase(매입) 행은 출금(expense) 대응.
   const expectedType = invoice.type === 'sales' ? 'income' : 'expense';
-  const { data: txs } = await db
+  const txs = logRead('lib/three-way-match:txs', await db
     .from('bank_transactions')
     .select('id, counterparty, amount, transaction_date, description, memo, type')
     .eq('company_id', companyId)
     .is('tax_invoice_id', null)
     .eq('type', expectedType)
     .order('transaction_date', { ascending: false })
-    .limit(200);
+    .limit(200));
 
   const total = Number(invoice.total_amount || 0);
   const supply = Number(invoice.supply_amount || 0);
@@ -191,7 +192,7 @@ export async function unmatchInvoice(bankTxId: string, invoiceId: string): Promi
   if (txErr) throw txErr;
   // 매칭 해제 시 lifecycle status 를 'unmatched'(비표준값 → UI 가 '작성중'으로 오표시)로 덮지 말고
   //   원래 상태(매출=발행 issued / 매입=수취 received)로 되돌린다. 입금 매칭 여부는 settlement_status 소관.
-  const { data: inv } = await db.from('tax_invoices').select('type').eq('id', invoiceId).maybeSingle();
+  const inv = logRead('lib/three-way-match:inv', await db.from('tax_invoices').select('type').eq('id', invoiceId).maybeSingle());
   const restored = inv?.type === 'purchase' ? 'received' : 'issued';
   const { error: invErr } = await db
     .from('tax_invoices')

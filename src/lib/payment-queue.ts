@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Payment Queue Engine
  * 지급 실행 큐: 생성 → 승인 → 실행
@@ -26,12 +27,12 @@ export async function createQueueEntry(params: {
   // ── Dedup Strategy 1: approval_request_id ──
   if (params.approvalRequestId) {
     try {
-      const { data: existing } = await supabase
+      const existing = logRead('lib/payment-queue:existing', await supabase
         .from('payment_queue')
         .select('*')
         .eq('company_id', params.companyId)
         .eq('approval_request_id', params.approvalRequestId)
-        .maybeSingle();
+        .maybeSingle());
       if (existing) return existing as PaymentQueue;
     } catch {
       // Column may not exist yet — skip this dedup strategy
@@ -40,36 +41,36 @@ export async function createQueueEntry(params: {
 
   // ── Dedup Strategy 2: cost_schedule_id ──
   if (params.costScheduleId) {
-    const { data: existing } = await supabase
+    const existing = logRead('lib/payment-queue:existing', await supabase
       .from('payment_queue')
       .select('*')
       .eq('company_id', params.companyId)
       .eq('cost_schedule_id', params.costScheduleId)
-      .maybeSingle();
+      .maybeSingle());
     if (existing) return existing as PaymentQueue;
   }
 
   // ── Dedup Strategy 3: deal_id + description combo ──
   if (params.dealId && params.description) {
-    const { data: existing } = await supabase
+    const existing = logRead('lib/payment-queue:existing', await supabase
       .from('payment_queue')
       .select('*')
       .eq('company_id', params.companyId)
       .eq('deal_id', params.dealId)
       .eq('description', params.description)
-      .maybeSingle();
+      .maybeSingle());
     if (existing) return existing as PaymentQueue;
   }
 
   // ── Dedup Strategy 4: source_type + source_id (mapped to payment_type + category) ──
   if (params.sourceType && params.sourceId) {
-    const { data: existing } = await supabase
+    const existing = logRead('lib/payment-queue:existing', await supabase
       .from('payment_queue')
       .select('*')
       .eq('company_id', params.companyId)
       .eq('payment_type', params.sourceType)
       .eq('category', params.sourceId)
-      .maybeSingle();
+      .maybeSingle());
     if (existing) return existing as PaymentQueue;
   }
 
@@ -126,22 +127,22 @@ export async function approvePayment(
   if (error) throw error;
 
   // Fetch payment + company settings to decide auto-execution
-  const { data: payment } = await supabase
+  const payment = logRead('lib/payment-queue:payment', await supabase
     .from('payment_queue')
     .select('*')
     .eq('id', paymentId)
-    .single();
+    .single());
   if (!payment) return { autoExecuted: false, notified: false };
 
   // Automation settings live in companies.automation_settings (JSONB).
   // Relevant keys (saved from Settings → 은행연동 탭):
   //   auto_transfer_enabled, auto_transfer_limit, ceo_telegram_chat_id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: cmp } = await (supabase as any)
+  const cmp = logRead('lib/payment-queue:cmp', await (supabase as any)
     .from('companies')
     .select('automation_settings')
     .eq('id', payment.company_id)
-    .maybeSingle();
+    .maybeSingle());
   const settings = cmp?.automation_settings || {};
   const autoExecute = !!settings.auto_transfer_enabled;
   const autoLimit = Number(settings.auto_transfer_limit || 0);
@@ -218,22 +219,22 @@ export async function rejectPayment(
 
 // ── Execute a payment (mark as executed) ──
 export async function executePayment(paymentId: string): Promise<void> {
-  const { data: payment } = await supabase
+  const payment = logRead('lib/payment-queue:payment', await supabase
     .from('payment_queue')
     .select('*')
     .eq('id', paymentId)
     .eq('status', 'approved')
-    .single();
+    .single());
 
   if (!payment) throw new Error('승인된 결제만 실행할 수 있습니다');
 
   // ── Pre-execution balance check ──
   if (payment.bank_account_id) {
-    const { data: bank } = await supabase
+    const bank = logRead('lib/payment-queue:bank', await supabase
       .from('bank_accounts')
       .select('balance')
       .eq('id', payment.bank_account_id)
-      .single();
+      .single());
 
     const currentBalance = Number(bank?.balance || 0);
     const paymentAmount = Number(payment.amount);
@@ -333,11 +334,11 @@ export async function executePayment(paymentId: string): Promise<void> {
 
     // Deduct from bank account balance
     if (payment.bank_account_id) {
-      const { data: bank } = await supabase
+      const bank = logRead('lib/payment-queue:bank', await supabase
         .from('bank_accounts')
         .select('balance')
         .eq('id', payment.bank_account_id)
-        .single();
+        .single());
 
       if (bank) {
         await supabase
@@ -363,14 +364,14 @@ export async function executePayment(paymentId: string): Promise<void> {
 
     // ── Auto-trigger settlement for revenue payments (동적 import로 순환 참조 방지) ──
     if (payment.deal_id) {
-      const { data: schedule } = await supabase
+      const schedule = logRead('lib/payment-queue:schedule', await supabase
         .from('deal_revenue_schedule')
         .select('id')
         .eq('deal_id', payment.deal_id)
         .eq('amount', Number(payment.amount))
         .in('status', ['pending', 'issued'])
         .limit(1)
-        .single();
+        .single());
 
       if (schedule) {
         const { onRevenueReceived } = await import('./deal-pipeline');
@@ -414,10 +415,10 @@ export async function executePayment(paymentId: string): Promise<void> {
 const EXECUTED_STATUSES = ['executed', 'completed'];
 
 export async function getPaymentQueueStats(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('lib/payment-queue:data', await supabase
     .from('payment_queue')
     .select('status, amount')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   const items = data || [];
   return {

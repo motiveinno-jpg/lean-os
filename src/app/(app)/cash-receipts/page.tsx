@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo } from "react";
 import { DateField } from "@/components/date-field";
@@ -230,7 +231,7 @@ export default function CashReceiptsPage() {
     queryKey: ["cash-receipt-coa-accounts", companyId],
     queryFn: async () => {
       const db = supabase as any;
-      const { data } = await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code");
+      const data = logRead('cash-receipts/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -274,11 +275,11 @@ export default function CashReceiptsPage() {
   const { data: partners = [] } = useQuery({
     queryKey: ["partners-for-cash", companyId],
     queryFn: async () => {
-      const { data } = await supabase
+      const data = logRead('cash-receipts/page:data', await supabase
         .from("partners")
         .select("id, name, business_number")
         .eq("company_id", companyId!)
-        .order("name");
+        .order("name"));
       return data || [];
     },
     enabled: !!companyId,
@@ -296,7 +297,7 @@ export default function CashReceiptsPage() {
     if (!companyId || activeJobId) return;
     (async () => {
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('cash-receipts/page:data', await db
         .from("hometax_sync_jobs")
         .select("id, status, updated_at")
         .eq("company_id", companyId)
@@ -304,7 +305,7 @@ export default function CashReceiptsPage() {
         .in("status", ["pending", "running"])
         .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
         .order("created_at", { ascending: false })
-        .limit(1);
+        .limit(1));
       if (data && data[0]) setActiveJobId(data[0].id);
     })();
   }, [companyId, activeJobId]);
@@ -315,11 +316,11 @@ export default function CashReceiptsPage() {
     queryFn: async () => {
       if (!activeJobId) return null;
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('cash-receipts/page:data', await db
         .from("hometax_sync_jobs")
         .select("*")
         .eq("id", activeJobId)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!activeJobId,

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // B 핸드오프: stage='progress_report' 전용 본 폼.
 //
@@ -69,7 +70,7 @@ export function ProgressReportStageCard({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = supabase as any;
       if (approval?.id) {
-        const { data } = await db.from("quote_approvals").select("payload").eq("id", approval.id).maybeSingle();
+        const data = logRead('components/progress-report-stage-card:data', await db.from("quote_approvals").select("payload").eq("id", approval.id).maybeSingle());
         if (cancelled || !data) return;
         const p = (data.payload as any) || {};
         if (typeof p.report_text === "string") setReportText(p.report_text);
@@ -77,7 +78,7 @@ export function ProgressReportStageCard({
         return;
       }
       // 발송 전 draft 복원 (탭 전환·새로고침 회복)
-      const { data: deal } = await db.from("deals").select("custom_scope").eq("id", dealId).maybeSingle();
+      const deal = logRead('components/progress-report-stage-card:deal', await db.from("deals").select("custom_scope").eq("id", dealId).maybeSingle());
       if (cancelled || !deal) return;
       const draft = (deal.custom_scope as { progress_report?: { report_text?: string; progress_pct?: number } } | null)?.progress_report;
       if (draft) {
@@ -117,12 +118,12 @@ export function ProgressReportStageCard({
     queryKey: ["deal-progress-reports", dealId],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any)
+      const data = logRead('components/progress-report-stage-card:data', await (supabase as any)
         .from("quote_approvals")
         .select("id, status, payload, created_at, sent_at, decided_at, recipient_email")
         .eq("deal_id", dealId)
         .eq("stage", "progress_report")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return (data || []) as StackItem[];
     },
     enabled: !!dealId,
@@ -194,11 +195,11 @@ export function ProgressReportStageCard({
         _token = created.token;
       }
       if (!_token && approvalId) {
-        const { data: row } = await (supabase as any)
+        const row = logRead('components/progress-report-stage-card:row', await (supabase as any)
           .from("quote_approvals")
           .select("approval_token")
           .eq("id", approvalId)
-          .maybeSingle();
+          .maybeSingle());
         _token = row?.approval_token ?? null;
       }
       if (!_token) {
@@ -234,7 +235,7 @@ export function ProgressReportStageCard({
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const db = supabase as any;
-        const { data: deal } = await db.from("deals").select("custom_scope").eq("id", dealId).maybeSingle();
+        const deal = logRead('components/progress-report-stage-card:deal', await db.from("deals").select("custom_scope").eq("id", dealId).maybeSingle());
         const cur = (deal?.custom_scope as Record<string, unknown>) || {};
         const { progress_report: _drop, ...rest } = cur as { progress_report?: unknown };
         void _drop;

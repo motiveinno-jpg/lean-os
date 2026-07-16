@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Cash Budget / Treasury Management
  * 자금 예산 관리 — 월별 자금 개요, 고정/변동비, 일별 자금 흐름, 대출 현황, 퇴직금 충당
@@ -727,13 +728,13 @@ export async function getCostCategoryDetail(
 
   if (kind === 'variable') {
     // 변동비 = 카드 실지출 (연 범위, 카테고리 매핑 동일)
-    const { data } = await db.from('card_transactions')
+    const data = logRead('lib/cash-budget:data', await db.from('card_transactions')
       .select('merchant_name, category, transaction_date, amount')
       .eq('company_id', companyId)
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate)
       .order('transaction_date', { ascending: false })
-      .limit(2000);
+      .limit(2000));
     return (data || [])
       .filter((t: any) => mapVariableCategory(t.category) === category)
       .map((t: any) => ({ label: t.merchant_name || t.category || '카드', sub: t.transaction_date ?? undefined, amount: Number(t.amount || 0) }));
@@ -766,19 +767,19 @@ export async function getCostCategoryDetail(
 
   // 고정비 카테고리 — recurring_payments(월액) (+salary 는 직원 급여 합산). id 포함 → 화면에서 바로 제거 가능.
   const items: CostDetailItem[] = [];
-  const { data: recs } = await db.from('recurring_payments')
+  const recs = logRead('lib/cash-budget:recs', await db.from('recurring_payments')
     .select('id, name, amount, category, day_of_month')
     .eq('company_id', companyId)
-    .eq('is_active', true);
+    .eq('is_active', true));
   for (const rp of (recs || [])) {
     if (mapRecurringCategory(rp.category) !== category) continue;
     items.push({ label: rp.name || '정기지출', sub: rp.day_of_month ? `매월 ${rp.day_of_month}일 · 월액` : '월액', amount: Number(rp.amount || 0), recurringId: rp.id });
   }
   if (category === 'salary') {
-    const { data: emps } = await db.from('employees')
+    const emps = logRead('lib/cash-budget:emps', await db.from('employees')
       .select('name, salary, status')
       .eq('company_id', companyId)
-      .in('status', ['active', 'joined']);
+      .in('status', ['active', 'joined']));
     for (const e of (emps || [])) {
       if (Number(e.salary || 0) <= 0) continue;
       items.push({ label: `${e.name} 급여`, sub: '월액 (직원 등록 급여)', amount: Number(e.salary) });
@@ -1175,11 +1176,11 @@ export async function generateCashBudgetPDF(
   const monthNum = parseInt(monthStr);
 
   // Fetch company info
-  const { data: company } = await db
+  const company = logRead('lib/cash-budget:company', await db
     .from('companies')
     .select('name')
     .eq('id', companyId)
-    .single();
+    .single());
   const companyName = company?.name || '회사명';
 
   // Fetch all data in parallel

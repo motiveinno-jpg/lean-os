@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 경영 요약 — "지금 우리 회사 괜찮나?"에 한 화면으로 답하는 대표용 진입 화면(2026-07-08).
 //   회계 용어 없이: 규칙 기반 한 줄 요약 + 신호등 3카드(이번 달 손익·통장 잔액·버티는 기간)
@@ -86,9 +87,9 @@ export default function ManagementSummaryPage() {
   const { data: receivable } = useQuery({
     queryKey: ["summary-receivable", companyId],
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices")
+      const data = logRead('summary/page:data', await db.from("tax_invoices")
         .select("total_amount, issue_date").eq("company_id", companyId)
-        .eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]);
+        .eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]));
       const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];
       const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
       const total = rows.reduce((s, r) => s + Number(r.total_amount || 0), 0);

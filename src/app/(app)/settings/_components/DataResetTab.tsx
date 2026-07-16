@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { useEffect, useState } from "react";
@@ -166,7 +167,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
   const db = supabase as any;
 
   async function fetchIds(table: string, col: string = "id"): Promise<string[]> {
-    const { data } = await db.from(table).select(col).eq("company_id", companyId);
+    const data = logRead('_components/DataResetTab:data', await db.from(table).select(col).eq("company_id", companyId));
     if (!data || data.length === 0) return [];
     return data.map((r: Record<string, string>) => r[col]);
   }

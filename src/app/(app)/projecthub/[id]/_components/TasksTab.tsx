@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 실행형 '태스크' 탭 — 칸반(4컬럼) + 간트 토글.
 //   칸반: HTML5 native draggable 로 컬럼 이동 → project_tasks.status(+position) update.
@@ -55,10 +56,10 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
   const { data: tasks = [] } = useQuery({
     queryKey: ["project-tasks", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_tasks")
+      const data = logRead('_components/TasksTab:data', await db.from("project_tasks")
         .select("id, title, description, status, assignee_id, assignee_ids, start_date, due_date, progress, position, attachments, labels")
         .eq("deal_id", dealId).is("archived_at", null)
-        .order("position", { ascending: true }).order("created_at", { ascending: true });
+        .order("position", { ascending: true }).order("created_at", { ascending: true }));
       return (data || []) as any[];
     },
     enabled: !!dealId,
@@ -282,9 +283,9 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
   const { data: comments = [] } = useQuery({
     queryKey: ["task-comments", taskId],
     queryFn: async () => {
-      const { data } = await db.from("task_comments")
+      const data = logRead('_components/TasksTab:data', await db.from("task_comments")
         .select("id, parent_id, body, created_by, created_at")
-        .eq("task_id", taskId).order("created_at", { ascending: true });
+        .eq("task_id", taskId).order("created_at", { ascending: true }));
       return (data || []) as any[];
     },
     enabled: !!taskId,
@@ -396,7 +397,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   const { data: dictLabels = [] } = useQuery({
     queryKey: ["task-labels-dict", companyId],
     queryFn: async () => {
-      const { data } = await db.from("task_labels").select("id, name, color").eq("company_id", companyId).order("created_at", { ascending: true });
+      const data = logRead('_components/TasksTab:data', await db.from("task_labels").select("id, name, color").eq("company_id", companyId).order("created_at", { ascending: true }));
       return (data || []) as { id: string; name: string; color: string }[];
     },
     enabled: !!companyId,

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 목표형 '개요' = 성과 콕핏 (그래프 대시보드). project_type==='goal' overview 에서만 렌더.
 //   히어로(종합 달성률 도넛+상태+예상착지+기간) / ① KPI 스코어카드 / ② 추세 / ③ 분해 / ④ 체크인.
@@ -53,7 +54,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   const { data: autoActual } = useQuery({
     queryKey: ["deal-kpi-auto", dealId],
     queryFn: async () => {
-      const { data } = await db.from("v_deal_kpi_auto").select("revenue_actual, profit_actual, output_count").eq("deal_id", dealId).maybeSingle();
+      const data = logRead('_components/GoalOverviewTab:data', await db.from("v_deal_kpi_auto").select("revenue_actual, profit_actual, output_count").eq("deal_id", dealId).maybeSingle());
       return { revenue: Number(data?.revenue_actual || 0), profit: Number(data?.profit_actual || 0), count: Number(data?.output_count || 0) };
     },
     enabled: !!dealId && hasAuto,

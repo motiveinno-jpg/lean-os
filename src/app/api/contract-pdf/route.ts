@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -43,11 +44,11 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
 
     const admin = createSupabaseAdminClient();
-    const { data: urow } = await admin
+    const urow = logRead('contract-pdf/route:urow', await admin
       .from("users")
       .select("company_id, role")
       .eq("auth_id", user.id)
-      .maybeSingle();
+      .maybeSingle());
     if (!urow?.company_id) return NextResponse.json({ error: "회사 정보 없음" }, { status: 403 });
     if (!urow.role || !["owner", "admin"].includes(urow.role)) {
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
@@ -59,24 +60,24 @@ export async function POST(req: NextRequest) {
     if (ids.length > 20) return NextResponse.json({ error: "한 번에 최대 20건" }, { status: 400 });
 
     // 2) 본인 회사 + 서명완료 건만 (회사 격리)
-    const { data: rows } = await admin
+    const rows = logRead('contract-pdf/route:rows', await admin
       .from("signature_requests")
       .select(
         "id, signer_name, signature_data_url, signed_contract_html, template_snapshot_html, signed_at, partner_id, status, companies(name, business_number, representative, seal_url)",
       )
       .in("id", ids)
       .eq("company_id", urow.company_id)
-      .eq("status", "signed");
+      .eq("status", "signed"));
 
     const list = rows || [];
     // 거래처(을) 정보 — partner_id 별도 조회
     const pIds = [...new Set(list.map((r: any) => r.partner_id).filter(Boolean))];
     const pMap = new Map<string, any>();
     if (pIds.length) {
-      const { data: ps } = await admin
+      const ps = logRead('contract-pdf/route:ps', await admin
         .from("partners")
         .select("id, name, business_number, representative")
-        .in("id", pIds);
+        .in("id", pIds));
       (ps || []).forEach((p: any) => pMap.set(p.id, p));
     }
 
@@ -85,13 +86,13 @@ export async function POST(req: NextRequest) {
     let overlayBytes: ArrayBuffer | null = null;
     let sealDataUrl: string | null = null;
     try {
-      const { data: tpl } = await (admin as any)
+      const tpl = logRead('contract-pdf/route:tpl', await (admin as any)
         .from("pdf_form_templates")
         .select("file_path, fields")
         .eq("company_id", urow.company_id).eq("doc_type", "contract").eq("is_active", true)
-        .maybeSingle();
+        .maybeSingle());
       if (tpl?.file_path) {
-        const { data: blob } = await admin.storage.from("form-templates").download(tpl.file_path);
+        const blob = logRead('contract-pdf/route:blob', await admin.storage.from("form-templates").download(tpl.file_path));
         if (blob) {
           overlayBytes = await blob.arrayBuffer();
           overlayFields = (tpl.fields as any[]) || [];

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // 가입·회사 개설·합류 공용 로직 (2026-07-03)
 //   원칙: 1 사업자번호 = 1 회사. 가입 시 사업자번호 필수 → 형식/실체/중복 3중 검증.
 //   이미 등록된 사업자번호면 회사를 새로 만들지 않고 '합류 요청'으로 전환.
@@ -130,7 +131,7 @@ export async function createCompanyWithOwner(
 export async function provisionCompanyForUser(user: {
   id: string; email?: string; user_metadata?: Record<string, string>;
 }): Promise<ProvisionResult> {
-  const { data: existingUser } = await db.from("users").select("id").eq("auth_id", user.id).maybeSingle();
+  const existingUser = logRead('lib/company-signup:existingUser', await db.from("users").select("id").eq("auth_id", user.id).maybeSingle());
   if (existingUser) return "exists";
 
   const meta = user.user_metadata || {};

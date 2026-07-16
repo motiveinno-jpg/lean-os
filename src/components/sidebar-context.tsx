@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
@@ -46,11 +47,11 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
         const user = session?.user;
         if (!user) return;
         const db = supabase as any;
-        const { data } = await db
+        const data = logRead('components/sidebar-context:data', await db
           .from("user_preferences")
           .select("pinned_pages")
           .eq("user_id", user.id)
-          .maybeSingle();
+          .maybeSingle());
         if (data?.pinned_pages && Array.isArray(data.pinned_pages)) {
           setPinnedPages(data.pinned_pages);
         }
@@ -101,7 +102,7 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
           if (!user) return;
           const db = supabase as any;
           // QA 2026-07-10: auth uid 는 auth_id 컬럼과 비교 (id 와 다른 계정 존재 → 저장 조용히 실패했음)
-          const { data: userData } = await db.from("users").select("company_id").eq("auth_id", user.id).maybeSingle();
+          const userData = logRead('components/sidebar-context:userData', await db.from("users").select("company_id").eq("auth_id", user.id).maybeSingle());
           if (!userData?.company_id) return;
           await db
             .from("user_preferences")

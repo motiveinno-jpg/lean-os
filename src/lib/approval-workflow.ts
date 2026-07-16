@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Multi-Step Approval Workflow Engine
  * 다단계 결재 워크플로우 엔진 — 정책 기반 자동 라우팅 + 단계별 승인/반려
@@ -235,26 +236,26 @@ export async function createApprovalRequest(params: {
   const amount = params.amount ?? 0;
 
   // Find matching active policy for this request type
-  const { data: policies } = await db
+  const policies = logRead('lib/approval-workflow:policies', await db
     .from('approval_policies')
     .select('*')
     .eq('company_id', params.companyId)
     .eq('entity_type', params.requestType)
     .eq('is_active', true)
-    .limit(1);
+    .limit(1));
 
   const policy = policies?.[0] as ApprovalPolicy | undefined;
 
   // If no policy found, try a "default" fallback
   let matchedPolicy = policy;
   if (!matchedPolicy) {
-    const { data: defaultPolicies } = await db
+    const defaultPolicies = logRead('lib/approval-workflow:defaultPolicies', await db
       .from('approval_policies')
       .select('*')
       .eq('company_id', params.companyId)
       .eq('entity_type', 'default')
       .eq('is_active', true)
-      .limit(1);
+      .limit(1));
     matchedPolicy = defaultPolicies?.[0] as ApprovalPolicy | undefined;
   }
 
@@ -344,22 +345,22 @@ export async function createApprovalRequest(params: {
       const approverRole = stageConfig.approver_role;
       const requiredCount = stageConfig.required_count ?? 1;
 
-      const { data: approvers } = await db
+      const approvers = logRead('lib/approval-workflow:approvers', await db
         .from('users')
         .select('id, name')
         .eq('company_id', params.companyId)
         .eq('role', approverRole)
-        .limit(requiredCount);
+        .limit(requiredCount));
 
       const approverList = approvers || [];
 
       if (approverList.length === 0) {
-        const { data: fallbackApprovers } = await db
+        const fallbackApprovers = logRead('lib/approval-workflow:fallbackApprovers', await db
           .from('users')
           .select('id, name')
           .eq('company_id', params.companyId)
           .in('role', ['ceo', 'admin', 'owner'])
-          .limit(requiredCount);
+          .limit(requiredCount));
         approverList.push(...(fallbackApprovers || []));
       }
 
@@ -397,11 +398,11 @@ export async function createApprovalRequest(params: {
 
   // Notify all approvers of stage 1
   try {
-    const { data: stage1Steps } = await db
+    const stage1Steps = logRead('lib/approval-workflow:stage1Steps', await db
       .from('approval_steps')
       .select('approver_id')
       .eq('request_id', request.id)
-      .eq('stage', 1);
+      .eq('stage', 1));
     const approverIds = [...new Set((stage1Steps || []).map((s: any) => s.approver_id as string))];
     for (const appId of approverIds) {
       await createNotification({
@@ -456,25 +457,25 @@ async function applyLeaveDeduction(request: any): Promise<void> {
 
     // requester(user id) → employee 매핑: user_id 우선, 실패 시 email 매칭(네이티브 경로와 동일 폴백).
     let employeeId: string | null = null;
-    const { data: empByUser } = await db
+    const empByUser = logRead('lib/approval-workflow:empByUser', await db
       .from('employees').select('id')
-      .eq('company_id', request.company_id).eq('user_id', request.requester_id).maybeSingle();
+      .eq('company_id', request.company_id).eq('user_id', request.requester_id).maybeSingle());
     if (empByUser) employeeId = empByUser.id;
     else {
-      const { data: user } = await db.from('users').select('email').eq('id', request.requester_id).maybeSingle();
+      const user = logRead('lib/approval-workflow:user', await db.from('users').select('email').eq('id', request.requester_id).maybeSingle());
       if (user?.email) {
-        const { data: empByEmail } = await db
+        const empByEmail = logRead('lib/approval-workflow:empByEmail', await db
           .from('employees').select('id')
-          .eq('company_id', request.company_id).eq('email', user.email).maybeSingle();
+          .eq('company_id', request.company_id).eq('email', user.email).maybeSingle());
         if (empByEmail) employeeId = empByEmail.id;
       }
     }
     if (!employeeId) return;
 
     const year = new Date(rawStart.replace(/\./g, '-')).getFullYear();
-    const { data: balance } = await db
+    const balance = logRead('lib/approval-workflow:balance', await db
       .from('leave_balances').select('id, used_days')
-      .eq('employee_id', employeeId).eq('year', year).maybeSingle();
+      .eq('employee_id', employeeId).eq('year', year).maybeSingle());
     if (balance) {
       await db.from('leave_balances')
         .update({ used_days: Number(balance.used_days) + days })
@@ -520,30 +521,30 @@ export async function approveStep(
   if (updateErr) throw updateErr;
 
   // Get the request
-  const { data: request } = await db
+  const request = logRead('lib/approval-workflow:request', await db
     .from('approval_requests')
     .select('*')
     .eq('id', step.request_id)
-    .single();
+    .single());
   if (!request) throw new Error('결재 요청을 찾을 수 없습니다.');
 
   // Check if all steps in current stage are approved
-  const { data: stageSteps } = await db
+  const stageSteps = logRead('lib/approval-workflow:stageSteps', await db
     .from('approval_steps')
     .select('*')
     .eq('request_id', step.request_id)
-    .eq('stage', step.stage);
+    .eq('stage', step.stage));
 
   const allApproved = (stageSteps || []).every((s: any) => s.status === 'approved');
 
   if (allApproved) {
     // Check if there's a next stage
     const nextStage = step.stage + 1;
-    const { data: nextSteps } = await db
+    const nextSteps = logRead('lib/approval-workflow:nextSteps', await db
       .from('approval_steps')
       .select('*')
       .eq('request_id', step.request_id)
-      .eq('stage', nextStage);
+      .eq('stage', nextStage));
 
     if (nextSteps && nextSteps.length > 0) {
       // Advance to next stage
@@ -654,11 +655,11 @@ export async function rejectStep(
     .eq('id', stepId);
 
   // Mark entire request as rejected
-  const { data: request } = await db
+  const request = logRead('lib/approval-workflow:request', await db
     .from('approval_requests')
     .select('*')
     .eq('id', step.request_id)
-    .single();
+    .single());
 
   await db
     .from('approval_requests')
@@ -730,10 +731,10 @@ export async function getMyPendingApprovals(
   const allUserIds = [...new Set([...requesterIds, ...referenceIds])];
   let userMap = new Map<string, string>();
   if (allUserIds.length > 0) {
-    const { data: users } = await db
+    const users = logRead('lib/approval-workflow:users', await db
       .from('users')
       .select('id, name, email')
-      .in('id', allUserIds);
+      .in('id', allUserIds));
     (users || []).forEach((u: any) => userMap.set(u.id, u.name || u.email || ''));
   }
 
@@ -924,11 +925,11 @@ export async function resubmitRequest(
   ];
 
   if (request.policy_id) {
-    const { data: policy } = await db
+    const policy = logRead('lib/approval-workflow:policy', await db
       .from('approval_policies')
       .select('stages')
       .eq('id', request.policy_id)
-      .single();
+      .single());
     if (policy?.stages) {
       stages = policy.stages;
     }
@@ -936,21 +937,21 @@ export async function resubmitRequest(
 
   for (const stageConfig of stages) {
     const requiredCount = stageConfig.required_count ?? 1;
-    const { data: approvers } = await db
+    const approvers = logRead('lib/approval-workflow:approvers', await db
       .from('users')
       .select('id')
       .eq('company_id', request.company_id)
       .eq('role', stageConfig.approver_role)
-      .limit(requiredCount);
+      .limit(requiredCount));
 
     const approverList = approvers || [];
     if (approverList.length === 0) {
-      const { data: fallback } = await db
+      const fallback = logRead('lib/approval-workflow:fallback', await db
         .from('users')
         .select('id')
         .eq('company_id', request.company_id)
         .in('role', ['ceo', 'admin', 'owner'])
-        .limit(requiredCount);
+        .limit(requiredCount));
       approverList.push(...(fallback || []));
     }
 
@@ -980,11 +981,11 @@ export async function resubmitRequest(
  * Cancel an approval request (only by requester, only if still pending).
  */
 export async function cancelRequest(requestId: string, userId: string): Promise<void> {
-  const { data: request } = await db
+  const request = logRead('lib/approval-workflow:request', await db
     .from('approval_requests')
     .select('*')
     .eq('id', requestId)
-    .single();
+    .single());
 
   if (!request) throw new Error('결재 요청을 찾을 수 없습니다.');
   if (request.requester_id !== userId) throw new Error('요청자만 취소할 수 있습니다.');
@@ -1020,10 +1021,10 @@ export async function deleteApprovalRequest(requestId: string): Promise<void> {
  * Get approval stats for a company.
  */
 export async function getApprovalStats(companyId: string) {
-  const { data } = await db
+  const data = logRead('lib/approval-workflow:data', await db
     .from('approval_requests')
     .select('status')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   const items = data || [];
   return {

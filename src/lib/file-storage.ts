@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView File Storage Engine
  * 파일 업로드/삭제/버전 관리 — 문서, 딜, 금고(Vault) 통합
@@ -162,7 +163,7 @@ async function attachSignedUrls<T extends { bucket?: string | null; storage_path
   }
   for (const [bucket, list] of byBucket) {
     const paths = list.map((r) => r.storage_path as string);
-    const { data } = await supabase.storage.from(bucket).createSignedUrls(paths, SIGNED_TTL);
+    const data = logRead('lib/file-storage:data', await supabase.storage.from(bucket).createSignedUrls(paths, SIGNED_TTL));
     if (data) {
       data.forEach((d: any, i: number) => { if (d?.signedUrl) list[i].file_url = d.signedUrl; });
     }
@@ -280,12 +281,12 @@ export async function createNewVersion(
 
   // Get max version for this file chain
   const rootId = parent.parent_file_id || parentFileId;
-  const { data: versions } = await db
+  const versions = logRead('lib/file-storage:versions', await db
     .from("document_files")
     .select("version")
     .or(`id.eq.${rootId},parent_file_id.eq.${rootId}`)
     .order("version", { ascending: false })
-    .limit(1);
+    .limit(1));
 
   const nextVersion = versions && versions.length > 0 ? versions[0].version + 1 : parent.version + 1;
 
@@ -406,10 +407,10 @@ export async function deleteFile(
 // ── 4b. Delete all files attached to a document (storage + rows) — used on document delete ──
 
 export async function deleteFilesForDocument(documentId: string): Promise<void> {
-  const { data: files } = await db
+  const files = logRead('lib/file-storage:files', await db
     .from("document_files")
     .select("id, bucket, storage_path")
-    .eq("document_id", documentId);
+    .eq("document_id", documentId));
   if (!files?.length) return;
   await removeFileRows(files);
 }
@@ -417,11 +418,11 @@ export async function deleteFilesForDocument(documentId: string): Promise<void> 
 // ── 4c. Prune files no longer referenced in a document's saved HTML body —
 //   리치에디터로 PDF 페이지 이미지를 재삽입할 때마다 이전 삽입분이 고아로 남는 것 방지.
 export async function pruneUnreferencedDocumentFiles(documentId: string, contentHtml: string): Promise<void> {
-  const { data: files } = await db
+  const files = logRead('lib/file-storage:files', await db
     .from("document_files")
     .select("id, bucket, storage_path, file_url")
     .eq("document_id", documentId)
-    .is("parent_file_id", null);
+    .is("parent_file_id", null));
   if (!files?.length) return;
   const stale = files.filter((f: any) => f.file_url && !contentHtml.includes(f.file_url));
   await removeFileRows(stale);
@@ -561,33 +562,33 @@ export async function deleteFolder(
   companyId: string
 ): Promise<void> {
   // Check for files in folder
-  const { data: filesInFolder } = await db
+  const filesInFolder = logRead('lib/file-storage:filesInFolder', await db
     .from("document_files")
     .select("id")
     .eq("folder_id", folderId)
-    .limit(1);
+    .limit(1));
 
   if (filesInFolder && filesInFolder.length > 0) {
     throw new Error("폴더에 파일이 있어 삭제할 수 없습니다. 파일을 먼저 이동하거나 삭제해주세요.");
   }
 
   // Check for child folders
-  const { data: childFolders } = await db
+  const childFolders = logRead('lib/file-storage:childFolders', await db
     .from("document_folders")
     .select("id")
     .eq("parent_id", folderId)
-    .limit(1);
+    .limit(1));
 
   if (childFolders && childFolders.length > 0) {
     throw new Error("하위 폴더가 있어 삭제할 수 없습니다. 하위 폴더를 먼저 삭제해주세요.");
   }
 
   // Fetch folder info for audit
-  const { data: folder } = await db
+  const folder = logRead('lib/file-storage:folder', await db
     .from("document_folders")
     .select("*")
     .eq("id", folderId)
-    .single();
+    .single());
 
   // Delete folder
   const { error } = await db
@@ -667,11 +668,11 @@ export async function getEmployeeFiles(employeeId: string) {
 // ── 16. Delete employee file ──
 
 export async function deleteEmployeeFile(fileId: string) {
-  const { data: file } = await db
+  const file = logRead('lib/file-storage:file', await db
     .from("employee_files")
     .select("storage_path")
     .eq("id", fileId)
-    .single();
+    .single());
 
   if (file?.storage_path) {
     await supabase.storage.from("employee-files").remove([file.storage_path]);

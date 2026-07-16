@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // Slack webhook 발송 API — 회사 settings 의 webhook URL 사용
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -12,11 +13,11 @@ export async function POST(req: NextRequest) {
     if (!caller) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
 
     const admin = createSupabaseAdminClient() as any;
-    const { data: callerRow } = await admin
+    const callerRow = logRead('notify/route:callerRow', await admin
       .from("users")
       .select("company_id, role")
       .eq("auth_id", caller.id)
-      .maybeSingle();
+      .maybeSingle());
     if (!callerRow?.company_id) return NextResponse.json({ error: "회사 정보를 찾을 수 없습니다." }, { status: 403 });
     if (!["owner", "admin"].includes(callerRow.role || "")) {
       return NextResponse.json({ error: "Slack 발송은 대표/관리자만 가능합니다." }, { status: 403 });
@@ -29,11 +30,11 @@ export async function POST(req: NextRequest) {
     if (!payload) {
       return NextResponse.json({ error: "payload 필수" }, { status: 400 });
     }
-    const { data: settingsRaw } = await admin
+    const settingsRaw = logRead('notify/route:settingsRaw', await admin
       .from("company_settings")
       .select("slack_webhook_url, slack_notify_payment, slack_notify_approval, slack_notify_large_tx, slack_large_tx_threshold")
       .eq("company_id", companyId)
-      .maybeSingle();
+      .maybeSingle());
     const settings = settingsRaw as any;
     if (!settings?.slack_webhook_url) {
       return NextResponse.json({ ok: false, skipped: "no_webhook" });

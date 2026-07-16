@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 전표입력 — 2단 구조 (2026-06-12 핸드오프 v2 확정본 §3-3).
 //   [상단] 입력 영역: 일자 + 구분(대체/출금/입금 — 헤더 단위) + 분개 행(No/구분/계정과목/거래처/적요/차변/대변)
@@ -96,7 +97,7 @@ export default function VoucherEntryPage() {
   const { data: accounts = [], isFetched: acctFetched } = useQuery<Acct[]>({
     queryKey: ["voucher-accounts", companyId],
     queryFn: async () => {
-      const { data } = await db.from("chart_of_accounts").select("id, code, name").eq("company_id", companyId).order("code");
+      const data = logRead('voucher-entry/page:data', await db.from("chart_of_accounts").select("id, code, name").eq("company_id", companyId).order("code"));
       return (data || []) as Acct[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -107,7 +108,7 @@ export default function VoucherEntryPage() {
   const { data: partners = [] } = useQuery<Pt[]>({
     queryKey: ["voucher-partners", companyId],
     queryFn: async () => {
-      const { data } = await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name");
+      const data = logRead('voucher-entry/page:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name"));
       return (data || []) as Pt[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -117,10 +118,10 @@ export default function VoucherEntryPage() {
   const { data: entries = [] } = useQuery<SavedEntry[]>({
     queryKey: ["vouchers-of-day", companyId, entryDate],
     queryFn: async () => {
-      const { data } = await db.from("journal_entries")
+      const data = logRead('voucher-entry/page:data', await db.from("journal_entries")
         .select("id, voucher_no, voucher_type, description, source, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
         .eq("company_id", companyId).eq("entry_date", entryDate).eq("status", "confirmed")
-        .order("voucher_no", { ascending: true });
+        .order("voucher_no", { ascending: true }));
       return ((data || []) as any[]).map((e) => ({
         id: e.id, voucher_no: e.voucher_no, voucher_type: e.voucher_type, description: e.description || "", source: e.source,
         lines: (e.journal_lines || [])
@@ -255,7 +256,7 @@ export default function VoucherEntryPage() {
         setPend(freshRows(vtype)); // 상단 = "새 전표" 상태로 초기화
         flashScrolled.current = false;
         setFlashId(newId);
-        const { data: saved } = await db.from("journal_entries").select("voucher_no").eq("id", newId).maybeSingle();
+        const saved = logRead('voucher-entry/page:saved', await db.from("journal_entries").select("voucher_no").eq("id", newId).maybeSingle());
         toast(`전표 ${saved?.voucher_no ?? ""}번 저장됨 — 하단 목록에 추가`, "success");
       } else {
         toast("전표 수정 저장 완료", "success");

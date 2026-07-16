@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Multi-Bank Routing Engine
  * 비용 유형별 통장 자동 매칭 + 딜 번호 자동 생성
@@ -14,22 +15,22 @@ export async function resolveBank(
 ): Promise<BankAccount | null> {
   // Priority 1: Deal-level bank account override
   if (dealBankAccountId) {
-    const { data } = await supabase
+    const data = logRead('lib/routing:data', await supabase
       .from('bank_accounts')
       .select('*')
       .eq('id', dealBankAccountId)
-      .single();
+      .single());
     if (data) return data;
   }
 
   // Priority 2: Routing rule for this cost type
-  const { data: rules } = await supabase
+  const rules = logRead('lib/routing:rules', await supabase
     .from('routing_rules')
     .select('*, bank_accounts(*)')
     .eq('company_id', companyId)
     .eq('cost_type', costType)
     .order('priority', { ascending: false })
-    .limit(1);
+    .limit(1));
 
   if (rules && rules.length > 0) {
     const rule = rules[0] as any;
@@ -37,13 +38,13 @@ export async function resolveBank(
   }
 
   // Priority 3: Default routing rule
-  const { data: defaultRules } = await supabase
+  const defaultRules = logRead('lib/routing:defaultRules', await supabase
     .from('routing_rules')
     .select('*, bank_accounts(*)')
     .eq('company_id', companyId)
     .eq('cost_type', 'default')
     .order('priority', { ascending: false })
-    .limit(1);
+    .limit(1));
 
   if (defaultRules && defaultRules.length > 0) {
     const rule = defaultRules[0] as any;
@@ -51,13 +52,13 @@ export async function resolveBank(
   }
 
   // Priority 4: Primary bank account
-  const { data: primary } = await supabase
+  const primary = logRead('lib/routing:primary', await supabase
     .from('bank_accounts')
     .select('*')
     .eq('company_id', companyId)
     .eq('is_primary', true)
     .limit(1)
-    .single();
+    .single());
 
   return primary || null;
 }
@@ -68,13 +69,13 @@ export async function generateDealNumber(companyId: string): Promise<string> {
   const now = new Date();
   const prefix = `DEAL-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const { data } = await supabase
+  const data = logRead('lib/routing:data', await supabase
     .from('deals')
     .select('deal_number')
     .eq('company_id', companyId)
     .like('deal_number', `${prefix}%`)
     .order('deal_number', { ascending: false })
-    .limit(1);
+    .limit(1));
 
   let seq = 1;
   if (data && data.length > 0 && data[0].deal_number) {
@@ -87,10 +88,10 @@ export async function generateDealNumber(companyId: string): Promise<string> {
 
 // ── Get total balance across all bank accounts ──
 export async function getTotalBankBalance(companyId: string): Promise<number> {
-  const { data } = await supabase
+  const data = logRead('lib/routing:data', await supabase
     .from('bank_accounts')
     .select('balance')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   if (!data) return 0;
   return data.reduce((sum, acc) => sum + Number(acc.balance || 0), 0);

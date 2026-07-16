@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Deal Pipeline Orchestrator
  * 딜→견적서→계약서→세금계산서→입금스케줄 자동 파이프라인
@@ -59,7 +60,7 @@ export async function createDocumentFromDeal(params: {
   let partnerName = deal.partners?.name || '';
   let partnerBizNo = deal.partners?.business_number || '';
   if (!partnerName && deal.partner_company_id) {
-    const { data: partnerCompany } = await db.from('companies').select('name, business_number').eq('id', deal.partner_company_id).maybeSingle();
+    const partnerCompany = logRead('lib/deal-pipeline:partnerCompany', await db.from('companies').select('name, business_number').eq('id', deal.partner_company_id).maybeSingle());
     if (partnerCompany) {
       partnerName = partnerCompany.name || '';
       partnerBizNo = partnerCompany.business_number || '';
@@ -108,11 +109,11 @@ export async function createDocumentFromDeal(params: {
   if (docType === 'contract') {
     // Inherit items from quote if available (견적→계약 승계)
     const sourceQuote = await (async () => {
-      const { data: quoteDocs } = await db
+      const quoteDocs = logRead('lib/deal-pipeline:quoteDocs', await db
         .from('documents')
         .select('content_json')
         .eq('deal_id', dealId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }));
       return (quoteDocs || []).find((d: any) => {
         const ct = d.content_json as any;
         return ct?.type === 'invoice' || ct?.type === 'quote';
@@ -332,11 +333,11 @@ export async function onDocumentApproved(params: {
   const { documentId, companyId, approverId } = params;
 
   // Fetch the document
-  const { data: doc } = await supabase
+  const doc = logRead('lib/deal-pipeline:doc', await supabase
     .from('documents')
     .select('id, name, deal_id, content_json')
     .eq('id', documentId)
-    .maybeSingle();
+    .maybeSingle());
 
   if (!doc || !doc.deal_id) return {};
 
@@ -373,11 +374,11 @@ export async function onDocumentApproved(params: {
     // ── Auto-seal + signature request for the new contract ──
     try {
       // Fetch deal + partner info for signature
-      const { data: deal } = await db
+      const deal = logRead('lib/deal-pipeline:deal', await db
         .from('deals')
         .select('name, partners!deals_partner_id_fkey(name, contact_email, contact_phone)')
         .eq('id', doc.deal_id)
-        .maybeSingle();
+        .maybeSingle());
 
       const partnerEmail = deal?.partners?.contact_email || '';
       const partnerName = deal?.partners?.name || '';
@@ -481,11 +482,11 @@ async function generateContractDocumentForDeal(params: {
 
   try {
     // Fetch company info
-    const { data: company } = await db
+    const company = logRead('lib/deal-pipeline:company', await db
       .from('companies')
       .select('name, business_number, representative, address, phone')
       .eq('id', companyId)
-      .maybeSingle();
+      .maybeSingle());
 
     // Build items list for the contract
     const items = (content?.items || []).map((it: any) => ({
@@ -530,7 +531,7 @@ async function generateContractDocumentForDeal(params: {
     });
 
     // Store the generated PDF HTML as a document record linked to the deal
-    const { data: pdfDoc } = await db
+    const pdfDoc = logRead('lib/deal-pipeline:pdfDoc', await db
       .from('documents')
       .insert({
         company_id: companyId,
@@ -549,7 +550,7 @@ async function generateContractDocumentForDeal(params: {
         created_by: createdBy,
       })
       .select('id')
-      .single();
+      .single());
 
     return { pdfDocId: pdfDoc?.id };
   } catch (err) {
@@ -726,24 +727,24 @@ export async function onRevenueReceived(params: {
       .eq('id', revenueScheduleId);
 
     // revenue_schedule_id로 연결된 세금계산서 자동 매칭
-    const { data: linkedInvoice } = await db
+    const linkedInvoice = logRead('lib/deal-pipeline:linkedInvoice', await db
       .from('tax_invoices')
       .select('id')
       .eq('revenue_schedule_id', revenueScheduleId)
-      .maybeSingle();
+      .maybeSingle());
     if (linkedInvoice) {
       await markInvoiceMatched(linkedInvoice.id);
     }
 
     // 선금 입금 후 → 다음 스케줄의 draft 세금계산서를 자동 issued 전환
-    const { data: nextDraftInvoices } = await db
+    const nextDraftInvoices = logRead('lib/deal-pipeline:nextDraftInvoices', await db
       .from('tax_invoices')
       .select('id, revenue_schedule_id')
       .eq('deal_id', dealId)
       .eq('status', 'draft')
       .not('revenue_schedule_id', 'is', null)
       .order('created_at', { ascending: true })
-      .limit(1);
+      .limit(1));
     if (nextDraftInvoices && nextDraftInvoices.length > 0) {
       // 자동화 흐름은 사용자 인터랙션 불가 — DB 마킹만 하고 실제 홈택스 발행은 추후
       // process-invoice-queue 큐에서 처리(별도 작업). 사용자 수동 발행 시에만 hometax-issue 호출.
@@ -752,10 +753,10 @@ export async function onRevenueReceived(params: {
   }
 
   // Check if all revenue received
-  const { data: schedules } = await db
+  const schedules = logRead('lib/deal-pipeline:schedules', await db
     .from('deal_revenue_schedule')
     .select('id, amount, status')
-    .eq('deal_id', dealId);
+    .eq('deal_id', dealId));
 
   const allReceived = (schedules || []).every((s: { status: string }) => s.status === 'received');
   const totalExpected = (schedules || []).reduce(
@@ -802,24 +803,24 @@ export async function onRevenueReceived(params: {
 
 export async function getDealPipelineStatus(dealId: string): Promise<PipelineStage[]> {
   // Get all documents linked to this deal
-  const { data: docs } = await (supabase as any)
+  const docs = logRead('lib/deal-pipeline:docs', await (supabase as any)
     .from('documents')
     .select('id, name, status, content_json, created_at, updated_at')
     .eq('deal_id', dealId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true }));
 
   // Get tax invoices for this deal
-  const { data: invoices } = await supabase
+  const invoices = logRead('lib/deal-pipeline:invoices', await supabase
     .from('tax_invoices')
     .select('id, status, total_amount, issue_date')
     .eq('deal_id', dealId)
-    .neq('status', 'void');
+    .neq('status', 'void'));
 
   // Get revenue schedule
-  const { data: schedules } = await db
+  const schedules = logRead('lib/deal-pipeline:schedules', await db
     .from('deal_revenue_schedule')
     .select('id, status, amount')
-    .eq('deal_id', dealId);
+    .eq('deal_id', dealId));
 
   const stages: PipelineStage[] = [];
 
@@ -885,11 +886,11 @@ export async function forceApproveDocument(params: {
   const { documentId, companyId, approverId, reason } = params;
 
   // Fetch current document
-  const { data: doc } = await supabase
+  const doc = logRead('lib/deal-pipeline:doc', await supabase
     .from('documents')
     .select('id, name, status, deal_id, content_json')
     .eq('id', documentId)
-    .maybeSingle();
+    .maybeSingle());
 
   if (!doc) throw new Error('문서를 찾을 수 없습니다');
 
@@ -946,7 +947,7 @@ export async function revertLastPipelineStage(params: {
   const lastCompleted = completed[completed.length - 1];
 
   if (lastCompleted.stage === 'payment_received') {
-    const { data: schedules } = await db.from('deal_revenue_schedule').select('id, status').eq('deal_id', dealId).eq('status', 'received').order('received_at', { ascending: false }).limit(1);
+    const schedules = logRead('lib/deal-pipeline:schedules', await db.from('deal_revenue_schedule').select('id, status').eq('deal_id', dealId).eq('status', 'received').order('received_at', { ascending: false }).limit(1));
     if (schedules?.[0]) {
       await db.from('deal_revenue_schedule').update({ status: 'expected' }).eq('id', schedules[0].id);
     }

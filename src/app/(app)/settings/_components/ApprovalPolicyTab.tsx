@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { useState } from "react";
@@ -56,11 +57,11 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
     queryKey: ["approval-policies", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data } = await db
+      const data = logRead('_components/ApprovalPolicyTab:data', await db
         .from("approval_policies")
         .select("*")
         .eq("company_id", companyId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!companyId,

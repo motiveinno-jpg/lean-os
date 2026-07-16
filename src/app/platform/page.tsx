@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -18,7 +19,7 @@ export default function PlatformOverview() {
   const { data: companies = [] } = useQuery({
     queryKey: ["p-companies"],
     queryFn: async () => {
-      const { data } = await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false });
+      const data = logRead('platform/page:data', await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }));
       return data || [];
     },
   });
@@ -26,7 +27,7 @@ export default function PlatformOverview() {
   const { data: subscriptions = [] } = useQuery({
     queryKey: ["p-subs"],
     queryFn: async () => {
-      const { data } = await db.from("subscriptions").select("*, subscription_plans(*), companies(name)").order("created_at", { ascending: false });
+      const data = logRead('platform/page:data', await db.from("subscriptions").select("*, subscription_plans(*), companies(name)").order("created_at", { ascending: false }));
       return data || [];
     },
   });
@@ -34,7 +35,7 @@ export default function PlatformOverview() {
   const { data: invoices = [] } = useQuery({
     queryKey: ["p-invoices"],
     queryFn: async () => {
-      const { data } = await db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false });
+      const data = logRead('platform/page:data', await db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }));
       return data || [];
     },
   });
@@ -42,7 +43,7 @@ export default function PlatformOverview() {
   const { data: users = [] } = useQuery({
     queryKey: ["p-users"],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id").order("created_at", { ascending: false });
+      const data = logRead('platform/page:data', await db.from("users").select("id").order("created_at", { ascending: false }));
       return data || [];
     },
   });
@@ -50,7 +51,7 @@ export default function PlatformOverview() {
   const { data: feedback = [] } = useQuery({
     queryKey: ["p-feedback"],
     queryFn: async () => {
-      const { data } = await db.from("feedback").select("id, status, category, created_at").order("created_at", { ascending: false });
+      const data = logRead('platform/page:data', await db.from("feedback").select("id, status, category, created_at").order("created_at", { ascending: false }));
       return data || [];
     },
   });
@@ -60,7 +61,7 @@ export default function PlatformOverview() {
     queryKey: ["p-errors-24h"],
     queryFn: async () => {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-      const { data } = await db.from("error_logs").select("id").gte("created_at", since);
+      const data = logRead('platform/page:data', await db.from("error_logs").select("id").gte("created_at", since));
       return data || [];
     },
   });

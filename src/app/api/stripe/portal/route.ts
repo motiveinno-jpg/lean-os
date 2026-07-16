@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
@@ -31,11 +32,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user belongs to the company
-    const { data: userRow } = await supabase
+    const userRow = logRead('portal/route:userRow', await supabase
       .from('users')
       .select('company_id')
       .eq('auth_id', user.id)
-      .single();
+      .single());
 
     if (!userRow || userRow.company_id !== companyId) {
       return NextResponse.json(
@@ -45,14 +46,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Look up subscription to find the Stripe customer ID
-    const { data: subscription } = await (supabase as any)
+    const subscription = logRead('portal/route:subscription', await (supabase as any)
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('company_id', companyId)
       .in('status', ['active', 'paused', 'past_due'])
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle());
 
     if (!subscription?.stripe_customer_id) {
       return NextResponse.json(

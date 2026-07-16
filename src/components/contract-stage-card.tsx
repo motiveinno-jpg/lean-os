@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // L 계약: stage='contract' 전용 양식 선택·변수 치환·발송 카드
 //
@@ -107,12 +108,12 @@ export function ContractStageCard({
         }
       } catch (e) { reportError("contract.templates.list", e); }
       try {
-        const { data: co } = await (supabase as any).from("companies").select("name, representative, business_number, seal_url").eq("id", companyId).maybeSingle();
+        const co = logRead('components/contract-stage-card:co', await (supabase as any).from("companies").select("name, representative, business_number, seal_url").eq("id", companyId).maybeSingle());
         if (co) setCompanyInfo({ name: co.name || "", representative: co.representative || null, business_number: co.business_number || null, seal_url: co.seal_url || null });
       } catch { /* ignore */ }
       if (partnerId) {
         try {
-          const { data: p } = await (supabase as any).from("partners").select("representative, business_number").eq("id", partnerId).maybeSingle();
+          const p = logRead('components/contract-stage-card:p', await (supabase as any).from("partners").select("representative, business_number").eq("id", partnerId).maybeSingle());
           if (p) { setPartnerRep(p.representative || null); setPartnerBiz(p.business_number || null); }
         } catch { /* ignore */ }
       }
@@ -212,11 +213,11 @@ export function ContractStageCard({
       }
       // 안전망: 어느 경로든 token 확보 (draft 재사용 분기에서 token=null 회귀 차단, d8f9aca7 estimate 와 동일 패턴)
       if (!token && approvalId) {
-        const { data: row } = await (supabase as any)
+        const row = logRead('components/contract-stage-card:row', await (supabase as any)
           .from('quote_approvals')
           .select('approval_token')
           .eq('id', approvalId)
-          .maybeSingle();
+          .maybeSingle());
         token = row?.approval_token ?? null;
       }
       if (!token) {
@@ -532,11 +533,11 @@ export function ContractStageCard({
 // L 양방향: signed_contract_html fetch (RLS quote_approvals_select_admin_or_self 통과)
 async function fetchSignedHtml(approvalId: string): Promise<string> {
   try {
-    const { data } = await (supabase as any)
+    const data = logRead('components/contract-stage-card:data', await (supabase as any)
       .from("quote_approvals")
       .select("signed_contract_html")
       .eq("id", approvalId)
-      .maybeSingle();
+      .maybeSingle());
     return (data?.signed_contract_html as string) || "";
   } catch {
     return "";

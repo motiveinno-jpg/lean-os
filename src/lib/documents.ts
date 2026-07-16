@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Document Pipeline Engine
  * 템플릿 → 변수 채움 → 수정 → 승인 → 잠금
@@ -38,11 +39,11 @@ export const DOC_STATUS = {
 //   날짜는 created_at 표시(UTC slice)와 일치시키려 UTC 기준. 같은 날 최대 N+1 부여(최신=큰 번호).
 export async function nextQuoteNumber(companyId: string): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '/'); // YYYY/MM/DD (UTC)
-  const { data } = await supabase
+  const data = logRead('lib/documents:data', await supabase
     .from('documents')
     .select('document_number')
     .eq('company_id', companyId)
-    .like('document_number', `${today}-%`);
+    .like('document_number', `${today}-%`));
   let maxN = 0;
   for (const r of (data || [])) {
     const m = String((r as any).document_number || '').match(/-(\d+)$/);
@@ -60,11 +61,11 @@ export async function createFromTemplate(params: {
   createdBy: string;
 }) {
   // Fetch template
-  const { data: template } = await supabase
+  const template = logRead('lib/documents:template', await supabase
     .from('doc_templates')
     .select('*')
     .eq('id', params.templateId)
-    .maybeSingle();
+    .maybeSingle());
 
   if (!template) throw new Error('템플릿을 찾을 수 없습니다');
 
@@ -211,12 +212,12 @@ export function docTemplateToHtml(tpl: { name: string; content_json?: any }): st
 
 // 같은 회사에 동일 이름 documents 행이 이미 있으면 재사용(중복 생성 방지), 없으면 신규 생성.
 export async function materializeDocTemplate(companyId: string, tpl: { name: string; type?: string; content_json?: any }) {
-  const { data: existing } = await supabase
+  const existing = logRead('lib/documents:existing', await supabase
     .from("documents")
     .select("*")
     .eq("company_id", companyId)
     .eq("name", tpl.name)
-    .maybeSingle();
+    .maybeSingle());
   if (existing) return existing;
 
   const body = docTemplateToHtml(tpl);
@@ -243,11 +244,11 @@ export async function saveRevision(params: {
   comment?: string;
 }) {
   // Get current version
-  const { data: doc } = await supabase
+  const doc = logRead('lib/documents:doc', await supabase
     .from('documents')
     .select('version')
     .eq('id', params.documentId)
-    .maybeSingle();
+    .maybeSingle());
 
   const newVersion = (doc?.version || 0) + 1;
 
@@ -295,7 +296,7 @@ export async function approveDocument(documentId: string, approverId: string, co
   await supabase.from('documents').update({ status: 'approved' }).eq('id', documentId);
 
   // Dispatch business event if deal is linked
-  const { data: doc } = await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).maybeSingle();
+  const doc = logRead('lib/documents:doc', await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).maybeSingle());
 
   await logAudit({
     company_id: doc?.company_id || '',
@@ -343,7 +344,7 @@ export async function lockDocument(documentId: string, lockerId?: string) {
   if (error) throw error;
 
   // Dispatch business event if deal is linked
-  const { data: doc } = await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).maybeSingle();
+  const doc = logRead('lib/documents:doc', await supabase.from('documents').select('deal_id, name, company_id').eq('id', documentId).maybeSingle());
 
   await logAudit({
     company_id: doc?.company_id || '',

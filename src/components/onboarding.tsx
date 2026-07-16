@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
@@ -124,11 +125,11 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
       const db = supabase as any;
       try {
         // Check company info
-        const { data: comp } = await db
+        const comp = logRead('components/onboarding:comp', await db
           .from("companies")
           .select("name, business_number")
           .eq("id", companyId)
-          .maybeSingle();
+          .maybeSingle());
         const hasCompany = !!(comp?.name && comp?.business_number);
 
         // Check bank accounts
@@ -139,11 +140,11 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         const hasBank = (bankCount ?? 0) > 0;
 
         // Check HomeTax / CODEF settings
-        const { data: settings } = await db
+        const settings = logRead('components/onboarding:settings', await db
           .from("company_settings")
           .select("codef_connected_id, codef_connected_at")
           .eq("company_id", companyId)
-          .maybeSingle();
+          .maybeSingle());
         const hasCert = !!(settings?.codef_connected_id);
         const hasCodef = !!(settings?.codef_connected_id && settings?.codef_onboarding_at);
 

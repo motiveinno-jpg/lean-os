@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 고객센터 — 사용자가 문의를 등록하고, 내가 보낸 문의·운영자 답변을 확인하는 화면.
 //   문의 저장: support_tickets (company 스코프 RLS). 답변은 운영자(/platform/support)가 작성.
@@ -59,11 +60,11 @@ export default function SupportPage() {
   const { data: tickets = [], isLoading } = useQuery<Ticket[]>({
     queryKey: ["support-tickets", userId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('support/page:data', await db
         .from("support_tickets")
         .select("id, category, subject, content, status, answer, answered_at, created_at")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return (data || []) as Ticket[];
     },
     enabled: !!userId,

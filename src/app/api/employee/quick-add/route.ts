@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // 직원 빠른 등록 API
 // - 이미 OwnerView 가입된 이메일이면: 회사 즉시 연결 (이메일 발송 X)
 // - 미가입 이메일이면: 일반 invitation 흐름으로 fallback 결과 반환
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
     if (!caller) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
 
     const admin = createSupabaseAdminClient();
-    const { data: callerRow } = await admin.from("users").select("id, company_id, role").eq("auth_id", caller.id).maybeSingle();
+    const callerRow = logRead('quick-add/route:callerRow', await admin.from("users").select("id, company_id, role").eq("auth_id", caller.id).maybeSingle());
     if (!callerRow?.company_id) return NextResponse.json({ error: "회사 정보를 찾을 수 없습니다." }, { status: 403 });
     if (!["owner", "admin"].includes(callerRow.role || "")) {
       return NextResponse.json({ error: "직원 등록은 대표/관리자만 가능합니다." }, { status: 403 });
@@ -55,11 +56,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 2) users 테이블에서 회사 소속 확인
-    const { data: existingUser } = await admin
+    const existingUser = logRead('quick-add/route:existingUser', await admin
       .from("users")
       .select("id, company_id, role")
       .eq("auth_id", authUser.id)
-      .maybeSingle();
+      .maybeSingle());
 
     if (existingUser?.company_id && existingUser.company_id !== companyId) {
       return NextResponse.json(
@@ -105,12 +106,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 4) employees 에 join 시도 (있으면 user_id 연결 + status 'joined')
-    const { data: emp } = await admin
+    const emp = logRead('quick-add/route:emp', await admin
       .from("employees")
       .select("id")
       .eq("company_id", companyId)
       .eq("email", normEmail)
-      .maybeSingle();
+      .maybeSingle());
     if (emp?.id) {
       await admin.from("employees").update({
         user_id: authUser.id,

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // 경영흐름 월별표 — 금액 셀 드릴다운(산출 내역) (2026-07-01)
 //   레코드 기반 행(매출·고정비·변동비·대표가수금·통장잔액)의 개별 내역을 조회.
 //   집계 로직은 cash-budget.ts getMonthlyBudgetOverview 와 동일하게 맞춰 셀 값과 정합 유지.
@@ -41,10 +42,10 @@ export async function getBudgetCellDetail(
   const { start, next } = monthBounds(year, month);
 
   if (rowKey === "salesRevenue") {
-    const { data } = await db.from("tax_invoices").select("*")
+    const data = logRead('lib/budget-detail:data', await db.from("tax_invoices").select("*")
       .eq("company_id", companyId).eq("type", "sales")
       .gte("issue_date", start).lt("issue_date", next)
-      .order("issue_date", { ascending: true });
+      .order("issue_date", { ascending: true }));
     return (data ?? []).map((r: any) => ({
       label: pick(r, ["counterparty_name", "partner_name", "buyer_name"], "매출"),
       sub: r.issue_date ?? undefined,
@@ -53,10 +54,10 @@ export async function getBudgetCellDetail(
   }
 
   if (rowKey === "ownerInjection") {
-    const { data } = await db.from("owner_injections").select("*")
+    const data = logRead('lib/budget-detail:data', await db.from("owner_injections").select("*")
       .eq("company_id", companyId)
       .gte("date", start).lt("date", next)
-      .order("date", { ascending: true });
+      .order("date", { ascending: true }));
     return (data ?? []).map((r: any) => ({
       label: pick(r, ["memo", "note", "description"], "대표 가수금"),
       sub: r.date ?? undefined,
@@ -121,7 +122,7 @@ export async function getBudgetCellDetail(
   }
 
   if (rowKey === "bankBalance") {
-    const { data } = await db.from("bank_accounts").select("*").eq("company_id", companyId);
+    const data = logRead('lib/budget-detail:data', await db.from("bank_accounts").select("*").eq("company_id", companyId));
     return (data ?? []).map((a: any) => ({
       label: pick(a, ["alias", "bank_name"], "통장"),
       sub: pick(a, ["account_number"], ""),

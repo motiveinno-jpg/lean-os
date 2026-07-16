@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Expense Engine
  * 경비청구 + 다단계 승인
@@ -106,11 +107,11 @@ export async function getExpenseRequests(companyId: string, status?: string) {
 
 // ── Get my expense requests ──
 export async function getMyExpenses(userId: string) {
-  const { data } = await db
+  const data = logRead('lib/expenses:data', await db
     .from('expense_requests')
     .select('*, deals(name)')
     .eq('requester_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
@@ -214,21 +215,21 @@ export async function markExpensePaid(expenseId: string) {
 
 // ── Get approvals for an expense ──
 export async function getExpenseApprovals(expenseId: string) {
-  const { data } = await db
+  const data = logRead('lib/expenses:data', await db
     .from('expense_approvals')
     .select('*, users:approver_id(name, email)')
     .eq('expense_id', expenseId)
-    .order('created_at');
+    .order('created_at'));
   return data || [];
 }
 
 // ── Summary ──
 export async function getExpenseSummary(companyId: string, month?: string) {
-  const { data: expenses } = await db
+  const expenses = logRead('lib/expenses:expenses', await db
     .from('expense_requests')
     .select('amount, category, status, created_at')
     .eq('company_id', companyId)
-    .neq('status', 'rejected');
+    .neq('status', 'rejected'));
 
   if (!expenses) return { total: 0, pending: 0, approved: 0, paid: 0, byCategory: {} };
 

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // granter 홈 스타일 분석 대시보드 (2026-05-27, 핵심부터 점진):
 //   탭(소비/손익/자산/태그/인원) + 소비 3열(고정비/변동비/기타 카테고리) + 하단 카드/통장/매출 요약.
@@ -69,11 +70,11 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
   const { data: revByMonth } = useQuery<Map<string, number>>({
     queryKey: ["analytics-revenue", companyId, year],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('components/dashboard-analytics:data', await (supabase as any)
         .from("tax_invoices")
         .select("supply_amount, issue_date")
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
-        .gte("issue_date", `${year}-01-01`).lt("issue_date", `${year + 1}-01-01`);
+        .gte("issue_date", `${year}-01-01`).lt("issue_date", `${year + 1}-01-01`));
       const m = new Map<string, number>();
       (data || []).forEach((r: any) => {
         const k = String(r.issue_date || "").slice(0, 7);
@@ -92,10 +93,10 @@ export function DashboardAnalytics({ companyId }: { companyId: string }) {
   const { data: monthlyPnl = [] } = useQuery({
     queryKey: ["analytics-monthly-pnl", companyId, year, revByMonth?.size ?? -1],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('components/dashboard-analytics:data', await (supabase as any)
         .from("monthly_financials")
         .select("month, total_expense")
-        .eq("company_id", companyId);
+        .eq("company_id", companyId));
       const expByMonth = new Map<string, number>();
       ((data || []) as Array<{ month: string; total_expense: number }>)
         .filter((r) => String(r.month || "").startsWith(String(year)))

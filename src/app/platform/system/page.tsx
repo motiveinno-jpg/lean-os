@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -14,10 +15,10 @@ export default function SystemPage() {
   const { data: companies = [] } = useQuery({
     queryKey: ["p-sys-companies"],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('system/page:data', await db
         .from("companies")
         .select("id, name, business_number, created_at")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return data || [];
     },
   });
@@ -25,10 +26,10 @@ export default function SystemPage() {
   const { data: users = [] } = useQuery({
     queryKey: ["p-sys-users"],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('system/page:data', await db
         .from("users")
         .select("id, name, email, role, created_at, company_id")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return data || [];
     },
   });
@@ -36,7 +37,7 @@ export default function SystemPage() {
   const { data: plans = [] } = useQuery({
     queryKey: ["p-sys-plans"],
     queryFn: async () => {
-      const { data } = await db.from("subscription_plans").select("*").order("base_price", { ascending: true });
+      const data = logRead('system/page:data', await db.from("subscription_plans").select("*").order("base_price", { ascending: true }));
       return data || [];
     },
   });

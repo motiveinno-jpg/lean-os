@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Cash Receipt Management
  * 현금영수증 관리 — 매출(발행) / 매입(수취) CRUD + 집계
@@ -175,12 +176,12 @@ export async function getCashReceiptSummary(
   startDate: string,
   endDate: string,
 ): Promise<CashReceiptSummary> {
-  const { data } = await db.from('cash_receipts')
+  const data = logRead('lib/cash-receipts:data', await db.from('cash_receipts')
     .select('type, amount, tax_amount, status')
     .eq('company_id', companyId)
     .gte('issue_date', startDate)
     .lte('issue_date', endDate)
-    .neq('status', 'void');
+    .neq('status', 'void'));
 
   const result: CashReceiptSummary = {
     incomeCount: 0, incomeTotal: 0, incomeTax: 0,

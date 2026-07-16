@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -73,7 +74,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        const data = logRead('platform/layout:data', await supabase.auth.getSession());
         if (!data.session) { router.replace("/auth"); return; }
         const user = await getCurrentUser();
         if (cancelled) return;

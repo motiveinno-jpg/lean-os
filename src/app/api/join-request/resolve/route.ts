@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     // company_join_requests 는 신규 테이블 — 생성 타입 미반영이라 any (기존 코드 관례)
     const admin = createSupabaseAdminClient() as any;
-    const { data: callerRow } = await admin.from('users').select('id, company_id, role').eq('auth_id', caller.id).maybeSingle();
+    const callerRow = logRead('resolve/route:callerRow', await admin.from('users').select('id, company_id, role').eq('auth_id', caller.id).maybeSingle());
     if (!callerRow?.company_id) return NextResponse.json({ error: '회사 정보를 찾을 수 없습니다.' }, { status: 403 });
     if (!['owner', 'admin'].includes(callerRow.role || '')) {
       return NextResponse.json({ error: '합류 요청 처리는 대표/관리자만 가능합니다.' }, { status: 403 });
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     const action = body.action === 'approve' ? 'approve' : body.action === 'reject' ? 'reject' : null;
     if (!requestId || !action) return NextResponse.json({ error: 'requestId, action(approve|reject)이 필요합니다.' }, { status: 400 });
 
-    const { data: reqRow } = await admin.from('company_join_requests').select('*').eq('id', requestId).maybeSingle();
+    const reqRow = logRead('resolve/route:reqRow', await admin.from('company_join_requests').select('*').eq('id', requestId).maybeSingle());
     if (!reqRow) return NextResponse.json({ error: '요청을 찾을 수 없습니다.' }, { status: 404 });
     if (reqRow.company_id !== callerRow.company_id) return NextResponse.json({ error: '다른 회사의 요청입니다.' }, { status: 403 });
     if (reqRow.status !== 'pending') return NextResponse.json({ error: '이미 처리된 요청입니다.' }, { status: 409 });
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     // approve — 요청자가 그 사이 다른 회사에 소속됐으면 중단 (소속 강제 이동 금지)
-    const { data: targetRow } = await admin.from('users').select('id, company_id').eq('auth_id', reqRow.requester_auth_id).maybeSingle();
+    const targetRow = logRead('resolve/route:targetRow', await admin.from('users').select('id, company_id').eq('auth_id', reqRow.requester_auth_id).maybeSingle());
     if (targetRow?.company_id && targetRow.company_id !== callerRow.company_id) {
       return NextResponse.json({ error: '요청자가 이미 다른 회사에 소속되어 있습니다.' }, { status: 409 });
     }

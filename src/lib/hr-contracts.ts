@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView HR Contract Package Engine
  * 계약 패키지 생성 → 변수 채움 → 이메일 발송 → 서명 → 급여/연차 자동 세팅
@@ -404,20 +405,20 @@ export async function buildContractVariables(
   overrides?: Record<string, string>,
 ): Promise<Record<string, string>> {
   // Get employee data
-  const { data: employee } = await db
+  const employee = logRead('lib/hr-contracts:employee', await db
     .from('employees')
     .select('*')
     .eq('id', employeeId)
-    .single();
+    .single());
 
   if (!employee) throw new Error('직원 정보를 찾을 수 없습니다');
 
   // Get company data
-  const { data: company } = await db
+  const company = logRead('lib/hr-contracts:company', await db
     .from('companies')
     .select('*')
     .eq('id', companyId)
-    .single();
+    .single());
 
   if (!company) throw new Error('회사 정보를 찾을 수 없습니다');
 
@@ -590,11 +591,11 @@ export async function createContractPackage(params: {
     // Get template from DB first (only if UUID), then fall back to built-in templates
     let template: any = null;
     if (isUuidTemplate) {
-      const { data: dbTemplate } = await db
+      const dbTemplate = logRead('lib/hr-contracts:dbTemplate', await db
         .from('doc_templates')
         .select('*')
         .eq('id', templateId)
-        .maybeSingle();
+        .maybeSingle());
       template = dbTemplate;
     }
 
@@ -676,11 +677,11 @@ export async function sendContractPackage(
   baseUrl?: string,
 ): Promise<{ success: boolean; error?: string; emailSent?: boolean; inAppDelivered?: boolean }> {
   // Get package with employee info
-  const { data: pkg } = await db
+  const pkg = logRead('lib/hr-contracts:pkg', await db
     .from('hr_contract_packages')
     .select('*, employees(id, name, email, user_id)')
     .eq('id', packageId)
-    .single();
+    .single());
 
   if (!pkg) throw new Error('계약 패키지를 찾을 수 없습니다');
   // 이메일이 없어도 직원이 OwnerView 계정이 있으면 인앱 전달 가능. 둘 다 없을 때만 실패.
@@ -689,11 +690,11 @@ export async function sendContractPackage(
   }
 
   // Get company name
-  const { data: company } = await db
+  const company = logRead('lib/hr-contracts:company', await db
     .from('companies')
     .select('name')
     .eq('id', pkg.company_id)
-    .single();
+    .single());
 
   // Build sign URL — 외부 메일에서 클릭하든 인앱에서 클릭하든 같은 페이지.
   const signUrl = `${baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://owner-view.com'}/sign?token=${pkg.sign_token}`;
@@ -796,11 +797,11 @@ export async function sendContractPackage(
 // ── Get Package by Sign Token (for external signing page) ──
 
 export async function getPackageByToken(token: string) {
-  const { data: pkg } = await db
+  const pkg = logRead('lib/hr-contracts:pkg', await db
     .from('hr_contract_packages')
     .select('*, employees(name, email, department, position)')
     .eq('sign_token', token)
-    .single();
+    .single());
 
   if (!pkg) return null;
 
@@ -810,11 +811,11 @@ export async function getPackageByToken(token: string) {
   }
 
   // Get items with document content
-  const { data: items } = await db
+  const items = logRead('lib/hr-contracts:items', await db
     .from('hr_contract_package_items')
     .select('*, documents(name, content_json, status)')
     .eq('package_id', pkg.id)
-    .order('sort_order');
+    .order('sort_order'));
 
   return { ...pkg, expired: false, items: items || [] };
 }
@@ -849,10 +850,10 @@ export async function signContractItem(
   }
 
   // Check if all items in the package are signed
-  const { data: allItems } = await db
+  const allItems = logRead('lib/hr-contracts:allItems', await db
     .from('hr_contract_package_items')
     .select('id, status')
-    .eq('package_id', item.package_id);
+    .eq('package_id', item.package_id));
 
   const allSigned = (allItems || []).every((i: any) => i.status === 'signed');
   const someSigned = (allItems || []).some((i: any) => i.status === 'signed');
@@ -878,11 +879,11 @@ export async function signContractItem(
 // ── Post-signing: Update salary + leave balance ──
 
 async function onAllContractsSigned(packageId: string) {
-  const { data: pkg } = await db
+  const pkg = logRead('lib/hr-contracts:pkg', await db
     .from('hr_contract_packages')
     .select('company_id, employee_id, notes')
     .eq('id', packageId)
-    .single();
+    .single());
 
   if (!pkg) return;
 
@@ -895,21 +896,21 @@ async function onAllContractsSigned(packageId: string) {
 
   // Regex fallback: extract salary from document content
   if (annualSalary === 0) {
-    const { data: items } = await db
+    const items = logRead('lib/hr-contracts:items', await db
       .from('hr_contract_package_items')
       .select('document_id, title')
-      .eq('package_id', packageId);
+      .eq('package_id', packageId));
 
     for (const item of (items || [])) {
       if (!item.document_id) continue;
       const isSalaryContract = item.title.includes('연봉') || item.title.includes('포괄임금');
       if (!isSalaryContract) continue;
 
-      const { data: doc } = await db
+      const doc = logRead('lib/hr-contracts:doc', await db
         .from('documents')
         .select('content_json')
         .eq('id', item.document_id)
-        .single();
+        .single());
       if (!doc?.content_json) continue;
 
       const content = JSON.stringify(doc.content_json);
@@ -956,11 +957,11 @@ async function onAllContractsSigned(packageId: string) {
   await db.from('employees').update({ status: 'active' }).eq('id', pkg.employee_id);
 
   // Auto-init leave balance for current year
-  const { data: employee } = await db
+  const employee = logRead('lib/hr-contracts:employee', await db
     .from('employees')
     .select('hire_date')
     .eq('id', pkg.employee_id)
-    .single();
+    .single());
 
   if (employee?.hire_date) {
     const year = new Date().getFullYear();
@@ -994,19 +995,19 @@ export async function getContractPackages(companyId: string, status?: string) {
 // ── Get Package with Items ──
 
 export async function getContractPackageWithItems(packageId: string) {
-  const { data: pkg } = await db
+  const pkg = logRead('lib/hr-contracts:pkg', await db
     .from('hr_contract_packages')
     .select('*, employees(name, email, department, position)')
     .eq('id', packageId)
-    .single();
+    .single());
 
   if (!pkg) return null;
 
-  const { data: items } = await db
+  const items = logRead('lib/hr-contracts:items', await db
     .from('hr_contract_package_items')
     .select('*, documents(name, content_json, status)')
     .eq('package_id', packageId)
-    .order('sort_order');
+    .order('sort_order'));
 
   return { ...pkg, items: items || [] };
 }
@@ -1032,13 +1033,13 @@ const BUILTIN_CATEGORY_MAP: Record<BuiltInTemplate['category'], string> = {
 };
 
 export async function getContractTemplates(companyId: string) {
-  const { data } = await db
+  const data = logRead('lib/hr-contracts:data', await db
     .from('doc_templates')
     .select('*')
     .or(`company_id.eq.${companyId},company_id.is.null`)
     .in('category', ['salary_contract', 'nda', 'non_compete', 'privacy_consent', 'comprehensive_labor', 'contract_labor'])
     .eq('is_active', true)
-    .order('name');
+    .order('name'));
 
   // 2026-07-16 QA: 내장 서식은 DB가 비어있을 때의 부트스트랩 폴백 — 회사가 해당 카테고리에
   //   실제 서식을 이미 갖고 있으면(예: 내장 서식을 회사 서식으로 이관) 중복 표시하지 않는다.

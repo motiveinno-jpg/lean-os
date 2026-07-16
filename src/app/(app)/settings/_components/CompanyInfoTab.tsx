@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -36,11 +37,11 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     queryKey: ["company-info", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data } = await db
+      const data = logRead('_components/CompanyInfoTab:data', await db
         .from("companies")
         .select("*")
         .eq("id", companyId)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!companyId,

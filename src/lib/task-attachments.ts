@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // 실행형 태스크 첨부 (이미지·파일) — 업로드/서명URL/삭제 (2026-07-01)
 //   task-attachments 버킷(private, 회사폴더 격리). 경로 = {company_id}/{uuid}/{name}.
 //   form-templates.ts 스토리지 패턴 재사용.
@@ -30,13 +31,13 @@ export async function uploadTaskAttachment(companyId: string, file: File): Promi
 
 // 미리보기/다운로드용 임시 서명 URL (1시간)
 export async function taskAttachmentUrl(path: string): Promise<string | null> {
-  const { data } = await db.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
+  const data = logRead('lib/task-attachments:data', await db.storage.from(BUCKET).createSignedUrl(path, 60 * 60));
   return data?.signedUrl ?? null;
 }
 
 // 다운로드용 임시 서명 URL — Content-Disposition: attachment (원본 파일명 유지)
 export async function taskAttachmentDownloadUrl(path: string, name: string): Promise<string | null> {
-  const { data } = await db.storage.from(BUCKET).createSignedUrl(path, 60 * 10, { download: name || true });
+  const data = logRead('lib/task-attachments:data', await db.storage.from(BUCKET).createSignedUrl(path, 60 * 10, { download: name || true }));
   return data?.signedUrl ?? null;
 }
 

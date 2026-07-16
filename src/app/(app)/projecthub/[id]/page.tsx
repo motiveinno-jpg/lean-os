@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 프로젝트 상세 (라이프사이클 탭) — 기존 deal 데이터 재사용. 2026-06-17 핸드오프 v2.
 //   탭: 개요 / 견적서 / 계약 / 진행현황 / 손익. 모두 기존 테이블 읽기(연결·표시), 원본 무수정.
@@ -271,9 +272,9 @@ export default function ProjectHubDetailPage() {
         }).filter((t) => t.amount > 0);
         for (const t of terms) {
           const due = new Date(Date.now() + t.dueOffset * 86400000).toISOString().slice(0, 10);
-          const { data: sched } = await db.from("deal_revenue_schedule").insert({
+          const sched = logRead('[id]/page:sched', await db.from("deal_revenue_schedule").insert({
             deal_id: dealId, label: `${t.label} (${t.ratio}%)`, amount: t.amount, due_date: due, status: "expected", condition_text: t.condition,
-          }).select("id").single();
+          }).select("id").single());
           await createTaxInvoice({
             companyId, dealId, type: "sales", counterpartyName: cpName, counterpartyBizno: cpBizno,
             supplyAmount: t.amount, issueDate: today, status: t.status, partnerId: deal?.partner_id || undefined,
@@ -333,7 +334,7 @@ export default function ProjectHubDetailPage() {
       }
       // 계약서면 결제조건(선금/중도금/잔금) 못박기 — 회차 배열 또는 null(전액). 양식/기본 양쪽 커버.
       if (formKind === "contract" && newId) {
-        const { data: cur } = await db.from("documents").select("content_json").eq("id", newId).maybeSingle();
+        const cur = logRead('[id]/page:cur', await db.from("documents").select("content_json").eq("id", newId).maybeSingle());
         const cj = { ...((cur?.content_json as any) || {}), paymentSchedule: buildPaySchedule(payMode, payAdv, payMid) };
         await db.from("documents").update({ content_json: cj }).eq("id", newId);
       }
@@ -395,7 +396,7 @@ export default function ProjectHubDetailPage() {
       const isSalesQuote = q.direction !== "purchase" && (subDealOpts as any[]).find((x) => x.id === quoteDoc.sub_deal_id)?.type !== "purchase";
       let reflected = false;
       if (isSalesQuote && amt > 0 && !Number(deal?.contract_total || 0)) {
-        const { data: existingSales } = await db.from("sub_deals").select("id").eq("parent_deal_id", dealId).eq("type", "sales").limit(1);
+        const existingSales = logRead('[id]/page:existingSales', await db.from("sub_deals").select("id").eq("parent_deal_id", dealId).eq("type", "sales").limit(1));
         if (!existingSales?.length) {
           await db.from("deals").update({ contract_total: amt }).eq("id", dealId);
           qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] });
@@ -470,7 +471,7 @@ export default function ProjectHubDetailPage() {
   const { data: docTemplates = [], isSuccess: templatesLoaded } = useQuery({
     queryKey: ["projecthub-doc-templates", companyId],
     queryFn: async () => {
-      const { data } = await db.from("doc_templates").select("id, name, type").eq("company_id", companyId).eq("is_active", true);
+      const data = logRead('[id]/page:data', await db.from("doc_templates").select("id, name, type").eq("company_id", companyId).eq("is_active", true));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -526,7 +527,7 @@ export default function ProjectHubDetailPage() {
   const { data: deal, isLoading } = useQuery({
     queryKey: ["projecthub-deal", dealId],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("*").eq("id", dealId).maybeSingle();
+      const data = logRead('[id]/page:data', await db.from("deals").select("*").eq("id", dealId).maybeSingle());
       return data as any;
     },
     enabled: !!companyId && !!dealId,
@@ -534,7 +535,7 @@ export default function ProjectHubDetailPage() {
   const { data: partner } = useQuery({
     queryKey: ["projecthub-deal-partner", deal?.partner_id],
     queryFn: async () => {
-      const { data } = await db.from("partners").select("id, name, business_number, representative, contact_name, contact_email").eq("id", deal.partner_id).maybeSingle();
+      const data = logRead('[id]/page:data', await db.from("partners").select("id, name, business_number, representative, contact_name, contact_email").eq("id", deal.partner_id).maybeSingle());
       return data as any;
     },
     enabled: !!deal?.partner_id,
@@ -542,7 +543,7 @@ export default function ProjectHubDetailPage() {
   const { data: manager } = useQuery({
     queryKey: ["projecthub-deal-manager", deal?.internal_manager_id],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id, name").eq("id", deal.internal_manager_id).maybeSingle();
+      const data = logRead('[id]/page:data', await db.from("users").select("id, name").eq("id", deal.internal_manager_id).maybeSingle());
       return data as any;
     },
     enabled: !!deal?.internal_manager_id,
@@ -551,7 +552,7 @@ export default function ProjectHubDetailPage() {
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["projecthub-company-users", companyId],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id, name").eq("company_id", companyId).order("name", { ascending: true });
+      const data = logRead('[id]/page:data', await db.from("users").select("id, name").eq("company_id", companyId).order("name", { ascending: true }));
       return (data || []) as any[];
     },
     enabled: !!companyId && ["delivery", "goal"].includes(normalizeProjectType(deal?.project_type)),
@@ -561,10 +562,10 @@ export default function ProjectHubDetailPage() {
   const { data: children = [] } = useQuery({
     queryKey: ["projecthub-children", dealId],
     queryFn: async () => {
-      const { data } = await db.from("deals")
+      const data = logRead('[id]/page:data', await db.from("deals")
         .select("id, name, contract_total, stage, status, start_date, end_date")
         .eq("parent_deal_id", dealId).is("archived_at", null)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true }));
       return (data || []) as any[];
     },
     enabled: !!companyId && !!dealId,
@@ -573,7 +574,7 @@ export default function ProjectHubDetailPage() {
   const { data: allDeals = [] } = useQuery({
     queryKey: ["projecthub-all-deals", companyId],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, parent_deal_id").eq("company_id", companyId).is("archived_at", null);
+      const data = logRead('[id]/page:data', await db.from("deals").select("id, parent_deal_id").eq("company_id", companyId).is("archived_at", null));
       return (data || []) as { id: string; parent_deal_id: string | null }[];
     },
     enabled: !!companyId,
@@ -599,9 +600,9 @@ export default function ProjectHubDetailPage() {
   const { data: subDeals = [] } = useQuery({
     queryKey: ["projecthub-subdeals-roll", dealId, descendantIds.length],
     queryFn: async () => {
-      const { data } = await db.from("sub_deals")
+      const data = logRead('[id]/page:data', await db.from("sub_deals")
         .select("id, parent_deal_id, type, contract_amount, vat_type")
-        .in("parent_deal_id", costDealIds);
+        .in("parent_deal_id", costDealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && !!dealId && (tab === "overview" || tab === "subprojects"),
@@ -636,7 +637,7 @@ export default function ProjectHubDetailPage() {
   const { data: parentDeal } = useQuery({
     queryKey: ["projecthub-parent", deal?.parent_deal_id],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, name").eq("id", deal.parent_deal_id).maybeSingle();
+      const data = logRead('[id]/page:data', await db.from("deals").select("id, name").eq("id", deal.parent_deal_id).maybeSingle());
       return data as any;
     },
     enabled: !!deal?.parent_deal_id,
@@ -735,14 +736,14 @@ export default function ProjectHubDetailPage() {
   const { data: autoContractOn = false } = useQuery({
     queryKey: ["auto-contract-setting", companyId],
     queryFn: async () => {
-      const { data } = await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+      const data = logRead('[id]/page:data', await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
       return !!((data?.settings as any)?.auto_contract_on_approve);
     },
     enabled: !!companyId && !!pipelineDir,
   });
   const toggleAutoContract = async (val: boolean) => {
     if (!companyId) return;
-    const { data: cur } = await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+    const cur = logRead('[id]/page:cur', await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
     const settings = { ...((cur?.settings as any) || {}), auto_contract_on_approve: val };
     const { error } = await db.from("company_settings").update({ settings }).eq("company_id", companyId);
     if (error) { toast("설정 저장 실패: " + error.message, "error"); return; }
@@ -754,7 +755,7 @@ export default function ProjectHubDetailPage() {
   const { data: documents = [] } = useQuery({
     queryKey: ["projecthub-docs", dealId],
     queryFn: async () => {
-      const { data } = await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json, sub_deal_id, source_document_id").eq("deal_id", dealId).order("created_at", { ascending: false });
+      const data = logRead('[id]/page:data', await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json, sub_deal_id, source_document_id").eq("deal_id", dealId).order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: !!dealId && isDocTab,
@@ -767,7 +768,7 @@ export default function ProjectHubDetailPage() {
   const { data: subDealOpts = [] } = useQuery({
     queryKey: ["sub-deals-mini", dealId],
     queryFn: async () => {
-      const { data } = await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at", { ascending: true });
+      const data = logRead('[id]/page:data', await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at", { ascending: true }));
       return (data || []) as { id: string; name: string; type: string | null }[];
     },
     enabled: !!dealId && (tab === "quote" || !!pipelineDir || isTransTab),
@@ -776,7 +777,7 @@ export default function ProjectHubDetailPage() {
     queryKey: ["projecthub-quotes", dealId, docIds.length],
     queryFn: async () => {
       if (docIds.length === 0) return [];
-      const { data } = await db.from("quote_tracking").select("*").in("document_id", docIds);
+      const data = logRead('[id]/page:data', await db.from("quote_tracking").select("*").in("document_id", docIds));
       return (data || []) as any[];
     },
     enabled: (tab === "quote" || !!pipelineDir || isTransTab) && docIds.length > 0,
@@ -784,7 +785,7 @@ export default function ProjectHubDetailPage() {
   const { data: approvals = [] } = useQuery({
     queryKey: ["projecthub-approvals", dealId],
     queryFn: async () => {
-      const { data } = await db.from("quote_approvals").select("*").eq("deal_id", dealId).order("created_at", { ascending: false });
+      const data = logRead('[id]/page:data', await db.from("quote_approvals").select("*").eq("deal_id", dealId).order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: isDocTab && !!dealId,
@@ -793,7 +794,7 @@ export default function ProjectHubDetailPage() {
     queryKey: ["projecthub-sigs", dealId, docIds.length],
     queryFn: async () => {
       if (docIds.length === 0) return [];
-      const { data } = await db.from("signature_requests").select("id, title, status, signer_name, signer_email, signed_at, our_signed_at, signed_contract_url, document_id").in("document_id", docIds).order("created_at", { ascending: false });
+      const data = logRead('[id]/page:data', await db.from("signature_requests").select("id, title, status, signer_name, signer_email, signed_at, our_signed_at, signed_contract_url, document_id").in("document_id", docIds).order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: (tab === "contract" || !!pipelineDir || isTransTab) && docIds.length > 0,
@@ -805,7 +806,7 @@ export default function ProjectHubDetailPage() {
   const { data: costInvoices = [] } = useQuery({
     queryKey: ["projecthub-cost-inv", dealId, descendantIds.length],
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices").select("id, issue_date, counterparty_name, supply_amount, total_amount").in("deal_id", costDealIds).eq("type", "purchase").neq("status", "void").order("issue_date", { ascending: false });
+      const data = logRead('[id]/page:data', await db.from("tax_invoices").select("id, issue_date, counterparty_name, supply_amount, total_amount").in("deal_id", costDealIds).eq("type", "purchase").neq("status", "void").order("issue_date", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: costEnabled,
@@ -813,7 +814,7 @@ export default function ProjectHubDetailPage() {
   const { data: costCash = [] } = useQuery({
     queryKey: ["projecthub-cost-cash", dealId, descendantIds.length],
     queryFn: async () => {
-      const { data } = await db.from("cash_receipts").select("id, issue_date, counterparty_name, amount, supply_amount").in("deal_id", costDealIds).order("issue_date", { ascending: false });
+      const data = logRead('[id]/page:data', await db.from("cash_receipts").select("id, issue_date, counterparty_name, amount, supply_amount").in("deal_id", costDealIds).order("issue_date", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: costEnabled,
@@ -821,7 +822,7 @@ export default function ProjectHubDetailPage() {
   const { data: costCards = [] } = useQuery({
     queryKey: ["projecthub-cost-card", dealId, descendantIds.length],
     queryFn: async () => {
-      const { data } = await db.from("card_transactions").select("id, transaction_date, merchant_name, amount, card_name").in("deal_id", costDealIds).is("journal_entry_id", null).order("transaction_date", { ascending: false });
+      const data = logRead('[id]/page:data', await db.from("card_transactions").select("id, transaction_date, merchant_name, amount, card_name").in("deal_id", costDealIds).is("journal_entry_id", null).order("transaction_date", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: costEnabled,
@@ -829,7 +830,7 @@ export default function ProjectHubDetailPage() {
   const { data: costVouchers = [] } = useQuery({
     queryKey: ["projecthub-cost-voucher", dealId, descendantIds.length],
     queryFn: async () => {
-      const { data } = await db.from("journal_entries").select("id, entry_date, description, journal_lines(debit, chart_of_accounts(code, name, account_type))").in("deal_id", costDealIds).eq("source", "manual").eq("status", "confirmed").order("entry_date", { ascending: false });
+      const data = logRead('[id]/page:data', await db.from("journal_entries").select("id, entry_date, description, journal_lines(debit, chart_of_accounts(code, name, account_type))").in("deal_id", costDealIds).eq("source", "manual").eq("status", "confirmed").order("entry_date", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: costEnabled,
@@ -839,7 +840,7 @@ export default function ProjectHubDetailPage() {
   const { data: pipe } = useQuery({
     queryKey: ["projecthub-pipe-summary", dealId, descendantIds.length],
     queryFn: async () => {
-      const { data: docsData } = await db.from("documents").select("id, content_type, content_json, contract_amount, status, source_document_id, created_at").eq("deal_id", dealId).order("created_at", { ascending: false });
+      const docsData = logRead('[id]/page:docsData', await db.from("documents").select("id, content_type, content_json, contract_amount, status, source_document_id, created_at").eq("deal_id", dealId).order("created_at", { ascending: false }));
       const list = (docsData || []) as any[];
       const quotes = list.filter((d) => docKind(d) === "quote");
       const contracts = list.filter((d) => docKind(d) === "contract");
@@ -1995,7 +1996,7 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
   const { data: tasks = [] } = useQuery({
     queryKey: ["project-tasks-overview", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_tasks").select("id, title, status, due_date, assignee_id, assignee_ids").eq("deal_id", dealId).is("archived_at", null);
+      const data = logRead('[id]/page:data', await db.from("project_tasks").select("id, title, status, due_date, assignee_id, assignee_ids").eq("deal_id", dealId).is("archived_at", null));
       return (data || []) as any[];
     },
     enabled: !!dealId,

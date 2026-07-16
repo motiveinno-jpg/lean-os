@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Employee Certificate Generator
  * 재직증명서 + 경력증명서 PDF 생성 + 발급 이력 관리
@@ -469,12 +470,12 @@ async function generateCertificateNumber(prefix: string): Promise<string> {
   const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
   const like = `${prefix}-${ym}-%`;
 
-  const { data } = await db
+  const data = logRead('lib/certificates:data', await db
     .from('certificate_logs')
     .select('certificate_number')
     .like('certificate_number', like)
     .order('certificate_number', { ascending: false })
-    .limit(1);
+    .limit(1));
 
   let seq = 1;
   if (data && data.length > 0 && data[0].certificate_number) {

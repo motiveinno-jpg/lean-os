@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -38,20 +39,20 @@ export default function MyContractsPage() {
     queryFn: async () => {
       const db = supabase as any;
       // 본인의 employees 레코드 id 먼저 조회
-      const { data: emp } = await db
+      const emp = logRead('my-contracts/page:emp', await db
         .from("employees")
         .select("id")
         .eq("user_id", userId!)
         .eq("company_id", companyId!)
-        .maybeSingle();
+        .maybeSingle());
       if (!emp) return [];
-      const { data } = await db
+      const data = logRead('my-contracts/page:data', await db
         .from("hr_contract_packages")
         .select(
           "id, title, status, sign_token, sent_at, expires_at, completed_at, created_at, employees(id, name, user_id), hr_contract_package_items(id, status)",
         )
         .eq("employee_id", emp.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return (data || []) as Package[];
     },
     enabled: !!userId && !!companyId,

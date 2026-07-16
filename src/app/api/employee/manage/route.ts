@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // 회사 멤버 관리 — 역할 변경 / 인사파일 등록·해제 / 회사 제외
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     if (!caller) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
 
     const admin = createSupabaseAdminClient();
-    const { data: callerRow } = await admin.from("users").select("id, company_id, role").eq("auth_id", caller.id).maybeSingle();
+    const callerRow = logRead('manage/route:callerRow', await admin.from("users").select("id, company_id, role").eq("auth_id", caller.id).maybeSingle());
     if (!callerRow?.company_id) return NextResponse.json({ error: "회사 정보를 찾을 수 없습니다." }, { status: 403 });
     if (!["owner", "admin"].includes(callerRow.role || "")) {
       return NextResponse.json({ error: "멤버 관리는 대표/관리자만 가능합니다." }, { status: 403 });
@@ -34,11 +35,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 본인 보호 — owner 본인이 자기 role 을 employee 로 바꾸면 회사 관리 불가
-    const { data: targetUser } = await admin
+    const targetUser = logRead('manage/route:targetUser', await admin
       .from("users")
       .select("id, email, name, role, company_id")
       .eq("id", userId)
-      .maybeSingle();
+      .maybeSingle());
     if (!targetUser || targetUser.company_id !== companyId) {
       return NextResponse.json({ error: "회사 소속 멤버가 아닙니다." }, { status: 404 });
     }
@@ -64,8 +65,8 @@ export async function POST(req: NextRequest) {
 
     if (action === "register-hr") {
       // 이미 있는지 확인
-      const { data: existing } = await admin.from("employees")
-        .select("id").eq("company_id", companyId).eq("user_id", userId).maybeSingle();
+      const existing = logRead('manage/route:existing', await admin.from("employees")
+        .select("id").eq("company_id", companyId).eq("user_id", userId).maybeSingle());
       if (existing?.id) {
         return NextResponse.json({ ok: true, message: "이미 인사파일에 등록되어 있습니다.", employeeId: existing.id });
       }

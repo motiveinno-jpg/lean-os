@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Automation Engine
  * 모든 수동 프로세스를 자동화하는 통합 엔진
@@ -18,20 +19,20 @@ const db = supabase as any;
 // ══════════════════════════════════════════
 export async function applyBankClassificationRules(companyId: string) {
   // Fetch all unmapped bank transactions
-  const { data: unmapped } = await db
+  const unmapped = logRead('lib/automation:unmapped', await db
     .from('bank_transactions')
     .select('id, counterparty, description, amount, type')
     .eq('company_id', companyId)
-    .eq('mapping_status', 'unmapped');
+    .eq('mapping_status', 'unmapped'));
 
   if (!unmapped?.length) return { processed: 0, matched: 0 };
 
   // Fetch active classification rules ordered by priority
-  const { data: rules } = await db
+  const rules = logRead('lib/automation:rules', await db
     .from('bank_classification_rules')
     .select('*')
     .eq('company_id', companyId)
-    .order('priority', { ascending: false });
+    .order('priority', { ascending: false }));
 
   if (!rules?.length) return { processed: unmapped.length, matched: 0 };
 
@@ -89,13 +90,13 @@ export async function applyCardTransactionRules(companyId: string) {
   if (!unmapped?.length) return { processed: 0, matched: 0 };
 
   // Fetch learned rules (auto_generated from manual mappings)
-  const { data: rules } = await db
+  const rules = logRead('lib/automation:rules', await db
     .from('bank_classification_rules')
     .select('*')
     .eq('company_id', companyId)
     .eq('match_field', 'counterparty')
     .gte('learned_from_count', 1)
-    .order('learned_from_count', { ascending: false });
+    .order('learned_from_count', { ascending: false }));
 
   if (!rules?.length) return { processed: unmapped.length, matched: 0 };
 
@@ -157,21 +158,21 @@ export async function autoExecuteThreeWayMatch(companyId: string) {
 // ══════════════════════════════════════════
 export async function autoMatchTransactions(companyId: string) {
   // Get unmatched bank transactions
-  const { data: bankTxs } = await db
+  const bankTxs = logRead('lib/automation:bankTxs', await db
     .from('bank_transactions')
     .select('id, counterparty, amount, transaction_date, type')
     .eq('company_id', companyId)
     .eq('mapping_status', 'unmapped')
     // QA 2026-07-10: type 실값은 'income'(입금) — 'deposit' 은 존재하지 않는 값이라 자동매칭이 항상 0건이었음
-    .eq('type', 'income');
+    .eq('type', 'income'));
 
   // Get unmatched invoices
-  const { data: invoices } = await db
+  const invoices = logRead('lib/automation:invoices', await db
     .from('tax_invoices')
     .select('id, counterparty_name, total_amount, issue_date, deal_id')
     .eq('company_id', companyId)
     .neq('status', 'matched')
-    .neq('status', 'void');
+    .neq('status', 'void'));
 
   if (!bankTxs?.length || !invoices?.length) return { matched: 0 };
 
@@ -249,13 +250,13 @@ export async function detectDormantDeals(companyId: string) {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   // Find deals with no activity in 30 days
-  const { data: candidates } = await db
+  const candidates = logRead('lib/automation:candidates', await db
     .from('deals')
     .select('id, name, last_activity_at, status')
     .eq('company_id', companyId)
     .eq('is_dormant', false)
     .in('status', ['active', 'pending'])
-    .lt('last_activity_at', thirtyDaysAgo);
+    .lt('last_activity_at', thirtyDaysAgo));
 
   if (!candidates?.length) return { detected: 0 };
 
@@ -339,11 +340,11 @@ export async function detectDormantPartners(companyId: string) {
 // 6. 월마감 자동검증
 // ══════════════════════════════════════════
 export async function autoVerifyClosingChecklist(companyId: string, checklistId: string) {
-  const { data: checklist } = await db
+  const checklist = logRead('lib/automation:checklist', await db
     .from('closing_checklists')
     .select('*, closing_checklist_items(*)')
     .eq('id', checklistId)
-    .single();
+    .single());
 
   if (!checklist) return { verified: 0 };
 
@@ -411,12 +412,12 @@ export async function autoVerifyClosingChecklist(companyId: string, checklistId:
 // ══════════════════════════════════════════
 export async function autoApproveSmallExpenses(companyId: string, threshold: number = 100000) {
   // Get pending expenses under threshold
-  const { data: pending } = await db
+  const pending = logRead('lib/automation:pending', await db
     .from('expense_requests')
     .select('id, amount, category, receipt_urls, requester_id')
     .eq('company_id', companyId)
     .eq('status', 'pending')
-    .lte('amount', threshold);
+    .lte('amount', threshold));
 
   if (!pending?.length) return { approved: 0 };
 
@@ -455,21 +456,21 @@ export async function autoApproveSmallExpenses(companyId: string, threshold: num
 // ══════════════════════════════════════════
 export async function autoCreateTaxInvoiceOnDealClose(companyId: string, dealId: string) {
   // Check if invoice already exists for this deal
-  const { data: existing } = await db
+  const existing = logRead('lib/automation:existing', await db
     .from('tax_invoices')
     .select('id')
     .eq('deal_id', dealId)
     .neq('status', 'void')
-    .maybeSingle();
+    .maybeSingle());
 
   if (existing) return { created: false, reason: '이미 세금계산서가 존재합니다' };
 
   // Get deal info
-  const { data: deal } = await db
+  const deal = logRead('lib/automation:deal', await db
     .from('deals')
     .select('*, partners!deals_partner_id_fkey(name, business_number)')
     .eq('id', dealId)
-    .single();
+    .single());
 
   if (!deal) return { created: false, reason: '프로젝트를 찾을 수 없습니다' };
 
@@ -496,11 +497,11 @@ export async function autoCreateTaxInvoiceOnDealClose(companyId: string, dealId:
 // 9. 파트너 자동백업 (딜에서 파트너 생성)
 // ══════════════════════════════════════════
 export async function autoCreatePartnerFromDeal(companyId: string, dealId: string) {
-  const { data: deal } = await db
+  const deal = logRead('lib/automation:deal', await db
     .from('deals')
     .select('id, name, counterparty, classification, partner_id')
     .eq('id', dealId)
-    .single();
+    .single());
 
   if (!deal) return { created: false, reason: '프로젝트를 찾을 수 없습니다' };
   if (deal.partner_id) return { created: false, reason: '이미 파트너가 연결되어 있습니다' };
@@ -509,12 +510,12 @@ export async function autoCreatePartnerFromDeal(companyId: string, dealId: strin
   if (!partnerName) return { created: false, reason: '거래처명이 없습니다' };
 
   // Check if partner already exists by name
-  const { data: existingPartner } = await db
+  const existingPartner = logRead('lib/automation:existingPartner', await db
     .from('partners')
     .select('id')
     .eq('company_id', companyId)
     .ilike('name', partnerName)
-    .maybeSingle();
+    .maybeSingle());
 
   if (existingPartner) {
     // Link existing partner
@@ -523,7 +524,7 @@ export async function autoCreatePartnerFromDeal(companyId: string, dealId: strin
   }
 
   // Create new partner
-  const { data: newPartner } = await db
+  const newPartner = logRead('lib/automation:newPartner', await db
     .from('partners')
     .insert({
       company_id: companyId,
@@ -534,7 +535,7 @@ export async function autoCreatePartnerFromDeal(companyId: string, dealId: strin
       is_active: true,
     })
     .select()
-    .single();
+    .single());
 
   if (newPartner) {
     await db.from('deals').update({ partner_id: newPartner.id }).eq('id', dealId);
@@ -548,12 +549,12 @@ export async function autoCreatePartnerFromDeal(companyId: string, dealId: strin
 // ══════════════════════════════════════════
 export async function autoLinkApprovedContractsToSchedule(companyId: string) {
   // Find approved contracts without revenue schedules
-  const { data: approvedDocs } = await db
+  const approvedDocs = logRead('lib/automation:approvedDocs', await db
     .from('documents')
     .select('id, deal_id, content_json')
     .eq('company_id', companyId)
     .eq('status', 'approved')
-    .not('deal_id', 'is', null);
+    .not('deal_id', 'is', null));
 
   if (!approvedDocs?.length) return { linked: 0 };
 
@@ -588,11 +589,11 @@ export async function autoLinkApprovedContractsToSchedule(companyId: string) {
 // ══════════════════════════════════════════
 export async function autoCreateExpenseFromRecurring(companyId: string) {
   // Get active recurring payments
-  const { data: recurring } = await db
+  const recurring = logRead('lib/automation:recurring', await db
     .from('recurring_payments')
     .select('*')
     .eq('company_id', companyId)
-    .eq('is_active', true);
+    .eq('is_active', true));
 
   if (!recurring?.length) return { created: 0 };
 
@@ -608,13 +609,13 @@ export async function autoCreateExpenseFromRecurring(companyId: string) {
     }
 
     // Check if approval_request already exists for this recurring + month
-    const { data: existing } = await db
+    const existing = logRead('lib/automation:existing', await db
       .from('approval_requests')
       .select('id')
       .eq('company_id', companyId)
       .eq('request_type', 'expense')
       .ilike('title', `%${r.name}%${currentMonth}%`)
-      .maybeSingle();
+      .maybeSingle());
 
     if (existing) continue;
 
@@ -659,12 +660,12 @@ export async function autoCreateExpenseFromRecurring(companyId: string) {
 // ══════════════════════════════════════════
 export async function autoQueueApprovedExpenses(companyId: string) {
   // Find approved approval_requests that are NOT yet in payment_queue
-  const { data: approved } = await db
+  const approved = logRead('lib/automation:approved', await db
     .from('approval_requests')
     .select('id, title, amount, request_type, requester_id')
     .eq('company_id', companyId)
     .eq('status', 'approved')
-    .in('request_type', ['expense', 'payment', 'purchase']);
+    .in('request_type', ['expense', 'payment', 'purchase']));
 
   if (!approved?.length) return { queued: 0 };
 
@@ -711,21 +712,21 @@ export async function autoQueueApprovedExpenses(companyId: string) {
 // ══════════════════════════════════════════
 export async function autoCreateExpenseFromContract(companyId: string) {
   // Find approved cost schedules without expense requests
-  const { data: schedules } = await db
+  const schedules = logRead('lib/automation:schedules', await db
     .from('deal_cost_schedule')
     .select('id, deal_node_id, amount, condition_text, due_date, status, deal_nodes(deal_id, deals(name))')
     .eq('company_id', companyId)
     .eq('approved', true)
-    .neq('status', 'paid');
+    .neq('status', 'paid'));
 
   if (!schedules?.length) return { created: 0 };
 
   // Check which already have approval requests
-  const { data: existingRequests } = await db
+  const existingRequests = logRead('lib/automation:existingRequests', await db
     .from('approval_requests')
     .select('request_id')
     .eq('company_id', companyId)
-    .eq('request_type', 'payment');
+    .eq('request_type', 'payment'));
 
   const existingIds = new Set((existingRequests || []).map((r: any) => r.request_id));
   let created = 0;
@@ -771,30 +772,30 @@ export async function autoCreateExpenseFromContract(companyId: string) {
 // ══════════════════════════════════════════
 export async function autoCreateTaxInvoiceOnPayment(companyId: string) {
   // Check company tax_settings for auto-issue on payment
-  const { data: company } = await db
+  const company = logRead('lib/automation:company', await db
     .from('companies')
     .select('tax_settings')
     .eq('id', companyId)
-    .single();
+    .single());
 
   const taxSettings = company?.tax_settings as any;
   if (!taxSettings?.autoIssueOnPayment) return { created: 0, reason: '결제완료 자동발행 비활성' };
 
   // Get executed payments without tax invoices
-  const { data: executed } = await db
+  const executed = logRead('lib/automation:executed', await db
     .from('payment_queue')
     .select('id, amount, description, recipient_name, executed_at, cost_schedule_id, deals(id, name, counterparty)')
     .eq('company_id', companyId)
-    .eq('status', 'executed');
+    .eq('status', 'executed'));
 
   if (!executed?.length) return { created: 0 };
 
   // Get existing tax invoices to avoid duplicates
-  const { data: existingInvoices } = await db
+  const existingInvoices = logRead('lib/automation:existingInvoices', await db
     .from('tax_invoices')
     .select('id, total_amount, counterparty_name, issue_date')
     .eq('company_id', companyId)
-    .neq('status', 'void');
+    .neq('status', 'void'));
 
   // Simple duplicate check: same amount + same counterparty + same date
   const invoiceKeys = new Set(
@@ -838,21 +839,21 @@ export async function autoCreateTaxInvoiceOnPayment(companyId: string) {
 // ══════════════════════════════════════════
 export async function autoCancelTaxInvoiceOnRefund(companyId: string) {
   // Check company tax_settings
-  const { data: company } = await db
+  const company = logRead('lib/automation:company', await db
     .from('companies')
     .select('tax_settings')
     .eq('id', companyId)
-    .single();
+    .single());
 
   const taxSettings = company?.tax_settings as any;
   if (!taxSettings?.autoCancelOnRefund) return { cancelled: 0, reason: '환불 자동취소 비활성' };
 
   // Find rejected/cancelled payment_queue entries that have linked tax invoices
-  const { data: cancelled } = await db
+  const cancelled = logRead('lib/automation:cancelled', await db
     .from('payment_queue')
     .select('id, cost_schedule_id, description, deals(id)')
     .eq('company_id', companyId)
-    .in('status', ['rejected', 'cancelled']);
+    .in('status', ['rejected', 'cancelled']));
 
   if (!cancelled?.length) return { cancelled: 0 };
 
@@ -863,12 +864,12 @@ export async function autoCancelTaxInvoiceOnRefund(companyId: string) {
     if (!dealId) continue;
 
     // Find active tax invoices for this deal
-    const { data: invoices } = await db
+    const invoices = logRead('lib/automation:invoices', await db
       .from('tax_invoices')
       .select('id, status')
       .eq('deal_id', dealId)
       .eq('company_id', companyId)
-      .in('status', ['issued', 'received']);
+      .in('status', ['issued', 'received']));
 
     if (!invoices?.length) continue;
 

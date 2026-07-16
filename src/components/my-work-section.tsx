@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 내 업무 — 대시보드 "상황판" 핵심(2026-07-14 리포트형 개편).
 //   목적: 내가 담당·처리해야 할 것을 "실제 데이터 미리보기"로 한눈에 보고, 클릭하면 그 메뉴로 바로 이동.
@@ -92,7 +93,7 @@ export function useMyWorkCards(companyId: string, userId: string): MyWorkCard[] 
     staleTime: 60_000,
     queryFn: async () => {
       // 서명 요청 조회용 내 employee id (내게 온 계약 서명 = hr_contract_packages)
-      const { data: emp } = await db.from("employees").select("id").eq("user_id", userId).eq("company_id", companyId).maybeSingle();
+      const emp = logRead('components/my-work-section:emp', await db.from("employees").select("id").eq("user_id", userId).eq("company_id", companyId).maybeSingle());
       const empId = emp?.id ?? null;
       const [tasks, projects, approvals, mentions, signs] = await Promise.all([
         db.from("project_tasks").select("id, title, due_date, status, deal_id, deals(name)")

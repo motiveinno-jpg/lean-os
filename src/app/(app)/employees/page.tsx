@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { MonthField } from "@/components/month-field";
@@ -103,11 +104,11 @@ export default function EmployeesPage() {
   const { data: employees = [], error: mainError, refetch: mainRefetch, isLoading: mainLoading } = useQuery({
     queryKey: ["employees", companyId],
     queryFn: async () => {
-      const { data } = await supabase
+      const data = logRead('employees/page:data', await supabase
         .from("employees")
         .select("*")
         .eq("company_id", companyId!)
-        .order("created_at");
+        .order("created_at"));
       return data || [];
     },
     enabled: !!companyId,
@@ -290,11 +291,11 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const { data: leaveBalancesForList = [] } = useQuery({
     queryKey: ["leave-balances-list", companyId, currentYear],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('employees/page:data', await (supabase as any)
         .from("leave_balances")
         .select("employee_id, total_days, used_days, remaining_days")
         .eq("company_id", companyId)
-        .eq("year", currentYear);
+        .eq("year", currentYear));
       return data || [];
     },
     enabled: !!companyId,
@@ -316,7 +317,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const { data: companyData } = useQuery({
     queryKey: ["company-name", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId!).maybeSingle();
+      const data = logRead('employees/page:data', await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId!).maybeSingle());
       return data;
     },
     enabled: !!companyId,
@@ -1244,10 +1245,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const { data: monthLeaves = [] } = useQuery({
     queryKey: ["attendance-cal-leaves", companyId, selectedMonth],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("leave_requests")
+      const data = logRead('employees/page:data', await (supabase as any).from("leave_requests")
         .select("employee_id, start_date, end_date, status")
         .eq("company_id", companyId).eq("status", "approved")
-        .lte("start_date", monthEnd).gte("end_date", monthStart);
+        .lte("start_date", monthEnd).gte("end_date", monthStart));
       return data || [];
     },
     enabled: !!companyId,
@@ -1280,12 +1281,12 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('employees/page:data', await db
         .from('allowance_entries')
         .select('employee_id, amount, allowance_types!inner(code, name, is_active)')
         .eq('company_id', companyId)
         .eq('payroll_month', selectedMonth)
-        .filter('allowance_types.is_active', 'eq', true);
+        .filter('allowance_types.is_active', 'eq', true));
       return (data as Array<{ employee_id: string; amount: number; allowance_types: { code: string; name: string } | null }>) || [];
     },
     enabled: !!companyId && isAdminForAllowance,
@@ -2188,7 +2189,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const { data: companyMeta } = useQuery({
     queryKey: ["company-meta-payroll", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("name, representative").eq("id", companyId!).maybeSingle();
+      const data = logRead('employees/page:data', await supabase.from("companies").select("name, representative").eq("id", companyId!).maybeSingle());
       return data as { name: string; representative: string | null } | null;
     },
     enabled: !!companyId,
@@ -2197,7 +2198,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const { data: empMap = {} } = useQuery({
     queryKey: ["payroll-emp-meta", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("employees").select("id, department, position, birth_date").eq("company_id", companyId!);
+      const data = logRead('employees/page:data', await supabase.from("employees").select("id, department, position, birth_date").eq("company_id", companyId!));
       const m: Record<string, { department: string | null; position: string | null; birthDate: string | null }> = {};
       (data || []).forEach((e: any) => { m[e.id] = { department: e.department, position: e.position, birthDate: e.birth_date }; });
       return m;
@@ -2225,11 +2226,11 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     if (!companyId || !preview) return;
     setLoadingAllowances(true);
     try {
-      const { data } = await (supabase as any)
+      const data = logRead('employees/page:data', await (supabase as any)
         .from("allowance_entries")
         .select("employee_id, amount, allowance_types!inner(name, code, display_order, is_active)")
         .eq("company_id", companyId)
-        .eq("payroll_month", periodMonth);
+        .eq("payroll_month", periodMonth));
       // 직원별 수당 그룹 (활성 + 금액>0, display_order 정렬)
       const byEmp = new Map<string, { name: string; amount: number; order: number }[]>();
       for (const r of (data || []) as any[]) {
@@ -2311,18 +2312,18 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     setLoading(true);
     try {
       // 1) 당월 override 존재 여부 확인 — 없고 전월엔 있으면 복사 제안
-      const { data: curOv } = await (supabase as any)
+      const curOv = logRead('employees/page:curOv', await (supabase as any)
         .from('payslip_overrides')
         .select('employee_id')
         .eq('company_id', companyId)
-        .eq('period_month', periodMonth);
+        .eq('period_month', periodMonth));
       if (!curOv || curOv.length === 0) {
         const prevKey = prevMonthKey(periodMonth);
-        const { data: prevOv } = await (supabase as any)
+        const prevOv = logRead('employees/page:prevOv', await (supabase as any)
           .from('payslip_overrides')
           .select('employee_id, base_salary, non_taxable_amount')
           .eq('company_id', companyId)
-          .eq('period_month', prevKey);
+          .eq('period_month', prevKey));
         if (prevOv && prevOv.length > 0) {
           const [py, pm] = prevKey.split('-');
           const ok = window.confirm(
@@ -3924,7 +3925,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info", companyId],
     queryFn: async () => {
-      const { data } = await db.from("companies").select("*").eq("id", companyId).maybeSingle();
+      const data = logRead('employees/page:data', await db.from("companies").select("*").eq("id", companyId).maybeSingle());
       return data;
     },
     enabled: !!companyId,

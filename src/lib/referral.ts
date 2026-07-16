@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Referral System
  * 추천인 코드 생성 + 크레딧 적립 + 리더보드
@@ -44,11 +45,11 @@ export function generateReferralCode(): string {
 // ── 2. 추천 코드 조회 (없으면 생성) ──
 export async function getReferralCode(companyId: string): Promise<string> {
   // 기존 코드 조회
-  const { data: existing } = await db
+  const existing = logRead('lib/referral:existing', await db
     .from('referral_codes')
     .select('code')
     .eq('company_id', companyId)
-    .maybeSingle();
+    .maybeSingle());
 
   if (existing?.code) return existing.code;
 

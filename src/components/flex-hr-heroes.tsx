@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 HR 세부탭 히어로 (2026-06-12).
 //   급여/계약서/경비청구/휴가/증명서 탭 상단에 모듈 히어로(아이콘+설명+실데이터 지표 칩)를 얹는다.
@@ -124,7 +125,7 @@ export function CertificatesHero({ companyId }: { companyId: string }) {
   const { data } = useQuery({
     queryKey: ["flex-cert-hero", companyId],
     queryFn: async () => {
-      const { data: logs } = await db.from("certificate_logs").select("id, created_at").eq("company_id", companyId).limit(2000);
+      const logs = logRead('components/flex-hr-heroes:logs', await db.from("certificate_logs").select("id, created_at").eq("company_id", companyId).limit(2000));
       const all = (logs || []) as any[];
       const month = all.filter((l) => String(l.created_at || "").slice(0, 10) >= monthStart).length;
       return { total: all.length, month };

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Payroll Engine
  * 급여 명세서 + 이력 조회 + 4대보험 계산
@@ -12,11 +13,11 @@ const db = supabase as any;
 // ── Get payroll items for a batch ──
 
 export async function getPayrollItems(batchId: string): Promise<PayrollItem[]> {
-  const { data } = await db
+  const data = logRead('lib/payroll:data', await db
     .from('payroll_items')
     .select('*, employees(name)')
     .eq('batch_id', batchId)
-    .order('created_at');
+    .order('created_at'));
 
   return (data || []).map((item: any) => ({
     employeeId: item.employee_id,
@@ -66,11 +67,11 @@ export async function previewPayroll(
   totalNet: number;
   skippedNoBirth: string[]; // 생년월일 없는 직원 (비밀번호 못 거는 직원)
 }> {
-  const { data: employees } = await db
+  const employees = logRead('lib/payroll:employees', await db
     .from('employees')
     .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined', 'invited']);
+    .in('status', ['active', 'joined', 'invited']));
 
   if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0, skippedNoBirth: [] };
 
@@ -78,11 +79,11 @@ export async function previewPayroll(
   // v4 H1: extras (임의 수당/공제) 도 함께 fetch
   const overrideMap: Record<string, { base_salary: number; non_taxable_amount: number; extras?: unknown; deduction_overrides?: unknown }> = {};
   if (monthKey) {
-    const { data: overrides } = await db
+    const overrides = logRead('lib/payroll:overrides', await db
       .from('payslip_overrides')
       .select('employee_id, base_salary, non_taxable_amount, extras, deduction_overrides')
       .eq('company_id', companyId)
-      .eq('period_month', monthKey);
+      .eq('period_month', monthKey));
     (overrides || []).forEach((o: any) => {
       overrideMap[o.employee_id] = {
         base_salary: Number(o.base_salary),
@@ -179,12 +180,12 @@ export async function previewPayroll(
 // ── Get payroll history (all batches with payroll items) ──
 
 export async function getPayrollHistory(companyId: string) {
-  const { data: batches } = await db
+  const batches = logRead('lib/payroll:batches', await db
     .from('payment_batches')
     .select('id, name, total_amount, item_count, status, created_at, approved_at')
     .eq('company_id', companyId)
     .eq('batch_type', 'payroll')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
 
   return batches || [];
 }
@@ -192,11 +193,11 @@ export async function getPayrollHistory(companyId: string) {
 // ── Get total monthly salary for burn calculation ──
 
 export async function getMonthlyTotalSalary(companyId: string): Promise<number> {
-  const { data: employees } = await db
+  const employees = logRead('lib/payroll:employees', await db
     .from('employees')
     .select('salary')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined', 'invited']);
+    .in('status', ['active', 'joined', 'invited']));
 
   return (employees || []).reduce((sum: number, e: any) => sum + Number(e.salary || 0), 0);
 }

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 프로젝트(라이프사이클·손익 뷰) — 워크플로우(/projects 보드)와 같은 deals 데이터의 다른 렌즈.
 //   2026-06-17 핸드오프 v2: 신규 테이블 없이 기존 deals 재사용. 목록 → 상세(탭) 구조.
@@ -64,7 +65,7 @@ export default function ProjectHubPage() {
   const { data: pnl = [] } = useQuery({
     queryKey: ["projecthub-pnl", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("v_deal_pnl").select("deal_id, revenue, direct_cost, direct_cost_ratio, margin");
+      const data = logRead('projecthub/page:data', await (supabase as any).from("v_deal_pnl").select("deal_id, revenue, direct_cost, direct_cost_ratio, margin"));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -79,9 +80,9 @@ export default function ProjectHubPage() {
   const { data: settleRows = [] } = useQuery({
     queryKey: ["projecthub-settle-rollup", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("tax_invoices")
+      const data = logRead('projecthub/page:data', await (supabase as any).from("tax_invoices")
         .select("deal_id, total_amount, supply_amount, settled_amount, status")
-        .eq("company_id", companyId!).eq("type", "sales").neq("status", "void").not("deal_id", "is", null);
+        .eq("company_id", companyId!).eq("type", "sales").neq("status", "void").not("deal_id", "is", null));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -107,7 +108,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-goal-kpis", companyId, goalDealIds.length],
     queryFn: async () => {
       if (goalDealIds.length === 0) return [];
-      const { data } = await (supabase as any).from("project_kpis").select("id, deal_id, target_value, direction, source").in("deal_id", goalDealIds);
+      const data = logRead('projecthub/page:data', await (supabase as any).from("project_kpis").select("id, deal_id, target_value, direction, source").in("deal_id", goalDealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && goalDealIds.length > 0,
@@ -117,7 +118,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-goal-entries", companyId, goalDealIds.length],
     queryFn: async () => {
       if (goalDealIds.length === 0) return [];
-      const { data } = await (supabase as any).from("project_kpi_entries").select("kpi_id, value").in("deal_id", goalDealIds);
+      const data = logRead('projecthub/page:data', await (supabase as any).from("project_kpi_entries").select("kpi_id, value").in("deal_id", goalDealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && goalDealIds.length > 0,
@@ -127,7 +128,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-goal-autos", companyId, goalDealIds.length],
     queryFn: async () => {
       if (goalDealIds.length === 0) return [];
-      const { data } = await (supabase as any).from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", goalDealIds);
+      const data = logRead('projecthub/page:data', await (supabase as any).from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", goalDealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && goalDealIds.length > 0,
@@ -137,7 +138,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-tasks", companyId, deliveryDealIds.length],
     queryFn: async () => {
       if (deliveryDealIds.length === 0) return [];
-      const { data } = await (supabase as any).from("project_tasks").select("deal_id, status, due_date").in("deal_id", deliveryDealIds).is("archived_at", null);
+      const data = logRead('projecthub/page:data', await (supabase as any).from("project_tasks").select("deal_id, status, due_date").in("deal_id", deliveryDealIds).is("archived_at", null));
       return (data || []) as any[];
     },
     enabled: !!companyId && deliveryDealIds.length > 0,

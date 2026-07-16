@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useState, useEffect } from "react";
 import { friendlyError } from "@/lib/friendly-error";
@@ -81,7 +82,7 @@ export default function BillingPage() {
   const { data: plans } = useQuery({
     queryKey: ["plans"],
     queryFn: async () => {
-      const { data } = await db.from("subscription_plans").select("*").eq("is_active", true).order("sort_order");
+      const data = logRead('billing/page:data', await db.from("subscription_plans").select("*").eq("is_active", true).order("sort_order"));
       return data || [];
     },
   });
@@ -91,13 +92,13 @@ export default function BillingPage() {
     queryKey: ["subscription", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data } = await db
+      const data = logRead('billing/page:data', await db
         .from("subscriptions")
         .select("*, subscription_plans(*)")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!companyId,
@@ -108,11 +109,11 @@ export default function BillingPage() {
     queryKey: ["invoices", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data } = await db
+      const data = logRead('billing/page:data', await db
         .from("invoices")
         .select("*")
         .eq("company_id", companyId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!companyId,
@@ -123,12 +124,12 @@ export default function BillingPage() {
     queryKey: ["referral", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data } = await db
+      const data = logRead('billing/page:data', await db
         .from("referral_codes")
         .select("*")
         .eq("company_id", companyId)
         .eq("is_active", true)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!companyId,

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Chat Engine
  * 프로젝트룸 채팅: 채널 관리, 메시지, 참가자, 이벤트
@@ -310,8 +311,8 @@ export async function sendMessageWithMentions(params: {
       const recipients = params.mentionedUserIds.filter((uid) => uid && uid !== params.senderId);
       if (recipients.length > 0) {
         const db = supabase as any;
-        const { data: ch } = await db.from('chat_channels').select('company_id, name, is_dm').eq('id', params.channelId).maybeSingle();
-        const { data: sender } = await db.from('users').select('name, email').eq('id', params.senderId).maybeSingle();
+        const ch = logRead('lib/chat:ch', await db.from('chat_channels').select('company_id, name, is_dm').eq('id', params.channelId).maybeSingle());
+        const sender = logRead('lib/chat:sender', await db.from('users').select('name, email').eq('id', params.senderId).maybeSingle());
         if (ch?.company_id) {
           // 멘션된 사용자가 팀 채널 참가자가 아니면 추가 — 알림만 받고 채널 목록·미읽음(getUnreadCounts)·
           //   딥링크가 안 되던 문제(2026-06-22). chat_members(RLS SELECT 게이트) + chat_participants(미읽음) 양쪽.
@@ -319,9 +320,9 @@ export async function sendMessageWithMentions(params: {
           //   DM 채널은 멤버 고정이라 제외.
           if (!ch.is_dm) {
             for (const uid of recipients) {
-              const { data: m } = await db.from('chat_members').select('id').eq('channel_id', params.channelId).eq('user_id', uid).maybeSingle();
+              const m = logRead('lib/chat:m', await db.from('chat_members').select('id').eq('channel_id', params.channelId).eq('user_id', uid).maybeSingle());
               if (!m) await db.from('chat_members').insert({ channel_id: params.channelId, user_id: uid, role: 'member' });
-              const { data: p } = await db.from('chat_participants').select('id').eq('channel_id', params.channelId).eq('user_id', uid).maybeSingle();
+              const p = logRead('lib/chat:p', await db.from('chat_participants').select('id').eq('channel_id', params.channelId).eq('user_id', uid).maybeSingle());
               if (!p) await db.from('chat_participants').insert({ channel_id: params.channelId, user_id: uid, role: 'member' });
             }
           }
@@ -356,14 +357,14 @@ export async function sendMessageWithMentions(params: {
 
 // ── Search messages in a channel ──
 export async function searchMessages(channelId: string, query: string, limit = 50) {
-  const { data } = await supabase
+  const data = logRead('lib/chat:data', await supabase
     .from('chat_messages')
     .select('*, users:sender_id(name, email)')
     .eq('channel_id', channelId)
     .is('deleted_at', null)
     .ilike('content', `%${query}%`)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(limit));
   return data || [];
 }
 
@@ -477,12 +478,12 @@ export async function createDMChannel(params: {
   for (const uid of params.participantIds) {
     if (!uid || seen.has(uid)) continue;
     seen.add(uid);
-    const { data: mExisting } = await db
+    const mExisting = logRead('lib/chat:mExisting', await db
       .from('chat_members')
       .select('id')
       .eq('channel_id', data.id)
       .eq('user_id', uid)
-      .maybeSingle();
+      .maybeSingle());
     if (!mExisting) {
       const { error: mErr } = await db.from('chat_members').insert({
         channel_id: data.id,
@@ -491,12 +492,12 @@ export async function createDMChannel(params: {
       });
       if (mErr) throw mErr;
     }
-    const { data: existing } = await db
+    const existing = logRead('lib/chat:existing', await db
       .from('chat_participants')
       .select('id')
       .eq('channel_id', data.id)
       .eq('user_id', uid)
-      .maybeSingle();
+      .maybeSingle());
     if (!existing) {
       await db.from('chat_participants').insert({
         channel_id: data.id,
@@ -524,18 +525,18 @@ export async function getChannelsByType(companyId: string, type: 'deal' | 'team'
     query = query.eq('is_dm', true);
   }
 
-  const { data } = await query.order('updated_at', { ascending: false });
+  const data = logRead('lib/chat:data', await query.order('updated_at', { ascending: false }));
   return data || [];
 }
 
 // ── Get or create invite token for guest access ──
 export async function getOrCreateInviteToken(channelId: string): Promise<string> {
   const db = supabase as any;
-  const { data } = await db
+  const data = logRead('lib/chat:data', await db
     .from('chat_channels')
     .select('invite_token')
     .eq('id', channelId)
-    .single();
+    .single());
 
   if (data?.invite_token) return data.invite_token;
 

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -68,11 +69,11 @@ export default function ErrorLogsPage() {
   const { data: rows = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["error-logs"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('error-logs/page:data', await (supabase as any)
         .from("error_logs")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(500));
       return (data || []) as ErrorLog[];
     },
     enabled: isOperator,

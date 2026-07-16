@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import type { ReactNode } from "react";
 import { DateTimeField } from "@/components/datetime-field";
@@ -129,12 +130,12 @@ export default function BoardPage() {
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["board-posts", companyId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('board/page:data', await db
         .from("board_posts")
         .select("*")
         .eq("company_id", companyId!)
         .order("pinned", { ascending: false })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return (data || []) as Post[];
     },
     enabled: !!companyId,
@@ -143,11 +144,11 @@ export default function BoardPage() {
   const { data: comments = [] } = useQuery({
     queryKey: ["board-comments", openId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('board/page:data', await db
         .from("board_comments")
         .select("*")
         .eq("post_id", openId!)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true }));
       return (data || []) as Comment[];
     },
     enabled: !!openId,
@@ -170,10 +171,10 @@ export default function BoardPage() {
         }
         return { counts, total };
       } catch {
-        const { data } = await db
+        const data = logRead('board/page:data', await db
           .from("board_poll_votes")
           .select("option_index")
-          .eq("post_id", openId!);
+          .eq("post_id", openId!));
         for (const v of (data || []) as any[]) {
           const k = Number(v.option_index);
           counts[k] = (counts[k] || 0) + 1;
@@ -191,11 +192,11 @@ export default function BoardPage() {
     queryKey: ["board-my-poll-votes", openId, user?.id],
     queryFn: async () => {
       if (!user?.id) return [] as number[];
-      const { data } = await db
+      const data = logRead('board/page:data', await db
         .from("board_poll_votes")
         .select("option_index")
         .eq("post_id", openId!)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id));
       return ((data || []) as any[]).map((v) => Number(v.option_index));
     },
     enabled: !!openId && !!user?.id,
@@ -418,7 +419,7 @@ export default function BoardPage() {
 
       // 대댓글 알림 — 내 댓글에 답글이 달리면 원 댓글 작성자에게 (본인·멘션·글작성자와 중복 제외)
       if (parentCommentId) {
-        const { data: parent } = await db.from("board_comments").select("author_id").eq("id", parentCommentId).maybeSingle();
+        const parent = logRead('board/page:parent', await db.from("board_comments").select("author_id").eq("id", parentCommentId).maybeSingle());
         const parentAuthorId = parent?.author_id as string | undefined;
         const postAuthorId = posts.find((p) => p.id === postId)?.author_id;
         if (parentAuthorId && parentAuthorId !== user?.id && !mentioned.includes(parentAuthorId) && parentAuthorId !== postAuthorId) {
@@ -469,13 +470,13 @@ export default function BoardPage() {
     mutationFn: async ({ postId, optionIndex, multi }: { postId: string; optionIndex: number; multi: boolean }) => {
       if (!user?.id) throw new Error("로그인이 필요합니다.");
       if (multi) {
-        const { data: existing } = await db
+        const existing = logRead('board/page:existing', await db
           .from("board_poll_votes")
           .select("id")
           .eq("post_id", postId)
           .eq("user_id", user.id)
           .eq("option_index", optionIndex)
-          .limit(1);
+          .limit(1));
         if (existing && existing.length > 0) {
           const { error } = await db
             .from("board_poll_votes")

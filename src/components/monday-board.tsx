@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 2026-06-11 프로젝트 Monday.com 클론 보드 (사장님: "진짜 아예 똑같다 싶을 정도로").
 //   데이터 로직은 Phase 1·2 그대로(행=deals, 컬럼=board_columns, 셀=deals.column_values, 그룹=board_groups).
@@ -101,7 +102,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const { data: updateCounts } = useQuery<Map<string, number>>({
     queryKey: ["board-update-counts", companyId],
     queryFn: async () => {
-      const { data } = await db.from("board_item_updates").select("deal_id").eq("company_id", companyId).is("subitem_id", null).limit(5000);
+      const data = logRead('components/monday-board:data', await db.from("board_item_updates").select("deal_id").eq("company_id", companyId).is("subitem_id", null).limit(5000));
       const m = new Map<string, number>();
       (data || []).forEach((r: any) => m.set(r.deal_id, (m.get(r.deal_id) || 0) + 1));
       return m;
@@ -113,7 +114,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const { data: columns = [], isFetched: colsFetched } = useQuery<Col[]>({
     queryKey: ["board-columns", companyId],
     queryFn: async () => {
-      const { data } = await db.from("board_columns").select("*").eq("company_id", companyId).order("position");
+      const data = logRead('components/monday-board:data', await db.from("board_columns").select("*").eq("company_id", companyId).order("position"));
       return (data || []) as Col[];
     },
     enabled: !!companyId,
@@ -121,7 +122,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const { data: groups = [], isFetched: groupsFetched } = useQuery<Grp[]>({
     queryKey: ["board-groups", companyId],
     queryFn: async () => {
-      const { data } = await db.from("board_groups").select("*").eq("company_id", companyId).order("position");
+      const data = logRead('components/monday-board:data', await db.from("board_groups").select("*").eq("company_id", companyId).order("position"));
       return (data || []) as Grp[];
     },
     enabled: !!companyId,
@@ -129,7 +130,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ["board-deals", companyId],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, name, board_group_id, column_values, contract_total").eq("company_id", companyId).is("archived_at", null).order("created_at", { ascending: true });
+      const data = logRead('components/monday-board:data', await db.from("deals").select("id, name, board_group_id, column_values, contract_total").eq("company_id", companyId).is("archived_at", null).order("created_at", { ascending: true }));
       return (data || []).map((d: any) => ({ ...d, column_values: d.column_values || {} })) as Deal[];
     },
     enabled: !!companyId,
@@ -146,7 +147,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
         changed = true;
       }
       if (groups.length === 0) {
-        const { data: g } = await db.from("board_groups").insert({ company_id: companyId, name: "프로젝트", color: MONDAY.primary, position: 0 }).select("id").maybeSingle();
+        const g = logRead('components/monday-board:g', await db.from("board_groups").insert({ company_id: companyId, name: "프로젝트", color: MONDAY.primary, position: 0 }).select("id").maybeSingle());
         if (g?.id) await db.from("deals").update({ board_group_id: g.id }).eq("company_id", companyId).is("board_group_id", null);
         changed = true;
       }
@@ -698,7 +699,7 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
     queryFn: async () => {
       let qb = db.from("board_item_updates").select("*").eq("deal_id", deal.id);
       qb = subitem ? qb.eq("subitem_id", subitem.id) : qb.is("subitem_id", null);
-      const { data } = await qb.order("created_at", { ascending: false }).limit(200);
+      const data = logRead('components/monday-board:data', await qb.order("created_at", { ascending: false }).limit(200));
       return (data || []) as any[];
     },
   });
@@ -912,7 +913,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
   const { data: items = [] } = useQuery<SubItem[]>({
     queryKey: ["project-subitems", deal.id],
     queryFn: async () => {
-      const { data } = await db.from("project_subitems").select("*").eq("deal_id", deal.id).order("position");
+      const data = logRead('components/monday-board:data', await db.from("project_subitems").select("*").eq("deal_id", deal.id).order("position"));
       return (data || []).map((r: any) => ({ ...r, column_values: r.column_values || {} })) as SubItem[];
     },
   });
@@ -923,8 +924,8 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
   const { data: subCounts } = useQuery<Map<string, number>>({
     queryKey: ["subitem-update-counts", deal.id],
     queryFn: async () => {
-      const { data } = await db.from("board_item_updates").select("subitem_id")
-        .eq("deal_id", deal.id).not("subitem_id", "is", null).limit(2000);
+      const data = logRead('components/monday-board:data', await db.from("board_item_updates").select("subitem_id")
+        .eq("deal_id", deal.id).not("subitem_id", "is", null).limit(2000));
       const m = new Map<string, number>();
       (data || []).forEach((r: any) => { if (r.subitem_id) m.set(r.subitem_id, (m.get(r.subitem_id) || 0) + 1); });
       return m;

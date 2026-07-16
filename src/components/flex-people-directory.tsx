@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 구성원 디렉토리 (2026-06-12).
 //   아바타 카드 그리드/리스트 + 팀·상태 필터 + 클릭 시 우측 프로필 슬라이드 패널
@@ -72,7 +73,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
   const { data: userAvatars = [] } = useQuery<{ id: string; email: string | null; avatar_url: string | null }[]>({
     queryKey: ["company-user-avatars", companyId],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id, email, avatar_url").eq("company_id", companyId);
+      const data = logRead('components/flex-people-directory:data', await db.from("users").select("id, email, avatar_url").eq("company_id", companyId));
       return data || [];
     },
     enabled: !!companyId,
@@ -242,8 +243,8 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
   const { data: leave } = useQuery<{ total: number; used: number; remaining: number } | null>({
     queryKey: ["flex-profile-leave", emp.id, year],
     queryFn: async () => {
-      const { data } = await db.from("leave_balances").select("total_days, used_days, remaining_days")
-        .eq("employee_id", emp.id).eq("year", year).maybeSingle();
+      const data = logRead('components/flex-people-directory:data', await db.from("leave_balances").select("total_days, used_days, remaining_days")
+        .eq("employee_id", emp.id).eq("year", year).maybeSingle());
       if (!data) return null;
       const total = Number(data.total_days || 0), used = Number(data.used_days || 0);
       return { total, used, remaining: data.remaining_days != null ? Number(data.remaining_days) : Math.max(0, total - used) };
@@ -257,11 +258,11 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
       const now = new Date(Date.now() + 9 * 3600 * 1000);
       const today = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
       const monday = new Date(today); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-      const { data } = await db.from("attendance_records")
+      const data = logRead('components/flex-people-directory:data', await db.from("attendance_records")
         .select("regular_minutes, overtime_minutes, work_hours")
         .eq("company_id", companyId).eq("employee_id", emp.id)
         .gte("date", kstYmd(new Date(monday.getTime() - 9 * 3600 * 1000)))
-        .lte("date", kstYmd(new Date(today.getTime() - 9 * 3600 * 1000)));
+        .lte("date", kstYmd(new Date(today.getTime() - 9 * 3600 * 1000))));
       return ((data || []) as any[]).reduce((s, a) => {
         const m = Number(a.regular_minutes || 0) + Number(a.overtime_minutes || 0);
         return s + (m > 0 ? m : Math.round(Number(a.work_hours || 0) * 60));

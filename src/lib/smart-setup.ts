@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Smart Setup Engine
  * 이체내역 패턴감지 + 엑셀→고정비 자동등록 + 계약→지출결의 자동생성
@@ -84,22 +85,22 @@ export async function detectRecurringFromBankTx(companyId: string): Promise<Dete
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-  const { data: transactions } = await db
+  const transactions = logRead('lib/smart-setup:transactions', await db
     .from('bank_transactions')
     .select('counterparty, amount, transaction_date, description, type')
     .eq('company_id', companyId)
     .eq('type', 'expense') // 출금 = type 'expense' (DB 실제값: expense/income)
     .gte('transaction_date', threeMonthsAgo.toISOString().split('T')[0])
-    .order('transaction_date', { ascending: true });
+    .order('transaction_date', { ascending: true }));
 
   if (!transactions?.length) return [];
 
   // Get existing recurring payments for dedup
-  const { data: existingRecurring } = await db
+  const existingRecurring = logRead('lib/smart-setup:existingRecurring', await db
     .from('recurring_payments')
     .select('name, amount')
     .eq('company_id', companyId)
-    .eq('is_active', true);
+    .eq('is_active', true));
 
   const existingSet = new Set(
     (existingRecurring || []).map((r: any) => `${r.name}|${r.amount}`)
@@ -206,10 +207,10 @@ export async function setupRecurringFromExcel(
   if (!parsed?.length) return { registered: 0, needsReview: 0, skipped: 0, items: [] };
 
   // Get existing recurring
-  const { data: existing } = await db
+  const existing = logRead('lib/smart-setup:existing', await db
     .from('recurring_payments')
     .select('name, amount')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   const existingSet = new Set(
     (existing || []).map((r: any) => `${r.name}|${r.amount}`)
@@ -270,11 +271,11 @@ export async function setupExpenseFromContract(
   dealId: string
 ): Promise<{ created: number; totalAmount: number }> {
   // Get deal info
-  const { data: deal } = await db
+  const deal = logRead('lib/smart-setup:deal', await db
     .from('deals')
     .select('id, name, contract_total, amount')
     .eq('id', dealId)
-    .single();
+    .single());
 
   if (!deal) return { created: 0, totalAmount: 0 };
 
@@ -282,10 +283,10 @@ export async function setupExpenseFromContract(
   if (totalAmount <= 0) return { created: 0, totalAmount: 0 };
 
   // Check if cost schedule already exists
-  const { data: existing } = await db
+  const existing = logRead('lib/smart-setup:existing', await db
     .from('deal_cost_schedule')
     .select('id')
-    .eq('deal_id', dealId);
+    .eq('deal_id', dealId));
 
   if (existing?.length) return { created: 0, totalAmount };
 

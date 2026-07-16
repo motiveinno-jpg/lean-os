@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 
 // ── Auto-Discovery Engine ──
@@ -38,12 +39,12 @@ const KNOWN_SAAS: Record<string, string> = {
 };
 
 export async function analyzeTransactionPatterns(companyId: string): Promise<DiscoveredPattern[]> {
-  const { data: transactions } = await supabase
+  const transactions = logRead('lib/auto-discovery:transactions', await supabase
     .from('transactions')
     .select('*')
     .eq('company_id', companyId)
     .eq('type', 'expense')
-    .order('transaction_date', { ascending: false });
+    .order('transaction_date', { ascending: false }));
 
   if (!transactions || transactions.length === 0) return [];
 
@@ -117,11 +118,11 @@ export async function saveDiscoveryResults(companyId: string, patterns: Discover
 
 export async function acceptDiscovery(discoveryId: string, companyId: string) {
   // Get discovery result
-  const { data: discovery } = await supabase
+  const discovery = logRead('lib/auto-discovery:discovery', await supabase
     .from('auto_discovery_results')
     .select('*')
     .eq('id', discoveryId)
-    .single();
+    .single());
 
   if (!discovery) throw new Error('Discovery not found');
 
@@ -144,11 +145,11 @@ export async function acceptDiscovery(discoveryId: string, companyId: string) {
   // Estimate billing day from the first source transaction date
   let billingDay: number | null = null;
   if (discovery.source_transaction_ids?.length) {
-    const { data: firstTx } = await supabase
+    const firstTx = logRead('lib/auto-discovery:firstTx', await supabase
       .from('transactions')
       .select('transaction_date')
       .in('id', discovery.source_transaction_ids.slice(0, 1))
-      .maybeSingle();
+      .maybeSingle());
     if (firstTx?.transaction_date) {
       const d = new Date(firstTx.transaction_date);
       billingDay = d.getDate();

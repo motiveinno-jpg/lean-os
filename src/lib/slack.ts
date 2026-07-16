@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // Slack Incoming Webhook 알림 — Granter 패턴
 // 회사 설정에 webhook URL 등록 후 결제/결재/큰 거래 발생 시 자동 알림
 import { supabase } from "./supabase";
@@ -104,10 +105,10 @@ export interface SlackSettings {
 }
 
 export async function getSlackSettings(companyId: string): Promise<SlackSettings | null> {
-  const { data } = await db.from("company_settings")
+  const data = logRead('lib/slack:data', await db.from("company_settings")
     .select("slack_webhook_url, slack_notify_payment, slack_notify_approval, slack_notify_large_tx, slack_large_tx_threshold")
     .eq("company_id", companyId)
-    .maybeSingle();
+    .maybeSingle());
   return data || null;
 }
 

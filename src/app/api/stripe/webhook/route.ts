@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -82,12 +83,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  const { data: plan } = await db
+  const plan = logRead('webhook/route:plan', await db
     .from('subscription_plans')
     .select('id')
     .eq('slug', planSlug)
     .eq('is_active', true)
-    .single();
+    .single());
 
   if (!plan) {
     console.error('Plan not found for slug:', planSlug);
@@ -97,13 +98,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const stripeSubscriptionId = session.subscription as string;
   const stripeCustomerId = session.customer as string;
 
-  const { data: existing } = await db
+  const existing = logRead('webhook/route:existing', await db
     .from('subscriptions')
     .select('id')
     .eq('company_id', companyId)
     .in('status', ['active', 'paused', 'past_due', 'trialing'])
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
 
   const now = new Date().toISOString();
   const periodEnd = new Date();
@@ -214,34 +215,34 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const stripeSubscriptionId = invoice.subscription as string | null;
   if (!stripeSubscriptionId) return;
 
-  const { data: sub } = await db
+  const sub = logRead('webhook/route:sub', await db
     .from('subscriptions')
     .select('company_id, id')
     .eq('stripe_subscription_id', stripeSubscriptionId)
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
 
   if (!sub) return;
 
   // 멱등성 — Stripe 재시도 시 같은 인보이스 중복 insert 방지
-  const { data: dup } = await db
+  const dup = logRead('webhook/route:dup', await db
     .from('invoices')
     .select('id')
     .eq('stripe_invoice_id', invoice.id)
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
   if (dup) return;
 
   const now = new Date();
   const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const { data: lastInv } = await db
+  const lastInv = logRead('webhook/route:lastInv', await db
     .from('invoices')
     .select('invoice_number')
     .like('invoice_number', `INV-${yearMonth}-%`)
     .order('invoice_number', { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
 
   let seq = 1;
   if (lastInv?.invoice_number) {
@@ -280,12 +281,12 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const stripeSubscriptionId = invoice.subscription as string | null;
   if (!stripeSubscriptionId) return;
 
-  const { data: sub } = await db
+  const sub = logRead('webhook/route:sub', await db
     .from('subscriptions')
     .select('company_id, id')
     .eq('stripe_subscription_id', stripeSubscriptionId)
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
   if (!sub) return;
 
   await db.from('subscriptions')

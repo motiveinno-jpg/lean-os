@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 결재 양식 관리 + 빌더 (2026-07-01, 플렉스식) — approvals '양식 관리' 탭에서 사용.
 //   양식 목록 + '새 양식 추가' → 빌더(이름·분류·설명·커스텀 필드·내용 템플릿·결재선 단계·옵션).
@@ -50,7 +51,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const { data: users = [] } = useQuery({
     queryKey: ["approval-forms-users", companyId],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id, name, email, role").eq("company_id", companyId).order("name");
+      const data = logRead('components/approval-forms-manager:data', await db.from("users").select("id, name, email, role").eq("company_id", companyId).order("name"));
       return (data || []) as { id: string; name: string | null; email: string | null; role: string }[];
     },
     enabled: !!companyId,

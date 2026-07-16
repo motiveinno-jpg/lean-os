@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { friendlyError } from "@/lib/friendly-error";
@@ -126,11 +127,11 @@ export default function SettingsPage() {
     getCurrentUser().then(async (u) => {
       if (!u) { setPageLoading(false); return; }
       setCompanyId(u.company_id);
-      const { data } = await supabase
+      const data = logRead('settings/page:data', await supabase
         .from("cash_snapshot")
         .select("*")
         .eq("company_id", u.company_id)
-        .maybeSingle();
+        .maybeSingle());
       if (data) {
         setBalance(String(data.current_balance || 0));
         setFixedCost(String(data.monthly_fixed_cost || 0));

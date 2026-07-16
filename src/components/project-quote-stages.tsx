@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // PR3.5: 견적 품목 + 결제 단계 인라인 편집 컴포넌트.
 //   슬라이드 패널 돈 탭에 임베드. saveQuoteAndPayment 와 동일한 데이터 모델
@@ -100,11 +101,11 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data: deal } = await (supabase as any)
+      const deal = logRead('components/project-quote-stages:deal', await (supabase as any)
         .from("deals")
         .select("name, contract_total, custom_scope, partner_id, partners:partners!deals_partner_id_fkey(id, name, contact_email)")
         .eq("id", dealId)
-        .maybeSingle();
+        .maybeSingle());
       if (cancelled) return;
       if (deal) {
         setDealName(deal.name || "");
@@ -167,11 +168,11 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
     if (readonly) return;
     setSaving(true);
     try {
-      const { data: deal } = await (supabase as any)
+      const deal = logRead('components/project-quote-stages:deal', await (supabase as any)
         .from("deals")
         .select("custom_scope")
         .eq("id", dealId)
-        .maybeSingle();
+        .maybeSingle());
       const scope = { ...((deal?.custom_scope as any) || {}), quoteItems: items, paymentStages: stages, quoteContent: content };
       const { error } = await (supabase as any).from("deals").update({ custom_scope: scope }).eq("id", dealId);
       if (error) throw error;
@@ -241,11 +242,11 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
       // 안전망 (2026-05-21): 기존 draft 재사용 분기에서 _token 미할당 → 메일 링크 깨짐 회귀.
       //   어느 경로든 _token 확보. approval_token 컬럼은 RLS 상 작성자/회사구성원 select 허용.
       if (!_token && approvalId) {
-        const { data: row } = await (supabase as any)
+        const row = logRead('components/project-quote-stages:row', await (supabase as any)
           .from('quote_approvals')
           .select('approval_token')
           .eq('id', approvalId)
-          .maybeSingle();
+          .maybeSingle());
         _token = row?.approval_token ?? null;
       }
       if (!_token) {

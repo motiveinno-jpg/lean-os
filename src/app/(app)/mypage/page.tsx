@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -59,7 +60,7 @@ export default function MyPage() {
   const { data: userInfo } = useQuery({
     queryKey: ["my-user-info", userId],
     queryFn: async () => {
-      const { data } = await supabase.from("users").select("name, email, role, avatar_url").eq("id", userId!).maybeSingle();
+      const data = logRead('mypage/page:data', await supabase.from("users").select("name, email, role, avatar_url").eq("id", userId!).maybeSingle());
       return data;
     },
     enabled: !!userId,
@@ -118,12 +119,12 @@ export default function MyPage() {
     queryKey: ["my-employee-info", companyId, userId],
     queryFn: async () => {
       if (!userInfo?.email) return null;
-      const { data } = await supabase
+      const data = logRead('mypage/page:data', await supabase
         .from("employees")
         .select("*")
         .eq("company_id", companyId!)
         .eq("email", userInfo.email)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!companyId && !!userInfo?.email,
@@ -132,7 +133,7 @@ export default function MyPage() {
   const { data: company } = useQuery({
     queryKey: ["my-company-info", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("name").eq("id", companyId!).maybeSingle();
+      const data = logRead('mypage/page:data', await supabase.from("companies").select("name").eq("id", companyId!).maybeSingle());
       return data;
     },
     enabled: !!companyId,
@@ -142,12 +143,12 @@ export default function MyPage() {
   const { data: leaveBalance } = useQuery({
     queryKey: ["my-leave-balance-page", employee?.id, currentYear],
     queryFn: async () => {
-      const { data } = await supabase
+      const data = logRead('mypage/page:data', await supabase
         .from("leave_balances")
         .select("total_days, used_days, remaining_days, year")
         .eq("employee_id", employee!.id)
         .eq("year", currentYear)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!employee?.id,

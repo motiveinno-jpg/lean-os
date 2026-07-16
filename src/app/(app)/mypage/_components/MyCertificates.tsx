@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,11 +34,11 @@ export function MyCertificates({
     queryKey: ["mypage-cert-company", companyId],
     queryFn: async () => {
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('_components/MyCertificates:data', await db
         .from("companies")
         .select("name, representative, address, business_number, seal_url")
         .eq("id", companyId!)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!companyId,

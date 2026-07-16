@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 이슈 트래커 — 목표형 프로젝트의 문제점·이슈를 제목·심각도·담당·기한·상태·해결메모로 관리.
 //   테이블: project_issues (RLS: company_id = get_my_company_id()). updated_at 트리거 없음 → 앱에서 명시 갱신.
@@ -47,7 +48,7 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
   const { data: issues = [], isLoading } = useQuery({
     queryKey: ["project-issues", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_issues").select("id, title, description, severity, status, assignee_id, due_date, resolution, resolved_at, created_at").eq("deal_id", dealId).order("created_at", { ascending: false });
+      const data = logRead('_components/IssuesTab:data', await db.from("project_issues").select("id, title, description, severity, status, assignee_id, due_date, resolution, resolved_at, created_at").eq("deal_id", dealId).order("created_at", { ascending: false }));
       return (data || []) as Issue[];
     },
     enabled: !!dealId,

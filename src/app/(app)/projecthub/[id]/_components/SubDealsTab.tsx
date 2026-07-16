@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 거래 원장 — 한 프로젝트(deal)의 매출·매입 항목을 부호 기반 단일 리스트로 관리(2026-07 개편).
 //   양수(+)=매출(받을 돈) · 음수(−)=매입(줄 돈). 저장은 기존 type(sales/purchase)+양수 금액 유지
@@ -47,7 +48,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
   const { data: childDeals = [] } = useQuery({
     queryKey: ["sub-deals-children", dealId],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, name").eq("parent_deal_id", dealId).is("archived_at", null);
+      const data = logRead('_components/SubDealsTab:data', await db.from("deals").select("id, name").eq("parent_deal_id", dealId).is("archived_at", null));
       return (data || []) as { id: string; name: string }[];
     },
     enabled: !!dealId,
@@ -59,7 +60,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
     queryKey: ["sub-deals", dealId, childIdsKey],
     queryFn: async () => {
       const parentIds = [dealId, ...childDeals.map((c) => c.id)];
-      const { data } = await db.from("sub_deals").select("id, parent_deal_id, name, type, contract_amount, partner_id, vat_type, status, start_date, end_date").in("parent_deal_id", parentIds).order("created_at", { ascending: true });
+      const data = logRead('_components/SubDealsTab:data', await db.from("sub_deals").select("id, parent_deal_id, name, type, contract_amount, partner_id, vat_type, status, start_date, end_date").in("parent_deal_id", parentIds).order("created_at", { ascending: true }));
       return (data || []) as SubDeal[];
     },
     enabled: !!dealId,
@@ -67,7 +68,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
   const { data: pnlRows = [] } = useQuery({
     queryKey: ["sub-deal-pnl", dealId],
     queryFn: async () => {
-      const { data } = await db.from("v_sub_deal_pnl").select("sub_deal_id, actual_cost").eq("deal_id", dealId);
+      const data = logRead('_components/SubDealsTab:data', await db.from("v_sub_deal_pnl").select("sub_deal_id, actual_cost").eq("deal_id", dealId));
       return (data || []) as { sub_deal_id: string; actual_cost: number }[];
     },
     enabled: !!dealId,
@@ -76,7 +77,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
   const { data: partners = [] } = useQuery({
     queryKey: ["sub-deal-partners", companyId],
     queryFn: async () => {
-      const { data } = await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name");
+      const data = logRead('_components/SubDealsTab:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name"));
       return (data || []) as Partner[];
     },
     enabled: !!companyId,

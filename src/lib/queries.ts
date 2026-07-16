@@ -1,17 +1,12 @@
 import { supabase } from './supabase';
 import { encryptCredential } from './crypto';
 import { createTrialingSubscription } from './billing';
-import { reportError } from './friendly-error';
+import { logRead } from './log-read';
 import type { User, Company, Deal, DealNode, CashSnapshot, BankAccount, SubDeal, DealMilestone, DealAssignment, PaymentQueue, DocTemplate, TaxInvoice, ChatChannel, ChatMessage, ChatParticipant, VaultAccount, VaultAsset, VaultDoc, AutoDiscoveryResult, DealClassification, CorporateCard, CardTransaction, ClosingChecklist, ClosingChecklistItem, AuditLog, Partner } from '@/types/models';
 
 // ── 읽기 쿼리 무음 실패 방지 ──
 // 에러를 무시하던 읽기 쿼리들의 공통 통과 지점. 실패 시 Sentry/콘솔로 보고하고
 // data 는 그대로 반환해 기존 빈 폴백(`data || []` 등) 동작을 바꾸지 않는다.
-function logRead<T extends { data: unknown; error: unknown }>(scope: string, res: T): T['data'] {
-  if (res.error) reportError(`queries.${scope}`, res.error);
-  return res.data;
-}
-
 // 대형 select 절단 방지 페이징 — 구현/규약은 fetch-paged.ts 참조
 import { fetchPaged } from './fetch-paged';
 

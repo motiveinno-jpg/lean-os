@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 매출 현황 — "얼마나 벌었나?"에 답하는 대표용 화면(2026-07-08).
 //   이번 달 매출 + 지난달 대비 + 월별 추세 + 어디서 벌었나(거래처 TOP) + 아직 못 받은 돈(미수금).
@@ -42,10 +43,10 @@ export default function RevenuePage() {
   const { data: salesData } = useQuery({
     queryKey: ["revenue-sales", companyId, year],
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices")
+      const data = logRead('revenue/page:data', await db.from("tax_invoices")
         .select("counterparty_name, supply_amount, total_amount, issue_date, status")
         .eq("company_id", companyId).eq("type", "sales")
-        .gte("issue_date", `${year}-01-01`).lte("issue_date", `${year}-12-31`);
+        .gte("issue_date", `${year}-01-01`).lte("issue_date", `${year}-12-31`));
       const rows = (data || []) as { counterparty_name: string | null; supply_amount: number | null; total_amount: number | null; issue_date: string | null; status: string | null }[];
       // 거래처별 공급가액 합
       const byPartner: Record<string, number> = {};

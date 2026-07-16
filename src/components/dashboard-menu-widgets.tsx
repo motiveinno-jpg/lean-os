@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 대시보드 카탈로그용 메뉴 위젯 — 각 메뉴의 실제 데이터 미리보기(2026-07-15).
 //   공용 셸 ActivityCard 재사용(제목 + 전체보기 → / 표 행). 쿼리는 코드베이스 검증 패턴만 사용.
@@ -42,9 +43,9 @@ export function BankRecentCard({ companyId }: { companyId: string }) {
     queryKey: ["dash-bank-recent", companyId],
     enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => {
-      const { data } = await db.from("bank_transactions")
+      const data = logRead('components/dashboard-menu-widgets:data', await db.from("bank_transactions")
         .select("id, transaction_date, type, amount, counterparty, description")
-        .eq("company_id", companyId).order("transaction_date", { ascending: false }).limit(5);
+        .eq("company_id", companyId).order("transaction_date", { ascending: false }).limit(5));
       return (data || []) as any[];
     },
   });
@@ -118,8 +119,8 @@ export function EmployeesCard({ companyId }: { companyId: string }) {
     queryKey: ["dash-employees", companyId],
     enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => {
-      const { data } = await db.from("employees").select("id, name, department")
-        .eq("company_id", companyId).in("status", ["active", "joined"]).order("name").limit(50);
+      const data = logRead('components/dashboard-menu-widgets:data', await db.from("employees").select("id, name, department")
+        .eq("company_id", companyId).in("status", ["active", "joined"]).order("name").limit(50));
       const list = (data || []) as any[];
       return { list: list.slice(0, 5), count: list.length };
     },
@@ -143,8 +144,8 @@ export function PartnersCard({ companyId }: { companyId: string }) {
     queryKey: ["dash-partners", companyId],
     enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => {
-      const { data } = await db.from("partners").select("id, name")
-        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(50);
+      const data = logRead('components/dashboard-menu-widgets:data', await db.from("partners").select("id, name")
+        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(50));
       const list = (data || []) as any[];
       return { list: list.slice(0, 5), count: list.length };
     },
@@ -167,8 +168,8 @@ export function AnnouncementsCard() {
     queryKey: ["dash-announcements"],
     staleTime: 60_000,
     queryFn: async () => {
-      const { data } = await db.from("announcements").select("id, title, pinned, created_at")
-        .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(5);
+      const data = logRead('components/dashboard-menu-widgets:data', await db.from("announcements").select("id, title, pinned, created_at")
+        .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(5));
       return (data || []) as any[];
     },
   });
@@ -191,9 +192,9 @@ export function MyTasksCard({ userId }: { userId: string }) {
     queryKey: ["dash-my-tasks", userId],
     enabled: !!userId, staleTime: 60_000,
     queryFn: async () => {
-      const { data } = await db.from("project_tasks").select("id, title, due_date, deal_id")
+      const data = logRead('components/dashboard-menu-widgets:data', await db.from("project_tasks").select("id, title, due_date, deal_id")
         .eq("assignee_id", userId).is("archived_at", null).neq("status", "done")
-        .order("due_date", { ascending: true, nullsFirst: false }).limit(5);
+        .order("due_date", { ascending: true, nullsFirst: false }).limit(5));
       return (data || []) as any[];
     },
   });

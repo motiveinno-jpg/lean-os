@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -47,7 +48,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
   const { data: rows = [] } = useQuery({
     queryKey: ['card-top-expenses-month-simple', companyId, dateFrom, dateTo],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('components/card-insights:data', await (supabase as any)
         .from('card_transactions')
         .select('id, transaction_date, amount, merchant_name, merchant_category, card_name, category, classification')
         .eq('company_id', companyId)
@@ -55,7 +56,7 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
         .lte('transaction_date', dateTo)
         .gt('amount', 0)
         .order('amount', { ascending: false })
-        .limit(50);
+        .limit(50));
       return data || [];
     },
     enabled: !!companyId,

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Tax Invoice Engine
  * 세금계산서 생성 + 3-way matching (계약 ↔ 세금계산서 ↔ 입금)
@@ -103,13 +104,13 @@ async function autoCreateExpenseReport(companyId: string, invoice: TaxInvoice) {
     const { createApprovalRequest } = await import('./approval-workflow');
 
     // Get a user for the request (company owner)
-    const { data: owner } = await supabase
+    const owner = logRead('lib/tax-invoice:owner', await supabase
       .from('users')
       .select('id')
       .eq('company_id', companyId)
       .eq('role', 'owner')
       .limit(1)
-      .maybeSingle();
+      .maybeSingle());
 
     if (!owner) return;
 
@@ -150,11 +151,11 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
   let tolerance = 0.01;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: company } = await (supabase as any)
+    const company = logRead('lib/tax-invoice:company', await (supabase as any)
       .from('companies')
       .select('tax_settings')
       .eq('id', companyId)
-      .single();
+      .single());
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ts = (company as any)?.tax_settings;
     if (ts?.matching_tolerance != null && ts.matching_tolerance >= 0 && ts.matching_tolerance <= 100) {
@@ -163,26 +164,26 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
   } catch { /* use default */ }
 
   // Fetch all sales invoices (with linked deal if any)
-  const { data: invoices } = await supabase
+  const invoices = logRead('lib/tax-invoice:invoices', await supabase
     .from('tax_invoices')
     .select('*, deals(*)')
     .eq('company_id', companyId)
     .eq('type', 'sales')
-    .neq('status', 'void');
+    .neq('status', 'void'));
 
   if (!invoices) return [];
 
   // Fetch ALL deals for smart matching (unlinked invoices)
-  const { data: allDeals } = await supabase
+  const allDeals = logRead('lib/tax-invoice:allDeals', await supabase
     .from('deals')
     .select('id, name, contract_total')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   // Fetch ALL revenue schedule entries (not just received) for partial matching
-  const { data: allRevenues } = await supabase
+  const allRevenues = logRead('lib/tax-invoice:allRevenues', await supabase
     .from('deal_revenue_schedule')
     .select('*, deals!inner(company_id)')
-    .eq('deals.company_id', companyId);
+    .eq('deals.company_id', companyId));
 
   const receivedByDeal = new Map<string, number>();
   const schedulesByDeal = new Map<string, { amount: number; status: string; label?: string }[]>();
@@ -302,11 +303,11 @@ export async function issueTaxInvoice(
     throw err;
   }
   // 발행 성공 — 갱신된 invoice 반환
-  const { data: invoice } = await supabase
+  const invoice = logRead('lib/tax-invoice:invoice', await supabase
     .from('tax_invoices')
     .select('*')
     .eq('id', invoiceId)
-    .maybeSingle();
+    .maybeSingle());
   return invoice;
 }
 
@@ -438,21 +439,21 @@ export async function getVATPreview(companyId: string, year: number): Promise<VA
   const quarterly = await getTaxInvoiceSummary(companyId, year, 'quarterly');
 
   // Get card deduction data
-  const { data: cardData } = await db
+  const cardData = logRead('lib/tax-invoice:cardData', await db
     .from('card_deduction_summary')
     .select('*')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   // 현금영수증 매출 세액 — 세금계산서 미발행 매출의 부가세도 납부 대상 (cash-receipts 화면 동일 테이블)
   //   발행(issued)만 집계, 취소/무효 제외. 매입 현금영수증 공제는 증빙 요건 판단이 필요해 미반영(보수적).
-  const { data: crData } = await db
+  const crData = logRead('lib/tax-invoice:crData', await db
     .from('cash_receipts')
     .select('tax_amount, issue_date')
     .eq('company_id', companyId)
     .eq('type', 'income')
     .eq('status', 'issued')
     .gte('issue_date', `${year}-01-01`)
-    .lt('issue_date', `${year + 1}-01-01`);
+    .lt('issue_date', `${year + 1}-01-01`));
 
   const crByQuarter = new Map<string, number>();
   (crData || []).forEach((c: any) => {

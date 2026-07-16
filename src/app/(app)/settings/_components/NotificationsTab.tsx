@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import React, { useEffect, useState } from "react";
@@ -441,8 +442,8 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
   useEffect(() => {
     if (!companyId) return;
     (async () => {
-      const { data } = await (supabase as any).from("notification_settings")
-        .select("*").eq("company_id", companyId).maybeSingle();
+      const data = logRead('_components/NotificationsTab:data', await (supabase as any).from("notification_settings")
+        .select("*").eq("company_id", companyId).maybeSingle());
       if (data) {
         setEnabled(!!data.daily_report_enabled);
         setPhones(data.daily_report_phones || []);

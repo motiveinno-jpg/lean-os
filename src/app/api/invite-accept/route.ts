@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
@@ -13,12 +14,12 @@ export async function POST(req: NextRequest) {
     const admin = createSupabaseAdminClient();
 
     // 1) 초대 토큰 검증
-    const { data: ei } = await admin
+    const ei = logRead('invite-accept/route:ei', await admin
       .from('employee_invitations')
       .select('*')
       .eq('invite_token', token)
       .eq('status', 'pending')
-      .maybeSingle();
+      .maybeSingle());
 
     const { data: pi } = !ei
       ? await admin
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
         const m = (createErr?.message || '').toLowerCase();
         if (m.includes('already') || m.includes('exists') || m.includes('registered')) {
           // RPC 로 다시 조회 (race condition)
-          const { data: retryRows } = await (admin as any).rpc('find_auth_user_by_email', { p_email: normEmail });
+          const retryRows = logRead('invite-accept/route:retryRows', await (admin as any).rpc('find_auth_user_by_email', { p_email: normEmail }));
           const retryArr = Array.isArray(retryRows) ? (retryRows as any[]) : [];
           const retryUser = retryArr.length > 0 ? retryArr[0] : null;
           if (retryUser) {
@@ -125,12 +126,12 @@ export async function POST(req: NextRequest) {
 
     // 6) employees row 있으면 join (직원만)
     if (inviteType === 'employee') {
-      const { data: emp } = await admin
+      const emp = logRead('invite-accept/route:emp', await admin
         .from('employees')
         .select('id')
         .eq('company_id', invite.company_id)
         .eq('email', normEmail)
-        .maybeSingle();
+        .maybeSingle());
 
       if (emp?.id) {
         await admin.from('employees').update({

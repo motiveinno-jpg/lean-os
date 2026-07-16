@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 부서 마스터 관리 (2026-06-29) — 목표형 성과 입력 부서 귀속용.
 //   추가 / 이름변경 / 정렬(sort_order) / 보관(archived_at soft delete). 회사스코프 RLS.
@@ -23,8 +24,8 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
   const { data: depts = [] } = useQuery({
     queryKey: ["settings-departments", companyId],
     queryFn: async () => {
-      const { data } = await db.from("departments").select("id, name, sort_order, archived_at")
-        .eq("company_id", companyId).order("sort_order", { ascending: true }).order("name", { ascending: true });
+      const data = logRead('_components/DepartmentsTab:data', await db.from("departments").select("id, name, sort_order, archived_at")
+        .eq("company_id", companyId).order("sort_order", { ascending: true }).order("name", { ascending: true }));
       return (data || []) as Dept[];
     },
     enabled: !!companyId,

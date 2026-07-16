@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 2026-07-06 라운드8.1 — /sign, /share 는 외부(비로그인) 서명·공유 링크: 문서를 종이처럼 항상 밝게 보여주는 게
 // 의도(뷰어 OS 다크모드와 무관) → 배경/카드는 의도적으로 라이트 하드코딩 유지, var(--bg) 전환 금지.
@@ -459,21 +460,21 @@ function SignContent() {
     try {
       // Get package by sign_token — anon 은 SECURITY DEFINER RPC 로만 접근(직접 select 는 RLS 차단).
       //   토큰=secret 검증 후 패키지+employees(saved_signature 포함)+companies+items 를 한 번에 반환.
-      const { data: p } = await db.rpc("get_contract_package_by_token", { p_token: token });
+      const p = logRead('sign/page:p', await db.rpc("get_contract_package_by_token", { p_token: token }));
 
       if (!p) {
         // Fallback: check general document signature_requests
         //   2026-05-22 anon RLS 우회 — signature_requests SELECT 가 authenticated 전용이라
         //   외부 수신자(비로그인)는 직접 조회 시 "유효하지 않은 링크" 가 됨.
         //   sign_token 검증 SECURITY DEFINER RPC 로 행+문서 반환 (token = secret).
-        const { data: sigReq } = await db.rpc("get_signature_request_by_token", { p_token: token });
+        const sigReq = logRead('sign/page:sigReq', await db.rpc("get_signature_request_by_token", { p_token: token }));
 
         if (sigReq) {
           const expired = sigReq.expires_at ? new Date(sigReq.expires_at) < new Date() : false;
           // 2026-05-21: anon RLS 우회 — SECURITY DEFINER RPC 로 company + partner 한 번에 조회.
           //   sign_token 검증 후 안전하게 갑/을 컨텍스트 반환.
           //   기존 partners RLS = company_id = get_my_company_id() 가 anon 차단해 표시 단 치환 불가했던 회귀 정공 fix.
-          const { data: ctx } = await db.rpc('get_signature_context_by_token', { p_sign_token: token });
+          const ctx = logRead('sign/page:ctx', await db.rpc('get_signature_context_by_token', { p_sign_token: token }));
           const company = ctx?.company || null;
           const partner = ctx?.partner || null;
 

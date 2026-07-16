@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 구독 관리 패널 — 2026-07-08 "정기 지출" 흡수. /subscriptions 페이지에서 추출(동작 무변경).
 //   정기 지출 > 구독 탭에서 마운트. SaaS 계정·비밀번호는 vault_accounts(자산)에 그대로 보존.
@@ -76,13 +77,13 @@ export function SubscriptionsPanel() {
   const { data: ownerViewSub } = useQuery({
     queryKey: ["ov-subscription", companyId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('components/subscriptions-panel:data', await db
         .from("subscriptions")
         .select("*, subscription_plans(*)")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!companyId,

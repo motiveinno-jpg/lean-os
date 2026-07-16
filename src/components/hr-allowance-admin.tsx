@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // L 수당 — 관리자/대표 수당 명세 화면 (§C-3).
 //   - 월 선택, 행=직원, 열=활성 allowance_types, 셀=entries.amount.
@@ -49,12 +50,12 @@ export default function AllowanceAdminTab({
   const { data: employees = [] } = useQuery<EmployeeMin[]>({
     queryKey: ["allowance-admin-emps", companyId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('components/hr-allowance-admin:data', await db
         .from("employees")
         .select("id, name")
         .eq("company_id", companyId)
         .in("status", ["active", "joined", "invited"])
-        .order("name");
+        .order("name"));
       return (data as EmployeeMin[]) || [];
     },
     enabled: !!companyId,

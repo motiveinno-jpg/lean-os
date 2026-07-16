@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
@@ -21,10 +22,10 @@ export async function POST(req: NextRequest) {
 
     const admin = createSupabaseAdminClient();
     // 저장 형식이 하이픈 포함/미포함 혼재 가능 → 양쪽 모두 조회
-    const { data } = await admin.from('companies')
+    const data = logRead('check-business-number/route:data', await admin.from('companies')
       .select('id, name')
       .in('business_number', [formatted, digits])
-      .limit(1);
+      .limit(1));
     const row = data?.[0];
 
     return NextResponse.json({

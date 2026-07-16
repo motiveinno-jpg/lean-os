@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -203,11 +204,11 @@ export default function OnboardingPage() {
 
     async function checkStatus() {
       try {
-        const { data: comp } = await db
+        const comp = logRead('onboarding/page:comp', await db
           .from("companies")
           .select("name, business_number, representative, industry, address, phone")
           .eq("id", companyId)
-          .maybeSingle();
+          .maybeSingle());
 
         const hasCompany = !!(comp?.name && comp?.business_number);
         if (comp) {

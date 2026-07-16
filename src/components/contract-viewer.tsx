@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 서명된 계약서 뷰어 — 페이지(/contracts/signed/[id])와 공통 모달(DocumentViewerModal) 공용.
 //   id(approvalId 또는 signatureRequestId) prop 으로 dual-mode 조회 → 본문 + 갑/을 서명 박스 + 직인 + 인쇄.
@@ -164,13 +165,13 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
       try {
         // dual mode — id 가 quote_approvals 인지 signature_requests 인지 자동 식별
         // 1) quote_approvals 먼저 (단건 견적·계약 흐름)
-        const { data: qa } = await db
+        const qa = logRead('components/contract-viewer:qa', await db
           .from("quote_approvals")
           .select(
             "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, signature_data_url, our_signature_data_url, our_signed_at, payload, deals(id, name), companies(name, representative, business_number, seal_url)",
           )
           .eq("id", id)
-          .maybeSingle();
+          .maybeSingle());
         if (qa) {
           setRow({
             ...qa,
@@ -188,13 +189,13 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
         }
 
         // 2) signature_requests fallback (단체일괄 흐름) + partner_id 별도 fetch
-        const { data: sr } = await db
+        const sr = logRead('components/contract-viewer:sr', await db
           .from("signature_requests")
           .select(
             "id, status, signer_name, signer_email, signature_method, signature_data_url, signed_contract_html, signed_contract_url, template_snapshot_html, batch_id, signed_at, sent_at, ip_address, partner_id, companies(name, representative, business_number, seal_url), documents(name)",
           )
           .eq("id", id)
-          .maybeSingle();
+          .maybeSingle());
         if (sr) {
           // 을(거래처) 정보 — partner_id 로 partners 별도 조회 (관리자 컨텍스트, 회사구성원 RLS 통과)
           let partnerInfo: { name: string | null; business_number: string | null; representative: string | null } = {
@@ -203,11 +204,11 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
             representative: null,
           };
           if (sr.partner_id) {
-            const { data: p } = await db
+            const p = logRead('components/contract-viewer:p', await db
               .from("partners")
               .select("name, business_number, representative")
               .eq("id", sr.partner_id)
-              .maybeSingle();
+              .maybeSingle());
             if (p) {
               partnerInfo = {
                 name: p.name ?? sr.signer_name ?? null,

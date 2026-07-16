@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 예정 지출 — "앞으로 낼 돈은?"에 답하는 대표용 화면(2026-07-08).
 //   세금(부가세)·대출 상환·매달 고정비·미지급금 (매입)을 모아, 다음 30일 예상 지출과
@@ -46,8 +47,8 @@ export default function UpcomingPage() {
   const { data: apTotal = 0 } = useQuery<number>({
     queryKey: ["upcoming-ap", companyId],
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices").select("total_amount").eq("company_id", companyId)
-        .eq("type", "purchase").in("status", ["issued", "sent", "pending", "overdue"]);
+      const data = logRead('upcoming/page:data', await db.from("tax_invoices").select("total_amount").eq("company_id", companyId)
+        .eq("type", "purchase").in("status", ["issued", "sent", "pending", "overdue"]));
       return ((data || []) as { total_amount: number | null }[]).reduce((s, r) => s + Number(r.total_amount || 0), 0);
     },
     enabled: !!companyId, staleTime: 60_000,

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -28,7 +29,7 @@ export default function FeedbackPage() {
   const { data: feedback = [] } = useQuery({
     queryKey: ["p-feedback-all"],
     queryFn: async () => {
-      const { data } = await db.from("feedback").select("*, users(name, email), companies(name)").order("created_at", { ascending: false });
+      const data = logRead('feedback/page:data', await db.from("feedback").select("*, users(name, email), companies(name)").order("created_at", { ascending: false }));
       return data || [];
     },
   });

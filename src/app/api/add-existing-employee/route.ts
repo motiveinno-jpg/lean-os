@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
     if (!caller) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
 
     const admin = createSupabaseAdminClient();
-    const { data: callerRow } = await admin.from('users').select('id, company_id, role').eq('auth_id', caller.id).maybeSingle();
+    const callerRow = logRead('add-existing-employee/route:callerRow', await admin.from('users').select('id, company_id, role').eq('auth_id', caller.id).maybeSingle());
     if (!callerRow?.company_id) return NextResponse.json({ error: '회사 정보를 찾을 수 없습니다.' }, { status: 403 });
     if (!['owner', 'admin'].includes(callerRow.role || '')) {
       return NextResponse.json({ error: '직원 추가는 대표/관리자만 가능합니다.' }, { status: 403 });
@@ -34,12 +35,12 @@ export async function POST(req: NextRequest) {
     const hireDate = body.hireDate || new Date().toISOString().slice(0, 10);
 
     // 3) 대상 회원 조회 — public.users 우선, 없으면 auth 에서
-    const { data: targetRow } = await admin.from('users').select('id, name').ilike('email', email).maybeSingle();
+    const targetRow = logRead('add-existing-employee/route:targetRow', await admin.from('users').select('id, name').ilike('email', email).maybeSingle());
     let targetUserId: string | undefined = targetRow?.id;
     let targetName = inName || targetRow?.name || email.split('@')[0];
 
     if (!targetUserId) {
-      const { data: authRows } = await (admin as any).rpc('find_auth_user_by_email', { p_email: email });
+      const authRows = logRead('add-existing-employee/route:authRows', await (admin as any).rpc('find_auth_user_by_email', { p_email: email }));
       const arr = Array.isArray(authRows) ? authRows : [];
       if (arr.length === 0) {
         return NextResponse.json({ error: '가입된 회원이 아닙니다. 먼저 가입하도록 안내하거나 "직원 초대"를 이용하세요.' }, { status: 404 });
@@ -54,8 +55,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 5) 이미 이 회사 직원인지 확인
-    const { data: emps } = await admin.from('employees').select('id, status')
-      .eq('company_id', companyId).or(`user_id.eq.${targetUserId},email.eq.${email}`).limit(1);
+    const emps = logRead('add-existing-employee/route:emps', await admin.from('employees').select('id, status')
+      .eq('company_id', companyId).or(`user_id.eq.${targetUserId},email.eq.${email}`).limit(1));
     const existingEmp = emps?.[0];
     if (existingEmp?.status === 'joined') {
       return NextResponse.json({ error: '이미 직원으로 등록된 회원입니다.' }, { status: 409 });

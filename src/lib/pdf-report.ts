@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView PDF Report Generator
  * 월간 손익 리포트 PDF 다운로드 + Storage 보관 (Granter 벤치마킹 5단계)
@@ -190,7 +191,7 @@ export async function generateMonthlyPLReport(
       .upload(path, blob, { upsert: true, contentType: 'application/pdf' });
     if (!upErr) {
       // documents 는 private 버킷 → getPublicUrl 은 깨진 링크. 장기(1년) 서명 URL 사용.
-      const { data: urlData } = await supabase.storage.from('documents').createSignedUrl(path, 60 * 60 * 24 * 365);
+      const urlData = logRead('lib/pdf-report:urlData', await supabase.storage.from('documents').createSignedUrl(path, 60 * 60 * 24 * 365));
       publicUrl = urlData?.signedUrl;
     }
   }

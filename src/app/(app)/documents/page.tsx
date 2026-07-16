@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
@@ -122,7 +123,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       const pname = (quoteHeader as any)?.partnerName || cj?.header?.partnerName || "";
       let email = ""; let cname = pname;
       if (pid) {
-        const { data: p } = await (supabase as any).from("partners").select("contact_email, contact_name, name").eq("id", pid).maybeSingle();
+        const p = logRead('documents/page:p', await (supabase as any).from("partners").select("contact_email, contact_name, name").eq("id", pid).maybeSingle());
         email = p?.contact_email || "";
         cname = p?.contact_name || p?.name || pname;
       }
@@ -231,9 +232,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     queryFn: async () => {
       const dealId = (doc as any)?.deal_id;
       if (!dealId) return null;
-      const { data: deal } = await (supabase as any).from("deals").select("partner_id, name").eq("id", dealId).maybeSingle();
+      const deal = logRead('documents/page:deal', await (supabase as any).from("deals").select("partner_id, name").eq("id", dealId).maybeSingle());
       if (deal?.partner_id) {
-        const { data: p } = await (supabase as any).from("partners").select("name").eq("id", deal.partner_id).maybeSingle();
+        const p = logRead('documents/page:p', await (supabase as any).from("partners").select("name").eq("id", deal.partner_id).maybeSingle());
         return p?.name || deal?.name || null;
       }
       return deal?.name || null;
@@ -526,14 +527,14 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   const supplyAmt = items.reduce((s: number, i: any) => s + i.amount, 0);
                   const taxAmt = Math.round(supplyAmt * 0.1);
                   // 회사 대표 계좌 가져오기
-                  const { data: bankAcct } = await db.from('bank_accounts').select('bank_name, account_number, alias').eq('company_id', companyId).eq('is_primary', true).limit(1).maybeSingle();
-                  const { data: currentUser } = await db.from('users').select('name, email').eq('id', userId).maybeSingle();
+                  const bankAcct = logRead('documents/page:bankAcct', await db.from('bank_accounts').select('bank_name, account_number, alias').eq('company_id', companyId).eq('is_primary', true).limit(1).maybeSingle());
+                  const currentUser = logRead('documents/page:currentUser', await db.from('users').select('name, email').eq('id', userId).maybeSingle());
 
                   // 제안사 담당자 — 견적 헤더에서 선택한 담당자 우선(없으면 현재 사용자). 이메일은 이름으로 조회.
                   const mgrName = cj.header?.manager || quoteHeader.manager || '';
                   let mgrEmail = '';
                   if (mgrName) {
-                    const { data: mgrRow } = await db.from('users').select('email').eq('company_id', companyId).eq('name', mgrName).limit(1).maybeSingle();
+                    const mgrRow = logRead('documents/page:mgrRow', await db.from('users').select('email').eq('company_id', companyId).eq('name', mgrName).limit(1).maybeSingle());
                     mgrEmail = mgrRow?.email || '';
                   }
 
@@ -1590,10 +1591,10 @@ function DocumentsPageInner() {
   const { data: contractArchives = [] } = useQuery({
     queryKey: ["contract-archives", companyId],
     queryFn: async () => {
-      const { data } = await db.from('contract_archives')
+      const data = logRead('documents/page:data', await db.from('contract_archives')
         .select('*')
         .eq('company_id', companyId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }));
       return data || [];
     },
     enabled: !!companyId,
@@ -2711,18 +2712,18 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         return searchFiles(companyId, fileSearchTerm);
       }
       if (selectedFolderId) {
-        const { data } = await (supabase as any)
+        const data = logRead('documents/page:data', await (supabase as any)
           .from("document_files")
           .select("*")
           .eq("folder_id", selectedFolderId)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false }));
         return data || [];
       }
-      const { data } = await (supabase as any)
+      const data = logRead('documents/page:data', await (supabase as any)
         .from("document_files")
         .select("*")
         .eq("company_id", companyId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!companyId,

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 목표형 전용 관리자 성과 대시보드 — 4뷰 토글.
 //   ① 이번주 브리핑: 목표 프로젝트 한 줄(담당·상태·평균달성률·성과 1줄·이슈 1줄)
@@ -31,8 +32,8 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   const { data: deals = [] } = useQuery({
     queryKey: ["perf-dash-deals", companyId],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, name, internal_manager_id, partner_id, checkin_cadence, checkin_due_weekday")
-        .eq("company_id", companyId).eq("project_type", "goal").is("archived_at", null).is("parent_deal_id", null);
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("deals").select("id, name, internal_manager_id, partner_id, checkin_cadence, checkin_due_weekday")
+        .eq("company_id", companyId).eq("project_type", "goal").is("archived_at", null).is("parent_deal_id", null));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -43,7 +44,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     queryKey: ["perf-dash-kpis", companyId, dealIds.length],
     queryFn: async () => {
       if (dealIds.length === 0) return [];
-      const { data } = await db.from("project_kpis").select("id, deal_id, label, target_value, direction, source, owner_id").in("deal_id", dealIds);
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("project_kpis").select("id, deal_id, label, target_value, direction, source, owner_id").in("deal_id", dealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && dealIds.length > 0,
@@ -52,7 +53,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     queryKey: ["perf-dash-entries", companyId, dealIds.length],
     queryFn: async () => {
       if (dealIds.length === 0) return [];
-      const { data } = await db.from("project_kpi_entries").select("deal_id, kpi_id, value, department_id, created_by").in("deal_id", dealIds);
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("project_kpi_entries").select("deal_id, kpi_id, value, department_id, created_by").in("deal_id", dealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && dealIds.length > 0,
@@ -61,7 +62,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     queryKey: ["perf-dash-autos", companyId, dealIds.length],
     queryFn: async () => {
       if (dealIds.length === 0) return [];
-      const { data } = await db.from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", dealIds);
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", dealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && dealIds.length > 0,
@@ -69,7 +70,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   const { data: partners = [] } = useQuery({
     queryKey: ["perf-dash-partners", companyId],
     queryFn: async () => {
-      const { data } = await db.from("partners").select("id, name").eq("company_id", companyId);
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("partners").select("id, name").eq("company_id", companyId));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -79,8 +80,8 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     queryKey: ["perf-dash-updates", companyId, dealIds.length],
     queryFn: async () => {
       if (dealIds.length === 0) return [];
-      const { data } = await db.from("project_updates").select("deal_id, status, did, issues, next_plan, period_start, created_by, update_date")
-        .in("deal_id", dealIds).order("update_date", { ascending: false });
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("project_updates").select("deal_id, status, did, issues, next_plan, period_start, created_by, update_date")
+        .in("deal_id", dealIds).order("update_date", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: !!companyId && dealIds.length > 0,
@@ -89,7 +90,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
     queryKey: ["perf-dash-assignments", companyId, dealIds.length],
     queryFn: async () => {
       if (dealIds.length === 0) return [];
-      const { data } = await db.from("deal_assignments").select("deal_id, user_id, is_active").in("deal_id", dealIds).eq("is_active", true);
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("deal_assignments").select("deal_id, user_id, is_active").in("deal_id", dealIds).eq("is_active", true));
       return (data || []) as any[];
     },
     enabled: !!companyId && dealIds.length > 0,
@@ -114,7 +115,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   const { data: deptMaster = [] } = useQuery({
     queryKey: ["perf-dash-departments", companyId],
     queryFn: async () => {
-      const { data } = await db.from("departments").select("id, name").eq("company_id", companyId).is("archived_at", null);
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("departments").select("id, name").eq("company_id", companyId).is("archived_at", null));
       return (data || []) as { id: string; name: string }[];
     },
     enabled: !!companyId,

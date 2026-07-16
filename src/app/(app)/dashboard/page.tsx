@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -214,12 +215,12 @@ export default function DashboardPage() {
       const monthStart = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-01`;
       const _nm = new Date(_now.getFullYear(), _now.getMonth() + 1, 1);
       const nextStart = `${_nm.getFullYear()}-${String(_nm.getMonth() + 1).padStart(2, '0')}-01`;
-      const { data: cards } = await (supabase as any)
+      const cards = logRead('dashboard/page:cards', await (supabase as any)
         .from('card_transactions')
         .select('amount, transaction_date')
         .eq('company_id', companyId!)
         .gte('transaction_date', monthStart)
-        .lt('transaction_date', nextStart);
+        .lt('transaction_date', nextStart));
       return (cards || []).reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
     },
     enabled: !!companyId,
@@ -749,8 +750,8 @@ function SummaryKpisWidget({
   const { data: bankBalance = null } = useQuery({
     queryKey: ["summary-bank-balance", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from('bank_accounts').select('balance').eq('company_id', companyId);
+      const data = logRead('dashboard/page:data', await (supabase as any)
+        .from('bank_accounts').select('balance').eq('company_id', companyId));
       if (!data) return null;
       return (data as any[]).reduce((s, b) => s + Number(b.balance || 0), 0);
     },
@@ -762,12 +763,12 @@ function SummaryKpisWidget({
   const { data: receivable = 0 } = useQuery({
     queryKey: ["summary-receivable", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('dashboard/page:data', await (supabase as any)
         .from('tax_invoices')
         .select('total_amount, status')
         .eq('company_id', companyId)
         .eq('type', 'sales') // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단)
-        .in('status', ['issued', 'sent', 'pending', 'overdue']);
+        .in('status', ['issued', 'sent', 'pending', 'overdue']));
       if (!data) return 0;
       return (data as any[]).reduce((s, inv) => s + Number(inv.total_amount || 0), 0);
     },
@@ -1073,7 +1074,7 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
       // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단) — 요약 위젯과 동일 조건
       // 2026-07-10 QA: due_date 컬럼 부재로 쿼리 전체 400 → 위젯 항상 0 표시되던 버그.
       //   연체 기준 = 발행 후 30일 경과(다른 미수 화면·AI 브리핑과 동일 기준).
-      const { data } = await (supabase as any).from('tax_invoices').select('counterparty_name, total_amount, issue_date, status').eq('company_id', companyId).eq('type', 'sales').in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20);
+      const data = logRead('dashboard/page:data', await (supabase as any).from('tax_invoices').select('counterparty_name, total_amount, issue_date, status').eq('company_id', companyId).eq('type', 'sales').in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20));
       return data || [];
     },
     enabled: !!companyId,
@@ -1133,7 +1134,7 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const { data } = await (supabase as any).from('transactions').select('amount, type, transaction_date').eq('company_id', companyId).gte('transaction_date', sixMonthsAgo.toISOString().split('T')[0]).order('transaction_date');
+      const data = logRead('dashboard/page:data', await (supabase as any).from('transactions').select('amount, type, transaction_date').eq('company_id', companyId).gte('transaction_date', sixMonthsAgo.toISOString().split('T')[0]).order('transaction_date'));
       if (!data) return [];
       const monthly: Record<string, { expense: number; income: number }> = {};
       data.forEach((tx: any) => {
@@ -1976,12 +1977,12 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
   const { data: deals = [] } = useQuery({
     queryKey: ['pipeline-summary', companyId],
     queryFn: async () => {
-      const { data } = await db2.from('deals')
+      const data = logRead('dashboard/page:data', await db2.from('deals')
         .select('id, name, status, contract_total, counterparty')
         .eq('company_id', companyId)
         .in('status', ['active', 'pending'])
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(10));
       return data || [];
     },
     enabled: !!companyId,
@@ -1990,12 +1991,12 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
   const { data: docs = [] } = useQuery({
     queryKey: ['pipeline-docs', companyId],
     queryFn: async () => {
-      const { data } = await db2.from('documents')
+      const data = logRead('dashboard/page:data', await db2.from('documents')
         .select('id, deal_id, content_type, status, name')
         .eq('company_id', companyId)
         .in('status', ['draft', 'review', 'issued'])
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(20));
       return data || [];
     },
     enabled: !!companyId,
@@ -2006,12 +2007,12 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const dealIds = deals.map((d: any) => d.id);
       if (dealIds.length === 0) return [];
-      const { data } = await db2.from('deal_revenue_schedule')
+      const data = logRead('dashboard/page:data', await db2.from('deal_revenue_schedule')
         .select('id, deal_id, amount, label, status, due_date')
         .in('deal_id', dealIds)
         .eq('status', 'expected')
         .order('due_date')
-        .limit(10);
+        .limit(10));
       return data || [];
     },
     enabled: !!companyId && deals.length > 0,
@@ -2466,7 +2467,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
       queryClient.invalidateQueries({ queryKey: ['founder-data'] });
       // Fire-and-forget: 승인 이메일 알림 (요청자에게)
       if (action?.requester) {
-        const { data: reqUser } = await supabase.from('users').select('email, name').eq('name', action.requester).limit(1).maybeSingle();
+        const reqUser = logRead('dashboard/page:reqUser', await supabase.from('users').select('email, name').eq('name', action.requester).limit(1).maybeSingle());
         if (reqUser?.email) {
           sendApprovalNotificationEmail({
             email: reqUser.email,
@@ -2732,13 +2733,13 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
     queryFn: async () => {
       const filters = [`user_id.eq.${userId}`];
       if (userEmail) filters.push(`email.eq.${userEmail}`);
-      const { data } = await db
+      const data = logRead('dashboard/page:data', await db
         .from("employees")
         .select("id")
         .eq("company_id", companyId!)
         .or(filters.join(","))
         .limit(1)
-        .maybeSingle();
+        .maybeSingle());
       return data?.id || null;
     },
     enabled: !!companyId && !!userId,
@@ -2764,12 +2765,12 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
   const { data: todayAttendance } = useQuery({
     queryKey: ["emp-attendance-today", employeeId, today],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('dashboard/page:data', await db
         .from("attendance_records")
         .select("*")
         .eq("employee_id", employeeId!)
         .eq("date", today)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!employeeId,
@@ -2784,12 +2785,12 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
       const [y, m] = yearMonth.split('-').map(Number);
       const lastDay = new Date(y, m, 0).getDate();
       const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
-      const { data } = await db
+      const data = logRead('dashboard/page:data', await db
         .from("attendance_records")
         .select("work_hours, overtime_hours, status")
         .eq("employee_id", employeeId!)
         .gte("date", startDate)
-        .lte("date", endDate);
+        .lte("date", endDate));
       const records = data || [];
       const totalDays = records.filter((r: any) => r.status !== "absent").length;
       const totalHours = records.reduce((s: number, r: any) => s + Number(r.work_hours || 0), 0);
@@ -2803,11 +2804,11 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
   const { data: workSettings } = useQuery({
     queryKey: ["emp-work-settings", companyId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('dashboard/page:data', await db
         .from("company_settings")
         .select("work_start_time, work_end_time, lunch_minutes")
         .eq("company_id", companyId)
-        .maybeSingle();
+        .maybeSingle());
       return data as { work_start_time: string | null; work_end_time: string | null; lunch_minutes: number | null } | null;
     },
     enabled: !!companyId,
@@ -2825,13 +2826,13 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
   const { data: leaveBalance } = useQuery({
     queryKey: ["emp-leave-balance", companyId, employeeId, currentYear],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('dashboard/page:data', await db
         .from("leave_balances")
         .select("total_days, used_days")
         .eq("company_id", companyId!)
         .eq("employee_id", employeeId!)
         .eq("year", currentYear)
-        .maybeSingle();
+        .maybeSingle());
       if (!data) return { total: 15, used: 0, remaining: 15 };
       return { total: data.total_days, used: data.used_days, remaining: data.total_days - data.used_days };
     },
@@ -2842,13 +2843,13 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
   const { data: myRequests } = useQuery({
     queryKey: ["emp-my-requests", userId, companyId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('dashboard/page:data', await db
         .from("approval_requests")
         .select("id, title, amount, request_type, status, created_at")
         .eq("company_id", companyId!)
         .eq("requester_id", userId!)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(10));
       return data || [];
     },
     enabled: !!companyId && !!userId,
@@ -2858,13 +2859,13 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
   const { data: notifications = [] } = useQuery({
     queryKey: ["emp-notifications", userId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('dashboard/page:data', await db
         .from("notifications")
         .select("id, type, title, message, is_read, created_at")
         .eq("user_id", userId!)
         .eq("is_read", false)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(5));
       return data || [];
     },
     enabled: !!userId,
@@ -3280,12 +3281,12 @@ function PartnerDashboard({ companyId, userId }: {
       const activities: { type: string; text: string; time: string; href: string }[] = [];
 
       // 최근 채팅 메시지
-      const { data: msgs } = await db
+      const msgs = logRead('dashboard/page:msgs', await db
         .from("chat_messages")
         .select("content, created_at, chat_channels!inner(company_id, name)")
         .eq("chat_channels.company_id", companyId!)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(5));
       for (const m of msgs || []) {
         activities.push({
           type: "chat",
@@ -3296,12 +3297,12 @@ function PartnerDashboard({ companyId, userId }: {
       }
 
       // 최근 문서 변경 — QA 2026-07-10: doc_templates 에 title/updated_at/status 없음(400) → name/created_at 기준
-      const { data: docs } = await db
+      const docs = logRead('dashboard/page:docs', await db
         .from("doc_templates")
         .select("name, created_at")
         .eq("company_id", companyId!)
         .order("created_at", { ascending: false })
-        .limit(3);
+        .limit(3));
       for (const d of docs || []) {
         activities.push({
           type: "doc",

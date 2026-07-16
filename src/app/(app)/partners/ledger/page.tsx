@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 거래처 원장 — 매출처(받을 돈)/매입처(줄 돈) 잔액 조회 (2026-06-12 메뉴 분리 핸드오프).
 //   대사 작업(확인 큐/수동 매칭/확정 내역)은 /partners/reconciliation (거래 대사)로 분리.
@@ -66,7 +67,7 @@ export default function PartnerLedgerPage() {
   const { data: rows = [], isLoading: lLoading } = useQuery<LedgerRow[]>({
     queryKey: ["partner-ledger", companyId, rpcYear],
     queryFn: async () => {
-      const { data } = await db.rpc("get_partner_ledger_by_year", { p_year: rpcYear });
+      const data = logRead('ledger/page:data', await db.rpc("get_partner_ledger_by_year", { p_year: rpcYear }));
       return (data || []) as LedgerRow[];
     },
     enabled: !!companyId,
@@ -75,7 +76,7 @@ export default function PartnerLedgerPage() {
   const { data: partnerInfo = { names: {}, codes: {} } } = useQuery<{ names: Record<string, string>; codes: Record<string, number> }>({
     queryKey: ["partner-ledger-names", companyId],
     queryFn: async () => {
-      const { data } = await db.from("partners").select("id, name, code").eq("company_id", companyId);
+      const data = logRead('ledger/page:data', await db.from("partners").select("id, name, code").eq("company_id", companyId));
       const names: Record<string, string> = {};
       const codes: Record<string, number> = {};
       for (const p of (data || []) as any[]) { names[p.id] = p.name; if (p.code != null) codes[p.id] = p.code; }
@@ -92,10 +93,10 @@ export default function PartnerLedgerPage() {
   const { data: voucherPartnerTypes = {} } = useQuery<Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }>>({
     queryKey: ["ledger-voucher-partners", companyId, periodStart, periodEnd],
     queryFn: async () => {
-      const { data } = await db.from("journal_entries")
+      const data = logRead('ledger/page:data', await db.from("journal_entries")
         .select("journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
         .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
-        .gte("entry_date", periodStart).lte("entry_date", periodEnd);
+        .gte("entry_date", periodStart).lte("entry_date", periodEnd));
       const m: Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }> = {};
       for (const e of (data || []) as any[]) {
         for (const l of (e.journal_lines || [])) {
@@ -119,10 +120,10 @@ export default function PartnerLedgerPage() {
     staleTime: 60_000,
     queryFn: async () => {
       const since = new Date(); since.setDate(since.getDate() - 730);
-      const { data: inv } = await db.from("tax_invoices")
+      const inv = logRead('ledger/page:inv', await db.from("tax_invoices")
         .select("total_amount, supply_amount, settled_amount, issue_date, status")
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
-        .gte("issue_date", since.toISOString().slice(0, 10)).limit(5000);
+        .gte("issue_date", since.toISOString().slice(0, 10)).limit(5000));
       const buckets = [
         { label: "0–30일", min: 0, max: 30, amount: 0, count: 0 },
         { label: "31–60일", min: 31, max: 60, amount: 0, count: 0 },

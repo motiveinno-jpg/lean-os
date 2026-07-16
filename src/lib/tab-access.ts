@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 직원별·탭별 접근 권한. 관리자/대표가 구성원에게 특정 탭(라우트) 접근을 부여.
 //   기본: 직원은 탭이 보이되 접근 차단(AccessDenied). 부여된 라우트만 접근 허용.
@@ -57,7 +58,7 @@ export function useMyTabOverrides(): { map: Map<string, boolean>; loading: boole
   const { data, isLoading } = useQuery({
     queryKey: ["my-tab-access", userId],
     queryFn: async () => {
-      const { data } = await db.from("user_tab_access").select("route, allowed").eq("user_id", userId);
+      const data = logRead('lib/tab-access:data', await db.from("user_tab_access").select("route, allowed").eq("user_id", userId));
       const m = new Map<string, boolean>();
       for (const r of (data || [])) m.set(r.route as string, (r as any).allowed !== false);
       return m;
@@ -86,7 +87,7 @@ export function useCanAccessTab(route: string): { allowed: boolean; loading: boo
 
 // 특정 직원의 명시 오버라이드(관리자 부여 UI용)
 export async function getUserTabAccess(userId: string): Promise<Map<string, boolean>> {
-  const { data } = await db.from("user_tab_access").select("route, allowed").eq("user_id", userId);
+  const data = logRead('lib/tab-access:data', await db.from("user_tab_access").select("route, allowed").eq("user_id", userId));
   const m = new Map<string, boolean>();
   for (const r of (data || [])) m.set(r.route as string, (r as any).allowed !== false);
   return m;

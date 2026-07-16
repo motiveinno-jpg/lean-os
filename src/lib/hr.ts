@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView HR Engine
  * 급여이력 + 계약서 + 근태관리 + 휴가관리
@@ -19,11 +20,11 @@ const db = supabase as any;
 
 // ── Salary History ──
 export async function getSalaryHistory(employeeId: string) {
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('salary_history')
     .select('*, users:approved_by(name, email)')
     .eq('employee_id', employeeId)
-    .order('effective_date', { ascending: false });
+    .order('effective_date', { ascending: false }));
   return data || [];
 }
 
@@ -55,21 +56,21 @@ export async function addSalaryRecord(params: {
 
 // ── Employee Contracts ──
 export async function getContracts(employeeId: string) {
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('employee_contracts')
     .select('*')
     .eq('employee_id', employeeId)
-    .order('start_date', { ascending: false });
+    .order('start_date', { ascending: false }));
   return data || [];
 }
 
 export async function getActiveContracts(companyId: string) {
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('employee_contracts')
     .select('*, employees(name)')
     .eq('company_id', companyId)
     .in('status', ['active', 'joined'])
-    .order('start_date', { ascending: false });
+    .order('start_date', { ascending: false }));
   return data || [];
 }
 
@@ -241,11 +242,11 @@ const DEFAULT_ATTENDANCE_POLICY: AttendancePolicy = {
  */
 export async function getAttendancePolicy(companyId: string, employeeId?: string): Promise<AttendancePolicy> {
   try {
-    const { data } = await db
+    const data = logRead('lib/hr:data', await db
       .from('company_settings')
       .select('work_start_time, late_grace_minutes, settings')
       .eq('company_id', companyId)
-      .maybeSingle();
+      .maybeSingle());
     const s = data?.settings || {};
     // 1) 신규 컬럼 우선
     let wst: string | null = null;
@@ -262,11 +263,11 @@ export async function getAttendancePolicy(companyId: string, employeeId?: string
     }
     // 2) 직원 개인 출퇴근시간 override — 있으면 회사 기본값 위에 덮어씀
     if (employeeId) {
-      const { data: emp } = await db
+      const emp = logRead('lib/hr:emp', await db
         .from('employees')
         .select('work_start_time')
         .eq('id', employeeId)
-        .maybeSingle();
+        .maybeSingle());
       if (typeof emp?.work_start_time === 'string' && /^\d{2}:\d{2}/.test(emp.work_start_time)) {
         wst = emp.work_start_time.slice(0, 5);
       }
@@ -338,7 +339,7 @@ function num(v: unknown, fallback: number, min = -Infinity, max = Infinity): num
 export async function getAttendanceCompanySettings(companyId: string): Promise<AttendanceCompanySettings> {
   const D = DEFAULT_ATTENDANCE_COMPANY_SETTINGS;
   try {
-    const { data } = await db
+    const data = logRead('lib/hr:data', await db
       .from('company_settings')
       .select(
         'work_start_time, work_end_time, lunch_minutes, late_grace_minutes, ' +
@@ -347,7 +348,7 @@ export async function getAttendanceCompanySettings(companyId: string): Promise<A
         'on_duty_pay_per_shift, workdays_mask, settings'
       )
       .eq('company_id', companyId)
-      .maybeSingle();
+      .maybeSingle());
     const s = (data?.settings as Record<string, unknown> | null) || {};
     const pick = (col: unknown, jsonKey: string) =>
       col !== null && col !== undefined ? col : s[jsonKey];
@@ -381,10 +382,10 @@ export async function getEmployeeWorkTimeOverrides(
 ): Promise<Map<string, { work_start_time: string | null; work_end_time: string | null }>> {
   const map = new Map<string, { work_start_time: string | null; work_end_time: string | null }>();
   if (employeeIds.length === 0) return map;
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('employees')
     .select('id, work_start_time, work_end_time')
-    .in('id', employeeIds);
+    .in('id', employeeIds));
   (data || []).forEach((e: any) => map.set(e.id, {
     work_start_time: e.work_start_time || null,
     work_end_time: e.work_end_time || null,
@@ -548,13 +549,13 @@ export async function recomputeAttendance(params: {
   };
 
   // 휴가 행 (on_leave 판단)
-  const { data: leaves } = await db
+  const leaves = logRead('lib/hr:leaves', await db
     .from('leave_requests')
     .select('employee_id, start_date, end_date, status')
     .eq('company_id', params.companyId)
     .eq('status', 'approved')
     .lte('start_date', params.to)
-    .gte('end_date', params.from);
+    .gte('end_date', params.from));
   const leaveByEmpDate = new Set<string>();
   (leaves || []).forEach((l: any) => {
     const s = new Date(l.start_date);
@@ -639,13 +640,13 @@ export async function recomputeMonthlyExtraPay(params: {
   const lastDay = new Date(params.year, params.month, 0).getDate();
   const endDate = `${ym}-${String(lastDay).padStart(2, '0')}`;
 
-  const { data: rows } = await db
+  const rows = logRead('lib/hr:rows', await db
     .from('attendance_records')
     .select('regular_minutes, overtime_minutes, night_minutes, holiday_minutes, is_holiday, is_late, late_minutes, attendance_type')
     .eq('company_id', params.companyId)
     .eq('employee_id', params.employeeId)
     .gte('date', startDate)
-    .lte('date', endDate);
+    .lte('date', endDate));
 
   const daily_records: DailyResult[] = (rows || []).map((r: any) => ({
     is_late: !!r.is_late,
@@ -693,11 +694,11 @@ export async function createAttendanceEditRequest(params: {
 
   // 관리자(owner/admin) 에게 알림 (notifications_type_check 안전: 'system' 사용)
   try {
-    const { data: admins } = await db
+    const admins = logRead('lib/hr:admins', await db
       .from('users')
       .select('id')
       .eq('company_id', params.companyId)
-      .in('role', ['owner', 'admin']);
+      .in('role', ['owner', 'admin']));
     const rows = (admins || []).map((a: { id: string }) => ({
       company_id: params.companyId,
       user_id: a.id,
@@ -882,20 +883,20 @@ export async function checkIn(companyId: string, employeeId: string, status: str
   try {
     const targetDate = new Date().toISOString().slice(0, 10);
     const settings = await getAttendanceCompanySettings(companyId);
-    const { data: row } = await db
+    const row = logRead('lib/hr:row', await db
       .from('attendance_records')
       .select('id, check_in, date')
       .eq('company_id', companyId)
       .eq('employee_id', employeeId)
       .eq('date', targetDate)
-      .maybeSingle();
+      .maybeSingle());
     if (row?.check_in) {
       // 휴일 set 도 같이 (그 날 휴일이면 is_late=false)
-      const { data: holidays } = await db
+      const holidays = logRead('lib/hr:holidays', await db
         .from('holidays')
         .select('date')
         .eq('company_id', companyId)
-        .eq('date', targetDate);
+        .eq('date', targetDate));
       const holidaySet = new Set<string>((holidays || []).map((h: { date: string }) => h.date));
       const { calcLateOnCheckIn } = await import('./attendance-calc');
       const lateResult = calcLateOnCheckIn(row.check_in, row.date || targetDate, settings, holidaySet);
@@ -978,7 +979,7 @@ export async function correctAttendanceRecord(recordId: string, updates: {
   if (updates.check_in) {
     const ciDate = new Date(updates.check_in);
     if (!isNaN(ciDate.getTime())) {
-      const { data: rec } = await db.from('attendance_records').select('company_id').eq('id', recordId).maybeSingle();
+      const rec = logRead('lib/hr:rec', await db.from('attendance_records').select('company_id').eq('id', recordId).maybeSingle());
       if (rec?.company_id) {
         const policy = await getAttendancePolicy(rec.company_id);
         const kst = new Date(ciDate.getTime() + 9 * 3600 * 1000);
@@ -1006,13 +1007,13 @@ export async function correctAttendanceRecord(recordId: string, updates: {
 
 // ── Attendance: Get records by date range ──
 export async function getAttendanceRecords(companyId: string, startDate: string, endDate: string) {
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('attendance_records')
     .select('*, employees(name, department)')
     .eq('company_id', companyId)
     .gte('date', startDate)
     .lte('date', endDate)
-    .order('date', { ascending: false });
+    .order('date', { ascending: false }));
   return data || [];
 }
 
@@ -1021,13 +1022,13 @@ export async function getEmployeeAttendance(employeeId: string, month: string) {
   // month = 'YYYY-MM'
   const startDate = `${month}-01`;
   const endDate = `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`;
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('attendance_records')
     .select('*')
     .eq('employee_id', employeeId)
     .gte('date', startDate)
     .lte('date', endDate)
-    .order('date');
+    .order('date'));
   return data || [];
 }
 
@@ -1039,12 +1040,12 @@ export async function calculateWeeklyHours(employeeId: string, weekStart: string
   end.setDate(end.getDate() + 6);
   const endStr = end.toISOString().slice(0, 10);
 
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('attendance_records')
     .select('work_hours')
     .eq('employee_id', employeeId)
     .gte('date', weekStart)
-    .lte('date', endStr);
+    .lte('date', endStr));
 
   const totalHours = (data || []).reduce((sum: number, r: any) => sum + Number(r.work_hours || 0), 0);
   return Math.round(totalHours * 100) / 100;
@@ -1058,12 +1059,12 @@ export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: 
   const lastDay = new Date(y, m, 0).getDate();
   const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
 
-  const { data: records } = await db
+  const records = logRead('lib/hr:records', await db
     .from('attendance_records')
     .select('employee_id, status, work_hours, is_late, late_minutes, overtime_minutes, night_minutes, holiday_minutes, employees(name, department)')
     .eq('company_id', companyId)
     .gte('date', startDate)
-    .lte('date', endDate);
+    .lte('date', endDate));
 
   if (!records) return [];
 
@@ -1246,12 +1247,12 @@ export async function createLeaveRequest(params: {
   // Validate remaining balance for annual leave
   if (params.leaveType === 'annual') {
     const year = new Date(params.startDate).getFullYear();
-    const { data: balance } = await db
+    const balance = logRead('lib/hr:balance', await db
       .from('leave_balances')
       .select('total_days, used_days')
       .eq('employee_id', params.employeeId)
       .eq('year', year)
-      .maybeSingle();
+      .maybeSingle());
 
     if (balance) {
       const remaining = Number(balance.total_days) - Number(balance.used_days);
@@ -1349,12 +1350,12 @@ export async function createLeaveRequest(params: {
 // 최종 승인 시 연차 used_days 1회 차감 (annual 등 잔여 추적 대상).
 async function deductLeaveBalance(request: any) {
   const year = new Date(request.start_date).getFullYear();
-  const { data: balance } = await db
+  const balance = logRead('lib/hr:balance', await db
     .from('leave_balances')
     .select('*')
     .eq('employee_id', request.employee_id)
     .eq('year', year)
-    .maybeSingle();
+    .maybeSingle());
   if (balance) {
     const newUsed = Number(balance.used_days) + Number(request.days);
     await db
@@ -1388,11 +1389,11 @@ function parseSteps(raw: unknown): ApprovalStep[] {
 //   · approval_steps 가 비면: (구) requested/second 흐름 유지.
 //   연차 차감은 최종 승인(approved) 시 1회만.
 export async function approveLeaveRequest(id: string, approverId: string) {
-  const { data: request } = await db
+  const request = logRead('lib/hr:request', await db
     .from('leave_requests')
     .select('*, employees(name, user_id)')
     .eq('id', id)
-    .single();
+    .single());
 
   if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
 
@@ -1502,11 +1503,11 @@ export async function approveLeaveRequest(id: string, approverId: string) {
 
 // ── Leave: Reject (어느 단계든 반려 가능) ──
 export async function rejectLeaveRequest(id: string, approverId: string) {
-  const { data: request } = await db
+  const request = logRead('lib/hr:request', await db
     .from('leave_requests')
     .select('*, employees(name, user_id)')
     .eq('id', id)
-    .single();
+    .single());
   if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
 
   const me = await getCurrentUser();
@@ -1570,11 +1571,11 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
 // ── Leave: Cancel (취소) ──
 // 승인된(used_days 반영된) 휴가를 취소하면 잔여일을 되돌린다.
 export async function cancelLeaveRequest(id: string) {
-  const { data: request } = await db
+  const request = logRead('lib/hr:request', await db
     .from('leave_requests')
     .select('*, employees(name, user_id)')
     .eq('id', id)
-    .single();
+    .single());
   if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
   if (request.status === 'cancelled') return;
 
@@ -1596,12 +1597,12 @@ export async function cancelLeaveRequest(id: string) {
   // 승인 상태였다면 차감했던 used_days 복구
   if (wasApproved) {
     const year = new Date(request.start_date).getFullYear();
-    const { data: balance } = await db
+    const balance = logRead('lib/hr:balance', await db
       .from('leave_balances')
       .select('*')
       .eq('employee_id', request.employee_id)
       .eq('year', year)
-      .maybeSingle();
+      .maybeSingle());
     if (balance) {
       const restored = Math.max(0, Number(balance.used_days) - Number(request.days));
       await db.from('leave_balances').update({ used_days: restored }).eq('id', balance.id);
@@ -1672,11 +1673,11 @@ async function notifyStepApprover(request: any, approverUserId: string, stageNo:
 
 // 회사 전체 구성원 (승인자·참조자 선택 풀). 비관리자도 포함.
 export async function getCompanyMembers(companyId: string) {
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('users')
     .select('id, name, email, role')
     .eq('company_id', companyId)
-    .order('name', { ascending: true });
+    .order('name', { ascending: true }));
   return (data || []) as { id: string; name: string | null; email: string | null; role: string }[];
 }
 
@@ -1759,11 +1760,11 @@ async function notifyLeaveDecision(request: any, decision: 'approved' | 'rejecte
 
 // ── Leave: Get balances ──
 export async function getLeaveBalances(companyId: string, year: number) {
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('leave_balances')
     .select('*, employees(name, department)')
     .eq('company_id', companyId)
-    .eq('year', year);
+    .eq('year', year));
   return data || [];
 }
 
@@ -1829,13 +1830,13 @@ export async function autoInitLeaveBalance(
 ) {
   const { totalDays } = calculateAnnualLeave(hireDate, `${year}-12-31`);
 
-  const { data: existing } = await db
+  const existing = logRead('lib/hr:existing', await db
     .from('leave_balances')
     .select('id, used_days')
     .eq('company_id', companyId)
     .eq('employee_id', employeeId)
     .eq('year', year)
-    .maybeSingle();
+    .maybeSingle());
 
   const usedDays = usedDaysOverride ?? existing?.used_days ?? 0;
 
@@ -1863,11 +1864,11 @@ export async function autoInitLeaveBalance(
  * 전 직원 연차 일괄 자동 세팅 (입사일 기반)
  */
 export async function bulkAutoInitLeaveBalances(companyId: string, year: number) {
-  const { data: employees } = await db
+  const employees = logRead('lib/hr:employees', await db
     .from('employees')
     .select('id, hire_date')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined']);
+    .in('status', ['active', 'joined']));
 
   if (!employees || employees.length === 0) return { updated: 0 };
 
@@ -1887,11 +1888,11 @@ export async function bulkAutoInitLeaveBalances(companyId: string, year: number)
  * 미사용 연차가 있는 직원 목록 반환
  */
 export async function getLeavePromotionCandidates(companyId: string, year: number) {
-  const { data: balances } = await db
+  const balances = logRead('lib/hr:balances', await db
     .from('leave_balances')
     .select('*, employees(name, email, department, hire_date)')
     .eq('company_id', companyId)
-    .eq('year', year);
+    .eq('year', year));
 
   if (!balances) return [];
 
@@ -1956,11 +1957,11 @@ export async function sendLeavePromotionNotice(params: {
   if (error) throw error;
 
   // Get company name
-  const { data: company } = await db
+  const company = logRead('lib/hr:company', await db
     .from('companies')
     .select('name')
     .eq('id', companyId)
-    .single();
+    .single());
 
   // Send email via Edge Function
   const { data: { session } } = await supabase.auth.getSession();
@@ -1996,12 +1997,12 @@ export async function sendLeavePromotionNotice(params: {
  * 연차촉진 통보 이력 조회
  */
 export async function getLeavePromotionNotices(companyId: string, year: number) {
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('leave_promotion_notices')
     .select('*, employees(name, department)')
     .eq('company_id', companyId)
     .eq('year', year)
-    .order('sent_at', { ascending: false });
+    .order('sent_at', { ascending: false }));
 
   return data || [];
 }
@@ -2009,13 +2010,13 @@ export async function getLeavePromotionNotices(companyId: string, year: number) 
 // ── Leave: Init/update balance ──
 export async function initLeaveBalance(companyId: string, employeeId: string, year: number, totalDays: number) {
   // Check if exists
-  const { data: existing } = await db
+  const existing = logRead('lib/hr:existing', await db
     .from('leave_balances')
     .select('id')
     .eq('company_id', companyId)
     .eq('employee_id', employeeId)
     .eq('year', year)
-    .maybeSingle();
+    .maybeSingle());
 
   if (existing) {
     const { data, error } = await db
@@ -2050,22 +2051,22 @@ export type LeaveGrantMethod = 'auto' | 'manual';
 
 /** 회사의 연차 부여 방식 조회. 미설정 시 'auto'(입사일 기준) 기본값. */
 export async function getLeaveGrantMethod(companyId: string): Promise<LeaveGrantMethod> {
-  const { data } = await db
+  const data = logRead('lib/hr:data', await db
     .from('company_settings')
     .select('settings')
     .eq('company_id', companyId)
-    .maybeSingle();
+    .maybeSingle());
   const m = data?.settings?.leave_grant_method;
   return m === 'manual' ? 'manual' : 'auto';
 }
 
 /** 연차 부여 방식 저장 (기존 settings JSONB 의 다른 키 보존). */
 export async function setLeaveGrantMethod(companyId: string, method: LeaveGrantMethod): Promise<void> {
-  const { data: existing } = await db
+  const existing = logRead('lib/hr:existing', await db
     .from('company_settings')
     .select('settings')
     .eq('company_id', companyId)
-    .maybeSingle();
+    .maybeSingle());
 
   const nextSettings = { ...(existing?.settings || {}), leave_grant_method: method };
 

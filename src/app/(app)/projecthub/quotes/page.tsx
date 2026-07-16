@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 견적서 — 프로젝트와 별개의 독립 견적서 메뉴(프로젝트 토글 하위). 프로젝트의 견적서 탭과 동일 데이터(documents+deal_id).
 //   작성 시 기존 프로젝트 선택 또는 신규 프로젝트 생성 → 양쪽(프로젝트 운영/견적서) 연동.
@@ -40,11 +41,11 @@ export default function QuotesPage() {
   const { data: quotes = [], isLoading } = useQuery({
     queryKey: ["quotes-list", companyId],
     queryFn: async () => {
-      const { data } = await db.from("documents")
+      const data = logRead('quotes/page:data', await db.from("documents")
         .select("id, name, status, content_type, contract_amount, created_at, deal_id, document_number, deals(name)")
         .eq("company_id", companyId)
         .in("content_type", ["invoice", "quote"])
-        .order("created_at", { ascending: false }).limit(300);
+        .order("created_at", { ascending: false }).limit(300));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -130,7 +131,7 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
   const { data: deals = [] } = useQuery({
     queryKey: ["quotes-deals", companyId],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, name").eq("company_id", companyId).neq("status", "archived").order("created_at", { ascending: false });
+      const data = logRead('quotes/page:data', await db.from("deals").select("id, name").eq("company_id", companyId).neq("status", "archived").order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: !!companyId,

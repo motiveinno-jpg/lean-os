@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -18,12 +19,12 @@ export default function NotificationsPage() {
     queryFn: async () => {
       const u = await getCurrentUser();
       if (!u) return { rows: [], quoteMap: {} };
-      const { data: nRows } = await (supabase as any)
+      const nRows = logRead('notifications/page:nRows', await (supabase as any)
         .from('notifications')
         .select('id, type, title, message, entity_type, entity_id, is_read, created_at')
         .eq('user_id', u.id)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(100));
       const list = (nRows || []) as NotificationRow[];
 
       // quote_approval entity_ids 추려서 deal_id+stage 한 번에 prefetch
@@ -32,10 +33,10 @@ export default function NotificationsPage() {
       ));
       const map: Record<string, { deal_id: string; stage: string }> = {};
       if (quoteIds.length > 0) {
-        const { data: qaRows } = await (supabase as any)
+        const qaRows = logRead('notifications/page:qaRows', await (supabase as any)
           .from('quote_approvals')
           .select('id, deal_id, stage')
-          .in('id', quoteIds);
+          .in('id', quoteIds));
         for (const r of (qaRows || []) as Array<{ id: string; deal_id: string; stage: string }>) {
           map[r.id] = { deal_id: r.deal_id, stage: r.stage };
         }

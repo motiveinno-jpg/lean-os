@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -15,13 +16,13 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
     queryKey: ["mypage-payslips", employeeId],
     queryFn: async () => {
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('_components/MyPayslips:data', await db
         .from("payroll_items")
         .select(
           "id, base_salary, national_pension, health_insurance, long_term_care_insurance, employment_insurance, income_tax, local_income_tax, deductions_total, net_pay, created_at, payment_batches:batch_id(name, status, created_at)",
         )
         .eq("employee_id", employeeId!)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       // 배치가 승인/확정된 명세만 노출(초안 배치 숨김).
       return (data || []).filter((it: any) => it.payment_batches);
     },

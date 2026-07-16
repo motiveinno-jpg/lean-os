@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
@@ -172,15 +173,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const db = getSupabaseAdmin() as any;
-    const { data: companies } = await db
+    const companies = logRead('daily-report/route:companies', await db
       .from('subscriptions')
       .select('company_id')
-      .in('status', ['active', 'trialing']);
+      .in('status', ['active', 'trialing']));
 
     const companyIds: string[] = (companies || []).map((c: any) => c.company_id);
 
     if (companyIds.length === 0) {
-      const { data: allCompanies } = await db.from('companies').select('id').limit(10);
+      const allCompanies = logRead('daily-report/route:allCompanies', await db.from('companies').select('id').limit(10));
       (allCompanies || []).forEach((c: any) => companyIds.push(c.id));
     }
 
@@ -212,7 +213,7 @@ export async function POST(request: NextRequest) {
     const { data: { user: caller } } = await ss.auth.getUser();
     if (!caller) return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: '인증이 필요합니다' } }, { status: 401 });
     const admin = getSupabaseAdmin() as any;
-    const { data: callerRow } = await admin.from('users').select('company_id').eq('auth_id', caller.id).maybeSingle();
+    const callerRow = logRead('daily-report/route:callerRow', await admin.from('users').select('company_id').eq('auth_id', caller.id).maybeSingle());
     const companyId = callerRow?.company_id;
     if (!companyId) {
       return NextResponse.json(

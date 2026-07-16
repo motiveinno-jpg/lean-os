@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Partner CRM Library
  * 거래처(파트너) 관리 — 조회, 생성/수정, 검색, 프로젝트 연동 자동 생성
@@ -153,12 +154,12 @@ export async function autoCreatePartnerFromDeal(
   businessNumber?: string,
 ) {
   // Check if partner with same name already exists for this company
-  const { data: existing } = await supabase
+  const existing = logRead('lib/partners:existing', await supabase
     .from('partners')
     .select('*')
     .eq('company_id', companyId)
     .eq('name', counterpartyName)
-    .maybeSingle();
+    .maybeSingle());
 
   if (existing) return existing;
 
@@ -188,7 +189,7 @@ export async function autoCreatePartnerFromDeal(
 export async function searchPartners(companyId: string, query: string) {
   const pattern = `%${query}%`;
 
-  const { data } = await supabase
+  const data = logRead('lib/partners:data', await supabase
     .from('partners')
     .select('*')
     .eq('company_id', companyId)
@@ -196,7 +197,7 @@ export async function searchPartners(companyId: string, query: string) {
       `name.ilike.${pattern},contact_name.ilike.${pattern},contact_email.ilike.${pattern},business_number.ilike.${pattern}`,
     )
     .order('name', { ascending: true })
-    .limit(20);
+    .limit(20));
 
   return data || [];
 }

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -24,7 +25,7 @@ export default function CustomersPage() {
   const { data: companies = [] } = useQuery({
     queryKey: ["p-companies-detail"],
     queryFn: async () => {
-      const { data } = await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false });
+      const data = logRead('customers/page:data', await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }));
       return data || [];
     },
   });

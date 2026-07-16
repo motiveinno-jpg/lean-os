@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // L 수당 카탈로그 — 회사 설정 패널 (§C-1).
 //   - settings/page.tsx 의 '근태/가산수당' 탭에서 마운트.
@@ -240,12 +241,12 @@ function AllowanceTypeModal({
   const { data: employees = [] } = useQuery({
     queryKey: ["employees-min", companyId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('components/hr-allowance-catalog:data', await db
         .from("employees")
         .select("id, name")
         .eq("company_id", companyId)
         .in("status", ["active", "joined", "invited"])
-        .order("name");
+        .order("name"));
       return (data as { id: string; name: string }[]) || [];
     },
     enabled: !!companyId,

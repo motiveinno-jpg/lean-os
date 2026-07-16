@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 헤더 우측 알림 벨 — 클릭 시 현재 페이지를 유지한 채 최근 알림을 팝오버로 간소하게 보여줌
 //   (기존엔 /notifications 로 즉시 이동해버려 지금 보던 화면을 잃었음). "전체 알림 보기" 로 이동.
@@ -63,23 +64,23 @@ export function NotificationBell() {
     (async () => {
       const u = await getCurrentUser();
       if (!u) return;
-      const { data: nRows } = await (supabase as any)
+      const nRows = logRead('components/notification-bell:nRows', await (supabase as any)
         .from("notifications")
         .select("id, type, title, message, entity_type, entity_id, is_read, created_at")
         .eq("user_id", u.id)
         .eq("is_read", false)
         .order("created_at", { ascending: false })
-        .limit(RECENT_LIMIT);
+        .limit(RECENT_LIMIT));
       const list = (nRows || []) as NotificationRow[];
       const quoteIds = Array.from(new Set(
         list.filter(n => n.entity_type === "quote_approval" && n.entity_id).map(n => n.entity_id as string),
       ));
       const map: Record<string, { deal_id: string; stage: string }> = {};
       if (quoteIds.length > 0) {
-        const { data: qaRows } = await (supabase as any)
+        const qaRows = logRead('components/notification-bell:qaRows', await (supabase as any)
           .from("quote_approvals")
           .select("id, deal_id, stage")
-          .in("id", quoteIds);
+          .in("id", quoteIds));
         for (const r of (qaRows || []) as Array<{ id: string; deal_id: string; stage: string }>) {
           map[r.id] = { deal_id: r.deal_id, stage: r.stage };
         }

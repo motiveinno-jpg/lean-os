@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Audit Trail Certificate Engine
  * 전자서명 감사추적인증서 — 생성, 기록, 조회, HTML 인증서 생성
@@ -117,11 +118,11 @@ export async function logAuditTrail(
 
 export async function getAuditTrail(packageId: string): Promise<AuditTrailEntry[]> {
   if (!packageId) return [];
-  const { data: pkg } = await db
+  const pkg = logRead('lib/audit-trail:pkg', await db
     .from('hr_contract_packages')
     .select('notes')
     .eq('id', packageId)
-    .maybeSingle();
+    .maybeSingle());
 
   if (!pkg?.notes) return [];
 

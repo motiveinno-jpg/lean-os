@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import Link from "next/link";
 import { MonthField } from "@/components/month-field";
@@ -624,12 +625,12 @@ export default function TaxInvoicesPage() {
   const { data: partners = [] } = useQuery({
     queryKey: ["partners-for-invoice", companyId],
     queryFn: async () => {
-      const { data } = await supabase
+      const data = logRead('tax-invoices/page:data', await supabase
         .from("partners")
         .select("id, name, business_number, contact_email, business_type, business_item, representative, address")
         .eq("company_id", companyId!)
         .eq("is_active", true)
-        .order("name");
+        .order("name"));
       return data || [];
     },
     enabled: !!companyId,
@@ -639,7 +640,7 @@ export default function TaxInvoicesPage() {
   const { data: coaAccounts = [] } = useQuery({
     queryKey: ["tax-invoice-coa-accounts", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId!).order("code");
+      const data = logRead('tax-invoices/page:data', await (supabase as any).from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId!).order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -662,12 +663,12 @@ export default function TaxInvoicesPage() {
   const { data: dealsForLink = [] } = useQuery({
     queryKey: ["deals-for-invoice", companyId],
     queryFn: async () => {
-      const { data } = await supabase
+      const data = logRead('tax-invoices/page:data', await supabase
         .from("deals")
         .select("id, name, contract_total")
         .eq("company_id", companyId!)
         .neq("status", "archived")
-        .order("name");
+        .order("name"));
       return data || [];
     },
     enabled: !!companyId,
@@ -708,7 +709,7 @@ export default function TaxInvoicesPage() {
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from('companies').select('name, business_number, representative, address, business_type, business_category').eq('id', companyId!).maybeSingle();
+      const data = logRead('tax-invoices/page:data', await (supabase as any).from('companies').select('name, business_number, representative, address, business_type, business_category').eq('id', companyId!).maybeSingle());
       return data;
     },
     enabled: !!companyId,
@@ -741,13 +742,13 @@ export default function TaxInvoicesPage() {
     queryKey: ["last-sync-time", companyId],
     queryFn: async () => {
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('tax-invoices/page:data', await db
         .from('hometax_sync_log')
         .select('completed_at')
         .eq('company_id', companyId!)
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
-        .limit(1);
+        .limit(1));
       return data?.[0]?.completed_at || null;
     },
     enabled: !!companyId,
@@ -758,11 +759,11 @@ export default function TaxInvoicesPage() {
     queryKey: ["last-hometax-sync-at", companyId],
     queryFn: async () => {
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('tax-invoices/page:data', await db
         .from('company_settings')
         .select('last_hometax_sync_at')
         .eq('company_id', companyId!)
-        .maybeSingle();
+        .maybeSingle());
       return data?.last_hometax_sync_at as string | null;
     },
     enabled: !!companyId,
@@ -773,14 +774,14 @@ export default function TaxInvoicesPage() {
     if (!companyId || activeJobId) return;
     (async () => {
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('tax-invoices/page:data', await db
         .from('hometax_sync_jobs')
         .select('id, status, updated_at')
         .eq('company_id', companyId)
         .in('status', ['pending', 'running'])
         .gt('updated_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
-        .limit(1);
+        .limit(1));
       if (data && data[0]) setActiveJobId(data[0].id);
     })();
   }, [companyId, activeJobId]);
@@ -791,11 +792,11 @@ export default function TaxInvoicesPage() {
     queryFn: async () => {
       if (!activeJobId) return null;
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('tax-invoices/page:data', await db
         .from('hometax_sync_jobs')
         .select('*')
         .eq('id', activeJobId)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!activeJobId,
@@ -840,12 +841,12 @@ export default function TaxInvoicesPage() {
     queryKey: ["hometax-connection", companyId],
     queryFn: async () => {
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('tax-invoices/page:data', await db
         .from('automation_credentials')
         .select('id, updated_at, credentials')
         .eq('company_id', companyId!)
         .eq('service', 'hometax')
-        .maybeSingle();
+        .maybeSingle());
       return data ? {
         connected: true,
         method: data.credentials?.login_method as 'certificate' | 'id_pw' | undefined,
@@ -2686,10 +2687,10 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
   const { data: linkedTx } = useQuery({
     queryKey: ["tx-linked", invoice.id],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('tax-invoices/page:data', await (supabase as any)
         .from("bank_transactions")
         .select("id, counterparty, amount, transaction_date, description, memo")
-        .eq("company_id", companyId).eq("tax_invoice_id", invoice.id).limit(1).maybeSingle();
+        .eq("company_id", companyId).eq("tax_invoice_id", invoice.id).limit(1).maybeSingle());
       return data;
     },
     enabled: isMatched,

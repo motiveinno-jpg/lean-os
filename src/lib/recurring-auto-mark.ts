@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // B1: 자동이체 자동 인식.
 //   직원 원문: "현재: 거래내역에 있는 자동에 체크만 하는 방식 → 매달 체크눌러야함 매우불편해.
 //             처음 한 번 체크하면 같은 패턴(같은 출금처/유사 금액/주기)이 다음 달부터 자동 인식돼야 함".
@@ -42,13 +43,13 @@ export async function autoMarkRecurringTransactions(companyId: string): Promise<
   const fromDate = sixMonthsAgo.toISOString().split("T")[0];
 
   // 1) 학습 표본 — is_fixed_cost=true 인 거래의 counterparty+amount(1000원 반올림) 패턴
-  const { data: learnedRows } = await db
+  const learnedRows = logRead('lib/recurring-auto-mark:learnedRows', await db
     .from("bank_transactions")
     .select("counterparty, amount")
     .eq("company_id", companyId)
     .eq("is_auto_transfer", true)
     .gte("transaction_date", fromDate)
-    .limit(2000);
+    .limit(2000));
 
   const patternSet = new Map<string, { counterparty: string; amount: number }>();
   for (const tx of learnedRows || []) {
@@ -66,13 +67,13 @@ export async function autoMarkRecurringTransactions(companyId: string): Promise<
   }
 
   // 2) 마킹 대상 — is_fixed_cost IS NULL 거래 중 패턴 매칭 (false 는 보존)
-  const { data: candRows } = await db
+  const candRows = logRead('lib/recurring-auto-mark:candRows', await db
     .from("bank_transactions")
     .select("id, counterparty, amount, is_auto_transfer")
     .eq("company_id", companyId)
     .is("is_auto_transfer", null)
     .gte("transaction_date", fromDate)
-    .limit(2000);
+    .limit(2000));
 
   const toMarkIds: string[] = [];
   for (const tx of candRows || []) {

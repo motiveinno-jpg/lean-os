@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 목표형(성과관리) 히어로 — 다중 KPI 패널(목표/실적/달성률 게이지) + 종합 달성률 + 종합 신호등 + 페이스 경고.
 //   실적 출처: KPI.source='revenue_auto' → v_deal_revenue_actual, 'manual' → sum(project_kpi_entries by kpi_id).
@@ -28,7 +29,7 @@ export function GoalHero({ deal }: { deal: any }) {
   const { data: kpis = [] } = useQuery({
     queryKey: ["project-kpis", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_kpis").select("id, label, unit, target_value, direction, source, sort_order").eq("deal_id", dealId).order("sort_order", { ascending: true });
+      const data = logRead('_components/GoalHero:data', await db.from("project_kpis").select("id, label, unit, target_value, direction, source, sort_order").eq("deal_id", dealId).order("sort_order", { ascending: true }));
       return (data || []) as Kpi[];
     },
     enabled: !!dealId,
@@ -38,7 +39,7 @@ export function GoalHero({ deal }: { deal: any }) {
   const { data: entries = [] } = useQuery({
     queryKey: ["project-kpi-entries-all", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_kpi_entries").select("kpi_id, entry_date, value").eq("deal_id", dealId).order("entry_date", { ascending: true });
+      const data = logRead('_components/GoalHero:data', await db.from("project_kpi_entries").select("kpi_id, entry_date, value").eq("deal_id", dealId).order("entry_date", { ascending: true }));
       return (data || []) as { kpi_id: string; entry_date: string; value: number }[];
     },
     enabled: !!dealId,
@@ -49,7 +50,7 @@ export function GoalHero({ deal }: { deal: any }) {
   const { data: autoActual } = useQuery({
     queryKey: ["deal-kpi-auto", dealId],
     queryFn: async () => {
-      const { data } = await db.from("v_deal_kpi_auto").select("revenue_actual, profit_actual, output_count").eq("deal_id", dealId).maybeSingle();
+      const data = logRead('_components/GoalHero:data', await db.from("v_deal_kpi_auto").select("revenue_actual, profit_actual, output_count").eq("deal_id", dealId).maybeSingle());
       return { revenue: Number(data?.revenue_actual || 0), profit: Number(data?.profit_actual || 0), count: Number(data?.output_count || 0) };
     },
     enabled: !!dealId && hasAuto,
@@ -59,7 +60,7 @@ export function GoalHero({ deal }: { deal: any }) {
   const { data: latestUpdate } = useQuery({
     queryKey: ["project-updates-latest", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_updates").select("status, update_date").eq("deal_id", dealId).order("update_date", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const data = logRead('_components/GoalHero:data', await db.from("project_updates").select("status, update_date").eq("deal_id", dealId).order("update_date", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle());
       return data as { status: string; update_date: string } | null;
     },
     enabled: !!dealId,

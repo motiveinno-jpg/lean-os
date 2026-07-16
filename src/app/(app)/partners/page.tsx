@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
@@ -276,10 +277,10 @@ export default function PartnersPage() {
     queryKey: ["partner-totals", companyId],
     queryFn: async () => {
       if (!companyId) return {};
-      const { data } = await (supabase as any).from("deals")
+      const data = logRead('partners/page:data', await (supabase as any).from("deals")
         .select("partner_id, contract_total")
         .eq("company_id", companyId)
-        .not("partner_id", "is", null);
+        .not("partner_id", "is", null));
       const map: Record<string, number> = {};
       for (const d of (data || [])) {
         if (!d.partner_id) continue;
@@ -314,11 +315,11 @@ export default function PartnersPage() {
     queryKey: ["partner-deals", detailPartner?.id],
     queryFn: async () => {
       if (!detailPartner) return [];
-      const { data } = await (supabase as any).from("deals")
+      const data = logRead('partners/page:data', await (supabase as any).from("deals")
         .select("id, name, status, contract_total, classification, created_at")
         .eq("company_id", companyId)
         .eq("partner_id", detailPartner.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!detailPartner?.id,
@@ -329,11 +330,11 @@ export default function PartnersPage() {
     queryFn: async () => {
       if (!detailPartner || partnerDeals.length === 0) return [];
       const dealIds = partnerDeals.map((d: any) => d.id);
-      const { data } = await (supabase as any).from("documents")
+      const data = logRead('partners/page:data', await (supabase as any).from("documents")
         .select("id, name, status, created_at, content_json")
         .in("deal_id", dealIds)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(20));
       return data || [];
     },
     enabled: !!detailPartner?.id && partnerDeals.length > 0,
@@ -344,11 +345,11 @@ export default function PartnersPage() {
     queryFn: async () => {
       if (!detailPartner || partnerDeals.length === 0) return [];
       const dealIds = partnerDeals.map((d: any) => d.id);
-      const { data } = await (supabase as any).from("deal_revenue_schedule")
+      const data = logRead('partners/page:data', await (supabase as any).from("deal_revenue_schedule")
         .select("*")
         .in("deal_id", dealIds)
         .order("due_date", { ascending: false })
-        .limit(20);
+        .limit(20));
       return data || [];
     },
     enabled: !!detailPartner?.id && partnerDeals.length > 0,
@@ -359,10 +360,10 @@ export default function PartnersPage() {
     queryKey: ["partner-comms", detailPartner?.id],
     queryFn: async () => {
       if (!detailPartner) return [];
-      const { data } = await (supabase as any).from("partner_communications")
+      const data = logRead('partners/page:data', await (supabase as any).from("partner_communications")
         .select("id, comm_type, summary, notes, comm_date, created_at")
         .eq("partner_id", detailPartner.id)
-        .order("comm_date", { ascending: false });
+        .order("comm_date", { ascending: false }));
       return data || [];
     },
     enabled: !!detailPartner?.id,
@@ -556,10 +557,10 @@ export default function PartnersPage() {
     // 1) 중복 검출: business_number 또는 (name + contact_email) 매칭 (회사 단위)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any;
-    const { data: existing } = await db
+    const existing = logRead('partners/page:existing', await db
       .from('partners')
       .select('id, name, business_number, contact_email')
-      .eq('company_id', companyId);
+      .eq('company_id', companyId));
     const existingByBn = new Map<string, { id: string; name: string }>();
     const existingByNameEmail = new Map<string, { id: string; name: string }>();
     for (const e of (existing || []) as { id: string; name: string; business_number?: string; contact_email?: string }[]) {

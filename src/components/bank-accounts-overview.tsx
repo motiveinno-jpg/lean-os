@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // granter 계좌 화면 스타일 통장 개요 (2026-05-27): 전체 잔액 + 기간 증감 + 은행별 그룹 + 3열 그리드.
 //   - 담당자/인물 이미지 없음 (사장님 명시 제외) · 카드(/cards) 재설계와 디자인 통일
@@ -210,13 +211,13 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
   const { data: flow } = useQuery({
     queryKey: ["bank-period-flow", companyId, fromStr, toStr],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('components/bank-accounts-overview:data', await (supabase as any)
         .from("bank_transactions")
         .select("amount, type")
         .eq("company_id", companyId)
         .gte("transaction_date", fromStr)
         .lte("transaction_date", toStr)
-        .limit(50000);
+        .limit(50000));
       let income = 0, expense = 0;
       for (const r of (data || []) as Array<{ amount: number; type: string }>) {
         const amt = Math.abs(Number(r.amount || 0));

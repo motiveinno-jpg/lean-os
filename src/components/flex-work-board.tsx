@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 주간 워크보드 (2026-06-12).
 //   주차 네비 + 구성원별 주간 근무시간 게이지(52시간제) + 일별 출퇴근 타임라인 바 + 휴가 표시.
@@ -92,9 +93,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
   const { data: atts = [] } = useQuery<Att[]>({
     queryKey: ["flex-work-week", companyId, startStr],
     queryFn: async () => {
-      const { data } = await db.from("attendance_records")
+      const data = logRead('components/flex-work-board:data', await db.from("attendance_records")
         .select("employee_id, date, check_in, check_out, regular_minutes, overtime_minutes, night_minutes, work_hours, is_late, status, auto_clocked_out")
-        .eq("company_id", companyId).gte("date", startStr).lte("date", endStr);
+        .eq("company_id", companyId).gte("date", startStr).lte("date", endStr));
       return (data || []) as Att[];
     },
     enabled: !!companyId,
@@ -105,10 +106,10 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
   const { data: leaves = [] } = useQuery<{ employee_id: string; start_date: string; end_date: string; leave_type: string }[]>({
     queryKey: ["flex-work-leaves", companyId, startStr],
     queryFn: async () => {
-      const { data } = await db.from("leave_requests")
+      const data = logRead('components/flex-work-board:data', await db.from("leave_requests")
         .select("employee_id, start_date, end_date, leave_type")
         .eq("company_id", companyId).eq("status", "approved")
-        .lte("start_date", endStr).gte("end_date", startStr);
+        .lte("start_date", endStr).gte("end_date", startStr));
       return (data || []) as any[];
     },
     enabled: !!companyId,

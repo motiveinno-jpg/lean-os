@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 대시보드 하단 카드 — 2026-06-09 Stitch 시안 정렬 + 다크/라이트 적응.
 //   라운드6.5 골격 정렬: 매출 추이는 DashboardRevenueTrendCard(본문 2/3 큰 차트 카드)로 분리,
@@ -110,9 +111,9 @@ export function DashboardRevenueTrendCard({ companyId }: { companyId: string }) 
   const { data: rev } = useQuery({
     queryKey: ["dash-revenue-3y", companyId, year],
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices").select("supply_amount, issue_date")
+      const data = logRead('components/dashboard-bottom-cards:data', await db.from("tax_invoices").select("supply_amount, issue_date")
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
-        .gte("issue_date", `${year - 2}-01-01`).lt("issue_date", `${year + 1}-01-01`);
+        .gte("issue_date", `${year - 2}-01-01`).lt("issue_date", `${year + 1}-01-01`));
       // 연도별 월 매트릭스
       const byYear: Record<number, number[]> = { [year - 2]: new Array(12).fill(0), [year - 1]: new Array(12).fill(0), [year]: new Array(12).fill(0) };
       (data || []).forEach((t: any) => {
@@ -187,8 +188,8 @@ export function CardsSummaryCard({ companyId }: { companyId: string }) {
       const monthStart = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-01`;
       const _nm = new Date(_now.getFullYear(), _now.getMonth() + 1, 1);
       const nextStart = `${_nm.getFullYear()}-${String(_nm.getMonth() + 1).padStart(2, "0")}-01`;
-      const { data } = await db.from("card_transactions").select("card_name, amount")
-        .eq("company_id", companyId).gte("transaction_date", monthStart).lt("transaction_date", nextStart);
+      const data = logRead('components/dashboard-bottom-cards:data', await db.from("card_transactions").select("card_name, amount")
+        .eq("company_id", companyId).gte("transaction_date", monthStart).lt("transaction_date", nextStart));
       const byCard: Record<string, number> = {};
       (data || []).forEach((t: any) => { const k = t.card_name || "기타"; byCard[k] = (byCard[k] || 0) + Number(t.amount || 0); });
       const list = Object.entries(byCard).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);
@@ -207,8 +208,8 @@ export function AssetsSummaryCard({ companyId }: { companyId: string }) {
   const { data: assets } = useQuery({
     queryKey: ["dash-assets", companyId],
     queryFn: async () => {
-      const { data } = await db.from("bank_accounts").select("alias, bank_name, balance")
-        .eq("company_id", companyId).order("balance", { ascending: false });
+      const data = logRead('components/dashboard-bottom-cards:data', await db.from("bank_accounts").select("alias, bank_name, balance")
+        .eq("company_id", companyId).order("balance", { ascending: false }));
       const list: { name: string; amount: number }[] = (data || []).map((a: any) => ({ name: a.alias || a.bank_name || "계좌", amount: Number(a.balance || 0) }));
       return { list, total: list.reduce((s, a) => s + a.amount, 0), count: list.length };
     },

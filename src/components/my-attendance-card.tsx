@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,12 +39,12 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
   const { data: emp, isLoading: empLoading } = useQuery({
     queryKey: ["my-att-emp", companyId, userId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('components/my-attendance-card:data', await db
         .from("employees")
         .select("id, name")
         .eq("company_id", companyId)
         .eq("user_id", userId)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!companyId && !!userId,
@@ -53,12 +54,12 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
   const { data: todayAtt } = useQuery({
     queryKey: ["my-att-today", employeeId, today],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('components/my-attendance-card:data', await db
         .from("attendance_records")
         .select("*")
         .eq("employee_id", employeeId!)
         .eq("date", today)
-        .maybeSingle();
+        .maybeSingle());
       return data;
     },
     enabled: !!employeeId,

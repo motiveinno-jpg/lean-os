@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -15,7 +16,7 @@ export default function ReferralPage() {
   const { data: referrals = [] } = useQuery({
     queryKey: ["p-referrals"],
     queryFn: async () => {
-      const { data } = await db.from("referral_codes").select("*, companies(name)").order("referred_count", { ascending: false });
+      const data = logRead('referral/page:data', await db.from("referral_codes").select("*, companies(name)").order("referred_count", { ascending: false }));
       return data || [];
     },
   });

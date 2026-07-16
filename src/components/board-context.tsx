@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import {
@@ -39,11 +40,11 @@ async function loadPrefsFromDB(): Promise<StoredConfig | null> {
     const user = session?.user;
     if (!user) return null;
 
-    const { data } = await (supabase as any)
+    const data = logRead('components/board-context:data', await (supabase as any)
       .from("user_preferences")
       .select("role_preset, dashboard_widgets")
       .eq("user_id", user.id)
-      .maybeSingle();
+      .maybeSingle());
 
     if (!data) return null;
 
@@ -76,11 +77,11 @@ async function savePrefsToDB(config: StoredConfig): Promise<void> {
 
     // Get company_id
     // QA 2026-07-10: auth uid 는 auth_id 컬럼과 비교 (id 와 다른 계정 존재 → 위젯 설정 저장 조용히 실패했음)
-    const { data: userData } = await (supabase as any)
+    const userData = logRead('components/board-context:userData', await (supabase as any)
       .from("users")
       .select("company_id")
       .eq("auth_id", user.id)
-      .maybeSingle();
+      .maybeSingle());
 
     if (!userData?.company_id) return;
 

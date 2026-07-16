@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // 거래처원장 일괄 엑셀 내보내기 — 선택한 거래처들을 한 파일에 거래처별 시트로 저장.
 //   행 구성·잔액 계산은 PartnerLedgerSheet(shared.tsx)의 시트/CSV 로직과 동일하게 유지할 것
 //   (발생=홈택스 발행 세금계산서, 회수/지급=확정 정산, 수동 전표 AR/AP 라인, 전기이월/월계/합계 행).
@@ -31,13 +32,13 @@ async function fetchLedgerEntries(companyId: string, partnerId: string | null, t
   const invIds = invRows.map((i) => i.id);
   let settles: any[] = [];
   if (invIds.length > 0) {
-    const { data: setts } = await db.from("invoice_settlements")
+    const setts = logRead('ledger/export:setts', await db.from("invoice_settlements")
       .select("id, tax_invoice_id, amount, match_type, adjustment_reason, bank_transaction_id, created_at")
-      .eq("status", "confirmed").in("tax_invoice_id", invIds);
+      .eq("status", "confirmed").in("tax_invoice_id", invIds));
     const btIds = [...new Set(((setts || []) as any[]).map((s) => s.bank_transaction_id).filter(Boolean))];
     const btMap: Record<string, { date: string; cp: string | null }> = {};
     if (btIds.length) {
-      const { data: bts } = await db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", btIds);
+      const bts = logRead('ledger/export:bts', await db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", btIds));
       for (const b of (bts || []) as any[]) btMap[b.id] = { date: b.transaction_date, cp: b.counterparty };
     }
     settles = ((setts || []) as any[]).map((s) => ({
@@ -48,11 +49,11 @@ async function fetchLedgerEntries(companyId: string, partnerId: string | null, t
   }
 
   // 수동 전표 — 이 거래처 라인을 포함한 manual·confirmed 전표 (AR/AP 라인 전부 반영)
-  const { data: mv } = await db.from("journal_entries")
+  const mv = logRead('ledger/export:mv', await db.from("journal_entries")
     .select("id, entry_date, description, voucher_no, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
     .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
     .gte("entry_date", yStart).lte("entry_date", yEnd)
-    .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true });
+    .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }));
   const manualVouchers = ((mv || []) as any[]).filter((e) =>
     (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
   );

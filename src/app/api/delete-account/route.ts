@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
     if (!caller) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
 
     const admin = createSupabaseAdminClient();
-    const { data: urow } = await admin.from('users').select('id').eq('auth_id', caller.id).maybeSingle();
+    const urow = logRead('delete-account/route:urow', await admin.from('users').select('id').eq('auth_id', caller.id).maybeSingle());
 
     // 1) public.users 익명화 (행 유지, PII 파기)
     if (urow?.id) {

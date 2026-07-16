@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // 서비스 에러 로깅 + 한국어 설명 분류기.
 // error_logs 테이블에 적재 → 운영자 화면에서 그대로 조회.
 
@@ -270,14 +271,14 @@ export async function logError(params: {
     let userName: string | null = null;
     let companyId: string | null = null;
     try {
-      const { data } = await supabase.auth.getUser();
+      const data = logRead('lib/error-logger:data', await supabase.auth.getUser());
       userEmail = data.user?.email ?? null;
       if (data.user?.id) {
-        const { data: u } = await db
+        const u = logRead('lib/error-logger:u', await db
           .from("users")
           .select("name, company_id")
           .eq("auth_id", data.user.id)
-          .maybeSingle();
+          .maybeSingle());
         userName = u?.name ?? null;
         companyId = u?.company_id ?? null;
       }

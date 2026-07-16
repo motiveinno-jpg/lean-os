@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Document Intelligence
  * 문서유형 자동분류 + 계약서 필드 추출 (규칙 기반)
@@ -108,12 +109,12 @@ export async function getDocumentsWithIntelligence(companyId: string, type?: str
 
 // Get contract documents only
 export async function getContractDocuments(companyId: string) {
-  const { data } = await db
+  const data = logRead('lib/doc-intelligence:data', await db
     .from('documents')
     .select('*, partners(name)')
     .eq('company_id', companyId)
     .eq('auto_classified_type', 'contract')
-    .order('contract_end_date', { ascending: true });
+    .order('contract_end_date', { ascending: true }));
   return data || [];
 }
 
@@ -123,12 +124,12 @@ export async function searchDocuments(companyId: string, searchTerm: string) {
   //   미이스케이프 시 검색어의 ,/)/* 로 필터 로직 조작 가능(테넌트 경계는 eq company_id 로 유지되나 필터 왜곡).
   const safe = searchTerm.replace(/[,()*\\]/g, ' ').trim();
   if (!safe) return [];
-  const { data } = await db
+  const data = logRead('lib/doc-intelligence:data', await db
     .from('documents')
     .select('*')
     .eq('company_id', companyId)
     .or(`name.ilike.%${safe}%,full_text.ilike.%${safe}%`)
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(50));
   return data || [];
 }

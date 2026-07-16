@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * Document Sharing — 공개 열람 링크 + 열람 추적 + 피드백
  */
@@ -109,21 +110,21 @@ async function notifyFeedbackReceived(
   comment?: string,
 ) {
   // Get share → document → creator info
-  const { data: share } = await db
+  const share = logRead('lib/document-sharing:share', await db
     .from('document_shares')
     .select('id, company_id, documents(id, name, created_by, content_json, deal_id)')
     .eq('id', shareId)
-    .single();
+    .single());
 
   if (!share?.documents) return;
   const doc = share.documents as any;
 
   // Get creator email
-  const { data: creator } = await db
+  const creator = logRead('lib/document-sharing:creator', await db
     .from('employees')
     .select('name, email')
     .eq('id', doc.created_by)
-    .single();
+    .single());
 
   if (!creator?.email) return;
 
@@ -179,11 +180,11 @@ async function notifyFeedbackReceived(
 // ── Get Shares for a Document ──
 
 export async function getDocumentShares(documentId: string) {
-  const { data } = await db
+  const data = logRead('lib/document-sharing:data', await db
     .from('document_shares')
     .select('*, document_share_feedback(*)')
     .eq('document_id', documentId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 

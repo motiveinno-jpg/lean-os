@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Data Synchronization System
  * 현금예산 대시보드 원클릭 최신화 (계좌잔액, 카드내역, 고정비, 매출)
@@ -164,11 +165,11 @@ export async function syncCardTransactions(companyId: string): Promise<SyncResul
     }
 
     // Load category classification rules from recurring_payments
-    const { data: rules } = await db
+    const rules = logRead('lib/data-sync:rules', await db
       .from('recurring_payments')
       .select('payee_name, category')
       .eq('company_id', companyId)
-      .eq('is_active', true);
+      .eq('is_active', true));
 
     const ruleMap = new Map<string, string>();
     for (const r of rules || []) {
@@ -495,13 +496,13 @@ export async function autoDetectFixedCosts(companyId: string): Promise<DetectedF
     if (error || !txns || txns.length === 0) return [];
 
     // Also check card transactions
-    const { data: cardTxns } = await db
+    const cardTxns = logRead('lib/data-sync:cardTxns', await db
       .from('card_transactions')
       .select('amount, merchant_name, transaction_date')
       .eq('company_id', companyId)
       .gte('transaction_date', threeMonthsAgo.toISOString())
       .order('transaction_date', { ascending: false })
-      .limit(2000);
+      .limit(2000));
 
     // Group by payee + approximate amount (within 5% tolerance)
     const payeeMap = new Map<string, { amounts: number[]; dates: string[] }>();
@@ -794,7 +795,7 @@ export async function listCodefAccounts(
 /** 현재 유효한 일시정지 만료시각(ISO) 반환, 정지 아니면 null (만료분은 자동 무효). */
 export async function getSyncPausedUntil(companyId: string): Promise<string | null> {
   try {
-    const { data } = await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle();
+    const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
     const until = (data?.settings as any)?.sync_paused_until as string | undefined;
     if (!until) return null;
     return new Date(until).getTime() > Date.now() ? until : null;
@@ -806,7 +807,7 @@ export async function getSyncPausedUntil(companyId: string): Promise<string | nu
 /** 연동을 minutes 분간 일시정지. 만료시각(ISO) 반환. */
 export async function setSyncPause(companyId: string, minutes = 30): Promise<string> {
   const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
-  const { data } = await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle();
+  const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
   const settings = { ...((data?.settings as any) || {}), sync_paused_until: until };
   if (data) {
     await db.from('company_settings').update({ settings }).eq('company_id', companyId);
@@ -818,7 +819,7 @@ export async function setSyncPause(companyId: string, minutes = 30): Promise<str
 
 /** 일시정지 해제(즉시 재개). */
 export async function clearSyncPause(companyId: string): Promise<void> {
-  const { data } = await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle();
+  const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
   if (!data) return;
   const settings = { ...((data.settings as any) || {}) };
   delete settings.sync_paused_until;
@@ -900,12 +901,12 @@ export async function syncCodefData(
     if ((syncType === 'card' || syncType === 'all') && cardSynced > 0) {
       try {
         const { classifyCardTransaction, batchSaveVATClassifications } = await import('./card-vat-classification');
-        const { data: unmapped } = await db
+        const unmapped = logRead('lib/data-sync:unmapped', await db
           .from('card_transactions')
           .select('id, merchant_name, merchant_category, amount')
           .eq('company_id', companyId)
           .is('category', null)  // 아직 분류 안 된 거래만
-          .limit(2000);
+          .limit(2000));
         if (unmapped && unmapped.length > 0) {
           const classifications = unmapped.map((tx: any) => ({
             transactionId: tx.id,
@@ -996,13 +997,13 @@ export function autoSyncDue(companyId: string, throttleMs = 2 * 60 * 60 * 1000):
 }
 
 export async function getRecentCodefSyncLogs(companyId: string, limit = 5) {
-  const { data } = await (supabase as any)
+  const data = logRead('lib/data-sync:data', await (supabase as any)
     .from('sync_logs')
     .select('id, sync_type, status, details, created_at')
     .eq('company_id', companyId)
     .like('sync_type', 'codef_%')
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(limit));
   return (data || []) as Array<{
     id: string;
     sync_type: string;

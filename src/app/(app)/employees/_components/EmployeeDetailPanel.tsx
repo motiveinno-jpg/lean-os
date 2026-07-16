@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
 import { DateField } from "@/components/date-field";
@@ -55,7 +56,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         resignation_date: termDate,
       }).eq("id", employeeId);
       if (error) throw error;
-      const { data: verify } = await (supabase as any).from("employees").select("id,status").eq("id", employeeId).maybeSingle();
+      const verify = logRead('_components/EmployeeDetailPanel:verify', await (supabase as any).from("employees").select("id,status").eq("id", employeeId).maybeSingle());
       if (!verify || verify.status !== "inactive") throw new Error("상태 업데이트 실패 — 권한을 확인해주세요");
       queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
@@ -81,7 +82,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info-edi", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId).maybeSingle();
+      const data = logRead('_components/EmployeeDetailPanel:data', await supabase.from("companies").select("name, representative, address, business_number").eq("id", companyId).maybeSingle());
       return data;
     },
     enabled: !!companyId,
@@ -91,7 +92,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: emp } = useQuery({
     queryKey: ["employee-detail", employeeId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("employees").select("*").eq("id", employeeId).maybeSingle();
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("employees").select("*").eq("id", employeeId).maybeSingle());
       return data;
     },
     enabled: !!employeeId,
@@ -103,11 +104,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
     queryFn: async () => {
       const db = supabase as any;
       if (emp?.user_id) {
-        const { data } = await db.from("users").select("avatar_url").eq("id", emp.user_id).maybeSingle();
+        const data = logRead('_components/EmployeeDetailPanel:data', await db.from("users").select("avatar_url").eq("id", emp.user_id).maybeSingle());
         return data?.avatar_url || null;
       }
       if (emp?.email) {
-        const { data } = await db.from("users").select("avatar_url").eq("company_id", companyId).eq("email", emp.email).maybeSingle();
+        const data = logRead('_components/EmployeeDetailPanel:data', await db.from("users").select("avatar_url").eq("company_id", companyId).eq("email", emp.email).maybeSingle());
         return data?.avatar_url || null;
       }
       return null;
@@ -119,7 +120,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empContracts = [] } = useQuery({
     queryKey: ["emp-contracts", employeeId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("employee_contracts").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false });
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("employee_contracts").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!employeeId && detailTab === "contracts",
@@ -129,11 +130,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empPackages = [] } = useQuery({
     queryKey: ["emp-hr-packages", employeeId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any)
         .from("hr_contract_packages")
         .select("id, title, status, sign_token, sent_at, completed_at, expires_at, created_at, hr_contract_package_items(id, status)")
         .eq("employee_id", employeeId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!employeeId && detailTab === "contracts",
@@ -196,7 +197,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empCertLogs = [] } = useQuery({
     queryKey: ["emp-cert-logs", employeeId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("certificate_logs").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false });
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("certificate_logs").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!employeeId && detailTab === "certificates",
@@ -206,7 +207,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empLeaveBalance } = useQuery({
     queryKey: ["emp-leave-balance", employeeId, currentYear],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("leave_balances").select("*").eq("employee_id", employeeId).eq("year", currentYear).maybeSingle();
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("leave_balances").select("*").eq("employee_id", employeeId).eq("year", currentYear).maybeSingle());
       return data;
     },
     enabled: !!employeeId && detailTab === "leave",
@@ -229,7 +230,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empLeaveRequests = [] } = useQuery({
     queryKey: ["emp-leave-requests", employeeId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("leave_requests").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }).limit(20);
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("leave_requests").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }).limit(20));
       return data || [];
     },
     enabled: !!employeeId && detailTab === "leave",
@@ -1408,7 +1409,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
   async function issue() {
     setIssuing(true);
     try {
-      const { data: company } = await supabase.from("companies").select("name, representative, address, business_number, seal_url").eq("id", companyId).maybeSingle();
+      const company = logRead('_components/EmployeeDetailPanel:company', await supabase.from("companies").select("name, representative, address, business_number, seal_url").eq("id", companyId).maybeSingle());
       if (!company) { toast("회사 정보를 불러올 수 없습니다", "error"); return; }
       const empData = { name: emp.name, department: emp.department || "", position: emp.position || "", hire_date: emp.hire_date, employee_number: emp.employee_number, birth_date: emp.birth_date };
       const companyData = { name: company.name, representative: company.representative || "", address: company.address || "", business_number: company.business_number || "", seal_url: company.seal_url || "" };
@@ -1429,7 +1430,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
 
       // Log
       const certType = type === "employment" ? "재직증명서" : "경력증명서";
-      const { data: currentUser } = await supabase.auth.getUser();
+      const currentUser = logRead('_components/EmployeeDetailPanel:currentUser', await supabase.auth.getUser());
       if (currentUser?.user) {
         await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: currentUser.user.id, purpose: "제출용" });
       }
@@ -1464,7 +1465,7 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
   const { data: targetRole } = useQuery<string | null>({
     queryKey: ["target-user-role", targetUserId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("users").select("role").eq("id", targetUserId).maybeSingle();
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("users").select("role").eq("id", targetUserId).maybeSingle());
       return (data?.role as string) ?? null;
     },
     enabled: !!targetUserId,

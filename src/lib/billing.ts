@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Billing Engine
  * Stripe 결제 연동 + 구독 관리 + 인보이스
@@ -284,20 +285,20 @@ async function verifySubscriptionOwnership(subscriptionId: string): Promise<stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('인증이 필요합니다');
 
-  const { data: currentUser } = await supabase
+  const currentUser = logRead('lib/billing:currentUser', await supabase
     .from('users')
     .select('company_id')
     .eq('auth_id', user.id)
-    .single();
+    .single());
   if (!currentUser || !currentUser.company_id) throw new Error('사용자 정보를 찾을 수 없습니다');
 
   const companyId: string = currentUser.company_id;
 
-  const { data: sub } = await db
+  const sub = logRead('lib/billing:sub', await db
     .from('subscriptions')
     .select('company_id')
     .eq('id', subscriptionId)
-    .single();
+    .single());
   if (!sub) throw new Error('구독을 찾을 수 없습니다');
 
   if (sub.company_id !== companyId) {
@@ -534,13 +535,13 @@ export async function generateInvoiceNumber(): Promise<string> {
   const prefix = `INV-${yearMonth}`;
 
   // 해당 월의 마지막 인보이스 번호 조회
-  const { data } = await db
+  const data = logRead('lib/billing:data', await db
     .from('invoices')
     .select('invoice_number')
     .like('invoice_number', `${prefix}-%`)
     .order('invoice_number', { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
 
   let seq = 1;
   if (data?.invoice_number) {
@@ -669,14 +670,14 @@ export interface IssuanceLimitStatus {
 }
 
 export async function getTaxInvoiceIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
-  const { data: subRow } = await db
+  const subRow = logRead('lib/billing:subRow', await db
     .from('subscriptions')
     .select('subscription_plans(name, monthly_tax_invoice_limit)')
     .eq('company_id', companyId)
     .in('status', ['active', 'trialing', 'paused', 'past_due'])
     .order('created_at', { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
   const limit = subRow?.subscription_plans?.monthly_tax_invoice_limit ?? null;
   const planName = subRow?.subscription_plans?.name ?? null;
   if (limit === null) return { limit: null, used: 0, remaining: null, planName };
@@ -695,14 +696,14 @@ export async function getTaxInvoiceIssuanceStatus(companyId: string): Promise<Is
 }
 
 export async function getCashReceiptIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
-  const { data: subRow } = await db
+  const subRow = logRead('lib/billing:subRow', await db
     .from('subscriptions')
     .select('subscription_plans(name, monthly_cashbill_limit)')
     .eq('company_id', companyId)
     .in('status', ['active', 'trialing', 'paused', 'past_due'])
     .order('created_at', { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
   const limit = subRow?.subscription_plans?.monthly_cashbill_limit ?? null;
   const planName = subRow?.subscription_plans?.name ?? null;
   if (limit === null) return { limit: null, used: 0, remaining: null, planName };

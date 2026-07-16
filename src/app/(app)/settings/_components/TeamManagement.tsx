@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { useState } from "react";
@@ -27,7 +28,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     queryKey: ["company-name", companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const { data } = await supabase.from("companies").select("name").eq("id", companyId).maybeSingle();
+      const data = logRead('_components/TeamManagement:data', await supabase.from("companies").select("name").eq("id", companyId).maybeSingle());
       return data;
     },
     enabled: !!companyId,
@@ -37,7 +38,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     queryKey: ["team-members", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data } = await supabase.from("users").select("*").eq("company_id", companyId).order("created_at");
+      const data = logRead('_components/TeamManagement:data', await supabase.from("users").select("*").eq("company_id", companyId).order("created_at"));
       return data || [];
     },
     enabled: !!companyId,
@@ -60,10 +61,10 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     queryKey: ["company-join-requests", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data } = await (supabase as any).from("company_join_requests")
+      const data = logRead('_components/TeamManagement:data', await (supabase as any).from("company_join_requests")
         .select("id, requester_email, requester_name, message, created_at, expires_at")
         .eq("company_id", companyId).eq("status", "pending")
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true }));
       return (data || []) as any[];
     },
     enabled: !!companyId,

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Invitations (Partner + Employee)
  */
@@ -32,11 +33,11 @@ export async function createPartnerInvitation(params: {
 }
 
 export async function getPartnerInvitations(companyId: string) {
-  const { data } = await db
+  const data = logRead('lib/invitations:data', await db
     .from('partner_invitations')
     .select('*, deals(name)')
     .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
@@ -91,12 +92,12 @@ export async function createEmployeeInvitation(params: {
 export async function getEmployeeInvitations(companyId: string) {
   // UI 에는 pending 만 표시 — accepted/cancelled/expired 는 자동 정리됨.
   // 사용자 입장에서 "재초대" 가능한 상태만 보여 혼란 방지.
-  const { data } = await db
+  const data = logRead('lib/invitations:data', await db
     .from('employee_invitations')
     .select('*')
     .eq('company_id', companyId)
     .eq('status', 'pending')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
@@ -121,7 +122,7 @@ export async function cancelEmployeeInvitation(invitationId: string) {
 }
 
 export async function resendEmployeeInvitationByEmail(email: string, companyId: string) {
-  const { data: existing } = await db
+  const existing = logRead('lib/invitations:existing', await db
     .from('employee_invitations')
     .select('*')
     .eq('email', email)
@@ -129,7 +130,7 @@ export async function resendEmployeeInvitationByEmail(email: string, companyId: 
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
   if (!existing) return null;
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
@@ -150,24 +151,24 @@ export async function validateInviteToken(token: string): Promise<{
   data: any;
 } | null> {
   // Check partner invitations first
-  const { data: pi } = await db
+  const pi = logRead('lib/invitations:pi', await db
     .from('partner_invitations')
     .select('*')
     .eq('invite_token', token)
     .eq('status', 'pending')
-    .maybeSingle();
+    .maybeSingle());
   if (pi) {
     if (pi.expires_at && new Date(pi.expires_at) < new Date()) return null;
     return { type: 'partner', data: pi };
   }
 
   // Check employee invitations
-  const { data: ei } = await db
+  const ei = logRead('lib/invitations:ei', await db
     .from('employee_invitations')
     .select('*')
     .eq('invite_token', token)
     .eq('status', 'pending')
-    .maybeSingle();
+    .maybeSingle());
   if (ei) {
     if (ei.expires_at && new Date(ei.expires_at) < new Date()) return null;
     return { type: 'employee', data: ei };

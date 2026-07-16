@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 거래처 원장 ↔ 거래 대사 공유 모듈 (2026-06-12 메뉴 분리 핸드오프).
 //   /partners/ledger (조회: 원장) 와 /partners/reconciliation (작업: 대사) 가 공용으로 쓰는
@@ -157,13 +158,13 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     queryKey: ["ledger-sheet-settle", companyId, partnerId, type, yStart, yEnd, invIds.join(",")],
     queryFn: async () => {
       if (invIds.length === 0) return [];
-      const { data: setts } = await db.from("invoice_settlements")
+      const setts = logRead('ledger/shared:setts', await db.from("invoice_settlements")
         .select("id, tax_invoice_id, amount, match_type, adjustment_reason, bank_transaction_id, created_at")
-        .eq("status", "confirmed").in("tax_invoice_id", invIds);
+        .eq("status", "confirmed").in("tax_invoice_id", invIds));
       const btIds = [...new Set((setts || []).map((s: any) => s.bank_transaction_id).filter(Boolean))];
       const btMap: Record<string, { date: string; cp: string | null }> = {};
       if (btIds.length) {
-        const { data: bts } = await db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", btIds);
+        const bts = logRead('ledger/shared:bts', await db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", btIds));
         for (const b of (bts || []) as any[]) btMap[b.id] = { date: b.transaction_date, cp: b.counterparty };
       }
       return ((setts || []) as any[]).map((s) => ({
@@ -180,11 +181,11 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   const { data: manualVouchers = [] } = useQuery<any[]>({
     queryKey: ["ledger-manual-vouchers", companyId, partnerId, yStart, yEnd],
     queryFn: async () => {
-      const { data } = await db.from("journal_entries")
+      const data = logRead('ledger/shared:data', await db.from("journal_entries")
         .select("id, entry_date, description, voucher_no, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
         .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
         .gte("entry_date", yStart).lte("entry_date", yEnd)
-        .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true });
+        .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }));
       return ((data || []) as any[]).filter((e) =>
         (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
       );
@@ -198,10 +199,10 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     queryKey: ["ledger-settle-vouchers", companyId, settleIds.join(",")],
     queryFn: async () => {
       if (settleIds.length === 0) return [];
-      const { data } = await db.from("journal_entries")
+      const data = logRead('ledger/shared:data', await db.from("journal_entries")
         .select("id, linked_settlement_id")
         .eq("company_id", companyId).eq("source", "rule").eq("status", "confirmed")
-        .in("linked_settlement_id", settleIds);
+        .in("linked_settlement_id", settleIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && settleIds.length > 0,
@@ -550,35 +551,35 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
 
   const { data: accounts = [] } = useQuery<any[]>({
     queryKey: ["voucher-accounts", companyId],
-    queryFn: async () => { const { data } = await db.from("chart_of_accounts").select("id, code, name").eq("company_id", companyId).order("code"); return (data || []) as any[]; },
+    queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("chart_of_accounts").select("id, code, name").eq("company_id", companyId).order("code")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
   const { data: partners = [] } = useQuery<any[]>({
     queryKey: ["voucher-partners", companyId],
-    queryFn: async () => { const { data } = await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name"); return (data || []) as any[]; },
+    queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
   // 자산관리에 등록한 통장/카드 — 거래처 피커에서 함께 선택 가능
   const { data: bankAccts = [] } = useQuery<any[]>({
     queryKey: ["voucher-bank-accounts", companyId],
-    queryFn: async () => { const { data } = await db.from("bank_accounts").select("id, alias, bank_name").eq("company_id", companyId).order("alias"); return (data || []) as any[]; },
+    queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("bank_accounts").select("id, alias, bank_name").eq("company_id", companyId).order("alias")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
   const { data: cards = [] } = useQuery<any[]>({
     queryKey: ["voucher-cards", companyId],
-    queryFn: async () => { const { data } = await db.from("corporate_cards").select("id, card_name").eq("company_id", companyId).order("card_name"); return (data || []) as any[]; },
+    queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("corporate_cards").select("id, card_name").eq("company_id", companyId).order("card_name")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
   // 프로젝트(deal) — 전표를 프로젝트 직접원가로 귀속(선택)
   const { data: deals = [] } = useQuery<any[]>({
     queryKey: ["voucher-deals", companyId],
-    queryFn: async () => { const { data } = await db.from("deals").select("id, name").eq("company_id", companyId).is("archived_at", null).order("name"); return (data || []) as any[]; },
+    queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("deals").select("id, name").eq("company_id", companyId).is("archived_at", null).order("name")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
   // 세부 프로젝트 — 선택한 프로젝트의 sub_deals (세부 귀속 시 실적원가가 v_sub_deal_pnl 에 집계)
   const { data: subDeals = [] } = useQuery<any[]>({
     queryKey: ["voucher-sub-deals", dealId],
-    queryFn: async () => { const { data } = await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at"); return (data || []) as any[]; },
+    queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at")); return (data || []) as any[]; },
     enabled: !!dealId, staleTime: 300_000,
   });
 
@@ -587,9 +588,9 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     if (isNew) return;
     let cancelled = false;
     (async () => {
-      const { data: e } = await db.from("journal_entries")
+      const e = logRead('ledger/shared:e', await db.from("journal_entries")
         .select("id, entry_date, description, voucher_no, source, status, deal_id, sub_deal_id, journal_lines(account_id, debit, credit, description, partner_id, bank_account_id, card_id, chart_of_accounts(id, code, name), partners(id, name), bank_accounts(id, alias, bank_name), corporate_cards(id, card_name))")
-        .eq("id", entryId).maybeSingle();
+        .eq("id", entryId).maybeSingle());
       if (cancelled || !e) { if (!cancelled) setLoaded(true); return; }
       setEntryDate(e.entry_date); setVoucherNo(e.voucher_no ?? null); setDealId(e.deal_id ?? null); setSubDealId(e.sub_deal_id ?? null);
       const ls: ELine[] = (e.journal_lines || []).map((l: any) => ({
@@ -629,7 +630,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     if (!entryDate) return;
     let cancelled = false;
     (async () => {
-      const { data: cc } = await db.from("closing_checklists").select("status").eq("company_id", companyId).eq("month", entryDate.slice(0, 7)).maybeSingle();
+      const cc = logRead('ledger/shared:cc', await db.from("closing_checklists").select("status").eq("company_id", companyId).eq("month", entryDate.slice(0, 7)).maybeSingle());
       if (!cancelled) setLocked(cc?.status === "locked");
     })();
     return () => { cancelled = true; };
@@ -929,9 +930,9 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
   const { data: s, isLoading } = useQuery<any>({
     queryKey: ["adj-settlement", settlementId],
     queryFn: async () => {
-      const { data } = await db.from("invoice_settlements")
+      const data = logRead('ledger/shared:data', await db.from("invoice_settlements")
         .select("id, amount, adjustment_reason, reason, status, created_at, tax_invoices(issue_date, item_name, label, total_amount, counterparty_name)")
-        .eq("id", settlementId).maybeSingle();
+        .eq("id", settlementId).maybeSingle());
       return data;
     },
   });
@@ -939,9 +940,9 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
   const { data: voucher } = useQuery<any>({
     queryKey: ["adj-voucher", settlementId],
     queryFn: async () => {
-      const { data } = await db.from("journal_entries")
+      const data = logRead('ledger/shared:data', await db.from("journal_entries")
         .select("id, voucher_no, entry_date, status, source, journal_lines(debit, credit, chart_of_accounts(code, name))")
-        .eq("linked_settlement_id", settlementId).neq("status", "rejected").limit(1);
+        .eq("linked_settlement_id", settlementId).neq("status", "rejected").limit(1));
       return (data || [])[0] || null;
     },
   });
@@ -1098,12 +1099,12 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
     queryKey: ["partner-detail-settle", companyId, partnerId, type, year, invIds.length],
     queryFn: async () => {
       if (invIds.length === 0) return {};
-      const { data: setts } = await db.from("invoice_settlements")
-        .select("id, tax_invoice_id, amount, status, match_type, adjustment_reason, bank_transaction_id").in("tax_invoice_id", invIds);
+      const setts = logRead('ledger/shared:setts', await db.from("invoice_settlements")
+        .select("id, tax_invoice_id, amount, status, match_type, adjustment_reason, bank_transaction_id").in("tax_invoice_id", invIds));
       const btIds = [...new Set((setts || []).map((s: any) => s.bank_transaction_id).filter(Boolean))];
       const btMap: Record<string, string> = {};
       if (btIds.length) {
-        const { data: bts } = await db.from("bank_transactions").select("id, transaction_date").in("id", btIds);
+        const bts = logRead('ledger/shared:bts', await db.from("bank_transactions").select("id, transaction_date").in("id", btIds));
         for (const b of (bts || []) as any[]) btMap[b.id] = b.transaction_date;
       }
       const m: Record<string, any[]> = {};

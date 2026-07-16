@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import React, { useEffect, useState, useRef } from "react";
@@ -298,8 +299,8 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
   useEffect(() => {
     if (!companyId) return;
     (async () => {
-      const { data: derList } = await supabase.storage.from("certificates").list(companyId, { search: "signCert.der" });
-      const { data: keyList } = await supabase.storage.from("certificates").list(companyId, { search: "signPri.key" });
+      const derList = logRead('_components/CertificateManagementTab:derList', await supabase.storage.from("certificates").list(companyId, { search: "signCert.der" }));
+      const keyList = logRead('_components/CertificateManagementTab:keyList', await supabase.storage.from("certificates").list(companyId, { search: "signPri.key" }));
       setCertFileStatus({
         der: (derList || []).some((f: any) => f.name === "signCert.der"),
         key: (keyList || []).some((f: any) => f.name === "signPri.key"),
@@ -352,7 +353,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
     queryKey: ["automation-credentials", companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data } = await db2.from("automation_credentials").select("*").eq("company_id", companyId);
+      const data = logRead('_components/CertificateManagementTab:data', await db2.from("automation_credentials").select("*").eq("company_id", companyId));
       return data || [];
     },
     enabled: !!companyId,
@@ -361,7 +362,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
   // 자동서명 설정
   const { data: certSettings } = useQuery({
     queryKey: ["cert-settings", companyId],
-    queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("cert_settings").eq("id", companyId).maybeSingle(); return data?.cert_settings || {}; },
+    queryFn: async () => { if (!companyId) return null; const data = logRead('_components/CertificateManagementTab:data', await db2.from("companies").select("cert_settings").eq("id", companyId).maybeSingle()); return data?.cert_settings || {}; },
     enabled: !!companyId,
   });
 

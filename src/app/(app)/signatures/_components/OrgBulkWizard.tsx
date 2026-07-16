@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useMemo, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
@@ -136,11 +137,11 @@ export function OrgBulkWizard({
     (async () => {
       setLoadingPartners(true);
       try {
-        const { data } = await supabase
+        const data = logRead('_components/OrgBulkWizard:data', await supabase
           .from("partners")
           .select("id, name, type, representative, contact_name, contact_email, contact_phone, business_number, address")
           .eq("company_id", companyId)
-          .order("name", { ascending: true });
+          .order("name", { ascending: true }));
         if (alive) setPartners((data || []) as OrgPartner[]);
       } catch (e) {
         if (alive) toast(friendlyError(e, "거래처를 불러오지 못했습니다"), "error");
@@ -236,11 +237,11 @@ export function OrgBulkWizard({
   useEffect(() => {
     let alive = true;
     (async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('_components/OrgBulkWizard:data', await (supabase as any)
         .from("companies")
         .select("name, business_number, representative, address, seal_url")
         .eq("id", companyId)
-        .maybeSingle();
+        .maybeSingle());
       if (alive) setCompany(data || {});
     })();
     return () => { alive = false; };

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 /**
  * 전자서명 통합 대시보드
@@ -143,7 +144,7 @@ export default function SignaturesDashboardPage() {
     const partnerIds = [...new Set(targets.map((t) => t.partner_id).filter(Boolean))];
     const nameMap = new Map<string, string>();
     if (partnerIds.length) {
-      const { data } = await (supabase as any).from("partners").select("id, name").in("id", partnerIds);
+      const data = logRead('signatures/page:data', await (supabase as any).from("partners").select("id, name").in("id", partnerIds));
       (data || []).forEach((p: any) => p?.name && nameMap.set(p.id, p.name));
     }
     const nameById = new Map<string, string>(

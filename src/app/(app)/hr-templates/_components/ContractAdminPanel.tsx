@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -75,11 +76,11 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
   const { data: allTemplates = [] } = useQuery({
     queryKey: ["contract-templates-all", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('_components/ContractAdminPanel:data', await (supabase as any)
         .from("doc_templates")
         .select("*")
         .or(`company_id.eq.${companyId},company_id.is.null`)
-        .order("name");
+        .order("name"));
       return data || [];
     },
     enabled: !!companyId,
@@ -154,15 +155,15 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
     if (!companyId) return;
     setSealApplying(contractId);
     try {
-      const { data: company } = await (supabase as any)
-        .from("companies").select("seal_url, name").eq("id", companyId).maybeSingle();
+      const company = logRead('_components/ContractAdminPanel:company', await (supabase as any)
+        .from("companies").select("seal_url, name").eq("id", companyId).maybeSingle());
       if (!company?.seal_url) {
         toast("직인 이미지가 등록돼 있지 않습니다. 회사 설정에서 먼저 등록하세요.", "error");
         setSealApplying(null);
         return;
       }
-      const { data: pkg } = await (supabase as any)
-        .from("hr_contract_packages").select("notes").eq("id", contractId).maybeSingle();
+      const pkg = logRead('_components/ContractAdminPanel:pkg', await (supabase as any)
+        .from("hr_contract_packages").select("notes").eq("id", contractId).maybeSingle());
       let notesObj: Record<string, any> = {};
       if (pkg?.notes) {
         try {

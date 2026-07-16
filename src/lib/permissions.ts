@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Permission Management System
  * 플렉스 스타일 권한 그룹 관리
@@ -98,10 +99,10 @@ export async function getPermissionGroups(companyId: string): Promise<Permission
   if (!groups || groups.length === 0) return [];
 
   // 각 그룹의 멤버 수 조회
-  const { data: memberCounts } = await db
+  const memberCounts = logRead('lib/permissions:memberCounts', await db
     .from('permission_group_members')
     .select('group_id')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   const countMap: Record<string, number> = {};
   (memberCounts || []).forEach((m: { group_id: string }) => {
@@ -125,28 +126,28 @@ export async function getPermissionGroupDetail(groupId: string): Promise<Permiss
   if (error || !group) return null;
 
   // 멤버 조회
-  const { data: members } = await db
+  const members = logRead('lib/permissions:members', await db
     .from('permission_group_members')
     .select(`
       id, group_id, user_id, company_id, created_at,
       users:user_id (id, name, email, role, avatar_url)
     `)
-    .eq('group_id', groupId);
+    .eq('group_id', groupId));
 
   // 권한 조회
-  const { data: permLinks } = await db
+  const permLinks = logRead('lib/permissions:permLinks', await db
     .from('permission_group_permissions')
     .select('permission_id')
-    .eq('group_id', groupId);
+    .eq('group_id', groupId));
 
   let permissions: PermissionDefinition[] = [];
   if (permLinks && permLinks.length > 0) {
     const permIds = permLinks.map((p: { permission_id: string }) => p.permission_id);
-    const { data: perms } = await db
+    const perms = logRead('lib/permissions:perms', await db
       .from('permission_definitions')
       .select('*')
       .in('id', permIds)
-      .order('sort_order');
+      .order('sort_order'));
     permissions = perms || [];
   }
 
@@ -184,11 +185,11 @@ export async function getUserPermissions(
   companyId: string,
 ): Promise<{ modules: Record<string, string[]>; groupNames: string[] }> {
   // 사용자가 속한 그룹 조회
-  const { data: memberships } = await db
+  const memberships = logRead('lib/permissions:memberships', await db
     .from('permission_group_members')
     .select('group_id, permission_groups(id, name, is_system)')
     .eq('user_id', userId)
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   if (!memberships || memberships.length === 0) {
     return { modules: {}, groupNames: [] };
@@ -200,10 +201,10 @@ export async function getUserPermissions(
   ).filter(Boolean);
 
   // 그룹들의 권한 조회
-  const { data: permLinks } = await db
+  const permLinks = logRead('lib/permissions:permLinks', await db
     .from('permission_group_permissions')
     .select('permission_id, permission_definitions(module, action)')
-    .in('group_id', groupIds);
+    .in('group_id', groupIds));
 
   const modules: Record<string, string[]> = {};
   (permLinks || []).forEach((p: { permission_definitions: { module: string; action: string } }) => {
@@ -226,11 +227,11 @@ export async function hasPermission(
   action: string,
 ): Promise<boolean> {
   // owner는 항상 전체 권한
-  const { data: user } = await db
+  const user = logRead('lib/permissions:user', await db
     .from('users')
     .select('role')
     .eq('id', userId)
-    .single();
+    .single());
 
   if (user?.role === 'owner') return true;
 
@@ -248,12 +249,12 @@ export async function createPermissionGroup(params: {
   icon?: string;
 }): Promise<PermissionGroup> {
   // 정렬 순서 계산
-  const { data: existing } = await db
+  const existing = logRead('lib/permissions:existing', await db
     .from('permission_groups')
     .select('sort_order')
     .eq('company_id', params.companyId)
     .order('sort_order', { ascending: false })
-    .limit(1);
+    .limit(1));
 
   const nextOrder = (existing?.[0]?.sort_order || 0) + 10;
 
@@ -357,18 +358,18 @@ export async function removeGroupMember(
 /** 회사 초기 셋업: 시스템 기본 그룹 3개 생성 */
 export async function initializeCompanyPermissions(companyId: string, ownerId: string): Promise<void> {
   // 이미 그룹이 있으면 스킵
-  const { data: existing } = await db
+  const existing = logRead('lib/permissions:existing', await db
     .from('permission_groups')
     .select('id')
     .eq('company_id', companyId)
-    .limit(1);
+    .limit(1));
 
   if (existing && existing.length > 0) return;
 
   // 전체 권한 ID 조회
-  const { data: allPerms } = await db
+  const allPerms = logRead('lib/permissions:allPerms', await db
     .from('permission_definitions')
-    .select('id, module, action');
+    .select('id, module, action'));
 
   const allPermIds = (allPerms || []).map((p: { id: string }) => p.id);
   const viewPermIds = (allPerms || [])
@@ -376,7 +377,7 @@ export async function initializeCompanyPermissions(companyId: string, ownerId: s
     .map((p: { id: string }) => p.id);
 
   // 1. 최고 관리자 (모든 권한)
-  const { data: superAdmin } = await db
+  const superAdmin = logRead('lib/permissions:superAdmin', await db
     .from('permission_groups')
     .insert({
       company_id: companyId,
@@ -387,10 +388,10 @@ export async function initializeCompanyPermissions(companyId: string, ownerId: s
       sort_order: 1,
     })
     .select()
-    .single();
+    .single());
 
   // 2. 조직장
-  const { data: teamLead } = await db
+  const teamLead = logRead('lib/permissions:teamLead', await db
     .from('permission_groups')
     .insert({
       company_id: companyId,
@@ -401,10 +402,10 @@ export async function initializeCompanyPermissions(companyId: string, ownerId: s
       sort_order: 2,
     })
     .select()
-    .single();
+    .single());
 
   // 3. 기본 권한 (조회만)
-  const { data: defaultGroup } = await db
+  const defaultGroup = logRead('lib/permissions:defaultGroup', await db
     .from('permission_groups')
     .insert({
       company_id: companyId,
@@ -415,7 +416,7 @@ export async function initializeCompanyPermissions(companyId: string, ownerId: s
       sort_order: 3,
     })
     .select()
-    .single();
+    .single());
 
   // 권한 매핑
   if (superAdmin && allPermIds.length > 0) {
@@ -478,10 +479,10 @@ export async function getCompanyMembersWithPermissions(companyId: string): Promi
   if (!users || users.length === 0) return [];
 
   // 직원 정보 (부서)
-  const { data: employees } = await db
+  const employees = logRead('lib/permissions:employees', await db
     .from('employees')
     .select('user_id, department')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   const deptMap: Record<string, string> = {};
   (employees || []).forEach((e: { user_id: string; department: string }) => {
@@ -489,10 +490,10 @@ export async function getCompanyMembersWithPermissions(companyId: string): Promi
   });
 
   // 전체 멤버십 조회
-  const { data: memberships } = await db
+  const memberships = logRead('lib/permissions:memberships', await db
     .from('permission_group_members')
     .select('user_id, group_id, permission_groups(id, name, icon, is_system, sort_order)')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   const userGroupMap: Record<string, PermissionGroup[]> = {};
   const superAdminSet = new Set<string>();

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
@@ -56,11 +57,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user belongs to the company
-    const { data: userRow } = await supabase
+    const userRow = logRead('checkout/route:userRow', await supabase
       .from('users')
       .select('company_id')
       .eq('auth_id', user.id)
-      .single();
+      .single());
 
     if (!userRow || userRow.company_id !== companyId) {
       return NextResponse.json(

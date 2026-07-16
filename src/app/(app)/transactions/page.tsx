@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { DateField } from "@/components/date-field";
@@ -337,10 +338,10 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       if (records.length === 0) throw new Error("유효한 거래 데이터가 없습니다");
 
       // ── F-4: Duplicate check (transaction_date + amount + counterparty) ──
-      const { data: existing } = await supabase
+      const existing = logRead('transactions/page:existing', await supabase
         .from("bank_transactions")
         .select("transaction_date, amount, counterparty")
-        .eq("company_id", companyId);
+        .eq("company_id", companyId));
 
       const existingKeys = new Set(
         (existing || []).map((e: any) =>
@@ -420,10 +421,10 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       if (records.length === 0) throw new Error("유효한 카드 거래 데이터가 없습니다");
 
       // ── F-4: Card CSV duplicate check (transaction_date + amount + merchant_name) ──
-      const { data: existingCards } = await supabase
+      const existingCards = logRead('transactions/page:existingCards', await supabase
         .from("card_transactions")
         .select("transaction_date, amount, merchant_name")
-        .eq("company_id", companyId);
+        .eq("company_id", companyId));
 
       const existingCardKeys = new Set(
         (existingCards || []).map((e: any) =>
@@ -584,11 +585,11 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const { data: savedOptions = [] } = useQuery({
     queryKey: ["tx-category-options", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('transactions/page:data', await (supabase as any)
         .from("tx_category_options")
         .select("id, kind, name")
         .eq("company_id", companyId!)
-        .order("name");
+        .order("name"));
       return (data || []) as { id: string; kind: string; name: string }[];
     },
     enabled: !!companyId,
@@ -1333,7 +1334,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                   queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
                   queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
                   // Refresh manual entries list
-                  const { data: entries } = await db.from('transactions').select('*').eq('company_id', companyId).eq('source', 'manual').order('transaction_date', { ascending: false }).limit(50);
+                  const entries = logRead('transactions/page:entries', await db.from('transactions').select('*').eq('company_id', companyId).eq('source', 'manual').order('transaction_date', { ascending: false }).limit(50));
                   setManualEntries(entries || []);
                 } catch (err: any) {
                   toast(`등록 실패: ${err.message}`, 'error');
@@ -1354,7 +1355,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               <button onClick={async () => {
                 if (!companyId) return;
                 const db = supabase as any;
-                const { data } = await db.from('transactions').select('*').eq('company_id', companyId).eq('source', 'manual').order('transaction_date', { ascending: false }).limit(50);
+                const data = logRead('transactions/page:data', await db.from('transactions').select('*').eq('company_id', companyId).eq('source', 'manual').order('transaction_date', { ascending: false }).limit(50));
                 setManualEntries(data || []);
               }} className="text-xs text-[var(--primary)] font-semibold">새로고침</button>
             </div>

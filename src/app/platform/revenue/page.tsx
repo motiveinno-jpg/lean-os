@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -17,7 +18,7 @@ export default function RevenuePage() {
   const { data: subscriptions = [] } = useQuery({
     queryKey: ["p-subs-rev"],
     queryFn: async () => {
-      const { data } = await db.from("subscriptions").select("*, subscription_plans(*), companies(name)").order("created_at", { ascending: false });
+      const data = logRead('revenue/page:data', await db.from("subscriptions").select("*, subscription_plans(*), companies(name)").order("created_at", { ascending: false }));
       return data || [];
     },
   });
@@ -25,7 +26,7 @@ export default function RevenuePage() {
   const { data: invoices = [] } = useQuery({
     queryKey: ["p-invoices-rev"],
     queryFn: async () => {
-      const { data } = await db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false });
+      const data = logRead('revenue/page:data', await db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }));
       return data || [];
     },
   });

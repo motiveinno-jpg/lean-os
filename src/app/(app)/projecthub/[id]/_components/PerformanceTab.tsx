@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 목표형 '성과' 탭 — 성과관리 모델.
 //   ① KPI 관리(project_kpis): 추가/수정/삭제 (label·unit·target_value·direction·source)
@@ -43,7 +44,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const { data: kpis = [] } = useQuery({
     queryKey: ["project-kpis", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_kpis").select("id, label, unit, target_value, direction, source, sort_order, owner_id").eq("deal_id", dealId).order("sort_order", { ascending: true });
+      const data = logRead('_components/PerformanceTab:data', await db.from("project_kpis").select("id, label, unit, target_value, direction, source, sort_order, owner_id").eq("deal_id", dealId).order("sort_order", { ascending: true }));
       return (data || []) as Kpi[];
     },
     enabled: !!dealId,
@@ -65,7 +66,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const { data: assignments = [] } = useQuery({
     queryKey: ["deal-assignments", dealId],
     queryFn: async () => {
-      const { data } = await db.from("deal_assignments").select("id, user_id, role, is_active").eq("deal_id", dealId).eq("is_active", true);
+      const data = logRead('_components/PerformanceTab:data', await db.from("deal_assignments").select("id, user_id, role, is_active").eq("deal_id", dealId).eq("is_active", true));
       return (data || []) as any[];
     },
     enabled: !!dealId,
@@ -73,7 +74,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const { data: entries = [] } = useQuery({
     queryKey: ["project-kpi-entries-all", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_kpi_entries").select("id, kpi_id, entry_date, value, memo, department_id").eq("deal_id", dealId).order("entry_date", { ascending: false });
+      const data = logRead('_components/PerformanceTab:data', await db.from("project_kpi_entries").select("id, kpi_id, entry_date, value, memo, department_id").eq("deal_id", dealId).order("entry_date", { ascending: false }));
       return (data || []) as Entry[];
     },
     enabled: !!dealId,
@@ -83,7 +84,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const { data: departments = [] } = useQuery({
     queryKey: ["departments", companyId],
     queryFn: async () => {
-      const { data } = await db.from("departments").select("id, name").eq("company_id", companyId).is("archived_at", null).order("sort_order", { ascending: true }).order("name", { ascending: true });
+      const data = logRead('_components/PerformanceTab:data', await db.from("departments").select("id, name").eq("company_id", companyId).is("archived_at", null).order("sort_order", { ascending: true }).order("name", { ascending: true }));
       return (data || []) as Dept[];
     },
     enabled: !!companyId,
@@ -91,7 +92,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const { data: myDeptName = "" } = useQuery({
     queryKey: ["my-department", companyId, user?.id],
     queryFn: async () => {
-      const { data } = await db.from("employees").select("department").eq("company_id", companyId).eq("user_id", user?.id).maybeSingle();
+      const data = logRead('_components/PerformanceTab:data', await db.from("employees").select("department").eq("company_id", companyId).eq("user_id", user?.id).maybeSingle());
       return (data?.department || "") as string;
     },
     enabled: !!companyId && !!user?.id,
@@ -103,7 +104,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const { data: autoActual } = useQuery({
     queryKey: ["deal-kpi-auto", dealId],
     queryFn: async () => {
-      const { data } = await db.from("v_deal_kpi_auto").select("revenue_actual, profit_actual, output_count").eq("deal_id", dealId).maybeSingle();
+      const data = logRead('_components/PerformanceTab:data', await db.from("v_deal_kpi_auto").select("revenue_actual, profit_actual, output_count").eq("deal_id", dealId).maybeSingle());
       return { revenue: Number(data?.revenue_actual || 0), profit: Number(data?.profit_actual || 0), count: Number(data?.output_count || 0) };
     },
     enabled: !!dealId && hasAuto,
@@ -111,7 +112,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const { data: updates = [] } = useQuery({
     queryKey: ["project-updates", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_updates").select("id, update_date, status, body, did, issues, next_plan, period_start, created_by, kpi_snapshot, created_at").eq("deal_id", dealId).order("update_date", { ascending: false }).order("created_at", { ascending: false });
+      const data = logRead('_components/PerformanceTab:data', await db.from("project_updates").select("id, update_date, status, body, did, issues, next_plan, period_start, created_by, kpi_snapshot, created_at").eq("deal_id", dealId).order("update_date", { ascending: false }).order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: !!dealId,
@@ -771,7 +772,7 @@ function ExecutionPlan({ dealId, companyId, users, userId }: { dealId: string; c
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ["project-tasks", dealId],
     queryFn: async () => {
-      const { data } = await db.from("project_tasks").select("id, title, status, assignee_id, assignee_ids, due_date, position").eq("deal_id", dealId).is("archived_at", null).order("position", { ascending: true }).order("created_at", { ascending: true });
+      const data = logRead('_components/PerformanceTab:data', await db.from("project_tasks").select("id, title, status, assignee_id, assignee_ids, due_date, position").eq("deal_id", dealId).is("archived_at", null).order("position", { ascending: true }).order("created_at", { ascending: true }));
       return (data || []) as any[];
     },
     enabled: !!dealId,

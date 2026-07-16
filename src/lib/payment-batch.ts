@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Payment Batch Engine
  * 급여/고정비 일괄 배치 → 대표 승인 → n8n 트리거 자동이체
@@ -273,11 +274,11 @@ export async function createPayrollBatch(
   const label = monthLabel || `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월`;
 
   // Get active employees with salary, 비과세금액/부양가족 수 포함
-  const { data: employees } = await db
+  const employees = logRead('lib/payment-batch:employees', await db
     .from('employees')
     .select('id, name, salary, bank_account, bank_name, is_4_insurance, status, meal_allowance_included')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined', 'invited']);
+    .in('status', ['active', 'joined', 'invited']));
 
   if (!employees?.length) throw new Error('활성 직원이 없습니다');
 
@@ -289,11 +290,11 @@ export async function createPayrollBatch(
     const now = new Date();
     const pd = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const prevKey = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}`;
-    const { data: prevOverrides } = await db
+    const prevOverrides = logRead('lib/payment-batch:prevOverrides', await db
       .from('payslip_overrides')
       .select('employee_id, base_salary, non_taxable_amount')
       .eq('company_id', companyId)
-      .eq('period_month', prevKey);
+      .eq('period_month', prevKey));
     (prevOverrides || []).forEach((o: any) => {
       prevOverrideMap[o.employee_id] = {
         base_salary: Number(o.base_salary),
@@ -371,13 +372,13 @@ export async function createPayrollBatch(
     for (const item of items) {
       const prev = prevOverrideMap[item.employeeId];
       if (!prev) continue;
-      const { data: existingCur } = await db
+      const existingCur = logRead('lib/payment-batch:existingCur', await db
         .from('payslip_overrides')
         .select('id')
         .eq('company_id', companyId)
         .eq('employee_id', item.employeeId)
         .eq('period_month', curKey)
-        .maybeSingle();
+        .maybeSingle());
       if (existingCur) continue; // 당월 사용자 수정값 보존
       await db.from('payslip_overrides').insert({
         company_id: companyId,
@@ -415,7 +416,7 @@ export async function getPrevMonthPayrollSnapshot(companyId: string): Promise<{
 } | null> {
   const { label, nameLike } = prevMonthLabels();
 
-  const { data: batch } = await db
+  const batch = logRead('lib/payment-batch:batch', await db
     .from('payment_batches')
     .select('id, item_count')
     .eq('company_id', companyId)
@@ -423,7 +424,7 @@ export async function getPrevMonthPayrollSnapshot(companyId: string): Promise<{
     .eq('name', nameLike)
     .order('created_at', { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
 
   if (batch) {
     return {
@@ -468,13 +469,13 @@ export async function createFixedCostBatch(companyId: string, monthLabel?: strin
 
   // 같은 월의 기존 draft/pending_approval 배치가 있으면 그것 + queue items 삭제 (1개로 통합).
   // 이미 approved/executing/completed 면 그대로 유지하고 새 batch 생성.
-  const { data: existing } = await db
+  const existing = logRead('lib/payment-batch:existing', await db
     .from('payment_batches')
     .select('id, status')
     .eq('company_id', companyId)
     .eq('batch_type', 'fixed_cost')
     .eq('name', batchName)
-    .in('status', ['draft', 'pending_approval']);
+    .in('status', ['draft', 'pending_approval']));
 
   for (const old of (existing || [])) {
     await db.from('payment_queue').delete().eq('batch_id', old.id);
@@ -547,11 +548,11 @@ export async function approveBatch(batchId: string, userId: string): Promise<voi
   }).eq('batch_id', batchId).eq('status', 'pending');
 
   // Auto-send payslip emails for payroll batches
-  const { data: batch } = await db
+  const batch = logRead('lib/payment-batch:batch', await db
     .from('payment_batches')
     .select('batch_type, company_id, name')
     .eq('id', batchId)
-    .single();
+    .single());
 
   if (batch?.batch_type === 'payroll') {
     // Fire and forget — don't block approval on email sending
@@ -570,20 +571,20 @@ export async function sendPayslipEmails(
   options?: { employeeIds?: string[] },
 ): Promise<{ sent: number; failed: number; errors?: string[] }> {
   // Get company name + representative
-  const { data: company } = await db
+  const company = logRead('lib/payment-batch:company', await db
     .from('companies')
     .select('name, representative')
     .eq('id', companyId)
-    .single();
+    .single());
 
   // batch 모드(batchId='preview')는 payment_queue skip — preview 모드도 발송 가능
   const previewMode = batchId === 'preview';
   if (!previewMode) {
-    const { data: payments } = await db
+    const payments = logRead('lib/payment-batch:payments', await db
       .from('payment_queue')
       .select('amount')
       .eq('batch_id', batchId)
-      .eq('payment_type', 'payroll');
+      .eq('payment_type', 'payroll'));
     if (!payments?.length) return { sent: 0, failed: 0 };
   }
 
@@ -701,22 +702,22 @@ export async function sendPayslipEmails(
 
 export async function triggerBatchExecution(batchId: string): Promise<{ triggered: boolean; executionId?: string }> {
   // Get batch details
-  const { data: batch } = await db
+  const batch = logRead('lib/payment-batch:batch', await db
     .from('payment_batches')
     .select('*')
     .eq('id', batchId)
-    .single();
+    .single());
 
   if (!batch || batch.status !== 'approved') {
     return { triggered: false };
   }
 
   // Get linked payments
-  const { data: payments } = await db
+  const payments = logRead('lib/payment-batch:payments', await db
     .from('payment_queue')
     .select('id, amount, description, recipient_name, recipient_account, recipient_bank')
     .eq('batch_id', batchId)
-    .eq('status', 'approved');
+    .eq('status', 'approved'));
 
   if (!payments?.length) return { triggered: false };
 
@@ -772,17 +773,17 @@ export async function triggerBatchExecution(batchId: string): Promise<{ triggere
 // ── Get batch with items ──
 
 export async function getBatchWithItems(batchId: string) {
-  const { data: batch } = await db
+  const batch = logRead('lib/payment-batch:batch', await db
     .from('payment_batches')
     .select('*, users:approved_by(name)')
     .eq('id', batchId)
-    .single();
+    .single());
 
-  const { data: items } = await db
+  const items = logRead('lib/payment-batch:items', await db
     .from('payment_queue')
     .select('*')
     .eq('batch_id', batchId)
-    .order('created_at');
+    .order('created_at'));
 
   return { batch, items: items || [] };
 }

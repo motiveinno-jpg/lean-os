@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Loan Management
  * 대출 목록 / 상환 이력 / 요약 조회
@@ -105,12 +106,12 @@ export async function getLoanSummary(companyId: string): Promise<LoanSummary> {
   let monthlyPayment = 0;
 
   for (const loan of activeLoans) {
-    const { data: payments } = await db
+    const payments = logRead('lib/loans:payments', await db
       .from('loan_payments')
       .select('payment_number, total_amount')
       .eq('loan_id', loan.id)
       .order('payment_number', { ascending: false })
-      .limit(1);
+      .limit(1));
     if (payments && payments.length > 0) {
       totalPayments += payments[0].payment_number || 0;
       monthlyPayment += payments[0].total_amount || 0;
@@ -250,7 +251,7 @@ export async function autoMatchLoanPayments(companyId: string): Promise<LoanMatc
   if (activeLoans.length === 0) return [];
 
   // 2. Get unmatched outgoing bank transactions (출금, mapping_status not matched)
-  const { data: transactions } = await db
+  const transactions = logRead('lib/loans:transactions', await db
     .from('bank_transactions')
     .select('*')
     .eq('company_id', companyId)
@@ -258,17 +259,17 @@ export async function autoMatchLoanPayments(companyId: string): Promise<LoanMatc
     .eq('type', 'expense')
     .or('mapping_status.is.null,mapping_status.neq.matched')
     .order('transaction_date', { ascending: false })
-    .limit(200);
+    .limit(200));
 
   if (!transactions || transactions.length === 0) return [];
 
   // 3. Get existing loan payment transaction IDs to exclude
   const allLoanIds = activeLoans.map(l => l.id);
-  const { data: existingPayments } = await db
+  const existingPayments = logRead('lib/loans:existingPayments', await db
     .from('loan_payments')
     .select('bank_transaction_id')
     .in('loan_id', allLoanIds)
-    .not('bank_transaction_id', 'is', null);
+    .not('bank_transaction_id', 'is', null));
 
   const usedTxIds = new Set((existingPayments || []).map((p: any) => p.bank_transaction_id));
 
@@ -277,12 +278,12 @@ export async function autoMatchLoanPayments(companyId: string): Promise<LoanMatc
 
   for (const loan of activeLoans) {
     // Get latest payment for reference amount
-    const { data: lastPayments } = await db
+    const lastPayments = logRead('lib/loans:lastPayments', await db
       .from('loan_payments')
       .select('total_amount')
       .eq('loan_id', loan.id)
       .order('payment_date', { ascending: false })
-      .limit(3);
+      .limit(3));
 
     const refAmounts = (lastPayments || []).map((p: any) => Number(p.total_amount));
     const avgPayment = refAmounts.length > 0 ? refAmounts.reduce((a: number, b: number) => a + b, 0) / refAmounts.length : 0;
@@ -360,12 +361,12 @@ export async function acceptLoanMatch(candidate: LoanMatchCandidate): Promise<vo
   const { loan, transaction } = candidate;
 
   // Get current payment count
-  const { data: payments } = await db
+  const payments = logRead('lib/loans:payments', await db
     .from('loan_payments')
     .select('payment_number')
     .eq('loan_id', loan.id)
     .order('payment_number', { ascending: false })
-    .limit(1);
+    .limit(1));
 
   const nextNum = ((payments?.[0]?.payment_number || 0) + 1);
 

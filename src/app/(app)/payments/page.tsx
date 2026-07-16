@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -1419,7 +1420,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
 
   async function handleDetect() {
     try {
-      const { data } = await refetchDetect();
+      const data = logRead('payments/page:data', await refetchDetect());
       const res = data || [];
       const fresh = res.filter((d) => !d.alreadyRegistered).length;
       if (res.length === 0) toast("최근 3개월 이체내역에서 반복 결제 패턴을 찾지 못했습니다", "info");
@@ -1655,8 +1656,8 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
   const { data: deals = [] } = useQuery({
     queryKey: ['deals-for-expense', companyId],
     queryFn: async () => {
-      const { data } = await (await import('@/lib/supabase')).supabase
-        .from('deals').select('id, name').eq('company_id', companyId).eq('status', 'active');
+      const data = logRead('payments/page:data', await (await import('@/lib/supabase')).supabase
+        .from('deals').select('id, name').eq('company_id', companyId).eq('status', 'active'));
       return data || [];
     },
     enabled: !!companyId,

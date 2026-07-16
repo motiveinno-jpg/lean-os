@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 근태관리 연장근무 현황 — 직원별 연장근무 횟수·총 시간 (2026-07-01)
 //   출퇴근 기록(attendance_records.overtime_minutes) 기준 실제 연장시간을 연도별로 집계.
@@ -24,14 +25,14 @@ export function OvertimeStats({ companyId }: { companyId: string }) {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["overtime-stats", companyId, year],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('components/overtime-stats:data', await db
         .from("attendance_records")
         .select("employee_id, overtime_minutes, employees(name)")
         .eq("company_id", companyId)
         .gte("date", `${year}-01-01`)
         .lte("date", `${year}-12-31`)
         .gt("overtime_minutes", 0)
-        .limit(20000);
+        .limit(20000));
       const map = new Map<string, { name: string; count: number; minutes: number }>();
       for (const r of (data || []) as any[]) {
         const k = r.employee_id;

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Corporate Card Transaction Engine
  * 법인카드 거래내역 관리 + 자동분류
@@ -9,11 +10,11 @@ import { fetchPaged } from './fetch-paged';
 // ── Corporate Card CRUD ──
 
 export async function getCorporateCards(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('lib/card-transactions:data', await supabase
     .from('corporate_cards')
     .select('*')
     .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
   return data || [];
 }
 
@@ -181,10 +182,10 @@ export async function getCardSpendByCompany(
 
   // 사용자 별명(card_aliases) — 하단 카드별 사용액 그리드에서 설정한 이름을 상단 개요에도 반영.
   const aliasMap = new Map<string, string>();
-  const { data: aliases } = await (supabase as any)
+  const aliases = logRead('lib/card-transactions:aliases', await (supabase as any)
     .from('card_aliases')
     .select('source_card_name, alias')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
   for (const a of (aliases || [])) {
     if (a.source_card_name && a.alias) aliasMap.set(a.source_card_name, a.alias);
   }
@@ -389,10 +390,10 @@ export async function toggleDeductible(id: string, isDeductible: boolean) {
 // ── Card Deduction Summary by month ──
 export async function getCardDeductionSummary(companyId: string, year: number) {
   const db = supabase as any;
-  const { data } = await db
+  const data = logRead('lib/card-transactions:data', await db
     .from('card_deduction_summary')
     .select('*')
-    .eq('company_id', companyId);
+    .eq('company_id', companyId));
 
   return (data || [])
     .filter((r: any) => new Date(r.month).getFullYear() === year)
@@ -419,14 +420,14 @@ export async function learnRuleFromMapping(companyId: string, params: {
   if (!params.merchantName) return;
 
   // Check if rule already exists for this merchant
-  const { data: existing } = await supabase
+  const existing = logRead('lib/card-transactions:existing', await supabase
     .from('bank_classification_rules')
     .select('id, learned_from_count')
     .eq('company_id', companyId)
     .eq('match_field', 'counterparty')
     .eq('match_type', 'contains')
     .eq('match_value', params.merchantName)
-    .maybeSingle();
+    .maybeSingle());
 
   if (existing) {
     // Increment learned_from_count

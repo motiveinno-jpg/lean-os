@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 대시보드 활동 요약 카드 — "오너뷰에서 지금 일어나는 일"을 표 형태로 한눈에(2026-07-14).
 //   깔끔한 카드(제목 + 전체보기 → / 표 행 + 상태 뱃지). 최근 프로젝트·최근 세금계산서.
@@ -64,9 +65,9 @@ export function RecentProjects({ companyId }: { companyId: string }) {
     enabled: !!companyId,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, name, stage, contract_total, updated_at")
+      const data = logRead('components/dashboard-activity:data', await db.from("deals").select("id, name, stage, contract_total, updated_at")
         .eq("company_id", companyId).is("archived_at", null).is("parent_deal_id", null)
-        .order("updated_at", { ascending: false }).limit(5);
+        .order("updated_at", { ascending: false }).limit(5));
       return (data || []) as any[];
     },
   });
@@ -95,9 +96,9 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const now = new Date();
       const mStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-      const { data } = await db.from("tax_invoices").select("id, counterparty_name, supply_amount, issue_date")
+      const data = logRead('components/dashboard-activity:data', await db.from("tax_invoices").select("id, counterparty_name, supply_amount, issue_date")
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
-        .gte("issue_date", mStart).order("issue_date", { ascending: false }).limit(30);
+        .gte("issue_date", mStart).order("issue_date", { ascending: false }).limit(30));
       const rows = (data || []) as any[];
       return { rows: rows.slice(0, 4), total: rows.reduce((s, r) => s + Number(r.supply_amount || 0), 0), count: rows.length };
     },
@@ -130,9 +131,9 @@ export function RecentInvoices({ companyId }: { companyId: string }) {
     enabled: !!companyId,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices").select("id, counterparty_name, total_amount, type, issue_date, status")
+      const data = logRead('components/dashboard-activity:data', await db.from("tax_invoices").select("id, counterparty_name, total_amount, type, issue_date, status")
         .eq("company_id", companyId).neq("status", "void")
-        .order("issue_date", { ascending: false }).limit(5);
+        .order("issue_date", { ascending: false }).limit(5));
       return (data || []) as any[];
     },
   });

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // /bank — 통장 자립 페이지(시안 그대로). 시안 portfolio 카드 + 시안 거래내역 표 직접 구현.
 //   기존 BankAccountsOverview / TransactionsView 미사용 (그쪽은 /transactions 에서 그대로).
@@ -221,7 +222,7 @@ export default function BankPage() {
           const end = new Date().toISOString().slice(0, 10);
           const s = new Date(); s.setDate(s.getDate() - 120);
           const start = s.toISOString().slice(0, 10);
-          const { data } = await (supabase as any).rpc("generate_settlement_suggestions", { p_start: start, p_end: end });
+          const data = logRead('bank/page:data', await (supabase as any).rpc("generate_settlement_suggestions", { p_start: start, p_end: end }));
           const sug = Number((data as any)?.suggested || 0);
           if (sug > 0) toast(`입금 매칭 제안 ${sug}건 생성 — '거래 대사'에서 확인·확정하세요`, "info");
         } catch { /* 제안 생성 실패는 비차단 */ }
@@ -317,7 +318,7 @@ export default function BankPage() {
   const { data: coaAccounts = [] } = useQuery({
     queryKey: ["bank-page-coa-accounts", companyId],
     queryFn: async () => {
-      const { data } = await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code");
+      const data = logRead('bank/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -327,7 +328,7 @@ export default function BankPage() {
   const { data: bankEmployees = [] } = useQuery({
     queryKey: ["bank-page-employees", companyId],
     queryFn: async () => {
-      const { data } = await db.from("employees").select("id, name").eq("company_id", companyId).eq("status", "active").order("name");
+      const data = logRead('bank/page:data', await db.from("employees").select("id, name").eq("company_id", companyId).eq("status", "active").order("name"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,

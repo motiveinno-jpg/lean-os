@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Monthly Closing Checklist Engine
  * 월 마감 체크리스트 생성/관리 + 자동 검증 + 자동 마감 + PDF 보관 (Granter 벤치마킹 5단계)
@@ -37,12 +38,12 @@ const DEFAULT_ITEMS = [
 // ── Get or create checklist for a month ──
 export async function getOrCreateChecklist(companyId: string, month: string) {
   // Try to find existing
-  const { data: existing } = await supabase
+  const existing = logRead('lib/closing:existing', await supabase
     .from('closing_checklists')
     .select('*, closing_checklist_items(*)')
     .eq('company_id', companyId)
     .eq('month', month)
-    .maybeSingle();
+    .maybeSingle());
 
   if (existing) {
     // Sort items by sort_order
@@ -67,10 +68,10 @@ export async function getOrCreateChecklist(companyId: string, month: string) {
     ...item,
   }));
 
-  const { data: items } = await supabase
+  const items = logRead('lib/closing:items', await supabase
     .from('closing_checklist_items')
     .insert(itemRows)
-    .select();
+    .select());
 
   return { ...checklist, items: items || [] };
 }
@@ -115,11 +116,11 @@ export async function completeClosingChecklist(checklistId: string, userId: stri
     .eq('id', checklistId);
   if (error) throw error;
 
-  const { data: cl } = await supabase
+  const cl = logRead('lib/closing:cl', await supabase
     .from('closing_checklists')
     .select('company_id, month')
     .eq('id', checklistId)
-    .single();
+    .single());
 
   await logAudit({
     company_id: cl?.company_id || '',
@@ -143,11 +144,11 @@ export async function lockClosingMonth(checklistId: string, userId: string) {
     .eq('id', checklistId);
   if (error) throw error;
 
-  const { data: cl } = await supabase
+  const cl = logRead('lib/closing:cl', await supabase
     .from('closing_checklists')
     .select('company_id, month')
     .eq('id', checklistId)
-    .single();
+    .single());
 
   await logAudit({
     company_id: cl?.company_id || '',
@@ -170,11 +171,11 @@ export async function unlockClosingMonth(checklistId: string, userId: string) {
     .eq('id', checklistId);
   if (error) throw error;
 
-  const { data: cl } = await supabase
+  const cl = logRead('lib/closing:cl', await supabase
     .from('closing_checklists')
     .select('company_id, month')
     .eq('id', checklistId)
-    .single();
+    .single());
 
   await logAudit({
     company_id: cl?.company_id || '',
@@ -187,23 +188,23 @@ export async function unlockClosingMonth(checklistId: string, userId: string) {
 }
 
 export async function isMonthLocked(companyId: string, month: string): Promise<boolean> {
-  const { data } = await supabase
+  const data = logRead('lib/closing:data', await supabase
     .from('closing_checklists')
     .select('status')
     .eq('company_id', companyId)
     .eq('month', month)
-    .maybeSingle();
+    .maybeSingle());
   return data?.status === 'locked';
 }
 
 // ── Get closing history ──
 export async function getClosingHistory(companyId: string) {
-  const { data } = await supabase
+  const data = logRead('lib/closing:data', await supabase
     .from('closing_checklists')
     .select('*, closing_checklist_items(id, is_completed, is_required)')
     .eq('company_id', companyId)
     .order('month', { ascending: false })
-    .limit(12);
+    .limit(12));
 
   return (data || []).map((cl: any) => {
     const items = cl.closing_checklist_items || [];
@@ -244,10 +245,10 @@ export async function autoVerifyChecklist(
 ): Promise<AutoVerifyOutcome[]> {
   const { startDate, endDate } = monthRange(month);
 
-  const { data: items } = await db
+  const items = logRead('lib/closing:items', await db
     .from('closing_checklist_items')
     .select('id, title, is_completed, auto_verified, sort_order')
-    .eq('checklist_id', checklistId);
+    .eq('checklist_id', checklistId));
 
   if (!items) return [];
 
@@ -326,8 +327,8 @@ export async function autoVerifyChecklist(
       reason = passed ? '증빙 누락 0건' : `증빙 누락 ${count}건`;
     }
     else if (title.includes('월간 손익') || title.includes('리포트')) {
-      const { data: cl } = await db.from('closing_checklists')
-        .select('report_url').eq('id', checklistId).maybeSingle();
+      const cl = logRead('lib/closing:cl', await db.from('closing_checklists')
+        .select('report_url').eq('id', checklistId).maybeSingle());
       passed = !!cl?.report_url;
       reason = passed ? 'PDF 보관됨' : 'PDF 미생성';
     }
@@ -398,10 +399,10 @@ export async function autoCloseMonth(
   const outcomes = await autoVerifyChecklist(companyId, checklist.id, month);
 
   // 다시 읽어서 required 통과 여부 확인
-  const { data: items } = await db
+  const items = logRead('lib/closing:items', await db
     .from('closing_checklist_items')
     .select('is_completed, is_required')
-    .eq('checklist_id', checklist.id);
+    .eq('checklist_id', checklist.id));
 
   const required = (items || []).filter((i: any) => i.is_required);
   const requiredDone = required.filter((i: any) => i.is_completed).length;
@@ -433,7 +434,7 @@ export async function autoCloseMonth(
     try {
       const slack = await getSlackSettings(companyId);
       if (slack?.slack_webhook_url) {
-        const { data: cmp } = await db.from('companies').select('name').eq('id', companyId).maybeSingle();
+        const cmp = logRead('lib/closing:cmp', await db.from('companies').select('name').eq('id', companyId).maybeSingle());
         await sendSlackNotification(slack.slack_webhook_url, {
           event: 'monthly_closed',
           companyName: cmp?.name,

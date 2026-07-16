@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Document Generation Engine
  * PDF 렌더링 + 템플릿 변수 + 문서번호 채번 + 직인 오버레이
@@ -55,13 +56,13 @@ export async function generateDocumentNumber(
   const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
   const like = `${prefix}-${ym}-%`;
 
-  const { data } = await db
+  const data = logRead('lib/document-generator:data', await db
     .from('documents')
     .select('document_number')
     .eq('company_id', companyId)
     .like('document_number', like)
     .order('document_number', { ascending: false })
-    .limit(1);
+    .limit(1));
 
   let seq = 1;
   if (data && data.length > 0 && data[0].document_number) {

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // 저장된 견적 문서(content_json)로 실제 견적서 PDF Blob 생성 — projecthub 미리보기/인쇄 공용.
 //   documents 편집기 인라인 생성과 동일 로직(데이터 출처만 cj 고정: 저장본 기준).
 //   활성 견적 양식 있으면 오버레이, 없으면 generateQuotePDF 폴백.
@@ -25,13 +26,13 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
   const supplyAmt = items.reduce((s, i) => s + i.amount, 0);
   const taxAmt = Math.round(supplyAmt * 0.1);
 
-  const { data: bankAcct } = await db.from("bank_accounts").select("bank_name, account_number, alias").eq("company_id", companyId).eq("is_primary", true).limit(1).maybeSingle();
+  const bankAcct = logRead('lib/quote-pdf:bankAcct', await db.from("bank_accounts").select("bank_name, account_number, alias").eq("company_id", companyId).eq("is_primary", true).limit(1).maybeSingle());
   const { data: currentUser } = userId ? await db.from("users").select("name, email").eq("id", userId).maybeSingle() : { data: null };
 
   const mgrName = cj.header?.manager || "";
   let mgrEmail = "";
   if (mgrName) {
-    const { data: mgrRow } = await db.from("users").select("email").eq("company_id", companyId).eq("name", mgrName).limit(1).maybeSingle();
+    const mgrRow = logRead('lib/quote-pdf:mgrRow', await db.from("users").select("email").eq("company_id", companyId).eq("name", mgrName).limit(1).maybeSingle());
     mgrEmail = mgrRow?.email || "";
   }
 

@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
@@ -26,11 +27,11 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createSupabaseAdminClient() as any;
-    const { data: userRow } = await admin
+    const userRow = logRead('cancel/route:userRow', await admin
       .from('users')
       .select('company_id, role')
       .eq('auth_id', user.id)
-      .maybeSingle();
+      .maybeSingle());
     if (!userRow?.company_id) {
       return NextResponse.json(
         { error: { code: 'FORBIDDEN', message: '회사 정보를 찾을 수 없습니다' } },
@@ -51,14 +52,14 @@ export async function POST(request: NextRequest) {
     const immediate: boolean = body?.immediate === true;
 
     // 회사의 현재 구독을 서버에서 조회 — body 의 subscription_id 를 신뢰하지 않음
-    const { data: sub } = await admin
+    const sub = logRead('cancel/route:sub', await admin
       .from('subscriptions')
       .select('id, company_id, stripe_subscription_id, plan_slug, status')
       .eq('company_id', companyId)
       .in('status', ['active', 'trialing', 'paused', 'past_due', 'cancelling'])
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle());
 
     if (!sub) {
       return NextResponse.json(

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -46,11 +47,11 @@ export default function AttendancePage() {
   const { data: employees = [] } = useQuery({
     queryKey: ["attendance-employees", companyId, isEmployee ? "emp" : "mgr"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('attendance/page:data', await (supabase as any)
         .from("employees")
         .select(isEmployee ? ATT_EMP_COLS : "*")
         .eq("company_id", companyId!)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!companyId,

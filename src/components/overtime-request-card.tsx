@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 연장근무 신청 카드 — 직원 본인이 work_end_time 이후 출근/잔류 사유와 종료시각을 사전 신청.
 //   본 카드는 /attendance 페이지의 직원 역할 진입 시 AttendanceTab 위에 렌더된다.
@@ -70,14 +71,14 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
         .eq("user_id", userId)
         .maybeSingle();
       if (!data) {
-        const { data: u } = await db.from("users").select("email").eq("id", userId).maybeSingle();
+        const u = logRead('components/overtime-request-card:u', await db.from("users").select("email").eq("id", userId).maybeSingle());
         if (u?.email) {
-          const { data: byEmail } = await db
+          const byEmail = logRead('components/overtime-request-card:byEmail', await db
             .from("employees")
             .select("id, name")
             .eq("company_id", companyId)
             .eq("email", u.email)
-            .maybeSingle();
+            .maybeSingle());
           data = byEmail;
         }
       }
@@ -91,11 +92,11 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
   const { data: cs } = useQuery({
     queryKey: ["ot-company-settings", companyId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('components/overtime-request-card:data', await db
         .from("company_settings")
         .select("work_end_time")
         .eq("company_id", companyId)
-        .maybeSingle();
+        .maybeSingle());
       return data as { work_end_time: string | null } | null;
     },
     enabled: !!companyId,
@@ -110,12 +111,12 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
   const { data: history = [], refetch: refetchHistory } = useQuery<any[]>({
     queryKey: ["ot-my-history", employeeId],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('components/overtime-request-card:data', await db
         .from("overtime_requests")
         .select("id, requested_date, requested_end_time, reason, status, rejected_reason, created_at, approver_id, approved_by")
         .eq("employee_id", employeeId!)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(5));
       return data || [];
     },
     enabled: !!employeeId,
@@ -126,7 +127,7 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
   const { data: approvers = [] } = useQuery<{ id: string; name: string | null; role: string }[]>({
     queryKey: ["ot-approvers", companyId],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id, name, role").eq("company_id", companyId).in("role", ["admin", "owner"]).order("name");
+      const data = logRead('components/overtime-request-card:data', await db.from("users").select("id, name, role").eq("company_id", companyId).in("role", ["admin", "owner"]).order("name"));
       return (data || []) as any[];
     },
     enabled: !!companyId,

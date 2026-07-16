@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { friendlyError } from "@/lib/friendly-error";
@@ -37,12 +38,12 @@ function GuestChatView({ token }: { token: string }) {
   useEffect(() => {
     async function validateToken() {
       try {
-        const { data: channel } = await supabase
+        const channel = logRead('chat/page:channel', await supabase
           .from('chat_channels')
           .select('id, name, allow_guests')
           .eq('invite_token', token)
           .eq('is_archived', false)
-          .maybeSingle();
+          .maybeSingle());
 
         if (!channel) {
           setError('유효하지 않은 초대 링크입니다.');
@@ -63,11 +64,11 @@ function GuestChatView({ token }: { token: string }) {
           return;
         }
 
-        const { data: dbUser } = await supabase
+        const dbUser = logRead('chat/page:dbUser', await supabase
           .from('users')
           .select('id, name, email')
           .eq('auth_id', user.id)
-          .maybeSingle();
+          .maybeSingle());
 
         if (!dbUser) {
           setError('사용자 정보를 찾을 수 없습니다.');
@@ -75,12 +76,12 @@ function GuestChatView({ token }: { token: string }) {
           return;
         }
 
-        const { data: existing } = await supabase
+        const existing = logRead('chat/page:existing', await supabase
           .from('chat_participants')
           .select('id')
           .eq('channel_id', channel.id)
           .eq('user_id', dbUser.id)
-          .maybeSingle();
+          .maybeSingle());
 
         if (!existing) {
           await supabase.from('chat_participants').insert({

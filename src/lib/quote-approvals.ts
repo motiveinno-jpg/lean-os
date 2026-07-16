@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 // STEP 4 (PR-B) — 견적/계약/진척/완료/정산 단계 외부 승인 라이브러리.
 //   DB: quote_approvals (STEP 3 마이그 적용) + RPC 5종.
 //   호출자: PR-A /quote/[token] 외부 페이지, PR-C ProjectQuoteStages SendBar / Status,
@@ -66,7 +67,7 @@ export async function createApproval(params: {
   // 0) 현재 사용자 — RLS RESTRICTIVE INSERT WITH CHECK 가 created_by =
   //    current_app_user_id() 또는 is_company_admin() 요구. created_by 누락 시
   //    admin 이 아니면 42501. owner/admin 도 일관성 위해 명시.
-  const { data: userRes } = await db.auth.getUser();
+  const userRes = logRead('lib/quote-approvals:userRes', await db.auth.getUser());
   const authId = userRes?.user?.id;
   if (!authId) throw new Error('로그인이 필요합니다');
   const { data: userRow, error: userErr } = await db
@@ -139,18 +140,18 @@ export async function sendApproval(params: {
     recipient_name: params.recipientName ?? null,
   };
   try {
-    const { data: row } = await db
+    const row = logRead('lib/quote-approvals:row', await db
       .from('quote_approvals')
       .select('payload, company_id')
       .eq('id', params.approvalId)
-      .maybeSingle();
+      .maybeSingle());
     const payload = (row?.payload || {}) as { template_snapshot_html?: string };
     if (row?.company_id && payload.template_snapshot_html) {
-      const { data: co } = await db
+      const co = logRead('lib/quote-approvals:co', await db
         .from('companies')
         .select('name, seal_url')
         .eq('id', row.company_id)
-        .maybeSingle();
+        .maybeSingle());
       if (co?.seal_url) {
         const { injectOurSeal } = await import('./signatures');
         const sealed = injectOurSeal(payload.template_snapshot_html, co.seal_url, co.name);

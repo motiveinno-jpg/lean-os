@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -44,11 +45,11 @@ export default function AnnouncementsPage() {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["announcements"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('announcements/page:data', await (supabase as any)
         .from("announcements")
         .select("*")
         .order("pinned", { ascending: false })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return (data || []) as Announcement[];
     },
   });

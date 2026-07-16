@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 import { supabase } from "./supabase";
 
 // ─── Types ───────────────────────────────────────────────
@@ -196,10 +197,10 @@ export async function getProgramStats(
   const partnerIds = Array.from(partnerMap.keys());
   let partners: { id: string; name: string; dealCount: number }[] = [];
   if (partnerIds.length > 0) {
-    const { data: companies } = await supabase
+    const companies = logRead('lib/programs:companies', await supabase
       .from("companies")
       .select("id, name")
-      .in("id", partnerIds);
+      .in("id", partnerIds));
 
     partners = (companies || []).map((c: any) => ({
       id: c.id,

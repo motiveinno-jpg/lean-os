@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * L 수당 카탈로그 — 일반화된 월별 가산수당 계산 엔진.
  *
@@ -136,11 +137,11 @@ export async function recomputeMonthlyAllowances(
   const force = !!opts?.force;
 
   // 1) 직원 조회 — company_id, salary
-  const { data: emp } = await db
+  const emp = logRead('lib/allowance-calc:emp', await db
     .from('employees')
     .select('id, company_id, salary')
     .eq('id', employeeId)
-    .maybeSingle();
+    .maybeSingle());
   if (!emp?.company_id) {
     return { entries: [], total: 0 };
   }
@@ -154,12 +155,12 @@ export async function recomputeMonthlyAllowances(
   const legalSuppressed = settings.is_under_5_employees || settings.is_inclusive_wage;
 
   // 3) allowance_types 활성 + applies_to 매칭 — display_order ASC
-  const { data: typesRaw } = await db
+  const typesRaw = logRead('lib/allowance-calc:typesRaw', await db
     .from('allowance_types')
     .select('*')
     .eq('company_id', companyId)
     .eq('is_active', true)
-    .order('display_order', { ascending: true });
+    .order('display_order', { ascending: true }));
 
   const types: AllowanceTypeRow[] = ((typesRaw || []) as AllowanceTypeRow[]).filter((t) => {
     if (t.applies_to === 'all') return true;
@@ -175,13 +176,13 @@ export async function recomputeMonthlyAllowances(
 
   // 4) 해당 월 attendance_records 로드
   const { start, end } = ymRange(yyyymm);
-  const { data: arRaw } = await db
+  const arRaw = logRead('lib/allowance-calc:arRaw', await db
     .from('attendance_records')
     .select('id, date, attendance_type, overtime_minutes, night_minutes, holiday_minutes, is_holiday')
     .eq('company_id', companyId)
     .eq('employee_id', employeeId)
     .gte('date', start)
-    .lte('date', end);
+    .lte('date', end));
 
   const allRecords: AttendanceRecordRow[] = (arRaw || []) as AttendanceRecordRow[];
   // 휴가 행 제외 — annual_leave / sick_leave / official_leave / etc 는 가산 계산에 미반영.
@@ -190,12 +191,12 @@ export async function recomputeMonthlyAllowances(
   const records = allRecords.filter((r) => !LEAVE_TYPES.has(String(r.attendance_type || '')));
 
   // 5) 기존 entries 로드 (manual/edit 보존 판정용)
-  const { data: existingRaw } = await db
+  const existingRaw = logRead('lib/allowance-calc:existingRaw', await db
     .from('allowance_entries')
     .select('id, allowance_type_id, amount, source')
     .eq('company_id', companyId)
     .eq('employee_id', employeeId)
-    .eq('payroll_month', yyyymm);
+    .eq('payroll_month', yyyymm));
 
   const existingByType = new Map<string, AllowanceEntryRow>();
   for (const e of (existingRaw || []) as AllowanceEntryRow[]) {
@@ -334,11 +335,11 @@ export async function recomputeMonthlyAllowancesForCompany(
   opts?: { force?: boolean; chunk?: number },
 ): Promise<{ ok: number; failed: number; errors: Array<{ employeeId: string; message: string }> }> {
   const chunk = Math.max(1, opts?.chunk || 5);
-  const { data: employees } = await db
+  const employees = logRead('lib/allowance-calc:employees', await db
     .from('employees')
     .select('id')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined', 'invited']);
+    .in('status', ['active', 'joined', 'invited']));
 
   const ids: string[] = (employees || []).map((e: { id: string }) => e.id);
   let ok = 0;

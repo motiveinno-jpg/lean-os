@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView CEO Approval Center
  * 대표 승인센터 — 6개 소스 통합 조회 + 원클릭/일괄 승인
@@ -190,11 +191,11 @@ export async function getCEOPendingActions(companyId: string, userId?: string): 
   };
   let myApprovalIds = new Set<string>();
   if (userId && (approvals.data || []).length > 0) {
-    const { data: mySteps } = await db
+    const mySteps = logRead('lib/approval-center:mySteps', await db
       .from('approval_steps')
       .select('request_id, stage, approval_requests!inner(current_stage)')
       .eq('approver_id', userId)
-      .eq('status', 'pending');
+      .eq('status', 'pending'));
     myApprovalIds = new Set(
       (mySteps || [])
         .filter((s: any) => s.stage === s.approval_requests?.current_stage)
@@ -255,11 +256,11 @@ export async function getApprovalSummary(companyId: string, userId?: string): Pr
   // Filter approval count: if userId provided, only count requests where the user has a pending step
   let a = approvals.count || 0;
   if (userId && a > 0) {
-    const { data: mySteps } = await db
+    const mySteps = logRead('lib/approval-center:mySteps', await db
       .from('approval_steps')
       .select('request_id, stage, approval_requests!inner(current_stage)')
       .eq('approver_id', userId)
-      .eq('status', 'pending');
+      .eq('status', 'pending'));
     const myApprovalIds = new Set(
       (mySteps || [])
         .filter((s: any) => s.stage === s.approval_requests?.current_stage)
@@ -329,15 +330,15 @@ export async function approveAction(
 
     case 'approval': {
       // Find the first pending step for the current stage and approve it
-      const { data: req } = await db.from('approval_requests').select('id, current_stage').eq('id', actionId).maybeSingle();
+      const req = logRead('lib/approval-center:req', await db.from('approval_requests').select('id, current_stage').eq('id', actionId).maybeSingle());
       if (req) {
-        const { data: step } = await db.from('approval_steps')
+        const step = logRead('lib/approval-center:step', await db.from('approval_steps')
           .select('id')
           .eq('request_id', actionId)
           .eq('stage', req.current_stage)
           .eq('status', 'pending')
           .limit(1)
-          .maybeSingle();
+          .maybeSingle());
         if (step) {
           const { approveStep } = await import('./approval-workflow');
           await approveStep(step.id, userId);
@@ -376,15 +377,15 @@ export async function rejectAction(
       break;
 
     case 'approval': {
-      const { data: req } = await db.from('approval_requests').select('id, current_stage').eq('id', actionId).maybeSingle();
+      const req = logRead('lib/approval-center:req', await db.from('approval_requests').select('id, current_stage').eq('id', actionId).maybeSingle());
       if (req) {
-        const { data: step } = await db.from('approval_steps')
+        const step = logRead('lib/approval-center:step', await db.from('approval_steps')
           .select('id')
           .eq('request_id', actionId)
           .eq('stage', req.current_stage)
           .eq('status', 'pending')
           .limit(1)
-          .maybeSingle();
+          .maybeSingle());
         if (step) {
           const { rejectStep } = await import('./approval-workflow');
           await rejectStep(step.id, userId, reason || '반려');
@@ -456,12 +457,12 @@ export async function bulkApproveActions(
 // ── Get recurring payments ──
 
 export async function getRecurringPayments(companyId: string) {
-  const { data } = await db
+  const data = logRead('lib/approval-center:data', await db
     .from('recurring_payments')
     .select('*, bank_accounts(bank_name, account_number)')
     .eq('company_id', companyId)
     .order('category')
-    .order('name');
+    .order('name'));
   return data || [];
 }
 
@@ -549,11 +550,11 @@ export interface RefreshResult {
  */
 export async function refreshRecurringAmounts(companyId: string): Promise<RefreshResult[]> {
   // 1. Get all active recurring payments
-  const { data: recurring } = await db
+  const recurring = logRead('lib/approval-center:recurring', await db
     .from('recurring_payments')
     .select('*')
     .eq('company_id', companyId)
-    .eq('is_active', true);
+    .eq('is_active', true));
 
   if (!recurring || recurring.length === 0) return [];
 
@@ -562,21 +563,21 @@ export async function refreshRecurringAmounts(companyId: string): Promise<Refres
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
   const cutoff = threeMonthsAgo.toISOString().split('T')[0];
 
-  const { data: bankTxs } = await db
+  const bankTxs = logRead('lib/approval-center:bankTxs', await db
     .from('bank_transactions')
     .select('id, counterparty, amount, transaction_date, description')
     .eq('company_id', companyId)
     .eq('type', 'expense')
     .gte('transaction_date', cutoff)
-    .order('transaction_date', { ascending: false });
+    .order('transaction_date', { ascending: false }));
 
   // 3. Get recent card transactions
-  const { data: cardTxs } = await db
+  const cardTxs = logRead('lib/approval-center:cardTxs', await db
     .from('card_transactions')
     .select('id, merchant_name, amount, transaction_date, memo')
     .eq('company_id', companyId)
     .gte('transaction_date', cutoff)
-    .order('transaction_date', { ascending: false });
+    .order('transaction_date', { ascending: false }));
 
   const results: RefreshResult[] = [];
 

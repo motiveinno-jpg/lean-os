@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 견적서 품목 입력 테이블 — 회사별 컬럼 커스터마이징(수량·단가·부가세·적요·비고 등 자유 추가/삭제) + 자동계산.
 //   컬럼 설정은 company_settings.settings.quote_columns(jsonb)에 회사별 저장.
@@ -63,7 +64,7 @@ export function QuoteItemsTable({
     if (!companyId) return;
     let alive = true;
     (async () => {
-      const { data } = await (supabase as any).from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+      const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
       const cfg = data?.settings?.quote_columns;
       if (alive && Array.isArray(cfg) && cfg.length) setCols(cfg);
     })();
@@ -74,7 +75,7 @@ export function QuoteItemsTable({
     setCols(next);
     if (!companyId) return;
     try {
-      const { data } = await (supabase as any).from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle();
+      const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle());
       const settings = { ...(data?.settings || {}), quote_columns: next };
       if (data?.id) await (supabase as any).from("company_settings").update({ settings }).eq("id", data.id);
       else await (supabase as any).from("company_settings").insert({ company_id: companyId, settings });
@@ -240,10 +241,10 @@ function HistoryPicker({ companyId, partnerName, onClose, onPick }: { companyId:
     if (!companyId) return;
     let alive = true;
     (async () => {
-      const { data } = await (supabase as any).from("documents")
+      const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("documents")
         .select("name, content_json, created_at")
         .eq("company_id", companyId)
-        .order("created_at", { ascending: false }).limit(60);
+        .order("created_at", { ascending: false }).limit(60));
       if (!alive) return;
       const seen = new Set<string>();
       const items: any[] = [];
@@ -310,7 +311,7 @@ function MyItemsPicker({ companyId, currentItems, onClose, onPick }: { companyId
 
   const load = async () => {
     if (!companyId) return;
-    const { data } = await (supabase as any).from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+    const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
     setPresets(Array.isArray(data?.settings?.my_items) ? data.settings.my_items : []);
     setLoaded(true);
   };
@@ -319,7 +320,7 @@ function MyItemsPicker({ companyId, currentItems, onClose, onPick }: { companyId
   const save = async (next: any[]) => {
     setPresets(next);
     if (!companyId) return;
-    const { data } = await (supabase as any).from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle();
+    const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle());
     const settings = { ...(data?.settings || {}), my_items: next };
     if (data?.id) await (supabase as any).from("company_settings").update({ settings }).eq("id", data.id);
     else await (supabase as any).from("company_settings").insert({ company_id: companyId, settings });

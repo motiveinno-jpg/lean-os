@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
@@ -36,9 +37,9 @@ export function HometaxBackgroundChain() {
       try {
         const db = supabase as any;
         const ids = entries.map((e) => e.id);
-        const { data: jobs } = await db.from("hometax_sync_jobs")
+        const jobs = logRead('components/hometax-background-chain:jobs', await db.from("hometax_sync_jobs")
           .select("id, status")
-          .in("id", ids);
+          .in("id", ids));
         const byId = new Map<string, any>((jobs || []).map((j: any) => [j.id, j]));
         for (const e of entries) {
           const j = byId.get(e.id as string);

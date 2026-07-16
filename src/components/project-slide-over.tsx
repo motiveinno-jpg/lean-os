@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // PR3: 프로젝트 슬라이드 패널 (3탭: 개요 / 돈 / 활동)
 //   /projects?deal=<id> URL 파라미터로 마운트. 카드 클릭으로 진입.
@@ -920,8 +921,8 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       // deal_cost_schedule 는 deal_node_id 통해 deal 와 연결 (RLS + getProjectDetail !inner JOIN).
       //   해당 dealId 의 첫 node 사용 → 없으면 자동 생성 (root '기본 비용').
       let nodeId: string | null = null;
-      const { data: nodes } = await db2
-        .from("deal_nodes").select("id").eq("deal_id", dealId).limit(1);
+      const nodes = logRead('components/project-slide-over:nodes', await db2
+        .from("deal_nodes").select("id").eq("deal_id", dealId).limit(1));
       if (nodes && nodes.length > 0) {
         nodeId = nodes[0].id;
       } else {
@@ -1362,13 +1363,13 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
   const { data: approvals = [] } = useQuery<ApprovalRow[]>({
     queryKey: ["deal-approvals", dealId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('components/project-slide-over:data', await (supabase as any)
         .from("quote_approvals")
         .select(
           "id, stage, status, sent_at, viewed_at, decided_at, our_signed_at, recipient_name, recipient_email, signed_contract_url, fully_signed_contract_url",
         )
         .eq("deal_id", dealId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return (data || []) as ApprovalRow[];
     },
     enabled: !!dealId,

@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 계정과목 관리 — 회사 설정 (2026-07-01)
 //   회사 회계 계정과목 마스터를 한 곳에서 조회·관리. 기본(시스템) 계정은 읽기전용,
@@ -30,7 +31,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
   const { data: accounts = [] } = useQuery<Acct[]>({
     queryKey: ["coa-manage", companyId],
     queryFn: async () => {
-      const { data } = await db.from("chart_of_accounts").select("id, code, name, account_type, is_system").eq("company_id", companyId).order("code");
+      const data = logRead('components/chart-of-accounts-manager:data', await db.from("chart_of_accounts").select("id, code, name, account_type, is_system").eq("company_id", companyId).order("code"));
       return (data || []) as Acct[];
     },
     enabled: !!companyId,

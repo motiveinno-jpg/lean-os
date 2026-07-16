@@ -1,3 +1,4 @@
+import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Electronic Signature Engine
  * 전자서명 요청 → 발송 → 열람 → 서명완료/거부/만료
@@ -105,10 +106,10 @@ export async function createSignatureRequest(params: {
   //   문서 본문 + 회사(갑)/서명자(을 임시) 정보로 스냅샷을 생성해 모든 생성 경로에 일괄 적용.
   let templateSnapshotHtml: string | null = null;
   try {
-    const { data: docRow } = await db.from('documents').select('content_json').eq('id', params.documentId).maybeSingle();
+    const docRow = logRead('lib/signatures:docRow', await db.from('documents').select('content_json').eq('id', params.documentId).maybeSingle());
     const docBody = docRow?.content_json?.body;
     if (typeof docBody === 'string' && docBody.trim()) {
-      const { data: companyRow } = await db.from('companies').select('name, business_number, representative, address').eq('id', params.companyId).maybeSingle();
+      const companyRow = logRead('lib/signatures:companyRow', await db.from('companies').select('name, business_number, representative, address').eq('id', params.companyId).maybeSingle());
       const { buildPartnerReplacements, applyTokenReplacements } = await import('./signer-replacements');
       const replacements = buildPartnerReplacements(companyRow, {
         name: params.signerName,
@@ -237,7 +238,7 @@ export async function getSignatureRequests(companyId: string, status?: string) {
 
 // ── 서명본(증거) 단건 조회 — 목록에서 뺀 무거운 컬럼을 '서명본 보기' 클릭 시에만 가져온다 ──
 export async function getSignatureProof(id: string): Promise<{ signature_data: { type?: string; data?: string } | null; signer_inputs: Record<string, string> | null }> {
-  const { data } = await db.from('signature_requests').select('signature_data, signer_inputs').eq('id', id).maybeSingle();
+  const data = logRead('lib/signatures:data', await db.from('signature_requests').select('signature_data, signer_inputs').eq('id', id).maybeSingle());
   return { signature_data: (data as any)?.signature_data ?? null, signer_inputs: (data as any)?.signer_inputs ?? null };
 }
 
@@ -335,7 +336,7 @@ export async function saveSignature(
 ) {
   if (signToken) {
     // anon 경로: get_signature_request_by_token 으로 검증·스냅샷 조회 → submit_signature_by_token 으로 저장.
-    const { data: ex } = await db.rpc('get_signature_request_by_token', { p_token: signToken });
+    const ex = logRead('lib/signatures:ex', await db.rpc('get_signature_request_by_token', { p_token: signToken }));
     if (!ex) throw new Error('서명 요청을 찾을 수 없습니다');
     if (ex.status === 'signed') throw new Error('이미 서명 완료된 요청입니다');
     if (ex.expires_at && new Date(ex.expires_at) < new Date()) throw new Error('서명 요청이 만료되었습니다');
@@ -362,11 +363,11 @@ export async function saveSignature(
   }
   // Check if signature request exists and is not expired + 본문 스냅샷 같이 조회
   //   2026-05-21: 회수 흐름 통합 — template_snapshot_html 있으면 서명 이미지 합성하여 signed_contract_html 저장
-  const { data: existing } = await db
+  const existing = logRead('lib/signatures:existing', await db
     .from('signature_requests')
     .select('id, status, expires_at, recipient_name:signer_name, template_snapshot_html')
     .eq('id', id)
-    .maybeSingle();
+    .maybeSingle());
 
   if (!existing) throw new Error('서명 요청을 찾을 수 없습니다');
   if (existing.status === 'signed') throw new Error('이미 서명 완료된 요청입니다');
@@ -443,21 +444,21 @@ export async function saveSignature(
 
   // Auto-lock document when all signatures are collected
   if (data?.document_id) {
-    const { data: allSigs } = await db
+    const allSigs = logRead('lib/signatures:allSigs', await db
       .from('signature_requests')
       .select('id, status')
-      .eq('document_id', data.document_id);
+      .eq('document_id', data.document_id));
 
     const allSigned = (allSigs || []).length > 0 &&
       (allSigs || []).every((s: { status: string }) => s.status === 'signed');
 
     if (allSigned) {
       // Check document status — if not yet approved, approve + lock
-      const { data: doc } = await db
+      const doc = logRead('lib/signatures:doc', await db
         .from('documents')
         .select('id, status, company_id, deal_id')
         .eq('id', data.document_id)
-        .maybeSingle();
+        .maybeSingle());
 
       if (doc) {
         if (doc.status !== 'approved' && doc.status !== 'locked') {
@@ -761,16 +762,16 @@ export async function createBulkSignatureRequestsToOrgs(params: {
   // 본문 snapshot 저장용: documents.content_json 1회 조회 + 회사(갑) 정보 1회 조회
   //   2026-05-21 회수 흐름 통합: partner 별 변수 치환된 본문을 signature_requests.template_snapshot_html 저장
   //   → /sign 외부 페이지 + /contracts/signed 본문 표시 + saveSignature 합성 input 으로 사용
-  const { data: docRow } = await db
+  const docRow = logRead('lib/signatures:docRow', await db
     .from('documents')
     .select('content_json')
     .eq('id', documentId)
-    .maybeSingle();
-  const { data: companyRow } = await db
+    .maybeSingle());
+  const companyRow = logRead('lib/signatures:companyRow', await db
     .from('companies')
     .select('name, business_number, representative, address, seal_url')
     .eq('id', companyId)
-    .maybeSingle();
+    .maybeSingle());
   // 우리 직인 적용 — seal_url 있을 때만 (없으면 조용히 미적용)
   const ourSealUrl: string | null = applyOurSeal ? (companyRow?.seal_url || null) : null;
 
@@ -1016,13 +1017,13 @@ export async function getDocumentSignatureAudit(companyId: string, documentId: s
   const sigIds = sigs.map((s: any) => s.id);
   if (sigIds.length === 0) return [];
 
-  const { data: logs } = await db
+  const logs = logRead('lib/signatures:logs', await db
     .from('audit_logs')
     .select('*, users:user_id(name, email)')
     .eq('company_id', companyId)
     .eq('entity_type', 'signature')
     .in('entity_id', sigIds)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false }));
 
   return (logs || []).map((l: any) => {
     const sig = sigs.find((s: any) => s.id === l.entity_id);
@@ -1073,11 +1074,11 @@ export async function applyCompanySeal(params: {
   const { documentId, companyId, appliedBy } = params;
 
   // 1. Check company seal_url exists
-  const { data: company } = await db
+  const company = logRead('lib/signatures:company', await db
     .from('companies')
     .select('id, name, seal_url')
     .eq('id', companyId)
-    .maybeSingle();
+    .maybeSingle());
 
   if (!company?.seal_url) {
     throw new Error('직인 이미지가 등록되지 않았습니다. 설정에서 직인을 먼저 업로드하세요.');

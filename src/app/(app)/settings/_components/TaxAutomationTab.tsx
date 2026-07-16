@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { useEffect, useState } from "react";
@@ -12,7 +13,7 @@ export function TaxAutomationTab({ companyId }: { companyId: string | null }) {
   const [settings, setSettings] = useState({ auto_issue_on_deal_close: true, auto_issue_on_payment: false, auto_email_send: false, issue_schedule: "immediate", auto_cancel_on_refund: true, auto_cancel_on_deal_cancel: true, vat_auto_aggregate: true, advance_ratio: 30, matching_tolerance: 1 });
   const { data: companySettings } = useQuery({
     queryKey: ["tax-settings", companyId],
-    queryFn: async () => { if (!companyId) return null; const { data } = await db2.from("companies").select("tax_settings").eq("id", companyId).maybeSingle(); return data?.tax_settings || {}; },
+    queryFn: async () => { if (!companyId) return null; const data = logRead('_components/TaxAutomationTab:data', await db2.from("companies").select("tax_settings").eq("id", companyId).maybeSingle()); return data?.tax_settings || {}; },
     enabled: !!companyId,
   });
   useEffect(() => {

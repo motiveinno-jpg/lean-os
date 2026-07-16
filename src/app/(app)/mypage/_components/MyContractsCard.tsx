@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -19,11 +20,11 @@ export function MyContractsCard({ employeeId }: { employeeId: string | null }) {
     queryKey: ["mypage-contracts", employeeId],
     queryFn: async () => {
       const db = supabase as any;
-      const { data } = await db
+      const data = logRead('_components/MyContractsCard:data', await db
         .from("hr_contract_packages")
         .select("id, title, status, sign_token, sent_at, expires_at, completed_at, created_at, hr_contract_package_items(id, status)")
         .eq("employee_id", employeeId!)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: !!employeeId,

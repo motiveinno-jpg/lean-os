@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // /cards — 카드 자립 페이지(시안 적용). 시안 3탭: 카드 / 거래내역 / 분석.
 //   기존 컴포넌트(CardBillingSummary·TopCardExpensesThisMonth·CardAutoTransferHistory·CardMonthlyUsage)를
@@ -152,10 +153,10 @@ export default function CardsPage() {
   const { data: cards = [] } = useQuery({
     queryKey: ["cards-page-corporate", companyId],
     queryFn: async () => {
-      const { data } = await db.from("corporate_cards")
+      const data = logRead('cards/page:data', await db.from("corporate_cards")
         .select("*")
         .eq("company_id", companyId)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true }));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -165,12 +166,12 @@ export default function CardsPage() {
   const { data: monthTx = [] } = useQuery({
     queryKey: ["cards-page-month-tx", companyId, monthRange.from, monthRange.to],
     queryFn: async () => {
-      const { data } = await db.from("card_transactions")
+      const data = logRead('cards/page:data', await db.from("card_transactions")
         .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name")
         .eq("company_id", companyId)
         .gte("transaction_date", monthRange.from)
         .lte("transaction_date", monthRange.to)
-        .limit(50000);
+        .limit(50000));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -199,7 +200,7 @@ export default function CardsPage() {
   const { data: accounts = [] } = useQuery({
     queryKey: ["cards-page-accounts", companyId],
     queryFn: async () => {
-      const { data } = await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code");
+      const data = logRead('cards/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -208,7 +209,7 @@ export default function CardsPage() {
   const { data: cardEmployees = [] } = useQuery({
     queryKey: ["cards-page-employees", companyId],
     queryFn: async () => {
-      const { data } = await db.from("employees").select("id, name").eq("company_id", companyId).eq("status", "active").order("name");
+      const data = logRead('cards/page:data', await db.from("employees").select("id, name").eq("company_id", companyId).eq("status", "active").order("name"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -216,7 +217,7 @@ export default function CardsPage() {
   const { data: cardMappings = [] } = useQuery({
     queryKey: ["cards-page-mappings", companyId],
     queryFn: async () => {
-      const { data } = await db.from("card_account_mappings").select("category, account_id").eq("company_id", companyId);
+      const data = logRead('cards/page:data', await db.from("card_account_mappings").select("category, account_id").eq("company_id", companyId));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 60_000,

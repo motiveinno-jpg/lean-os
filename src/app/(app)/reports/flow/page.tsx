@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo } from "react";
 import { MonthField } from "@/components/month-field";
@@ -160,7 +161,7 @@ export default function BusinessFlowPage() {
     if (!userId) return;
     (async () => {
       const db = supabase as any;
-      const { data } = await db.from("user_preferences").select("flow_settings").eq("user_id", userId).maybeSingle();
+      const data = logRead('flow/page:data', await db.from("user_preferences").select("flow_settings").eq("user_id", userId).maybeSingle());
       const fs = data?.flow_settings;
       if (fs && typeof fs === "object") {
         if (fs.default_view === "cockpit" || fs.default_view === "matrix" || fs.default_view === "month") setFlowView(fs.default_view);
@@ -187,12 +188,12 @@ export default function BusinessFlowPage() {
   const { data: pipeline } = useQuery({
     queryKey: ["flow-pipeline", companyId],
     queryFn: async () => {
-      const { data } = await db.from("deals")
+      const data = logRead('flow/page:data', await db.from("deals")
         .select("contract_total, stage")
         .eq("company_id", companyId)
         .eq("status", "active")
         .is("archived_at", null)
-        .is("parent_deal_id", null);
+        .is("parent_deal_id", null));
       const rows = (data || []) as { contract_total: number | null; stage: string | null }[];
       return {
         count: rows.length,
@@ -217,12 +218,12 @@ export default function BusinessFlowPage() {
   const { data: settled } = useQuery({
     queryKey: ["flow-settled", companyId, month],
     queryFn: async () => {
-      const { data } = await db.from("invoice_settlements")
+      const data = logRead('flow/page:data', await db.from("invoice_settlements")
         .select("amount, bank_transactions!inner(transaction_date)")
         .eq("company_id", companyId)
         .eq("status", "confirmed")
         .gte("bank_transactions.transaction_date", start)
-        .lt("bank_transactions.transaction_date", end);
+        .lt("bank_transactions.transaction_date", end));
       const rows = (data || []) as { amount: number | null }[];
       return { count: rows.length, total: rows.reduce((s, r) => s + Number(r.amount || 0), 0) };
     },
@@ -234,11 +235,11 @@ export default function BusinessFlowPage() {
   const { data: receivable } = useQuery({
     queryKey: ["flow-receivable", companyId],
     queryFn: async () => {
-      const { data } = await db.from("tax_invoices")
+      const data = logRead('flow/page:data', await db.from("tax_invoices")
         .select("total_amount, issue_date")
         .eq("company_id", companyId)
         .eq("type", "sales") // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단)
-        .in("status", ["issued", "sent", "pending", "overdue"]);
+        .in("status", ["issued", "sent", "pending", "overdue"]));
       const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];
       const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
       const total = rows.reduce((s, r) => s + Number(r.total_amount || 0), 0);

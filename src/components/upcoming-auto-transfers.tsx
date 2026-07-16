@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -87,11 +88,11 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
   const { data: loans = [] } = useQuery({
     queryKey: ['loans-upcoming', companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const data = logRead('components/upcoming-auto-transfers:data', await (supabase as any)
         .from('loans')
         .select('id, name, lender, payment_day, remaining_balance, maturity_date, status')
         .eq('company_id', companyId)
-        .eq('status', 'active');
+        .eq('status', 'active'));
       return (data || []) as any[];
     },
     enabled: !!companyId,

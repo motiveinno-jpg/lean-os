@@ -1,4 +1,5 @@
 "use client";
+import { logRead } from "@/lib/log-read";
 
 // 플랫폼 운영자 — 고객센터 문의 답변. support_tickets 전체(전사) 조회·답변.
 //   RLS: is_platform_operator() 가 모든 회사 티켓 select/update 허용.
@@ -54,10 +55,10 @@ export default function PlatformSupportPage() {
   const { data: tickets = [] } = useQuery<Ticket[]>({
     queryKey: ["p-support-all"],
     queryFn: async () => {
-      const { data } = await db
+      const data = logRead('support/page:data', await db
         .from("support_tickets")
         .select("*, users(name, email), companies(name)")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }));
       return (data || []) as Ticket[];
     },
   });
