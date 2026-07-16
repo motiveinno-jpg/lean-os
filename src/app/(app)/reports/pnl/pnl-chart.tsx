@@ -78,12 +78,12 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
   const netPath = buildSmooth(netPoints);
 
   return (
-    <div className="pnl-chart-card glass-card mb-7 p-5">
-      <div className="pnl-chart-header mb-4">
+    <div className="pnl-chart-card glass-card">
+      <div className="pnl-chart-header">
         <h3 className="text-sm font-bold text-[var(--text)]">월별 매출 vs 비용 추이</h3>
         <p className="text-[10px] text-[var(--text-dim)] mt-0.5">매출/비용 막대 + 당기순이익 곡선</p>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" className="pnl-chart-svg block h-[220px] w-auto max-w-full mx-auto">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" className="pnl-chart-svg">
         <defs>
           <linearGradient id="pnlRevGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.95" />
@@ -128,7 +128,7 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
           return <text key={m} x={cx} y={H - 8} textAnchor="middle" fontSize={12} fill="var(--text-muted)" fontWeight={500}>{fmtMonth(m)}</text>;
         })}
       </svg>
-      <div className="pnl-chart-legend flex flex-wrap gap-2 justify-center mt-3">
+      <div className="pnl-chart-legend">
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)]">
           <span className="dot-primary" />매출
         </span>

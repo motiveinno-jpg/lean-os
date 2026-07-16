@@ -44,7 +44,7 @@ export default function CostsChart({ months, fixed, variable }: CostsChartProps)
   const gridVals = Array.from({ length: GRID_COUNT }, (_, i) => (yMax * (i + 1)) / (GRID_COUNT + 1));
 
   return (
-    <div className="costs-chart-container glass-card p-5">
+    <div className="costs-chart-container glass-card">
       <div className="mb-4">
         <h3 className="text-sm font-bold text-[var(--text)]">월별 고정비 vs 변동비</h3>
         <p className="text-[10px] text-[var(--text-dim)] mt-0.5">아래쪽 = 고정비, 위쪽 = 변동비 (쌓아 올린 총비용)</p>
@@ -92,7 +92,7 @@ export default function CostsChart({ months, fixed, variable }: CostsChartProps)
           return <text key={m} x={cx} y={H - 8} textAnchor="middle" fontSize={12} fill="var(--text-muted)" fontWeight={500}>{fmtMonth(m)}</text>;
         })}
       </svg>
-      <div className="costs-chart-legend flex flex-wrap gap-2 justify-center mt-3">
+      <div className="costs-chart-legend">
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--warning)]/30 bg-[var(--warning-dim)] text-[var(--warning)]">
           <span className="w-2 h-2 rounded-full bg-[var(--warning)]" />고정비
         </span>

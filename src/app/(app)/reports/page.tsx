@@ -23,7 +23,7 @@ export default function ReportsHubRedirect() {
   }
 
   return (
-    <div className="reports-hub-loading flex items-center justify-center py-20">
+    <div className="reports-hub-loading">
       <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
     </div>
   );

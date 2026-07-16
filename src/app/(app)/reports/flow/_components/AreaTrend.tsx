@@ -79,7 +79,7 @@ export function AreaTrend({
   return (
     <div className="area-trend">
       {showValues && (
-        <div className="area-trend-values flex mb-2">
+        <div className="area-trend-values">
           {points.map((p, i) => (
             <div key={i} className="flex-1 text-center mono-number text-[11px] font-bold leading-none" style={{ color: toneColor(p.tone, accent) }}>
               {fmtShort(p.value)}
@@ -87,7 +87,7 @@ export function AreaTrend({
           ))}
         </div>
       )}
-      <div className="area-trend-chart relative" style={{ height }}>
+      <div className="area-trend-chart" style={{ height }}>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
           <defs>
             <linearGradient id={`at-${gid}`} x1="0" y1="0" x2="0" y2="1">
@@ -126,7 +126,7 @@ export function AreaTrend({
           );
         })}
       </div>
-      <div className="area-trend-labels flex mt-2">
+      <div className="area-trend-labels">
         {points.map((p, i) => (
           <div key={i} className={`flex-1 text-center text-[10px] truncate ${i === markerIndex ? "font-bold text-[var(--text-muted)]" : "text-[var(--text-dim)]"}`}>
             {p.label}

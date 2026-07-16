@@ -31,14 +31,14 @@ export function ReportsTabs() {
   const current = REPORT_TABS.find(isActive);
   return (
     <div className="reports-tabs reports-header">
-      <div className="reports-tabs-list no-print flex flex-wrap gap-1.5">
+      <div className="reports-tabs-list no-print">
         {REPORT_TABS.map((t) => {
           const active = isActive(t);
           return (
             <Link
               key={t.href}
               href={t.href}
-              className={`reports-tab-link px-3.5 py-1.5 rounded-full text-[13px] font-semibold no-underline transition ${
+              className={`reports-tab-link ${
                 active
                   ? "bg-[var(--primary)] text-white shadow-sm"
                   : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]"
@@ -50,7 +50,7 @@ export function ReportsTabs() {
         })}
       </div>
       {current && (
-        <p className="reports-tab-desc text-sm text-[var(--text-muted)] mt-3 mb-5 max-w-3xl leading-relaxed">{current.desc}</p>
+        <p className="reports-tab-desc">{current.desc}</p>
       )}
     </div>
   );

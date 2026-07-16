@@ -70,7 +70,7 @@ export default function ExpensePage() {
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <div className="expense-page-content space-y-5 mt-1">
+        <div className="expense-page-content">
           <IntroCard
             eyebrow="이번 달 비용"
             title={fmt(expense)}
@@ -80,7 +80,7 @@ export default function ExpensePage() {
 
           {/* 고정비 · 변동비 구성 */}
           <Section title="고정비 · 변동비" desc="이번 달 지출의 고정/변동 구성 비중">
-            <div className="expense-fixed-variable-bar flex h-3 rounded-full overflow-hidden bg-[var(--bg-surface)]">
+            <div className="expense-fixed-variable-bar">
               <div style={{ width: `${fixedPct}%`, background: "var(--primary)" }} title={`고정비 ${fixedPct}%`} />
               <div style={{ width: `${100 - fixedPct}%`, background: "var(--warning)" }} title={`변동비 ${100 - fixedPct}%`} />
             </div>
@@ -98,9 +98,9 @@ export default function ExpensePage() {
             {cats.length === 0 ? (
               <div className="text-xs text-[var(--text-dim)] py-6 text-center">분류된 비용 데이터가 없습니다. 거래내역을 분류하면 채워집니다.</div>
             ) : (
-              <div className="expense-category-list space-y-2.5">
+              <div className="expense-category-list">
                 {cats.map((c) => (
-                  <div key={c.label} className="expense-category-row flex items-center gap-3">
+                  <div key={c.label} className="expense-category-row">
                     <span className="text-sm text-[var(--text)] w-28 shrink-0 truncate">{c.label}</span>
                     <div className="flex-1 h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${Math.round((c.amt / catMax) * 100)}%`, background: "var(--warning)" }} />

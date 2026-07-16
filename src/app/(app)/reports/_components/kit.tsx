@@ -38,13 +38,13 @@ export function MonthlyCompareCard({ title, rows, onRowClick, accent = "var(--pr
 }) {
   const max = Math.max(1, ...rows.map((r) => r.cur));
   return (
-    <div className="monthly-compare-card glass-card p-5">
-      <div className="monthly-compare-header flex items-center justify-between mb-3 gap-2 flex-wrap">
+    <div className="monthly-compare-card glass-card">
+      <div className="monthly-compare-header">
         <div className="text-sm font-bold text-[var(--text)]">{title}</div>
         <span className="text-[11px] text-[var(--text-dim)]">전년 동월 대비{onRowClick ? " · 행을 클릭하면 구성 내역" : ""}</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="monthly-compare-table w-full text-[12px]" style={{ minWidth: 420 }}>
+        <table className="monthly-compare-table" style={{ minWidth: 420 }}>
           <thead>
             <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="text-left py-1.5 px-2 font-semibold">월</th>
@@ -61,7 +61,7 @@ export function MonthlyCompareCard({ title, rows, onRowClick, accent = "var(--pr
               const up = (diff ?? 0) >= 0;
               return (
                 <tr key={r.monthNum} onClick={onRowClick ? () => onRowClick(r.monthNum) : undefined}
-                  className={`monthly-compare-row border-b border-[var(--border)]/30 ${onRowClick ? "cursor-pointer hover:bg-[var(--primary)]/[0.05]" : ""}`}>
+                  className={`monthly-compare-row ${onRowClick ? "cursor-pointer hover:bg-[var(--primary)]/[0.05]" : ""}`}>
                   <td className="py-2 px-2 text-[var(--text-muted)]">{r.label}</td>
                   <td className="py-2 px-2 text-right mono-number font-semibold text-[var(--text)]">{fmt(r.cur)}</td>
                   <td className="py-2 px-2 text-right mono-number text-[var(--text-dim)]">{r.prev == null ? "—" : fmt(r.prev)}</td>
@@ -87,12 +87,12 @@ export function MonthlyCompareCard({ title, rows, onRowClick, accent = "var(--pr
 export function MiniBars({ data, color = "var(--primary)" }: { data: { label: string; value: number }[]; color?: string }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
-    <div className="mini-bars-container flex items-end gap-1.5 h-28">
+    <div className="mini-bars-container">
       {data.map((d, i) => {
         const h = Math.max(2, Math.round((d.value / max) * 100));
         const last = i === data.length - 1;
         return (
-          <div key={d.label} className="mini-bars-bar flex-1 flex flex-col items-center gap-1 min-w-0">
+          <div key={d.label} className="mini-bars-bar">
             <div className="w-full rounded-t-md transition-all" style={{ height: `${h}%`, background: last ? color : `color-mix(in srgb, ${color} 35%, transparent)` }} title={`${d.label}: ${fmt(d.value)}`} />
             <span className={`text-[9px] truncate w-full text-center ${last ? "font-bold text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{d.label}</span>
           </div>

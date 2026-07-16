@@ -91,9 +91,9 @@ function Inner() {
   });
 
   return (
-    <div className="three-way-match-page mx-auto">
+    <div className="three-way-match-page">
       {/* 툴바 — 유형 필터 탭. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="three-way-match-toolbar page-sticky-header mb-5 flex flex-wrap items-center justify-between gap-2">
+      <div className="three-way-match-toolbar page-sticky-header">
         <div className="seg-bar">
           {(["all", "sales", "purchase"] as const).map((t) => (
             <button
@@ -109,8 +109,8 @@ function Inner() {
 
       <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
         {/* 좌측 — 미매칭 세금계산서 */}
-        <div className="three-way-unmatched-panel lg:col-span-2 glass-card overflow-hidden">
-          <div className="three-way-panel-header px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+        <div className="three-way-unmatched-panel glass-card">
+          <div className="three-way-panel-header">
             <div className="text-sm font-bold">미매칭 세금계산서 ({invoices.length})</div>
           </div>
           <div className="max-h-[70vh] overflow-y-auto">
@@ -122,12 +122,12 @@ function Inner() {
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">모든 세금계산서가 매칭 완료된 상태입니다</div>
               </div>
             ) : (
-              <ul className="three-way-invoice-list divide-y divide-[var(--border)]/50">
+              <ul className="three-way-invoice-list">
                 {invoices.map((inv) => (
                   <li key={inv.id}>
                     <button
                       onClick={() => setSelectedInvoice(inv)}
-                      className={`three-way-invoice-row w-full text-left px-4 py-3 hover:bg-[var(--bg-surface)] transition ${selectedInvoice?.id === inv.id ? 'bg-[var(--primary)]/10' : ''}`}
+                      className={`three-way-invoice-row ${selectedInvoice?.id === inv.id ? 'bg-[var(--primary)]/10' : ''}`}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${inv.type === 'sales' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-orange-500/15 text-orange-400'}`}>
@@ -148,8 +148,8 @@ function Inner() {
         </div>
 
         {/* 가운데 — 매칭 후보 */}
-        <div className="three-way-candidates-panel lg:col-span-2 glass-card overflow-hidden">
-          <div className="three-way-candidates-header px-4 py-3 border-b border-[var(--border)]">
+        <div className="three-way-candidates-panel glass-card">
+          <div className="three-way-candidates-header">
             <div className="text-sm font-bold">매칭 후보 추천</div>
             {selectedInvoice ? (
               <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
@@ -174,13 +174,13 @@ function Inner() {
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">거래처명·대표자명·금액±10% 모두 미충족</div>
               </div>
             ) : (
-              <ul className="three-way-candidate-list divide-y divide-[var(--border)]/50">
+              <ul className="three-way-candidate-list">
                 {candidates.map((c) => (
                   <li key={c.bankTxId}>
                     <button
                       onClick={() => matchMut.mutate({ bankTxId: c.bankTxId, invoiceId: selectedInvoice.id })}
                       disabled={matchMut.isPending}
-                      className={`three-way-candidate-row w-full text-left px-4 py-3 hover:bg-[var(--bg-surface)] transition disabled:opacity-50 ${c.score >= 3 ? 'bg-emerald-500/5' : ''}`}
+                      className={`three-way-candidate-row ${c.score >= 3 ? 'bg-emerald-500/5' : ''}`}
                     >
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
@@ -196,7 +196,7 @@ function Inner() {
                           {c.bankDate} {c.bankDescription ? `· ${c.bankDescription}` : ''}
                         </div>
                       </div>
-                      <div className="three-way-candidate-reasons flex flex-wrap gap-1">
+                      <div className="three-way-candidate-reasons">
                         {c.reasons.map((r, i) => (
                           <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${
                             r.startsWith('거래처명') ? 'bg-blue-500/15 text-blue-400'
@@ -216,8 +216,8 @@ function Inner() {
         </div>
 
         {/* 우측 — 매칭됨 (확정된 결과) */}
-        <div className="three-way-matched-panel lg:col-span-2 glass-card overflow-hidden">
-          <div className="three-way-matched-header px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
+        <div className="three-way-matched-panel glass-card">
+          <div className="three-way-matched-header">
             <div>
               <div className="text-sm font-bold">매칭됨 ({matched.length})</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-0.5">행 클릭 → 연결 프로젝트 진입 · ✕ 로 해제</div>
@@ -233,7 +233,7 @@ function Inner() {
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">가운데 후보를 클릭해 매칭을 확정하면 여기에 쌓입니다</div>
               </div>
             ) : (
-              <ul className="three-way-matched-list divide-y divide-[var(--border)]/50">
+              <ul className="three-way-matched-list">
                 {matched.map((m) => {
                   const diff = Math.abs(m.invoiceTotal - m.bankAmount);
                   const hasDeal = !!m.dealId;
@@ -248,7 +248,7 @@ function Inner() {
                         role={hasDeal ? "button" : undefined}
                         tabIndex={hasDeal ? 0 : undefined}
                         onKeyDown={hasDeal ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterProject(); } } : undefined}
-                        className={`three-way-matched-row px-4 py-3 transition ${hasDeal ? 'cursor-pointer hover:bg-[var(--bg-surface)]' : ''}`}
+                        className={`three-way-matched-row ${hasDeal ? 'cursor-pointer hover:bg-[var(--bg-surface)]' : ''}`}
                         title={hasDeal ? `클릭 시 '${m.dealName}' 프로젝트로 이동` : '연결된 프로젝트 없음'}
                       >
                         <div className="flex items-center gap-2 mb-1">

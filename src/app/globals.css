@@ -1700,3 +1700,177 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .operator-error-history { @apply p-5; }
 .error-log-item { @apply rounded-lg border px-3 py-2; }
 .operator-edit-form { @apply p-5; }
+
+/* ═══ 클래스명 가독성 정리 재작업 — 배치6(reports) 마커 스타일 (2026-07-16) ═══ */
+.bs-toolbar { @apply mb-5 flex flex-wrap items-center justify-between gap-2; }
+.bs-summary-cards { @apply grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6; }
+.bs-summary-card { @apply p-5 flex flex-col gap-3; }
+.bs-balance-sheet-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-4; }
+.bs-balance-summary { @apply mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-[var(--shadow-sm)]; }
+.bs-composition-chart { @apply mt-8 p-5; }
+.bs-capital-warning { @apply mt-4 flex items-start gap-2.5; }
+.bs-accuracy-callout { @apply mt-4 flex items-start gap-2.5; }
+.bs-basis-details { @apply mt-4 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden; }
+.bs-trend-section { @apply mt-8; }
+.bs-ratios-section { @apply mt-8; }
+.bs-clickable-row { @apply hover:bg-[var(--bg-surface)] transition; }
+.pnl-toolbar { @apply mb-6 flex flex-wrap items-center justify-between gap-2; }
+.pnl-period-picker { @apply inline-flex items-center gap-1.5; }
+.pnl-toolbar-actions { @apply flex items-center gap-2 flex-wrap; }
+.pnl-uncategorized-warning { @apply mb-4 flex items-start gap-2 text-sm; }
+.pnl-summary-cards { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.pnl-summary-card { @apply p-5 flex flex-col gap-3; }
+.pnl-legend { @apply flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-2 px-1 text-[11px] text-[var(--text-muted)]; }
+.pnl-chart-section { @apply mt-5; }
+.pnl-accuracy-banner { @apply mt-4 flex items-start gap-2.5; }
+.pnl-basis-details { @apply mt-4 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden; }
+.pnl-drill-modal-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+.pnl-drill-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[82vh] flex flex-col shadow-xl; }
+.flow-step-card { @apply relative flex flex-col overflow-hidden p-5 transition-shadow hover:shadow-lg hover:shadow-black/5; }
+.flow-metric-row { @apply flex items-center justify-between py-[5px]; }
+.flow-mini-bar { @apply mt-1.5 mb-0.5; }
+.flow-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.flow-cockpit-view { @apply space-y-4; }
+.flow-kpi-strip { @apply grid grid-cols-2 gap-3 lg:grid-cols-4; }
+.flow-kpi-card { @apply flex flex-col gap-3 p-5; }
+.flow-alerts { @apply flex flex-col gap-2; }
+.flow-alert-receivable { @apply block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90; }
+.flow-alert-gap { @apply block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90; }
+.flow-alert-vat-dday { @apply block rounded-2xl px-4 py-3 text-[12.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:opacity-90; }
+.flow-timeline { @apply mb-4 hidden items-center px-1 lg:flex; }
+.flow-steps-grid { @apply grid gap-4 md:grid-cols-2 xl:grid-cols-3; }
+.flow-footer-note { @apply px-5 py-4 text-xs leading-relaxed text-[var(--text-dim)]; }
+.revenue-page-content { @apply space-y-5 mt-1; }
+.revenue-top-partners-list { @apply space-y-2.5; }
+.revenue-partner-row { @apply flex items-center gap-3; }
+.revenue-ar-summary-grid { @apply grid grid-cols-2 gap-4; }
+.revenue-ar-over30-tile { @apply no-underline hover:border-[var(--primary)] transition; }
+.by-person-chart-card { @apply p-5; }
+.by-person-chart-header { @apply mb-4; }
+.by-person-chart-svg { @apply block; }
+.by-person-chart-legend { @apply flex flex-wrap gap-2 justify-center mt-3; }
+.costs-chart-container { @apply p-5; }
+.costs-chart-legend { @apply flex flex-wrap gap-2 justify-center mt-3; }
+.metric-info-trigger { @apply ml-1 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--border)] text-[9px] font-bold leading-none text-[var(--text-dim)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition align-middle; }
+.metric-info-popover { @apply fixed z-[999] w-[280px] max-h-[60vh] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-3 animate-[slide-in_0.12s_ease]; }
+.cost-detail-modal-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+.cost-detail-modal-box { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl; }
+.cost-detail-modal-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-center justify-between; }
+.cost-detail-table { @apply w-full text-xs; }
+.cost-detail-modal-footer { @apply px-5 py-3 border-t border-[var(--border)] flex items-center justify-between; }
+.costs-toolbar { @apply mb-5 flex flex-wrap items-center justify-between gap-2; }
+.costs-summary-cards { @apply grid grid-cols-3 gap-3 sm:gap-4; }
+.costs-summary-card { @apply p-5 flex flex-col gap-3; }
+.costs-monthly-table-row { @apply hover:bg-[var(--bg-surface)]/60 transition; }
+.costs-fixed-cell { @apply hover:underline; }
+.costs-variable-cell { @apply hover:underline; }
+.costs-fixed-ratio-bar { @apply flex items-center justify-end gap-2; }
+.costs-fixed-breakdown-row { @apply hover:bg-[var(--bg-surface)]/60; }
+.costs-variable-breakdown-row { @apply hover:bg-[var(--bg-surface)]/60; }
+.flow-trend-card { @apply p-5 sm:p-6 space-y-5; }
+.flow-trend-header { @apply flex items-center justify-between gap-2 flex-wrap; }
+.flow-balance-trend { @apply rounded-2xl border border-[var(--border)] p-4; }
+.flow-bar-col { @apply flex-1 flex flex-col items-center gap-1.5; }
+.flow-bar-legend { @apply flex flex-wrap gap-3 mt-3; }
+.expense-page-content { @apply space-y-5 mt-1; }
+.expense-fixed-variable-bar { @apply flex h-3 rounded-full overflow-hidden bg-[var(--bg-surface)]; }
+.expense-category-list { @apply space-y-2.5; }
+.expense-category-row { @apply flex items-center gap-3; }
+.flow-cell-detail-overlay { @apply fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4; }
+.flow-cell-detail-panel { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col; }
+.flow-cell-detail-header { @apply flex items-center justify-between px-5 pt-4 pb-2; }
+.flow-cell-detail-note { @apply mx-5 mb-2 text-[11px] text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-lg px-3 py-2 leading-relaxed; }
+.flow-cell-detail-list { @apply divide-y divide-[var(--border)]/50; }
+.flow-cell-detail-item { @apply flex items-center justify-between gap-3 py-2; }
+.flow-cell-detail-total { @apply flex items-center justify-between px-5 py-3 border-t border-[var(--border)] mt-1; }
+.flow-schedule-card { @apply p-5 space-y-3; }
+.flow-schedule-header { @apply flex items-center justify-between gap-2 flex-wrap; }
+.flow-schedule-totals { @apply flex gap-3 text-xs; }
+.flow-schedule-empty { @apply text-sm text-[var(--text-muted)] py-6 text-center; }
+.flow-schedule-month-header { @apply flex items-center justify-between text-[11px] font-bold text-[var(--text-muted)] mb-1 px-1; }
+.flow-schedule-item { @apply flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)]; }
+.statements-hub-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3; }
+.statements-hub-card { @apply flex flex-col p-5 no-underline transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--primary)]; }
+.reports-hub-loading { @apply flex items-center justify-center py-20; }
+.by-person-toolbar { @apply mb-5 flex flex-wrap items-center justify-between gap-2; }
+.by-person-empty-state { @apply py-16 text-center; }
+.by-person-stat-cards { @apply grid grid-cols-3 gap-3 sm:gap-4; }
+.by-person-ranked-list { @apply overflow-hidden; }
+.by-person-row { @apply flex items-center gap-3; }
+.by-person-avatar { @apply bg-gradient-to-br shrink-0; }
+.by-person-ranked-list-footer { @apply flex items-center justify-between; }
+.by-person-monthly-trend { @apply mt-6; }
+.by-person-monthly-trend-card { @apply overflow-hidden; }
+.by-person-monthly-trend-header { @apply flex items-center justify-between; }
+.by-person-monthly-trend-scroll { @apply overflow-x-auto; }
+.summary-body { @apply space-y-5 mt-1; }
+.summary-stat-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.summary-sections-grid { @apply grid gap-5 lg:grid-cols-3; }
+.summary-pnl-section { @apply lg:col-span-2; }
+.summary-pnl-breakdown { @apply grid grid-cols-3 gap-3 mb-5; }
+.summary-upcoming-list { @apply space-y-2; }
+.pnl-chart-card { @apply mb-7 p-5; }
+.pnl-chart-header { @apply mb-4; }
+.pnl-chart-svg { @apply block h-[220px] w-auto max-w-full mx-auto; }
+.pnl-chart-legend { @apply flex flex-wrap gap-2 justify-center mt-3; }
+.upcoming-page-content { @apply space-y-5 mt-1; }
+.upcoming-item-list { @apply space-y-2; }
+.upcoming-item-row { @apply flex items-center justify-between px-4 py-3 rounded-xl no-underline transition hover:border-[var(--primary)]; }
+.cash-pulse-stat-pill { @apply px-4 py-2.5 rounded-2xl min-w-[92px]; }
+.cash-pulse-header { @apply p-5 sm:p-6 space-y-5; }
+.cash-pulse-title-row { @apply flex items-center justify-between; }
+.cash-pulse-stats { @apply flex items-stretch gap-2.5; }
+.cash-pulse-trend { @apply rounded-2xl border border-[var(--border)] p-4; }
+.cash-pulse-briefing { @apply text-xs text-[var(--text-muted)] leading-relaxed border-t border-[var(--border)] pt-3; }
+.reports-tabs-list { @apply flex flex-wrap gap-1.5; }
+.reports-tab-link { @apply px-3.5 py-1.5 rounded-full text-[13px] font-semibold no-underline transition; }
+.reports-tab-desc { @apply text-sm text-[var(--text-muted)] mt-3 mb-5 max-w-3xl leading-relaxed; }
+.statements-tabs-list { @apply flex flex-wrap gap-1.5 -mt-2 mb-5; }
+.statements-tab-link { @apply px-3 py-1 rounded-lg text-[12px] font-semibold no-underline transition; }
+.three-way-match-page { @apply mx-auto; }
+.three-way-match-toolbar { @apply mb-5 flex flex-wrap items-center justify-between gap-2; }
+.three-way-unmatched-panel { @apply lg:col-span-2 overflow-hidden; }
+.three-way-panel-header { @apply px-4 py-3 border-b border-[var(--border)] flex items-center justify-between; }
+.three-way-invoice-list { @apply divide-y divide-[var(--border)]/50; }
+.three-way-invoice-row { @apply w-full text-left px-4 py-3 hover:bg-[var(--bg-surface)] transition; }
+.three-way-candidates-panel { @apply lg:col-span-2 overflow-hidden; }
+.three-way-candidates-header { @apply px-4 py-3 border-b border-[var(--border)]; }
+.three-way-candidate-list { @apply divide-y divide-[var(--border)]/50; }
+.three-way-candidate-row { @apply w-full text-left px-4 py-3 hover:bg-[var(--bg-surface)] transition disabled:opacity-50; }
+.three-way-candidate-reasons { @apply flex flex-wrap gap-1; }
+.three-way-matched-panel { @apply lg:col-span-2 overflow-hidden; }
+.three-way-matched-header { @apply px-4 py-3 border-b border-[var(--border)] flex items-center justify-between; }
+.three-way-matched-list { @apply divide-y divide-[var(--border)]/50; }
+.three-way-matched-row { @apply px-4 py-3 transition; }
+
+.flow-matrix-toolbar { @apply p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between; }
+.flow-matrix-year-switch { @apply flex items-center gap-1; }
+.flow-matrix-mode-switch { @apply inline-flex rounded-xl bg-[var(--bg-surface)] p-1 border border-[var(--border)] overflow-x-auto; }
+.flow-matrix-table-wrap { @apply overflow-hidden; }
+.flow-matrix-table { @apply border-collapse text-[12px] w-full min-w-[920px]; }
+.flow-matrix-header-row { @apply bg-[var(--bg-surface)]; }
+.flow-matrix-account-col { @apply sticky left-0 z-10 bg-[var(--bg-surface)] px-3 py-2.5 text-left font-bold text-[var(--text-muted)] border-b border-[var(--border)] min-w-[168px] shadow-[1px_0_0_var(--border)]; }
+.flow-matrix-month-col { @apply px-2.5 py-2 text-right font-bold border-b border-[var(--border)] whitespace-nowrap min-w-[82px]; }
+.flow-matrix-data-row { @apply transition-colors hover:bg-[var(--primary)]/[0.04]; }
+.flow-matrix-row-label { @apply sticky left-0 z-10 px-3 py-2 border-b border-[var(--border)]/30 whitespace-nowrap shadow-[1px_0_0_var(--border)]; }
+.flow-matrix-cell { @apply px-2.5 py-2 text-right border-b border-[var(--border)]/30; }
+.flow-matrix-legend { @apply px-4 py-3 text-[10px] text-[var(--text-dim)] leading-relaxed border-t border-[var(--border)]/40; }
+
+.area-trend-values { @apply flex mb-2; }
+.area-trend-chart { @apply relative; }
+.area-trend-labels { @apply flex mt-2; }
+
+.outlook-page-content { @apply space-y-5 mt-1; }
+.outlook-forecast-bars { @apply flex items-end gap-3 h-36; }
+.outlook-forecast-bar { @apply flex-1 flex flex-col items-center justify-end gap-1 min-w-0; }
+.outlook-scenario-grid { @apply grid grid-cols-1 sm:grid-cols-3 gap-3; }
+
+.monthly-detail-page { @apply space-y-6; }
+.monthly-detail-intro { @apply text-xs text-[var(--text-muted)] -mt-2; }
+
+.monthly-compare-card { @apply p-5; }
+.monthly-compare-header { @apply flex items-center justify-between mb-3 gap-2 flex-wrap; }
+.monthly-compare-table { @apply w-full text-[12px]; }
+.monthly-compare-row { @apply border-b border-[var(--border)]/30; }
+.mini-bars-container { @apply flex items-end gap-1.5 h-28; }
+.mini-bars-bar { @apply flex-1 flex flex-col items-center gap-1 min-w-0; }

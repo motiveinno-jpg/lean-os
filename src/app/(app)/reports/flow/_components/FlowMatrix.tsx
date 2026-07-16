@@ -205,14 +205,14 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
   return (
     <div className="space-y-3">
       {/* 컨트롤 바 — 연도(좌) + 표시 방식 세그먼트(우) + 현재 모드 설명 */}
-      <div className="flow-matrix-toolbar glass-card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flow-matrix-year-switch flex items-center gap-1">
+      <div className="flow-matrix-toolbar glass-card">
+        <div className="flow-matrix-year-switch">
           <button onClick={() => setYear((y) => y - 1)} className="w-8 h-8 flex items-center justify-center text-sm rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]">←</button>
           <span className="text-sm font-bold text-[var(--text)] mono-number min-w-[64px] text-center">{year}년</span>
           <button onClick={() => setYear((y) => y + 1)} disabled={year >= curYear} className="w-8 h-8 flex items-center justify-center text-sm rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] disabled:opacity-30">→</button>
         </div>
         <div className="flex flex-col gap-1.5 sm:items-end">
-          <div className="flow-matrix-mode-switch inline-flex rounded-xl bg-[var(--bg-surface)] p-1 border border-[var(--border)] overflow-x-auto scrollbar-hide">
+          <div className="flow-matrix-mode-switch scrollbar-hide">
             {CELL_MODES.map((m) => (
               <button key={m.key} onClick={() => setMode(m.key)}
                 className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap transition ${mode === m.key ? "bg-[var(--primary)] text-white shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
@@ -225,16 +225,16 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
       </div>
 
       {/* 표 */}
-      <div className="flow-matrix-table-wrap glass-card overflow-hidden">
+      <div className="flow-matrix-table-wrap glass-card">
         <div className="overflow-x-auto">
-          <table className="flow-matrix-table border-collapse text-[12px] w-full min-w-[920px]">
+          <table className="flow-matrix-table">
             <thead>
-              <tr className="flow-matrix-header-row bg-[var(--bg-surface)]">
-                <th className="flow-matrix-account-col sticky left-0 z-10 bg-[var(--bg-surface)] px-3 py-2.5 text-left font-bold text-[var(--text-muted)] border-b border-[var(--border)] min-w-[168px] shadow-[1px_0_0_var(--border)]">계정</th>
+              <tr className="flow-matrix-header-row">
+                <th className="flow-matrix-account-col">계정</th>
                 {months.map((mo) => {
                   const isActual = year < curYear || (year === curYear && mo <= curMonthNum);
                   return (
-                    <th key={mo} className="flow-matrix-month-col px-2.5 py-2 text-right font-bold border-b border-[var(--border)] whitespace-nowrap min-w-[82px]">
+                    <th key={mo} className="flow-matrix-month-col">
                       <div className={`text-[12px] ${isActual ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{mo}월</div>
                       <div className="mt-0.5">
                         <span className={`inline-block px-1.5 py-0.5 rounded-full text-[8.5px] font-bold ${isActual ? "bg-[var(--success)]/12 text-[var(--success)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>{isActual ? "실적" : "예측"}</span>
@@ -254,8 +254,8 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
                       <td colSpan={13} className="sticky left-0 bg-[var(--bg-surface)]/70 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)] border-b border-[var(--border)]/40 shadow-[1px_0_0_var(--border)]">{SECTION_LABEL[sec]}</td>
                     </tr>
                     {rows.map((row) => (
-                      <tr key={row.key} className={`flow-matrix-data-row transition-colors hover:bg-[var(--primary)]/[0.04] ${row.strong ? "bg-[var(--bg-surface)]/40" : ""}`}>
-                        <td className={`flow-matrix-row-label sticky left-0 z-10 px-3 py-2 border-b border-[var(--border)]/30 whitespace-nowrap shadow-[1px_0_0_var(--border)] ${row.strong ? "font-bold text-[var(--text)] bg-[var(--bg-surface)]/40" : row.indent ? "pl-6 text-[var(--text-muted)] bg-[var(--bg-card)]" : "text-[var(--text-muted)] bg-[var(--bg-card)]"}`}>{row.label}<MetricInfo rowKey={row.key} /></td>
+                      <tr key={row.key} className={`flow-matrix-data-row ${row.strong ? "bg-[var(--bg-surface)]/40" : ""}`}>
+                        <td className={`flow-matrix-row-label ${row.strong ? "font-bold text-[var(--text)] bg-[var(--bg-surface)]/40" : row.indent ? "pl-6 text-[var(--text-muted)] bg-[var(--bg-card)]" : "text-[var(--text-muted)] bg-[var(--bg-card)]"}`}>{row.label}<MetricInfo rowKey={row.key} /></td>
                         {months.map((mo) => {
                           const v = cellValue(row, mo);
                           const neg = v != null && v < 0;
@@ -264,7 +264,7 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
                             <td key={mo}
                               onClick={clickable ? () => setDetail({ rowKey: row.key, label: row.label, mo }) : undefined}
                               title={clickable ? "클릭하면 구성 내역을 봅니다" : undefined}
-                              className={`flow-matrix-cell px-2.5 py-2 text-right mono-number border-b border-[var(--border)]/30 ${row.strong ? "font-bold" : ""} ${neg ? "text-[var(--danger)]" : "text-[var(--text)]"} ${clickable ? "cursor-pointer hover:bg-[var(--primary)]/10 hover:underline decoration-dotted underline-offset-2" : ""}`}>
+                              className={`flow-matrix-cell mono-number ${row.strong ? "font-bold" : ""} ${neg ? "text-[var(--danger)]" : "text-[var(--text)]"} ${clickable ? "cursor-pointer hover:bg-[var(--primary)]/10 hover:underline decoration-dotted underline-offset-2" : ""}`}>
                               {fmtCell(v, cellFmt(row))}
                             </td>
                           );
@@ -277,7 +277,7 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
             </tbody>
           </table>
         </div>
-        <div className="flow-matrix-legend px-4 py-3 text-[10px] text-[var(--text-dim)] leading-relaxed border-t border-[var(--border)]/40">
+        <div className="flow-matrix-legend">
           <span className="inline-block px-1.5 py-0.5 rounded-full bg-[var(--success)]/12 text-[var(--success)] font-bold mr-1">실적</span> 과거 월=자동집계(다른 화면과 동일 소스) ·
           <span className="inline-block px-1.5 py-0.5 rounded-full bg-[var(--warning)]/12 text-[var(--warning)] font-bold mx-1">예측</span> 미래 월=예산/예측. 부가세=분기 매출세액−매입세액을 신고월(4·7·10·익1)에 표기.
           금액 모드에서 셀을 클릭하면 구성 내역이 열립니다.

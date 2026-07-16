@@ -66,7 +66,7 @@ export function MetricInfo({ rowKey }: { rowKey: string }) {
         type="button"
         onClick={toggle}
         aria-label={`${tip.title} 설명`}
-        className="metric-info-trigger ml-1 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--border)] text-[9px] font-bold leading-none text-[var(--text-dim)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition align-middle"
+        className="metric-info-trigger"
       >
         ?
       </button>
@@ -74,7 +74,7 @@ export function MetricInfo({ rowKey }: { rowKey: string }) {
         <>
           <div className="fixed inset-0 z-[998]" onClick={() => setPos(null)} />
           <div
-            className="metric-info-popover fixed z-[999] w-[280px] max-h-[60vh] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-3 animate-[slide-in_0.12s_ease]"
+            className="metric-info-popover"
             style={{ top: pos.top, left: pos.left }}
             onClick={(e) => e.stopPropagation()}
           >

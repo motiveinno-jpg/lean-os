@@ -585,16 +585,16 @@ export default function PnlPage() {
       <ReportsTabs />
       <StatementsTabs />
       {/* 툴바 — 기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="pnl-toolbar page-sticky-header no-print-sticky mb-6 flex flex-wrap items-center justify-between gap-2">
+      <div className="pnl-toolbar page-sticky-header no-print-sticky">
         {/* 조회 기간 — 월 범위. 다른 페이지 달력과 동일한 단일 컨트롤 스타일(h-9·rounded-lg). 2026-06-30 테두리 중첩 제거 */}
-        <div className="pnl-period-picker inline-flex items-center gap-1.5">
+        <div className="pnl-period-picker">
           <MonthField value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)} title="시작 월"
             className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
           <span className="text-[var(--text-dim)] text-xs">~</span>
           <MonthField value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)} title="종료 월"
             className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
         </div>
-        <div className="pnl-toolbar-actions flex items-center gap-2 flex-wrap">
+        <div className="pnl-toolbar-actions">
           <button
             type="button"
             onClick={() => setIsCompareMode((v) => !v)}
@@ -646,7 +646,7 @@ export default function PnlPage() {
 
       {/* 미분류 출금 경고 — 판관비 과소계상(영업이익 과대) 오해 방지 */}
       {data.uncategorizedCount > 0 && (
-        <div className="pnl-uncategorized-warning kpi-callout warning mb-4 flex items-start gap-2 text-sm">
+        <div className="pnl-uncategorized-warning kpi-callout warning">
           <span className="text-base leading-none mt-0.5">⚠️</span>
           <div className="leading-relaxed">
             분류되지 않은 통장 출금 <b>{data.uncategorizedCount.toLocaleString()}건</b>(약 <b>₩{Math.round(data.uncategorizedAmount).toLocaleString()}</b>)이
@@ -657,7 +657,7 @@ export default function PnlPage() {
       )}
 
       {/* Summary Cards — 대시보드 글래스카드 스타일 (2026-06-10 리디자인) */}
-      <div className="pnl-summary-cards grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 24 }}>
+      <div className="pnl-summary-cards" style={{ marginBottom: 24 }}>
         {[
           {
             label: "총 매출",
@@ -687,7 +687,7 @@ export default function PnlPage() {
           const d = card.value - card.prev;
           const pct = card.prev !== 0 ? Math.round((d / Math.abs(card.prev)) * 100) : 0;
           return (
-            <div key={card.label} className="pnl-summary-card glass-card p-5 flex flex-col gap-3">
+            <div key={card.label} className="pnl-summary-card glass-card">
               <div className="flex items-center justify-between">
                 <span className="text-[13px] font-semibold text-[var(--text-muted)]">{card.label}</span>
                 <span className={`kpi-icon ${card.value < 0 ? "danger" : card.label === "총 매출" ? "" : "success"}`}>
@@ -710,7 +710,7 @@ export default function PnlPage() {
       </div>
 
       {/* 표기 규칙 — 단 한 가지: 초록 배경 = 이익 소계 3줄. 나머지는 표준 양식의 위계(굵은 Ⅰ~Ⅵ / 들여쓴 세부). */}
-      <div className="pnl-legend flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-2 px-1 text-[11px] text-[var(--text-muted)]">
+      <div className="pnl-legend">
         <span className="font-semibold text-[var(--text)]">표기 규칙</span>
         <span className="inline-flex items-center gap-1.5"><b className="text-[var(--text)]">굵은 Ⅰ~Ⅵ</b> = 주요 계정</span>
         <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3.5 h-3.5 rounded" style={{ background: "color-mix(in srgb, var(--success) 9%, var(--bg-card))", border: "1px solid var(--border)" }} />초록 배경 = 이익 소계(Ⅲ·Ⅴ·Ⅵ)</span>
@@ -844,7 +844,7 @@ export default function PnlPage() {
       </div>
 
       {/* Chart — 표 아래 */}
-      <div className="pnl-chart-section mt-5">
+      <div className="pnl-chart-section">
         <PnlChart
           months={months}
           totalRevenue={computed.totalRevenue}
@@ -860,7 +860,7 @@ export default function PnlPage() {
       </div>
 
       {/* 정확도 안내 배너 — 미분류 비용 제외 한계 */}
-      <div className="pnl-accuracy-banner kpi-callout mt-4 flex items-start gap-2.5">
+      <div className="pnl-accuracy-banner kpi-callout">
         <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
         <p className="text-[11.5px] leading-relaxed">
           <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 카테고리가 분류된 출금만</b> 반영됩니다 — 미분류 출금은 자금이동(이체·카드대금 등)과 섞여 허수를 만들기에 제외돼, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다. <Link href="/transactions" className="underline font-semibold">거래내역</Link>에서 비용을 분류할수록 정확해집니다.
@@ -868,7 +868,7 @@ export default function PnlPage() {
       </div>
 
       {/* 산출 기준 — 접이식 */}
-      <details className="pnl-basis-details mt-4 group rounded-xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+      <details className="pnl-basis-details group">
         <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none list-none">
           <span className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
             <svg className="w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
@@ -982,8 +982,8 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
   const srcLabel = source === "computed" ? "산출 구성" : source === "opex" ? "분류된 거래내역" : source === "sales" ? "매출 세금계산서" : "매입 세금계산서";
 
   return (
-    <div className="pnl-drill-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="pnl-drill-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[82vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="pnl-drill-modal-overlay" onClick={onClose}>
+      <div className="pnl-drill-modal" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <div>
             <div className="text-sm font-bold text-[var(--text)]">{label} — 상세 내역</div>
