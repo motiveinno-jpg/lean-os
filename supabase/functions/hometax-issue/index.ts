@@ -144,7 +144,9 @@ function buildIssuePayload(args: {
     detailList: [{
       serialNum: "1",
       purchaseDT: writeDate,
-      itemName: invoice.item_name || invoice.label || invoice.expense_category || "용역",
+      // 2026-07-16 QA: invoice.label 은 영수/청구 토글값("영수"/"청구")이지 품목명이 아님 —
+      //   item_name 미입력 건에서 품목명이 "청구"로 잘못 나가던 버그(purposeType 과 혼용).
+      itemName: invoice.item_name || invoice.expense_category || "용역",
       spec: "",
       qty: "1",
       unitCost: supply,
