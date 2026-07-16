@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 type Action = {
   id: string;

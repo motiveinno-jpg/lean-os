@@ -121,7 +121,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     supabase.from("companies").select("tax_settings").eq("id", companyId).maybeSingle(),
     // 정산 원장 — 확정(confirmed) 정산액을 송장별로 차감해 미수금·미지급금을 정밀 산출.
     fetchAllPaginated<any>((from, to) =>
-      (supabase as any)
+      supabase
         .from("invoice_settlements")
         .select("tax_invoice_id, amount, status")
         .eq("company_id", companyId)

@@ -19,7 +19,7 @@ export default function NotificationsPage() {
     queryFn: async () => {
       const u = await getCurrentUser();
       if (!u) return { rows: [], quoteMap: {} };
-      const nRows = logRead('notifications/page:nRows', await (supabase as any)
+      const nRows = logRead('notifications/page:nRows', await supabase
         .from('notifications')
         .select('id, type, title, message, entity_type, entity_id, is_read, created_at')
         .eq('user_id', u.id)
@@ -33,7 +33,7 @@ export default function NotificationsPage() {
       ));
       const map: Record<string, { deal_id: string; stage: string }> = {};
       if (quoteIds.length > 0) {
-        const qaRows = logRead('notifications/page:qaRows', await (supabase as any)
+        const qaRows = logRead('notifications/page:qaRows', await supabase
           .from('quote_approvals')
           .select('id, deal_id, stage')
           .in('id', quoteIds));
@@ -58,7 +58,7 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     const u = await getCurrentUser();
     if (!u) return;
-    await (supabase as any).from('notifications').update({ is_read: true }).eq('user_id', u.id).eq('is_read', false);
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', u.id).eq('is_read', false);
     patchCache(r => ({ ...r, is_read: true }));
     // 사이드바 뱃지 즉시 갱신
     window.dispatchEvent(new Event('sidebar-refresh-badges'));
@@ -67,7 +67,7 @@ export default function NotificationsPage() {
   const markOneRead = async (id: string) => {
     const u = await getCurrentUser();
     if (!u) return;
-    await (supabase as any).from('notifications').update({ is_read: true }).eq('id', id);
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
     patchCache(r => (r.id === id ? { ...r, is_read: true } : r));
     window.dispatchEvent(new Event('sidebar-refresh-badges'));
   };

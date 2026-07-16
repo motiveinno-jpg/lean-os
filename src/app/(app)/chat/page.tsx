@@ -92,7 +92,7 @@ function GuestChatView({ token }: { token: string }) {
         }
 
         // 게스트도 RLS SELECT 통과를 위해 chat_members 동시 등록 (멱등 upsert).
-        const dbAny = supabase as any;
+        const dbAny = supabase;
         await dbAny.from('chat_members').upsert(
           { channel_id: channel.id, user_id: dbUser.id, role: 'GUEST' },
           { onConflict: 'channel_id,user_id', ignoreDuplicates: true },

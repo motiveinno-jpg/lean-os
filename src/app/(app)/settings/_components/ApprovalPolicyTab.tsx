@@ -36,7 +36,7 @@ interface ApprovalStage {
 }
 
 export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
-  const db = supabase as any;
+  const db = supabase;
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);

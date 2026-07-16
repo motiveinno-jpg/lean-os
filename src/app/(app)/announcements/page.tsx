@@ -45,7 +45,7 @@ export default function AnnouncementsPage() {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["announcements"],
     queryFn: async () => {
-      const data = logRead('announcements/page:data', await (supabase as any)
+      const data = logRead('announcements/page:data', await supabase
         .from("announcements")
         .select("*")
         .order("pinned", { ascending: false })
@@ -64,7 +64,7 @@ export default function AnnouncementsPage() {
     mutationFn: async () => {
       if (!form.title.trim() || !form.content.trim()) throw new Error("제목과 내용을 입력하세요.");
       if (editing) {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from("announcements")
           .update({
             title: form.title.trim(),
@@ -76,7 +76,7 @@ export default function AnnouncementsPage() {
           .eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase as any).from("announcements").insert({
+        const { error } = await supabase.from("announcements").insert({
           title: form.title.trim(),
           content: form.content.trim(),
           category: form.category,
@@ -97,7 +97,7 @@ export default function AnnouncementsPage() {
 
   const delMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("announcements").delete().eq("id", id);
+      const { error } = await supabase.from("announcements").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

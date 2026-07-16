@@ -775,7 +775,7 @@ export default function LandingPage() {
     if (!partnerForm.company || !partnerForm.name || !partnerForm.email || !partnerForm.message) return;
     setPartnerSending(true);
     try {
-      await (supabase as any).from("partnership_inquiries").insert({
+      await supabase.from("partnership_inquiries").insert({
         company_name: partnerForm.company,
         contact_name: partnerForm.name,
         email: partnerForm.email,

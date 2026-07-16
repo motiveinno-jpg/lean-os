@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Look up subscription to find the Stripe customer ID
-    const subscription = logRead('portal/route:subscription', await (supabase as any)
+    const subscription = logRead('portal/route:subscription', await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('company_id', companyId)

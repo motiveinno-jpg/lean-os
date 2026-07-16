@@ -42,8 +42,8 @@ export function QuoteHeader({
     let alive = true;
     (async () => {
       const [{ data: ps }, { data: us }] = await Promise.all([
-        (supabase as any).from("partners").select("id, name, business_number").eq("company_id", companyId).eq("is_active", true).order("name"),
-        (supabase as any).from("users").select("id, name").eq("company_id", companyId),
+        supabase.from("partners").select("id, name, business_number").eq("company_id", companyId).eq("is_active", true).order("name"),
+        supabase.from("users").select("id, name").eq("company_id", companyId),
       ]);
       if (!alive) return;
       setPartners(ps || []);

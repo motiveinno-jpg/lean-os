@@ -15,7 +15,7 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
   const { data: payslips = [], isLoading } = useQuery({
     queryKey: ["mypage-payslips", employeeId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('_components/MyPayslips:data', await db
         .from("payroll_items")
         .select(

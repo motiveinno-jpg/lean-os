@@ -144,7 +144,7 @@ export default function SignaturesDashboardPage() {
     const partnerIds = [...new Set(targets.map((t) => t.partner_id).filter(Boolean))];
     const nameMap = new Map<string, string>();
     if (partnerIds.length) {
-      const data = logRead('signatures/page:data', await (supabase as any).from("partners").select("id, name").in("id", partnerIds));
+      const data = logRead('signatures/page:data', await supabase.from("partners").select("id, name").in("id", partnerIds));
       (data || []).forEach((p: any) => p?.name && nameMap.set(p.id, p.name));
     }
     const nameById = new Map<string, string>(
@@ -224,7 +224,7 @@ export default function SignaturesDashboardPage() {
   const { data: failureSummary = [] } = useQuery({
     queryKey: ["signature-failure-summary", companyId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("get_recent_send_failures_summary", { p_days: 7 });
+      const { data, error } = await supabase.rpc("get_recent_send_failures_summary", { p_days: 7 });
       if (error) throw error;
       return (data || []) as { error_code: string; count: number; latest_failed_at: string }[];
     },

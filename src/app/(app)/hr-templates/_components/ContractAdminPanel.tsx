@@ -49,7 +49,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
   async function deleteTemplate(id: string) {
     if (!confirm("이 서식을 삭제하시겠습니까? 발송된 계약서엔 영향 없음.")) return;
     try {
-      await (supabase as any).from("doc_templates").update({ is_active: false }).eq("id", id);
+      await supabase.from("doc_templates").update({ is_active: false }).eq("id", id);
       queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
       queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
       toast("서식이 삭제되었습니다.", "success");
@@ -76,7 +76,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
   const { data: allTemplates = [] } = useQuery({
     queryKey: ["contract-templates-all", companyId],
     queryFn: async () => {
-      const data = logRead('_components/ContractAdminPanel:data', await (supabase as any)
+      const data = logRead('_components/ContractAdminPanel:data', await supabase
         .from("doc_templates")
         .select("*")
         .or(`company_id.eq.${companyId},company_id.is.null`)
@@ -155,14 +155,14 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
     if (!companyId) return;
     setSealApplying(contractId);
     try {
-      const company = logRead('_components/ContractAdminPanel:company', await (supabase as any)
+      const company = logRead('_components/ContractAdminPanel:company', await supabase
         .from("companies").select("seal_url, name").eq("id", companyId).maybeSingle());
       if (!company?.seal_url) {
         toast("직인 이미지가 등록돼 있지 않습니다. 회사 설정에서 먼저 등록하세요.", "error");
         setSealApplying(null);
         return;
       }
-      const pkg = logRead('_components/ContractAdminPanel:pkg', await (supabase as any)
+      const pkg = logRead('_components/ContractAdminPanel:pkg', await supabase
         .from("hr_contract_packages").select("notes").eq("id", contractId).maybeSingle());
       let notesObj: Record<string, any> = {};
       if (pkg?.notes) {
@@ -174,7 +174,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
       notesObj.seal_applied_at = new Date().toISOString();
       notesObj.seal_url = company.seal_url;
       notesObj.seal_company_name = company.name || '';
-      await (supabase as any)
+      await supabase
         .from("hr_contract_packages")
         .update({ notes: JSON.stringify(notesObj) })
         .eq("id", contractId);
@@ -355,7 +355,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                 try {
                   const variables = Array.from(new Set((newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, ""))));
                   if (editingTemplateId) {
-                    const { error } = await (supabase as any).from("doc_templates").update({
+                    const { error } = await supabase.from("doc_templates").update({
                       name: `[임시] ${newTemplateName.trim().replace(/^\[임시\]\s*/, '')}`,
                       content_json: { body: newTemplateBody || '' },
                       variables,
@@ -363,7 +363,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                     }).eq("id", editingTemplateId);
                     if (error) throw error;
                   } else {
-                    const { data: ins, error } = await (supabase as any).from("doc_templates").insert({
+                    const { data: ins, error } = await supabase.from("doc_templates").insert({
                       company_id: companyId,
                       name: `[임시] ${newTemplateName.trim()}`,
                       type: "hr_contract",
@@ -398,7 +398,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                 try {
                   const variables = Array.from(new Set((newTemplateBody.match(/\{\{[^}]+\}\}/g) || []).map((v: string) => v.replace(/[{}]/g, ""))));
                   if (editingTemplateId) {
-                    const { error } = await (supabase as any).from("doc_templates").update({
+                    const { error } = await supabase.from("doc_templates").update({
                       name: newTemplateName.trim().replace(/^\[임시\]\s*/, ''),
                       content_json: { body: newTemplateBody },
                       variables,
@@ -407,7 +407,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                     if (error) throw error;
                     toast("서식이 수정되었습니다.", "success");
                   } else {
-                    const { error } = await (supabase as any).from("doc_templates").insert({
+                    const { error } = await supabase.from("doc_templates").insert({
                       company_id: companyId,
                       name: newTemplateName.trim(),
                       type: "hr_contract",

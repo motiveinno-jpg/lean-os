@@ -10,7 +10,7 @@ import {
   type ErrorExplanation,
 } from "@/lib/operator-error-explain";
 
-const db = supabase as any;
+const db = supabase;
 
 // 라이트/다크 토큰 기반 심각도 색 (SEVERITY_TONE 의 다크 고정색 대체 — 라벨은 lib 유지)
 const SEVERITY_CLS: Record<string, string> = {

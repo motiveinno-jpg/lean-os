@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getKpiAchievement, getOverallAchievement, getOverallStatus, getPaceWarning, type KpiSource } from "@/lib/project-types";
 
-const db = supabase as any;
+const db = supabase;
 const fmtNum = (n: number, unit: string) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}${unit}`;
 
 type Kpi = { id: string; label: string; unit: string; target_value: number; direction: "up" | "down"; source: KpiSource; sort_order: number };

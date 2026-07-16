@@ -158,7 +158,7 @@ export default function MyPage() {
   const { data: recentLeaves = [] } = useQuery({
     queryKey: ["my-recent-leaves", employee?.id, userId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const [{ data: native }, { data: approvals }] = await Promise.all([
         db.from("leave_requests").select("*").eq("employee_id", employee!.id).order("created_at", { ascending: false }).limit(5),
         db.from("approval_requests").select("id, status, created_at, custom_fields, description").eq("request_type", "leave").eq("requester_id", userId!).order("created_at", { ascending: false }).limit(5),

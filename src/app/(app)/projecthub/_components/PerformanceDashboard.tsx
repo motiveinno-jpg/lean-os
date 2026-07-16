@@ -15,7 +15,7 @@ import { useToast } from "@/components/toast";
 import { getKpiAchievement, getOverallAchievement } from "@/lib/project-types";
 import { computePeriodStart, periodLabel, normalizeCadence, type Cadence } from "@/lib/project-checkin";
 
-const db = supabase as any;
+const db = supabase;
 const STATUS_DOT: Record<string, string> = { green: "bg-green-500", yellow: "bg-amber-500", red: "bg-red-500", neutral: "bg-[var(--text-dim)]" };
 const pctColor = (p: number | null) => (p == null ? "text-[var(--text-dim)]" : p >= 100 ? "text-[var(--primary)]" : p < 40 ? "text-[var(--danger)]" : "text-[var(--text)]");
 

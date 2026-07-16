@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { ADJ_REASON_LABEL } from "./shared";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 export type LedgerExportTarget = { partnerId: string | null; type: string; name: string };
 

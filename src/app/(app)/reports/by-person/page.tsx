@@ -16,7 +16,7 @@ import ByPersonChart from "./by-person-chart";
 /* ------------------------------------------------------------------ */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 interface PersonRow {
   key: string;          // 표시명 (직원명 또는 카드 별명)

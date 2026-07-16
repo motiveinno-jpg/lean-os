@@ -12,7 +12,7 @@ import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
-const db = supabase as any;
+const db = supabase;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "—");
 
 type Issue = {

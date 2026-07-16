@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 function fmtW(n: number): string {
   const abs = Math.abs(n);

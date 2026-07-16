@@ -4,7 +4,7 @@ import { logRead } from "@/lib/log-read";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 const FB_STATUS: Record<string, { bg: string; text: string; label: string }> = {
   pending: { bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]", label: "접수" },

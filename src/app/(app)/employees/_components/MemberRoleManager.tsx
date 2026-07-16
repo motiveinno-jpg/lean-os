@@ -16,7 +16,7 @@ export function MemberRoleManager({ companyId }: { companyId: string }) {
   const { data: members = [], refetch: refetchMembers } = useQuery({
     queryKey: ["company-members-mgmt", companyId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const [usersRes, empRes] = await Promise.all([
         db.from("users").select("id, email, name, role, avatar_url").eq("company_id", companyId).order("role").order("name"),
         db.from("employees").select("id, user_id").eq("company_id", companyId).not("user_id", "is", null),

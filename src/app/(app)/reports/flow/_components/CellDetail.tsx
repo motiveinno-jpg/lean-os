@@ -46,7 +46,7 @@ export function CellDetail({
       : `"${it.label}" 등록 고정비를 삭제할까요? 되돌릴 수 없습니다.`);
     if (!ok) return;
     setDeleting(it.refId);
-    const db = supabase as any;
+    const db = supabase;
     try {
       if (it.refType === "recurring") await db.from("recurring_payments").delete().eq("id", it.refId);
       else if (it.refType === "fixed_cost") await db.from("fixed_costs").delete().eq("id", it.refId);

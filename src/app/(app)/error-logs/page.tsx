@@ -69,7 +69,7 @@ export default function ErrorLogsPage() {
   const { data: rows = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["error-logs"],
     queryFn: async () => {
-      const data = logRead('error-logs/page:data', await (supabase as any)
+      const data = logRead('error-logs/page:data', await supabase
         .from("error_logs")
         .select("*")
         .order("created_at", { ascending: false })
@@ -84,7 +84,7 @@ export default function ErrorLogsPage() {
   const [liveCount, setLiveCount] = useState(0);
   useEffect(() => {
     if (!isOperator) return;
-    const ch = (supabase as any)
+    const ch = supabase
       .channel("error_logs_live")
       .on(
         "postgres_changes",
@@ -95,12 +95,12 @@ export default function ErrorLogsPage() {
         },
       )
       .subscribe();
-    return () => { (supabase as any).removeChannel(ch); };
+    return () => { supabase.removeChannel(ch); };
   }, [isOperator, qc]);
 
   const toggleResolve = useMutation({
     mutationFn: async (p: { id: string; resolved: boolean }) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("error_logs")
         .update({ resolved: p.resolved })
         .eq("id", p.id);
@@ -112,7 +112,7 @@ export default function ErrorLogsPage() {
 
   const clearResolved = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase as any).from("error_logs").delete().eq("resolved", true);
+      const { error } = await supabase.from("error_logs").delete().eq("resolved", true);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["error-logs"] }); toast("해결된 로그를 삭제했습니다.", "success"); },

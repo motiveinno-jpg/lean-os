@@ -15,7 +15,7 @@ import { DateField } from "@/components/date-field";
 import { uploadTaskAttachment, taskAttachmentUrl, taskAttachmentDownloadUrl, removeTaskAttachment, isImageAtt, type TaskAttachment } from "@/lib/task-attachments";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
-const db = supabase as any;
+const db = supabase;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 type TaskStatus = "todo" | "doing" | "review" | "done";

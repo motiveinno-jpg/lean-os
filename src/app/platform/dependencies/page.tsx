@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 type Health = {
   supabase: { errors_24h: number; errors_1h: number; sample_query_ok: boolean };

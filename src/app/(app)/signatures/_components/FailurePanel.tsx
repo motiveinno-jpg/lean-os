@@ -94,7 +94,7 @@ function FailureGroupRow({
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["signature-failure-rows", group.error_code],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("list_send_failures_by_code", {
+      const { data, error } = await supabase.rpc("list_send_failures_by_code", {
         p_error_code: group.error_code,
         p_days: 7,
       });
@@ -109,7 +109,7 @@ function FailureGroupRow({
       if (!row.signature_request_id) throw new Error("재발송할 서명 요청이 없습니다.");
       const r = await sendSignatureReminder(row.signature_request_id);
       if (!r.success) throw new Error(r.error || "재발송 실패");
-      const { error: mErr } = await (supabase as any).rpc("mark_failure_retried", {
+      const { error: mErr } = await supabase.rpc("mark_failure_retried", {
         p_failure_id: row.id,
         p_new_request_id: row.signature_request_id,
       });

@@ -29,7 +29,7 @@ export default function CompanySetupPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth"); return; }
       // 이미 회사 소속(기존 회원·승인 완료)이면 통과
-      const existing = logRead('company-setup/page:existing', await (supabase as any).from("users").select("id").eq("auth_id", user.id).maybeSingle());
+      const existing = logRead('company-setup/page:existing', await supabase.from("users").select("id").eq("auth_id", user.id).maybeSingle());
       if (existing) { router.push("/dashboard"); return; }
       setAuthUser(user as any);
       setCompanyName(user.user_metadata?.company_name || "");

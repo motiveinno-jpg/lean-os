@@ -237,7 +237,7 @@ export function OrgBulkWizard({
   useEffect(() => {
     let alive = true;
     (async () => {
-      const data = logRead('_components/OrgBulkWizard:data', await (supabase as any)
+      const data = logRead('_components/OrgBulkWizard:data', await supabase
         .from("companies")
         .select("name, business_number, representative, address, seal_url")
         .eq("id", companyId)

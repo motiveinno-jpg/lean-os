@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   trialing: { bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]", label: "체험중" },

@@ -13,7 +13,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
-const db = supabase as any;
+const db = supabase;
 
 type Tab = "plan" | "payment" | "invoices" | "referral";
 type BillingCycle = "monthly" | "annual";

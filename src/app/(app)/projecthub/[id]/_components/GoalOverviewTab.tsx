@@ -12,7 +12,7 @@ import { getKpiAchievement, getOverallAchievement, getOverallStatus, getPaceWarn
 import { buildTrend, sparkPoints, periodProgress } from "@/lib/goal-metrics";
 import { RadialGauge, ProgressBar, Sparkline, BarList, LineChart, StatusTimeline, statusColor, DANGER, AMBER } from "@/components/charts";
 
-const db = supabase as any;
+const db = supabase;
 const won = (n: number) => Math.round(Number(n || 0)).toLocaleString("ko-KR");
 const fmtNum = (n: number, unit: string) => `${won(n)}${unit || ""}`;
 

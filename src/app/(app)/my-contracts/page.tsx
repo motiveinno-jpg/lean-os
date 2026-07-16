@@ -37,7 +37,7 @@ export default function MyContractsPage() {
   const { data: packages = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["my-contracts", userId, companyId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       // 본인의 employees 레코드 id 먼저 조회
       const emp = logRead('my-contracts/page:emp', await db
         .from("employees")

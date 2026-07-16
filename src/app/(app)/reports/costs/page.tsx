@@ -57,7 +57,7 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
     setRemoving(id);
     try {
       const { supabase } = await import("@/lib/supabase");
-      const { error } = await (supabase as any).from("recurring_payments").update({ is_active: false }).eq("id", id);
+      const { error } = await supabase.from("recurring_payments").update({ is_active: false }).eq("id", id);
       if (error) throw error;
       await refetch();
       onChanged?.();

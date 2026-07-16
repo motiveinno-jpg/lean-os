@@ -19,7 +19,7 @@ export function MyContractsCard({ employeeId }: { employeeId: string | null }) {
   const { data: packages = [], isLoading } = useQuery({
     queryKey: ["mypage-contracts", employeeId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('_components/MyContractsCard:data', await db
         .from("hr_contract_packages")
         .select("id, title, status, sign_token, sent_at, expires_at, completed_at, created_at, hr_contract_package_items(id, status)")
