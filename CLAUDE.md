@@ -43,16 +43,17 @@
 
 ---
 
-## 🏷️ 클래스 네이밍 — 직관적·리뷰 가능하게 (2026-07-08 도입, 2026-07-15 전체 코드베이스 정리 승인)
+## 🏷️ 클래스 네이밍 — 직관적·리뷰 가능하게 (2026-07-08 도입, 2026-07-15 전체 코드베이스 정리 승인, 2026-07-16 규칙 정정)
 
-사장님 요청: 현재 코드가 `className="max-w-4xl mx-auto text-center relative z-10"` 처럼 유틸만 나열돼 **코드 리뷰 시 어디가 무슨 블록인지 알기 어렵다.** 앞으로 작성하는 모든 코드는 직관적이고 리뷰 가능한 클래스명을 쓴다. **2026-07-15, 사장님이 기존 코드 전체(280개 tsx, src/app+src/components)에 대한 일괄 정리를 명시 승인** — 도메인별 배치로 진행 중(`project_classname_cleanup_20260715.md` 참조).
+사장님 요청: 현재 코드가 `className="max-w-4xl mx-auto text-center relative z-10"` 처럼 유틸만 나열돼 **코드 리뷰 시 어디가 무슨 블록인지 알기 어렵다.** 앞으로 작성하는 모든 코드는 직관적이고 리뷰 가능한 클래스명을 쓴다. **2026-07-15, 사장님이 기존 코드 전체(280개 tsx, src/app+src/components)에 대한 일괄 정리를 명시 승인** — 도메인별 배치로 진행(`project_classname_cleanup_20260715.md` 참조).
 
-**신규/수정 코드 필수 규칙 (예외 없음, 모든 PC 공통):**
-- 의미 있는 블록에는 **설명적 시맨틱 클래스명**을 함께 붙인다. 예: `className="hero-cta max-w-4xl mx-auto text-center relative z-10"` — 앞에 그 요소가 무엇인지(`hero-cta`, `invoice-summary-bar`, `partner-row` 등) 나타내는 이름을 추가. 리뷰어가 클래스명만 보고 어느 UI인지 안다.
-- 반복되는 복합 유틸 패턴은 globals.css @apply 시맨틱 클래스로 통합(기존 관례 유지: eyebrow/field-input/th-cell/btn-primary 등).
+**⚠️ 2026-07-16 규칙 정정 (초기 11개 배치는 아래와 다르게 — 마커+유틸을 한 className에 병기하는 방식으로 — 잘못 적용됨, 전면 재작업 진행 중):**
+- className에는 **시맨틱 마커 이름만** 남긴다. 예: `className="partner-success-message"`. 뒤에 Tailwind 유틸리티를 나열하지 않는다.
+- 실제 스타일(그 블록에 쓰인 Tailwind 유틸리티 조합)은 **globals.css에 그 마커 이름으로 `@apply` 규칙을 새로 만들어 정의**한다. 예: `.partner-success-message { @apply bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center; }`.
+- **한 곳에서만 쓰이는 일회성 블록도 예외 없이 분리한다** — 재사용 여부와 무관하게, 유틸리티가 붙는 의미있는 블록은 전부 마커만 남기고 스타일은 globals.css로 뺀다.
+- 런타임에 따라 달라지는 **동적/조건부 클래스**(`${active ? "bg-blue-500" : "bg-gray-200"}` 등)는 하나의 정적 @apply 규칙으로 합칠 수 없으므로 예외 — 그 부분만 className에 남기고, 나머지 정적 유틸리티는 @apply로 뺀다.
 - **인라인 `style={{...}}` 객체는 지양** — 동적 값(변수·계산값)이 아니면 Tailwind 유틸 또는 globals.css 클래스로 옮긴다. 정말 동적 값(애니메이션 delay, 계산된 색상 등)만 인라인 style 허용.
-- 유틸리티 자체를 없애라는 게 아니다 — **식별용 이름을 앞에 덧붙이거나** 반복 패턴을 시맨틱 클래스화하는 것. Tailwind 유틸은 그대로 병기 가능.
-- **⚠️ 기존 코드와 안 꼬이게(사장님 강조): 신규 시맨틱 클래스는 globals.css에 없으면 순수 마커(스타일 0)로만 쓰거나, @apply로 정의할 때 기존 클래스명과 절대 충돌 금지.** 기존 클래스 정의를 바꾸지 말고 새 이름만 추가.
+- **⚠️ 기존 코드와 안 꼬이게(사장님 강조): 새 @apply 클래스명은 globals.css에 이미 있는 이름과 절대 충돌 금지.** 기존 클래스 정의를 바꾸지 말고 새 이름만 추가. 마커 이름을 추가하기 전 매번 globals.css를 grep해 충돌 여부 확인.
 - **기능/시각적 변경 절대 금지** — 이 규칙 적용은 순수 가독성 리팩터. 로직·조건문·props·렌더 결과가 단 하나도 달라지면 안 됨.
 
 ---
