@@ -1528,13 +1528,27 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     setSelectedApprovers(approvers.slice(0, 3));
   }, [selectedForm, form.requestType, descriptionInited, companyUsers]);
 
+  // 2026-07-16: 기본 제공 유형에 정책 입력 필드가 있으면 — 유형 전환 시 고정값(fixed) 필드 프리필 +
+  //   필드 없는 유형으로 바뀌면 이전 값 정리.
+  useEffect(() => {
+    if (selectedForm) return; // 커스텀 양식은 위 effect 가 처리
+    const fields = matchedPolicy?.fields || [];
+    if (fields.length === 0) { setCustomFieldValues({}); return; }
+    const initFields: Record<string, string> = {};
+    for (const fd of fields) if (fd.type === "fixed") initFields[fd.key] = fd.default_value || "";
+    setCustomFieldValues(initFields);
+  }, [selectedForm, matchedPolicy, form.requestType]);
+
   const effectiveTitle = isLeave ? leaveTitle : form.title;
   const effectiveDescription = isLeave ? leaveDescription : form.description;
+  // 2026-07-16: 기본 제공 유형(경비청구 등)도 정책(matchedPolicy)에 입력 필드를 정의해두면
+  //   커스텀 양식과 동일하게 필드를 보여준다. 휴가는 전용 구조화 입력(leaveForm)이 있어 제외.
+  const activeFields = !isLeave ? (selectedForm?.fields || matchedPolicy?.fields || []) : [];
   // 커스텀 결재양식은 양식 자체 필드가 기준 — 일반 '금액' 입력은 숨기고(중복·혼란),
-  //   양식에 금액 타입 필드가 있으면 그 값을 결재 금액으로 사용, 없으면 금액 없는 결재(0).
-  const formAmountField = selectedForm ? (selectedForm.fields || []).find((fd: any) => fd.type === "amount") : null;
+  //   양식(또는 기본 유형 정책)에 금액 타입 필드가 있으면 그 값을 결재 금액으로 사용, 없으면 금액 없는 결재(0).
+  const formAmountField = activeFields.find((fd: any) => fd.type === "amount") || null;
   const effectiveAmount = isLeave ? 0
-    : selectedForm
+    : activeFields.length > 0
       ? (formAmountField ? (Number(String(customFieldValues[formAmountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0) : 0)
       : (Number(form.amount) || 0);
 
@@ -1566,7 +1580,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         }
       }
 
-      const fieldLines = selectedForm ? (selectedForm.fields || []).map((fd) => `${fd.label}: ${customFieldValues[fd.key] || ""}`).join("\n") : "";
+      const fieldLines = activeFields.length > 0 ? activeFields.map((fd) => `${fd.label}: ${customFieldValues[fd.key] || ""}`).join("\n") : "";
       // 입력 필드(양식 필드) 값을 기본 템플릿 문구보다 위에 — 결재자가 실제 입력값을 먼저 보게 (2026-07-14)
       const finalDesc = [fieldLines, effectiveDescription].filter(Boolean).join("\n\n");
       return createApprovalRequest({
@@ -1579,8 +1593,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
         customApprovers: (canEditLine && selectedApprovers.length > 0) ? selectedApprovers : undefined,
         formId: selectedForm?.id,
-        // 휴가는 승인 시 연차 차감에 쓰이는 구조화 데이터를 저장(description 텍스트 파싱 의존 제거)
-        customFields: selectedForm
+        // 휴가는 승인 시 연차 차감에 쓰이는 구조화 데이터를 저장(description 텍스트 파싱 의존 제거).
+        //   기본 유형 정책 필드는 activeFields 로 커스텀 폼과 동일하게 customFieldValues 사용.
+        customFields: activeFields.length > 0
           ? customFieldValues
           : isLeave
             ? { leave: { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays } }
@@ -1869,9 +1884,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
                   />
                 </div>
-                {selectedForm && (selectedForm.fields || []).length > 0 && (
+                {activeFields.length > 0 && (
                   <div className="space-y-2">
-                    {(selectedForm.fields || []).map((fd) => (
+                    {activeFields.map((fd) => (
                       <div key={fd.key}>
                         <label className="block text-xs text-[var(--text-muted)] mb-1">{fd.label}{fd.required ? " *" : ""}</label>
                         {fd.type === "textarea" ? (

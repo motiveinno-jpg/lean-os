@@ -8,6 +8,7 @@ import { logAudit } from './audit';
 import { createQueueEntry } from './payment-queue';
 import { resolveBank } from './routing';
 import { createNotification } from './notifications';
+import type { ApprovalFormField } from './approval-forms';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -40,6 +41,7 @@ export interface ApprovalPolicy {
   description_template?: string; // 양식 선택 시 설명란 자동 입력 템플릿
   allow_line_edit?: boolean;     // 요청자가 새 요청에서 승인라인(승인자)을 바꿀 수 있는지(기본 true)
   requester_id?: string | null;  // 특정 요청자 전용 정책(null=회사 공통)
+  fields?: ApprovalFormField[];  // 2026-07-16 기본 유형용 커스텀 입력 필드(approval_forms.fields 와 동일 구조)
   created_at?: string;
   updated_at?: string;
 }
@@ -130,6 +132,7 @@ export async function getApprovalPolicies(companyId: string): Promise<ApprovalPo
     description_template: (row.description_template as string) || undefined,
     allow_line_edit: row.allow_line_edit !== false,
     requester_id: (row.requester_id as string) ?? null,
+    fields: (row.fields as ApprovalFormField[]) || [],
     created_at: row.created_at as string | undefined,
     updated_at: row.updated_at as string | undefined,
   })) as ApprovalPolicy[];
@@ -157,17 +160,18 @@ export async function upsertApprovalPolicy(
     updated_at: new Date().toISOString(),
   };
   if (policy.id) baseRow.id = policy.id;
-  // label/description_template/allow_line_edit/requester_id 컬럼은 마이그레이션 후 존재 — 없는 환경에서도 안 깨지게 폴백.
+  // label/description_template/allow_line_edit/requester_id/fields 컬럼은 마이그레이션 후 존재 — 없는 환경에서도 안 깨지게 폴백.
   const fullRow = {
     ...baseRow,
     label: policy.label ?? null,
     description_template: policy.description_template ?? null,
     allow_line_edit: policy.allow_line_edit ?? true,
     requester_id: policy.requester_id ?? null,
+    fields: policy.fields ?? [],
   };
 
   let { data, error } = await db.from('approval_policies').upsert(fullRow).select().single();
-  if (error && /label|description_template|allow_line_edit|requester_id|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
+  if (error && /label|description_template|allow_line_edit|requester_id|fields|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
     ({ data, error } = await db.from('approval_policies').upsert(baseRow).select().single());
   }
   if (error) throw error;
@@ -184,6 +188,7 @@ export async function upsertApprovalPolicy(
     description_template: (d.description_template as string) || undefined,
     allow_line_edit: d.allow_line_edit !== false,
     requester_id: (d.requester_id as string) ?? null,
+    fields: (d.fields as ApprovalFormField[]) || [],
     created_at: d.created_at as string | undefined,
     updated_at: d.updated_at as string | undefined,
   } as ApprovalPolicy;

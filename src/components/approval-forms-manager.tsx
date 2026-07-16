@@ -69,7 +69,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     enabled: !!companyId,
   });
   const [editingDefaultKey, setEditingDefaultKey] = useState<string | null>(null);
-  const [defaultForm, setDefaultForm] = useState({ label: "", descriptionTemplate: "", autoApproveBelow: "", stages: [emptyPolicyStage(1)] as ApprovalStageConfig[] });
+  const [defaultForm, setDefaultForm] = useState({ label: "", descriptionTemplate: "", autoApproveBelow: "", stages: [emptyPolicyStage(1)] as ApprovalStageConfig[], fields: [] as ApprovalFormField[] });
   const [savingDefault, setSavingDefault] = useState(false);
 
   const openEditDefault = (key: string) => {
@@ -79,6 +79,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       descriptionTemplate: p?.description_template || "",
       autoApproveBelow: p?.auto_approve_below ? String(p.auto_approve_below) : "",
       stages: p?.stages?.length ? p.stages : [emptyPolicyStage(1)],
+      fields: p?.fields || [],
     });
     setEditingDefaultKey(key);
   };
@@ -96,6 +97,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
         description_template: defaultForm.descriptionTemplate.trim() || undefined,
         auto_approve_below: Number(defaultForm.autoApproveBelow) || 0,
         stages: defaultForm.stages,
+        fields: defaultForm.fields.filter((f) => (f.label || "").trim()),
         is_active: true,
       });
       toast("저장했습니다", "success");
@@ -106,6 +108,8 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   };
   const patchDefaultStage = (i: number, p: Partial<ApprovalStageConfig>) =>
     setDefaultForm((s) => ({ ...s, stages: s.stages.map((st, j) => (j === i ? { ...st, ...p } : st)) }));
+  const setDefaultField = (i: number, p: Partial<ApprovalFormField>) =>
+    setDefaultForm((s) => ({ ...s, fields: s.fields.map((f, j) => (j === i ? { ...f, ...p } : f)) }));
 
   const save = async () => {
     if (!editing) return;
@@ -443,6 +447,62 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               <input value={defaultForm.autoApproveBelow} onChange={(e) => setDefaultForm((s) => ({ ...s, autoApproveBelow: e.target.value.replace(/[^0-9]/g, "") }))}
                 placeholder="0 (비활성)"
                 className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-right" />
+            </div>
+
+            {/* 입력 필드 — 회사 결재 양식과 동일하게 커스텀 필드 구성 가능 */}
+            <div className="form-fields-section mb-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[11px] font-semibold text-[var(--text-muted)]">입력 필드 (선택)</label>
+                <button onClick={() => setDefaultForm((s) => ({ ...s, fields: [...s.fields, emptyField()] }))}
+                  className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 필드 추가</button>
+              </div>
+              {defaultForm.fields.length === 0 ? (
+                <div className="text-[11px] text-[var(--text-dim)] px-1 py-1.5">필드를 추가하면 작성자가 이 유형 선택 시 함께 채웁니다(예: 지출 항목, 금액, 사유). 비워두면 기존처럼 설명+금액만 사용됩니다.</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {defaultForm.fields.map((f, i) => (
+                    <div key={f.key} className="field-row flex flex-wrap items-center gap-1.5 bg-[var(--bg-surface)] rounded-lg p-2">
+                      <input value={f.label} onChange={(e) => setDefaultField(i, { label: e.target.value })} placeholder="필드 이름"
+                        className="flex-1 min-w-[120px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
+                      <select value={f.type} onChange={(e) => setDefaultField(i, { type: e.target.value as ApprovalFieldType })}
+                        className="h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs">
+                        {(Object.keys(FIELD_TYPE_LABEL) as ApprovalFieldType[]).map((t) => <option key={t} value={t}>{FIELD_TYPE_LABEL[t]}</option>)}
+                      </select>
+                      {f.type === "select" && (
+                        <div className="flex-1 min-w-[160px] flex flex-wrap items-center gap-1">
+                          {(f.options || []).map((opt, oi) => (
+                            <span key={oi} className="inline-flex items-center gap-1 pl-2 pr-1 h-7 rounded-full bg-[var(--bg)] border border-[var(--border)] text-xs">
+                              {opt}
+                              <button type="button" onClick={() => setDefaultField(i, { options: (f.options || []).filter((_, j) => j !== oi) })}
+                                className="text-[var(--text-dim)] hover:text-[var(--danger)] px-0.5">✕</button>
+                            </span>
+                          ))}
+                          <input
+                            placeholder="옵션 입력 후 Enter"
+                            className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
+                            onKeyDown={(e) => {
+                              if (e.key !== "Enter") return;
+                              e.preventDefault();
+                              const v = e.currentTarget.value.trim();
+                              if (!v) return;
+                              setDefaultField(i, { options: [...(f.options || []), v] });
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                        </div>
+                      )}
+                      {f.type === "fixed" && (
+                        <input value={f.default_value || ""} onChange={(e) => setDefaultField(i, { default_value: e.target.value })}
+                          placeholder="고정으로 표시할 값" className="flex-1 min-w-[100px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
+                      )}
+                      <label className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                        <input type="checkbox" checked={!!f.required} onChange={(e) => setDefaultField(i, { required: e.target.checked })} className="accent-[var(--primary)]" /> 필수
+                      </label>
+                      <button onClick={() => setDefaultForm((s) => ({ ...s, fields: s.fields.filter((_, j) => j !== i) }))} className="text-[var(--danger)] text-xs px-1">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="approval-stages-section">
