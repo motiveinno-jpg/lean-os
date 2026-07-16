@@ -53,8 +53,8 @@ export function TaxAutomationTab({ companyId }: { companyId: string | null }) {
     </label>
   );
   return (
-    <div className="settings-tax-automation-tab space-y-6">
-      <div className="tax-auto-issue-card glass-card p-6">
+    <div className="settings-tax-automation-tab">
+      <div className="tax-auto-issue-card glass-card">
         <h2 className="section-title">세금계산서 자동발행</h2>
         <div className="space-y-3">
           <Tog label="프로젝트 완료 시 자동발행" desc="계약 완료 시 매출 세금계산서 자동 생성" checked={settings.auto_issue_on_deal_close} onChange={(v) => setSettings({ ...settings, auto_issue_on_deal_close: v })} />
@@ -63,14 +63,14 @@ export function TaxAutomationTab({ companyId }: { companyId: string | null }) {
           <div><label className="field-label">발행 주기</label><select value={settings.issue_schedule} onChange={(e) => setSettings({ ...settings, issue_schedule: e.target.value })} className="field-input"><option value="immediate">거래 즉시</option><option value="weekly">매주 월요일</option><option value="monthly">매월 말일</option></select></div>
         </div>
       </div>
-      <div className="tax-cancel-rules-card glass-card p-6">
+      <div className="tax-cancel-rules-card glass-card">
         <h2 className="section-title">취소/수정 규칙</h2>
         <div className="space-y-3">
           <Tog label="환불 시 수정세금계산서" desc="환불 발생 시 수정본 자동 발행" checked={settings.auto_cancel_on_refund} onChange={(v) => setSettings({ ...settings, auto_cancel_on_refund: v })} />
           <Tog label="계약 취소 시 자동 취소" desc="프로젝트 취소 시 관련 세금계산서 void 처리" checked={settings.auto_cancel_on_deal_cancel} onChange={(v) => setSettings({ ...settings, auto_cancel_on_deal_cancel: v })} />
         </div>
       </div>
-      <div className="tax-matching-settings-card glass-card p-6">
+      <div className="tax-matching-settings-card glass-card">
         <h2 className="section-title">결제/매칭 설정</h2>
         <div className="space-y-4">
           <div>
@@ -85,7 +85,7 @@ export function TaxAutomationTab({ companyId }: { companyId: string | null }) {
           </div>
         </div>
       </div>
-      <div className="tax-hometax-link-card glass-card p-6">
+      <div className="tax-hometax-link-card glass-card">
         <div className="flex items-center gap-3 mb-3">
           <span className="kpi-icon success text-lg">🏛️</span>
           <div>

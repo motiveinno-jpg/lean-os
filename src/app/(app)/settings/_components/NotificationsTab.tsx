@@ -253,7 +253,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="notification-settings-header glass-card p-6">
+      <div className="notification-settings-header glass-card">
         <h2 className="text-base font-bold mb-1">알림 설정</h2>
         <p className="text-xs text-[var(--text-muted)]">
           이메일 · 푸시 · 텔레그램 — 채널별로 받고 싶은 이벤트를 선택하세요. 변경 후 하단의 저장 버튼을 눌러주세요.
@@ -267,7 +267,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         enabled={prefs.email.enabled}
         onToggle={(v) => setPrefs((p) => ({ ...p, email: { ...p.email, enabled: v } }))}
       >
-        <div className="notification-email-address-field mb-4">
+        <div className="notification-email-address-field">
           <label className="field-label">수신 이메일 주소</label>
           <input
             type="email"
@@ -368,7 +368,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       </ChannelSection>
 
       {/* Quiet Hours */}
-      <div className="notification-quiet-hours-card glass-card p-6">
+      <div className="notification-quiet-hours-card glass-card">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-bold">방해금지 시간대</h3>
@@ -410,7 +410,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       <SlackNotifyCard companyId={companyId} />
 
       {/* Save bar */}
-      <div className="notification-save-bar sticky bottom-0 -mx-6 px-6 py-4 bg-[var(--bg)]/95 backdrop-blur border-t border-[var(--border)] flex justify-end gap-2">
+      <div className="notification-save-bar">
         <button
           onClick={() => setPrefs(DEFAULT_NOTIF_PREFS)}
           className="btn-ghost"
@@ -523,7 +523,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
   if (!loaded) return null;
 
   return (
-    <div className="notification-daily-report-card glass-card p-5">
+    <div className="notification-daily-report-card glass-card">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
@@ -698,7 +698,7 @@ function SlackNotifyCard({ companyId }: { companyId: string | null }) {
   if (!loaded) return null;
 
   return (
-    <div className="notification-slack-card glass-card p-5">
+    <div className="notification-slack-card glass-card">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
@@ -784,7 +784,7 @@ function ChannelSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`notification-channel-card glass-card p-6 ${disabled ? "opacity-60" : ""}`}>
+    <div className={`notification-channel-card glass-card ${disabled ? "opacity-60" : ""}`}>
       <div className="flex items-start justify-between mb-4 gap-4">
         <div className="min-w-0">
           <h3 className="text-sm font-bold">{title}</h3>

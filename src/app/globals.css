@@ -2122,3 +2122,108 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-revenue-kpi-card { @apply p-5 flex flex-col gap-3; }
 .platform-revenue-invoice-list { @apply overflow-hidden; }
 .platform-revenue-invoice-row { @apply flex items-center justify-between p-4 hover:bg-[var(--bg-surface)]/60 transition; }
+
+/* ═══ 클래스명 가독성 정리 재작업 — 배치9(settings) 마커 스타일 (2026-07-16) ═══ */
+.bank-integration-register-form { @apply p-6; }
+.bank-integration-account-type-toggle { @apply flex gap-2 mb-3; }
+.bank-integration-client-type-toggle { @apply flex gap-2 mb-3; }
+.bank-integration-auth-method-toggle { @apply flex gap-2 mb-4; }
+.bank-integration-org-select { @apply space-y-3; }
+.bank-integration-result-message { @apply mt-3 p-3 rounded-xl text-xs font-medium whitespace-pre-wrap break-all; }
+.bank-integration-error-card { @apply p-3 rounded-xl bg-red-500/8 border border-red-500/15 shadow-sm; }
+.bank-integration-tab { @apply space-y-6; }
+.bank-integration-status-card { @apply p-6; }
+.bank-integration-range-sync-panel { @apply mb-4 p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.bank-integration-sync-result { @apply p-3 rounded-xl text-xs font-medium; }
+.bank-integration-sync-log-list { @apply mt-2 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.bank-integration-manual-accounts { @apply p-6; }
+.approval-policy-tab { @apply space-y-6; }
+.approval-policy-list-card { @apply p-6; }
+.approval-policy-settings-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-4; }
+.approval-policy-auto-approve { @apply flex items-center gap-4; }
+.approval-policy-stage-row { @apply flex items-center gap-2 p-2 rounded-lg bg-[var(--bg)] border border-[var(--border)]; }
+.approval-policy-stage-preview { @apply mt-3 p-3 rounded-lg bg-[var(--bg)] border border-[var(--border)]; }
+.approval-policy-row { @apply px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.departments-tab { @apply p-5; }
+.departments-add-form { @apply flex gap-2 mb-4; }
+.departments-active-list { @apply space-y-1.5; }
+.department-row { @apply flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }
+.departments-archived-section { @apply mt-4; }
+.departments-archived-list { @apply space-y-1.5 mt-2; }
+.department-row-archived { @apply flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/50 border border-[var(--border)] opacity-70; }
+.notification-settings-header { @apply p-6; }
+.notification-email-address-field { @apply mb-4; }
+.notification-quiet-hours-card { @apply p-6; }
+.notification-save-bar { @apply sticky bottom-0 -mx-6 px-6 py-4 bg-[var(--bg)]/95 backdrop-blur border-t border-[var(--border)] flex justify-end gap-2; }
+.notification-daily-report-card { @apply p-5; }
+.notification-slack-card { @apply p-5; }
+.notification-channel-card { @apply p-6; }
+.data-reset-warning-banner { @apply bg-red-500/5 border border-red-500/20 rounded-2xl p-6 shadow-md; }
+.data-reset-panel { @apply bg-[var(--bg-card)] rounded-2xl border border-red-500/20 p-6; }
+.data-reset-delete-list { @apply bg-[var(--bg-surface)] rounded-xl p-4 mb-5; }
+.data-reset-keep-list { @apply mt-3 pt-3 border-t border-[var(--border)]; }
+.data-reset-confirm-form { @apply space-y-4; }
+.data-reset-progress { @apply space-y-4; }
+.data-reset-done-summary { @apply space-y-4; }
+.settings-deal-classification { @apply p-6; }
+.deal-classification-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3; }
+.deal-classification-list { @apply space-y-2; }
+.deal-classification-row { @apply flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.account-info-card { @apply p-6; }
+.account-password-card { @apply p-6; }
+.account-password-form { @apply space-y-4; }
+.account-password-strength { @apply mt-2; }
+.settings-tax-automation-tab { @apply space-y-6; }
+.tax-auto-issue-card { @apply p-6; }
+.tax-cancel-rules-card { @apply p-6; }
+.tax-matching-settings-card { @apply p-6; }
+.tax-hometax-link-card { @apply p-6; }
+.settings-team-management { @apply p-6; }
+.team-tabs-bar { @apply flex w-full mb-4; }
+.team-role-info-banner { @apply p-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-dim)] mb-4 flex items-start gap-2; }
+.team-join-requests-panel { @apply p-4 rounded-xl bg-amber-500/5 border border-amber-500/30 mb-4 shadow-sm; }
+.team-join-request-row { @apply flex items-center gap-2 flex-wrap p-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]; }
+.team-invite-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3; }
+.team-invite-role-picker { @apply flex gap-2; }
+.team-members-list { @apply space-y-2; }
+.team-member-row { @apply flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.team-employee-invites-list { @apply space-y-2; }
+.team-invite-row { @apply flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.team-partner-invites-list { @apply space-y-2; }
+.team-partner-invite-row { @apply flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.certificate-finder-section { @apply space-y-4; }
+.certificate-source-picker { @apply space-y-3; }
+.certificate-auto-scan-panel { @apply space-y-3; }
+.certificate-location-guide { @apply p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.certificate-found-list { @apply space-y-2; }
+.certificate-manual-panel { @apply space-y-3; }
+.certificate-registration-status { @apply p-3 rounded-lg bg-green-500/5 border border-green-500/20; }
+.settings-certificate-tab { @apply space-y-6; }
+.certificate-intro-banner { @apply p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 shadow-sm; }
+.certificate-upload-card { @apply p-6; }
+.bank-credentials-card { @apply p-6; }
+.bank-credential-row { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3; }
+.hometax-legacy-card { @apply p-6; }
+.card-credentials-card { @apply p-6; }
+.card-credential-row { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3; }
+.auto-sign-rules-card { @apply p-6; }
+.settings-group-tabs { @apply mb-4; }
+.settings-subtab-bar { @apply flex flex-wrap gap-1.5 -mt-2; }
+.cash-snapshot-card { @apply p-6; }
+.bank-account-list-card { @apply p-6; }
+.bank-account-add-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3; }
+.bank-account-row { @apply flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.routing-rule-list-card { @apply p-6; }
+.routing-rule-add-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3; }
+.routing-rule-row { @apply flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.company-info-onboarding-banner { @apply bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5 shadow-md; }
+.company-info-basic-form { @apply p-6; }
+.company-seal-logo-panel { @apply p-6; }
+.company-seal-preview-panel { @apply mt-3 p-4 bg-[var(--bg-card)] border border-[var(--success)]/30 rounded-xl; }
+.closing-party-list { @apply mt-2 pl-2 sm:pl-6 space-y-1.5 border-l-2 border-[var(--border)]/60; }
+.closing-party-row { @apply flex flex-wrap sm:flex-nowrap items-center gap-1.5; }
+.closing-account-row { @apply px-3 py-2; }
+.closing-panel { @apply p-6 space-y-4; }
+.closing-pdf-upload-panel { @apply rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/5 p-4 shadow-sm; }
+.closing-manual-line { @apply rounded-xl border border-dashed border-[var(--border)] p-2.5; }
+.closing-summary-bar { @apply mt-3 flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }

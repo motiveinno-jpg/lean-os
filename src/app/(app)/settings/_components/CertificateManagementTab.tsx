@@ -101,10 +101,10 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
   }
 
   return (
-    <div className="certificate-finder-section space-y-4">
+    <div className="certificate-finder-section">
       {/* Step 1: 위치 선택 */}
       {!certSource && (
-        <div className="certificate-source-picker space-y-3">
+        <div className="certificate-source-picker">
           <div className="text-xs font-semibold text-[var(--text)]">인증서를 어떻게 등록하시겠습니까?</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button onClick={() => { setCertSource("auto"); }}
@@ -127,14 +127,14 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
 
       {/* Auto scan mode */}
       {certSource === "auto" && (
-        <div className="certificate-auto-scan-panel space-y-3">
+        <div className="certificate-auto-scan-panel">
           <div className="flex items-center justify-between">
             <div className="text-xs font-semibold text-[var(--text)]">인증서 자동 탐색</div>
             <button onClick={() => { setCertSource(null); setFoundCerts([]); setScanError(null); }} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]">방식 변경</button>
           </div>
 
           {/* 위치 안내 */}
-          <div className="certificate-location-guide p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="certificate-location-guide">
             <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">인증서가 저장된 폴더를 선택해주세요</div>
             <div className="space-y-1.5 text-[10px] text-[var(--text-dim)]">
               <div className="flex items-start gap-2">
@@ -168,7 +168,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
 
           {/* Found certs */}
           {foundCerts.length > 0 && (
-            <div className="certificate-found-list space-y-2">
+            <div className="certificate-found-list">
               <div className="text-[10px] font-semibold text-green-400">{foundCerts.length}개의 인증서를 발견했습니다</div>
               {foundCerts.map((cert, idx) => (
                 <button key={idx} onClick={() => setSelectedCert(idx)}
@@ -197,7 +197,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
 
       {/* Manual mode */}
       {certSource === "manual" && (
-        <div className="certificate-manual-panel space-y-3">
+        <div className="certificate-manual-panel">
           <div className="flex items-center justify-between">
             <div className="text-xs font-semibold text-[var(--text)]">인증서 직접 선택</div>
             <button onClick={() => setCertSource(null)} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]">방식 변경</button>
@@ -229,7 +229,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
 
       {/* 등록 상태 */}
       {(certFileStatus.der || certFileStatus.key) && (
-        <div className="certificate-registration-status p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+        <div className="certificate-registration-status">
           <div className="text-[10px] text-green-400 font-semibold">
             {certFileStatus.der && certFileStatus.key ? "인증서 + 개인키 모두 등록됨" : certFileStatus.der ? "인증서만 등록됨 (개인키 필요)" : "개인키만 등록됨 (인증서 필요)"}
           </div>
@@ -525,9 +525,9 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
   if (!companyId) return <div className="text-center py-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
   return (
-    <div className="settings-certificate-tab space-y-6">
+    <div className="settings-certificate-tab">
       {/* 안내 */}
-      <div className="certificate-intro-banner p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 shadow-sm">
+      <div className="certificate-intro-banner">
         <div className="text-sm font-semibold text-[var(--text)] mb-1">인증서 & 자동화 설정</div>
         <p className="text-xs text-[var(--text-muted)]">
           은행, 홈택스, 카드 로그인 정보를 등록하면 거래내역과 세금계산서가 자동으로 수집됩니다.
@@ -536,7 +536,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       </div>
 
       {/* 공동인증서 파일 업로드 — 위치 자동 탐색 */}
-      <div className="certificate-upload-card glass-card p-6">
+      <div className="certificate-upload-card glass-card">
         <div className="flex items-center gap-3 mb-4">
           <span className="kpi-icon text-lg">📜</span>
           <div>
@@ -556,7 +556,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       </div>
 
       {/* 은행 */}
-      <div className="bank-credentials-card glass-card p-6">
+      <div className="bank-credentials-card glass-card">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <span className="kpi-icon info text-lg">🏦</span>
@@ -576,7 +576,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
             {banks.map((b, i) => {
               const bankLoginMethod = (b as any).login_method || (b.cert_password && !b.login_id ? "certificate" : b.login_id ? "id_pw" : "certificate");
               return (
-              <div key={i} className="bank-credential-row p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+              <div key={i} className="bank-credential-row">
                 <div className="flex items-center gap-2">
                   <select value={b.company} onChange={(e) => updateBank(i, "company", e.target.value)}
                     className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]">
@@ -627,7 +627,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       </div>
 
       {/* 홈택스 (레거시 — 신규 등록은 위의 "금융기관 연결" 섹션에서 "홈택스" 선택) */}
-      <div className="hometax-legacy-card glass-card p-6">
+      <div className="hometax-legacy-card glass-card">
         <div className="flex items-center gap-3 mb-2">
           <span className="kpi-icon success text-lg">🏛️</span>
           <div>
@@ -676,7 +676,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       </div>
 
       {/* 카드 */}
-      <div className="card-credentials-card glass-card p-6">
+      <div className="card-credentials-card glass-card">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <span className="kpi-icon danger text-lg">💳</span>
@@ -696,7 +696,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
             {cards.map((c, i) => {
               const cardLoginMethod = (c as any).login_method || (c.cert_password && !c.login_id ? "certificate" : c.login_id ? "id_pw" : "certificate");
               return (
-              <div key={i} className="card-credential-row p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3">
+              <div key={i} className="card-credential-row">
                 <div className="flex items-center gap-2">
                   <select value={c.company} onChange={(e) => updateCard(i, "company", e.target.value)}
                     className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]">
@@ -747,7 +747,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       </div>
 
       {/* 자동서명 규칙 */}
-      <div className="auto-sign-rules-card glass-card p-6">
+      <div className="auto-sign-rules-card glass-card">
         <h2 className="section-title">자동서명 규칙</h2>
         <div className="space-y-3">
           <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer">

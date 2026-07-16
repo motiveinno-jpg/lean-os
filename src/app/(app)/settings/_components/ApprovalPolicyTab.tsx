@@ -165,9 +165,9 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
   }
 
   return (
-    <div className="approval-policy-tab space-y-6">
+    <div className="approval-policy-tab">
       {/* Policy List */}
-      <div className="approval-policy-list-card glass-card p-6">
+      <div className="approval-policy-list-card glass-card">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-bold">승인 정책 관리</h2>
@@ -183,7 +183,7 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
 
         {/* Create / Edit Form */}
         {showForm && (
-          <div className="approval-policy-form p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-4">
+          <div className="approval-policy-settings-form">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="field-label">문서 유형 *</label>
@@ -232,7 +232,7 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
             </div>
 
             {/* Auto Approve */}
-            <div className="approval-policy-auto-approve flex items-center gap-4">
+            <div className="approval-policy-auto-approve">
               <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                 <input
                   type="checkbox"
@@ -270,7 +270,7 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
               </div>
               <div className="space-y-2">
                 {stages.map((stage, idx) => (
-                  <div key={idx} className="approval-policy-stage-row flex items-center gap-2 p-2 rounded-lg bg-[var(--bg)] border border-[var(--border)]">
+                  <div key={idx} className="approval-policy-stage-row">
                     <span className="text-xs font-bold text-[var(--primary)] w-8 text-center shrink-0">{stage.step}</span>
                     <input
                       value={stage.title}
@@ -310,7 +310,7 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
 
               {/* Stage Preview */}
               {stages.length > 0 && (
-                <div className="approval-policy-stage-preview mt-3 p-3 rounded-lg bg-[var(--bg)] border border-[var(--border)]">
+                <div className="approval-policy-stage-preview">
                   <div className="text-[10px] text-[var(--text-dim)] mb-2">결재 흐름 미리보기</div>
                   <div className="flex items-center gap-1 flex-wrap">
                     {stages.map((stage, idx) => (
@@ -366,7 +366,7 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
               return (
                 <div
                   key={p.id}
-                  className="approval-policy-row px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]"
+                  className="approval-policy-row"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

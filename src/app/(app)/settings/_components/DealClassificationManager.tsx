@@ -45,7 +45,7 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
   if (!companyId) return null;
 
   return (
-    <div className="settings-deal-classification glass-card p-6">
+    <div className="settings-deal-classification glass-card">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-bold">프로젝트 분류 관리</h2>
@@ -60,7 +60,7 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
       </div>
 
       {showForm && (
-        <div className="deal-classification-form p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
+        <div className="deal-classification-form">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="field-label">분류명 *</label>
@@ -112,11 +112,11 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
           프로젝트 분류가 없습니다.
         </div>
       ) : (
-        <div className="deal-classification-list space-y-2">
+        <div className="deal-classification-list">
           {allCls.map((cls: any) => (
             <div
               key={cls.id}
-              className="deal-classification-row flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]"
+              className="deal-classification-row"
             >
               <div className="flex items-center gap-3">
                 <span className="w-3 h-3 rounded-full shrink-0" style={{ background: cls.color || '#3b82f6' }} />

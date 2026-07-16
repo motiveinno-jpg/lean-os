@@ -240,7 +240,7 @@ export default function SettingsPage() {
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
       {/* 상단 그룹 탭(1단) — 아이콘 + 라벨. 클릭 시 해당 그룹 첫 세부탭으로 이동 */}
-      <div className="settings-group-tabs page-sticky-header mb-4">
+      <div className="settings-group-tabs page-sticky-header">
         <div className="seg-bar flex w-full overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch" }}>
           {SETTINGS_GROUPS.map((g) => {
             const active = activeGroup === g.key;
@@ -269,7 +269,7 @@ export default function SettingsPage() {
 
       {/* 하위 세부 탭(2단) — 현재 그룹의 탭들. 그룹에 탭이 2개 이상일 때만 표시 */}
       {currentGroup.tabs.length > 1 && (
-        <div className="settings-subtab-bar flex flex-wrap gap-1.5 -mt-2">
+        <div className="settings-subtab-bar">
           {currentGroup.tabs.map((t) => {
             const active = tab === t.key;
             return (
@@ -293,7 +293,7 @@ export default function SettingsPage() {
       {tab === "cash" && (
         <>
           {/* Cash Snapshot */}
-          <div className="cash-snapshot-card glass-card p-6">
+          <div className="cash-snapshot-card glass-card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold">현금 현황</h3>
             </div>
@@ -368,7 +368,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Bank Accounts */}
-          <div className="bank-account-list-card glass-card p-6">
+          <div className="bank-account-list-card glass-card">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-bold">법인 통장 관리</h3>
@@ -385,7 +385,7 @@ export default function SettingsPage() {
             </div>
 
             {showBankForm && (
-              <div className="bank-account-add-form p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
+              <div className="bank-account-add-form">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">은행명 *</label>
@@ -475,7 +475,7 @@ export default function SettingsPage() {
                 {bankAccounts.map((acc: BankAccount) => (
                   <div
                     key={acc.id}
-                    className="bank-account-row flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]"
+                    className="bank-account-row"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -510,7 +510,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Routing Rules */}
-          <div className="routing-rule-list-card glass-card p-6">
+          <div className="routing-rule-list-card glass-card">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-bold">비용 라우팅 규칙</h3>
@@ -525,7 +525,7 @@ export default function SettingsPage() {
             </div>
 
             {showRuleForm && bankAccounts.length > 0 && (
-              <div className="routing-rule-add-form p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3">
+              <div className="routing-rule-add-form">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">비용 유형</label>
@@ -581,7 +581,7 @@ export default function SettingsPage() {
                 {routingRules.map((rule: any) => (
                   <div
                     key={rule.id}
-                    className="routing-rule-row flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]"
+                    className="routing-rule-row"
                   >
                     <span className="text-sm font-medium">
                       {COST_TYPES.find(t => t.value === rule.cost_type)?.label || rule.cost_type}

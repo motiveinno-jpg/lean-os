@@ -74,11 +74,11 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
   if (!companyId) return null;
 
   return (
-    <div className="departments-tab glass-card p-5">
+    <div className="departments-tab glass-card">
       <h2 className="text-base font-bold text-[var(--text)] mb-1">부서 관리</h2>
       <p className="text-xs text-[var(--text-muted)] mb-4">목표형 프로젝트 성과 입력 시 선택하는 부서 목록입니다. 보관하면 새 입력 선택지에서 빠지고, 기존 기록은 유지됩니다.</p>
 
-      <div className="departments-add-form flex gap-2 mb-4">
+      <div className="departments-add-form">
         <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) addMut.mutate(newName); }}
           placeholder="새 부서 이름 (예: 마케팅팀)" className="flex-1 h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         <button onClick={() => newName.trim() && addMut.mutate(newName)} disabled={!newName.trim() || addMut.isPending}
@@ -88,9 +88,9 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       {active.length === 0 ? (
         <div className="text-sm text-[var(--text-muted)] py-6 text-center">등록된 부서가 없습니다. 위에서 추가하세요.</div>
       ) : (
-        <div className="departments-active-list space-y-1.5">
+        <div className="departments-active-list">
           {active.map((d, i) => (
-            <div key={d.id} className="department-row flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div key={d.id} className="department-row">
               <div className="flex flex-col gap-0.5">
                 <button onClick={() => moveMut.mutate({ id: d.id, dir: -1 })} disabled={i === 0} className="text-[10px] leading-none text-[var(--text-dim)] hover:text-[var(--text)] disabled:opacity-30">▲</button>
                 <button onClick={() => moveMut.mutate({ id: d.id, dir: 1 })} disabled={i === active.length - 1} className="text-[10px] leading-none text-[var(--text-dim)] hover:text-[var(--text)] disabled:opacity-30">▼</button>
@@ -116,14 +116,14 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       )}
 
       {archived.length > 0 && (
-        <div className="departments-archived-section mt-4">
+        <div className="departments-archived-section">
           <button onClick={() => setShowArchived((v) => !v)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">
             {showArchived ? "▾" : "▸"} 보관된 부서 ({archived.length})
           </button>
           {showArchived && (
-            <div className="departments-archived-list space-y-1.5 mt-2">
+            <div className="departments-archived-list">
               {archived.map((d) => (
-                <div key={d.id} className="department-row-archived flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/50 border border-[var(--border)] opacity-70">
+                <div key={d.id} className="department-row-archived">
                   <span className="flex-1 text-sm text-[var(--text-muted)] line-through">{d.name}</span>
                   <button onClick={() => archiveMut.mutate({ id: d.id, archive: false })} className="text-xs px-2 py-1 rounded text-[var(--primary)] hover:bg-[var(--primary)]/10">복원</button>
                 </div>
