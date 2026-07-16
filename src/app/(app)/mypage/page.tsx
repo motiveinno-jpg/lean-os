@@ -22,9 +22,12 @@ const EMP_STATUS: Record<string, { label: string; color: string }> = {
   inactive: { label: "퇴직", color: "text-[var(--text-muted)]" },
 };
 
+type MyPageTab = "records" | "notif" | "account";
+
 export default function MyPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [tab, setTab] = useState<MyPageTab>("records");
   const { role, refresh } = useUser();
   // 회원 탈퇴
   const [withdrawText, setWithdrawText] = useState("");
@@ -184,61 +187,77 @@ export default function MyPage() {
     ? (leaveBalance.remaining_days ?? (Number(leaveBalance.total_days) - Number(leaveBalance.used_days)))
     : null;
 
+  const roleLabel = role === "owner" ? "대표" : role === "admin" ? "관리자" : "직원";
+
   return (
-    <div className="mypage-layout">
-      {/* 좌 1/3 — 프로필 카드 */}
-      <div className="space-y-5">
-      {/* 기본 정보 */}
-      <div className="mypage-profile-card glass-card">
-        <h2 className="section-title">기본 정보</h2>
-        {/* 프로필 사진 — 업로드하면 전 화면 아바타가 이 사진으로. 제거 시 이니셜로 복귀. */}
-        <div className="mypage-avatar-row">
-          <Avatar name={userInfo?.name} src={(userInfo as any)?.avatar_url} size={64} />
-          <div className="flex flex-col gap-1.5">
-            <div className="text-xs text-[var(--text-dim)]">프로필 사진</div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => fileRef.current?.click()} disabled={uploadingAvatar}
-                className="btn-secondary btn-sm">
-                {uploadingAvatar ? "처리 중..." : "사진 변경"}
-              </button>
+    <div className="mypage-page">
+      {/* ── 히어로 프로필 — 그라데이션 배너 + 아바타 오버랩 (직원상세패널 히어로 패턴) ── */}
+      <div className="mypage-hero glass-card">
+        <div className="mypage-hero-banner" />
+        <div className="mypage-hero-body">
+          <div className="mypage-hero-avatar-wrap">
+            <Avatar name={userInfo?.name} src={(userInfo as any)?.avatar_url} size={84} className="mypage-hero-avatar" />
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="mypage-avatar-cam-btn"
+              title="프로필 사진 변경"
+              aria-label="프로필 사진 변경"
+            >
+              {uploadingAvatar ? (
+                <span className="w-3.5 h-3.5 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              )}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarFile} className="hidden" />
+          </div>
+          <div className="mypage-hero-identity">
+            <div className="mypage-hero-name-row">
+              <span className="text-lg font-extrabold text-[var(--text)] truncate">{userInfo?.name || "—"}</span>
+              <span className="badge badge-primary">{roleLabel}</span>
+              {st && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--bg-surface)] border border-[var(--border)] ${st.color}`}>{st.label}</span>}
+            </div>
+            <div className="mypage-hero-sub">{[userInfo?.email, company?.name].filter(Boolean).join(" · ") || "—"}</div>
+            <div className="mypage-hero-chips">
+              {employee?.department && <span className="mypage-hero-chip">{employee.department}</span>}
+              {employee?.position && <span className="mypage-hero-chip">{employee.position}</span>}
+              {employee?.hire_date && <span className="mypage-hero-chip">입사 {employee.hire_date}</span>}
+              {employee?.employee_number && <span className="mypage-hero-chip">#{employee.employee_number}</span>}
               {(userInfo as any)?.avatar_url && (
                 <button onClick={handleAvatarRemove} disabled={uploadingAvatar}
-                  className="btn-ghost btn-sm">
+                  className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-muted)] underline underline-offset-2 ml-1">
                   기본 이미지로
                 </button>
               )}
             </div>
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarFile} className="hidden" />
           </div>
+          {leaveBalance && (
+            <div className="mypage-hero-leave">
+              <div className="text-[10px] font-semibold text-[var(--text-dim)]">연차 잔여</div>
+              <div className={`text-xl font-bold mono-number ${remaining !== null && remaining <= 3 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
+                {remaining ?? 0}<span className="text-xs font-semibold text-[var(--text-dim)]"> / {leaveBalance.total_days}일</span>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="mypage-basic-info">
-          <div>
-            <div className="text-xs text-[var(--text-dim)] mb-0.5">이름</div>
-            <div className="font-medium">{userInfo?.name || "—"}</div>
-          </div>
-          <div>
-            <div className="text-xs text-[var(--text-dim)] mb-0.5">이메일</div>
-            <div className="font-medium">{userInfo?.email || "—"}</div>
-          </div>
-          <div>
-            <div className="text-xs text-[var(--text-dim)] mb-0.5">회사</div>
-            <div className="font-medium">{company?.name || "—"}</div>
-          </div>
-          <div>
-            <div className="text-xs text-[var(--text-dim)] mb-0.5">권한</div>
-            <div className="font-medium">{role === "owner" ? "대표" : role === "admin" ? "관리자" : "직원"}</div>
-          </div>
-        </div>
-      </div>
       </div>
 
-      {/* 우 2/3 — 인사·연차·계정 카드 */}
-      <div className="lg:col-span-2 space-y-5">
+      {/* ── 섹션 탭 ── */}
+      <div className="seg-bar w-fit">
+        {([["records", "인사기록"], ["notif", "알림 설정"], ["account", "계정·보안"]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>{l}</button>
+        ))}
+      </div>
+
+      {/* ── 인사기록 탭 — 인사정보 · 연차 · 계약서 · 급여명세 · 증명서 ── */}
+      {tab === "records" && (
+      <div className="mypage-records-grid">
       {/* 직원 정보 */}
       {employee && (
         <div className="mypage-employee-card glass-card">
           <h2 className="section-title">인사 정보</h2>
-          <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
+          <div className="mypage-info-grid">
             <div>
               <div className="text-xs text-[var(--text-dim)] mb-0.5">부서</div>
               <div className="font-medium">{employee.department || "—"}</div>
@@ -258,7 +277,7 @@ export default function MyPage() {
             {Number(employee.salary) > 0 && (
               <div>
                 <div className="text-xs text-[var(--text-dim)] mb-0.5">연봉</div>
-                <div className="font-medium">₩{(Number(employee.salary) * 12).toLocaleString()}</div>
+                <div className="font-medium mono-number">₩{(Number(employee.salary) * 12).toLocaleString()}</div>
               </div>
             )}
             {employee.employee_number && (
@@ -331,12 +350,16 @@ export default function MyPage() {
 
       {/* 내 증명서 — 재직/경력 증명서 본인 발급 (개인 인사기록) */}
       {employee?.id && <MyCertificates companyId={companyId} userId={userId} employee={employee} />}
+      </div>
+      )}
 
-      {/* 계정·보안 — 비밀번호 변경 (회사 설정에서 이관) */}
+      {/* ── 알림 설정 탭 — 내 알림 수신 채널·이벤트 ── */}
+      {tab === "notif" && companyId && <NotificationsTab companyId={companyId} />}
+
+      {/* ── 계정·보안 탭 — 비밀번호 변경 + 회원 탈퇴 ── */}
+      {tab === "account" && (
+      <div className="space-y-5">
       <AccountTab />
-
-      {/* 알림 설정 — 내 알림 수신 채널·이벤트 (회사 설정에서 이관) */}
-      {companyId && <NotificationsTab companyId={companyId} />}
 
       {/* 회원 탈퇴 */}
       <div className="mypage-withdraw-card glass-card">
@@ -363,6 +386,7 @@ export default function MyPage() {
         {withdrawErr && <p className="text-xs text-[var(--danger)] mt-2">{withdrawErr}</p>}
       </div>
       </div>
+      )}
     </div>
   );
 }
