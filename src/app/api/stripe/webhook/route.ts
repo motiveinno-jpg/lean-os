@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
       case 'invoice.paid':
         await handleInvoicePaid(event.data.object as Stripe.Invoice);
         break;
+      case 'invoice.payment_failed':
+        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+        break;
       default:
         break;
     }
@@ -220,6 +223,15 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
 
   if (!sub) return;
 
+  // 멱등성 — Stripe 재시도 시 같은 인보이스 중복 insert 방지
+  const { data: dup } = await db
+    .from('invoices')
+    .select('id')
+    .eq('stripe_invoice_id', invoice.id)
+    .limit(1)
+    .maybeSingle();
+  if (dup) return;
+
   const now = new Date();
   const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
 
@@ -259,5 +271,35 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
       amount: (invoice.amount_paid || 0) / 100,
     },
     created_at: now.toISOString(),
+  });
+}
+
+// 결제 실패(dunning) — 재시도·독촉은 Stripe 가 진행, 앱은 past_due 반영 + 기록
+async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+  const db = getSupabaseAdmin() as any;
+  const stripeSubscriptionId = invoice.subscription as string | null;
+  if (!stripeSubscriptionId) return;
+
+  const { data: sub } = await db
+    .from('subscriptions')
+    .select('company_id, id')
+    .eq('stripe_subscription_id', stripeSubscriptionId)
+    .limit(1)
+    .maybeSingle();
+  if (!sub) return;
+
+  await db.from('subscriptions')
+    .update({ status: 'past_due', updated_at: new Date().toISOString() })
+    .eq('id', sub.id);
+
+  await db.from('billing_events').insert({
+    company_id: sub.company_id,
+    event_type: 'payment_failed',
+    metadata: {
+      stripeInvoiceId: invoice.id,
+      attemptCount: (invoice as any).attempt_count ?? null,
+      amountDue: (invoice.amount_due || 0) / 100,
+    },
+    created_at: new Date().toISOString(),
   });
 }
