@@ -154,12 +154,19 @@ serve(async (req) => {
       // 요금제 발행 한도 확인 (monthly_cashbill_limit NULL=무제한)
       const { data: subRow } = await admin
         .from("subscriptions")
-        .select("subscription_plans(name, monthly_cashbill_limit)")
+        .select("status, trial_ends_at, subscription_plans(name, monthly_cashbill_limit)")
         .eq("company_id", companyId)
         .in("status", ["active", "trialing", "paused", "past_due"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      // 체험 만료 서버 차단 — trialing 인데 trial_ends_at 지났으면 발행 불가(엣지 직접호출 우회 방지)
+      if (subRow?.status === "trialing" && subRow.trial_ends_at && new Date(subRow.trial_ends_at) < new Date()) {
+        return json({
+          error: "무료 체험이 종료되었습니다. 요금제를 구독하면 계속 발행할 수 있습니다.",
+          code: "TRIAL_EXPIRED",
+        }, 402);
+      }
       const planLimit = subRow?.subscription_plans?.monthly_cashbill_limit;
       if (typeof planLimit === "number") {
         const monthStart = todayKst().slice(0, 7) + "-01";

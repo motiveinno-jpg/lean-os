@@ -314,12 +314,19 @@ serve(async (req) => {
     // 3.5) 요금제 발행 한도 확인 (기본요금제 등 유한 플랜 — monthly_tax_invoice_limit NULL=무제한)
     const { data: subRow } = await supabase
       .from("subscriptions")
-      .select("subscription_plans(name, monthly_tax_invoice_limit)")
+      .select("status, trial_ends_at, subscription_plans(name, monthly_tax_invoice_limit)")
       .eq("company_id", invoice.company_id)
       .in("status", ["active", "trialing", "paused", "past_due"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    // 체험 만료 서버 차단 — trialing 인데 trial_ends_at 지났으면 발행 불가(엣지 직접호출 우회 방지)
+    if (subRow?.status === "trialing" && subRow.trial_ends_at && new Date(subRow.trial_ends_at) < new Date()) {
+      return new Response(JSON.stringify({
+        error: "무료 체험이 종료되었습니다. 요금제를 구독하면 계속 발행할 수 있습니다.",
+        code: "TRIAL_EXPIRED",
+      }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const planLimit = subRow?.subscription_plans?.monthly_tax_invoice_limit;
     if (typeof planLimit === "number") {
       const monthStart = new Date();

@@ -302,6 +302,16 @@ Deno.serve(async (req) => {
     const companyId = urow?.company_id;
     if (!companyId) return fail();
 
+    // AI 브리핑은 울트라/엔터프라이즈 전용 — 서버 강제. 비-울트라는 fail()=규칙 브리핑 폴백(무료 AI 사용 차단).
+    const { data: subRow } = await admin.from("subscriptions")
+      .select("plan_slug")
+      .eq("company_id", companyId)
+      .in("status", ["active", "trialing", "paused", "past_due"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (subRow?.plan_slug !== "ultra" && subRow?.plan_slug !== "enterprise") return fail();
+
     const body = await req.json();
     const n = body?.nums as Nums;
     if (!n || typeof n.balance !== "number") return fail();
