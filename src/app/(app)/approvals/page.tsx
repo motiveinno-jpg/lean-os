@@ -847,6 +847,21 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
     enabled: !!userId && !!companyId,
   });
 
+  // 2026-07-16 QA: 참조자(reference_user_ids)가 "내 요청" 화면엔 전혀 표시 안 되던 버그 —
+  //   이름 매핑용 회사 사용자 목록 조회.
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ["approval-company-users", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("users").select("id, name, email").eq("company_id", companyId);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+  const userName = (id: string) => {
+    const u = (companyUsers as any[]).find((x) => x.id === id);
+    return u?.name || u?.email || "구성원";
+  };
+
   const resubmitMut = useMutation({
     mutationFn: (requestId: string) => resubmitRequest(requestId),
     onSuccess: invalidate,
@@ -897,6 +912,11 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                       <div className="mt-3">
                         <StageProgress current={req.current_stage} total={req.total_stages} status={req.status} />
                       </div>
+                      {Array.isArray(req.reference_user_ids) && req.reference_user_ids.length > 0 && (
+                        <div className="approval-reference-line mt-2 text-[11px] text-[var(--text-dim)]">
+                          참조: {req.reference_user_ids.map((id: string) => userName(id)).join(", ")}
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-3 shrink-0">
                       {req.amount > 0 && (
@@ -1004,6 +1024,21 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
     });
     return map;
   }, [allRequests]);
+
+  // 2026-07-16 QA: 참조자(reference_user_ids)가 "전체 현황"에도 전혀 표시 안 되던 버그 —
+  //   요청자 목록만으론 참조 전용 인원 이름을 못 찾아 회사 전체 사용자 목록을 별도 조회.
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ["approval-company-users", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("users").select("id, name, email").eq("company_id", companyId);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+  const referenceUserName = (id: string) => {
+    const u = (companyUsers as any[]).find((x) => x.id === id);
+    return u?.name || u?.email || "구성원";
+  };
 
   // 승인 완료된 결재 문서 PDF 다운로드
   const handleDownloadApprovalPdf = async (req: any) => {
@@ -1210,8 +1245,13 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                 <button onClick={() => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
               </div>
               <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{req.title}</h3>
-              <div className="text-xs text-[var(--text-dim)] mb-5">
+              <div className="text-xs text-[var(--text-dim)] mb-1.5">
                 {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} · {requesterNames.get(req.requester_id) || "알 수 없음"} · {formatDate(req.created_at)}
+              </div>
+              <div className="approval-reference-line text-[11px] text-[var(--text-dim)] mb-5">
+                {Array.isArray(req.reference_user_ids) && req.reference_user_ids.length > 0
+                  ? `참조: ${req.reference_user_ids.map((id: string) => referenceUserName(id)).join(", ")}`
+                  : null}
               </div>
 
               {req.amount > 0 && (

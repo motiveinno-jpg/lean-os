@@ -405,6 +405,21 @@ export async function createApprovalRequest(params: {
         entityId: request.id,
       });
     }
+
+    // 2026-07-16 QA: 참조자(reference_user_ids)는 결재 요청 생성 시 저장만 되고 알림이
+    //   전혀 안 가던 버그 — 결재 여부와 무관하게 통보만 받는 인원이므로 승인자와 별개로 발송.
+    const referenceIds = [...new Set(params.referenceUserIds || [])].filter((id) => !approverIds.includes(id));
+    for (const refId of referenceIds) {
+      await createNotification({
+        companyId: params.companyId,
+        userId: refId,
+        type: 'approval_request',
+        title: `참조: ${params.title}`,
+        message: amount > 0 ? `금액: ${amount.toLocaleString()}원` : undefined,
+        entityType: 'approval_request',
+        entityId: request.id,
+      });
+    }
   } catch {
     // Notification failure should not break the workflow
   }
