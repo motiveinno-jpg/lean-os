@@ -69,7 +69,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     enabled: !!companyId,
   });
   const [editingDefaultKey, setEditingDefaultKey] = useState<string | null>(null);
-  const [defaultForm, setDefaultForm] = useState({ label: "", descriptionTemplate: "", autoApproveBelow: "", stages: [emptyPolicyStage(1)] as ApprovalStageConfig[], fields: [] as ApprovalFormField[] });
+  const [defaultForm, setDefaultForm] = useState({ label: "", descriptionTemplate: "", autoApproveBelow: "", stages: [emptyPolicyStage(1)] as ApprovalStageConfig[], fields: [] as ApprovalFormField[], allowLineEdit: true });
   const [savingDefault, setSavingDefault] = useState(false);
 
   const openEditDefault = (key: string) => {
@@ -80,6 +80,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       autoApproveBelow: p?.auto_approve_below ? String(p.auto_approve_below) : "",
       stages: p?.stages?.length ? p.stages : [emptyPolicyStage(1)],
       fields: p?.fields || [],
+      allowLineEdit: p?.allow_line_edit !== false,
     });
     setEditingDefaultKey(key);
   };
@@ -96,8 +97,13 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
         label: defaultForm.label.trim() || undefined,
         description_template: defaultForm.descriptionTemplate.trim() || undefined,
         auto_approve_below: Number(defaultForm.autoApproveBelow) || 0,
-        stages: defaultForm.stages,
+        // 특정 인물 미선택(빈 approver_id) 단계는 역할 기준으로 정리 + stage 번호 재정렬
+        stages: defaultForm.stages.map((st, i) => {
+          const { approver_id, approver_name, ...rest } = st;
+          return approver_id ? { ...rest, stage: i + 1, approver_id, approver_name } : { ...rest, stage: i + 1 };
+        }),
         fields: defaultForm.fields.filter((f) => (f.label || "").trim()),
+        allow_line_edit: defaultForm.allowLineEdit,
         is_active: true,
       });
       toast("저장했습니다", "success");
@@ -174,6 +180,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                       <span className="badge badge-muted">기본</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1.5">
+                      <span className="badge badge-muted">입력 필드 {p?.fields?.length || 0}</span>
                       <span className="badge badge-muted">결재 {stageCount}단계</span>
                       {p && <span className="badge badge-muted">커스텀 적용됨</span>}
                     </div>
@@ -417,51 +424,48 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
         document.body,
       )}
 
-      {/* 기본 제공 유형 편집 모달 — 표시 이름 + 결재선만(입력 필드/내용템플릿은 기본 유형엔 없음) */}
+      {/* 기본 제공 유형 편집 모달 — 회사 결재 양식 빌더와 동일 구성(이름·입력필드·내용템플릿·결재선·옵션).
+          저장은 approval_policies (request_type 값은 그대로 유지 — 연차 차감 등 유형별 로직 보호) */}
       {editingDefaultKey && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditingDefaultKey(null)}>
-          <div className="policy-edit-modal glass-card" onClick={(e) => e.stopPropagation()}>
+          <div className="form-builder-modal glass-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-icon">
-              <span className="w-8 h-8 rounded-xl bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+              <span className="w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
               </span>
               <div className="text-sm font-bold text-[var(--text)]">
                 기본 유형 편집 — {REQUEST_TYPE_LABELS[editingDefaultKey as keyof typeof REQUEST_TYPE_LABELS]}
               </div>
             </div>
 
-            <div className="mb-3">
-              <label className="block text-[11px] text-[var(--text-muted)] mb-1">표시 이름 (선택 — 비우면 기본값 사용)</label>
-              <input value={defaultForm.label} onChange={(e) => setDefaultForm((s) => ({ ...s, label: e.target.value }))}
-                placeholder={REQUEST_TYPE_LABELS[editingDefaultKey as keyof typeof REQUEST_TYPE_LABELS]}
-                className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
-            </div>
-            <div className="mb-3">
-              <label className="block text-[11px] text-[var(--text-muted)] mb-1">설명 템플릿 (선택)</label>
-              <input value={defaultForm.descriptionTemplate} onChange={(e) => setDefaultForm((s) => ({ ...s, descriptionTemplate: e.target.value }))}
-                placeholder="이 유형 선택 시 요청 설명란에 자동 입력될 내용"
-                className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
-            </div>
-            <div className="mb-3">
-              <label className="block text-[11px] text-[var(--text-muted)] mb-1">자동승인 기준 금액 (원, 선택)</label>
-              <input value={defaultForm.autoApproveBelow} onChange={(e) => setDefaultForm((s) => ({ ...s, autoApproveBelow: e.target.value.replace(/[^0-9]/g, "") }))}
-                placeholder="0 (비활성)"
-                className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-right" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block text-[11px] text-[var(--text-muted)] mb-1">표시 이름 (비우면 기본값)</label>
+                <input value={defaultForm.label} onChange={(e) => setDefaultForm((s) => ({ ...s, label: e.target.value }))}
+                  placeholder={REQUEST_TYPE_LABELS[editingDefaultKey as keyof typeof REQUEST_TYPE_LABELS]}
+                  className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-muted)] mb-1">자동승인 기준 금액 (원, 선택)</label>
+                <input value={defaultForm.autoApproveBelow} onChange={(e) => setDefaultForm((s) => ({ ...s, autoApproveBelow: e.target.value.replace(/[^0-9]/g, "") }))}
+                  placeholder="0 (비활성)"
+                  className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-right" />
+              </div>
             </div>
 
-            {/* 입력 필드 — 회사 결재 양식과 동일하게 커스텀 필드 구성 가능 */}
-            <div className="form-fields-section mb-3">
+            {/* 커스텀 필드 — 회사 결재 양식 빌더와 동일 */}
+            <div className="form-fields-section">
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[11px] font-semibold text-[var(--text-muted)]">입력 필드 (선택)</label>
+                <label className="text-[11px] font-semibold text-[var(--text-muted)]">입력 필드</label>
                 <button onClick={() => setDefaultForm((s) => ({ ...s, fields: [...s.fields, emptyField()] }))}
                   className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 필드 추가</button>
               </div>
               {defaultForm.fields.length === 0 ? (
-                <div className="text-[11px] text-[var(--text-dim)] px-1 py-1.5">필드를 추가하면 작성자가 이 유형 선택 시 함께 채웁니다(예: 지출 항목, 금액, 사유). 비워두면 기존처럼 설명+금액만 사용됩니다.</div>
+                <div className="text-[11px] text-[var(--text-dim)] px-1 py-1.5">필드를 추가하면 작성자가 채웁니다(예: 지출 항목, 금액, 사유). 비워두면 기존처럼 설명+금액만 사용됩니다.</div>
               ) : (
                 <div className="space-y-1.5">
                   {defaultForm.fields.map((f, i) => (
-                    <div key={f.key} className="field-row flex flex-wrap items-center gap-1.5 bg-[var(--bg-surface)] rounded-lg p-2">
+                    <div key={f.key} className="field-row">
                       <input value={f.label} onChange={(e) => setDefaultField(i, { label: e.target.value })} placeholder="필드 이름"
                         className="flex-1 min-w-[120px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
                       <select value={f.type} onChange={(e) => setDefaultField(i, { type: e.target.value as ApprovalFieldType })}
@@ -505,6 +509,15 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               )}
             </div>
 
+            {/* 내용 템플릿 — 이 유형 선택 시 상세 내용에 기본으로 채워짐 */}
+            <div className="content-template-section">
+              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿)</label>
+              <textarea value={defaultForm.descriptionTemplate} onChange={(e) => setDefaultForm((s) => ({ ...s, descriptionTemplate: e.target.value }))} rows={3}
+                placeholder={"작성 시 상세 내용에 기본으로 채워집니다.\n예: 1. 지출 항목\n2. 사유"}
+                className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm resize-y" />
+            </div>
+
+            {/* 결재선 단계 — 역할 또는 특정 인물 지정 (빌더와 동일 UX) */}
             <div className="approval-stages-section">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선 (승인 단계)</label>
@@ -512,27 +525,60 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                   className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 단계 추가</button>
               </div>
               <div className="space-y-1.5">
-                {defaultForm.stages.map((s, i) => (
-                  <div key={i} className="policy-stage-row">
-                    <span className="text-[10px] font-bold w-5 h-5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">{i + 1}</span>
-                    <input value={s.name} onChange={(e) => patchDefaultStage(i, { name: e.target.value })} placeholder="단계 이름(예: 팀장 승인)"
-                      className="flex-1 h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
-                    <select value={s.approver_role} onChange={(e) => patchDefaultStage(i, { approver_role: e.target.value })}
-                      className="h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs">
-                      {POLICY_ROLE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                    {defaultForm.stages.length > 1 && (
-                      <button onClick={() => setDefaultForm((s2) => ({ ...s2, stages: s2.stages.filter((_, j) => j !== i).map((st, j) => ({ ...st, stage: j + 1 })) }))}
-                        className="text-[var(--danger)] text-xs px-1">✕</button>
-                    )}
-                  </div>
-                ))}
+                {defaultForm.stages.map((s, i) => {
+                  const isUserStage = s.approver_id != null;
+                  return (
+                    <div key={i} className="stage-row">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold w-5 h-5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">{i + 1}</span>
+                        <input value={s.name} onChange={(e) => patchDefaultStage(i, { name: e.target.value })} placeholder="단계 이름(예: 팀장 승인)"
+                          className="flex-1 h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
+                        <select value={isUserStage ? "user" : "role"}
+                          onChange={(e) => e.target.value === "user"
+                            ? patchDefaultStage(i, { approver_id: "" })
+                            : patchDefaultStage(i, { approver_id: undefined, approver_name: undefined })}
+                          className="h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs">
+                          <option value="role">역할</option><option value="user">특정 인물</option>
+                        </select>
+                        {defaultForm.stages.length > 1 && (
+                          <button onClick={() => setDefaultForm((s2) => ({ ...s2, stages: s2.stages.filter((_, j) => j !== i).map((st, j) => ({ ...st, stage: j + 1 })) }))}
+                            className="text-[var(--danger)] text-xs px-1">✕</button>
+                        )}
+                      </div>
+                      {!isUserStage ? (
+                        <select value={s.approver_role || "manager"} onChange={(e) => patchDefaultStage(i, { approver_role: e.target.value })}
+                          className="w-full h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs">
+                          {POLICY_ROLE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {(users as any[]).map((u) => {
+                            const on = s.approver_id === u.id;
+                            return (
+                              <button key={u.id} onClick={() => patchDefaultStage(i, { approver_id: u.id, approver_name: u.name || u.email || "" })}
+                                className={`text-[10px] px-2 py-0.5 rounded-full border ${on ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}>
+                                {u.name || u.email}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+            </div>
+
+            {/* 옵션 토글 */}
+            <div className="options-toggle-row">
+              <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer">
+                <input type="checkbox" checked={defaultForm.allowLineEdit} onChange={(e) => setDefaultForm((s) => ({ ...s, allowLineEdit: e.target.checked }))} className="accent-[var(--primary)]" /> 작성자 승인라인 변경 허용
+              </label>
             </div>
 
             <div className="modal-footer-actions">
               <button onClick={() => setEditingDefaultKey(null)} className="btn-secondary flex-1">취소</button>
-              <button onClick={saveDefault} disabled={savingDefault} className="btn-primary flex-1">{savingDefault ? "저장 중…" : "저장"}</button>
+              <button onClick={saveDefault} disabled={savingDefault} className="btn-primary flex-1">{savingDefault ? "저장 중…" : "양식 저장"}</button>
             </div>
           </div>
         </div>,
