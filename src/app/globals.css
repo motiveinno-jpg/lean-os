@@ -1642,6 +1642,16 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .approval-table { @apply w-full text-left min-w-[720px]; }
 .approval-table-row { @apply border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition; }
 .approval-detail-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
+/* 결재 상세 내용 서식(HTML) 렌더 — RichEditor 로 작성된 표·목록·이미지 (2026-07-16) */
+.approval-desc-html { @apply text-sm leading-relaxed; }
+.approval-desc-html p { margin: 0.25rem 0; }
+.approval-desc-html table { @apply w-full my-2 border-collapse; }
+.approval-desc-html td, .approval-desc-html th { @apply border border-[var(--border)] p-2 text-xs align-top; }
+.approval-desc-html th { @apply bg-[var(--bg-surface)] font-bold; }
+.approval-desc-html img { @apply max-w-full rounded-lg my-2; }
+.approval-desc-html ul { @apply list-disc pl-5 my-1; }
+.approval-desc-html ol { @apply list-decimal pl-5 my-1; }
+.approval-desc-html blockquote { @apply border-l-2 border-[var(--border)] pl-3 text-[var(--text-muted)] my-1; }
 .approval-new-request-form { @apply lg:col-span-2; }
 .approval-type-picker { @apply flex flex-wrap gap-2; }
 .approval-leave-balance-card { @apply flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20 shadow-sm; }

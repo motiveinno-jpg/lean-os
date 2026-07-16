@@ -42,6 +42,7 @@ export interface ApprovalPolicy {
   allow_line_edit?: boolean;     // 요청자가 새 요청에서 승인라인(승인자)을 바꿀 수 있는지(기본 true)
   requester_id?: string | null;  // 특정 요청자 전용 정책(null=회사 공통)
   fields?: ApprovalFormField[];  // 2026-07-16 기본 유형용 커스텀 입력 필드(approval_forms.fields 와 동일 구조)
+  reference_user_ids?: string[]; // 2026-07-16 기본 유형용 참조(CC) 인원 — approval_forms 와 동일 개념
   created_at?: string;
   updated_at?: string;
 }
@@ -133,6 +134,7 @@ export async function getApprovalPolicies(companyId: string): Promise<ApprovalPo
     allow_line_edit: row.allow_line_edit !== false,
     requester_id: (row.requester_id as string) ?? null,
     fields: (row.fields as ApprovalFormField[]) || [],
+    reference_user_ids: (row.reference_user_ids as string[]) || [],
     created_at: row.created_at as string | undefined,
     updated_at: row.updated_at as string | undefined,
   })) as ApprovalPolicy[];
@@ -168,10 +170,11 @@ export async function upsertApprovalPolicy(
     allow_line_edit: policy.allow_line_edit ?? true,
     requester_id: policy.requester_id ?? null,
     fields: policy.fields ?? [],
+    reference_user_ids: policy.reference_user_ids ?? [],
   };
 
   let { data, error } = await db.from('approval_policies').upsert(fullRow).select().single();
-  if (error && /label|description_template|allow_line_edit|requester_id|fields|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
+  if (error && /label|description_template|allow_line_edit|requester_id|fields|reference_user_ids|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
     ({ data, error } = await db.from('approval_policies').upsert(baseRow).select().single());
   }
   if (error) throw error;
@@ -189,6 +192,7 @@ export async function upsertApprovalPolicy(
     allow_line_edit: d.allow_line_edit !== false,
     requester_id: (d.requester_id as string) ?? null,
     fields: (d.fields as ApprovalFormField[]) || [],
+    reference_user_ids: (d.reference_user_ids as string[]) || [],
     created_at: d.created_at as string | undefined,
     updated_at: d.updated_at as string | undefined,
   } as ApprovalPolicy;
@@ -844,6 +848,43 @@ export async function getMyRequests(
 /**
  * Resubmit a rejected request — resets status to pending and recreates steps.
  */
+/**
+ * 대기중(pending) 결재 요청을 요청자 본인이 수정 (2026-07-16 사장님 요청).
+ *   승인선/단계는 건드리지 않고 내용(제목·금액·상세·필드값)만 갱신한다.
+ *   권한 검증은 앱 레벨(요청자 본인 + pending) — RLS 는 회사 스코프 UPDATE 허용.
+ */
+export async function updateApprovalRequest(params: {
+  requestId: string;
+  userId: string;
+  title?: string;
+  amount?: number;
+  description?: string;
+  customFields?: Record<string, unknown>;
+}): Promise<void> {
+  const { data: request, error: reqErr } = await db
+    .from('approval_requests')
+    .select('id, requester_id, status')
+    .eq('id', params.requestId)
+    .maybeSingle();
+  if (reqErr) throw reqErr;
+  if (!request) throw new Error('결재 요청을 찾을 수 없습니다.');
+  if (request.requester_id !== params.userId) throw new Error('요청자 본인만 수정할 수 있습니다.');
+  if (request.status !== 'pending') throw new Error('대기중인 요청만 수정할 수 있습니다.');
+
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (params.title !== undefined) updates.title = params.title;
+  if (params.amount !== undefined) updates.amount = params.amount;
+  if (params.description !== undefined) updates.description = params.description;
+  if (params.customFields !== undefined) updates.custom_fields = params.customFields;
+
+  const { error } = await db
+    .from('approval_requests')
+    .update(updates)
+    .eq('id', params.requestId)
+    .eq('status', 'pending');
+  if (error) throw error;
+}
+
 export async function resubmitRequest(
   requestId: string,
   title?: string,

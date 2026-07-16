@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Fragment } from "react";
+import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams } from "next/navigation";
@@ -13,6 +13,7 @@ import {
   upsertApprovalPolicy,
   deleteApprovalPolicy,
   createApprovalRequest,
+  updateApprovalRequest,
   approveStep,
   rejectStep,
   getMyPendingApprovals,
@@ -30,6 +31,8 @@ import {
   type ApprovalStep,
   type ApprovalStageConfig,
 } from "@/lib/approval-workflow";
+import { RichEditor, type RichEditorRef } from "@/components/rich-editor";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { CurrencyInput } from "@/components/currency-input";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
@@ -231,9 +234,56 @@ function resolveFormFields(
     .filter((f) => f.value);
 }
 
+// ── 상세 내용 서식(HTML) 지원 (2026-07-16) — RichEditor 로 작성한 결재 내용(표·서식 포함) ──
+const isHtmlDesc = (s?: string | null) => !!s && /^\s*</.test(String(s).trim());
+
+function escapeHtmlText(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/** 평문(템플릿 등) → RichEditor 초기값 HTML. 이미 HTML 이면 그대로. */
+function plainToHtml(text: string): string {
+  if (!text) return "";
+  if (isHtmlDesc(text)) return text;
+  return text.split("\n").map((line) => (line.trim() === "" ? "<p><br/></p>" : `<p>${escapeHtmlText(line)}</p>`)).join("");
+}
+
+/** HTML 상세 내용 → 평문 (PDF·목록 미리보기용). 표 셀은 공백 2칸, 블록 종료는 줄바꿈. */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<\s*\/t[dh]\s*>/gi, "  ")
+    .replace(/<\s*(br|\/p|\/div|\/tr|\/li|\/h[1-6]|\/blockquote)[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** RichEditor 빈 문서(<p></p> 등) 판별 — 텍스트·이미지·표 전부 없으면 빈 것으로 취급 */
+function isEmptyHtml(html: string): boolean {
+  if (!html) return true;
+  if (/<(img|table)/i.test(html)) return false;
+  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "";
+}
+
+/** 상세 내용 렌더 — HTML(신규 서식)이면 sanitize 후 렌더, 평문(기존)이면 pre-wrap */
+function DescriptionContent({ text, className = "" }: { text: string; className?: string }) {
+  if (!text) return null;
+  if (isHtmlDesc(text)) {
+    return <div className={`approval-desc-html ${className}`} dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(text) }} />;
+  }
+  return <div className={`whitespace-pre-wrap ${className}`}>{text}</div>;
+}
+
 // 양식 필드 값이 description 앞부분에 중복 병합돼 있으면(기존 저장 방식) 잘라내 중복 표시 방지
 function contentWithoutFieldLines(description: string, formFields: { label: string; value: string }[]): string {
   if (formFields.length === 0) return description;
+  // HTML 저장분(2026-07-16~)은 <p>label: value</p> 프리픽스로 병합됨
+  if (isHtmlDesc(description)) {
+    const fieldHtml = formFields.map((f) => `<p>${escapeHtmlText(`${f.label}: ${f.value}`)}</p>`).join("");
+    if (description.startsWith(fieldHtml)) return description.slice(fieldHtml.length);
+    return description;
+  }
   const fieldLines = formFields.map((f) => `${f.label}: ${f.value}`).join("\n");
   if (description.startsWith(fieldLines)) {
     return description.slice(fieldLines.length).replace(/^\n+/, "");
@@ -784,7 +834,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
               </div>
             )}
             {selectedContent && (
-              <div className="mb-2 text-sm text-[var(--text)] leading-8 whitespace-pre-wrap">{selectedContent}</div>
+              <DescriptionContent text={selectedContent} className="mb-2 text-sm text-[var(--text)] leading-8" />
             )}
             <AttachmentList attachments={selected.attachments} />
 
@@ -863,6 +913,69 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
     return u?.name || u?.email || "구성원";
   };
 
+  // ── 대기중 요청 본인 수정 (2026-07-16 사장님 요청) ──
+  //   양식/정책 필드 정의를 되찾아 생성 화면과 동일한 입력으로 편집.
+  const { data: editForms = [] } = useQuery({ queryKey: ["approval-forms", companyId], queryFn: () => listApprovalForms(), enabled: !!companyId });
+  const { data: editPolicies = [] } = useQuery({ queryKey: ["approval-policies", companyId], queryFn: () => getApprovalPolicies(companyId), enabled: !!companyId });
+  const [editReq, setEditReq] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", amount: "", description: "" });
+  const [editFieldValues, setEditFieldValues] = useState<Record<string, string>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  const editFieldsFor = (req: any) => {
+    if (req.request_type === "leave") return [] as ApprovalForm["fields"];
+    if (req.form_id) return (editForms as ApprovalForm[]).find((f) => f.id === req.form_id)?.fields || [];
+    return (editPolicies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === req.request_type)?.fields || [];
+  };
+  const openEdit = (req: any) => {
+    const fields = editFieldsFor(req);
+    const pairs = fields.map((fd) => ({ label: fd.label, value: String(req.custom_fields?.[fd.key] ?? "") })).filter((p) => p.value);
+    setEditFieldValues(Object.fromEntries(fields.map((fd) => [fd.key, String(req.custom_fields?.[fd.key] ?? (fd.type === "fixed" ? fd.default_value || "" : ""))])));
+    const stripped = contentWithoutFieldLines(req.description || "", pairs);
+    setEditForm({
+      title: req.title || "",
+      amount: req.amount ? String(req.amount) : "",
+      description: req.request_type === "leave" ? stripped : plainToHtml(stripped),
+    });
+    setEditReq(req);
+  };
+  const saveEdit = async () => {
+    if (!editReq || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      const fields = editFieldsFor(editReq);
+      const isLeaveReq = editReq.request_type === "leave";
+      let finalDesc: string;
+      if (isLeaveReq) {
+        finalDesc = editForm.description;
+      } else {
+        const descHtml = isEmptyHtml(editForm.description) ? "" : plainToHtml(editForm.description);
+        const fieldHtml = fields.map((fd) => `<p>${escapeHtmlText(`${fd.label}: ${editFieldValues[fd.key] || ""}`)}</p>`).join("");
+        finalDesc = fieldHtml + descHtml;
+      }
+      const amountField = fields.find((fd) => fd.type === "amount");
+      const amount = isLeaveReq
+        ? undefined
+        : fields.length > 0
+          ? (amountField ? (Number(String(editFieldValues[amountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0) : undefined)
+          : (Number(String(editForm.amount).replace(/[^0-9.-]/g, "")) || 0);
+      await updateApprovalRequest({
+        requestId: editReq.id,
+        userId,
+        title: editForm.title.trim() || editReq.title,
+        amount,
+        description: finalDesc,
+        customFields: fields.length > 0 ? editFieldValues : undefined,
+      });
+      toast("요청을 수정했습니다", "success");
+      setEditReq(null);
+      invalidate();
+    } catch (e: any) {
+      toast("수정 실패: " + friendlyError(e, "알 수 없는 오류"), "error");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const resubmitMut = useMutation({
     mutationFn: (requestId: string) => resubmitRequest(requestId),
     onSuccess: invalidate,
@@ -936,6 +1049,16 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                           재제출
                         </button>
                       )}
+                      {req.status === "pending" && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEdit(req); }}
+                          className="btn-secondary"
+                          title="대기중인 동안 요청 내용을 수정할 수 있습니다"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                          수정
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -951,6 +1074,80 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
           })}
         </div>
       )}
+
+      {/* ── 대기중 요청 수정 모달 — 요청자 본인만, 생성 화면과 동일한 입력 구성 ── */}
+      {editReq && (() => {
+        const fields = editFieldsFor(editReq);
+        const isLeaveReq = editReq.request_type === "leave";
+        const amountField = fields.find((fd) => fd.type === "amount");
+        return (
+          <div className="approval-detail-modal fixed inset-0" onClick={() => setEditReq(null)}>
+            <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-sm font-bold mb-1">요청 수정</h3>
+              <p className="text-[11px] text-[var(--text-dim)] mb-4">대기중인 동안만 수정할 수 있으며, 수정 내용은 승인자에게 그대로 표시됩니다.</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
+                  <input value={editForm.title} onChange={(e) => setEditForm((s) => ({ ...s, title: e.target.value }))} className="field-input" />
+                </div>
+                {!isLeaveReq && fields.length === 0 && (
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원)</label>
+                    <CurrencyInput
+                      value={editForm.amount}
+                      onValueChange={(raw) => setEditForm((s) => ({ ...s, amount: raw }))}
+                      placeholder="0"
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
+                    />
+                  </div>
+                )}
+                {fields.map((fd) => (
+                  <div key={fd.key}>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">{fd.label}{fd.required ? " *" : ""}</label>
+                    {fd.type === "textarea" ? (
+                      <textarea value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} rows={2} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                    ) : fd.type === "select" ? (
+                      <select value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="field-input">
+                        <option value="">선택</option>
+                        {(fd.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : fd.type === "fixed" ? (
+                      <input type="text" value={fd.default_value || ""} readOnly disabled
+                        className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-muted)]" />
+                    ) : fd.type === "amount" && fd === amountField ? (
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] text-sm">₩</span>
+                        <input inputMode="numeric" value={editFieldValues[fd.key] || ""}
+                          onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ""); setEditFieldValues((s) => ({ ...s, [fd.key]: raw ? Number(raw).toLocaleString("ko-KR") : "" })); }}
+                          placeholder="0" className="w-full pl-7 pr-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mono-number text-right" />
+                      </div>
+                    ) : fd.type === "date" ? (
+                      <DateField value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                    ) : (
+                      <input type={fd.type === "number" ? "number" : "text"} value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                    )}
+                  </div>
+                ))}
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
+                  {isLeaveReq ? (
+                    <textarea value={editForm.description} onChange={(e) => setEditForm((s) => ({ ...s, description: e.target.value }))} rows={6}
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none" />
+                  ) : (
+                    <RichEditor key={editReq.id} content={editForm.description}
+                      onChange={(html) => setEditForm((s) => ({ ...s, description: html }))}
+                      placeholder="결재 요청에 대한 상세 설명을 입력하세요..." maxHeight="280px" />
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => setEditReq(null)} className="btn-secondary flex-1">취소</button>
+                <button onClick={saveEdit} disabled={savingEdit} className="btn-primary flex-1">{savingEdit ? "저장 중…" : "수정 저장"}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1064,7 +1261,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
         statusLabel: STATUS_CONFIG[req.status]?.label || req.status,
         requesterName: requesterNames.get(req.requester_id) || "-",
         amount: req.amount || 0,
-        description: contentText || undefined,
+        description: contentText ? (isHtmlDesc(contentText) ? htmlToPlainText(contentText) : contentText) : undefined,
         formFields: formFields.length > 0 ? formFields : undefined,
         createdAt: formatDate(req.created_at),
         attachments: attachments.length > 0 ? attachments : undefined,
@@ -1266,7 +1463,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                 </div>
               )}
               {reqContentText && (
-                <div className="mb-2 text-sm text-[var(--text)] leading-8 whitespace-pre-wrap">{reqContentText}</div>
+                <DescriptionContent text={reqContentText} className="mb-2 text-sm text-[var(--text)] leading-8" />
               )}
               <AttachmentList attachments={req.attachments} />
 
@@ -1357,6 +1554,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const [descriptionInited, setDescriptionInited] = useState<string>("");
   const [selectedApprovers, setSelectedApprovers] = useState<{ userId: string; name: string }[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  // 상세 내용 서식 편집기(표 등) — tiptap 은 마운트 후 content prop 변경을 반영하지 않아
+  //   템플릿 프리필/임시저장 복원/제출 초기화 때 ref 로 직접 setContent 한다.
+  const descEditorRef = useRef<RichEditorRef>(null);
   const { data: customForms = [] } = useQuery({ queryKey: ["approval-forms", companyId], queryFn: () => listApprovalForms(), enabled: !!companyId });
   const selectedForm = (customForms as ApprovalForm[]).find((f) => `form:${f.id}` === form.requestType) || null;
   const [draftLoaded, setDraftLoaded] = useState(false);
@@ -1368,7 +1568,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     if (saved) {
       try {
         const draft = JSON.parse(saved);
-        if (draft.form) setForm(draft.form);
+        if (draft.form) {
+          setForm(draft.form);
+          // tiptap 은 마운트 후 content prop 을 안 따라감 — 임시저장 복원분을 에디터에 직접 주입
+          if (draft.form.description) descEditorRef.current?.setContent(plainToHtml(draft.form.description));
+        }
         if (draft.leaveForm) setLeaveForm(draft.leaveForm);
       } catch { /* ignore corrupt draft */ }
     }
@@ -1498,19 +1702,22 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // 요청 유형 변경 시 설명란 자동 입력 — 정책의 설명 템플릿 우선, 없으면 내장 템플릿.
   useEffect(() => {
     if (isLeave || form.requestType.startsWith("form:") || form.requestType === descriptionInited) return;
-    const tpl = matchedPolicy?.description_template || DESCRIPTION_TEMPLATES[form.requestType as RequestType] || "";
+    const tpl = plainToHtml(matchedPolicy?.description_template || DESCRIPTION_TEMPLATES[form.requestType as RequestType] || "");
     setForm((prev) => ({ ...prev, description: tpl }));
+    descEditorRef.current?.setContent(tpl);
     setDescriptionInited(form.requestType);
   }, [form.requestType, isLeave, descriptionInited, matchedPolicy]);
 
   // 커스텀 결재 양식 선택 시 — 제목·내용 템플릿 프리필 + 결재선을 승인자로 적용
   useEffect(() => {
     if (!selectedForm || descriptionInited === form.requestType) return;
+    const tplHtml = plainToHtml(selectedForm.content_template || "");
     setForm((prev) => ({
       ...prev,
       title: prev.title || selectedForm.name,
-      description: selectedForm.content_template || "",
+      description: tplHtml,
     }));
+    descEditorRef.current?.setContent(tplHtml);
     setDescriptionInited(form.requestType);
     // 직원 QA #11 — 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
     const initFields: Record<string, string> = {};
@@ -1583,9 +1790,17 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         }
       }
 
-      const fieldLines = activeFields.length > 0 ? activeFields.map((fd) => `${fd.label}: ${customFieldValues[fd.key] || ""}`).join("\n") : "";
       // 입력 필드(양식 필드) 값을 기본 템플릿 문구보다 위에 — 결재자가 실제 입력값을 먼저 보게 (2026-07-14)
-      const finalDesc = [fieldLines, effectiveDescription].filter(Boolean).join("\n\n");
+      //   2026-07-16: 상세 내용이 리치에디터 HTML 이 되면서 필드 라인도 HTML <p> 로 병합
+      //   (contentWithoutFieldLines 가 동일 규칙으로 중복 제거).
+      let finalDesc: string;
+      if (isLeave) {
+        finalDesc = effectiveDescription;
+      } else {
+        const descHtml = isEmptyHtml(effectiveDescription) ? "" : plainToHtml(effectiveDescription);
+        const fieldHtml = activeFields.map((fd) => `<p>${escapeHtmlText(`${fd.label}: ${customFieldValues[fd.key] || ""}`)}</p>`).join("");
+        finalDesc = fieldHtml + descHtml;
+      }
       return createApprovalRequest({
         companyId,
         requestType: selectedForm ? selectedForm.name : form.requestType,
@@ -1603,12 +1818,18 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           : isLeave
             ? { leave: { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays } }
             : undefined,
-        referenceUserIds: selectedForm?.reference_user_ids?.length ? selectedForm.reference_user_ids : undefined,
+        // 참조: 커스텀 양식 → 양식 지정 인원, 기본 유형 → 정책(양식관리 기본 유형 편집)에 지정한 인원
+        referenceUserIds: selectedForm?.reference_user_ids?.length
+          ? selectedForm.reference_user_ids
+          : matchedPolicy?.reference_user_ids?.length
+            ? matchedPolicy.reference_user_ids
+            : undefined,
       });
     },
     onSuccess: () => {
       invalidate();
       setForm({ requestType: "expense" as RequestType, title: "", amount: "", description: "" });
+      descEditorRef.current?.setContent("");
       setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
       setFiles([]);
       setSelectedApprovers([]); setCustomFieldValues({});
@@ -1876,15 +2097,15 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 </div>
                 )}
 
-                {/* Description with template */}
+                {/* Description with template — 2026-07-16: 표·서식 지원 리치에디터 (사장님 요청) */}
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    rows={6}
+                  <RichEditor
+                    ref={descEditorRef}
+                    content={form.description}
+                    onChange={(html) => setForm((prev) => ({ ...prev, description: html }))}
                     placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
+                    maxHeight="320px"
                   />
                 </div>
                 {activeFields.length > 0 && (

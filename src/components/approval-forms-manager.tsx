@@ -69,7 +69,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     enabled: !!companyId,
   });
   const [editingDefaultKey, setEditingDefaultKey] = useState<string | null>(null);
-  const [defaultForm, setDefaultForm] = useState({ label: "", descriptionTemplate: "", autoApproveBelow: "", stages: [emptyPolicyStage(1)] as ApprovalStageConfig[], fields: [] as ApprovalFormField[], allowLineEdit: true });
+  const [defaultForm, setDefaultForm] = useState({ label: "", descriptionTemplate: "", autoApproveBelow: "", stages: [emptyPolicyStage(1)] as ApprovalStageConfig[], fields: [] as ApprovalFormField[], allowLineEdit: true, referenceUserIds: [] as string[] });
   const [savingDefault, setSavingDefault] = useState(false);
 
   const openEditDefault = (key: string) => {
@@ -81,6 +81,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       stages: p?.stages?.length ? p.stages : [emptyPolicyStage(1)],
       fields: p?.fields || [],
       allowLineEdit: p?.allow_line_edit !== false,
+      referenceUserIds: p?.reference_user_ids || [],
     });
     setEditingDefaultKey(key);
   };
@@ -104,6 +105,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
         }),
         fields: defaultForm.fields.filter((f) => (f.label || "").trim()),
         allow_line_edit: defaultForm.allowLineEdit,
+        reference_user_ids: defaultForm.referenceUserIds,
         is_active: true,
       });
       toast("저장했습니다", "success");
@@ -564,6 +566,28 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                         </div>
                       )}
                     </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (빌더와 동일) */}
+            <div className="reference-users-section">
+              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택) — 결재 여부와 무관하게 통보만 받는 인원</label>
+              <div className="flex flex-wrap gap-1 bg-[var(--bg-surface)] rounded-lg p-2">
+                {(users as any[]).length === 0 ? (
+                  <span className="text-[11px] text-[var(--text-dim)] px-1 py-1">구성원이 없습니다</span>
+                ) : (users as any[]).map((u) => {
+                  const on = defaultForm.referenceUserIds.includes(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => setDefaultForm((s) => ({ ...s, referenceUserIds: on ? s.referenceUserIds.filter((x) => x !== u.id) : [...s.referenceUserIds, u.id] }))}
+                      className={`text-[10px] px-2 py-0.5 rounded-full border ${on ? "bg-[var(--text-muted)] text-white border-[var(--text-muted)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
+                    >
+                      {u.name || u.email}
+                    </button>
                   );
                 })}
               </div>
