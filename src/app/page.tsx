@@ -288,21 +288,21 @@ function PaymentSim() {
 
   return (
     <div className="payment-sim-card bg-[#0F172A] rounded-2xl p-5 text-white overflow-hidden relative min-h-[280px]">
-      <div className="lp-row-between">
+      <div className="payment-sim-header lp-row-between">
         <span className="text-xs font-bold text-blue-400">PAYMENT QUEUE</span>
-        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300">{items.filter(i => i.status === "완료").length}/3 처리됨</span>
+        <span className="payment-sim-count-badge text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300">{items.filter(i => i.status === "완료").length}/3 처리됨</span>
       </div>
-      <div className="space-y-2.5">
+      <div className="payment-sim-list space-y-2.5">
         {items.map((item, i) => (
           <div key={i} className="payment-sim-item bg-white/5 backdrop-blur rounded-xl p-3 flex items-center gap-3 transition-all duration-700" style={{ opacity: 1, transform: step > i * 4 ? "translateX(0)" : "translateX(20px)" }}>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: `${statusColor[item.status]}20`, color: statusColor[item.status] }}>
+            <div className="payment-sim-status-icon w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: `${statusColor[item.status]}20`, color: statusColor[item.status] }}>
               {item.status === "완료" ? "✓" : item.status === "승인" ? "→" : item.status === "대기" ? "!" : "•"}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="payment-sim-item-info flex-1 min-w-0">
               <div className="text-xs font-semibold truncate">{item.name}</div>
               <div className="text-[10px] text-slate-400">{item.cat}</div>
             </div>
-            <div className="text-right shrink-0">
+            <div className="payment-sim-item-amount text-right shrink-0">
               <div className="text-xs font-bold">{item.amount}</div>
               <div className="text-[10px] font-medium" style={{ color: statusColor[item.status] }}>{item.status}</div>
             </div>
@@ -310,8 +310,8 @@ function PaymentSim() {
         ))}
       </div>
       {/* Progress bar */}
-      <div className="mt-4 h-1.5 bg-white/10 rounded-full overflow-hidden">
-        <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (step / 18) * 100)}%` }} />
+      <div className="payment-sim-progress-track mt-4 h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div className="payment-sim-progress-fill h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (step / 18) * 100)}%` }} />
       </div>
     </div>
   );
@@ -329,23 +329,23 @@ function PipelineSim() {
 
   return (
     <div className="pipeline-sim-card lp-card-dark min-h-[280px]">
-      <div className="flex items-center justify-between mb-5">
+      <div className="pipeline-sim-header flex items-center justify-between mb-5">
         <span className="text-xs font-bold text-blue-400">DEAL PIPELINE</span>
         <span className="text-[10px] text-slate-400">그**이 식품 납품</span>
       </div>
       {/* Pipeline stages */}
-      <div className="flex items-center gap-1 mb-5">
+      <div className="pipeline-sim-stages flex items-center gap-1 mb-5">
         {stages.map((s, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-            <div className={`w-full h-2 rounded-full transition-all duration-700 ${i <= activeStage ? "bg-blue-500" : "bg-white/10"}`} />
-            <span className={`text-[10px] font-medium transition-colors duration-500 ${i <= activeStage ? "text-blue-300" : "text-slate-500"}`}>{s}</span>
+          <div key={i} className="pipeline-sim-stage flex-1 flex flex-col items-center gap-1.5">
+            <div className={`pipeline-sim-stage-bar w-full h-2 rounded-full transition-all duration-700 ${i <= activeStage ? "bg-blue-500" : "bg-white/10"}`} />
+            <span className={`pipeline-sim-stage-label text-[10px] font-medium transition-colors duration-500 ${i <= activeStage ? "text-blue-300" : "text-slate-500"}`}>{s}</span>
           </div>
         ))}
       </div>
       {/* Current action card */}
-      <div className="bg-white/5 backdrop-blur rounded-xl p-4 border border-white/10">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
+      <div className="pipeline-sim-action-card bg-white/5 backdrop-blur rounded-xl p-4 border border-white/10">
+        <div className="pipeline-sim-action-header flex items-center gap-2 mb-2">
+          <div className="pipeline-sim-action-icon w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
             <span className="text-[10px]">{activeStage === 0 ? "📋" : activeStage === 1 ? "✍️" : activeStage === 2 ? "🧾" : "💰"}</span>
           </div>
           <span className="text-xs font-bold">{stages[activeStage]} {activeStage < 2 ? "자동 생성" : activeStage === 2 ? "연결" : "확인"}</span>
@@ -354,22 +354,22 @@ function PipelineSim() {
           <span>금액: ₩35,000,000</span>
           <span className="text-emerald-400">자동 처리 중...</span>
         </div>
-        <div className="mt-3 flex gap-2">
+        <div className="pipeline-sim-progress-row mt-3 flex gap-2">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
-              <div className="h-full bg-blue-400 rounded-full transition-all duration-1000" style={{ width: step % 4 >= n ? "100%" : "0%" }} />
+            <div key={n} className="pipeline-sim-progress-track flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+              <div className="pipeline-sim-progress-fill h-full bg-blue-400 rounded-full transition-all duration-1000" style={{ width: step % 4 >= n ? "100%" : "0%" }} />
             </div>
           ))}
         </div>
       </div>
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 mt-3">
+      <div className="pipeline-sim-stats grid grid-cols-3 gap-2 mt-3">
         {[
           { label: "진행 프로젝트", value: "12건" },
           { label: "이번 달 매출", value: "₩4.2억" },
           { label: "평균 마진", value: "32%" },
         ].map((s) => (
-          <div key={s.label} className="text-center py-2 bg-white/5 rounded-lg">
+          <div key={s.label} className="pipeline-sim-stat-tile text-center py-2 bg-white/5 rounded-lg">
             <div className="text-[10px] text-slate-500">{s.label}</div>
             <div className="text-xs font-bold">{s.value}</div>
           </div>
@@ -392,13 +392,13 @@ function ContractSim() {
 
   return (
     <div className="contract-sim-card lp-card-dark min-h-[280px]">
-      <div className="lp-row-between">
+      <div className="contract-sim-header lp-row-between">
         <span className="text-xs font-bold text-blue-400">E-CONTRACT</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">{phases[phase]}</span>
       </div>
       {/* Document preview */}
-      <div className="bg-white/5 rounded-xl p-4 mb-3 border border-white/10 relative overflow-hidden">
-        <div className="flex items-center gap-2 mb-3">
+      <div className="contract-sim-doc-preview bg-white/5 rounded-xl p-4 mb-3 border border-white/10 relative overflow-hidden">
+        <div className="contract-sim-doc-header flex items-center gap-2 mb-3">
           <span className="text-lg">{phaseIcon[phase]}</span>
           <div>
             <div className="text-xs font-bold">용역 계약서 v2.1</div>
@@ -407,20 +407,20 @@ function ContractSim() {
         </div>
         {/* Document lines */}
         {[80, 65, 90, 70, 55].map((w, i) => (
-          <div key={i} className="h-1.5 rounded-full bg-white/10 mb-1.5" style={{ width: `${w}%` }}>
-            <div className="h-full bg-blue-400/30 rounded-full transition-all duration-700" style={{ width: phase >= 1 ? "100%" : "0%" }} />
+          <div key={i} className="contract-sim-doc-line h-1.5 rounded-full bg-white/10 mb-1.5" style={{ width: `${w}%` }}>
+            <div className="contract-sim-doc-line-fill h-full bg-blue-400/30 rounded-full transition-all duration-700" style={{ width: phase >= 1 ? "100%" : "0%" }} />
           </div>
         ))}
         {/* Signature area */}
         {phase >= 2 && (
-          <div className="mt-3 flex gap-3">
-            <div className="flex-1 border border-dashed border-emerald-400/40 rounded-lg p-2 text-center">
+          <div className="contract-sim-signature-area mt-3 flex gap-3">
+            <div className="contract-sim-signature-box flex-1 border border-dashed border-emerald-400/40 rounded-lg p-2 text-center">
               <div className="text-[10px] text-slate-400 mb-1">갑</div>
               <div className={`text-xs font-bold transition-all duration-500 ${phase >= 3 ? "text-emerald-400" : "text-slate-500"}`}>
                 {phase >= 3 ? "채희웅 ✓" : "서명 대기"}
               </div>
             </div>
-            <div className="flex-1 border border-dashed border-blue-400/40 rounded-lg p-2 text-center">
+            <div className="contract-sim-signature-box flex-1 border border-dashed border-blue-400/40 rounded-lg p-2 text-center">
               <div className="text-[10px] text-slate-400 mb-1">을</div>
               <div className={`text-xs font-bold transition-all duration-500 ${phase >= 3 ? "text-blue-400" : "text-slate-500"}`}>
                 {phase >= 3 ? "김대표 ✓" : "서명 대기"}
@@ -430,9 +430,9 @@ function ContractSim() {
         )}
       </div>
       {/* Phase indicator */}
-      <div className="flex gap-1">
+      <div className="contract-sim-phase-row flex gap-1">
         {phases.map((p, i) => (
-          <div key={i} className={`flex-1 py-1.5 rounded-lg text-center text-[10px] font-medium transition-all duration-500 ${i <= phase ? "bg-blue-500/20 text-blue-300" : "bg-white/5 text-slate-500"}`}>
+          <div key={i} className={`contract-sim-phase-item flex-1 py-1.5 rounded-lg text-center text-[10px] font-medium transition-all duration-500 ${i <= phase ? "bg-blue-500/20 text-blue-300" : "bg-white/5 text-slate-500"}`}>
             {p}
           </div>
         ))}
@@ -459,19 +459,19 @@ function PayrollSim() {
 
   return (
     <div className="payroll-sim-card lp-card-dark min-h-[280px]">
-      <div className="lp-row-between">
+      <div className="payroll-sim-header lp-row-between">
         <span className="text-xs font-bold text-blue-400">PAYROLL</span>
         <span className="text-[10px] text-slate-400">2026년 3월</span>
       </div>
-      <div className="space-y-2">
+      <div className="payroll-sim-list space-y-2">
         {employees.map((emp, i) => (
-          <div key={i} className="bg-white/5 rounded-xl p-3 flex items-center gap-3 transition-all duration-700" style={{ opacity: step > i ? 1 : 0.3 }}>
-            <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-[10px] font-bold">{emp.name[0]}</div>
-            <div className="flex-1">
+          <div key={i} className="payroll-sim-item bg-white/5 rounded-xl p-3 flex items-center gap-3 transition-all duration-700" style={{ opacity: step > i ? 1 : 0.3 }}>
+            <div className="payroll-sim-avatar w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-[10px] font-bold">{emp.name[0]}</div>
+            <div className="payroll-sim-info flex-1">
               <div className="text-xs font-semibold">{emp.name}</div>
               <div className="text-[10px] text-slate-400">기본급 ₩{(emp.base / 10000).toLocaleString()}만</div>
             </div>
-            <div className="text-right">
+            <div className="payroll-sim-amount text-right">
               {showCalc && (
                 <div className="text-[10px] text-rose-400 line-through transition-all duration-500">-₩{((emp.base - emp.net) / 10000).toFixed(0)}만</div>
               )}
@@ -483,14 +483,14 @@ function PayrollSim() {
         ))}
       </div>
       {showCalc && (
-        <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
+        <div className="payroll-sim-deduction-grid mt-3 grid grid-cols-4 gap-1.5 text-center">
           {["국민연금 4.5%", "건보 3.545%*", "고용 0.9%", "소득세"].map((d) => (
-            <div key={d} className="py-1.5 bg-rose-500/10 rounded-lg text-[9px] text-rose-300">{d}</div>
+            <div key={d} className="payroll-sim-deduction-tile py-1.5 bg-rose-500/10 rounded-lg text-[9px] text-rose-300">{d}</div>
           ))}
         </div>
       )}
       {showApprove && (
-        <div className="mt-3 py-2.5 bg-emerald-500/20 rounded-xl text-center text-xs font-bold text-emerald-300 animate-pulse">
+        <div className="payroll-sim-approve-banner mt-3 py-2.5 bg-emerald-500/20 rounded-xl text-center text-xs font-bold text-emerald-300 animate-pulse">
           대표 승인 완료 → 명세서 일괄 발송 중
         </div>
       )}
@@ -515,24 +515,24 @@ function AISim() {
 
   return (
     <div className="ai-sim-card lp-card-dark min-h-[280px]">
-      <div className="lp-row-between">
+      <div className="ai-sim-header lp-row-between">
         <span className="text-xs font-bold text-blue-400">AI ENGINE</span>
-        <div className="flex items-center gap-1.5">
+        <div className="ai-sim-live-indicator flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
           <span className="text-[10px] text-emerald-400">실시간 분석 중</span>
         </div>
       </div>
-      <div className="space-y-2">
+      <div className="ai-sim-list space-y-2">
         {alerts.map((a, i) => (
           <div
             key={i}
-            className="flex items-center gap-2.5 bg-white/5 rounded-xl p-3 transition-all duration-700"
+            className="ai-sim-alert flex items-center gap-2.5 bg-white/5 rounded-xl p-3 transition-all duration-700"
             style={{ opacity: a.show ? 1 : 0, transform: a.show ? "translateY(0)" : "translateY(10px)" }}
           >
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-bold" style={{ background: `${a.color}20`, color: a.color }}>
+            <div className="ai-sim-alert-icon w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-bold" style={{ background: `${a.color}20`, color: a.color }}>
               {a.type[0]}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="ai-sim-alert-text flex-1 min-w-0">
               <div className="text-[10px] font-medium" style={{ color: a.color }}>{a.type}</div>
               <div className="text-[11px] text-slate-300 truncate">{a.msg}</div>
             </div>
@@ -561,18 +561,18 @@ function ChatSim() {
 
   return (
     <div className="chat-sim-card lp-card-dark min-h-[280px]">
-      <div className="lp-row-between">
+      <div className="chat-sim-header lp-row-between">
         <span className="text-xs font-bold text-blue-400">TEAM CHAT</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">실시간</span>
       </div>
-      <div className="space-y-2 overflow-hidden max-h-[220px]">
+      <div className="chat-sim-list space-y-2 overflow-hidden max-h-[220px]">
         {msgs.map((m, i) => (
-          <div key={i} className={`flex gap-2 transition-all duration-500 ${m.show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${m.isAction ? "bg-blue-500/20 text-blue-400" : m.isPartner ? "bg-purple-500/20 text-purple-400" : "bg-white/10 text-slate-400"}`}>
+          <div key={i} className={`chat-sim-message flex gap-2 transition-all duration-500 ${m.show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}>
+            <div className={`chat-sim-avatar w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${m.isAction ? "bg-blue-500/20 text-blue-400" : m.isPartner ? "bg-purple-500/20 text-purple-400" : "bg-white/10 text-slate-400"}`}>
               {m.isAction ? "AI" : m.from[0]}
             </div>
-            <div className={`flex-1 rounded-xl p-2 text-[11px] ${m.isAction ? "bg-blue-500/10 border border-blue-500/20 text-blue-300" : "bg-white/5 text-slate-300"}`}>
-              <div className="flex items-center gap-1.5 mb-0.5">
+            <div className={`chat-sim-bubble flex-1 rounded-xl p-2 text-[11px] ${m.isAction ? "bg-blue-500/10 border border-blue-500/20 text-blue-300" : "bg-white/5 text-slate-300"}`}>
+              <div className="chat-sim-bubble-meta flex items-center gap-1.5 mb-0.5">
                 <span className="font-semibold text-[10px]">{m.from}</span>
                 <span className="text-[9px] text-slate-500">{m.time}</span>
               </div>
@@ -602,19 +602,19 @@ function CRMSim() {
 
   return (
     <div className="crm-sim-card lp-card-dark min-h-[280px]">
-      <div className="lp-row-between">
+      <div className="crm-sim-header lp-row-between">
         <span className="text-xs font-bold text-blue-400">CLIENT DB</span>
         <span className="text-[10px] text-slate-400">{clients.filter(c => c.show).length}개 거래처</span>
       </div>
-      <div className="space-y-2">
+      <div className="crm-sim-list space-y-2">
         {clients.map((c, i) => (
-          <div key={i} className={`bg-white/5 rounded-xl p-2.5 flex items-center gap-2.5 transition-all duration-500 ${c.show ? "opacity-100" : "opacity-0"}`}>
-            <div className="w-8 h-8 rounded-lg bg-blue-500/30 flex items-center justify-center text-[10px] font-bold shrink-0">{c.name[3]}</div>
-            <div className="flex-1 min-w-0">
+          <div key={i} className={`crm-sim-client bg-white/5 rounded-xl p-2.5 flex items-center gap-2.5 transition-all duration-500 ${c.show ? "opacity-100" : "opacity-0"}`}>
+            <div className="crm-sim-avatar w-8 h-8 rounded-lg bg-blue-500/30 flex items-center justify-center text-[10px] font-bold shrink-0">{c.name[3]}</div>
+            <div className="crm-sim-info flex-1 min-w-0">
               <div className="text-[11px] font-semibold truncate">{c.name}</div>
               <div className="text-[9px] text-slate-400">{c.deals}건 거래 · {c.last}</div>
             </div>
-            <div className="text-right shrink-0">
+            <div className="crm-sim-stats text-right shrink-0">
               <div className="text-[10px] font-bold">{c.total}</div>
               <div className={`text-[9px] font-medium ${c.status === "활성" ? "text-emerald-400" : c.status === "주의" ? "text-amber-400" : "text-red-400"}`}>{c.status}</div>
             </div>
@@ -622,7 +622,7 @@ function CRMSim() {
         ))}
       </div>
       {showInsight && (
-        <div className="mt-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl p-2.5 text-[10px] text-purple-300 transition-all duration-700">
+        <div className="crm-sim-insight-banner mt-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl p-2.5 text-[10px] text-purple-300 transition-all duration-700">
           💡 AI: 블루오션 12일 미접촉 — 리마인더 발송 추천
         </div>
       )}
@@ -647,25 +647,25 @@ function DocSim() {
 
   return (
     <div className="doc-sim-card lp-card-dark min-h-[280px]">
-      <div className="lp-row-between">
+      <div className="doc-sim-header lp-row-between">
         <span className="text-xs font-bold text-blue-400">DOCUMENT HUB</span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">자동관리</span>
       </div>
-      <div className="space-y-2">
+      <div className="doc-sim-list space-y-2">
         {docs.map((d, i) => (
-          <div key={i} className="bg-white/5 rounded-xl p-2.5 flex items-center gap-2.5 transition-all duration-700">
+          <div key={i} className="doc-sim-item bg-white/5 rounded-xl p-2.5 flex items-center gap-2.5 transition-all duration-700">
             <span className="text-sm">{d.icon}</span>
-            <div className="flex-1 min-w-0">
+            <div className="doc-sim-info flex-1 min-w-0">
               <div className="text-[11px] font-semibold truncate">{d.name}</div>
               <div className="text-[9px] text-slate-400">{d.type}</div>
             </div>
-            <span className="text-[9px] px-2 py-0.5 rounded-full font-medium" style={{ background: `${statusColors[d.status]}20`, color: statusColors[d.status] }}>{d.status}</span>
+            <span className="doc-sim-status-badge text-[9px] px-2 py-0.5 rounded-full font-medium" style={{ background: `${statusColors[d.status]}20`, color: statusColors[d.status] }}>{d.status}</span>
           </div>
         ))}
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
+      <div className="doc-sim-stats mt-3 grid grid-cols-3 gap-1.5 text-center">
         {[{ l: "자동분류", v: "47건" }, { l: "자동백업", v: "128건" }, { l: "버전관리", v: "v2.1" }].map(s => (
-          <div key={s.l} className="py-1.5 bg-white/5 rounded-lg">
+          <div key={s.l} className="doc-sim-stat-tile py-1.5 bg-white/5 rounded-lg">
             <div className="text-[9px] text-slate-500">{s.l}</div>
             <div className="text-[10px] font-bold">{s.v}</div>
           </div>
@@ -721,7 +721,7 @@ function FloatingElements() {
       ].map((f, i) => (
         <div
           key={i}
-          className="absolute text-2xl opacity-[0.15]"
+          className="hero-floating-icon absolute text-2xl opacity-[0.15]"
           style={{
             left: f.x,
             top: f.y,
@@ -732,14 +732,14 @@ function FloatingElements() {
         </div>
       ))}
       {/* Connection lines (decorative SVG paths) */}
-      <svg className="absolute inset-0 w-full h-full opacity-[0.06]" xmlns="http://www.w3.org/2000/svg">
+      <svg className="hero-connection-lines absolute inset-0 w-full h-full opacity-[0.06]" xmlns="http://www.w3.org/2000/svg">
         <path d="M100,100 Q400,50 700,200 T1200,150" fill="none" stroke="white" strokeWidth="1" />
         <path d="M200,400 Q500,300 800,450 T1300,350" fill="none" stroke="white" strokeWidth="1" />
         <path d="M0,250 Q300,200 600,350 T1100,250" fill="none" stroke="white" strokeWidth="0.5" />
       </svg>
       {/* Gradient orbs */}
-      <div className="absolute w-[500px] h-[500px] rounded-full opacity-10 blur-[120px] bg-blue-600 -top-[10%] -right-[10%]" />
-      <div className="absolute w-[400px] h-[400px] rounded-full opacity-10 blur-[100px] bg-blue-800 -bottom-[5%] -left-[5%]" />
+      <div className="hero-gradient-orb absolute w-[500px] h-[500px] rounded-full opacity-10 blur-[120px] bg-blue-600 -top-[10%] -right-[10%]" />
+      <div className="hero-gradient-orb absolute w-[400px] h-[400px] rounded-full opacity-10 blur-[100px] bg-blue-800 -bottom-[5%] -left-[5%]" />
     </div>
   );
 }
@@ -827,12 +827,12 @@ export default function LandingPage() {
 
       {/* ── NAV ── */}
       <nav className="site-nav fixed top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
-          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="flex items-center gap-2.5 cursor-pointer">
+        <div className="nav-inner max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
+          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="nav-logo-link flex items-center gap-2.5 cursor-pointer">
             <OwnerViewLogo size={32} />
             <span className="text-lg font-bold text-white tracking-tight"><RollingBrandText /></span>
           </a>
-          <div className="hidden md:flex items-center gap-8 text-sm text-slate-400">
+          <div className="nav-links-desktop hidden md:flex items-center gap-8 text-sm text-slate-400">
             <a href="#features" className="lp-nav-link">주요기능</a>
             <a href="#engines" className="lp-nav-link">엔진</a>
             <a href="#featuremap" className="lp-nav-link">기능 맵</a>
@@ -841,10 +841,10 @@ export default function LandingPage() {
             <a href="#partner" className="lp-nav-link">제휴문의</a>
             <a href="#faq" className="lp-nav-link">FAQ</a>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="nav-actions flex items-center gap-3">
             {/* 모바일 햄버거 메뉴 버튼 */}
             <button
-              className="md:hidden p-2 text-slate-400 hover:text-white transition"
+              className="nav-hamburger-button md:hidden p-2 text-slate-400 hover:text-white transition"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="메뉴 열기"
               aria-expanded={isMobileMenuOpen}
@@ -878,11 +878,11 @@ export default function LandingPage() {
         {/* 모바일 드롭다운 메뉴 */}
         {isMobileMenuOpen && (
           <div className="mobile-nav-menu md:hidden bg-[#0A0E1A]/95 backdrop-blur-xl border-t border-white/5 px-6 py-4 space-y-3">
-            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">주요기능</a>
-            <a href="#engines" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">도입효과</a>
-            <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">요금제</a>
-            <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="block text-sm text-slate-400 hover:text-white transition py-1">FAQ</a>
-            <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
+            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="mobile-nav-link block text-sm text-slate-400 hover:text-white transition py-1">주요기능</a>
+            <a href="#engines" onClick={() => setIsMobileMenuOpen(false)} className="mobile-nav-link block text-sm text-slate-400 hover:text-white transition py-1">도입효과</a>
+            <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="mobile-nav-link block text-sm text-slate-400 hover:text-white transition py-1">요금제</a>
+            <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="mobile-nav-link block text-sm text-slate-400 hover:text-white transition py-1">FAQ</a>
+            <div className="mobile-nav-auth-row pt-2 border-t border-white/10 flex flex-col gap-2">
               <Link href="/auth" className="text-sm text-slate-300 hover:text-white transition py-1">로그인</Link>
               <Link href="/auth" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-600/20 text-center">무료로 시작하기</Link>
             </div>
@@ -893,100 +893,100 @@ export default function LandingPage() {
       {/* ── HERO ── */}
       <section className="hero-section relative pt-32 pb-28 md:pt-44 md:pb-36 px-6 bg-[#0A0E1A] overflow-hidden" ref={heroRef.ref}>
         {/* Subtle geometric background */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute w-[600px] h-[600px] rounded-full opacity-[0.07] blur-[150px] bg-blue-600 -top-[15%] -right-[10%]" />
-          <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[120px] bg-indigo-500 -bottom-[5%] -left-[5%]" />
+        <div className="hero-bg-decoration absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="hero-gradient-orb absolute w-[600px] h-[600px] rounded-full opacity-[0.07] blur-[150px] bg-blue-600 -top-[15%] -right-[10%]" />
+          <div className="hero-gradient-orb absolute w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[120px] bg-indigo-500 -bottom-[5%] -left-[5%]" />
           {/* Subtle dot grid pattern */}
-          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+          <div className="hero-dot-grid absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
         </div>
         <div className="hero-content max-w-4xl mx-auto text-center relative z-10">
           {/* OwnerView Logo — large */}
-          <div className={`mb-10 ${heroRef.inView ? "animate-scale" : "opacity-0"}`}>
+          <div className={`hero-logo-wrap mb-10 ${heroRef.inView ? "animate-scale" : "opacity-0"}`}>
             <OwnerViewLogo size={72} className="mx-auto" />
           </div>
 
-          <h1 className={`text-4xl md:text-6xl lg:text-[4.25rem] font-extrabold leading-[1.15] mb-6 text-white tracking-tight ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
+          <h1 className={`hero-headline text-4xl md:text-6xl lg:text-[4.25rem] font-extrabold leading-[1.15] mb-6 text-white tracking-tight ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             회사의 <RollingText /> 현황
             <br />
             자동으로 한눈에!
           </h1>
-          <p className={`text-base md:text-lg text-slate-300 mb-3 max-w-2xl mx-auto font-medium [animation-delay:0.15s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
+          <p className={`hero-subtext text-base md:text-lg text-slate-300 mb-3 max-w-2xl mx-auto font-medium [animation-delay:0.15s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             현금, 프로젝트, 세무, 급여, 결재 — 회사 운영의 모든 것을 하나로
           </p>
-          <p className={`text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed [animation-delay:0.2s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
+          <p className={`hero-tagline text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed [animation-delay:0.2s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
             중소기업 대표를 위한 올인원 운영 플랫폼
           </p>
           <div className={`hero-cta flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 [animation-delay:0.4s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            <Link href="/auth" className="w-full sm:w-auto px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 active:scale-[0.98]">
+            <Link href="/auth" className="hero-cta-primary w-full sm:w-auto px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 active:scale-[0.98]">
               무료로 시작하기
             </Link>
-            <Link href="/demo" className="w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-lg font-semibold transition backdrop-blur">
+            <Link href="/demo" className="hero-cta-secondary w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-lg font-semibold transition backdrop-blur">
               데모 체험
             </Link>
-            <a href="#features" className="w-full sm:w-auto px-10 py-4 text-slate-300 hover:text-white text-lg font-medium transition">
+            <a href="#features" className="hero-cta-tertiary w-full sm:w-auto px-10 py-4 text-slate-300 hover:text-white text-lg font-medium transition">
               기능 둘러보기 →
             </a>
           </div>
           {/* 신뢰 카운터 */}
           <div className={`hero-trust-counter flex items-center justify-center gap-8 mb-10 [animation-delay:0.45s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            <div className="text-center">
+            <div className="hero-trust-stat text-center">
               <div className="text-2xl md:text-3xl font-black text-white">30<span className="text-blue-400">+</span></div>
               <div className="text-[11px] text-slate-500 mt-0.5">통합 기능</div>
             </div>
-            <div className="w-px h-8 bg-white/10" />
-            <div className="text-center">
+            <div className="hero-trust-divider w-px h-8 bg-white/10" />
+            <div className="hero-trust-stat text-center">
               <div className="text-2xl md:text-3xl font-black text-white">4</div>
               <div className="text-[11px] text-slate-500 mt-0.5">자동화 엔진</div>
             </div>
-            <div className="w-px h-8 bg-white/10" />
-            <div className="text-center">
+            <div className="hero-trust-divider w-px h-8 bg-white/10" />
+            <div className="hero-trust-stat text-center">
               <div className="text-2xl md:text-3xl font-black text-white">89<span className="text-emerald-400">%</span></div>
               <div className="text-[11px] text-slate-500 mt-0.5">비용 절감</div>
             </div>
-            <div className="w-px h-8 bg-white/10" />
-            <div className="text-center">
+            <div className="hero-trust-divider w-px h-8 bg-white/10" />
+            <div className="hero-trust-stat text-center">
               <div className="text-2xl md:text-3xl font-black text-white">0<span className="text-slate-500">원</span></div>
               <div className="text-[11px] text-slate-500 mt-0.5">도입비용</div>
             </div>
           </div>
           {/* Trust badges */}
           <div className={`hero-trust-badges flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500 [animation-delay:0.5s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 카드 등록 없이 무료</span>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 가입 즉시 세팅 완료</span>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 24시간 자동 운영</span>
-            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> RLS 기반 데이터 보안</span>
+            <span className="hero-trust-badge flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 카드 등록 없이 무료</span>
+            <span className="hero-trust-badge flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 가입 즉시 세팅 완료</span>
+            <span className="hero-trust-badge flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 24시간 자동 운영</span>
+            <span className="hero-trust-badge flex items-center gap-1.5"><span className="text-emerald-400">✓</span> RLS 기반 데이터 보안</span>
           </div>
 
           {/* Hero mini dashboard mockup */}
           <div className={`hero-dashboard-mockup mt-16 max-w-3xl mx-auto [animation-delay:0.6s] ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            <div className="bg-[#1E293B]/80 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-2xl">
-              <div className="flex items-center gap-2 mb-3 px-2">
-                <div className="w-3 h-3 rounded-full bg-red-400/80" />
-                <div className="w-3 h-3 rounded-full bg-yellow-400/80" />
-                <div className="w-3 h-3 rounded-full bg-green-400/80" />
+            <div className="hero-dashboard-window bg-[#1E293B]/80 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-2xl">
+              <div className="hero-dashboard-titlebar flex items-center gap-2 mb-3 px-2">
+                <div className="hero-dashboard-dot w-3 h-3 rounded-full bg-red-400/80" />
+                <div className="hero-dashboard-dot w-3 h-3 rounded-full bg-yellow-400/80" />
+                <div className="hero-dashboard-dot w-3 h-3 rounded-full bg-green-400/80" />
                 <span className="text-[10px] text-slate-500 ml-2">OwnerView Dashboard — CEO View</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              <div className="hero-dashboard-stats grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                 {[
                   { label: "현금", value: "₩8.2억", color: "#3B82F6", change: "+12%" },
                   { label: "매출", value: "₩4.5억", color: "#10B981", change: "+23%" },
                   { label: "고정비", value: "₩1.8억", color: "#F59E0B", change: "-5%" },
                   { label: "생존", value: "4.6개월", color: "#8B5CF6", change: "+0.8" },
                 ].map((c) => (
-                  <div key={c.label} className="bg-white/5 rounded-xl p-3 text-center">
+                  <div key={c.label} className="hero-dashboard-stat-tile bg-white/5 rounded-xl p-3 text-center">
                     <div className="text-[10px] text-slate-500">{c.label}</div>
                     <div className="text-sm font-bold text-white">{c.value}</div>
                     <div className="text-[10px] font-medium" style={{ color: c.color }}>{c.change}</div>
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="hero-dashboard-widgets grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   { label: "승인 대기", count: "3건", color: "#F59E0B" },
                   { label: "진행 프로젝트", count: "12건", color: "#3B82F6" },
                   { label: "AI 알림", count: "5건", color: "#EF4444" },
                 ].map((w) => (
-                  <div key={w.label} className="bg-white/5 rounded-lg p-2 flex items-center gap-2">
+                  <div key={w.label} className="hero-dashboard-widget bg-white/5 rounded-lg p-2 flex items-center gap-2">
                     <div className="w-2 h-5 rounded-full" style={{ background: w.color }} />
                     <div>
                       <div className="text-[10px] text-slate-500">{w.label}</div>
@@ -1003,13 +1003,13 @@ export default function LandingPage() {
       {/* ── PAIN POINT → SOLUTION ── */}
       <section className="pain-point-section py-20 px-6 bg-[#0F1629]">
         <div className="lp-container">
-          <div className="text-center mb-14">
+          <div className="pain-point-header text-center mb-14">
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
               대표님, 이거 다 <span className="text-amber-400">혼자</span> 하고 계시죠?
             </h2>
             <p className="text-slate-400 text-lg">회계사 부르고, 세무사 연락하고, 엑셀 정리하고, 계약서 찾고...</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+          <div className="pain-point-grid grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
             {[
               { keyword: "급여 자동화", pain: "급여일마다 엑셀 뒤지며 4대보험 수동 계산", solve: "AI가 4대보험/원천세 자동 계산 → 급여명세서·이체 내역 자동 정리, 대표는 확인만", icon: "💰" },
               { keyword: "계약 파이프라인", pain: "견적서 보냈는데 계약서는 또 따로 만들어야 함", solve: "견적 승인 → 계약서 자동 생성 → 서명 → 세금계산서까지 전자동 파이프라인", icon: "📋" },
@@ -1019,12 +1019,12 @@ export default function LandingPage() {
               { keyword: "업무 히스토리 보존", pain: "파트너사와 카톡으로 업무하다 중요한 내용 유실", solve: "프로젝트별 전용 채팅 채널 + 견적·서명·승인 액션카드. 비즈니스 히스토리 영구 보존", icon: "💬" },
             ].map((item) => (
               <div key={item.pain} className="pain-point-card bg-white/[0.03] backdrop-blur border border-white/5 rounded-2xl p-6 hover:border-white/10 transition group">
-                <div className="flex items-start gap-4">
-                  <span className="text-3xl mt-0.5">{item.icon}</span>
-                  <div>
-                    <span className="inline-block text-base md:text-lg font-extrabold text-blue-400 bg-blue-400/10 px-3 py-1 rounded-lg mb-3">{item.keyword}</span>
-                    <div className="text-sm md:text-base text-red-400/80 line-through mb-2 leading-relaxed">{item.pain}</div>
-                    <div className="text-sm md:text-base text-emerald-300 font-medium leading-relaxed">→ {item.solve}</div>
+                <div className="pain-point-card-body flex items-start gap-4">
+                  <span className="pain-point-icon text-3xl mt-0.5">{item.icon}</span>
+                  <div className="pain-point-text">
+                    <span className="pain-point-keyword-badge inline-block text-base md:text-lg font-extrabold text-blue-400 bg-blue-400/10 px-3 py-1 rounded-lg mb-3">{item.keyword}</span>
+                    <div className="pain-point-pain-text text-sm md:text-base text-red-400/80 line-through mb-2 leading-relaxed">{item.pain}</div>
+                    <div className="pain-point-solve-text text-sm md:text-base text-emerald-300 font-medium leading-relaxed">→ {item.solve}</div>
                   </div>
                 </div>
               </div>
@@ -1046,8 +1046,8 @@ export default function LandingPage() {
       {/* ── 4 ENGINES ── */}
       <section className="engines-section py-24 px-6 bg-[#0A0E1A]" id="engines">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-20">
-            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold mb-6 border border-[#818CF8]/30 bg-[#818CF8]/10 text-[#818CF8]">
+          <div className="engines-header text-center mb-20">
+            <div className="engines-eyebrow-badge inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold mb-6 border border-[#818CF8]/30 bg-[#818CF8]/10 text-[#818CF8]">
               다른 SaaS와 근본이 다릅니다
             </div>
             <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight">
@@ -1062,29 +1062,29 @@ export default function LandingPage() {
           <div className="space-y-8">
             {ENGINES.map((engine, idx) => {
               return (
-              <div key={engine.num} className="group relative">
+              <div key={engine.num} className="engine-row group relative">
                 {/* Engine card */}
                 <div className="engine-card bg-white/[0.04] border border-white/10 rounded-[20px] overflow-hidden hover:border-white/20 transition-all duration-500 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]">
                   {/* Accent bar */}
-                  <div className="h-1" style={{ background: engine.color }} />
+                  <div className="engine-accent-bar h-1" style={{ background: engine.color }} />
 
-                  <div className="p-6 md:p-10">
+                  <div className="engine-body p-6 md:p-10">
                     {/* Header — Icon + Name + Badge */}
-                    <div className="flex items-center gap-4 mb-5">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${engine.color}15`, color: engine.color }}>
+                    <div className="engine-header flex items-center gap-4 mb-5">
+                      <div className="engine-icon-badge w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${engine.color}15`, color: engine.color }}>
                         <EngineGlyph num={engine.num} />
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 flex-wrap">
+                      <div className="engine-title-wrap flex-1">
+                        <div className="engine-name-row flex items-center gap-3 flex-wrap">
                           <h3 className="text-2xl md:text-3xl font-extrabold text-white">{engine.name}</h3>
-                          <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-md tracking-wider" style={{ background: `${engine.color}18`, color: engine.color }}>
+                          <span className="engine-number-badge text-[10px] font-mono font-bold px-2.5 py-1 rounded-md tracking-wider" style={{ background: `${engine.color}18`, color: engine.color }}>
                             ENGINE {engine.num}
                           </span>
                         </div>
-                        <span className="text-xs text-slate-600">{engine.eng}</span>
+                        <span className="engine-eng-label text-xs text-slate-600">{engine.eng}</span>
                       </div>
                       {/* Cost badge — desktop */}
-                      <div className="hidden md:flex flex-col items-end">
+                      <div className="engine-cost-badge-desktop hidden md:flex flex-col items-end">
                         <div className="text-xs text-slate-500 line-through">{engine.replaces} {engine.replacesCost}</div>
                         <div className="text-sm font-bold" style={{ color: engine.color }}>이 엔진 하나로 대체</div>
                       </div>
@@ -1100,17 +1100,17 @@ export default function LandingPage() {
                     <p className="text-sm md:text-base text-slate-300 leading-relaxed mb-8">{engine.desc}</p>
 
                     {/* 2-column: Steps + Features / Metrics */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="engine-columns grid grid-cols-1 lg:grid-cols-2 gap-8">
                       {/* Left: 3 Steps as flow */}
-                      <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">작동 방식 — 3단계</div>
-                        <div className="space-y-3 mb-6">
+                      <div className="engine-steps-col">
+                        <div className="engine-steps-label text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">작동 방식 — 3단계</div>
+                        <div className="engine-steps-list space-y-3 mb-6">
                           {engine.steps.map((s, i) => (
                             <div key={i} className="engine-step-item flex items-start gap-3 bg-white/[0.04] rounded-xl p-3.5 border border-white/[0.06]">
-                              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shrink-0 mt-0.5" style={{ background: engine.color, color: "white" }}>
+                              <div className="engine-step-number w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shrink-0 mt-0.5" style={{ background: engine.color, color: "white" }}>
                                 {i + 1}
                               </div>
-                              <div>
+                              <div className="engine-step-text">
                                 <div className="text-sm font-bold text-white mb-0.5">{s.step}</div>
                                 <div className="text-xs text-slate-400 leading-relaxed">{s.detail}</div>
                               </div>
@@ -1120,24 +1120,24 @@ export default function LandingPage() {
                         </div>
 
                         {/* API tags */}
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="engine-api-tags flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] text-slate-600 font-bold uppercase">연동 API:</span>
                           {engine.apis.map((api) => (
-                            <span key={api} className="text-[10px] px-2.5 py-1 rounded-full font-semibold border" style={{ borderColor: `${engine.color}25`, color: engine.color, background: `${engine.color}08` }}>{api}</span>
+                            <span key={api} className="engine-api-tag text-[10px] px-2.5 py-1 rounded-full font-semibold border" style={{ borderColor: `${engine.color}25`, color: engine.color, background: `${engine.color}08` }}>{api}</span>
                           ))}
                         </div>
                       </div>
 
                       {/* Right: Features + Metrics */}
-                      <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">핵심 기능</div>
-                        <div className="grid grid-cols-2 gap-2.5 mb-6">
+                      <div className="engine-features-col">
+                        <div className="engine-features-label text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">핵심 기능</div>
+                        <div className="engine-features-grid grid grid-cols-2 gap-2.5 mb-6">
                           {engine.features.map((f) => (
                             <div key={f.name} className="engine-feature-item flex items-start gap-2.5 bg-white/[0.04] border border-white/[0.06] rounded-2xl p-3 hover:bg-white/[0.06] hover:border-white/12 transition-colors">
-                              <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${engine.color}1a`, boxShadow: `inset 0 0 0 1px ${engine.color}22`, color: engine.color }}>
+                              <span className="engine-feature-icon w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${engine.color}1a`, boxShadow: `inset 0 0 0 1px ${engine.color}22`, color: engine.color }}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                               </span>
-                              <div className="min-w-0">
+                              <div className="engine-feature-text min-w-0">
                                 <div className="text-xs font-bold text-white mb-0.5 leading-tight">{f.name}</div>
                                 <div className="text-[10px] text-slate-400 leading-snug">{f.desc}</div>
                               </div>
@@ -1146,7 +1146,7 @@ export default function LandingPage() {
                         </div>
 
                         {/* Metrics row — 예시 대시보드 미리보기 (샘플 수치) */}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="engine-metrics-row grid grid-cols-3 gap-2">
                           {engine.metrics.map((m) => (
                             <div key={m.label} className="engine-metric-tile bg-white/[0.05] rounded-xl p-3 text-center border border-white/[0.06]">
                               <div className="text-[10px] text-slate-500">{m.label}</div>
@@ -1160,7 +1160,7 @@ export default function LandingPage() {
                     </div>
 
                     {/* Mobile cost badge */}
-                    <div className="md:hidden mt-6 flex items-center justify-between bg-white/[0.04] rounded-xl p-4 border border-white/[0.06]">
+                    <div className="engine-cost-badge-mobile md:hidden mt-6 flex items-center justify-between bg-white/[0.04] rounded-xl p-4 border border-white/[0.06]">
                       <div className="text-xs text-slate-500 line-through">{engine.replaces} {engine.replacesCost}</div>
                       <div className="text-sm font-bold" style={{ color: engine.color }}>이 엔진으로 대체</div>
                     </div>
@@ -1173,12 +1173,12 @@ export default function LandingPage() {
           {/* Total savings */}
           <div className="mt-16 text-center">
             <div className="engines-savings-summary inline-flex flex-col sm:flex-row items-center gap-6 sm:gap-10 px-10 py-8 bg-blue-600/10 border border-white/10 rounded-3xl backdrop-blur">
-              <div className="text-center sm:text-left">
+              <div className="engines-savings-cost-col text-center sm:text-left">
                 <div className="text-sm text-slate-500 mb-2">4개 엔진 총 절감 인건비</div>
                 <div className="text-4xl md:text-5xl font-extrabold text-white">연 <span className="text-blue-400">1.87억원</span></div>
               </div>
-              <div className="w-px h-12 bg-white/10 hidden sm:block" />
-              <div className="text-center sm:text-left">
+              <div className="engines-savings-divider w-px h-12 bg-white/10 hidden sm:block" />
+              <div className="engines-savings-price-col text-center sm:text-left">
                 <div className="text-sm text-slate-500 mb-2">OwnerView 프로 요금제</div>
                 <div className="text-2xl font-bold text-white">월 <span className="text-blue-400">55,000원</span> 정액</div>
                 <div className="text-sm text-emerald-400 font-semibold mt-1">인원 무제한 · VAT 별도</div>
@@ -1192,8 +1192,8 @@ export default function LandingPage() {
       {/* ── FEATURE MAP — 실제 제품 기능 전체 (2026-07 최신화) ── */}
       <section className="feature-map-section py-20 px-6 bg-[#0B1120]" id="featuremap">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5 border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
+          <div className="feature-map-header text-center mb-14">
+            <div className="feature-map-eyebrow inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-5 border border-emerald-500/20 bg-emerald-500/10 text-emerald-300">
               지금 바로 쓸 수 있는 기능들
             </div>
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
@@ -1201,7 +1201,7 @@ export default function LandingPage() {
             </h2>
             <p className="text-slate-400 text-lg">약속이 아니라, 오늘 로그인하면 전부 있는 기능입니다</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="feature-map-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               {
                 group: "파이낸스",
@@ -1257,16 +1257,16 @@ export default function LandingPage() {
               },
             ].map((g) => (
               <div key={g.group} className="feature-map-group-card bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-3xl overflow-hidden hover:border-white/15 transition">
-                <div className="h-1" style={{ background: g.color }} />
-                <div className="p-6">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ background: `${g.color}15` }}>{g.icon}</div>
+                <div className="feature-map-accent-bar h-1" style={{ background: g.color }} />
+                <div className="feature-map-card-body p-6">
+                  <div className="feature-map-card-header flex items-center gap-3 mb-5">
+                    <div className="feature-map-icon w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ background: `${g.color}15` }}>{g.icon}</div>
                     <h3 className="text-lg font-extrabold text-white">{g.group}</h3>
                   </div>
-                  <ul className="space-y-2.5">
+                  <ul className="feature-map-list space-y-2.5">
                     {g.items.map((it) => (
-                      <li key={it} className="flex items-start gap-2 text-[13px] text-slate-300 leading-snug">
-                        <span className="mt-0.5 shrink-0" style={{ color: g.color }}>✓</span>
+                      <li key={it} className="feature-map-list-item flex items-start gap-2 text-[13px] text-slate-300 leading-snug">
+                        <span className="feature-map-check mt-0.5 shrink-0" style={{ color: g.color }}>✓</span>
                         {it}
                       </li>
                     ))}
@@ -1281,7 +1281,7 @@ export default function LandingPage() {
       {/* ── COMPETITOR COMPARISON (witty half-logos) ── */}
       <section className="competitor-section py-20 px-6 bg-[#111827]" id="compare" ref={compRef.ref}>
         <div className="lp-container">
-          <div className={`text-center mb-14 ${compRef.inView ? "animate-up" : "opacity-0"}`}>
+          <div className={`competitor-header text-center mb-14 ${compRef.inView ? "animate-up" : "opacity-0"}`}>
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
               이 서비스들, <span className="text-red-400">전부 쓰고 계시죠?</span>
             </h2>
@@ -1289,16 +1289,16 @@ export default function LandingPage() {
           </div>
 
           {/* Competitor half-logo cards */}
-          <div className={`grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-12 [animation-delay:0.2s] ${compRef.inView ? "animate-up" : "opacity-0"}`}>
+          <div className={`competitor-grid grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-12 [animation-delay:0.2s] ${compRef.inView ? "animate-up" : "opacity-0"}`}>
             {COMPETITORS.map((c) => (
               <div key={c.name} className="competitor-card group relative bg-white/5 rounded-2xl p-4 text-center border border-white/5 hover:border-white/20 transition overflow-hidden">
                 {/* Half-clipped letter logo */}
-                <div className="relative w-10 h-10 mx-auto mb-2">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black overflow-hidden" style={{ background: `${c.color}20`, color: c.color }}>
+                <div className="competitor-logo-wrap relative w-10 h-10 mx-auto mb-2">
+                  <div className="competitor-logo-box w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black overflow-hidden" style={{ background: `${c.color}20`, color: c.color }}>
                     <span className="[clip-path:inset(0_50%_0_0)]">{c.letter}</span>
                   </div>
                   {/* Slash through */}
-                  <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="competitor-logo-slash absolute inset-0 flex items-center justify-center">
                     <div className="w-[140%] h-[1.5px] bg-red-400/60 -rotate-45" />
                   </div>
                 </div>
@@ -1310,24 +1310,24 @@ export default function LandingPage() {
           </div>
 
           {/* Arrow down to OwnerView */}
-          <div className="flex flex-col items-center mb-10">
+          <div className="competitor-arrow-wrap flex flex-col items-center mb-10">
             <div className="text-slate-500 text-sm mb-3">전부 합치면</div>
             <svg className="w-6 h-6 text-blue-400 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
           </div>
 
           {/* Cost Calculator */}
           <div className={`cost-calculator bg-[#1A2332] rounded-3xl border border-white/10 p-8 shadow-2xl [animation-delay:0.4s] ${compRef.inView ? "animate-up" : "opacity-0"}`}>
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
+            <div className="cost-calculator-header flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
               <div>
                 <h3 className="text-xl font-bold text-white mb-1">비용 비교 계산기</h3>
                 <p className="text-sm text-slate-400">경쟁사는 인원마다 늘지만, 오너뷰는 월 55,000원 정액</p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="cost-calculator-slider-wrap flex items-center gap-4">
                 <span className="text-3xl font-extrabold text-white">{teamSize}<span className="text-lg text-slate-400">명</span></span>
                 <input type="range" min={3} max={100} value={teamSize} onChange={(e) => setTeamSize(Number(e.target.value))} className="w-40 accent-blue-500" />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="cost-calculator-grid grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="cost-calculator-stat bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-center">
                 <div className="text-xs text-red-400 mb-1">개별 구독 합계</div>
                 <div className="text-3xl font-extrabold text-red-400">{Math.round(competitorTotal / 10000).toLocaleString()}<span className="text-base font-normal">만원/월</span></div>
@@ -1348,7 +1348,7 @@ export default function LandingPage() {
       {/* ── FEATURES + LIVE SIMULATION ── */}
       <section className="live-demo-section py-20 px-6 bg-[#111827]" id="features" ref={featRef.ref}>
         <div className="lp-container">
-          <div className={`text-center mb-12 ${featRef.inView ? "animate-up" : "opacity-0"}`}>
+          <div className={`live-demo-header text-center mb-12 ${featRef.inView ? "animate-up" : "opacity-0"}`}>
             <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
               실시간 <span className="text-blue-400">라이브 데모</span>
             </h2>
@@ -1356,7 +1356,7 @@ export default function LandingPage() {
           </div>
 
           {/* Feature tabs */}
-          <div className={`flex flex-wrap gap-2 justify-center mb-10 [animation-delay:0.2s] ${featRef.inView ? "animate-up" : "opacity-0"}`}>
+          <div className={`live-demo-tabs flex flex-wrap gap-2 justify-center mb-10 [animation-delay:0.2s] ${featRef.inView ? "animate-up" : "opacity-0"}`}>
             {FEATURES.map((f, i) => (
               <button
                 key={i}
@@ -1373,23 +1373,23 @@ export default function LandingPage() {
           </div>
 
           {/* Feature content + Sim */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="live-demo-grid grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left: Info */}
             <div className="feature-info-card bg-[#1A2332] rounded-2xl border border-white/10 p-8 flex flex-col justify-center">
-              <div className="text-xs text-blue-400 font-medium mb-2 flex items-center gap-2">
+              <div className="feature-info-badge text-xs text-blue-400 font-medium mb-2 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
                 {FEATURES[activeFeat].replaces} 대체
               </div>
               <h3 className="text-xl md:text-2xl font-bold text-white mb-3">{FEATURES[activeFeat].title}</h3>
               <p className="text-sm text-slate-400 mb-6 leading-relaxed">{FEATURES[activeFeat].desc}</p>
-              <div className="flex gap-3">
+              <div className="feature-info-cta flex gap-3">
                 <Link href="/auth" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition">무료로 체험</Link>
               </div>
             </div>
             {/* Right: Live Simulation */}
-            <div>
+            <div className="live-demo-sim-col">
               <SimComponent />
-              <div className="text-center mt-2">
+              <div className="live-demo-sim-caption text-center mt-2">
                 <span className="inline-flex items-center gap-1.5 text-[10px] text-slate-500">
                   <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
                   실시간 시뮬레이션 — 실제 동작 미리보기
@@ -1402,17 +1402,17 @@ export default function LandingPage() {
       {/* ── HOW IT WORKS — 도입 장벽 제거 ── */}
       <section className="onboarding-section py-20 px-6 bg-white">
         <div className="lp-container">
-          <div className="text-center mb-6">
+          <div className="onboarding-header text-center mb-6">
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">&quot;도입이 어렵지 않나요?&quot;</h2>
             <p className="text-gray-500 text-lg">아닙니다. <span className="text-blue-600 font-bold">거래처 목록·거래내역은 엑셀만 올리면 바로 등록</span>됩니다.</p>
           </div>
-          <div className="text-center mb-14">
+          <div className="onboarding-subtext text-center mb-14">
             <p className="text-sm text-gray-400 max-w-2xl mx-auto">
               지금 쓰고 있는 거래처 목록, 은행·카드 거래내역 — 엑셀이든 CSV든 그냥 드래그해서 올리세요.
               항목을 자동으로 인식해 등록합니다. 직원 명단 등 나머지 데이터는 대시보드에서 직접 등록하며 시작하시면 됩니다.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="onboarding-steps-grid grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               { step: "01", title: "간편 가입", desc: "카카오/구글 3초, 사업자번호로 회사 개설", icon: "👤", color: "#3B82F6" },
               { step: "02", title: "기존 파일 업로드", desc: "거래처·거래내역 엑셀/CSV 드래그&드롭", icon: "📤", color: "#8B5CF6" },
@@ -1420,10 +1420,10 @@ export default function LandingPage() {
               { step: "04", title: "바로 경영 시작", desc: "대시보드에서 전체 현황 파악", icon: "🚀", color: "#F59E0B" },
             ].map((s, i) => (
               <div key={s.step} className="onboarding-step-card relative group">
-                {i < 3 && <div className="hidden md:block absolute top-10 -right-3 w-6 h-[2px] bg-gray-200 z-10" />}
-                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg hover:border-gray-200 transition-all text-center">
-                  <div className="text-3xl mb-3">{s.icon}</div>
-                  <div className="text-[10px] font-bold mb-2 px-2 py-0.5 rounded-full inline-block" style={{ background: `${s.color}15`, color: s.color }}>STEP {s.step}</div>
+                {i < 3 && <div className="onboarding-step-connector hidden md:block absolute top-10 -right-3 w-6 h-[2px] bg-gray-200 z-10" />}
+                <div className="onboarding-step-body bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg hover:border-gray-200 transition-all text-center">
+                  <div className="onboarding-step-icon text-3xl mb-3">{s.icon}</div>
+                  <div className="onboarding-step-badge text-[10px] font-bold mb-2 px-2 py-0.5 rounded-full inline-block" style={{ background: `${s.color}15`, color: s.color }}>STEP {s.step}</div>
                   <h4 className="font-bold text-lg mb-1">{s.title}</h4>
                   <p className="text-sm text-gray-500">{s.desc}</p>
                 </div>
@@ -1444,15 +1444,15 @@ export default function LandingPage() {
       {/* ── PRICING ── */}
       <section className="pricing-section py-20 px-6 bg-gray-50" id="pricing" ref={priceRef.ref}>
         <div className="lp-container">
-          <div className={`text-center mb-6 ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-blue-100 text-blue-700 border border-blue-200">
+          <div className={`pricing-header text-center mb-6 ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
+            <div className="pricing-eyebrow inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 bg-blue-100 text-blue-700 border border-blue-200">
               14일 무료체험 · 카드 등록 없이 시작
             </div>
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">심플한 4단계 요금제</h2>
             <p className="text-gray-500 text-lg">14일 무료로 전 기능을 써보고, 필요할 때 정액 요금제로 전환하세요</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 max-w-6xl mx-auto">
+          <div className="pricing-plans-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12 max-w-6xl mx-auto">
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
@@ -1462,8 +1462,8 @@ export default function LandingPage() {
                     : "bg-white border border-gray-200 hover:border-blue-300 hover:shadow-xl hover:-translate-y-1.5 hover:scale-[1.02]"
                 }`}
               >
-                {plan.hl && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-yellow-400 text-amber-900 text-xs font-bold rounded-full shadow-lg">BEST</div>}
-                {plan.discount && <div className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-block mb-2 ${plan.hl ? "bg-emerald-400/20 text-emerald-200" : "bg-emerald-50 text-emerald-600"}`}>{plan.discount}</div>}
+                {plan.hl && <div className="plan-best-badge absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-yellow-400 text-amber-900 text-xs font-bold rounded-full shadow-lg">BEST</div>}
+                {plan.discount && <div className={`plan-discount-badge text-[10px] font-bold px-2 py-0.5 rounded-md inline-block mb-2 ${plan.hl ? "bg-emerald-400/20 text-emerald-200" : "bg-emerald-50 text-emerald-600"}`}>{plan.discount}</div>}
                 <h4 className={`text-lg font-bold mb-0.5 ${plan.hl ? "" : "text-gray-900"}`}>{plan.name}</h4>
                 <p className={`text-xs mb-3 ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.desc}</p>
                 {plan.regularPrice && (
@@ -1477,15 +1477,15 @@ export default function LandingPage() {
                 </div>
                 {plan.period && <div className={`text-xs mb-4 ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.period}</div>}
                 {!plan.period && <div className="mb-4" />}
-                <ul className="space-y-2 mb-6">
+                <ul className="plan-features-list space-y-2 mb-6">
                   {plan.features.map((f, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <svg className={`w-4 h-4 shrink-0 mt-0.5 ${plan.hl ? "text-blue-200" : "text-emerald-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    <li key={i} className="plan-feature-item flex items-start gap-2 text-sm">
+                      <svg className={`plan-feature-check w-4 h-4 shrink-0 mt-0.5 ${plan.hl ? "text-blue-200" : "text-emerald-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                       <span className={plan.hl ? "text-blue-50" : "text-gray-600"}>{f}</span>
                     </li>
                   ))}
                 </ul>
-                <Link href={plan.betaPrice === "별도 협의" ? "#partner" : "/auth"} className={`block text-center py-3 rounded-xl font-semibold text-sm transition ${plan.hl ? "bg-white text-blue-600 hover:bg-blue-50 shadow-md" : "bg-blue-600 text-white hover:bg-blue-700"}`}>
+                <Link href={plan.betaPrice === "별도 협의" ? "#partner" : "/auth"} className={`plan-cta-button block text-center py-3 rounded-xl font-semibold text-sm transition ${plan.hl ? "bg-white text-blue-600 hover:bg-blue-50 shadow-md" : "bg-blue-600 text-white hover:bg-blue-700"}`}>
                   {plan.betaPrice === "별도 협의" ? "가격 문의하기" : "무료로 시작하기"}
                 </Link>
               </div>
@@ -1496,32 +1496,32 @@ export default function LandingPage() {
           <div className="plan-diff-table max-w-3xl mx-auto overflow-x-auto">
             <table className="w-full text-sm border-collapse rounded-2xl overflow-hidden border border-gray-200">
               <thead>
-                <tr className="bg-gray-100 text-gray-500 text-xs">
-                  <th className="text-left py-3 px-4 font-semibold">항목</th>
-                  <th className="text-center py-3 px-4 font-semibold">프로</th>
-                  <th className="text-center py-3 px-4 font-semibold text-blue-600">울트라</th>
+                <tr className="plan-diff-header-row bg-gray-100 text-gray-500 text-xs">
+                  <th className="plan-diff-header-cell text-left py-3 px-4 font-semibold">항목</th>
+                  <th className="plan-diff-header-cell text-center py-3 px-4 font-semibold">프로</th>
+                  <th className="plan-diff-header-cell text-center py-3 px-4 font-semibold text-blue-600">울트라</th>
                 </tr>
               </thead>
-              <tbody className="bg-white">
-                <tr className="border-t border-gray-100">
-                  <td className="py-3 px-4 text-gray-600">세금계산서 국세청 발행</td>
-                  <td className="py-3 px-4 text-center text-gray-700">월 10건</td>
-                  <td className="py-3 px-4 text-center font-semibold text-blue-600">무제한</td>
+              <tbody className="plan-diff-body bg-white">
+                <tr className="plan-diff-row border-t border-gray-100">
+                  <td className="plan-diff-cell py-3 px-4 text-gray-600">세금계산서 국세청 발행</td>
+                  <td className="plan-diff-value-cell py-3 px-4 text-center text-gray-700">월 10건</td>
+                  <td className="plan-diff-value-cell py-3 px-4 text-center font-semibold text-blue-600">무제한</td>
                 </tr>
-                <tr className="border-t border-gray-100">
-                  <td className="py-3 px-4 text-gray-600">현금영수증 국세청 발행</td>
-                  <td className="py-3 px-4 text-center text-gray-700">월 10건</td>
-                  <td className="py-3 px-4 text-center font-semibold text-blue-600">무제한</td>
+                <tr className="plan-diff-row border-t border-gray-100">
+                  <td className="plan-diff-cell py-3 px-4 text-gray-600">현금영수증 국세청 발행</td>
+                  <td className="plan-diff-value-cell py-3 px-4 text-center text-gray-700">월 10건</td>
+                  <td className="plan-diff-value-cell py-3 px-4 text-center font-semibold text-blue-600">무제한</td>
                 </tr>
-                <tr className="border-t border-gray-100">
-                  <td className="py-3 px-4 text-gray-600">AI 브리핑 (매일 우선순위 액션 플랜)</td>
-                  <td className="py-3 px-4 text-center text-gray-400">—</td>
-                  <td className="py-3 px-4 text-center font-semibold text-blue-600">제공</td>
+                <tr className="plan-diff-row border-t border-gray-100">
+                  <td className="plan-diff-cell py-3 px-4 text-gray-600">AI 브리핑 (매일 우선순위 액션 플랜)</td>
+                  <td className="plan-diff-value-cell py-3 px-4 text-center text-gray-400">—</td>
+                  <td className="plan-diff-value-cell py-3 px-4 text-center font-semibold text-blue-600">제공</td>
                 </tr>
-                <tr className="border-t border-gray-100">
-                  <td className="py-3 px-4 text-gray-600">신기능 얼리 액세스 · 우선 지원</td>
-                  <td className="py-3 px-4 text-center text-gray-400">—</td>
-                  <td className="py-3 px-4 text-center font-semibold text-blue-600">제공</td>
+                <tr className="plan-diff-row border-t border-gray-100">
+                  <td className="plan-diff-cell py-3 px-4 text-gray-600">신기능 얼리 액세스 · 우선 지원</td>
+                  <td className="plan-diff-value-cell py-3 px-4 text-center text-gray-400">—</td>
+                  <td className="plan-diff-value-cell py-3 px-4 text-center font-semibold text-blue-600">제공</td>
                 </tr>
               </tbody>
             </table>
@@ -1535,44 +1535,44 @@ export default function LandingPage() {
       {/* ── PARTNERSHIP INQUIRY ── */}
       <section className="partner-section py-20 px-6 bg-white" id="partner" ref={partnerRef.ref}>
         <div className="max-w-3xl mx-auto">
-          <div className={`text-center mb-12 ${partnerRef.inView ? "animate-up" : "opacity-0"}`}>
+          <div className={`partner-header text-center mb-12 ${partnerRef.inView ? "animate-up" : "opacity-0"}`}>
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">제휴 & 도입 문의</h2>
             <p className="text-gray-500 text-lg">Enterprise 도입, API 연동, 리셀러 제휴를 상담해 드립니다</p>
           </div>
           {partnerSent ? (
             <div className="partner-success-message bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center">
-              <div className="text-4xl mb-4">✅</div>
+              <div className="partner-success-icon text-4xl mb-4">✅</div>
               <h3 className="text-xl font-bold text-emerald-700 mb-2">문의가 접수되었습니다</h3>
               <p className="text-sm text-emerald-600">영업일 기준 1일 이내에 회신드리겠습니다.</p>
             </div>
           ) : (
             <div className={`partner-form-card bg-white rounded-2xl border border-gray-200 p-8 shadow-sm [animation-delay:0.2s] ${partnerRef.inView ? "animate-up" : "opacity-0"}`}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
+              <div className="partner-fields-grid grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="partner-field">
                   <label className="lp-field-label">회사명 *</label>
                   <input type="text" value={partnerForm.company} onChange={(e) => setPartnerForm({ ...partnerForm, company: e.target.value })} placeholder="(주)회사명" className="lp-input" />
                 </div>
-                <div>
+                <div className="partner-field">
                   <label className="lp-field-label">담당자명 *</label>
                   <input type="text" value={partnerForm.name} onChange={(e) => setPartnerForm({ ...partnerForm, name: e.target.value })} placeholder="홍길동" className="lp-input" />
                 </div>
-                <div>
+                <div className="partner-field">
                   <label className="lp-field-label">이메일 *</label>
                   <input type="email" value={partnerForm.email} onChange={(e) => setPartnerForm({ ...partnerForm, email: e.target.value })} placeholder="email@company.com" className="lp-input" />
                 </div>
-                <div>
+                <div className="partner-field">
                   <label className="lp-field-label">연락처</label>
                   <input type="tel" value={partnerForm.phone} onChange={(e) => setPartnerForm({ ...partnerForm, phone: e.target.value })} placeholder="010-0000-0000" className="lp-input" />
                 </div>
               </div>
-              <div className="mb-6">
+              <div className="partner-message-field mb-6">
                 <label className="lp-field-label">문의 내용 *</label>
                 <textarea value={partnerForm.message} onChange={(e) => setPartnerForm({ ...partnerForm, message: e.target.value })} placeholder="도입 규모, 필요 기능, 연동 요구사항 등을 알려주세요" rows={4} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 resize-none" />
               </div>
               <button
                 onClick={handlePartnerSubmit}
                 disabled={partnerSending || !partnerForm.company || !partnerForm.name || !partnerForm.email || !partnerForm.message}
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition shadow-sm active:scale-[0.98]"
+                className="partner-submit-button w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition shadow-sm active:scale-[0.98]"
               >
                 {partnerSending ? "접수 중..." : "문의 보내기"}
               </button>
@@ -1585,20 +1585,20 @@ export default function LandingPage() {
       {/* ── FAQ ── */}
       <section className="faq-section py-20 px-6 bg-gray-50" id="faq">
         <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="faq-header text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">자주 묻는 질문</h2>
           </div>
-          <div className="space-y-3">
+          <div className="faq-list space-y-3">
             {FAQS.map((faq, i) => (
               <div key={i} className="faq-item bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-300 transition">
-                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full flex items-center justify-between px-6 py-5 text-left">
-                  <span className="font-semibold text-sm pr-4">{faq.q}</span>
-                  <svg className={`w-5 h-5 text-gray-400 shrink-0 transition-transform duration-300 ${openFaq === i ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="faq-toggle-button w-full flex items-center justify-between px-6 py-5 text-left">
+                  <span className="faq-question font-semibold text-sm pr-4">{faq.q}</span>
+                  <svg className={`faq-chevron w-5 h-5 text-gray-400 shrink-0 transition-transform duration-300 ${openFaq === i ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                <div className={`overflow-hidden transition-all duration-300 ${openFaq === i ? "max-h-40 pb-5" : "max-h-0"}`}>
-                  <div className="px-6 text-sm text-gray-500 leading-relaxed">{faq.a}</div>
+                <div className={`faq-answer-panel overflow-hidden transition-all duration-300 ${openFaq === i ? "max-h-40 pb-5" : "max-h-0"}`}>
+                  <div className="faq-answer-text px-6 text-sm text-gray-500 leading-relaxed">{faq.a}</div>
                 </div>
               </div>
             ))}
@@ -1608,19 +1608,19 @@ export default function LandingPage() {
 
       {/* ── FINAL CTA ── */}
       <section className="final-cta-section py-24 px-6 bg-[#0A0E1A] relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute w-[600px] h-[600px] rounded-full blur-[150px] bg-blue-600/20 -top-[20%] left-[20%]" />
-          <div className="absolute w-[400px] h-[400px] rounded-full blur-[120px] bg-blue-800/15 -bottom-[10%] right-[10%]" />
+        <div className="final-cta-bg absolute inset-0 opacity-20">
+          <div className="final-cta-orb absolute w-[600px] h-[600px] rounded-full blur-[150px] bg-blue-600/20 -top-[20%] left-[20%]" />
+          <div className="final-cta-orb absolute w-[400px] h-[400px] rounded-full blur-[120px] bg-blue-800/15 -bottom-[10%] right-[10%]" />
         </div>
-        <div className="max-w-3xl mx-auto text-center relative z-10">
+        <div className="final-cta-content max-w-3xl mx-auto text-center relative z-10">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
             회사 현황, 한눈에 보고 싶다면<br /><span className="text-blue-400">OwnerView를 시작하세요.</span>
           </h2>
           <p className="text-slate-400 text-lg mb-8">거래처 목록·거래내역은 엑셀만 올리면 바로 등록. 카드 등록 없이 무료로 시작.</p>
-          <Link href="/auth" className="inline-flex px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 active:scale-[0.98]">
+          <Link href="/auth" className="final-cta-button inline-flex px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition shadow-xl shadow-blue-600/30 active:scale-[0.98]">
             무료로 시작하기
           </Link>
-          <p className="text-slate-500 text-sm mt-6">
+          <p className="final-cta-login-row text-slate-500 text-sm mt-6">
             이미 계정이 있으신가요? <Link href="/auth" className="text-blue-400 hover:underline">로그인</Link>
           </p>
         </div>
@@ -1629,27 +1629,27 @@ export default function LandingPage() {
       {/* ── FOOTER ── */}
       <footer className="site-footer py-12 px-6 bg-[#060810] text-slate-500">
         <div className="lp-container">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
-            <div className="flex items-center gap-2.5">
+          <div className="footer-top-row flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
+            <div className="footer-brand flex items-center gap-2.5">
               <OwnerViewLogo size={28} />
               <span className="text-white font-bold tracking-tight"><RollingBrandText /></span>
               <span className="text-xs text-slate-600 ml-2">Company Operating System</span>
             </div>
-            <div className="flex gap-6 text-sm">
+            <div className="footer-links flex gap-6 text-sm">
               <a href="#features" className="lp-nav-link">기능</a>
               <a href="#pricing" className="lp-nav-link">가격</a>
               <a href="#partner" className="lp-nav-link">제휴문의</a>
               <a href="#faq" className="lp-nav-link">FAQ</a>
             </div>
           </div>
-          <div className="border-t border-white/5 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-            <div className="text-center md:text-left space-y-0.5">
+          <div className="footer-bottom-row border-t border-white/5 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
+            <div className="footer-company-info text-center md:text-left space-y-0.5">
               <div>(주)모티브이노베이션 | 대표: 채희웅</div>
               <div>사업자등록번호: 155-88-02209 | 통신판매업신고번호: 제 2023-서울강남-04603호</div>
               <div>경기 화성시 동탄구 동탄첨단산업1로 27 IX타워 A동 2514호, 2515호</div>
             </div>
-            <div className="flex flex-col items-center md:items-end gap-2">
-              <div className="flex gap-4">
+            <div className="footer-legal-wrap flex flex-col items-center md:items-end gap-2">
+              <div className="footer-legal-links flex gap-4">
                 <Link href="/terms" className="lp-nav-link">이용약관</Link>
                 <Link href="/privacy" className="hover:text-white transition font-semibold">개인정보처리방침</Link>
                 <Link href="/refund" className="lp-nav-link">환불규정</Link>
