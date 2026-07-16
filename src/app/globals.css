@@ -1235,3 +1235,128 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .share-feedback-card { @apply bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-4; }
 .share-feedback-sent { @apply bg-[var(--success-dim)] border border-[var(--success)]/25 rounded-2xl p-6 mb-4 text-center; }
 .share-footer { @apply text-center text-xs text-gray-400 py-4; }
+
+/* ═══ 클래스명 가독성 정리 재작업 — 배치2(finance) 마커 스타일 (2026-07-16) ═══ */
+/* tax-invoices/page.tsx — marker/utility separation (globals.css @apply additions) */
+.tax-invoice-toolbar { @apply mb-3 rounded-lg overflow-hidden border border-[var(--border)]; } /* no-print은 기능 클래스라 JSX에 리터럴로 유지 */
+.tax-invoice-issuance-badge { @apply ml-auto self-center px-2.5 py-1 rounded-md text-[11px] font-semibold border; }
+.tax-sync-fold { @apply mb-2; } /* glass-card(기존)·no-print(기능)·group(함정3, @apply 불가)은 JSX에 나란히 병기 */
+.tax-invoice-sync-result-panel { @apply p-5 mb-6; } /* glass-card(기존)·no-print(기능)는 JSX 병기 */
+.tax-invoice-tabs { @apply flex items-center gap-2 mb-4 flex-wrap; }
+.tax-invoice-summary-cards { @apply grid grid-cols-2 md:grid-cols-4 gap-4 mb-6; }
+.tax-check-report { @apply p-5 mb-6; } /* glass-card(기존)·no-print(기능)는 JSX 병기 */
+.tax-invoice-registration-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-[96vw] max-w-[1240px] max-h-[88vh] flex flex-col; }
+/* .tax-invoice-form-row — pure marker, no utility ever attached (className="tax-invoice-form-row" only). No CSS rule needed. */
+.tax-invoice-batch-actions-bar { @apply mb-3 flex items-center gap-2.5 px-4 py-2.5 bg-[var(--primary)]/[.06] border border-[var(--primary)]/20 rounded-xl; }
+.tax-invoice-list-card { @apply overflow-hidden; } /* glass-card(기존)는 JSX 병기 */
+.tax-invoice-list-table { @apply w-full text-xs border-collapse [&_td]:overflow-hidden [&_td]:text-ellipsis min-w-[980px] table-fixed; }
+.tax-invoice-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 cursor-pointer; }
+.tax-invoice-bulk-voucher-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl; }
+.tax-invoice-queue-tab { @apply space-y-4; }
+.tax-invoice-sync-tab { @apply space-y-4; }
+.tax-invoice-deal-match-popup { @apply w-full max-w-md shadow-xl; } /* glass-card(기존)는 JSX 병기 */
+/* .tax-invoice-summary-tab — pure marker, no utility ever attached. No CSS rule needed. */
+/* .tax-invoice-vat-preview-tab — pure marker, no utility ever attached. No CSS rule needed. */
+.tax-invoice-link-tx-popup { @apply w-full max-w-lg max-h-[80vh] overflow-y-auto; } /* glass-card(기존)는 JSX 병기 */
+.tax-invoice-detail-modal { @apply w-full max-w-4xl max-h-[90vh] overflow-y-auto; } /* glass-card(기존)는 JSX 병기 */
+.tax-invoice-document { @apply mx-auto; }
+.tax-invoice-modification-modal { @apply w-full max-w-[90vw] sm:max-w-[520px] mx-4; } /* glass-card(기존)는 JSX 병기 */
+.tx-header-bar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+/* .tx-tab-switcher — pure marker, styled via co-existing seg-bar in JSX */
+.tx-toolbar-actions { @apply relative flex items-center gap-2; }
+.tx-tools-menu { @apply absolute right-0 top-full mt-1.5 z-30 min-w-[200px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1.5 flex flex-col gap-1 [&>button]:!w-full [&>button]:!justify-start; }
+.tx-search-bar { @apply flex items-center gap-2 mb-4; }
+.bank-upload-result-banner { @apply mb-4 p-3 rounded-lg text-sm; }
+.tx-period-filter-bar { @apply flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.manual-entry-tab { @apply space-y-4; }
+.manual-entry-form-card { @apply p-6; }
+.manual-entry-history-card { @apply p-6; }
+.manual-entry-history-table { @apply w-full text-sm; }
+.rules-tab { @apply space-y-3; }
+.rule-form-card { @apply p-4 space-y-3; }
+.rule-list { @apply space-y-2; }
+.rule-row { @apply flex items-center justify-between px-4 py-3; }
+.bank-account-filter-bar { @apply flex flex-wrap items-center gap-2 mb-3 p-3 bg-[var(--bg-surface)] rounded-xl; }
+.bank-status-filter-pills { @apply flex items-center gap-2 mb-3; }
+.bank-tx-list-card { @apply overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[440px]; }
+.bank-tx-sort-toolbar { @apply shrink-0 flex items-center gap-2 px-3 pt-3 pb-2 text-xs border-b border-[var(--border)]; }
+.tx-inline-search { @apply px-2.5 py-1 rounded-lg text-xs bg-[var(--bg)] border border-[var(--border)] w-36 focus:border-[var(--primary)]/60 focus:outline-none; }
+.ai-suggest-btn { @apply inline-flex items-center gap-1 whitespace-nowrap disabled:opacity-50; }
+.bank-tx-row { @apply p-4 transition-all duration-200 hover:shadow-md; }
+.tx-row-main { @apply flex items-center gap-3 cursor-pointer; }
+.tx-ai-suggestion { @apply mt-2.5 pt-2.5 border-t border-[var(--border)] flex items-center gap-2 flex-wrap; }
+.bank-tx-summary-bar { @apply shrink-0 border-t border-[var(--border)] p-3 flex flex-wrap items-center justify-between gap-2 text-xs; }
+.monthly-trend-section { @apply grid grid-cols-1 md:grid-cols-3 gap-4 mt-6; }
+.category-breakdown-card { @apply p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.cards-tab { @apply space-y-6; }
+.card-upload-result-banner { @apply p-3 rounded-lg text-sm; }
+.card-billing-detail-grid { @apply grid grid-cols-1 lg:grid-cols-2 gap-5; }
+.card-usage-tile { @apply p-3 rounded-xl border text-left transition cursor-pointer; }
+.card-selector-actions-bar { @apply flex flex-wrap items-center gap-2 sm:gap-3; }
+.card-status-filter-bar { @apply flex items-center gap-2 flex-wrap; }
+.card-tx-table-card { @apply overflow-hidden; }
+.card-tx-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer; }
+.card-form-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]; }
+.bank-map-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]; }
+.card-map-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]; }
+.monthly-trend-chart-card { @apply mb-5 p-5; }
+.bank-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+.bank-sync-range-filter { @apply flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.bank-sync-pause { @apply inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition disabled:opacity-50; }
+.bank-summary-cards { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
+.bank-overview-panel { @apply grid grid-cols-1 lg:grid-cols-3 gap-4; }
+.bank-accounts-grid { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4; }
+.bank-account-card { @apply p-5 transition-all cursor-pointer; }
+.transaction-range-filter { @apply flex flex-wrap items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.transaction-account-filter-banner { @apply mb-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30; }
+.transaction-bulk-action-bar { @apply sticky top-0 z-20 mb-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30; }
+.transaction-table-panel { @apply overflow-hidden; }
+.transaction-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors; }
+.transaction-mapping-popover { @apply absolute z-50 mt-1 right-4 w-56 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-3 text-left; }
+.bank-bulk-post-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl; }
+.loans-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+.loans-summary-cards { @apply grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6; }
+.loans-list-panel { @apply overflow-hidden; }
+.loan-row { @apply p-5 hover:bg-[var(--bg-surface)]/50 transition; }
+.loan-portfolio-summary { @apply p-5; }
+.loan-repayment-bars { @apply space-y-3; }
+.loan-schedule-panel { @apply p-5; }
+.loan-payments-panel { @apply space-y-4; }
+.loan-payment-form { @apply p-5; }
+.loan-payments-table { @apply overflow-hidden; }
+.loan-match-panel { @apply space-y-4; }
+.loan-match-list { @apply overflow-hidden; }
+.loan-match-candidate { @apply p-5 hover:bg-[var(--bg-surface)]/50 transition; }
+.loan-register-form { @apply p-6; }
+.loan-edit-form { @apply space-y-3; }
+/* ===== src/app/(app)/cards/page.tsx ===== */
+.cards-page-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+.card-tx-period-filter { @apply flex items-center gap-2 mb-6 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.card-summary-strip { @apply px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5; }
+.card-tx-detail-panel { @apply scroll-mt-6; }
+.card-tx-list-item { @apply p-4 flex items-center justify-between gap-4 hover:shadow-md transition; }
+.card-tx-tab-panel { @apply space-y-4; }
+.card-tx-filter-bar { @apply flex gap-3 flex-col md:flex-row; }
+.card-tx-bulk-action-bar { @apply sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30; }
+.card-tx-table { @apply overflow-hidden; }
+.card-tx-table-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors; }
+.card-analysis-tab-panel { @apply space-y-6; }
+.card-analysis-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.card-category-spending-panel { @apply p-6; }
+.card-category-row { @apply flex items-center gap-4; }
+.card-post-voucher-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+.card-bulk-post-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+.card-mini-card { @apply p-5 transition-all; }
+
+/* ===== src/app/(app)/cash-receipts/page.tsx ===== */
+.cash-receipt-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.cash-receipt-period-filter { @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.cash-receipt-issuance-badge { @apply px-2.5 py-1 rounded-md text-[11px] font-semibold border; }
+.cashbill-issue-open { @apply text-xs disabled:opacity-50 disabled:cursor-not-allowed; }
+.cash-receipt-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.cash-receipt-bulk-action-bar { @apply sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--primary)]/30 shadow-sm; }
+.cash-receipt-register-form { @apply p-6 space-y-4; }
+.cash-receipt-table { @apply overflow-auto max-h-[560px] relative; }
+.cash-receipt-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 transition; }
+.cash-receipt-issue-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
+.cash-receipt-bulk-post-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }

@@ -507,9 +507,9 @@ export default function CashReceiptsPage() {
   return (
     <div className="space-y-6 mx-auto">
       {/* ─── 툴바 — 조회기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) ─── */}
-      <div className="cash-receipt-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2">
+      <div className="cash-receipt-toolbar page-sticky-header">
         {/* 조회기간 — 목록·요약·홈택스 동기화 공통 기준 (기준 하나로 통일) */}
-        <div className="cash-receipt-period-filter flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+        <div className="cash-receipt-period-filter">
           <span className="text-[11px] font-semibold text-[var(--text-muted)]">조회기간</span>
           <DateField
             value={startDate}
@@ -530,7 +530,7 @@ export default function CashReceiptsPage() {
         <div className="flex items-center gap-2 flex-wrap">
           {issuanceStatus && issuanceStatus.limit !== null && (
             <span
-              className="cash-receipt-issuance-badge px-2.5 py-1 rounded-md text-[11px] font-semibold border"
+              className="cash-receipt-issuance-badge"
               style={{
                 background: issuanceLimitReached ? "color-mix(in srgb, #ef4444 12%, transparent)" : "var(--bg-surface)",
                 borderColor: issuanceLimitReached ? "#ef4444" : "var(--border)",
@@ -546,7 +546,7 @@ export default function CashReceiptsPage() {
             onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
             disabled={issuanceLimitReached}
             title={issuanceLimitReached ? `${issuanceStatus?.planName || '현재 요금제'}의 이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다. 울트라로 업그레이드하면 무제한 발행할 수 있습니다.` : "CODEF·팝빌 연동으로 현금영수증을 국세청에 실제 발행합니다"}
-            className="cashbill-issue-open btn-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cashbill-issue-open btn-primary"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -595,7 +595,7 @@ export default function CashReceiptsPage() {
 
       {/* ─── KPI 스탯 ─── */}
       {summary && (
-        <div className="cash-receipt-summary-stats grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="cash-receipt-summary-stats">
           <div className="glass-card p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-muted)]">매출 발행</span>
@@ -665,7 +665,7 @@ export default function CashReceiptsPage() {
 
       {/* 선택 액션바 */}
       {tab !== "register" && selectedReceipts.length > 0 && (
-        <div className="cash-receipt-bulk-action-bar sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--primary)]/30 shadow-sm">
+        <div className="cash-receipt-bulk-action-bar">
           <span className="text-sm font-semibold text-[var(--text)]"><b className="text-[var(--primary)]">{selectedReceipts.length}건</b> 선택됨</span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
@@ -719,7 +719,7 @@ export default function CashReceiptsPage() {
 
         {/* Register tab */}
         {tab === "register" && (
-          <div className="cash-receipt-register-form p-6 space-y-4">
+          <div className="cash-receipt-register-form">
             <h2 className="text-sm font-bold text-[var(--text)]">현금영수증 수동 등록</h2>
 
             <div className="flex gap-2">
@@ -928,7 +928,7 @@ export default function CashReceiptsPage() {
               </div>
             </div>
           ) : (
-            <div className="cash-receipt-table overflow-auto max-h-[560px] relative">
+            <div className="cash-receipt-table">
               <table className="w-full min-w-[700px]">
                 <thead className="sticky-bar">
                   <tr className="table-head-row">
@@ -963,7 +963,7 @@ export default function CashReceiptsPage() {
                     return (
                       <tr
                         key={r.id}
-                        className={`cash-receipt-row border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 transition ${checked ? "bg-[var(--primary)]/5" : ""}`}
+                        className={`cash-receipt-row ${checked ? "bg-[var(--primary)]/5" : ""}`}
                       >
                         <td className="px-3 py-3 text-center">
                           <input
@@ -1093,7 +1093,7 @@ export default function CashReceiptsPage() {
 
       {/* 국세청 실발행 모달 — CODEF·팝빌 연동 즉시발행 */}
       {showIssueModal && (
-        <div className="cash-receipt-issue-modal cashbill-issue-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => !issuing && setShowIssueModal(false)}>
+        <div className="cash-receipt-issue-modal cashbill-issue-modal" onClick={() => !issuing && setShowIssueModal(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행</div>
@@ -1179,7 +1179,7 @@ export default function CashReceiptsPage() {
 
       {/* 일괄 전표처리 모달 — 선택된 미처리 현금영수증을 계정 1개로 일괄 생성 */}
       {showBulkPost && (
-        <div className="cash-receipt-bulk-post-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowBulkPost(false)}>
+        <div className="cash-receipt-bulk-post-modal" onClick={() => setShowBulkPost(false)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>

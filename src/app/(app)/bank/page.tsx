@@ -477,7 +477,7 @@ export default function BankPage() {
   return (
     <div>
       {/* 컴팩트 툴바 — 탭(좌) + 통장 연동(우). 타이틀은 상단 고정 헤더바가 담당 */}
-      <div className="bank-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="bank-toolbar page-sticky-header">
         <div className="seg-bar">
           {tabs.map((t) => (
             <button
@@ -493,7 +493,7 @@ export default function BankPage() {
         {/* 우측 — [연동 기간] + [통장 연동] 한 묶음. 이 기간이 곧 CODEF 연동 대상 범위라 버튼 옆에 배치. */}
         <div className="flex flex-wrap items-center gap-2">
           {tab === "accounts" && (
-            <div className="bank-sync-range-filter no-print flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div className="bank-sync-range-filter no-print">
               <span className="text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap">거래기간</span>
               <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="연동 시작일"
                 className="px-2 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
@@ -508,7 +508,7 @@ export default function BankPage() {
             type="button"
             onClick={() => pauseMut.mutate()}
             disabled={!companyId || pauseMut.isPending}
-            className={`bank-sync-pause no-print inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition disabled:opacity-50 ${
+            className={`bank-sync-pause no-print ${
               isSyncPaused
                 ? "bg-amber-500/15 border-amber-500/40 text-amber-600 hover:bg-amber-500/25"
                 : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
@@ -550,7 +550,7 @@ export default function BankPage() {
       </div>
 
       {/* 시안 stat 4 그라데이션 카드 */}
-      <div className="bank-summary-cards grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="bank-summary-cards">
         <Stat
           tone=""
           icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
@@ -586,7 +586,7 @@ export default function BankPage() {
 
       {/* 개요 — 자동이체 예정·자동이체 내역·이번달 큰 지출 (실데이터 read-only 카드, 시안의 차트 영역은 데이터 부족으로 숨김) */}
       {tab === "overview" && (
-        <div className="bank-overview-panel grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bank-overview-panel">
           <UpcomingAutoTransfersCard companyId={companyId} />
           <AutoTransferHistoryCard companyId={companyId} />
           <TopExpensesThisMonth companyId={companyId} />
@@ -595,7 +595,7 @@ export default function BankPage() {
 
       {/* 통장 — portfolio 카드(이름·잔액·이번달 증감). 2026-05-29 카드 크기 축소(p-4·3열). */}
       {tab === "accounts" && (
-        <div className="bank-accounts-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bank-accounts-grid">
           {accounts.length === 0 ? (
             <div className="sm:col-span-2 lg:col-span-3">
               <EmptyState
@@ -622,7 +622,7 @@ export default function BankPage() {
                 tabIndex={0}
                 onClick={() => { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); goTab("transactions"); }}
                 onKeyDown={(e) => { if (e.key === "Enter") { setSelectedAccountNo(accNo); setSelectedAccountLabel(name); goTab("transactions"); } }}
-                className="bank-account-card glass-card card-hover p-5 transition-all cursor-pointer group"
+                className="bank-account-card glass-card card-hover group"
               >
                 <div className="flex items-start justify-between mb-2 gap-2">
                   <h3 className="text-sm font-semibold text-[var(--text)] truncate flex-1 min-w-0">{name}</h3>
@@ -667,7 +667,7 @@ export default function BankPage() {
       {tab === "transactions" && (
         <>
           {/* 직원 QA #2 — 거래내역 탭에서 조회기간 직접 설정 (표 필터). 통장 탭의 sync 범위와 동일 상태 공유 */}
-          <div className="transaction-range-filter no-print flex flex-wrap items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="transaction-range-filter no-print">
             <span className="text-xs font-semibold text-[var(--text-muted)]">조회기간</span>
             <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="시작일"
               className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
@@ -678,7 +678,7 @@ export default function BankPage() {
             <span className="text-[10px] text-[var(--text-dim)] ml-auto hidden sm:block">미설정 시 최근 50건</span>
           </div>
           {selectedAccountNo && (
-            <div className="transaction-account-filter-banner mb-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+            <div className="transaction-account-filter-banner">
               <span className="text-sm text-[var(--text)]">
                 <b className="text-[var(--primary)]">{selectedAccountLabel || selectedAccountNo}</b> 거래내역만 표시 중
               </span>
@@ -693,7 +693,7 @@ export default function BankPage() {
           )}
         {/* 선택 액션바 — 1건 이상 선택 시 sticky 노출. 전표처리는 자리표시(준비중) */}
         {selectedTxIds.size > 0 && (
-          <div className="transaction-bulk-action-bar sticky top-0 z-20 mb-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+          <div className="transaction-bulk-action-bar">
             <span className="text-sm font-semibold text-[var(--text)]">
               <b className="text-[var(--primary)]">{selectedTxIds.size}건</b> 선택됨
             </span>
@@ -729,7 +729,7 @@ export default function BankPage() {
             onSort={onSortTx}
           />
         </div>
-        <div className="transaction-table-panel glass-card overflow-hidden">
+        <div className="transaction-table-panel glass-card">
           <div className="overflow-auto max-h-[640px]">
             <table className="w-full">
               <thead className="sticky-bar">
@@ -770,7 +770,7 @@ export default function BankPage() {
                   const posted = !!tx.journal_entry_id;
                   const checked = selectedTxIds.has(tx.id);
                   return (
-                    <tr key={tx.id} className={`transaction-row border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors ${checked ? "bg-[var(--primary)]/5" : ""}`}>
+                    <tr key={tx.id} className={`transaction-row ${checked ? "bg-[var(--primary)]/5" : ""}`}>
                       <td className="w-10 px-4 py-4">
                         <input
                           type="checkbox"
@@ -820,7 +820,7 @@ export default function BankPage() {
                         {mapOpenId === tx.id && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setMapOpenId(null)} />
-                            <div className="transaction-mapping-popover absolute z-50 mt-1 right-4 w-56 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-3 text-left">
+                            <div className="transaction-mapping-popover">
                               <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">계정과목 검색 후 선택</div>
                               <input value={mapAcctQuery} onChange={(e) => setMapAcctQuery(e.target.value)} autoFocus
                                 placeholder={mapCat ? `현재: ${mapCat}` : "계정과목 검색 (이름·코드)"}
@@ -877,7 +877,7 @@ export default function BankPage() {
       {/* 일괄 전표처리 모달 — 선택된 미처리 통장거래를 계정 1개로 일괄 생성(입출금 방향 자동) */}
       {showBulkPost && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkPost(false)}>
-          <div className="bank-bulk-post-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bank-bulk-post-modal" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedTxIds.size}건을 한 계정으로 전표 생성합니다. 이미 처리된 건은 건너뜁니다.</div>
