@@ -184,11 +184,11 @@ const SECTIONS = [
 
 export default function TermsPage() {
   return (
-    <div className="legal-page min-h-screen bg-[#0A0E1A] text-white">
+    <div className="legal-page">
       {/* Nav */}
-      <nav className="site-nav sticky top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50">
-        <div className="site-nav-inner max-w-4xl mx-auto px-6 py-3.5 flex items-center justify-between">
-          <Link href="/" className="brand-logo-link flex items-center gap-2.5">
+      <nav className="legal-site-nav">
+        <div className="site-nav-inner">
+          <Link href="/" className="brand-logo-link">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-blue-600">L</div>
             <span className="text-lg font-bold text-white"><RollingBrandText /></span>
           </Link>
@@ -199,15 +199,15 @@ export default function TermsPage() {
       </nav>
 
       {/* Content */}
-      <main className="legal-content max-w-4xl mx-auto px-6 py-16">
-        <div className="legal-header mb-12">
+      <main className="legal-content">
+        <div className="legal-header">
           <h1 className="text-3xl md:text-4xl font-bold mb-3">이용약관</h1>
           <p className="text-slate-400 text-sm">최종 수정일: 2026년 3월 5일 | 시행일: 2026년 3월 5일</p>
         </div>
 
-        <div className="legal-sections space-y-10">
+        <div className="legal-sections">
           {SECTIONS.map((s) => (
-            <section key={s.id} className="legal-section scroll-mt-20">
+            <section key={s.id} className="legal-section">
               <h2 className="text-lg font-semibold text-white mb-3">{s.title}</h2>
               <div className="text-slate-300 text-sm leading-7 whitespace-pre-line">{s.content}</div>
             </section>
@@ -215,7 +215,7 @@ export default function TermsPage() {
         </div>
 
         {/* Supplementary */}
-        <div className="legal-supplementary-box mt-16 p-6 rounded-xl bg-white/[0.03] border border-white/5">
+        <div className="legal-supplementary-box">
           <h3 className="font-semibold mb-3 text-white">부칙</h3>
           <div className="text-slate-300 text-sm leading-7 space-y-1">
             <p>1. 본 약관은 2026년 3월 5일부터 시행합니다.</p>
@@ -224,7 +224,7 @@ export default function TermsPage() {
         </div>
 
         {/* Company info */}
-        <div className="company-info-card mt-10 p-6 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-slate-400 space-y-1">
+        <div className="company-info-card mt-10">
           <p className="font-semibold text-slate-300">(주)모티브이노베이션</p>
           <p>대표: 채희웅</p>
           <p>소재지: 경기 화성시 동탄구 동탄첨단산업1로 27 IX타워 A동 2514호, 2515호</p>
@@ -233,8 +233,8 @@ export default function TermsPage() {
       </main>
 
       {/* Footer */}
-      <footer className="site-footer py-10 px-6 bg-[#060810] text-slate-500 border-t border-white/5">
-        <div className="site-footer-inner max-w-4xl mx-auto">
+      <footer className="legal-site-footer">
+        <div className="site-footer-inner">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
             <div>(주)모티브이노베이션 | 대표 채희웅 | 경기 화성시 동탄구 동탄첨단산업1로 27 IX타워 A동 2514호, 2515호</div>
             <div className="flex gap-4">

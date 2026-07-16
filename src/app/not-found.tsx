@@ -4,14 +4,14 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="not-found-page min-h-screen flex items-center justify-center px-4">
-      <div className="not-found-card text-center max-w-md">
+    <div className="not-found-page">
+      <div className="not-found-card">
         <div className="text-6xl font-extrabold text-[var(--primary)] mb-4">404</div>
         <h1 className="text-xl font-bold text-[var(--text)] mb-2">페이지를 찾을 수 없습니다</h1>
         <p className="text-sm text-[var(--text-muted)] mb-6">
           요청하신 페이지가 존재하지 않거나 이동되었습니다.
         </p>
-        <div className="not-found-actions flex flex-col sm:flex-row items-center gap-3">
+        <div className="not-found-actions">
           <Link
             href="/"
             className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] border border-[var(--border)] rounded-xl font-semibold text-sm transition"

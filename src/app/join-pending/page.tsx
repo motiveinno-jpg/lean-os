@@ -38,7 +38,7 @@ export default function JoinPendingPage() {
   const logout = async () => { await supabase.auth.signOut(); router.push("/auth"); };
 
   const box = (icon: string, title: string, desc: React.ReactNode, tone: string) => (
-    <div className="join-status-box empty-state py-6">
+    <div className="join-status-box empty-state">
       <div className="empty-state-icon" aria-hidden>{icon}</div>
       <h2 className={`text-base font-bold ${tone}`}>{title}</h2>
       <div className="text-sm text-[var(--text-muted)] leading-relaxed">{desc}</div>
@@ -46,9 +46,9 @@ export default function JoinPendingPage() {
   );
 
   return (
-    <div className="join-pending-page min-h-screen flex items-center justify-center px-4">
+    <div className="join-pending-page">
       <div className="w-full max-w-md">
-        <div className="join-pending-card glass-card p-8 shadow-[var(--shadow-lg)]">
+        <div className="join-pending-card glass-card">
           {status === "loading" && box("⏳", "확인 중...", "합류 요청 상태를 불러오고 있습니다.", "text-[var(--text)]")}
 
           {status === "pending" && box("📨", "합류 요청 대기 중", (

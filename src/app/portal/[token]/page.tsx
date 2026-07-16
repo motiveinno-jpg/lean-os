@@ -86,10 +86,10 @@ export default function PartnerPortalPage() {
   }
 
   return (
-    <div className="portal-page min-h-screen bg-[var(--bg)] py-8 px-4">
+    <div className="portal-page">
       <div className="max-w-2xl mx-auto">
         {/* 헤더 */}
-        <div className="portal-header-card rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-6 mb-4">
+        <div className="portal-header-card">
           <div className="text-[11px] text-[var(--text-dim)] uppercase tracking-wide">파트너 포털</div>
           <h1 className="text-xl font-extrabold text-[var(--text)] mt-1">{ctx.company.name}</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -98,7 +98,7 @@ export default function PartnerPortalPage() {
         </div>
 
         {/* 서류 목록 */}
-        <div className="portal-doc-list-card rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
+        <div className="portal-doc-list-card">
           <div className="px-5 py-3 border-b border-[var(--border)] text-sm font-bold text-[var(--text)]">
             견적·계약 서류 ({ctx.documents.length})
           </div>
@@ -110,7 +110,7 @@ export default function PartnerPortalPage() {
                 const st = d.status ? STATUS_LABEL[d.status] : null;
                 return (
                   <li key={d.id}>
-                    <button onClick={() => setOpenDoc(d)} className="portal-doc-item w-full px-5 py-3 flex items-center justify-between gap-3 text-left hover:bg-[var(--bg-surface)] transition">
+                    <button onClick={() => setOpenDoc(d)} className="portal-doc-item">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
@@ -135,7 +135,7 @@ export default function PartnerPortalPage() {
         </div>
 
         {/* 문의 남기기 */}
-        <div className="portal-inquiry-card rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden mt-4">
+        <div className="portal-inquiry-card">
           <div className="px-5 py-3 border-b border-[var(--border)] text-sm font-bold text-[var(--text)]">💬 문의 남기기</div>
           <div className="p-5">
             {sent ? (
@@ -174,8 +174,8 @@ export default function PartnerPortalPage() {
 
       {/* 서류 상세 모달 */}
       {openDoc && (
-        <div className="portal-doc-modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setOpenDoc(null)}>
-          <div className="portal-doc-modal w-full max-w-lg max-h-[85vh] overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="portal-doc-modal-overlay" onClick={() => setOpenDoc(null)}>
+          <div className="portal-doc-modal" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] sticky top-0 bg-[var(--bg-card)]">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">{TYPE_LABEL[openDoc.type] || "서류"}</span>
@@ -212,7 +212,7 @@ function PortalDocBody({ payload }: { payload: any }) {
         <div className="text-sm text-[var(--text-muted)]">진행률: <span className="font-bold text-[var(--text)]">{payload.progress_pct}%</span></div>
       )}
       {items && items.length > 0 && (
-        <div className="portal-doc-items-table rounded-lg border border-[var(--border)] overflow-hidden">
+        <div className="portal-doc-items-table">
           <table className="w-full text-xs">
             <thead className="bg-[var(--bg-surface)] text-[var(--text-dim)]">
               <tr>

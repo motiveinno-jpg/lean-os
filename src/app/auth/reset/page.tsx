@@ -106,10 +106,10 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="reset-page min-h-screen flex items-center justify-center px-4">
+    <div className="reset-page">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="reset-logo text-center mb-8">
+        <div className="reset-logo">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4">
             <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
               <rect width="40" height="40" rx="10" fill="#111"/>
@@ -127,17 +127,17 @@ function ResetPasswordContent() {
 
         {/* Card */}
         <div
-          className="reset-card glass-card p-8 shadow-[var(--shadow-lg)]"
+          className="reset-card glass-card"
         >
           {error && (
-            <div className="reset-error-banner mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">
+            <div className="reset-error-banner">
               {error}
             </div>
           )}
 
           {/* Success after password update */}
           {success && (
-            <div className="reset-success text-center py-6">
+            <div className="reset-success">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--success-dim)] mb-4">
                 <svg className="w-8 h-8 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -150,7 +150,7 @@ function ResetPasswordContent() {
 
           {/* Email sent confirmation */}
           {sent && !isNewStep && !success && (
-            <div className="reset-email-sent text-center py-6">
+            <div className="reset-email-sent">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--info-dim)] mb-4">
                 <svg className="w-8 h-8 text-[var(--info)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -167,7 +167,7 @@ function ResetPasswordContent() {
           {/* Request reset form */}
           {!sent && !isNewStep && !success && (
             <form onSubmit={handleRequestReset} className="reset-request-form">
-              <div className="reset-email-field mb-6">
+              <div className="reset-email-field">
                 <label className="field-label">이메일</label>
                 <input
                   type="email"
@@ -191,7 +191,7 @@ function ResetPasswordContent() {
           {/* New password form */}
           {isNewStep && !success && (
             <form onSubmit={handleUpdatePassword} className="reset-new-password-form">
-              <div className="new-password-field mb-4">
+              <div className="new-password-field">
                 <label className="field-label">새 비밀번호</label>
                 <input
                   type="password"
@@ -203,7 +203,7 @@ function ResetPasswordContent() {
                 />
                 {/* Password strength indicator */}
                 {password && (
-                  <div className="password-strength-indicator mt-2">
+                  <div className="password-strength-indicator">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-[var(--text-muted)]">비밀번호 강도</span>
                       <span className="text-xs font-semibold" style={{ color: strength.color }}>
@@ -224,7 +224,7 @@ function ResetPasswordContent() {
                   </div>
                 )}
               </div>
-              <div className="confirm-password-field mb-6">
+              <div className="confirm-password-field">
                 <label className="field-label">비밀번호 확인</label>
                 <input
                   type="password"
@@ -250,7 +250,7 @@ function ResetPasswordContent() {
         </div>
 
         {/* Back to login */}
-        <div className="reset-back-link text-center mt-6">
+        <div className="reset-back-link">
           <Link
             href="/auth"
             className="text-sm text-[var(--primary)] hover:underline font-medium"

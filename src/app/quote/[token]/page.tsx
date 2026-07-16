@@ -400,9 +400,9 @@ export default function QuoteApprovalPage() {
   const stageLabel = stageKo(row.stage);
   return (
     <Shell>
-      <div className="quote-approval-card bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="quote-approval-card">
         {/* 헤더 */}
-        <div className="quote-approval-header bg-gradient-to-br from-indigo-600 to-purple-700 text-white px-6 py-6">
+        <div className="quote-approval-header">
           <div className="text-xs opacity-80 mb-1">{row.company_name} 발송</div>
           <h1 className="text-xl font-bold">{stageLabel} 확인 요청</h1>
           {row.recipient_name && (
@@ -411,7 +411,7 @@ export default function QuoteApprovalPage() {
         </div>
 
         {/* 본문 */}
-        <div className="quote-approval-body p-6 space-y-5">
+        <div className="quote-approval-body">
           {/* 회사 정보 */}
           <section>
             <Label>발송 회사</Label>
@@ -555,14 +555,14 @@ export default function QuoteApprovalPage() {
           </section>
 
           {/* 결정 영역 */}
-          <section className="decision-section pt-4 border-t border-gray-200">
+          <section className="decision-section">
             {errMsg && (
               <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/25 text-xs text-[var(--danger)]">
                 {errMsg}
               </div>
             )}
             {!showRejectInput ? (
-              <div className="decision-buttons-row flex flex-col sm:flex-row gap-2">
+              <div className="decision-buttons-row">
                 <button
                   type="button"
                   onClick={handleApproveClick}
@@ -581,7 +581,7 @@ export default function QuoteApprovalPage() {
                 </button>
               </div>
             ) : (
-              <div className="reject-note-form space-y-2">
+              <div className="reject-note-form">
                 <Label>거절 사유 (필수)</Label>
                 <textarea
                   value={rejectNote}
@@ -620,9 +620,9 @@ export default function QuoteApprovalPage() {
 
       {/* L 계약: stage='contract' 승인 시 서명 모달 */}
       {showSignatureModal && (
-        <div className="signature-modal-overlay fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowSignatureModal(false)}>
+        <div className="signature-modal-overlay" onClick={() => setShowSignatureModal(false)}>
           <div
-            className="signature-modal-card bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6"
+            className="signature-modal-card"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
@@ -699,7 +699,7 @@ export default function QuoteApprovalPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="quote-approval-shell min-h-screen bg-[var(--bg)] py-8 px-4">
+    <main className="quote-approval-shell">
       <div className="max-w-2xl mx-auto">{children}</div>
       <p className="text-[10px] text-gray-400 text-center mt-8">
         Powered by OwnerView · 본 페이지는 안전한 1회용 링크로 보호됩니다
@@ -714,7 +714,7 @@ function Label({ children }: { children: React.ReactNode }) {
 
 function Notice({ icon, title, message }: { icon: string; title: string; message: string }) {
   return (
-    <div className="quote-notice-card bg-white rounded-2xl shadow-sm border border-gray-200 px-6 py-10 text-center">
+    <div className="quote-notice-card">
       <div className="text-4xl mb-3">{icon}</div>
       <h1 className="text-lg font-bold text-gray-900 mb-2">{title}</h1>
       <p className="text-sm text-gray-600">{message}</p>

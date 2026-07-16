@@ -156,10 +156,10 @@ export default function VerifyEmailPage() {
   }, []);
 
   return (
-    <div className="verify-page min-h-screen flex items-center justify-center px-4">
+    <div className="verify-page">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="verify-logo text-center mb-8">
+        <div className="verify-logo">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4">
             <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
               <rect width="40" height="40" rx="10" fill="#111" />
@@ -195,11 +195,11 @@ export default function VerifyEmailPage() {
 
         {/* Card */}
         <div
-          className="verify-card glass-card p-8 shadow-[var(--shadow-lg)]"
+          className="verify-card glass-card"
         >
           {/* Loading */}
           {state === "loading" && (
-            <div className="verify-loading text-center py-8">
+            <div className="verify-loading">
               <div className="inline-flex items-center justify-center w-16 h-16 mb-5">
                 <svg
                   className="animate-spin w-10 h-10 text-[var(--primary)]"
@@ -232,7 +232,7 @@ export default function VerifyEmailPage() {
 
           {/* Success */}
           {state === "success" && (
-            <div className="verify-success text-center py-8">
+            <div className="verify-success">
               <div
                 className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-[var(--success-dim)]"
               >
@@ -256,7 +256,7 @@ export default function VerifyEmailPage() {
               <p className="text-sm text-[var(--text-muted)] mb-6">
                 환영합니다! OwnerView의 모든 기능을 이용할 수 있습니다.
               </p>
-              <div className="verify-progress-bar w-full bg-[var(--bg-surface)] rounded-full h-1.5 mb-4">
+              <div className="verify-progress-bar">
                 <div
                   className="bg-[var(--primary)] h-1.5 rounded-full transition-all duration-1000"
                   style={{ width: `${((3 - countdown) / 3) * 100}%` }}
@@ -276,7 +276,7 @@ export default function VerifyEmailPage() {
 
           {/* Email confirmed but PKCE failed — let user login directly */}
           {state === "email_confirmed_need_login" && (
-            <div className="verify-login-fallback text-center py-8">
+            <div className="verify-login-fallback">
               <div
                 className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-[var(--success-dim)]"
               >
@@ -302,7 +302,7 @@ export default function VerifyEmailPage() {
               </p>
 
               {loginError && (
-                <div className="login-error-banner mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm text-left">
+                <div className="login-error-banner">
                   {loginError}
                 </div>
               )}
@@ -340,7 +340,7 @@ export default function VerifyEmailPage() {
                   }
                   router.push("/dashboard");
                 }}
-                className="verify-login-form text-left space-y-4"
+                className="verify-login-form"
               >
                 <div>
                   <label className="field-label">
@@ -389,7 +389,7 @@ export default function VerifyEmailPage() {
 
           {/* Error — genuine error (no code, timeout, etc.) */}
           {state === "error" && (
-            <div className="verify-error text-center py-8">
+            <div className="verify-error">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--danger-dim)] mb-6">
                 <svg
                   className="w-10 h-10 text-[var(--danger)]"

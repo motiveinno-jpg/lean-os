@@ -14,7 +14,7 @@ export default function MaintenancePage() {
   }, []);
 
   return (
-    <div className="maintenance-page min-h-screen flex items-center justify-center p-6">
+    <div className="maintenance-page">
       {/* 점검 페이지 전용 망치질 애니메이션 (순수 CSS, 외부 의존 없음) */}
       <style>{`
         @keyframes hmr-swing { 0%,32%,100% { transform: rotate(-22deg); } 50% { transform: rotate(20deg); } 64% { transform: rotate(15deg); } }
@@ -26,7 +26,7 @@ export default function MaintenancePage() {
         @media (prefers-reduced-motion: reduce) { .hmr-tool, .hmr-spark, .hmr-anvil { animation: none; } .hmr-spark { opacity: 0; } }
       `}</style>
       <div className="max-w-md w-full text-center space-y-5">
-        <div className="maintenance-anvil-scene relative mx-auto select-none w-[120px] h-[96px]" aria-hidden>
+        <div className="maintenance-anvil-scene" aria-hidden>
           <div className="hmr-anvil absolute left-1/2 bottom-[14px] -translate-x-1/2 w-[50px] h-[14px] rounded-[6px] bg-[var(--bg-surface)] border border-[var(--border)]" />
           <div className="hmr-spark absolute left-1/2 bottom-[26px] -translate-x-1/2 text-[18px]">✨</div>
           <div className="hmr-tool absolute left-1/2 top-0 -ml-6 text-5xl leading-none origin-[50%_92%]">🔨</div>

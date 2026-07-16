@@ -84,9 +84,9 @@ export default function CompanySetupPage() {
   }
 
   return (
-    <div className="company-setup-page min-h-screen flex items-center justify-center px-4">
+    <div className="company-setup-page">
       <div className="w-full max-w-md">
-        <div className="company-setup-header text-center mb-8">
+        <div className="company-setup-header">
           <div className="text-4xl mb-3" aria-hidden>🏢</div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">회사 정보를 설정해주세요</h1>
           <p className="text-[var(--text-muted)] text-sm mt-1.5 leading-relaxed">
@@ -95,9 +95,9 @@ export default function CompanySetupPage() {
           </p>
         </div>
 
-        <div className="company-setup-card glass-card p-8 shadow-[var(--shadow-lg)]">
+        <div className="company-setup-card glass-card">
           {error && (
-            <div role="alert" className="form-error-alert mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm">{error}</div>
+            <div role="alert" className="form-error-alert">{error}</div>
           )}
 
           <form onSubmit={submit}>
@@ -134,7 +134,7 @@ export default function CompanySetupPage() {
             )}
 
             {joinPrompt && (
-              <div className="join-prompt-box mb-4 p-4 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/25">
+              <div className="join-prompt-box">
                 <p className="text-sm font-semibold text-[var(--info)] mb-1">이미 오너뷰에 등록된 회사입니다 — <b>{joinPrompt}</b></p>
                 <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
                   회사를 새로 만들 수 없습니다. 이 회사의 대표/관리자에게 <b>합류 요청</b>을 보내고, 승인되면 회사 페이지를 함께 사용합니다.
