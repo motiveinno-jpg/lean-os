@@ -32,8 +32,9 @@ export async function isWebPushSubscribed(): Promise<boolean> {
   } catch { return false; }
 }
 
-/** 구독 + DB 저장. 권한 거부/미지원이면 false. */
-export async function subscribeWebPush(companyId: string | null, userId: string): Promise<boolean> {
+/** 구독 + DB 저장. 권한 거부/미지원이면 false.
+ *  _userId: 하위호환용(미사용) — 저장 주체는 RPC 가 auth.uid() 로 서버에서 판별. */
+export async function subscribeWebPush(companyId: string | null, _userId?: string): Promise<boolean> {
   if (!webPushSupported()) return false;
   if (Notification.permission !== "granted") {
     const perm = await Notification.requestPermission();
@@ -49,14 +50,18 @@ export async function subscribeWebPush(companyId: string | null, userId: string)
   }
   const json = sub.toJSON() as { keys?: { p256dh?: string; auth?: string } };
   if (!json.keys?.p256dh || !json.keys?.auth) return false;
-  const { error } = await (supabase as any).from("push_subscriptions").upsert({
-    user_id: userId,
-    company_id: companyId,
-    endpoint: sub.endpoint,
-    p256dh: json.keys.p256dh,
-    auth: json.keys.auth,
-    user_agent: navigator.userAgent,
-  }, { onConflict: "endpoint" });
+  // 2026-07-16: 직접 upsert → SECURITY DEFINER RPC. 기존 방식은 (1) UPDATE RLS 정책 부재로
+  //   재구독(같은 endpoint) 시 무조건 실패, (2) 같은 브라우저에서 계정 전환 시 이전 계정 소유
+  //   행에 막힘, (3) 레거시 계정(users.id != auth_id) FK 실패. RPC 가 서버에서 호출자
+  //   users.id 를 해석해 endpoint 소유권까지 원자적으로 이관한다.
+  const { error } = await (supabase as any).rpc("upsert_push_subscription", {
+    p_endpoint: sub.endpoint,
+    p_p256dh: json.keys.p256dh,
+    p_auth: json.keys.auth,
+    p_user_agent: navigator.userAgent,
+    p_company_id: companyId,
+  });
+  if (error) console.error("push subscribe save failed:", error.message);
   return !error;
 }
 

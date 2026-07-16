@@ -91,9 +91,10 @@ async function autoSetupUser(authUser: { id: string; email?: string; user_metada
     monthly_fixed_cost: 0,
   });
 
-  // 폴백 경로에서도 14일 트라이얼 구독 생성
+  // 폴백 경로에서도 14일 트라이얼 구독 생성 — 주 경로(company-signup)와 동일하게 'free'
+  //   ('starter' 는 비활성 레거시 플랜 + 발행한도 컬럼 NULL=무제한이라 한도가 안 걸림, 2026-07-16)
   try {
-    await createTrialingSubscription(company.id, 'starter', 14);
+    await createTrialingSubscription(company.id, 'free', 14);
   } catch (e) {
     console.warn('autoSetupUser subscription error:', e);
   }
