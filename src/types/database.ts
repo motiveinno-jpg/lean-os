@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_closing: {
+        Row: {
+          closing_date: string | null
+          company_id: string
+          note: string | null
+          opening_lines: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          closing_date?: string | null
+          company_id: string
+          note?: string | null
+          opening_lines?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          closing_date?: string | null
+          company_id?: string
+          note?: string | null
+          opening_lines?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_closing_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_closing_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_briefings: {
+        Row: {
+          brief_date: string
+          company_id: string
+          content: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          brief_date: string
+          company_id: string
+          content: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          brief_date?: string
+          company_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_briefings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_interactions: {
         Row: {
           company_id: string
@@ -325,48 +399,164 @@ export type Database = {
         }
         Relationships: []
       }
+      approval_comments: {
+        Row: {
+          body: string
+          company_id: string
+          created_at: string | null
+          id: string
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          company_id: string
+          created_at?: string | null
+          id?: string
+          request_id: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          request_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_comments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_forms: {
+        Row: {
+          allow_requester_edit: boolean
+          category: string | null
+          company_id: string
+          content_template: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          fields: Json
+          id: string
+          is_active: boolean
+          name: string
+          reference_user_ids: string[]
+          stages: Json
+          updated_at: string
+          use_attachment: boolean
+        }
+        Insert: {
+          allow_requester_edit?: boolean
+          category?: string | null
+          company_id: string
+          content_template?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          reference_user_ids?: string[]
+          stages?: Json
+          updated_at?: string
+          use_attachment?: boolean
+        }
+        Update: {
+          allow_requester_edit?: boolean
+          category?: string | null
+          company_id?: string
+          content_template?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          reference_user_ids?: string[]
+          stages?: Json
+          updated_at?: string
+          use_attachment?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_forms_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_forms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_policies: {
         Row: {
+          allow_line_edit: boolean
           auto_approve: boolean | null
           auto_approve_threshold: number | null
           company_id: string
           created_at: string | null
+          description_template: string | null
           entity_type: string
           id: string
           is_active: boolean
+          label: string | null
           max_amount: number | null
           min_amount: number | null
           name: string
+          requester_id: string | null
           required_role: string | null
           stages: Json | null
           updated_at: string | null
         }
         Insert: {
+          allow_line_edit?: boolean
           auto_approve?: boolean | null
           auto_approve_threshold?: number | null
           company_id: string
           created_at?: string | null
+          description_template?: string | null
           entity_type: string
           id?: string
           is_active?: boolean
+          label?: string | null
           max_amount?: number | null
           min_amount?: number | null
           name?: string
+          requester_id?: string | null
           required_role?: string | null
           stages?: Json | null
           updated_at?: string | null
         }
         Update: {
+          allow_line_edit?: boolean
           auto_approve?: boolean | null
           auto_approve_threshold?: number | null
           company_id?: string
           created_at?: string | null
+          description_template?: string | null
           entity_type?: string
           id?: string
           is_active?: boolean
+          label?: string | null
           max_amount?: number | null
           min_amount?: number | null
           name?: string
+          requester_id?: string | null
           required_role?: string | null
           stages?: Json | null
           updated_at?: string | null
@@ -388,7 +578,9 @@ export type Database = {
           company_id: string
           created_at: string | null
           current_stage: number | null
+          custom_fields: Json
           description: string | null
+          form_id: string | null
           id: string
           policy_id: string | null
           reference_user_ids: string[]
@@ -406,7 +598,9 @@ export type Database = {
           company_id: string
           created_at?: string | null
           current_stage?: number | null
+          custom_fields?: Json
           description?: string | null
+          form_id?: string | null
           id?: string
           policy_id?: string | null
           reference_user_ids?: string[]
@@ -424,7 +618,9 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           current_stage?: number | null
+          custom_fields?: Json
           description?: string | null
+          form_id?: string | null
           id?: string
           policy_id?: string | null
           reference_user_ids?: string[]
@@ -442,6 +638,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "approval_forms"
             referencedColumns: ["id"]
           },
           {
@@ -1014,6 +1217,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bank_classification_rules_assign_deal_id_fkey"
+            columns: ["assign_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "bank_classification_rules_assign_deal_id_fkey"
+            columns: ["assign_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "bank_classification_rules_assign_deal_id_fkey"
+            columns: ["assign_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "bank_classification_rules_assign_deal_id_fkey"
+            columns: ["assign_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "bank_classification_rules_assign_deal_id_fkey"
+            columns: ["assign_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "bank_classification_rules_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -1024,6 +1262,7 @@ export type Database = {
       }
       bank_transactions: {
         Row: {
+          ai_attempted_at: string | null
           amount: number
           balance_after: number | null
           bank_account_id: string | null
@@ -1039,17 +1278,24 @@ export type Database = {
           id: string
           is_auto_transfer: boolean | null
           is_fixed_cost: boolean | null
+          journal_entry_id: string | null
           mapped_at: string | null
           mapped_by: string | null
           mapping_status: string | null
           memo: string | null
+          partner_id: string | null
           raw_data: Json | null
+          settled_amount: number
+          settlement_status: string
           source: string | null
+          tags: string[] | null
           tax_invoice_id: string | null
           transaction_date: string
           type: string
+          used_by_employee_id: string | null
         }
         Insert: {
+          ai_attempted_at?: string | null
           amount: number
           balance_after?: number | null
           bank_account_id?: string | null
@@ -1065,17 +1311,24 @@ export type Database = {
           id?: string
           is_auto_transfer?: boolean | null
           is_fixed_cost?: boolean | null
+          journal_entry_id?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapping_status?: string | null
           memo?: string | null
+          partner_id?: string | null
           raw_data?: Json | null
+          settled_amount?: number
+          settlement_status?: string
           source?: string | null
+          tags?: string[] | null
           tax_invoice_id?: string | null
           transaction_date: string
           type: string
+          used_by_employee_id?: string | null
         }
         Update: {
+          ai_attempted_at?: string | null
           amount?: number
           balance_after?: number | null
           bank_account_id?: string | null
@@ -1091,15 +1344,21 @@ export type Database = {
           id?: string
           is_auto_transfer?: boolean | null
           is_fixed_cost?: boolean | null
+          journal_entry_id?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapping_status?: string | null
           memo?: string | null
+          partner_id?: string | null
           raw_data?: Json | null
+          settled_amount?: number
+          settlement_status?: string
           source?: string | null
+          tags?: string[] | null
           tax_invoice_id?: string | null
           transaction_date?: string
           type?: string
+          used_by_employee_id?: string | null
         }
         Relationships: [
           {
@@ -1131,10 +1390,59 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bank_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bank_transactions_mapped_by_fkey"
             columns: ["mapped_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
           {
@@ -1178,8 +1486,50 @@ export type Database = {
           },
         ]
       }
+      board_columns: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          in_list: boolean
+          name: string
+          position: number
+          settings: Json
+          type: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          in_list?: boolean
+          name?: string
+          position?: number
+          settings?: Json
+          type?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          in_list?: boolean
+          name?: string
+          position?: number
+          settings?: Json
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_columns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       board_comments: {
         Row: {
+          attachments: Json
           author_id: string | null
           author_name: string | null
           company_id: string
@@ -1191,6 +1541,7 @@ export type Database = {
           post_id: string
         }
         Insert: {
+          attachments?: Json
           author_id?: string | null
           author_name?: string | null
           company_id: string
@@ -1202,6 +1553,7 @@ export type Database = {
           post_id: string
         }
         Update: {
+          attachments?: Json
           author_id?: string | null
           author_name?: string | null
           company_id?: string
@@ -1239,6 +1591,134 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "board_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      board_groups: {
+        Row: {
+          color: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          position: number
+        }
+        Insert: {
+          color?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+        }
+        Update: {
+          color?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_groups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      board_item_updates: {
+        Row: {
+          author_name: string | null
+          author_user_id: string | null
+          body: string
+          company_id: string
+          created_at: string
+          deal_id: string
+          id: string
+          subitem_id: string | null
+          workflow_item_id: string | null
+        }
+        Insert: {
+          author_name?: string | null
+          author_user_id?: string | null
+          body: string
+          company_id: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          subitem_id?: string | null
+          workflow_item_id?: string | null
+        }
+        Update: {
+          author_name?: string | null
+          author_user_id?: string | null
+          body?: string
+          company_id?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          subitem_id?: string | null
+          workflow_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_item_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_item_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "board_item_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "board_item_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "board_item_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "board_item_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "board_item_updates_subitem_id_fkey"
+            columns: ["subitem_id"]
+            isOneToOne: false
+            referencedRelation: "project_subitems"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_item_updates_workflow_item_id_fkey"
+            columns: ["workflow_item_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_items"
             referencedColumns: ["id"]
           },
         ]
@@ -1367,6 +1847,45 @@ export type Database = {
           },
         ]
       }
+      card_account_mappings: {
+        Row: {
+          account_id: string
+          category: string
+          company_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          category: string
+          company_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          category?: string
+          company_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_account_mappings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_account_mappings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       card_aliases: {
         Row: {
           alias: string
@@ -1416,6 +1935,7 @@ export type Database = {
         Row: {
           amount: number
           approval_number: string | null
+          bank_transaction_id: string | null
           card_id: string | null
           card_name: string | null
           category: string | null
@@ -1429,6 +1949,7 @@ export type Database = {
           installments: number | null
           is_deductible: boolean | null
           is_fixed_cost: boolean | null
+          journal_entry_id: string | null
           mapped_at: string | null
           mapped_by: string | null
           mapping_status: string | null
@@ -1438,12 +1959,15 @@ export type Database = {
           raw_data: Json | null
           receipt_url: string | null
           source: string | null
+          tags: string[] | null
           tax_invoice_id: string | null
           transaction_date: string
+          used_by_employee_id: string | null
         }
         Insert: {
           amount?: number
           approval_number?: string | null
+          bank_transaction_id?: string | null
           card_id?: string | null
           card_name?: string | null
           category?: string | null
@@ -1457,6 +1981,7 @@ export type Database = {
           installments?: number | null
           is_deductible?: boolean | null
           is_fixed_cost?: boolean | null
+          journal_entry_id?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapping_status?: string | null
@@ -1466,12 +1991,15 @@ export type Database = {
           raw_data?: Json | null
           receipt_url?: string | null
           source?: string | null
+          tags?: string[] | null
           tax_invoice_id?: string | null
           transaction_date: string
+          used_by_employee_id?: string | null
         }
         Update: {
           amount?: number
           approval_number?: string | null
+          bank_transaction_id?: string | null
           card_id?: string | null
           card_name?: string | null
           category?: string | null
@@ -1485,6 +2013,7 @@ export type Database = {
           installments?: number | null
           is_deductible?: boolean | null
           is_fixed_cost?: boolean | null
+          journal_entry_id?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapping_status?: string | null
@@ -1494,10 +2023,19 @@ export type Database = {
           raw_data?: Json | null
           receipt_url?: string | null
           source?: string | null
+          tags?: string[] | null
           tax_invoice_id?: string | null
           transaction_date?: string
+          used_by_employee_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "card_transactions_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "card_transactions_card_id_fkey"
             columns: ["card_id"]
@@ -1520,6 +2058,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "card_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "card_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "card_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "card_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "card_transactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "card_transactions_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "card_transactions_mapped_by_fkey"
             columns: ["mapped_by"]
             isOneToOne: false
@@ -1535,10 +2115,53 @@ export type Database = {
           },
         ]
       }
+      cash_projections: {
+        Row: {
+          company_id: string
+          generated_at: string | null
+          generated_by: string | null
+          id: string
+          month: string
+          projection_data: Json
+        }
+        Insert: {
+          company_id: string
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          month: string
+          projection_data?: Json
+        }
+        Update: {
+          company_id?: string
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          month?: string
+          projection_data?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_projections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_projections_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_receipts: {
         Row: {
           amount: number
           approval_number: string | null
+          bank_transaction_id: string | null
           company_id: string | null
           counterparty_bizno: string | null
           counterparty_name: string | null
@@ -1550,6 +2173,7 @@ export type Database = {
           identity_type: string | null
           issue_date: string
           issue_response: Json | null
+          journal_entry_id: string | null
           memo: string | null
           nts_state_code: string | null
           purpose: string | null
@@ -1563,6 +2187,7 @@ export type Database = {
         Insert: {
           amount: number
           approval_number?: string | null
+          bank_transaction_id?: string | null
           company_id?: string | null
           counterparty_bizno?: string | null
           counterparty_name?: string | null
@@ -1574,6 +2199,7 @@ export type Database = {
           identity_type?: string | null
           issue_date: string
           issue_response?: Json | null
+          journal_entry_id?: string | null
           memo?: string | null
           nts_state_code?: string | null
           purpose?: string | null
@@ -1587,6 +2213,7 @@ export type Database = {
         Update: {
           amount?: number
           approval_number?: string | null
+          bank_transaction_id?: string | null
           company_id?: string | null
           counterparty_bizno?: string | null
           counterparty_name?: string | null
@@ -1598,6 +2225,7 @@ export type Database = {
           identity_type?: string | null
           issue_date?: string
           issue_response?: Json | null
+          journal_entry_id?: string | null
           memo?: string | null
           nts_state_code?: string | null
           purpose?: string | null
@@ -1610,6 +2238,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "cash_receipts_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cash_receipts_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -1621,6 +2256,48 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_receipts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "cash_receipts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "cash_receipts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "cash_receipts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "cash_receipts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "cash_receipts_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -1708,6 +2385,47 @@ export type Database = {
             columns: ["issued_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chart_of_accounts: {
+        Row: {
+          account_type: string
+          code: string
+          company_id: string
+          created_at: string
+          id: string
+          is_system: boolean
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          account_type: string
+          code: string
+          company_id: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          account_type?: string
+          code?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_of_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -1838,11 +2556,53 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "chat_channels_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "chat_channels_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "chat_channels_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "chat_channels_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "chat_channels_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "chat_channels_sub_deal_id_fkey"
             columns: ["sub_deal_id"]
             isOneToOne: false
             referencedRelation: "sub_deals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_channels_sub_deal_id_fkey"
+            columns: ["sub_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_sub_deal_pnl"
+            referencedColumns: ["sub_deal_id"]
           },
         ]
       }
@@ -2307,6 +3067,44 @@ export type Database = {
           },
         ]
       }
+      codef_usage: {
+        Row: {
+          action: string
+          company_id: string | null
+          created_at: string
+          id: string
+          meta: Json | null
+          total_calls: number
+          units: number
+        }
+        Insert: {
+          action: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          total_calls?: number
+          units?: number
+        }
+        Update: {
+          action?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          total_calls?: number
+          units?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "codef_usage_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -2326,6 +3124,7 @@ export type Database = {
           representative: string | null
           seal_url: string | null
           stripe_customer_id: string | null
+          tax_settings: Json
           trial_ends_at: string | null
         }
         Insert: {
@@ -2346,6 +3145,7 @@ export type Database = {
           representative?: string | null
           seal_url?: string | null
           stripe_customer_id?: string | null
+          tax_settings?: Json
           trial_ends_at?: string | null
         }
         Update: {
@@ -2366,6 +3166,7 @@ export type Database = {
           representative?: string | null
           seal_url?: string | null
           stripe_customer_id?: string | null
+          tax_settings?: Json
           trial_ends_at?: string | null
         }
         Relationships: []
@@ -2422,6 +3223,63 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_join_requests: {
+        Row: {
+          company_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          message: string | null
+          requester_auth_id: string
+          requester_email: string
+          requester_name: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          message?: string | null
+          requester_auth_id: string
+          requester_email: string
+          requester_name?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          message?: string | null
+          requester_auth_id?: string
+          requester_email?: string
+          requester_name?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_join_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_join_requests_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2788,6 +3646,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deal_assignments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_assignments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_assignments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_assignments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_assignments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "deal_assignments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -2831,6 +3724,89 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_cost_adjustments: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          id: string
+          memo: string | null
+          occurred_on: string
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          id?: string
+          memo?: string | null
+          occurred_on?: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          id?: string
+          memo?: string | null
+          occurred_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_cost_adjustments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_cost_adjustments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_cost_adjustments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_cost_adjustments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_cost_adjustments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_cost_adjustments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_cost_adjustments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
           },
         ]
       }
@@ -2913,6 +3889,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deal_cost_schedule_sub_deal_id_fkey"
+            columns: ["sub_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_sub_deal_pnl"
+            referencedColumns: ["sub_deal_id"]
+          },
+          {
             foreignKeyName: "deal_cost_schedule_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -2976,6 +3959,41 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "deal_files_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_files_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_files_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_files_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_files_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
         ]
       }
       deal_milestones: {
@@ -3019,6 +4037,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "deals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_milestones_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_milestones_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_milestones_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_milestones_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_milestones_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
           },
         ]
       }
@@ -3096,6 +4149,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deal_nodes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_nodes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_nodes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_nodes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_nodes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "deal_nodes_parent_id_fkey"
             columns: ["parent_id"]
             isOneToOne: false
@@ -3161,13 +4249,52 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "deal_revenue_schedule_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_revenue_schedule_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_revenue_schedule_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_revenue_schedule_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_revenue_schedule_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
         ]
       }
       deals: {
         Row: {
           archived_at: string | null
           bank_account_id: string | null
+          board_group_id: string | null
+          checkin_cadence: string | null
+          checkin_due_weekday: number | null
           classification: string | null
+          column_values: Json
           company_id: string | null
           contract_total: number | null
           counterparty: string | null
@@ -3176,6 +4303,7 @@ export type Database = {
           deal_number: string | null
           document_sequence: number | null
           end_date: string | null
+          goal_source: string | null
           id: string
           internal_manager_id: string | null
           is_dormant: boolean | null
@@ -3187,16 +4315,24 @@ export type Database = {
           partner_id: string | null
           priority: string | null
           program_id: string | null
+          project_type: string
           risk_level: string | null
           stage: string | null
           start_date: string | null
           status: string | null
+          target_amount: number | null
+          target_label: string | null
+          target_unit: string | null
           vat_type: string
         }
         Insert: {
           archived_at?: string | null
           bank_account_id?: string | null
+          board_group_id?: string | null
+          checkin_cadence?: string | null
+          checkin_due_weekday?: number | null
           classification?: string | null
+          column_values?: Json
           company_id?: string | null
           contract_total?: number | null
           counterparty?: string | null
@@ -3205,6 +4341,7 @@ export type Database = {
           deal_number?: string | null
           document_sequence?: number | null
           end_date?: string | null
+          goal_source?: string | null
           id?: string
           internal_manager_id?: string | null
           is_dormant?: boolean | null
@@ -3216,16 +4353,24 @@ export type Database = {
           partner_id?: string | null
           priority?: string | null
           program_id?: string | null
+          project_type?: string
           risk_level?: string | null
           stage?: string | null
           start_date?: string | null
           status?: string | null
+          target_amount?: number | null
+          target_label?: string | null
+          target_unit?: string | null
           vat_type?: string
         }
         Update: {
           archived_at?: string | null
           bank_account_id?: string | null
+          board_group_id?: string | null
+          checkin_cadence?: string | null
+          checkin_due_weekday?: number | null
           classification?: string | null
+          column_values?: Json
           company_id?: string | null
           contract_total?: number | null
           counterparty?: string | null
@@ -3234,6 +4379,7 @@ export type Database = {
           deal_number?: string | null
           document_sequence?: number | null
           end_date?: string | null
+          goal_source?: string | null
           id?: string
           internal_manager_id?: string | null
           is_dormant?: boolean | null
@@ -3245,10 +4391,14 @@ export type Database = {
           partner_id?: string | null
           priority?: string | null
           program_id?: string | null
+          project_type?: string
           risk_level?: string | null
           stage?: string | null
           start_date?: string | null
           status?: string | null
+          target_amount?: number | null
+          target_label?: string | null
+          target_unit?: string | null
           vat_type?: string
         }
         Relationships: [
@@ -3257,6 +4407,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_board_group_id_fkey"
+            columns: ["board_group_id"]
+            isOneToOne: false
+            referencedRelation: "board_groups"
             referencedColumns: ["id"]
           },
           {
@@ -3272,6 +4429,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
           },
           {
             foreignKeyName: "deals_partner_company_id_fkey"
@@ -3292,6 +4491,41 @@ export type Database = {
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      departments: {
+        Row: {
+          archived_at: string | null
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          archived_at?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          archived_at?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -3775,7 +5009,9 @@ export type Database = {
           name: string
           partner_id: string | null
           seal_applied: boolean | null
+          source_document_id: string | null
           status: string | null
+          sub_deal_id: string | null
           template_id: string | null
           updated_at: string | null
           version: number | null
@@ -3806,7 +5042,9 @@ export type Database = {
           name: string
           partner_id?: string | null
           seal_applied?: boolean | null
+          source_document_id?: string | null
           status?: string | null
+          sub_deal_id?: string | null
           template_id?: string | null
           updated_at?: string | null
           version?: number | null
@@ -3837,7 +5075,9 @@ export type Database = {
           name?: string
           partner_id?: string | null
           seal_applied?: boolean | null
+          source_document_id?: string | null
           status?: string | null
+          sub_deal_id?: string | null
           template_id?: string | null
           updated_at?: string | null
           version?: number | null
@@ -3865,11 +5105,67 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "documents_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_sub_deal_id_fkey"
+            columns: ["sub_deal_id"]
+            isOneToOne: false
+            referencedRelation: "sub_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_sub_deal_id_fkey"
+            columns: ["sub_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_sub_deal_pnl"
+            referencedColumns: ["sub_deal_id"]
           },
           {
             foreignKeyName: "documents_template_id_fkey"
@@ -4424,6 +5720,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "expense_requests_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "expense_requests_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "expense_requests_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "expense_requests_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "expense_requests_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "expense_requests_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
@@ -4606,6 +5937,94 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "financial_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "financial_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "financial_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "financial_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      fixed_costs: {
+        Row: {
+          amount: number
+          category: string
+          company_id: string
+          created_at: string | null
+          end_date: string | null
+          id: string
+          is_recurring: boolean
+          name: string
+          note: string | null
+          payment_day: number
+          start_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number
+          category?: string
+          company_id: string
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          is_recurring?: boolean
+          name: string
+          note?: string | null
+          payment_day?: number
+          start_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          company_id?: string
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          is_recurring?: boolean
+          name?: string
+          note?: string | null
+          payment_day?: number
+          start_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_costs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -4958,6 +6377,72 @@ export type Database = {
           },
         ]
       }
+      invoice_settlements: {
+        Row: {
+          adjustment_reason: string | null
+          amount: number
+          bank_transaction_id: string | null
+          company_id: string
+          confidence: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          match_source: string
+          match_type: string
+          reason: string | null
+          status: string
+          tax_invoice_id: string
+          updated_at: string
+        }
+        Insert: {
+          adjustment_reason?: string | null
+          amount: number
+          bank_transaction_id?: string | null
+          company_id: string
+          confidence?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          match_source?: string
+          match_type?: string
+          reason?: string | null
+          status?: string
+          tax_invoice_id: string
+          updated_at?: string
+        }
+        Update: {
+          adjustment_reason?: string | null
+          amount?: number
+          bank_transaction_id?: string | null
+          company_id?: string
+          confidence?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          match_source?: string
+          match_type?: string
+          reason?: string | null
+          status?: string
+          tax_invoice_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_settlements_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_settlements_tax_invoice_id_fkey"
+            columns: ["tax_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "tax_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
@@ -5032,6 +6517,299 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          approved_by: string | null
+          company_id: string
+          confidence: number | null
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          description: string
+          entry_date: string
+          id: string
+          is_approved: boolean
+          linked_bank_tx_id: string | null
+          linked_invoice_id: string | null
+          linked_settlement_id: string | null
+          reason: string | null
+          reference_id: string | null
+          reference_type: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
+          status: string
+          sub_deal_id: string | null
+          updated_at: string
+          voucher_no: number | null
+          voucher_type: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          company_id: string
+          confidence?: number | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          description?: string
+          entry_date: string
+          id?: string
+          is_approved?: boolean
+          linked_bank_tx_id?: string | null
+          linked_invoice_id?: string | null
+          linked_settlement_id?: string | null
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string
+          status?: string
+          sub_deal_id?: string | null
+          updated_at?: string
+          voucher_no?: number | null
+          voucher_type?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          company_id?: string
+          confidence?: number | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          description?: string
+          entry_date?: string
+          id?: string
+          is_approved?: boolean
+          linked_bank_tx_id?: string | null
+          linked_invoice_id?: string | null
+          linked_settlement_id?: string | null
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string
+          status?: string
+          sub_deal_id?: string | null
+          updated_at?: string
+          voucher_no?: number | null
+          voucher_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "journal_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "journal_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "journal_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "journal_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "journal_entries_linked_bank_tx_id_fkey"
+            columns: ["linked_bank_tx_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_linked_invoice_id_fkey"
+            columns: ["linked_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "tax_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_linked_settlement_id_fkey"
+            columns: ["linked_settlement_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_settlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_linked_settlement_id_fkey"
+            columns: ["linked_settlement_id"]
+            isOneToOne: false
+            referencedRelation: "v_settlement_confirmed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_linked_settlement_id_fkey"
+            columns: ["linked_settlement_id"]
+            isOneToOne: false
+            referencedRelation: "v_settlement_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_sub_deal_id_fkey"
+            columns: ["sub_deal_id"]
+            isOneToOne: false
+            referencedRelation: "sub_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_sub_deal_id_fkey"
+            columns: ["sub_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_sub_deal_pnl"
+            referencedColumns: ["sub_deal_id"]
+          },
+        ]
+      }
+      journal_entry_audits: {
+        Row: {
+          action: string
+          actor_id: string | null
+          before: Json
+          company_id: string
+          created_at: string
+          entry_id: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          before: Json
+          company_id: string
+          created_at?: string
+          entry_id: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          before?: Json
+          company_id?: string
+          created_at?: string
+          entry_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entry_audits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entry_audits_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          bank_account_id: string | null
+          card_id: string | null
+          company_id: string | null
+          credit: number
+          debit: number
+          description: string
+          entry_id: string
+          id: string
+          partner_id: string | null
+        }
+        Insert: {
+          account_id: string
+          bank_account_id?: string | null
+          card_id?: string | null
+          company_id?: string | null
+          credit?: number
+          debit?: number
+          description?: string
+          entry_id: string
+          id?: string
+          partner_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          bank_account_id?: string | null
+          card_id?: string | null
+          company_id?: string | null
+          credit?: number
+          debit?: number
+          description?: string
+          entry_id?: string
+          id?: string
+          partner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
         ]
@@ -5146,8 +6924,10 @@ export type Database = {
       }
       leave_requests: {
         Row: {
+          approval_steps: Json
           approved_at: string | null
           approved_by: string | null
+          cc_user_ids: string[]
           company_id: string
           created_at: string | null
           days: number
@@ -5159,13 +6939,18 @@ export type Database = {
           leave_unit: string | null
           reason: string | null
           requested_approver_id: string | null
+          second_approved_at: string | null
+          second_approved_by: string | null
+          second_approver_id: string | null
           start_date: string
           start_time: string | null
           status: string | null
         }
         Insert: {
+          approval_steps?: Json
           approved_at?: string | null
           approved_by?: string | null
+          cc_user_ids?: string[]
           company_id: string
           created_at?: string | null
           days: number
@@ -5177,13 +6962,18 @@ export type Database = {
           leave_unit?: string | null
           reason?: string | null
           requested_approver_id?: string | null
+          second_approved_at?: string | null
+          second_approved_by?: string | null
+          second_approver_id?: string | null
           start_date: string
           start_time?: string | null
           status?: string | null
         }
         Update: {
+          approval_steps?: Json
           approved_at?: string | null
           approved_by?: string | null
+          cc_user_ids?: string[]
           company_id?: string
           created_at?: string | null
           days?: number
@@ -5195,6 +6985,9 @@ export type Database = {
           leave_unit?: string | null
           reason?: string | null
           requested_approver_id?: string | null
+          second_approved_at?: string | null
+          second_approved_by?: string | null
+          second_approver_id?: string | null
           start_date?: string
           start_time?: string | null
           status?: string | null
@@ -5224,6 +7017,20 @@ export type Database = {
           {
             foreignKeyName: "leave_requests_requested_approver_id_fkey"
             columns: ["requested_approver_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_second_approved_by_fkey"
+            columns: ["second_approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_second_approver_id_fkey"
+            columns: ["second_approver_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -5414,6 +7221,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_prefs: {
+        Row: {
+          company_id: string | null
+          prefs: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          prefs?: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          prefs?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       notification_settings: {
         Row: {
@@ -5643,6 +7471,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          approver_id: string | null
           company_id: string
           created_at: string
           employee_id: string
@@ -5657,6 +7486,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          approver_id?: string | null
           company_id: string
           created_at?: string
           employee_id: string
@@ -5671,6 +7501,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          approver_id?: string | null
           company_id?: string
           created_at?: string
           employee_id?: string
@@ -5691,6 +7522,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "overtime_requests_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "overtime_requests_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -5702,6 +7540,82 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_injections: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string | null
+          date: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          amount?: number
+          company_id: string
+          created_at?: string | null
+          date?: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string | null
+          date?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_injections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_aliases: {
+        Row: {
+          alias: string
+          company_id: string
+          confidence: number | null
+          created_at: string
+          id: string
+          match_count: number
+          partner_id: string
+          source: string
+        }
+        Insert: {
+          alias: string
+          company_id: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          match_count?: number
+          partner_id: string
+          source?: string
+        }
+        Update: {
+          alias?: string
+          company_id?: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          match_count?: number
+          partner_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_aliases_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
         ]
@@ -5812,6 +7726,41 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "partner_invitations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "partner_invitations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "partner_invitations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "partner_invitations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "partner_invitations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
         ]
       }
       partners: {
@@ -5823,6 +7772,7 @@ export type Database = {
           business_number: string | null
           business_type: string | null
           classification: string | null
+          code: number | null
           company_id: string
           company_name: string | null
           contact_email: string | null
@@ -5852,6 +7802,7 @@ export type Database = {
           business_number?: string | null
           business_type?: string | null
           classification?: string | null
+          code?: number | null
           company_id: string
           company_name?: string | null
           contact_email?: string | null
@@ -5881,6 +7832,7 @@ export type Database = {
           business_number?: string | null
           business_type?: string | null
           classification?: string | null
+          code?: number | null
           company_id?: string
           company_name?: string | null
           contact_email?: string | null
@@ -5916,6 +7868,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "deals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partners_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "partners_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "partners_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "partners_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "partners_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
           },
         ]
       }
@@ -6144,6 +8131,41 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payment_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "payment_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "payment_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "payment_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "payment_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
         ]
       }
       payroll_items: {
@@ -6223,6 +8245,7 @@ export type Database = {
           base_salary: number
           company_id: string
           created_at: string | null
+          deduction_overrides: Json | null
           employee_id: string
           extras: Json | null
           id: string
@@ -6234,6 +8257,7 @@ export type Database = {
           base_salary?: number
           company_id: string
           created_at?: string | null
+          deduction_overrides?: Json | null
           employee_id: string
           extras?: Json | null
           id?: string
@@ -6245,6 +8269,7 @@ export type Database = {
           base_salary?: number
           company_id?: string
           created_at?: string | null
+          deduction_overrides?: Json | null
           employee_id?: string
           extras?: Json | null
           id?: string
@@ -6265,6 +8290,72 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pdf_form_templates: {
+        Row: {
+          company_id: string
+          content_html: string | null
+          created_at: string
+          created_by: string | null
+          doc_type: string
+          fields: Json
+          file_path: string
+          id: string
+          is_active: boolean
+          name: string
+          page_count: number
+          page_sizes: Json | null
+          template_mode: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          doc_type: string
+          fields?: Json
+          file_path: string
+          id?: string
+          is_active?: boolean
+          name: string
+          page_count?: number
+          page_sizes?: Json | null
+          template_mode?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          doc_type?: string
+          fields?: Json
+          file_path?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          page_count?: number
+          page_sizes?: Json | null
+          template_mode?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdf_form_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pdf_form_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -6459,6 +8550,816 @@ export type Database = {
           },
         ]
       }
+      project_issues: {
+        Row: {
+          assignee_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          description: string | null
+          due_date: string | null
+          id: string
+          resolution: string | null
+          resolved_at: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_issues_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_issues_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_issues_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_issues_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_issues_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_issues_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_issues_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_issues_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_issues_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      project_kpi_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          department_id: string | null
+          entry_date: string
+          id: string
+          kpi_id: string | null
+          memo: string | null
+          value: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          department_id?: string | null
+          entry_date: string
+          id?: string
+          kpi_id?: string | null
+          memo?: string | null
+          value: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          department_id?: string | null
+          entry_date?: string
+          id?: string
+          kpi_id?: string | null
+          memo?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_kpi_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_kpi_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_kpi_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_kpi_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpi_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpi_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpi_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpi_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpi_entries_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_kpi_entries_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "project_kpis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_kpis: {
+        Row: {
+          company_id: string
+          created_at: string
+          deal_id: string
+          direction: string
+          id: string
+          label: string
+          owner_id: string | null
+          sort_order: number
+          source: string
+          target_value: number
+          unit: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          deal_id: string
+          direction?: string
+          id?: string
+          label: string
+          owner_id?: string | null
+          sort_order?: number
+          source?: string
+          target_value: number
+          unit?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          deal_id?: string
+          direction?: string
+          id?: string
+          label?: string
+          owner_id?: string | null
+          sort_order?: number
+          source?: string
+          target_value?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_kpis_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_kpis_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_kpis_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpis_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpis_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpis_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpis_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_kpis_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_sprints: {
+        Row: {
+          company_id: string
+          completed_at: string | null
+          completed_points: number | null
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          end_date: string | null
+          goal: string | null
+          id: string
+          name: string
+          sort_order: number
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          completed_at?: string | null
+          completed_points?: number | null
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          end_date?: string | null
+          goal?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          completed_at?: string | null
+          completed_points?: number | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          end_date?: string | null
+          goal?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_sprints_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_sprints_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_sprints_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      project_subitems: {
+        Row: {
+          column_values: Json
+          company_id: string
+          created_at: string
+          deal_id: string
+          id: string
+          name: string
+          position: number
+          workflow_item_id: string | null
+        }
+        Insert: {
+          column_values?: Json
+          company_id: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          name?: string
+          position?: number
+          workflow_item_id?: string | null
+        }
+        Update: {
+          column_values?: Json
+          company_id?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          name?: string
+          position?: number
+          workflow_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_subitems_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_subitems_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_subitems_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_subitems_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_subitems_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_subitems_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_subitems_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_subitems_workflow_item_id_fkey"
+            columns: ["workflow_item_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_tasks: {
+        Row: {
+          archived_at: string | null
+          assignee_id: string | null
+          assignee_ids: Json
+          attachments: Json
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          description: string | null
+          due_date: string | null
+          id: string
+          labels: Json
+          parent_task_id: string | null
+          position: number
+          progress: number
+          sprint_id: string | null
+          start_date: string | null
+          status: string
+          story_points: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          assignee_id?: string | null
+          assignee_ids?: Json
+          attachments?: Json
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          labels?: Json
+          parent_task_id?: string | null
+          position?: number
+          progress?: number
+          sprint_id?: string | null
+          start_date?: string | null
+          status?: string
+          story_points?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          assignee_id?: string | null
+          assignee_ids?: Json
+          attachments?: Json
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          labels?: Json
+          parent_task_id?: string | null
+          position?: number
+          progress?: number
+          sprint_id?: string | null
+          start_date?: string | null
+          status?: string
+          story_points?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "project_sprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_updates: {
+        Row: {
+          body: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          did: string | null
+          id: string
+          issues: string | null
+          kpi_snapshot: Json | null
+          next_plan: string | null
+          period_start: string | null
+          status: string
+          update_date: string
+        }
+        Insert: {
+          body?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          did?: string | null
+          id?: string
+          issues?: string | null
+          kpi_snapshot?: Json | null
+          next_plan?: string | null
+          period_start?: string | null
+          status?: string
+          update_date: string
+        }
+        Update: {
+          body?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          did?: string | null
+          id?: string
+          issues?: string | null
+          kpi_snapshot?: Json | null
+          next_plan?: string | null
+          period_start?: string | null
+          status?: string
+          update_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_updates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_updates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_updates_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          company_id: string | null
+          created_at: string | null
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          company_id?: string | null
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          company_id?: string | null
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       quote_approvals: {
         Row: {
           approval_token: string
@@ -6489,6 +9390,7 @@ export type Database = {
           signer_user_agent: string | null
           stage: string
           status: string
+          sub_deal_id: string | null
           updated_at: string
           viewed_at: string | null
         }
@@ -6521,6 +9423,7 @@ export type Database = {
           signer_user_agent?: string | null
           stage: string
           status?: string
+          sub_deal_id?: string | null
           updated_at?: string
           viewed_at?: string | null
         }
@@ -6553,6 +9456,7 @@ export type Database = {
           signer_user_agent?: string | null
           stage?: string
           status?: string
+          sub_deal_id?: string | null
           updated_at?: string
           viewed_at?: string | null
         }
@@ -6579,6 +9483,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "quote_approvals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "quote_approvals_our_signer_user_id_fkey"
             columns: ["our_signer_user_id"]
             isOneToOne: false
@@ -6591,6 +9530,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_sub_deal_id_fkey"
+            columns: ["sub_deal_id"]
+            isOneToOne: false
+            referencedRelation: "sub_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_approvals_sub_deal_id_fkey"
+            columns: ["sub_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_sub_deal_pnl"
+            referencedColumns: ["sub_deal_id"]
           },
         ]
       }
@@ -7036,7 +9989,10 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
-          document_id: string
+          delivery_at: string | null
+          delivery_detail: string | null
+          delivery_status: string | null
+          document_id: string | null
           expires_at: string | null
           fully_signed_contract_url: string | null
           id: string
@@ -7071,7 +10027,10 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
-          document_id: string
+          delivery_at?: string | null
+          delivery_detail?: string | null
+          delivery_status?: string | null
+          document_id?: string | null
           expires_at?: string | null
           fully_signed_contract_url?: string | null
           id?: string
@@ -7106,7 +10065,10 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
-          document_id?: string
+          delivery_at?: string | null
+          delivery_detail?: string | null
+          delivery_status?: string | null
+          document_id?: string | null
           expires_at?: string | null
           fully_signed_contract_url?: string | null
           id?: string
@@ -7315,6 +10277,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["parent_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "sub_deals_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
@@ -7341,6 +10338,7 @@ export type Database = {
           max_employees: number | null
           max_seats: number | null
           monthly_cashbill_limit: number | null
+          monthly_credits: number | null
           monthly_tax_invoice_limit: number | null
           name: string
           per_seat_price: number
@@ -7362,6 +10360,7 @@ export type Database = {
           max_employees?: number | null
           max_seats?: number | null
           monthly_cashbill_limit?: number | null
+          monthly_credits?: number | null
           monthly_tax_invoice_limit?: number | null
           name: string
           per_seat_price?: number
@@ -7383,6 +10382,7 @@ export type Database = {
           max_employees?: number | null
           max_seats?: number | null
           monthly_cashbill_limit?: number | null
+          monthly_credits?: number | null
           monthly_tax_invoice_limit?: number | null
           name?: string
           per_seat_price?: number
@@ -7483,6 +10483,102 @@ export type Database = {
           },
         ]
       }
+      support_tickets: {
+        Row: {
+          answer: string | null
+          answered_at: string | null
+          answered_by: string | null
+          category: string
+          company_id: string
+          content: string
+          created_at: string
+          id: string
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          category?: string
+          company_id: string
+          content: string
+          created_at?: string
+          id?: string
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          category?: string
+          company_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_cooldowns: {
+        Row: {
+          company_id: string
+          last_run_at: string
+          sync_type: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          last_run_at?: string
+          sync_type: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          last_run_at?: string
+          sync_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_cooldowns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sync_jobs: {
         Row: {
           company_id: string
@@ -7575,6 +10671,97 @@ export type Database = {
           },
         ]
       }
+      task_comments: {
+        Row: {
+          body: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          parent_id: string | null
+          task_id: string
+        }
+        Insert: {
+          body: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parent_id?: string | null
+          task_id: string
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          parent_id?: string | null
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "task_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_labels: {
+        Row: {
+          color: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_labels_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_invoice_queue: {
         Row: {
           action: string
@@ -7641,6 +10828,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tax_invoice_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "tax_invoice_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "tax_invoice_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "tax_invoice_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "tax_invoice_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "tax_invoice_queue_revenue_schedule_id_fkey"
             columns: ["revenue_schedule_id"]
             isOneToOne: false
@@ -7656,10 +10878,9 @@ export type Database = {
           counterparty_bizno: string | null
           counterparty_business_item: string | null
           counterparty_business_type: string | null
-          counterparty_representative: string | null
           counterparty_email: string | null
-          tax_kind: string | null
           counterparty_name: string
+          counterparty_representative: string | null
           created_at: string | null
           deal_id: string | null
           expense_category: string | null
@@ -7667,6 +10888,7 @@ export type Database = {
           id: string
           issue_date: string
           item_name: string | null
+          journal_entry_id: string | null
           label: string | null
           modification_date: string | null
           modification_reason: string | null
@@ -7681,10 +10903,13 @@ export type Database = {
           partner_id: string | null
           preferred_date: string | null
           revenue_schedule_id: string | null
+          settled_amount: number
+          settlement_status: string
           source: string | null
           status: string | null
           supply_amount: number
           tax_amount: number
+          tax_kind: string
           total_amount: number
           type: string
           updated_at: string | null
@@ -7695,10 +10920,9 @@ export type Database = {
           counterparty_bizno?: string | null
           counterparty_business_item?: string | null
           counterparty_business_type?: string | null
-          counterparty_representative?: string | null
           counterparty_email?: string | null
-          tax_kind?: string | null
           counterparty_name: string
+          counterparty_representative?: string | null
           created_at?: string | null
           deal_id?: string | null
           expense_category?: string | null
@@ -7706,6 +10930,7 @@ export type Database = {
           id?: string
           issue_date: string
           item_name?: string | null
+          journal_entry_id?: string | null
           label?: string | null
           modification_date?: string | null
           modification_reason?: string | null
@@ -7720,10 +10945,13 @@ export type Database = {
           partner_id?: string | null
           preferred_date?: string | null
           revenue_schedule_id?: string | null
+          settled_amount?: number
+          settlement_status?: string
           source?: string | null
           status?: string | null
           supply_amount: number
           tax_amount: number
+          tax_kind?: string
           total_amount: number
           type: string
           updated_at?: string | null
@@ -7734,10 +10962,9 @@ export type Database = {
           counterparty_bizno?: string | null
           counterparty_business_item?: string | null
           counterparty_business_type?: string | null
-          counterparty_representative?: string | null
           counterparty_email?: string | null
-          tax_kind?: string | null
           counterparty_name?: string
+          counterparty_representative?: string | null
           created_at?: string | null
           deal_id?: string | null
           expense_category?: string | null
@@ -7745,6 +10972,7 @@ export type Database = {
           id?: string
           issue_date?: string
           item_name?: string | null
+          journal_entry_id?: string | null
           label?: string | null
           modification_date?: string | null
           modification_reason?: string | null
@@ -7759,10 +10987,13 @@ export type Database = {
           partner_id?: string | null
           preferred_date?: string | null
           revenue_schedule_id?: string | null
+          settled_amount?: number
+          settlement_status?: string
           source?: string | null
           status?: string | null
           supply_amount?: number
           tax_amount?: number
+          tax_kind?: string
           total_amount?: number
           type?: string
           updated_at?: string | null
@@ -7780,6 +11011,48 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
           {
@@ -8053,6 +11326,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           dashboard_widgets: Json | null
+          flow_settings: Json
           id: string
           pinned_pages: Json | null
           role_preset: string | null
@@ -8064,6 +11338,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           dashboard_widgets?: Json | null
+          flow_settings?: Json
           id?: string
           pinned_pages?: Json | null
           role_preset?: string | null
@@ -8075,6 +11350,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           dashboard_widgets?: Json | null
+          flow_settings?: Json
           id?: string
           pinned_pages?: Json | null
           role_preset?: string | null
@@ -8091,6 +11367,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_tab_access: {
+        Row: {
+          allowed: boolean
+          company_id: string
+          created_at: string
+          granted_by: string | null
+          id: string
+          route: string
+          user_id: string
+        }
+        Insert: {
+          allowed?: boolean
+          company_id: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          route: string
+          user_id: string
+        }
+        Update: {
+          allowed?: boolean
+          company_id?: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          route?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       users: {
         Row: {
@@ -8316,6 +11622,41 @@ export type Database = {
             referencedRelation: "deals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vault_docs_linked_deal_id_fkey"
+            columns: ["linked_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "vault_docs_linked_deal_id_fkey"
+            columns: ["linked_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "vault_docs_linked_deal_id_fkey"
+            columns: ["linked_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "vault_docs_linked_deal_id_fkey"
+            columns: ["linked_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "vault_docs_linked_deal_id_fkey"
+            columns: ["linked_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
         ]
       }
       vendors: {
@@ -8350,6 +11691,125 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_items: {
+        Row: {
+          archived_at: string | null
+          assignee_id: string | null
+          board_group_id: string | null
+          column_values: Json
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          linked_project_id: string | null
+          position: number
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          assignee_id?: string | null
+          board_group_id?: string | null
+          column_values?: Json
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          linked_project_id?: string | null
+          position?: number
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          assignee_id?: string | null
+          board_group_id?: string | null
+          column_values?: Json
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          linked_project_id?: string | null
+          position?: number
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_items_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_items_board_group_id_fkey"
+            columns: ["board_group_id"]
+            isOneToOne: false
+            referencedRelation: "board_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_items_linked_project_id_fkey"
+            columns: ["linked_project_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_items_linked_project_id_fkey"
+            columns: ["linked_project_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "workflow_items_linked_project_id_fkey"
+            columns: ["linked_project_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "workflow_items_linked_project_id_fkey"
+            columns: ["linked_project_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "workflow_items_linked_project_id_fkey"
+            columns: ["linked_project_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "workflow_items_linked_project_id_fkey"
+            columns: ["linked_project_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
           },
         ]
       }
@@ -8395,6 +11855,245 @@ export type Database = {
           },
         ]
       }
+      v_deal_goal_actual: {
+        Row: {
+          actual_amount: number | null
+          deal_id: string | null
+        }
+        Relationships: []
+      }
+      v_deal_kpi_auto: {
+        Row: {
+          deal_id: string | null
+          output_count: number | null
+          profit_actual: number | null
+          revenue_actual: number | null
+        }
+        Relationships: []
+      }
+      v_deal_pnl: {
+        Row: {
+          adjustment_cost: number | null
+          company_id: string | null
+          deal_id: string | null
+          direct_cost: number | null
+          direct_cost_ratio: number | null
+          margin: number | null
+          revenue: number | null
+          voucher_cost: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_deal_revenue_actual: {
+        Row: {
+          actual_amount: number | null
+          deal_id: string | null
+        }
+        Relationships: []
+      }
+      v_partner_ar_ap: {
+        Row: {
+          company_id: string | null
+          invoice_count: number | null
+          outstanding: number | null
+          partner_id: string | null
+          total_billed: number | null
+          total_settled: number | null
+          type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_invoices_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_project_margin: {
+        Row: {
+          actual_direct_cost: number | null
+          actual_margin: number | null
+          company_id: string | null
+          deal_id: string | null
+          main_revenue: number | null
+          name: string | null
+          planned_margin: number | null
+          sub_purchase_planned: number | null
+          sub_sales_planned: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_settlement_confirmed: {
+        Row: {
+          amount: number | null
+          bank_transaction_id: string | null
+          company_id: string | null
+          confidence: number | null
+          counterparty: string | null
+          counterparty_name: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string | null
+          invoice_amount: number | null
+          invoice_type: string | null
+          issue_date: string | null
+          match_source: string | null
+          match_type: string | null
+          reason: string | null
+          status: string | null
+          tax_invoice_id: string | null
+          transaction_date: string | null
+          txn_amount: number | null
+          txn_type: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_settlements_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_settlements_tax_invoice_id_fkey"
+            columns: ["tax_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "tax_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_settlement_review_queue: {
+        Row: {
+          amount: number | null
+          bank_transaction_id: string | null
+          company_id: string | null
+          confidence: number | null
+          counterparty: string | null
+          counterparty_name: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string | null
+          invoice_amount: number | null
+          invoice_type: string | null
+          issue_date: string | null
+          match_source: string | null
+          match_type: string | null
+          reason: string | null
+          status: string | null
+          tax_invoice_id: string | null
+          transaction_date: string | null
+          txn_amount: number | null
+          txn_type: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_settlements_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_settlements_tax_invoice_id_fkey"
+            columns: ["tax_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "tax_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_sub_deal_pnl: {
+        Row: {
+          actual_cost: number | null
+          deal_id: string | null
+          name: string | null
+          partner_id: string | null
+          planned_amount: number | null
+          planned_cost: number | null
+          planned_revenue: number | null
+          sub_deal_id: string | null
+          type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "sub_deals_parent_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "sub_deals_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _seed_legal_allowances_internal: {
@@ -8412,7 +12111,7 @@ export type Database = {
         }[]
       }
       close_invoice_balance: {
-        Args: { p_invoice_id: string; p_reason: string; p_amount?: number }
+        Args: { p_amount?: number; p_invoice_id: string; p_reason: string }
         Returns: string
       }
       current_app_employee_id: { Args: never; Returns: string }
@@ -8420,8 +12119,10 @@ export type Database = {
       current_app_user_id: { Args: never; Returns: string }
       current_employee_id: { Args: never; Returns: string }
       daily_db_integrity_check: { Args: never; Returns: Json }
+      data_sync_floor: { Args: { p_company: string }; Returns: string }
       decrypt_credential: { Args: { p_ciphertext: string }; Returns: string }
       decrypt_json_credentials: { Args: { p_creds: Json }; Returns: Json }
+      delete_document: { Args: { p_doc_id: string }; Returns: undefined }
       encrypt_credential: { Args: { p_plaintext: string }; Returns: string }
       encrypt_json_credentials: { Args: { p_creds: Json }; Returns: Json }
       find_auth_user_by_email: {
@@ -8438,6 +12139,11 @@ export type Database = {
         Args: { p_partner_id: string }
         Returns: string
       }
+      generate_settlement_suggestions: {
+        Args: { p_end: string; p_start: string }
+        Returns: Json
+      }
+      generate_voucher_drafts: { Args: { p_limit?: number }; Returns: Json }
       get_company_directory: {
         Args: never
         Returns: {
@@ -8471,6 +12177,18 @@ export type Database = {
         Returns: Json
       }
       get_owner_project_trend: { Args: { p_period?: string }; Returns: Json }
+      get_partner_ledger_by_year: {
+        Args: { p_year: number }
+        Returns: {
+          invoice_count: number
+          partner_id: string
+          period_billed: number
+          period_outstanding: number
+          period_settled: number
+          prior_outstanding: number
+          type: string
+        }[]
+      }
       get_partner_portal_context: { Args: { p_token: string }; Returns: Json }
       get_poll_results: {
         Args: { p_post_id: string }
@@ -8534,6 +12252,7 @@ export type Database = {
         Args: { p_deal_id: string }
         Returns: boolean
       }
+      link_invoice_partners: { Args: never; Returns: Json }
       list_send_failures_by_code: {
         Args: { p_days?: number; p_error_code: string }
         Returns: {
@@ -8552,6 +12271,12 @@ export type Database = {
           send_type: string
           signature_request_id: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "signature_send_failures"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       log_signature_send_failure: {
         Args: {
@@ -8589,6 +12314,7 @@ export type Database = {
         Args: { p_token: string }
         Returns: undefined
       }
+      normalize_party_name: { Args: { t: string }; Returns: string }
       operator_dependencies_health: { Args: never; Returns: Json }
       operator_financial_averages: {
         Args: { p_month?: string }
@@ -8709,6 +12435,38 @@ export type Database = {
         Args: { p_message: string; p_token: string }
         Returns: boolean
       }
+      post_bank_voucher: {
+        Args: {
+          p_account_id: string
+          p_bank_tx_id: string
+          p_remember?: boolean
+        }
+        Returns: string
+      }
+      post_card_voucher: {
+        Args: {
+          p_account_id: string
+          p_card_tx_id: string
+          p_remember?: boolean
+        }
+        Returns: string
+      }
+      post_cash_voucher: {
+        Args: {
+          p_account_id: string
+          p_cash_receipt_id: string
+          p_remember?: boolean
+        }
+        Returns: string
+      }
+      post_invoice_voucher: {
+        Args: {
+          p_account_id: string
+          p_remember?: boolean
+          p_tax_invoice_id: string
+        }
+        Returns: string
+      }
       recalculate_late_status_recent: {
         Args: { p_company_id?: string; p_days?: number }
         Returns: {
@@ -8722,23 +12480,43 @@ export type Database = {
         Args: { p_company_id: string; p_from?: string; p_to?: string }
         Returns: Json
       }
+      record_sync_run: { Args: { p_sync_type: string }; Returns: string }
       reject_overtime: {
         Args: { p_reason: string; p_request_id: string }
         Returns: undefined
       }
-      request_overtime: {
-        Args: {
-          p_reason: string
-          p_requested_date: string
-          p_requested_end_time: string
-        }
-        Returns: string
-      }
+      request_overtime:
+        | {
+            Args: {
+              p_reason: string
+              p_requested_date: string
+              p_requested_end_time: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_approver_id: string
+              p_reason: string
+              p_requested_date: string
+              p_requested_end_time: string
+            }
+            Returns: string
+          }
       resend_quote_approval: {
         Args: { p_payload?: Json; p_prev_id: string }
         Returns: string
       }
       reset_company_data: { Args: { p_company_id: string }; Returns: Json }
+      save_manual_voucher: {
+        Args: {
+          p_description: string
+          p_entry_date: string
+          p_lines: Json
+          p_voucher_type: string
+        }
+        Returns: string
+      }
       save_signer_inputs_by_token: {
         Args: { p_inputs: Json; p_token: string }
         Returns: Json
@@ -8757,6 +12535,10 @@ export type Database = {
           p_regular_minutes: number
         }
         Returns: boolean
+      }
+      set_voucher_deal: {
+        Args: { p_deal_id: string; p_entry_id: string; p_sub_deal_id?: string }
+        Returns: undefined
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
@@ -8818,6 +12600,18 @@ export type Database = {
         }
         Returns: Json
       }
+      update_manual_voucher: {
+        Args: {
+          p_description: string
+          p_entry_date: string
+          p_entry_id: string
+          p_lines: Json
+        }
+        Returns: undefined
+      }
+      voucher_confirm: { Args: { p_entry_id: string }; Returns: undefined }
+      voucher_reject: { Args: { p_entry_id: string }; Returns: undefined }
+      voucher_unconfirm: { Args: { p_entry_id: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
