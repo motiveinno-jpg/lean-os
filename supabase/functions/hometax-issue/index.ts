@@ -116,8 +116,7 @@ function buildIssuePayload(args: {
     issueType: "정발행",
     taxType: "과세",            // 영세/면세는 추후 invoice 유형 컬럼 연동
     purposeType,                // "영수"(결제완료) / "청구"
-    sendToNtsYn: "N",           // 2026-07-16 임시 실험: 즉시전송(Y) 동기 처리 중 CF-05001 이 나는지
-                                 //   분리 확인하기 위해 다음 영업일 전송(N, 기본값)으로 일시 전환.
+    sendToNtsYn: "Y",           // 국세청 즉시 전송 — 2026-07-16 N으로 전환 실험해도 CF-05001 동일 재현되어 원복.
     writeDate,                  // YYYYMMDD
 
     // 공급자 (회사 본인) — invoicerCorpNum 으로 발행 주체 식별
