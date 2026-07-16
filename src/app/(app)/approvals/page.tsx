@@ -1616,6 +1616,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
                   const m = typeMeta(k);
                   const on = form.requestType === k;
+                  // 2026-07-16 QA: "정책 관리"에서 기본 유형(경비청구 등)에 지정한 "양식 표시 이름"이
+                  //   여기(새 요청 유형 피커)에 반영 안 되던 버그 — 매칭 정책의 label 을 우선 사용.
+                  const matchedPolicy = (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k);
+                  const displayLabel = matchedPolicy?.label || v;
                   return (
                     <button
                       key={k}
@@ -1630,7 +1634,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       <span className={`w-6 h-6 rounded-lg flex items-center justify-center ${m.bg} ${m.text}`}>
                         <TypeIcon name={m.icon} className="w-3.5 h-3.5" />
                       </span>
-                      {v}
+                      {displayLabel}
                     </button>
                   );
                 })}
