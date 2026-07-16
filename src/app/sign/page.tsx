@@ -457,12 +457,9 @@ function SignContent() {
 
   async function loadPackage() {
     try {
-      // Get package by sign_token
-      const { data: p } = await db
-        .from("hr_contract_packages")
-        .select("*, employees(name, email, department, position, birth_date), companies(name, seal_url, representative, business_number)")
-        .eq("sign_token", token)
-        .maybeSingle();
+      // Get package by sign_token — anon 은 SECURITY DEFINER RPC 로만 접근(직접 select 는 RLS 차단).
+      //   토큰=secret 검증 후 패키지+employees(saved_signature 포함)+companies+items 를 한 번에 반환.
+      const { data: p } = await db.rpc("get_contract_package_by_token", { p_token: token });
 
       if (!p) {
         // Fallback: check general document signature_requests
@@ -544,12 +541,8 @@ function SignContent() {
       // Check expiration
       const expired = p.expires_at ? new Date(p.expires_at) < new Date() : false;
 
-      // Get items
-      const { data: items } = await db
-        .from("hr_contract_package_items")
-        .select("*, documents(name, content_json, status)")
-        .eq("package_id", p.id)
-        .order("sort_order");
+      // Items 는 RPC 가 sort_order 정렬로 함께 반환
+      const items = p.items || [];
 
       // notes JSON 파싱 — seal_applied_at, seal_url, contract_meta(Step 3 입력값) 추출
       let sealUrl: string | null = null;
@@ -578,16 +571,9 @@ function SignContent() {
       }
       setPkg({ ...p, expired, items: items || [], seal_url: sealUrl, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName, contract_meta: contractMeta });
 
-      // Load saved signature from employee
-      if (p.employee_id) {
-        const { data: emp } = await db
-          .from("employees")
-          .select("saved_signature")
-          .eq("id", p.employee_id)
-          .maybeSingle();
-        if (emp?.saved_signature) {
-          setSavedSignature(emp.saved_signature);
-        }
+      // Saved signature 도 RPC 가 employees.saved_signature 로 함께 반환
+      if (p.employees?.saved_signature) {
+        setSavedSignature(p.employees.saved_signature);
       }
 
       // Check if already completed
@@ -849,7 +835,6 @@ function SignContent() {
         try {
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
           const signerEmail = pkg.employees?.email || '';
-          const companyName = pkg.companies?.name || '';
           if (supabaseUrl && signerEmail) {
             await fetch(`${supabaseUrl}/functions/v1/send-contract-email`, {
               method: 'POST',
@@ -857,16 +842,8 @@ function SignContent() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
               },
-              body: JSON.stringify({
-                to: signerEmail,
-                employeeName: pkg.employees?.name || '',
-                companyName,
-                packageTitle: pkg.title,
-                documentCount: updatedItems.length,
-                signUrl: window.location.href,
-                type: 'completion',
-                completedAt: new Date().toISOString(),
-              }),
+              // 수신자·회사명·링크는 서버가 sign_token 으로 파생 — 여기선 토큰만 전달(오픈 릴레이 차단)
+              body: JSON.stringify({ token }),
             });
           }
         } catch (e) {
