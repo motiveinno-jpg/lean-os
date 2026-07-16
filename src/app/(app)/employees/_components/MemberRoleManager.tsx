@@ -54,12 +54,12 @@ export function MemberRoleManager({ companyId }: { companyId: string }) {
         </p>
       </div>
       {members.length === 0 ? (
-        <div className="member-role-empty bg-[var(--bg-card)] rounded-xl p-8 text-center border border-[var(--border)]">
+        <div className="member-role-empty">
           <p className="text-[var(--text-muted)] text-sm">회사 멤버가 없습니다</p>
         </div>
       ) : (
         members.map((m: any) => (
-          <div key={m.id} className="member-role-row bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] flex flex-wrap items-center gap-3">
+          <div key={m.id} className="member-role-row">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="font-semibold text-sm">{m.name || m.email}</span>

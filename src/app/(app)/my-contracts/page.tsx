@@ -83,7 +83,7 @@ export default function MyContractsPage() {
 
   return (
     <div>
-      <div className="mycontracts-header page-sticky-header mb-6 flex flex-wrap items-center justify-between gap-2">
+      <div className="mycontracts-header page-sticky-header">
         <div className="mycontracts-filter-bar seg-bar">
           {[
             { key: "pending" as const, label: "대기 중", count: counts.pending },
@@ -120,7 +120,7 @@ export default function MyContractsPage() {
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
-        <div className="mycontracts-empty glass-card py-16 px-6 text-center">
+        <div className="mycontracts-empty glass-card">
           <div className="text-4xl mb-4">✍️</div>
           <div className="text-sm font-bold">
             {filter === "pending"
@@ -132,7 +132,7 @@ export default function MyContractsPage() {
           <div className="text-xs text-[var(--text-muted)] mt-1.5">회사에서 계약서를 발송하면 이곳에 표시됩니다.</div>
         </div>
       ) : (
-        <div className="mycontracts-list space-y-4">
+        <div className="mycontracts-list">
           {filtered.map((p) => {
             const st = STATUS_INFO[p.status] || STATUS_INFO.draft;
             const items = p.hr_contract_package_items || [];
@@ -146,7 +146,7 @@ export default function MyContractsPage() {
             return (
               <div
                 key={p.id}
-                className="mycontracts-row glass-card p-5 hover:border-[var(--primary)]/30 transition"
+                className="mycontracts-row glass-card"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">

@@ -226,9 +226,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   if (!emp) return null;
 
   return (
-    <div className="employee-detail-modal glass-card overflow-hidden shadow-2xl animate-slide-in">
+    <div className="employee-detail-modal glass-card">
       {/* 히어로 헤더 — 2026-07-15: 좌우 분할(프로필카드+탭콘텐츠) 구조 폐기, 그라데이션 배너 + 아바타 오버랩 단일 헤더로 재구성 */}
-      <div className="employee-detail-hero relative">
+      <div className="employee-detail-hero">
         <div className="h-20 w-full" style={{ background: `linear-gradient(120deg, ${avatarColor(emp.id)}, color-mix(in srgb, ${avatarColor(emp.id)} 25%, var(--bg-card)))` }} />
         <button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-xl bg-black/15 hover:bg-black/25 text-white transition backdrop-blur-sm">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
@@ -270,7 +270,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       </div>
 
       {/* 탭 바 — 히어로 아래, 전체 폭 */}
-      <div className="employee-detail-tabbar px-6 pt-3 pb-0 border-b border-[var(--border)] bg-[var(--bg-surface)]/20">
+      <div className="employee-detail-tabbar">
         <div className="seg-bar flex-wrap mb-3">
           {[
             { key: "info", label: "정보" },
@@ -291,10 +291,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       </div>
 
       {/* 본문 — 단일 컬럼 전체폭(좌우 분할 폐기), 정보 탭은 2열 카드 그리드로 재배치 */}
-      <div className="employee-detail-body p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto">
+      <div className="employee-detail-body">
         {/* Info Tab — Flex-style sections */}
         {detailTab === "info" && (
-          <div className="employee-info-tab space-y-5">
+          <div className="employee-info-tab">
             {isEditing && (
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-[var(--info)]">정보 수정 중</span>
@@ -522,7 +522,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
         {/* Contracts Tab — Flex-style 계약서 목록 */}
         {detailTab === "contracts" && (
-          <div className="employee-contracts-tab space-y-3">
+          <div className="employee-contracts-tab">
             <div className="flex items-center justify-end">
               <button onClick={() => (showCreateContract ? setShowCreateContract(false) : openCreateContract())} className="btn-secondary text-xs">
                 {showCreateContract ? "취소" : "+ 계약서 보내기"}
@@ -530,7 +530,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             </div>
 
             {showCreateContract && (
-              <div className="contract-create-form glass-card p-4 space-y-3">
+              <div className="contract-create-form glass-card">
                 <div>
                   <label className="block text-[10px] text-[var(--text-dim)] mb-1">계약 제목</label>
                   <input value={contractTitle} onChange={(e) => setContractTitle(e.target.value)}
@@ -674,7 +674,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
         {/* Certificates Tab — 증명서 발급/이력 */}
         {detailTab === "certificates" && (
-          <div className="employee-certificates-tab space-y-4">
+          <div className="employee-certificates-tab">
             {/* Quick issue buttons */}
             <div className="flex gap-3">
               <CertQuickIssue type="employment" label="재직증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
@@ -706,10 +706,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
         {/* Leave Tab — 휴가 잔여/사용 기록 */}
         {detailTab === "leave" && (
-          <div className="employee-leave-tab space-y-4">
+          <div className="employee-leave-tab">
             {/* Leave balance summary */}
             {empLeaveBalance ? (
-              <div className="leave-balance-summary grid grid-cols-3 gap-3">
+              <div className="leave-balance-summary">
                 <div className="glass-card p-3 text-center">
                   <div className="caption">총 부여</div>
                   <div className="text-lg font-bold text-[var(--text)] mt-0.5">{empLeaveBalance.total_days}일</div>
@@ -733,7 +733,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
             {/* 연차 설정(관리자) — 총 부여일수 초기화/조정. 휴가 신청/승인은 전자결재. */}
             {canManageAccess && (
-              <div className="employee-leave-setter glass-card p-4">
+              <div className="employee-leave-setter glass-card">
                 <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                   <div className="text-xs font-bold text-[var(--text-muted)]">{currentYear}년 총 부여일수 설정</div>
                   {emp?.hire_date && (() => {
@@ -833,7 +833,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         const allChecked = termAllChecked;
 
         return createPortal(
-          <div className="employee-termination-modal fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowTermModal(false)}>
+          <div className="employee-termination-modal" onClick={() => setShowTermModal(false)}>
             <div className="w-full max-w-md max-h-[88vh] flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               {/* 헤더 — 흰 카드 + 레드 포인트 아이콘 (라운드6: 그라데이션 제거) */}
               <div className="relative px-5 py-4 border-b border-[var(--border)] shrink-0">
@@ -1074,7 +1074,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
   }
 
   return (
-    <div className="employee-docs-checklist space-y-4">
+    <div className="employee-docs-checklist">
       {/* Progress summary */}
       <div className="flex items-center justify-between px-4 py-3 glass-card">
         <div className="flex items-center gap-2">
@@ -1189,7 +1189,7 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
   }
 
   return (
-    <div className="employee-notes-section space-y-3">
+    <div className="employee-notes-section">
       {/* 노트 입력 */}
       <div>
         <textarea
@@ -1259,7 +1259,7 @@ function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId
   }
 
   return (
-    <div className="employee-history-section space-y-3">
+    <div className="employee-history-section">
       {/* 발령 추가 버튼 */}
       <div className="flex justify-end">
         <button
@@ -1469,7 +1469,7 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
 
   const groups = [...new Set(GRANTABLE_TABS.map((t) => t.group))];
   return (
-    <div className="employee-tab-access-section space-y-4">
+    <div className="employee-tab-access-section">
       <p className="text-xs text-[var(--text-muted)] leading-relaxed">
         {isOwner ? (
           <><b className="text-[var(--text)]">{empName}</b> 님은 <b className="text-[var(--primary)]">대표</b>라 모든 탭에 접근합니다(끌 수 없음).</>

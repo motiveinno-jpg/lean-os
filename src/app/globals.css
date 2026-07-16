@@ -1360,3 +1360,96 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .cash-receipt-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 transition; }
 .cash-receipt-issue-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
 .cash-receipt-bulk-post-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
+
+/* ═══ 클래스명 가독성 정리 재작업 — 배치3(hr) 마커 스타일 (2026-07-16) ═══ */
+.employees-page-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+.employees-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
+/* .employee-view-toggle — pure marker, styled via co-existing seg-bar in JSX */
+/* .payroll-tab-panel — pure marker, styled via co-existing flex-skin in JSX */
+.payroll-batch-section { @apply mt-6; }
+/* .certificate-tab-panel — pure marker, styled via co-existing flex-skin in JSX */
+.employee-toolbar { @apply flex items-center justify-between mb-4; }
+.employee-insurance-edi-panel { @apply mb-4 bg-[var(--info)]/5 border border-[var(--info)]/20 rounded-2xl p-5 shadow-md; }
+.employee-invite-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
+.employee-pending-invites { @apply mb-4; }
+/* .employee-view-mode-toggle — pure marker, styled via co-existing seg-bar in JSX */
+.employee-list-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
+.employee-member-role-section { @apply mt-6 pt-6 border-t border-[var(--border)]; }
+.employee-detail-overlay { @apply fixed inset-0 z-[60] flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in; }
+/* .org-chart-panel — pure marker, styled via co-existing glass-card in JSX */
+.salary-employee-selector { @apply flex gap-4 mb-6; }
+.salary-change-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
+.salary-history-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
+.expense-toolbar { @apply flex justify-end mb-4; }
+.expense-request-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
+.expense-receipt-uploader { @apply mb-4; }
+.expense-list-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
+.attendance-toolbar { @apply flex items-center justify-between gap-3 flex-wrap mb-4; }
+.attendance-today-panel { @apply flex flex-col gap-4 h-full; }
+.attendance-records-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
+.attendance-monthly-summary { @apply mt-6; }
+.attendance-summary-detail-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
+.attendance-checkout-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4; }
+.attendance-quick-buttons { @apply flex gap-2 items-center; }
+.payroll-toolbar { @apply flex items-center justify-between mb-4; }
+.payroll-summary-cards { @apply grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6; }
+.payroll-detail-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
+.leave-type-overview { @apply mb-6; }
+.leave-grant-method-panel { @apply mb-5 p-4; } /* co-exists with glass-card in JSX */
+.leave-balance-cards { @apply mb-6; }
+.leave-filter-toolbar { @apply flex items-center justify-between mb-4 scroll-mt-24; }
+.leave-request-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
+.leave-approval-chain-panel { @apply mt-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]/50 p-4; }
+.leave-requests-table { @apply overflow-hidden mb-6; } /* co-exists with glass-card in JSX */
+.leave-monthly-breakdown-table { @apply mt-6; }
+.leave-promotion-section { @apply mt-6; }
+.certificate-issue-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
+.certificate-log-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
+.certificate-yeartax-panel { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
+.yeartax-progress-bar { @apply mb-4; }
+.yeartax-status-table { @apply overflow-x-auto -mx-2; }
+.employee-invite-banner { @apply mb-4 p-3 rounded-xl text-sm font-medium shadow-sm; } /* dynamic ok/danger color left inline in JSX */
+.attendance-calendar-view { @apply grid gap-4; } /* dynamic lg:grid-cols-4 left inline in JSX */
+.attendance-calendar { @apply overflow-hidden; } /* co-exists with glass-card in JSX; dynamic lg:col-span-3 left inline in JSX */
+.employee-detail-modal { @apply overflow-hidden shadow-2xl animate-slide-in; }
+.employee-detail-hero { @apply relative; }
+.employee-detail-tabbar { @apply px-6 pt-3 pb-0 border-b border-[var(--border)] bg-[var(--bg-surface)]/20; }
+.employee-detail-body { @apply p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto; }
+.employee-info-tab { @apply space-y-5; }
+.employee-contracts-tab { @apply space-y-3; }
+.contract-create-form { @apply p-4 space-y-3; }
+.employee-certificates-tab { @apply space-y-4; }
+.employee-leave-tab { @apply space-y-4; }
+.leave-balance-summary { @apply grid grid-cols-3 gap-3; }
+.employee-leave-setter { @apply p-4; }
+.employee-termination-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
+.employee-docs-checklist { @apply space-y-4; }
+.employee-notes-section { @apply space-y-3; }
+.employee-history-section { @apply space-y-3; }
+.employee-tab-access-section { @apply space-y-4; }
+.attendance-section-tabbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+.attendance-view-tabbar { @apply mb-4; }
+.attendance-overtime-section { @apply space-y-4; }
+.member-role-empty { @apply bg-[var(--bg-card)] rounded-xl p-8 text-center border border-[var(--border)]; }
+.member-role-row { @apply bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] flex flex-wrap items-center gap-3; }
+.hr-templates-page { @apply space-y-6; }
+.mycontracts-header { @apply mb-6 flex flex-wrap items-center justify-between gap-2; }
+.mycontracts-empty { @apply py-16 px-6 text-center; }
+.mycontracts-list { @apply space-y-4; }
+.mycontracts-row { @apply p-5 hover:border-[var(--primary)]/30 transition; }
+.schedule-page { @apply space-y-6 mx-auto; }
+.schedule-tabbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.schedule-calendar-tab { @apply space-y-4; }
+.schedule-calendar-header { @apply flex items-center justify-between flex-wrap gap-3; }
+.schedule-calendar-grid { @apply overflow-hidden; }
+.schedule-weekday-header { @apply grid grid-cols-7 border-b border-[var(--border)] bg-[var(--bg-surface)]; }
+.schedule-cells-grid { @apply grid grid-cols-7; }
+.schedule-day-cell { @apply min-h-[88px] p-1.5 border-r border-b border-[var(--border)]/50 text-left transition hover:bg-[var(--bg-surface)]; }
+.schedule-event-action-popup { @apply fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4; }
+.schedule-event-modal { @apply fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto; }
+.schedule-todo-tab { @apply space-y-4; }
+.schedule-todo-stats { @apply grid grid-cols-3 gap-4; }
+.schedule-todo-add-form { @apply p-5; }
+.schedule-todo-list { @apply overflow-hidden; }
+.schedule-todo-row { @apply flex items-start gap-3 px-4 py-3 hover:bg-[var(--bg-surface)] transition; }
+.schedule-todo-edit-modal { @apply fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4; }

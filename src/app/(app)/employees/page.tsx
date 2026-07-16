@@ -149,7 +149,7 @@ export default function EmployeesPage() {
     <div className="print-area" id="employees-print-area">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Tabs — 라운드6.5: 타이틀 제거 → 필형 seg-bar 컴팩트 툴바 행 */}
-      <div className="employees-page-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="employees-page-toolbar page-sticky-header">
         <div className="seg-bar">
           {tabs.map((t) => (
             <button
@@ -168,7 +168,7 @@ export default function EmployeesPage() {
 
       {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김 */}
       {!isEmployee && (
-        <div className="employees-summary-stats grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="employees-summary-stats">
           <div className="stat-tile">
             <div className="flex items-center justify-between">
               <span className="stat-tile-label">재직 인원</span>
@@ -215,7 +215,7 @@ export default function EmployeesPage() {
       {/* 플렉스 스타일(2026-06-12): 디렉토리(카드 그리드+프로필 슬라이드) 기본, 추가/수정은 관리 모드 */}
       {effectiveTab === "employees" && (
         <>
-          <div className="employee-view-toggle seg-bar mb-4">
+          <div className="employee-view-toggle seg-bar">
             {([["dir", "👥 디렉토리"], ["manage", "⚙️ 관리 · 추가/수정"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setEmpView(k)}
                 className={`seg-item ${empView === k ? "seg-item-active" : ""}`}>
@@ -240,7 +240,7 @@ export default function EmployeesPage() {
           <div className="payroll-tab-panel flex-skin"><PayrollPreviewTab companyId={companyId} /></div>
           {/* 급여 일괄 지급(배치) — 정기지출에서 이관(2026-07-08). 관리자/대표만. */}
           {!isEmployee && companyId && userId && (
-            <div className="payroll-batch-section mt-6">
+            <div className="payroll-batch-section">
               <h3 className="section-title mb-3">급여 일괄 지급</h3>
               <PayrollBatchTab companyId={companyId} userId={userId} invalidate={() => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); }} />
             </div>
@@ -469,7 +469,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   return (
     <div>
       {/* 상단 버튼 + 알림 */}
-      <div className="employee-toolbar flex items-center justify-between mb-4">
+      <div className="employee-toolbar">
         <div className="text-xs text-[var(--text-dim)]">
           {pendingInvites.length > 0 && <span className="text-[var(--warning)] font-semibold">초대 대기 {pendingInvites.length}명</span>}
         </div>
@@ -479,14 +479,14 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       </div>
 
       {inviteMsg && (
-        <div className={`employee-invite-banner mb-4 p-3 rounded-xl text-sm font-medium shadow-sm ${inviteMsg.ok ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" : "bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20"}`}>
+        <div className={`employee-invite-banner ${inviteMsg.ok ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" : "bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20"}`}>
           {inviteMsg.msg}
         </div>
       )}
 
       {/* 4대보험 취득신고 EDI 생성 패널 */}
       {showAcqEdi && acqEdiData && (
-        <div className="employee-insurance-edi-panel mb-4 bg-[var(--info)]/5 border border-[var(--info)]/20 rounded-2xl p-5 shadow-md">
+        <div className="employee-insurance-edi-panel">
           <div className="flex items-center justify-between mb-3">
             <div>
               <div className="text-sm font-bold text-[var(--info)] flex items-center gap-2">
@@ -541,7 +541,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
 
       {/* 초대 폼 */}
       {showForm && (
-        <div className="employee-invite-form glass-card p-6 mb-6">
+        <div className="employee-invite-form glass-card">
           <div className="flex items-center gap-2 mb-4">
             <h4 className="text-sm font-bold">{addExisting ? "기존 회원 직원 추가" : "직원 초대"}</h4>
             <div className="ml-auto flex gap-1 p-0.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
@@ -588,7 +588,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
 
       {/* 대기중 초대 목록 */}
       {pendingInvites.length > 0 && (
-        <div className="employee-pending-invites mb-4">
+        <div className="employee-pending-invites">
           <h4 className="text-xs font-bold text-[var(--text-muted)] mb-2">초대 대기중</h4>
           <div className="space-y-2">
             {pendingInvites.map((inv: any) => (
@@ -613,7 +613,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       )}
 
       {/* 뷰 전환: 목록 / 조직도 */}
-      <div className="employee-view-mode-toggle seg-bar mb-4">
+      <div className="employee-view-mode-toggle seg-bar">
         <button onClick={() => setViewMode("list")} className={`seg-item ${viewMode === "list" ? "seg-item-active" : ""}`}>
           <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>목록
         </button>
@@ -627,7 +627,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         <OrgChartSVG employees={employees} onSelect={setDetailEmpId} />
       ) : (
       /* ── 직원 목록 뷰 ── */
-      <div className="employee-list-table glass-card overflow-hidden">
+      <div className="employee-list-table glass-card">
         {employees.length === 0 ? (
           <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm font-medium text-[var(--text)]">직원을 등록하면 급여 자동계산, 4대보험이 시작됩니다</div><div className="text-xs text-[var(--text-muted)] mt-1">근태, 휴가, 증명서 발급까지 한번에 관리하세요</div><button onClick={() => setShowForm(true)} className="btn-primary mt-4">+ 직원 등록</button></div>
         ) : (
@@ -734,13 +734,13 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       )}
 
       {/* 구성원 권한 관리 (회사 설정 '멤버 관리'에서 이동) — 역할/인사파일/회사제외 */}
-      <div className="employee-member-role-section mt-6 pt-6 border-t border-[var(--border)]">
+      <div className="employee-member-role-section">
         <MemberRoleManager companyId={companyId} />
       </div>
 
       {/* Employee Detail Panel — 중앙 모달 팝업(기존엔 목록 하단 인라인이라 멀리 떠서 안 보였음) */}
       {detailEmpId && (
-        <div className="employee-detail-modal fixed inset-0 z-[60] flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in" onClick={() => setDetailEmpId(null)}>
+        <div className="employee-detail-overlay" onClick={() => setDetailEmpId(null)}>
           <div className="w-full max-w-5xl my-6" onClick={(e) => e.stopPropagation()}>
             <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />
           </div>
@@ -936,7 +936,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
 
   return (
     <div>
-      <div className="salary-employee-selector flex gap-4 mb-6">
+      <div className="salary-employee-selector">
         <select value={selectedEmpId || ""} onChange={e => setSelectedEmpId(e.target.value || null)} className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
           <option value="">직원 선택...</option>
           {employees.filter((e: any) => ['active', 'joined', 'invited'].includes(e.status)).map((e: any) => (
@@ -947,7 +947,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
       </div>
 
       {showForm && selectedEmpId && (
-        <div className="salary-change-form glass-card p-6 mb-6">
+        <div className="salary-change-form glass-card">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">적용일 *</label><DateField value={form.effectiveDate} onChange={e => setForm({...form, effectiveDate: e.target.value})} className="field-input" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">변경 급여 (월급) *</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="3,000,000" className="field-input" /></div>
@@ -963,7 +963,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
           <div className="text-sm text-[var(--text-muted)]">직원을 선택하면 급여이력이 표시됩니다</div>
         </div>
       ) : (
-        <div className="salary-history-table glass-card overflow-hidden">
+        <div className="salary-history-table glass-card">
           {salaryHistory.length === 0 ? (
             <div className="p-10 text-center text-sm text-[var(--text-muted)]">급여 변경 이력이 없습니다</div>
           ) : (
@@ -1094,12 +1094,12 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
 
   return (
     <div>
-      <div className="expense-toolbar flex justify-end mb-4">
+      <div className="expense-toolbar">
         <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">+ 경비 청구</button>
       </div>
 
       {showForm && (
-        <div className="expense-request-form glass-card p-6 mb-6">
+        <div className="expense-request-form glass-card">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label><input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="field-input" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">금액 *</label><input type="text" inputMode="numeric" value={form.amount ? Number(form.amount).toLocaleString("ko-KR") : ""} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); setForm({...form, amount: v}); }} placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]" /></div>
@@ -1111,7 +1111,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">설명</label><input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="field-input" /></div>
           </div>
           {/* 영수증 첨부 */}
-          <div className="expense-receipt-uploader mb-4">
+          <div className="expense-receipt-uploader">
             <label className="block text-xs text-[var(--text-muted)] mb-1">영수증 첨부 (선택)</label>
             <div className="flex flex-wrap gap-2 items-center">
               <label className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] hover:border-[var(--primary)] rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--primary)] cursor-pointer transition">
@@ -1152,7 +1152,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
         </div>
       )}
 
-      <div className="expense-list-table glass-card overflow-hidden">
+      <div className="expense-list-table glass-card">
         {expenses.length === 0 ? (
           <div className="p-16 text-center"><div className="text-4xl mb-4">🧾</div><div className="text-sm text-[var(--text-muted)]">경비 청구 내역이 없습니다</div></div>
         ) : (
@@ -1449,7 +1449,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   return (
     <div>
       {/* Controls: 타이틀 + 월 표시 + 캘린더/데이터 토글 + CSV Export (2026-07-15 리디자인 — 시안과 동일하게 단순화) */}
-      <div className="attendance-toolbar flex items-center justify-between gap-3 flex-wrap mb-4">
+      <div className="attendance-toolbar">
         <div className="flex items-center gap-2.5">
           <h2 className="text-lg font-extrabold text-[var(--text)]">근태관리</h2>
           <MonthField
@@ -1506,8 +1506,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
       {/* Calendar View — 2026-07-15 리디자인: 좌 월간 캘린더 + 우 오늘 통계·선택일 상세(관리자 전용) */}
       {viewMode === "calendar" && (
-        <div className={`attendance-calendar-view grid gap-4 ${!isEmployeeRole ? "lg:grid-cols-4" : ""}`}>
-          <div className={`attendance-calendar glass-card overflow-hidden ${!isEmployeeRole ? "lg:col-span-3" : ""}`}>
+        <div className={`attendance-calendar-view ${!isEmployeeRole ? "lg:grid-cols-4" : ""}`}>
+          <div className={`attendance-calendar glass-card ${!isEmployeeRole ? "lg:col-span-3" : ""}`}>
             {/* 헤더: 타이틀 + 범례 */}
             <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-[var(--border)]">
               <span className="text-sm font-bold text-[var(--text)]">월간 출근 현황</span>
@@ -1592,7 +1592,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
           {/* 우 — 오늘 통계 2x2 + 선택일 상세 (관리자 전용). 캘린더와 높이 맞춤(flex-1로 하단까지 채움). */}
           {!isEmployeeRole && (
-            <div className="attendance-today-panel flex flex-col gap-4 h-full">
+            <div className="attendance-today-panel">
               <div className="grid grid-cols-2 gap-3">
                 <div className="glass-card p-5">
                   <div className="text-xs text-[var(--text-dim)] mb-1.5">오늘 출근</div>
@@ -1658,7 +1658,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
       {/* Table View */}
       {viewMode === "table" && (
-        <div className="attendance-records-table glass-card overflow-hidden">
+        <div className="attendance-records-table glass-card">
           {records.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">📊</div>
@@ -1813,7 +1813,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           if (dow !== 0 && dow !== 6) workdaysSoFar++;
         }
         return (
-          <div className="attendance-monthly-summary mt-6">
+          <div className="attendance-monthly-summary">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-[var(--text-muted)]">직원별 월간 요약</h3>
               <span className="text-[11px] text-[var(--text-dim)]">카드를 클릭하면 상세 내역을 볼 수 있습니다</span>
@@ -1877,7 +1877,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         const allowanceLines = (monthlyAllowanceEntries as any[]).filter((r) => r.employee_id === summaryDetailId);
         const empRecords = (records as any[]).filter((r) => r.employee_id === summaryDetailId).sort((a, b) => String(a.date).localeCompare(String(b.date)));
         return (
-          <div className="attendance-summary-detail-modal fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setSummaryDetailId(null)}>
+          <div className="attendance-summary-detail-modal" onClick={() => setSummaryDetailId(null)}>
             <div className="glass-card p-6 w-full max-w-lg shadow-xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -2026,7 +2026,7 @@ function MissingCheckOutModal({
   useModalKeys(true, onClose, missingRows.length === 0 || saving.size > 0 ? undefined : saveAll);
 
   return (
-    <div className="attendance-checkout-modal fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="attendance-checkout-modal" onClick={onClose}>
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -2136,7 +2136,7 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
   const hasCheckedOut = !!todayRecord?.check_out;
 
   return (
-    <div className="attendance-quick-buttons flex gap-2 items-center">
+    <div className="attendance-quick-buttons">
       <select
         value={selectedEmp}
         onChange={(e) => setSelectedEmp(e.target.value)}
@@ -2424,7 +2424,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 
   return (
     <div>
-      <div className="payroll-toolbar flex items-center justify-between mb-4">
+      <div className="payroll-toolbar">
         <p className="text-sm text-[var(--text-muted)]">재직 직원 급여 기준 4대보험/원천세 자동 계산 미리보기</p>
         <div className="flex gap-2 items-center flex-wrap">
           <MonthField
@@ -2478,7 +2478,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       ) : (
         <>
           {/* Summary Cards */}
-          <div className="payroll-summary-cards grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="payroll-summary-cards">
             <div className="glass-card p-4">
               <div className="text-xs text-[var(--text-dim)]">총 급여 (세전)</div>
               <div className="text-lg font-bold mt-1">{fmtKRW(preview.totalGross)}</div>
@@ -2494,7 +2494,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
           </div>
 
           {/* Detail Table */}
-          <div className="payroll-detail-table glass-card overflow-hidden">
+          <div className="payroll-detail-table glass-card">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead className="sticky-bar"><tr className="table-head-row">
                 <th className="text-left px-4 py-3 font-medium">직원</th>
@@ -3009,7 +3009,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   return (
     <div>
       {/* Flex-style Leave Type Overview Cards */}
-      <div className="leave-type-overview mb-6">
+      <div className="leave-type-overview">
         <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">휴가 유형</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {leaveTypeSummary.map(lt => (
@@ -3027,7 +3027,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
       {/* 연차 부여 방식 — R12: 저장 후 작은 요약으로 접힘, '변경' 시 펼침 */}
       {!isEmployee && (
-        <div className="leave-grant-method-panel mb-5 glass-card p-4">
+        <div className="leave-grant-method-panel glass-card">
           {!grantEditing ? (
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs text-[var(--text-muted)]">
@@ -3099,7 +3099,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       )}
 
       {/* Leave Balance Cards */}
-      <div className="leave-balance-cards mb-6">
+      <div className="leave-balance-cards">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 연차</h3>
           {!isEmployee && grantMethod === "auto" && (
@@ -3240,7 +3240,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       </div>
 
       {/* Controls */}
-      <div ref={approveSectionRef} id="leave-approve-section" className="leave-filter-toolbar flex items-center justify-between mb-4 scroll-mt-24">
+      <div ref={approveSectionRef} id="leave-approve-section" className="leave-filter-toolbar">
         <div className="flex gap-2">
           {[
             { key: "all", label: "전체" },
@@ -3276,7 +3276,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
       {/* Leave Request Form */}
       {showForm && (
-        <div className="leave-request-form glass-card p-6 mb-6">
+        <div className="leave-request-form glass-card">
           <h4 className="section-title">휴가 신청</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-4">
             {isEmployee && myEmployee ? (
@@ -3391,7 +3391,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
               .filter(Boolean) as string[];
 
             return (
-              <div className="leave-approval-chain-panel mt-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]/50 p-4">
+              <div className="leave-approval-chain-panel">
                 {/* 참조 */}
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
@@ -3519,7 +3519,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       )}
 
       {/* Leave Requests List */}
-      <div className="leave-requests-table glass-card overflow-hidden mb-6">
+      <div className="leave-requests-table glass-card">
         {visibleRequests.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4">🏖</div>
@@ -3745,7 +3745,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
       {/* 연차 상세 월별 Breakdown */}
       {!isEmployee && balances.length > 0 && (
-        <div className="leave-monthly-breakdown-table mt-6">
+        <div className="leave-monthly-breakdown-table">
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">연차 월별 사용 현황 ({currentYear}년)</h3>
           <div className="glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[900px]">
@@ -3790,7 +3790,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
       {/* Leave Promotion (연차촉진) Section */}
       {!isEmployee && (
-        <div className="leave-promotion-section mt-6">
+        <div className="leave-promotion-section">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리 (근로기준법 §61)</h3>
             <button
@@ -4009,7 +4009,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
   return (
     <div>
       {/* Issue Form — 실제 증명서 발급(최상단, 2026-06-29 순서 조정) */}
-      <div className="certificate-issue-form glass-card p-6 mb-6">
+      <div className="certificate-issue-form glass-card">
         <h3 className="section-title">증명서 발급</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div>
@@ -4061,7 +4061,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
       </div>
 
       {/* Certificate Logs */}
-      <div className="certificate-log-table glass-card overflow-hidden">
+      <div className="certificate-log-table glass-card">
         <div className="px-5 py-3 border-b border-[var(--border)]">
           <span className="text-xs font-bold text-[var(--text-muted)]">발급 이력</span>
         </div>
@@ -4185,7 +4185,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
   };
 
   return (
-    <div className="certificate-yeartax-panel glass-card p-6 mb-6">
+    <div className="certificate-yeartax-panel glass-card">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
@@ -4208,7 +4208,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
       </div>
 
       {/* 진행률 바 */}
-      <div className="yeartax-progress-bar mb-4">
+      <div className="yeartax-progress-bar">
         <div className="flex items-center justify-between text-xs mb-2">
           <span className="text-[var(--text-muted)]">제출 진행률</span>
           <span className="font-bold">{counts.submitted + counts.reviewed} / {employees.length}명 ({completedPct}%)</span>
@@ -4227,7 +4227,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
       {employees.length === 0 ? (
         <div className="text-center py-8 text-xs text-[var(--text-dim)]">재직 중인 직원이 없습니다</div>
       ) : (
-        <div className="yeartax-status-table overflow-x-auto -mx-2">
+        <div className="yeartax-status-table">
           <table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">

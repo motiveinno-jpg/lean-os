@@ -65,7 +65,7 @@ export default function AttendancePage() {
   return (
     <div className="attendance-page">
       {/* 상위 섹션 탭 — 근무현황 / 연장근무 (휴가는 전자결재로 이관, 2026-07-15) */}
-      <div className="attendance-section-tabbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="attendance-section-tabbar page-sticky-header">
         <div className="seg-bar">
           {([["work", "근무 현황"], ["overtime", "연장근무"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setSection(k)}
@@ -80,7 +80,7 @@ export default function AttendancePage() {
       {section === "work" && (
         <>
           {/* 플렉스 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
-          <div className="attendance-view-tabbar seg-bar mb-4">
+          <div className="attendance-view-tabbar seg-bar">
             {([["work", "워크보드 (주간)"], ["records", "기록 상세"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setAttView(k)}
                 className={`seg-item ${attView === k ? "seg-item-active" : ""}`}>
@@ -105,7 +105,7 @@ export default function AttendancePage() {
 
       {/* 연장근무 — 본인 신청(전원) + 관리자 승인 인박스. */}
       {section === "overtime" && userId && (
-        <div className="attendance-overtime-section space-y-4">
+        <div className="attendance-overtime-section">
           {isManager && companyId && <OvertimeStats companyId={companyId} />}
           {isManager && <OvertimeApprovalInbox companyId={companyId} reviewerId={userId} />}
           <OvertimeRequestCard companyId={companyId} userId={userId} />
