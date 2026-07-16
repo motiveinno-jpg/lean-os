@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { fetchPaged } from './fetch-paged';
 
 // ── Corporate Card CRUD ──
 
@@ -65,32 +66,36 @@ export async function getCardTransactions(companyId: string, filters?: {
   dateFrom?: string;
   dateTo?: string;
 }) {
-  let q = supabase
-    .from('card_transactions')
-    .select('*, corporate_cards(card_name, card_company), deals(name), tax_invoices(counterparty_name, total_amount)')
-    .eq('company_id', companyId)
-    .order('transaction_date', { ascending: false });
+  const buildQ = () => {
+    let q = supabase
+      .from('card_transactions')
+      .select('*, corporate_cards(card_name, card_company), deals(name), tax_invoices(counterparty_name, total_amount)')
+      .eq('company_id', companyId)
+      .order('transaction_date', { ascending: false })
+      .order('id', { ascending: false });
 
-  if (filters?.cardId) q = q.eq('card_id', filters.cardId);
-  if (filters?.cardName) q = q.eq('card_name', filters.cardName);
-  if (filters?.status) q = q.eq('mapping_status', filters.status);
-  if (filters?.dateFrom) q = q.gte('transaction_date', filters.dateFrom);
-  if (filters?.dateTo) q = q.lte('transaction_date', filters.dateTo);
-
-  const { data } = await q.limit(2000);
-  return data || [];
+    if (filters?.cardId) q = q.eq('card_id', filters.cardId);
+    if (filters?.cardName) q = q.eq('card_name', filters.cardName);
+    if (filters?.status) q = q.eq('mapping_status', filters.status);
+    if (filters?.dateFrom) q = q.gte('transaction_date', filters.dateFrom);
+    if (filters?.dateTo) q = q.lte('transaction_date', filters.dateTo);
+    return q;
+  };
+  // 기존 .limit(2000) 의도 유지 — 서버 max_rows=1000 절단을 페이징으로 복원 (prod 카드거래 2900+행)
+  return fetchPaged('getCardTransactions', buildQ, 2000);
 }
 
 // CODEF sync 거래에서 사용된 카드 목록 (distinct card_name + 통계 + 사용자 별명).
 // alias 가 있으면 UI 에서 우선 표시. card_name 은 항상 원본 (필터/매칭에 사용).
 export async function getDistinctCardNames(companyId: string) {
-  const [{ data: txs }, { data: aliases }] = await Promise.all([
-    supabase
+  const [txs, { data: aliases }] = await Promise.all([
+    // 기존 .limit(50000) 의도 — 서버 max_rows=1000 이 카드별 count/total 을 절단하던 것 페이징으로 복원
+    fetchPaged('getDistinctCardNames', () => supabase
       .from('card_transactions')
       .select('card_name, amount')
       .eq('company_id', companyId)
       .not('card_name', 'is', null)
-      .limit(50000),
+      .order('id', { ascending: true }), 50000),
     (supabase as any)
       .from('card_aliases')
       .select('source_card_name, alias')
@@ -185,13 +190,17 @@ export async function getCardSpendByCompany(
   }
   const displayOf = (rawName: string) => aliasMap.get(rawName) || rawName;
 
-  let q = supabase
-    .from('card_transactions')
-    .select('card_id, card_name, amount')
-    .eq('company_id', companyId);
-  if (dateFrom) q = q.gte('transaction_date', dateFrom);
-  if (dateTo) q = q.lte('transaction_date', dateTo);
-  const { data: txs } = await q.limit(50000);
+  // 카드별 사용액 합산 — 서버 max_rows=1000 절단 방지 페이징 (.limit(50000) 은 서버가 1000으로 하향했었음)
+  const txs = await fetchPaged('getCardSpendSummary', () => {
+    let q = supabase
+      .from('card_transactions')
+      .select('card_id, card_name, amount')
+      .eq('company_id', companyId)
+      .order('id', { ascending: true });
+    if (dateFrom) q = q.gte('transaction_date', dateFrom);
+    if (dateTo) q = q.lte('transaction_date', dateTo);
+    return q;
+  }, 50000);
 
   const map = new Map<string, CardSpendCard>();
   // 등록 카드는 거래가 없어도 0원으로 노출
@@ -284,14 +293,12 @@ export async function deleteCardAlias(companyId: string, sourceCardName: string)
 }
 
 export async function getCardTransactionStats(companyId: string) {
-  // 모든 거래 가져오기 (default 1000 limit 회피)
-  const { data } = await supabase
+  // 모든 거래 가져오기 — .limit(50000) 도 서버 max_rows=1000 이 하향하므로 페이징이 유일한 회피
+  const items = await fetchPaged('getCardTransactionStats', () => supabase
     .from('card_transactions')
     .select('mapping_status, amount, is_deductible')
     .eq('company_id', companyId)
-    .limit(50000);
-
-  const items = data || [];
+    .order('id', { ascending: true }), 50000);
   // amount 음수 = 취소/환불 거래. 통계는 절댓값 기준 + 부호별 분리.
   const totalSpent = items.reduce((s, i) => s + Math.abs(Number(i.amount || 0)), 0);
   const deductible = items

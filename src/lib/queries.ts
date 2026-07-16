@@ -12,6 +12,9 @@ function logRead<T extends { data: unknown; error: unknown }>(scope: string, res
   return res.data;
 }
 
+// 대형 select 절단 방지 페이징 — 구현/규약은 fetch-paged.ts 참조
+import { fetchPaged } from './fetch-paged';
+
 // ── Auth helpers ──
 export type CurrentUser = {
   id: string;
@@ -458,13 +461,14 @@ export async function getDashboardKPIs(companyId: string) {
 // ── Deals ──
 export async function getDeals(companyId: string) {
   // 2026-05-21 소프트 삭제(archived_at IS NOT NULL) 제외 — 칸반/리스트에서 삭제된 행 0 노출.
-  const data = logRead('getDeals', await supabase
+  // 현재 620행 — 서버 max_rows=1000 절단 임계 근접이라 페이징(5000 상한).
+  return fetchPaged('getDeals', () => supabase
     .from('deals')
     .select('*')
     .eq('company_id', companyId)
     .is('archived_at', null)
-    .order('created_at', { ascending: false }));
-  return data || [];
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false }), 5000);
 }
 
 export async function getPartnerDeals(companyId: string, userEmail: string) {
@@ -1707,25 +1711,28 @@ export async function getBankTransactions(companyId: string, filters?: {
   type?: string;
   accountNo?: string;
 }) {
-  let q = supabase
-    .from('bank_transactions')
-    .select('*, deals(name), bank_accounts(alias, bank_name)')
-    .eq('company_id', companyId)
-    // 같은 날짜는 은행 거래시각(trTime, HHMMSS) → 입력시각 순. created_at(DB 입력시각)은
-    // CODEF sync 가 임의 순서로 넣어 신뢰 불가 → 잔액 컬럼이 뒤죽박죽 보이던 원인.
-    .order('transaction_date', { ascending: false })
-    .order('raw_data->>trTime', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false });
+  const buildQ = () => {
+    let q = supabase
+      .from('bank_transactions')
+      .select('*, deals(name), bank_accounts(alias, bank_name)')
+      .eq('company_id', companyId)
+      // 같은 날짜는 은행 거래시각(trTime, HHMMSS) → 입력시각 순. created_at(DB 입력시각)은
+      // CODEF sync 가 임의 순서로 넣어 신뢰 불가 → 잔액 컬럼이 뒤죽박죽 보이던 원인.
+      .order('transaction_date', { ascending: false })
+      .order('raw_data->>trTime', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
 
-  if (filters?.status) q = q.eq('mapping_status', filters.status);
-  if (filters?.type) q = q.eq('type', filters.type);
-  if (filters?.dateFrom) q = q.gte('transaction_date', filters.dateFrom);
-  if (filters?.dateTo) q = q.lte('transaction_date', filters.dateTo);
-  // raw_data->>accountNo 필터 — codef sync 가 채움
-  if (filters?.accountNo) q = (q as any).eq('raw_data->>accountNo', filters.accountNo);
-
-  const data = logRead('getBankTransactions', await q.limit(2000));
-  return data || [];
+    if (filters?.status) q = q.eq('mapping_status', filters.status);
+    if (filters?.type) q = q.eq('type', filters.type);
+    if (filters?.dateFrom) q = q.gte('transaction_date', filters.dateFrom);
+    if (filters?.dateTo) q = q.lte('transaction_date', filters.dateTo);
+    // raw_data->>accountNo 필터 — codef sync 가 채움
+    if (filters?.accountNo) q = (q as any).eq('raw_data->>accountNo', filters.accountNo);
+    return q;
+  };
+  // 기존 .limit(2000) 의도 유지 — 서버 max_rows=1000 때문에 실제론 1000에서 잘리던 것을 페이징으로 복원
+  return fetchPaged('getBankTransactions', buildQ, 2000);
 }
 
 // CODEF sync 로 들어온 통장별 distinct accountNo + 거래 건수 + 최신 잔액
@@ -1737,8 +1744,9 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
   alias?: string;
   bankName?: string;
 }>> {
-  const [{ data: txs }, { data: accts }] = await Promise.all([
-    supabase
+  const [txs, { data: accts }] = await Promise.all([
+    // 기존 .limit(5000) 의도 유지 — 서버 max_rows=1000 절단으로 계좌별 count 가 과소집계되던 것을 페이징으로 복원
+    fetchPaged('getDistinctBankAccountNos', () => supabase
       .from('bank_transactions')
       .select('raw_data, balance_after, transaction_date, created_at')
       .eq('company_id', companyId)
@@ -1747,7 +1755,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
       .order('transaction_date', { ascending: false })
       .order('raw_data->>trTime', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
-      .limit(5000),
+      .order('id', { ascending: false }), 5000),
     supabase
       .from('bank_accounts')
       .select('account_number, alias, bank_name, balance')
@@ -1812,12 +1820,11 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
 }
 
 export async function getBankTransactionStats(companyId: string) {
-  const data = logRead('getBankTransactionStats', await supabase
+  const items = await fetchPaged('getBankTransactionStats', () => supabase
     .from('bank_transactions')
     .select('mapping_status, type, amount')
-    .eq('company_id', companyId));
-
-  const items = data || [];
+    .eq('company_id', companyId)
+    .order('id', { ascending: true }), 50000);
   return {
     total: items.length,
     unmapped: items.filter(i => i.mapping_status === 'unmapped').length,
@@ -1839,14 +1846,14 @@ export async function getMonthlyIncomeExpense(companyId: string): Promise<Monthl
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
   const startDate = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
 
-  const data = logRead('getMonthlyIncomeExpense', await supabase
+  // 6개월 거래가 1000행을 넘으면 서버 절단(max_rows)으로 최근 달이 과소집계되던 것을 페이징으로 복원
+  const items = await fetchPaged('getMonthlyIncomeExpense', () => supabase
     .from('bank_transactions')
     .select('transaction_date, type, amount')
     .eq('company_id', companyId)
     .gte('transaction_date', startDate)
-    .order('transaction_date', { ascending: true }));
-
-  const items = data || [];
+    .order('transaction_date', { ascending: true })
+    .order('id', { ascending: true }), 50000);
   const buckets: Record<string, { income: number; expense: number }> = {};
 
   for (let i = 0; i < 6; i++) {
@@ -2026,18 +2033,20 @@ export interface DrillLevel3Item {
 
 export async function getDrillDownLevel2(companyId: string, month: string): Promise<DrillLevel2Item[]> {
   // Aggregate financial_items + bank_transactions by category for a given month
-  const fiItems = logRead('getDrillDownLevel2', await supabase
+  const fiItems = await fetchPaged('getDrillDownLevel2', () => supabase
     .from('financial_items')
     .select('category, amount')
     .eq('company_id', companyId)
-    .eq('month', month));
+    .eq('month', month)
+    .order('id', { ascending: true }));
 
-  const bankTx = logRead('getDrillDownLevel2', await supabase
+  const bankTx = await fetchPaged('getDrillDownLevel2', () => supabase
     .from('bank_transactions')
     .select('category, amount, transaction_date')
     .eq('company_id', companyId)
     .gte('transaction_date', `${month}-01`)
-    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`));
+    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`)
+    .order('id', { ascending: true }));
 
   const groups = new Map<string, { count: number; totalAmount: number }>();
 
@@ -2063,20 +2072,22 @@ export async function getDrillDownLevel2(companyId: string, month: string): Prom
 }
 
 export async function getDrillDownLevel3(companyId: string, month: string, category: string): Promise<DrillLevel3Item[]> {
-  const bankTx = logRead('getDrillDownLevel3', await supabase
+  const bankTx = await fetchPaged('getDrillDownLevel3', () => supabase
     .from('bank_transactions')
     .select('counterparty, amount')
     .eq('company_id', companyId)
     .eq('category', category)
     .gte('transaction_date', `${month}-01`)
-    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`));
+    .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`)
+    .order('id', { ascending: true }));
 
-  const fiItems = logRead('getDrillDownLevel3', await supabase
+  const fiItems = await fetchPaged('getDrillDownLevel3', () => supabase
     .from('financial_items')
     .select('name, amount')
     .eq('company_id', companyId)
     .eq('category', category)
-    .eq('month', month));
+    .eq('month', month)
+    .order('id', { ascending: true }));
 
   const groups = new Map<string, { count: number; totalAmount: number }>();
 
@@ -2130,37 +2141,41 @@ export interface DealMatchingStatus {
 
 export async function getDealMatchingStatuses(companyId: string): Promise<DealMatchingStatus[]> {
   // Get all active deals
-  const deals = logRead('getDealMatchingStatuses', await supabase
+  const deals = await fetchPaged('getDealMatchingStatuses', () => supabase
     .from('deals')
     .select('id, name, contract_total')
     .eq('company_id', companyId)
     .is('archived_at', null)
-    .order('created_at', { ascending: false }));
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false }));
 
   if (!deals?.length) return [];
 
   const dealIds = deals.map(d => d.id);
 
   // Get revenue schedule per deal (actual invoiced amounts)
-  const revenueSchedules = logRead('getDealMatchingStatuses', await supabase
+  const revenueSchedules = await fetchPaged('getDealMatchingStatuses', () => supabase
     .from('deal_revenue_schedule')
     .select('deal_id, amount')
-    .in('deal_id', dealIds));
+    .in('deal_id', dealIds)
+    .order('id', { ascending: true }));
 
   // Get tax invoices per deal
-  const taxInvoices = logRead('getDealMatchingStatuses', await supabase
+  const taxInvoices = await fetchPaged('getDealMatchingStatuses', () => supabase
     .from('tax_invoices')
     .select('deal_id, total_amount, type')
     .eq('company_id', companyId)
-    .in('deal_id', dealIds));
+    .in('deal_id', dealIds)
+    .order('id', { ascending: true }));
 
   // Get bank transactions per deal (income)
-  const bankPayments = logRead('getDealMatchingStatuses', await supabase
+  const bankPayments = await fetchPaged('getDealMatchingStatuses', () => supabase
     .from('bank_transactions')
     .select('deal_id, amount, type')
     .eq('company_id', companyId)
     .eq('type', 'income')
-    .in('deal_id', dealIds));
+    .in('deal_id', dealIds)
+    .order('id', { ascending: true }));
 
   // Aggregate revenue schedule per deal
   const revByDeal = new Map<string, number>();
@@ -2217,13 +2232,13 @@ export async function markDormantDeals() {
 // Get dormant deals
 export async function getDormantDeals(companyId: string) {
   const db = supabase as any;
-  const data = logRead('getDormantDeals', await db
+  return fetchPaged('getDormantDeals', () => db
     .from('deals')
     .select('*')
     .eq('company_id', companyId)
     .eq('is_dormant', true)
-    .order('last_activity_at', { ascending: true }));
-  return data || [];
+    .order('last_activity_at', { ascending: true })
+    .order('id', { ascending: true }), 5000);
 }
 
 // Reactivate dormant deal
@@ -2343,13 +2358,13 @@ export async function getCashPulseData(companyId: string, userId?: string) {
 
 // ── Archived Deals ──
 export async function getArchivedDeals(companyId: string) {
-  const data = logRead('getArchivedDeals', await supabase
+  return fetchPaged('getArchivedDeals', () => supabase
     .from('deals')
     .select('*')
     .eq('company_id', companyId)
     .not('archived_at', 'is', null)
-    .order('archived_at', { ascending: false }));
-  return data || [];
+    .order('archived_at', { ascending: false })
+    .order('id', { ascending: false }), 5000);
 }
 
 // ── PR3: 슬라이드 패널 상세 (1회 fetch) ──

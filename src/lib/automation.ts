@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { fetchPaged, fetchPagedRes } from './fetch-paged';
 import { threeWayMatch, markInvoiceMatched, createTaxInvoice } from './tax-invoice';
 import { createApprovalRequest } from './approval-workflow';
 import { createQueueEntry } from './payment-queue';
@@ -77,12 +78,13 @@ export async function applyBankClassificationRules(companyId: string) {
 // 2. 법인카드 자동매핑
 // ══════════════════════════════════════════
 export async function applyCardTransactionRules(companyId: string) {
-  // Fetch unmapped card transactions
-  const { data: unmapped } = await db
+  // Fetch unmapped card transactions — 미분류가 1000행(서버 max_rows) 넘으면 잘려서 일부만 처리되던 것 페이징
+  const unmapped = await fetchPaged('applyCardTransactionRules', () => db
     .from('card_transactions')
     .select('id, merchant_name, amount')
     .eq('company_id', companyId)
-    .eq('mapping_status', 'unmapped');
+    .eq('mapping_status', 'unmapped')
+    .order('id', { ascending: true }));
 
   if (!unmapped?.length) return { processed: 0, matched: 0 };
 
@@ -286,18 +288,20 @@ export async function detectDormantPartners(companyId: string) {
   const sixMonthsAgoIso = new Date(Date.now() - 182 * 24 * 60 * 60 * 1000).toISOString();
   const sixMonthsAgoDate = sixMonthsAgoIso.slice(0, 10);
 
-  const { data: partners } = await db
+  // 거래처 620곳 — 1000행(서버 max_rows) 임계 근접이라 페이징 (잘리면 멀쩡한 거래처가 휴면 오판될 수 있음)
+  const partners = await fetchPaged('dormant.partners', () => db
     .from('partners')
     .select('id, name, is_dormant')
     .eq('company_id', companyId)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .order('id', { ascending: true }));
   if (!partners?.length) return { detected: 0, reactivated: 0 };
 
   // 최근 6개월 활동 있는 partner_id 수집 (거래/세금계산서/소통)
   const [dealsRes, invRes, commRes] = await Promise.all([
-    db.from('deals').select('partner_id').eq('company_id', companyId).gte('created_at', sixMonthsAgoIso).not('partner_id', 'is', null),
-    db.from('tax_invoices').select('partner_id').eq('company_id', companyId).gte('issue_date', sixMonthsAgoDate).not('partner_id', 'is', null),
-    db.from('partner_communications').select('partner_id').eq('company_id', companyId).gte('comm_date', sixMonthsAgoDate),
+    fetchPagedRes('dormant.deals', () => db.from('deals').select('partner_id').eq('company_id', companyId).gte('created_at', sixMonthsAgoIso).not('partner_id', 'is', null).order('id', { ascending: true })),
+    fetchPagedRes('dormant.taxInvoices', () => db.from('tax_invoices').select('partner_id').eq('company_id', companyId).gte('issue_date', sixMonthsAgoDate).not('partner_id', 'is', null).order('id', { ascending: true })),
+    fetchPagedRes('dormant.comms', () => db.from('partner_communications').select('partner_id').eq('company_id', companyId).gte('comm_date', sixMonthsAgoDate).order('id', { ascending: true })),
   ]);
   const activeSet = new Set<string>();
   for (const r of (dealsRes.data || []) as any[]) if (r.partner_id) activeSet.add(r.partner_id);

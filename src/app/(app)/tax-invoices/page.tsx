@@ -8,6 +8,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { getCurrentUser } from "@/lib/queries";
 import { useColWidths } from "../partners/ledger/shared";
@@ -606,14 +607,15 @@ export default function TaxInvoicesPage() {
   const { data: invoices = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["tax-invoices-full", companyId, startDate, endDate],
     queryFn: async () => {
-      const { data } = await supabase
+      // 조회기간을 넓게 잡으면 1000행(서버 max_rows) 초과 — 절단 방지 페이징 (prod 계산서 1351건)
+      return fetchPaged("taxInvoices.list", () => supabase
         .from("tax_invoices")
         .select("*, deals(name), label, revenue_schedule_id, partners(business_type, business_item, representative, contact_email, address)")
         .eq("company_id", companyId!)
         .gte("issue_date", startDate)
         .lte("issue_date", endDate)
-        .order("issue_date", { ascending: false });
-      return data || [];
+        .order("issue_date", { ascending: false })
+        .order("id", { ascending: false }), 10000);
     },
     enabled: !!companyId,
   });

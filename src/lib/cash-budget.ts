@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { fetchPagedRes } from './fetch-paged';
 import { calculateRetirementPay } from './payment-batch';
 import { getMonthlyTotalSalary } from './payroll';
 import jsPDF from 'jspdf';
@@ -423,12 +424,13 @@ export async function getMonthlyBudgetOverview(
       .eq('company_id', companyId)
       .eq('is_recurring', true),
 
-    // Invoices for sales revenue
-    db.from('tax_invoices')
+    // Invoices for sales revenue — 연간 윈도우가 1000행(서버 max_rows) 넘으면 잘리므로 페이징
+    fetchPagedRes('cashBudget.taxInvoices', () => db.from('tax_invoices')
       .select('supply_amount, tax_amount, issue_date, type')
       .eq('company_id', companyId)
       .gte('issue_date', startDate)
-      .lte('issue_date', endDate),
+      .lte('issue_date', endDate)
+      .order('id', { ascending: true })),
 
     // Payment queue items (expenses)
     db.from('payment_queue')
@@ -444,12 +446,13 @@ export async function getMonthlyBudgetOverview(
       .gte('date', startDate)
       .lte('date', endDate),
 
-    // Card transactions (variable costs)
-    db.from('card_transactions')
+    // Card transactions (variable costs) — 연간 윈도우 1000행 초과 절단 방지 페이징
+    fetchPagedRes('cashBudget.cardTx', () => db.from('card_transactions')
       .select('amount, category, transaction_date, merchant_name')
       .eq('company_id', companyId)
       .gte('transaction_date', startDate)
-      .lte('transaction_date', endDate),
+      .lte('transaction_date', endDate)
+      .order('id', { ascending: true })),
   ]);
 
   // 통장 거래 중 '고정비' 체크(is_fixed_cost — 전표처리/매핑에서 체크)된 지출 — 고정비 실적으로 합산.
@@ -634,11 +637,12 @@ export async function getCostBreakdown(
       .eq('company_id', companyId)
       .eq('is_active', true),
     getMonthlyTotalSalary(companyId).catch(() => 0),
-    db.from('card_transactions')
+    fetchPagedRes('fixedCosts.cardTx', () => db.from('card_transactions')
       .select('amount, category, transaction_date')
       .eq('company_id', companyId)
       .gte('transaction_date', startDate)
-      .lte('transaction_date', endDate),
+      .lte('transaction_date', endDate)
+      .order('id', { ascending: true })),
     // 통장 '고정비' 체크 거래 (전표처리/매핑에서 체크) — YTD 실적. 정기결제와 매칭되는 건 제외(중복 차단)
     db.from('bank_transactions')
       .select('amount, transaction_date, counterparty, description')
