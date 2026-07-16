@@ -3018,7 +3018,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .brand-rolling-en { @apply absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap; }
 .brand-rolling-kr { @apply absolute inset-x-0 text-center transition-all duration-500 ease-in-out whitespace-nowrap; }
 .toast-container { @apply fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm; }
-.toast-item { @apply px-4 py-3 rounded-lg shadow-lg text-sm text-white animate-in slide-in-from-right fade-in duration-300; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(1rem); } to { opacity: 1; transform: translateX(0); } }
+.toast-item { @apply px-4 py-3 rounded-lg shadow-lg text-sm text-white; animation: toast-in 0.3s ease-out forwards; }
 .global-modal-guard { @apply z-[2000] flex items-center justify-center bg-black/60 p-4; } /* fixed inset-0 kept literal in JSX — class-attr CSS selector dependency (globals.css line ~762) */
 .modal-guard-dialog { @apply border border-[var(--border)] w-full max-w-xs p-5 shadow-xl; } /* bg-[var(--bg-card)] rounded-2xl kept literal in JSX — class-attr CSS selector dependency (globals.css line ~740/762) */
 .modal-guard-actions { @apply flex justify-end gap-2 mt-4; }
