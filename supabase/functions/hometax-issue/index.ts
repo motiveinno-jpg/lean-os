@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 // hometax-issue: 홈택스(국세청) 전자세금계산서 정발행
 //
@@ -34,7 +35,7 @@ let tokenCache: { token: string; expiresAt: number } | null = null;
 async function getCodefToken(clientId: string, clientSecret: string): Promise<string> {
   if (tokenCache && tokenCache.expiresAt > Date.now()) return tokenCache.token;
   const basicAuth = btoa(`${clientId}:${clientSecret}`);
-  const res = await fetch(CODEF_TOKEN_URL, {
+  const res = await tfetch(CODEF_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${basicAuth}` },
     body: "grant_type=client_credentials&scope=read",
@@ -46,7 +47,7 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
 }
 
 async function codefRequest(token: string, path: string, body: Record<string, unknown>): Promise<any> {
-  const res = await fetch(`${CODEF_BASE}${path}`, {
+  const res = await tfetch(`${CODEF_BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Bearer ${token}` },
     body: encodeURIComponent(JSON.stringify(body)),

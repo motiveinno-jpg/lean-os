@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 // supabase/functions/confirm-toss-payment/index.ts
 // 토스페이먼츠 결제 승인 Edge Function (Deno runtime)
@@ -136,7 +137,7 @@ serve(withSentry("confirm-toss-payment", async (req: Request) => {
   const basicAuth = btoa(`${secretKey}:`);
   let tossResponse: TossConfirmResponse;
   try {
-    const res = await fetch(TOSS_CONFIRM_URL, {
+    const res = await tfetch(TOSS_CONFIRM_URL, {
       method: "POST",
       headers: {
         Authorization: `Basic ${basicAuth}`,

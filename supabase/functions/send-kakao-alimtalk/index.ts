@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -83,7 +84,7 @@ Deno.serve(withSentry("send-kakao-alimtalk", async (req: Request) => {
     let kakaoMessageId: string | null = null;
 
     if (kakaoApiKey && kakaoSenderId) {
-      const kakaoRes = await fetch("https://api-alimtalk.cloud.toast.com/alimtalk/v2.3/appkeys/" + kakaoApiKey + "/messages", {
+      const kakaoRes = await tfetch("https://api-alimtalk.cloud.toast.com/alimtalk/v2.3/appkeys/" + kakaoApiKey + "/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json;charset=UTF-8" },
         body: JSON.stringify({

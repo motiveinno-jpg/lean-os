@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 // Supabase Edge Function: parse-form-template (2026-06-29)
 //   회사 양식 PDF 페이지 이미지(PNG base64)를 Claude Vision 으로 분석 →
@@ -49,7 +50,7 @@ async function analyzePage(pngBase64: string, page: number, docType: string): Pr
 - 금액칸=amount, 날짜칸=date, 서명/도장칸=signature, 견적 품목 표 전체 영역=items_table, 그 외=text.
 - 확실하지 않으면 포함하지 마세요(정밀도 우선).`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await tfetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({

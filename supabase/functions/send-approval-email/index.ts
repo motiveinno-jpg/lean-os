@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
@@ -34,7 +35,7 @@ async function verifyUser(req: Request): Promise<boolean> {
   const anon = Deno.env.get("SUPABASE_ANON_KEY");
   if (!token || !url || !anon) return false;
   try {
-    const res = await fetch(`${url}/auth/v1/user`, {
+    const res = await tfetch(`${url}/auth/v1/user`, {
       headers: { Authorization: `Bearer ${token}`, apikey: anon },
     });
     if (!res.ok) return false;
@@ -120,7 +121,7 @@ Deno.serve(withSentry("send-approval-email", async (req: Request) => {
     const resultLabel = payload.result === 'approved' ? '승인' : '반려';
     const typeLabel = ACTION_TYPE_LABELS[payload.actionType] || payload.actionType;
     const subject = `[OwnerView] ${typeLabel} ${resultLabel}: ${payload.actionTitle}`;
-    const res = await fetch("https://api.resend.com/emails", {
+    const res = await tfetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
       body: JSON.stringify({ from: FROM_EMAIL, to: [payload.email], subject, html }),

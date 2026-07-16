@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 // Supabase Edge Function: parse-closing-pdf (2026-07-08)
 //   회계 마감 자료 PDF(합계잔액시산표·재무상태표·계정별 잔액명세 등) 스캔 이미지에서
@@ -57,7 +58,7 @@ ${acctHint ? `- 아래는 이 회사의 계정과목 목록입니다. 추출한 
   const content: unknown[] = pages.map((p) => ({ type: "image", source: { type: "base64", media_type: "image/png", data: p } }));
   content.push({ type: "text", text: prompt });
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await tfetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({

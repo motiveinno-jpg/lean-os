@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -54,7 +55,7 @@ async function classifyWithClaude(transactions: TxRow[]): Promise<Record<string,
 
   const categoryList = ACCOUNT_CATEGORIES.map(c => `- ${c.code}: ${c.label}`).join("\n");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await tfetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "content-type": "application/json",

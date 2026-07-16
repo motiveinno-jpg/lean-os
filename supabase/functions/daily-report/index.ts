@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 // 자금일보 자동 발송 — 매일 KST 09:00 pg_cron 호출.
 // granter 같은 카카오 알림톡 패턴. 검수 전엔 이메일 fallback.
@@ -82,7 +83,7 @@ async function sendKakaoAlimtalk(
       },
     },
   };
-  const res = await fetch("https://api.solapi.com/messages/v4/send", {
+  const res = await tfetch("https://api.solapi.com/messages/v4/send", {
     method: "POST",
     headers: {
       Authorization: auth,

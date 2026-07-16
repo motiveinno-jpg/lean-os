@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 // OwnerView — CODEF Transfer Edge Function
 // Execute a single payment_queue entry via CODEF bank transfer API.
@@ -22,7 +23,7 @@ const TRANSFER_PATH = "/v1/kr/bank/a/account/transfer";
 
 async function getCodefToken(clientId: string, clientSecret: string): Promise<string> {
   const basicAuth = btoa(`${clientId}:${clientSecret}`);
-  const res = await fetch(CODEF_TOKEN_URL, {
+  const res = await tfetch(CODEF_TOKEN_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -54,7 +55,7 @@ async function rsaEncrypt(plainText: string, publicKeyPem: string): Promise<stri
 }
 
 async function codefTransfer(token: string, body: Record<string, unknown>) {
-  const res = await fetch(`${CODEF_BASE}${TRANSFER_PATH}`, {
+  const res = await tfetch(`${CODEF_BASE}${TRANSFER_PATH}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

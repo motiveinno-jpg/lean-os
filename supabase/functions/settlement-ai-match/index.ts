@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -37,7 +38,7 @@ const SYSTEM_PROMPT = `당신은 한국 중소기업 회계의 거래처 채권/
 {"partner_id":string|null,"matched":[{"tax_invoice_id":string,"amount":number}],"match_type":"one_to_one|aggregate|partial|withholding|manual","confidence":0~1,"reason":"한줄","needs_review":boolean}`;
 
 async function callClaude(userContent: string): Promise<any | null> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await tfetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "x-api-key": ANTHROPIC_API_KEY,

@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 // supabase/functions/verify-business-number/index.ts
 // 국세청 사업자등록번호 진위확인 Edge Function (Deno runtime)
@@ -79,7 +80,7 @@ serve(withSentry("verify-business-number", async (req: Request) => {
       if (bno.length !== 10 || !isValidBusinessNumber(bno) || !pnm || sdt.length !== 8) {
         return jsonResponse(400, { success: false, message: "사업자번호(10자리)·대표자성명·개업일자(YYYYMMDD)가 필요합니다." });
       }
-      const vres = await fetch(
+      const vres = await tfetch(
         `https://api.odcloud.kr/api/nts-businessman/v1/validate?serviceKey=${encodeURIComponent(apiKey)}`,
         {
           method: "POST",
@@ -168,7 +169,7 @@ serve(withSentry("verify-business-number", async (req: Request) => {
     const apiUrl =
       "https://api.odcloud.kr/api/nts-businessman/v1/status";
 
-    const response = await fetch(
+    const response = await tfetch(
       `${apiUrl}?serviceKey=${encodeURIComponent(apiKey)}`,
       {
         method: "POST",

@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 // supabase/functions/contract-renewal-check/index.ts
 // Contract Renewal Check — Deno Edge Function
@@ -395,7 +396,7 @@ async function sendNotificationEmail(
 
   if (webhookUrl) {
     // Send via external webhook (e.g., SendGrid, Resend, Slack, etc.)
-    const res = await fetch(webhookUrl, {
+    const res = await tfetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

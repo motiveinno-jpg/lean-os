@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 // OwnerView — Telegram Notification Edge Function
 // Sends messages to Telegram (approval alerts, cash alerts, etc.)
@@ -73,7 +74,7 @@ Deno.serve(withSentry("telegram-notify", async (req: Request) => {
   }
 
   try {
-    const res = await fetch(
+    const res = await tfetch(
       `https://api.telegram.org/bot${token}/sendMessage`,
       {
         method: "POST",

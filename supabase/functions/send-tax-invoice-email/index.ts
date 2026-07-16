@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -134,7 +135,7 @@ serve(withSentry("send-tax-invoice-email", async (req) => {
       ];
     }
 
-    const emailRes = await fetch("https://api.resend.com/emails", {
+    const emailRes = await tfetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -1,3 +1,4 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -24,7 +25,7 @@ interface OcrResult {
 async function analyzeReceipt(imageUrl: string): Promise<OcrResult> {
   if (!anthropicKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
-  const imageRes = await fetch(imageUrl);
+  const imageRes = await tfetch(imageUrl);
   if (!imageRes.ok) throw new Error("Failed to fetch receipt image");
   const imageBuffer = await imageRes.arrayBuffer();
   const base64 = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
@@ -32,7 +33,7 @@ async function analyzeReceipt(imageUrl: string): Promise<OcrResult> {
   const contentType = imageRes.headers.get("content-type") || "image/jpeg";
   const mediaType = contentType.startsWith("image/") ? contentType : "image/jpeg";
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await tfetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "content-type": "application/json",
