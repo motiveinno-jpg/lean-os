@@ -165,14 +165,14 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
   };
 
   return (
-    <div className="transactions-ledger space-y-3">
-      <div className="subdeals-toolbar flex items-center justify-between gap-2 flex-wrap">
+    <div className="transactions-ledger">
+      <div className="subdeals-toolbar">
         <p className="text-xs text-[var(--text-muted)]">
           매출·매입 항목을 <b className="text-[var(--text)]">부호</b>로 구분합니다 — <span className="text-[var(--success)]">양수(+) 매출</span> · <span className="text-[var(--danger)]">음수(−) 매입</span>. 표에서 바로 입력하세요.
         </p>
       </div>
 
-      <div className="subdeals-table-wrap glass-card overflow-x-auto">
+      <div className="subdeals-table-wrap glass-card">
         <table className="w-full text-sm border-collapse min-w-[720px]">
           <thead>
             <tr className="text-xs text-[var(--text-dim)]">
@@ -193,7 +193,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
               const amt = Number(s.contract_amount || 0);
               const isPurchase = s.type === "purchase";
               if (editId === s.id) return (
-                <tr key={s.id} className="subdeals-row-editing bg-[var(--bg-surface)]/40">
+                <tr key={s.id} className="subdeals-row-editing">
                   <RowInputs draft={editDraft} setDraft={setEditDraft} partners={partners} onEnter={() => editMut.mutate()} />
                   <td className="px-2 py-2 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
                     <button onClick={() => editMut.mutate()} disabled={editMut.isPending} className="px-2 py-1 text-[11px] font-semibold rounded bg-[var(--primary)] text-white disabled:opacity-50">저장</button>
@@ -202,7 +202,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
                 </tr>
               );
               return (
-                <tr key={s.id} className="subdeals-row hover:bg-[var(--bg-surface)]/50">
+                <tr key={s.id} className="subdeals-row">
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40">
                     <button onClick={() => startEdit(s)} className="text-[var(--text)] font-medium hover:text-[var(--primary)] hover:underline text-left">{s.name}</button>
                     {s.parent_deal_id !== dealId && (
@@ -224,7 +224,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
               );
             })}
             {/* 인라인 추가 행 */}
-            <tr className="subdeals-add-row bg-[var(--bg-surface)]/20">
+            <tr className="subdeals-add-row">
               <RowInputs draft={draft} setDraft={setDraft} partners={partners} onEnter={() => addMut.mutate()} placeholderName="＋ 항목명 입력…" />
               <td className="px-2 py-2 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
                 <button onClick={() => addMut.mutate()} disabled={addMut.isPending || !draft.name.trim()} className="px-2.5 py-1 text-[11px] font-semibold rounded bg-[var(--primary)] text-white disabled:opacity-40">추가</button>
@@ -232,7 +232,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
             </tr>
           </tbody>
           <tfoot>
-            <tr className="subdeals-totals-row bg-[var(--bg-surface)]/60">
+            <tr className="subdeals-totals-row">
               <td colSpan={2} className="px-3 py-2.5 text-xs font-bold text-[var(--text-muted)]">
                 매출 <span className="text-[var(--success)] mono-number">+{salesSum.toLocaleString("ko-KR")}</span> · 매입 <span className="text-[var(--danger)] mono-number">−{purchaseSum.toLocaleString("ko-KR")}</span>
               </td>
@@ -247,7 +247,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
 
       {/* 캠페인으로도 생성(최상위 프로젝트에서만) */}
       {campaignInherit && (
-        <label className="subdeals-campaign-toggle flex items-center gap-2 text-[11px] text-[var(--text-muted)] cursor-pointer">
+        <label className="subdeals-campaign-toggle">
           <input type="checkbox" checked={draft.asCampaign} onChange={(e) => setDraft((d) => ({ ...d, asCampaign: e.target.checked }))} className="accent-[var(--primary)]" />
           새 항목을 세부 프로젝트(캠페인)로도 생성 <span className="text-[var(--text-dim)]">— 상단 ‘세부 프로젝트’ 탭에 같은 이름으로 표시</span>
         </label>
@@ -284,7 +284,7 @@ function RowInputs({ draft, setDraft, partners, onEnter, placeholderName }: {
           onBlur={() => setTimeout(() => setPtOpen(false), 150)} placeholder="거래처"
           className="w-full h-9 px-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
         {ptOpen && (
-          <div className="subdeals-partner-dropdown absolute z-20 mt-1 w-full max-h-48 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg">
+          <div className="subdeals-partner-dropdown">
             {ptMatches.length === 0 ? <div className="px-3 py-2 text-xs text-[var(--text-dim)]">검색 결과 없음</div>
               : ptMatches.map((p) => (
                 <button key={p.id} onMouseDown={() => { setDraft((d) => ({ ...d, partner_id: p.id, ptSearch: p.name })); setPtOpen(false); }}
@@ -295,7 +295,7 @@ function RowInputs({ draft, setDraft, partners, onEnter, placeholderName }: {
       </td>
       <td className="px-2 py-2 border-b border-[var(--border)]/40">
         <div className="flex items-center gap-1 justify-end">
-          <div className="subdeals-sign-toggle flex rounded-lg overflow-hidden border border-[var(--border)] shrink-0">
+          <div className="subdeals-sign-toggle">
             <button type="button" onClick={() => setDraft((d) => ({ ...d, sign: "plus" }))} title="매출(받을 돈)"
               className={`px-1.5 h-9 text-xs font-bold ${draft.sign === "plus" ? "bg-[var(--success)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>＋</button>
             <button type="button" onClick={() => setDraft((d) => ({ ...d, sign: "minus" }))} title="매입(줄 돈)"

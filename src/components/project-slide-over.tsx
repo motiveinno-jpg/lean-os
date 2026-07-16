@@ -135,7 +135,7 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal,
             variant="embed"
           />
         )}
-        {data && !data.deal && <div className="project-not-found py-12 text-center text-sm text-[var(--text-muted)]">프로젝트를 찾을 수 없습니다</div>}
+        {data && !data.deal && <div className="project-not-found">프로젝트를 찾을 수 없습니다</div>}
       </div>
     );
   }
@@ -143,7 +143,7 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal,
   // ── 페이지 모드 — 전체화면 독립 페이지 (/projects/[id]) ──
   if (isPage) {
     return (
-      <div className="project-page-wrap min-h-screen bg-[var(--bg)]">
+      <div className="project-page-wrap">
         {isLoading && (
           <div className="max-w-5xl mx-auto px-6 py-20 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         )}
@@ -178,16 +178,16 @@ export function ProjectSlideOver({ dealId, companyId, onClose, onOpenStageModal,
 
   // ── 모달 모드 (2026-05-26 화면 중앙 팝업 — 우측 슬라이드 → 중앙 모달) ──
   return (
-    <div className="project-slide-over-modal fixed inset-0 z-40 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+    <div className="project-slide-over-modal" aria-modal="true" role="dialog">
       {/* Backdrop */}
       <button
         type="button"
         onClick={onClose}
         aria-label="닫기"
-        className="modal-backdrop absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+        className="modal-backdrop"
       />
       {/* Panel — 모바일 전체, sm+ 화면 중앙 모달 */}
-      <div className="modal-panel relative w-full max-w-3xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="modal-panel">
         {isLoading && (
           <div className="flex-1 flex items-center justify-center text-sm text-[var(--text-muted)]">
             불러오는 중...
@@ -300,10 +300,10 @@ function PanelBody({
     ] as { key: Tab; label: string }[];
     return (
       <div className="project-embed-wrap">
-        <div className="embed-tabs-bar flex items-center gap-1 border-b border-[var(--border)] mb-4 overflow-x-auto">
+        <div className="embed-tabs-bar">
           {embedTabs.map((t) => (
             <button key={t.key} type="button" onClick={() => onTabChange(t.key)}
-              className={`embed-tab-btn px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
+              className={`embed-tab-btn ${
                 tab === t.key ? "border-[var(--primary)] text-[var(--text)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
               }`}>
               {t.label}
@@ -319,22 +319,22 @@ function PanelBody({
   if (isPage) {
     return (
       <>
-        <div className="project-page-header sticky top-0 z-20 bg-[var(--bg-card)] border-b border-[var(--border)]">
+        <div className="project-page-header">
           <div className="max-w-6xl mx-auto px-6 pt-4">
-            <button onClick={onClose} className="back-to-projects-btn text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] mt-1 mb-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 -ml-2 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">
+            <button onClick={onClose} className="back-to-projects-btn">
               <span className="text-sm leading-none">←</span> 프로젝트 목록
             </button>
-            <div className="project-header-title-row flex items-start justify-between gap-4 mb-3">
+            <div className="project-header-title-row">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  <span className={`stage-badge text-[11px] px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1 ${stageColor.bg} ${stageColor.text}`}>
+                  <span className={`stage-badge-page ${stageColor.bg} ${stageColor.text}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${stageColor.dot}`} />
                     {STAGE_LABEL[stage] || stage}
                   </span>
                   <span className="text-xs text-[var(--text-dim)]">{deal.partner_id ? data.partner?.name || "—" : "—"}</span>
                 </div>
-                <h1 className="project-title text-2xl font-extrabold text-[var(--text)] truncate">{deal.name || "(이름 없음)"}</h1>
-                <div className="project-meta-row flex items-center gap-3 mt-1.5 text-xs text-[var(--text-muted)] flex-wrap">
+                <h1 className="project-title-page">{deal.name || "(이름 없음)"}</h1>
+                <div className="project-meta-row">
                   <span>📅 {formatRange(deal.start_date, deal.end_date)}</span>
                   {!isEmployeeLimited && deal.contract_total != null && (
                     <span>💰 {Number(deal.contract_total).toLocaleString()}원</span>
@@ -345,27 +345,27 @@ function PanelBody({
                 <button
                   type="button"
                   onClick={onOpenStageModal}
-                  className="stage-change-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] transition shrink-0"
+                  className="stage-change-btn-page"
                 >
                   단계 변경
                 </button>
               )}
             </div>
             {/* 진행률 */}
-            <div className="project-progress-bar flex items-center gap-2 mb-3">
-              <div className="progress-bar-track flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                <div className="progress-bar-fill h-full bg-[var(--primary)] rounded-full transition-all" style={{ width: `${progress}%` }} />
+            <div className="project-progress-bar">
+              <div className="progress-bar-track-page">
+                <div className="progress-bar-fill-page" style={{ width: `${progress}%` }} />
               </div>
               <span className="text-[10px] font-bold text-[var(--text-muted)] tabular-nums">{progress}%</span>
             </div>
             {/* 탭 */}
-            <div className="project-tabs flex items-center gap-1 -mb-px overflow-x-auto">
+            <div className="project-tabs-page">
               {tabs.map((t) => (
                 <button
                   key={t.key}
                   type="button"
                   onClick={() => onTabChange(t.key)}
-                  className={`project-tab-btn px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
+                  className={`project-tab-btn-page ${
                     tab === t.key
                       ? "border-[var(--primary)] text-[var(--text)]"
                       : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
@@ -377,7 +377,7 @@ function PanelBody({
             </div>
           </div>
         </div>
-        <div className="project-tab-content max-w-6xl mx-auto px-6 py-6">{tabContent}</div>
+        <div className="project-tab-content">{tabContent}</div>
       </>
     );
   }
@@ -386,12 +386,12 @@ function PanelBody({
   return (
     <>
       {/* Header */}
-      <div className="slide-header px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-card)]">
-        <div className="slide-header-top flex items-start justify-between gap-3 mb-2">
+      <div className="slide-header">
+        <div className="slide-header-top">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span
-                className={`stage-badge text-[10px] px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1 ${stageColor.bg} ${stageColor.text}`}
+                className={`stage-badge-slide ${stageColor.bg} ${stageColor.text}`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${stageColor.dot}`} />
                 {STAGE_LABEL[stage] || stage}
@@ -400,14 +400,14 @@ function PanelBody({
                 {deal.partner_id ? data.partner?.name || "—" : "—"}
               </span>
             </div>
-            <h2 className="project-title text-lg font-bold text-[var(--text)] truncate">{deal.name || "(이름 없음)"}</h2>
+            <h2 className="project-title-slide">{deal.name || "(이름 없음)"}</h2>
           </div>
-          <div className="slide-header-actions flex items-center gap-1">
+          <div className="slide-header-actions">
             {onOpenStageModal && (
               <button
                 type="button"
                 onClick={onOpenStageModal}
-                className="stage-change-btn px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] transition"
+                className="stage-change-btn-slide"
               >
                 단계 변경
               </button>
@@ -416,7 +416,7 @@ function PanelBody({
               type="button"
               onClick={onClose}
               aria-label="닫기"
-              className="slide-close-btn w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition"
+              className="slide-close-btn"
             >
               ✕
             </button>
@@ -424,7 +424,7 @@ function PanelBody({
         </div>
 
         {/* Tabs — 직원은 돈 탭 미노출 (재무 가림) */}
-        <div className="project-tabs flex items-center gap-1 -mb-px">
+        <div className="project-tabs-slide">
           {(
             (isEmployeeLimited
               ? [
@@ -443,7 +443,7 @@ function PanelBody({
               key={t.key}
               type="button"
               onClick={() => onTabChange(t.key)}
-              className={`project-tab-btn px-3 py-2 text-xs font-semibold border-b-2 transition ${
+              className={`project-tab-btn-slide ${
                 tab === t.key
                   ? "border-[var(--primary)] text-[var(--text)]"
                   : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
@@ -456,7 +456,7 @@ function PanelBody({
       </div>
 
       {/* Body — 직원이 직접 URL 로 money 진입 시도해도 차단 */}
-      <div className="slide-body flex-1 overflow-y-auto p-5">
+      <div className="slide-body">
         {tabContent}
       </div>
     </>
@@ -606,11 +606,11 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
   useModalKeys(editOpen, () => !editSaving && setEditOpen(false), editSaving || !editForm.name.trim() ? undefined : submitEdit);
 
   return (
-    <div className="overview-tab flex flex-col gap-4">
+    <div className="overview-tab">
       {/* 다음 액션 CTA */}
       <Link
         href={action.href || `/projects/${deal.id}`}
-        className={`next-action-cta block px-4 py-3 rounded-xl border ${actionColor} transition`}
+        className={`next-action-cta ${actionColor}`}
         title={action.reason}
       >
         <div className="flex items-center justify-between gap-2">
@@ -630,7 +630,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
       {/* 자동 배지 1개 */}
       {badge.key !== "none" && (
         <div
-          className="auto-badge-banner px-3 py-2 rounded-lg border text-xs flex items-center gap-2"
+          className="auto-badge-banner"
           style={{ color: badge.color, backgroundColor: badge.bg, borderColor: badge.bg }}
         >
           <span>{badge.emoji}</span>
@@ -642,14 +642,14 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
       )}
 
       {/* 진행률 바 + stage 컨트롤 영역 (PR3.5 action='move-settlement'/'archive' 점프 대상) */}
-      <div id="sec-stage" className="progress-section bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
+      <div id="sec-stage" className="progress-section">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-[var(--text-muted)]">진행률</span>
           <span className="text-xs text-[var(--text)] font-bold">{progress}%</span>
         </div>
-        <div className="progress-bar-track h-2 bg-[var(--bg)] rounded-full overflow-hidden">
+        <div className="progress-bar-track-overview">
           <div
-            className="progress-bar-fill h-full rounded-full transition-all"
+            className="progress-bar-fill-overview"
             style={{
               width: `${progress}%`,
               background:
@@ -657,15 +657,15 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
             }}
           />
         </div>
-        <div className="stage-labels-row mt-2 flex justify-between text-[10px] text-[var(--text-dim)]">
+        <div className="stage-labels-row">
           <span>견적</span><span>계약</span><span>진행</span><span>완료</span><span>정산</span>
         </div>
       </div>
 
       {/* 기본 정보 카드 */}
-      <div className="info-card bg-[var(--bg-surface)] rounded-xl p-4">
+      <div className="info-card">
         <h3 className="text-xs font-bold text-[var(--text-muted)] mb-3">기본 정보</h3>
-        <dl className="info-grid grid grid-cols-2 gap-3 text-xs">
+        <dl className="info-grid">
           <InfoRow label="고객사" value={data.partner?.name || "—"} />
           <InfoRow label="대표 담당자" value={managerName} />
           <InfoRow label="시작일" value={deal.start_date || "—"} />
@@ -681,11 +681,11 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
 
       {/* 액션 버튼 */}
       {!isEmployeeLimited && (
-        <div className="action-buttons-row flex items-center gap-2">
+        <div className="action-buttons-row">
           <button
             type="button"
             onClick={openEdit}
-            className="edit-project-btn flex-1 px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] text-center transition"
+            className="edit-project-btn"
           >
             편집
           </button>
@@ -695,18 +695,18 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
       {/* 인라인 편집 모달 — 옛 /deals?detail= 화면 대체 (2026-05-21 사장님 요청) */}
       {editOpen && (
         <div
-          className="edit-modal-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          className="edit-modal-overlay"
           onClick={() => !editSaving && setEditOpen(false)}
         >
           <div
-            className="edit-modal-panel bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            className="edit-modal-panel"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="edit-modal-header px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="edit-modal-header">
               <div className="text-sm font-bold">프로젝트 정보 편집</div>
               <button onClick={() => !editSaving && setEditOpen(false)} disabled={editSaving} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
             </div>
-            <div className="edit-modal-body p-5 space-y-3">
+            <div className="edit-modal-body">
               <div>
                 <label className="block text-[11px] text-[var(--text-muted)] mb-1">프로젝트명 *</label>
                 <input
@@ -726,7 +726,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
                   className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
                 />
               </div>
-              <div className="edit-form-grid grid grid-cols-2 gap-3">
+              <div className="edit-form-grid">
                 <div>
                   <label className="block text-[11px] text-[var(--text-muted)] mb-1">시작일</label>
                   <DateField value={editForm.start_date} onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
@@ -759,7 +759,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
                 </div>
               </div>
             </div>
-            <div className="edit-modal-footer px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+            <div className="edit-modal-footer">
               <button onClick={() => setEditOpen(false)} disabled={editSaving} className="px-4 py-1.5 text-xs text-[var(--text-muted)] rounded-lg">취소</button>
               <button onClick={submitEdit} disabled={editSaving || !editForm.name.trim()} className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white rounded-lg font-semibold">
                 {editSaving ? '저장 중…' : '저장'}
@@ -771,17 +771,17 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
 
       {/* 고급 토글 (메타) */}
       {meta.hasAny && (
-        <div className="advanced-meta-section bg-[var(--bg-surface)] rounded-xl">
+        <div className="advanced-meta-section">
           <button
             type="button"
             onClick={() => setAdvancedOpen((v) => !v)}
-            className="advanced-toggle-btn w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition"
+            className="advanced-toggle-btn"
           >
             <span>고급 (우선순위·위험·분류)</span>
             <span className="text-[10px]">{advancedOpen ? "▲" : "▼"}</span>
           </button>
           {advancedOpen && (
-            <div className="advanced-meta-content px-4 pb-3 flex flex-col gap-2 text-xs">
+            <div className="advanced-meta-content">
               {meta.priority && (
                 <div className="flex items-center gap-2">
                   <span className="text-[var(--text-dim)] w-16">우선순위</span>
@@ -811,7 +811,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
 
       {/* 위험 영역 — owner/admin 만 노출 */}
       {canDelete && (
-        <div className="danger-zone mt-4 rounded-xl border border-red-500/30 bg-red-500/5 p-4 shadow-sm">
+        <div className="danger-zone">
           <div className="text-[10px] font-bold uppercase tracking-wider text-red-500 mb-1">⚠ 위험 영역</div>
           <div className="text-[11px] text-[var(--text-muted)] mb-3">
             프로젝트를 삭제하면 칸반·리스트·활동 어디에서도 보이지 않게 됩니다.
@@ -820,7 +820,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
           <button
             type="button"
             onClick={() => setDeleteOpen(true)}
-            className="delete-project-btn px-3 py-1.5 rounded-lg border border-red-500/40 text-red-500 hover:bg-red-500/10 text-[11px] font-semibold transition"
+            className="delete-project-btn"
           >
             🗑 프로젝트 삭제
           </button>
@@ -845,7 +845,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
 
 function InfoRow({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="info-row flex flex-col">
+    <div className="slide-over-info-row">
       <dt className="caption mb-0.5">{label}</dt>
       <dd className="text-[var(--text)] font-medium truncate">{value}</dd>
     </div>
@@ -1008,12 +1008,12 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
     costSaving || !costDate || !costAmount || Number(costAmount) <= 0 ? undefined : submitCost);
 
   return (
-    <div className="money-tab flex flex-col gap-4">
+    <div className="money-tab">
       {/* PR3.5 + 일반화: deal.stage 따라 견적서/계약서/완료확인서/정산 폼 자동 전환.
           2026-05-21 진척보고서(progress_report) 는 활동 탭으로 이동 (사용자 호소).
           돈 탭은 금액/계약가 흐름만 — 진척 보고는 활동 흐름. */}
       {approvalStage !== 'progress_report' && (
-        <div id="sec-quote" className="quote-stage-section transition-shadow">
+        <div id="sec-quote" className="quote-stage-section">
           <ProjectQuoteStages
             key={approvalStage}
             dealId={dealId}
@@ -1023,8 +1023,8 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
         </div>
       )}
       {/* 받을 돈 */}
-      <div id="sec-revenue" className="revenue-section bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
-        <div className="section-header-row flex items-center justify-between mb-3">
+      <div id="sec-revenue" className="revenue-section">
+        <div className="section-header-row">
           <h3 className="text-xs font-bold text-[var(--text-muted)]">받을 돈 (수금)</h3>
           <button
             type="button"
@@ -1035,7 +1035,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
             + 수금 추가
           </button>
         </div>
-        <div className="revenue-kv-grid grid grid-cols-2 gap-3 mb-3">
+        <div className="revenue-kv-grid">
           <KV label="계약가" value={`₩${contract.toLocaleString()}`} />
           <KV label="입금완료" value={`₩${paidSum.toLocaleString()}`} tone="positive" />
           <KV label="미수금" value={`₩${expectedSum.toLocaleString()}`} tone={expectedSum > 0 ? "warn" : undefined} />
@@ -1044,11 +1044,11 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
         {(data.revenue || []).length === 0 ? (
           <div className="text-[11px] text-[var(--text-dim)] text-center py-2">수금 일정 없음</div>
         ) : (
-          <ul className="revenue-list flex flex-col gap-1.5 text-[11px]">
+          <ul className="revenue-list">
             {(data.revenue as any[]).slice(0, 8).map((r: any) => (
               <li
                 key={r.id}
-                className="revenue-list-item flex items-center justify-between px-2 py-1.5 rounded-lg bg-[var(--bg)] border border-[var(--border)]"
+                className="revenue-list-item"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span
@@ -1070,8 +1070,8 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       </div>
 
       {/* 줄 돈 */}
-      <div id="sec-cost" className="cost-section bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow">
-        <div className="section-header-row flex items-center justify-between mb-3">
+      <div id="sec-cost" className="cost-section">
+        <div className="section-header-row">
           <h3 className="text-xs font-bold text-[var(--text-muted)]">줄 돈 (비용 + 외주)</h3>
           <button
             type="button"
@@ -1082,17 +1082,17 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
             + 비용 추가
           </button>
         </div>
-        <div className="cost-kv-grid grid grid-cols-1 gap-3 mb-3">
+        <div className="cost-kv-grid">
           <KV label="비용 합계" value={`₩${costTotal.toLocaleString()}`} />
         </div>
         {(data.costs || []).length === 0 && (data.subDeals || []).length === 0 ? (
           <div className="text-[11px] text-[var(--text-dim)] text-center py-2">비용 항목 없음</div>
         ) : (
-          <ul className="cost-list flex flex-col gap-1.5 text-[11px]">
+          <ul className="cost-list">
             {(data.subDeals as any[]).slice(0, 4).map((s: any) => (
               <li
                 key={s.id}
-                className="cost-list-item-outsource flex items-center justify-between px-2 py-1.5 rounded-lg bg-[var(--bg)] border border-[var(--border)]"
+                className="cost-list-item-outsource"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-purple-500/15 text-purple-400">
@@ -1108,7 +1108,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
             {(data.costs as any[]).slice(0, 4).map((c: any) => (
               <li
                 key={c.id}
-                className="cost-list-item flex items-center justify-between px-2 py-1.5 rounded-lg bg-[var(--bg)] border border-[var(--border)]"
+                className="cost-list-item"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-orange-500/15 text-orange-400">
@@ -1124,7 +1124,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       </div>
 
       {/* 마진 */}
-      <div className="margin-section bg-[var(--bg-surface)] rounded-xl p-4">
+      <div className="margin-section">
         <h3 className="text-xs font-bold text-[var(--text-muted)] mb-3">예상 마진</h3>
         <div className="grid grid-cols-3 gap-3">
           <KV label="계약가" value={`₩${contract.toLocaleString()}`} />
@@ -1140,14 +1140,14 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       {/* 받을 돈 수금 추가 모달 (인라인) */}
       {paymentModalOpen && (
         <div
-          className="payment-modal-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          className="payment-modal-overlay"
           onClick={() => !paymentSaving && setPaymentModalOpen(false)}
         >
           <div
-            className="payment-modal-panel bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-sm"
+            className="payment-modal-panel"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="payment-modal-header px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="payment-modal-header">
               <div>
                 <div className="text-sm font-bold">+ 수금 추가</div>
                 <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
@@ -1163,7 +1163,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                 ✕
               </button>
             </div>
-            <div className="payment-modal-body p-5 space-y-3">
+            <div className="payment-modal-body">
               <div>
                 <label className="block text-[11px] text-[var(--text-muted)] mb-1">받은 날짜</label>
                 <DateField
@@ -1189,7 +1189,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                 )}
               </div>
             </div>
-            <div className="payment-modal-footer px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+            <div className="payment-modal-footer">
               <button
                 type="button"
                 onClick={() => setPaymentModalOpen(false)}
@@ -1214,14 +1214,14 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       {/* 줄 돈 비용 추가 모달 (받을 돈 모달과 동일 패턴) */}
       {costModalOpen && (
         <div
-          className="cost-modal-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          className="cost-modal-overlay"
           onClick={() => !costSaving && setCostModalOpen(false)}
         >
           <div
-            className="cost-modal-panel bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-sm"
+            className="cost-modal-panel"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="cost-modal-header px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="cost-modal-header">
               <div>
                 <div className="text-sm font-bold">+ 비용 추가</div>
                 <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
@@ -1237,7 +1237,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                 ✕
               </button>
             </div>
-            <div className="cost-modal-body p-5 space-y-3">
+            <div className="cost-modal-body">
               <div>
                 <label className="block text-[11px] text-[var(--text-muted)] mb-1">지급 날짜</label>
                 <DateField
@@ -1268,7 +1268,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                 />
               </div>
             </div>
-            <div className="cost-modal-footer px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
+            <div className="cost-modal-footer">
               <button
                 type="button"
                 onClick={() => setCostModalOpen(false)}
@@ -1301,7 +1301,7 @@ function KV({ label, value, tone }: { label: string; value: string; tone?: "posi
       ? "text-red-400"
       : "text-[var(--text)]";
   return (
-    <div className="kv-item flex flex-col">
+    <div className="kv-item">
       <span className="caption mb-0.5">{label}</span>
       <span className={`text-sm font-bold ${color}`}>{value}</span>
     </div>
@@ -1508,12 +1508,12 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
   useModalKeys(showAddAssignee, () => setShowAddAssignee(false));
 
   return (
-    <div id="sec-activity" className="activity-tab flex flex-col gap-4 transition-shadow">
+    <div id="sec-activity" className="activity-tab">
       {/* 진척보고서 — deal.stage='in_progress' 일 때만 표시.
           2026-05-21 돈 탭에서 활동 탭으로 이동 (사용자 호소).
           나머지 stage 의 견적/계약/완료/정산 폼은 그대로 돈 탭. */}
       {approvalStage === 'progress_report' && (
-        <div id="sec-progress" className="progress-report-section transition-shadow">
+        <div id="sec-progress" className="progress-report-section">
           <ProjectQuoteStages
             key={approvalStage}
             dealId={dealId}
@@ -1538,11 +1538,11 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
         {data.assignments.length === 0 ? (
           <Empty text={canEditAssignments ? '배정된 담당자 없음 — "+ 추가" 클릭' : '배정된 담당자 없음'} />
         ) : (
-          <ul className="assignee-list flex flex-col gap-1.5">
+          <ul className="assignee-list">
             {data.assignments.map((a: { id?: string; deal_id: string; user_id: string; role: string; users?: { name?: string; email?: string } }) => (
               <li
                 key={`${a.deal_id}-${a.user_id}`}
-                className="assignee-list-item flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+                className="assignee-list-item"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="w-7 h-7 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center font-bold text-[11px]">
@@ -1580,8 +1580,8 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
 
       {/* 담당자 추가 모달 */}
       {showAddAssignee && (
-        <div className="add-assignee-modal-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setShowAddAssignee(false)}>
-          <div className="add-assignee-modal-panel bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="add-assignee-modal-overlay" onClick={() => setShowAddAssignee(false)}>
+          <div className="add-assignee-modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div className="text-sm font-bold">+ 담당자 추가</div>
               <button onClick={() => setShowAddAssignee(false)} className="text-[var(--text-muted)] text-xl leading-none">✕</button>
@@ -1589,7 +1589,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
             <div className="p-5 space-y-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">역할</label>
-                <div className="role-picker flex gap-1">
+                <div className="role-picker">
                   {[
                     { v: 'manager' as const, label: '담당' },
                     { v: 'reviewer' as const, label: '검토' },
@@ -1614,7 +1614,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                   className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
                 />
               </div>
-              <div className="assignee-candidate-list max-h-48 overflow-auto border border-[var(--border)] rounded-lg">
+              <div className="assignee-candidate-list">
                 {filteredUsers.length === 0 ? (
                   <div className="p-4 text-center text-xs text-[var(--text-muted)]">사용자 없음</div>
                 ) : (
@@ -1651,11 +1651,11 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
         {totalFiles === 0 ? (
           <Empty text="문서 없음" />
         ) : (
-          <ul className="files-list flex flex-col gap-1.5">
+          <ul className="files-list">
             {signedFiles.map((f) => (
               <li
                 key={`signed-${f.id}`}
-                className="file-list-item-signed flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+                className="file-list-item-signed"
               >
                 <button onClick={() => openDocViewer({ type: 'contract', id: f.id })} className="flex items-center gap-2 min-w-0 hover:underline flex-1 text-left">
                   <span>{f.icon}</span>
@@ -1672,7 +1672,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
             {data.documents.map((d: any) => (
               <li
                 key={d.id}
-                className="file-list-item-doc flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+                className="file-list-item-doc"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[var(--text-dim)]">📄</span>
@@ -1696,7 +1696,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
           </Link>
         }
       >
-        <div className="chat-deeplink-hint text-[11px] text-[var(--text-dim)] px-1 py-2">
+        <div className="chat-deeplink-hint">
           이 프로젝트의 채팅 채널로 이동합니다.
         </div>
       </Section>
@@ -1706,11 +1706,11 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
         {combinedActivity.length === 0 ? (
           <Empty text="활동 기록 없음" />
         ) : (
-          <ul className="activity-log-list flex flex-col gap-1.5">
+          <ul className="activity-log-list">
             {combinedActivity.map((e) => (
               <li
                 key={e.key}
-                className="activity-log-item flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+                className="activity-log-item"
               >
                 <span className="shrink-0">{e.icon}</span>
                 <div className="flex-1 min-w-0">
@@ -1741,8 +1741,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="section-card bg-[var(--bg-surface)] rounded-xl p-4">
-      <div className="section-header-row flex items-center justify-between mb-2">
+    <div className="section-card">
+      <div className="section-header-row-tight">
         <h3 className="text-xs font-bold text-[var(--text-muted)]">{title}</h3>
         {right}
       </div>
@@ -1752,7 +1752,7 @@ function Section({
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="empty-state-msg text-[11px] text-[var(--text-dim)] text-center py-3">{text}</div>;
+  return <div className="empty-state-msg">{text}</div>;
 }
 
 function formatAction(a: string) {
@@ -1827,16 +1827,16 @@ function DeleteProjectModal({
 
   return (
     <div
-      className="delete-modal-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4"
+      className="delete-modal-overlay"
       onClick={() => !del.isPending && onClose()}
       role="dialog"
       aria-modal="true"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="delete-modal-panel relative w-full sm:max-w-md bg-[var(--bg-card)] border border-red-500/30 rounded-2xl shadow-2xl overflow-hidden"
+        className="delete-modal-panel"
       >
-        <div className="delete-modal-header px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3">
+        <div className="delete-modal-header">
           <div className="text-sm font-bold text-red-500">⚠️ 프로젝트 삭제</div>
           <button
             type="button"
@@ -1848,7 +1848,7 @@ function DeleteProjectModal({
             ✕
           </button>
         </div>
-        <div className="delete-modal-body p-5 space-y-3">
+        <div className="delete-modal-body">
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
             이 작업은 칸반·리스트·활동 어디에서도 더 이상 보이지 않게 합니다.
             <br />회계 데이터(매출·비용·정산서·계약서)는 <span className="text-[var(--text)] font-semibold">보존</span>됩니다.
@@ -1871,7 +1871,7 @@ function DeleteProjectModal({
             )}
           </div>
         </div>
-        <div className="delete-modal-footer px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2 bg-[var(--bg-surface)]/40">
+        <div className="delete-modal-footer">
           <button
             type="button"
             onClick={onClose}

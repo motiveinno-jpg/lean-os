@@ -2227,3 +2227,379 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .closing-pdf-upload-panel { @apply rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/5 p-4 shadow-sm; }
 .closing-manual-line { @apply rounded-xl border border-dashed border-[var(--border)] p-2.5; }
 .closing-summary-bar { @apply mt-3 flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+
+/* ═══ 클래스명 가독성 정리 재작업 — 배치10(projecthub) 마커 스타일 (2026-07-16) ═══ */
+.project-detail-page { @apply space-y-6; }
+.project-name-input { @apply text-lg font-bold bg-transparent border-b-2 border-[var(--primary)] text-[var(--text)] focus:outline-none w-full max-w-md; }
+.project-name-heading { @apply text-lg font-bold text-[var(--text)] truncate cursor-text hover:opacity-80 inline-flex items-center gap-1.5 min-w-0; }
+.margin-overview-panel { @apply space-y-5; }
+.amount-mismatch-warning { @apply p-3 border border-[var(--warning)]/40 bg-[var(--warning)]/5 flex items-start gap-2 text-[12px] text-[var(--warning)]; }
+.cost-breakdown { @apply overflow-hidden; }
+.cost-source-summary { @apply px-4 py-3 flex items-center gap-2 cursor-pointer hover:bg-[var(--bg-surface)]/50 list-none; }
+.cost-source-detail { @apply px-4 pb-3 pl-9 space-y-0.5; }
+.project-basic-info { @apply p-5; }
+.cost-note-card { @apply p-4 text-[11px] text-[var(--text-muted)] leading-relaxed; }
+.pipeline-direction-header { @apply p-5; }
+.pipeline-direction-toolbar { @apply flex items-center justify-between mb-4 gap-2 flex-wrap; }
+.pipeline-steps { @apply flex items-center gap-0.5 overflow-x-auto pb-1; }
+.pipeline-step-item { @apply flex items-center; }
+.auto-contract-toggle { @apply mt-2 flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer w-fit; }
+.transactions-ledger-section { @apply space-y-2; }
+.transactions-ledger-header { @apply flex items-center gap-2; }
+.quote-list-section { @apply space-y-3; }
+.quote-list-toolbar { @apply flex items-center justify-between gap-2 flex-wrap; }
+.quote-list-actions { @apply flex items-center gap-2 relative; }
+.quote-col-settings-dropdown { @apply absolute right-0 top-full mt-1.5 z-[61] w-52 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-2; }
+.quote-table-card { @apply overflow-x-auto; }
+.quote-row-actions { @apply flex items-center justify-center gap-1; }
+.quote-approval-panel { @apply p-5; }
+.contract-list-section { @apply space-y-3; }
+.contract-list-toolbar { @apply flex items-center justify-between gap-2 flex-wrap; }
+.contract-list-actions { @apply flex items-center gap-2; }
+.contract-doc-card { @apply overflow-hidden divide-y divide-[var(--border)]/40; }
+.contract-doc-card-header { @apply px-4 py-2.5 bg-[var(--bg-surface)] text-[11px] font-bold text-[var(--text-muted)]; }
+.contract-doc-row { @apply px-4 py-3 flex items-center gap-3 flex-wrap; }
+.signature-request-card { @apply overflow-hidden divide-y divide-[var(--border)]/40; }
+.projecthub-signature-request-row { @apply px-4 py-3 flex items-center gap-3 flex-wrap; }
+.contract-approval-panel { @apply p-5; }
+.subprojects-section { @apply space-y-3; }
+.subprojects-toolbar { @apply flex items-center justify-between gap-2 flex-wrap; }
+.add-subproject-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.add-subproject-modal-card { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6; }
+.subproject-kind-toggle { @apply flex rounded-lg overflow-hidden border border-[var(--border)] shrink-0; }
+.subprojects-table-card { @apply overflow-x-auto; }
+.subproject-row { @apply hover:bg-[var(--bg-surface)]/50 cursor-pointer; }
+.subprojects-table-footer { @apply bg-[var(--bg-surface)]/60; }
+.edit-subproject-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.edit-subproject-modal-card { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6; }
+.delete-subproject-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.delete-subproject-modal-card { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6; }
+.template-manager-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.template-manager-modal-card { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6; }
+.delete-document-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.delete-document-modal-card { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-sm p-6; }
+.contract-payment-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.contract-payment-modal-card { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6; }
+.projecthub-invoice-issue-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.invoice-issue-modal-card { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6; }
+.invoice-schedule-preview { @apply rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50 divide-y divide-[var(--border)]/40 mt-3; }
+.invoice-schedule-row { @apply flex items-center justify-between px-3 py-2.5; }
+.document-create-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.document-create-modal-card { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6; }
+.quote-preview-modal { @apply fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4; }
+.quote-preview-modal-card { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-3xl h-[88vh] flex flex-col overflow-hidden; }
+.quote-preview-body { @apply flex-1 bg-[var(--bg-surface)] overflow-hidden; }
+.quote-preview-footer { @apply flex items-center justify-end gap-2 px-4 py-3 border-t border-[var(--border)] shrink-0; }
+.payment-pct-row { @apply flex items-center gap-2; }
+.payment-mode-selector { @apply grid grid-cols-3 gap-2; }
+.payment-percent-inputs { @apply space-y-2 mt-2.5; }
+.payment-balance-row { @apply flex items-center gap-2; }
+.margin-cockpit { @apply p-5; }
+.margin-cockpit-header { @apply flex items-center justify-between gap-2 mb-3; }
+.margin-cockpit-figures { @apply flex items-end gap-5 flex-wrap; }
+.margin-progress-bar { @apply mt-4; }
+.margin-cockpit-footer { @apply mt-4 pt-3 border-t border-[var(--border)]/40 flex flex-wrap gap-x-6 gap-y-1.5 text-[12px]; }
+.pipeline-ribbon { @apply p-4; }
+.pipeline-ribbon-header { @apply flex items-center justify-between mb-3 gap-2 flex-wrap; }
+.pipeline-stages-row { @apply flex items-stretch gap-1 overflow-x-auto pb-1; }
+.pipeline-stage-item { @apply flex items-stretch shrink-0; }
+.settlement-panel { @apply p-4; }
+.settlement-panel-header { @apply flex items-center justify-between mb-3 gap-2 flex-wrap; }
+.settlement-stats-grid { @apply grid grid-cols-3 gap-2 mb-3; }
+.settlement-flags-list { @apply space-y-1.5 mb-3; }
+.settlement-overdue-list { @apply divide-y divide-[var(--border)]/50; }
+.settlement-overdue-row { @apply flex items-center gap-3 py-2 text-[12px]; }
+.settle-stat-card { @apply rounded-xl bg-[var(--bg-surface)]/50 px-3 py-2.5; }
+.stage-stepper { @apply p-4; }
+.stage-stepper-header { @apply flex items-center justify-between mb-3; }
+.stage-stepper-steps { @apply flex items-center gap-0.5 overflow-x-auto pb-1; }
+.margin-onboarding { @apply p-6; }
+.margin-onboarding-steps-grid { @apply grid gap-3 sm:grid-cols-2; }
+.margin-onboarding-step-card { @apply flex gap-3 p-4 rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/50; }
+.metric-card { @apply p-5; }
+.cost-row { @apply flex items-center gap-2 text-xs py-0.5; }
+.info-row { @apply flex items-baseline gap-2; }
+.list-empty-state { @apply py-14 px-6 flex flex-col items-center justify-center text-center gap-2; }
+.delivery-overview-panel { @apply space-y-5; }
+.delivery-metrics-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.task-progress-card { @apply p-5; }
+.task-status-grid { @apply grid grid-cols-4 gap-2 mt-4; }
+.upcoming-deadlines-card { @apply p-5; }
+.upcoming-deadline-row { @apply py-2 flex items-center gap-2 text-sm; }
+.assignee-progress-card { @apply p-5; }
+.assignee-progress-row { @apply flex items-center gap-3; }
+.execution-info-card { @apply p-5; }
+.approval-row { @apply flex items-center gap-2 py-1.5 text-xs border-b border-[var(--border)]/30 last:border-0; }
+.project-not-found { @apply py-12 text-center text-sm text-[var(--text-muted)]; }
+.project-page-wrap { @apply min-h-screen bg-[var(--bg)]; }
+.project-slide-over-modal { @apply fixed inset-0 z-40 flex items-center justify-center p-4; }
+.modal-backdrop { @apply absolute inset-0 bg-black/50 backdrop-blur-[1px]; }
+.modal-panel { @apply relative w-full max-w-3xl max-h-[90vh] bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col overflow-hidden; }
+.embed-tabs-bar { @apply flex items-center gap-1 border-b border-[var(--border)] mb-4 overflow-x-auto; }
+.embed-tab-btn { @apply px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap; }
+.project-page-header { @apply sticky top-0 z-20 bg-[var(--bg-card)] border-b border-[var(--border)]; }
+.back-to-projects-btn { @apply text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] mt-1 mb-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 -ml-2 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition; }
+.project-header-title-row { @apply flex items-start justify-between gap-4 mb-3; }
+.stage-badge-page { @apply text-[11px] px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1; }
+.project-title-page { @apply text-2xl font-extrabold text-[var(--text)] truncate; }
+.project-meta-row { @apply flex items-center gap-3 mt-1.5 text-xs text-[var(--text-muted)] flex-wrap; }
+.stage-change-btn-page { @apply px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] transition shrink-0; }
+.project-progress-bar { @apply flex items-center gap-2 mb-3; }
+.progress-bar-track-page { @apply flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.progress-bar-fill-page { @apply h-full bg-[var(--primary)] rounded-full transition-all; }
+.project-tabs-page { @apply flex items-center gap-1 -mb-px overflow-x-auto; }
+.project-tab-btn-page { @apply px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap; }
+.project-tab-content { @apply max-w-6xl mx-auto px-6 py-6; }
+.slide-header { @apply px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-card)]; }
+.slide-header-top { @apply flex items-start justify-between gap-3 mb-2; }
+.stage-badge-slide { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1; }
+.project-title-slide { @apply text-lg font-bold text-[var(--text)] truncate; }
+.slide-header-actions { @apply flex items-center gap-1; }
+.stage-change-btn-slide { @apply px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] transition; }
+.slide-close-btn { @apply w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition; }
+.project-tabs-slide { @apply flex items-center gap-1 -mb-px; }
+.project-tab-btn-slide { @apply px-3 py-2 text-xs font-semibold border-b-2 transition; }
+.slide-body { @apply flex-1 overflow-y-auto p-5; }
+.overview-tab { @apply flex flex-col gap-4; }
+.next-action-cta { @apply block px-4 py-3 rounded-xl border transition; }
+.auto-badge-banner { @apply px-3 py-2 rounded-lg border text-xs flex items-center gap-2; }
+.progress-section { @apply bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow; }
+.progress-bar-track-overview { @apply h-2 bg-[var(--bg)] rounded-full overflow-hidden; }
+.progress-bar-fill-overview { @apply h-full rounded-full transition-all; }
+.stage-labels-row { @apply mt-2 flex justify-between text-[10px] text-[var(--text-dim)]; }
+.info-card { @apply bg-[var(--bg-surface)] rounded-xl p-4; }
+.info-grid { @apply grid grid-cols-2 gap-3 text-xs; }
+.action-buttons-row { @apply flex items-center gap-2; }
+.edit-project-btn { @apply flex-1 px-3 py-2 text-xs font-semibold rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] text-center transition; }
+.edit-modal-overlay { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4; }
+.edit-modal-panel { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto; }
+.edit-modal-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-center justify-between; }
+.edit-modal-body { @apply p-5 space-y-3; }
+.edit-form-grid { @apply grid grid-cols-2 gap-3; }
+.edit-modal-footer { @apply px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2; }
+.advanced-meta-section { @apply bg-[var(--bg-surface)] rounded-xl; }
+.advanced-toggle-btn { @apply w-full px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition; }
+.advanced-meta-content { @apply px-4 pb-3 flex flex-col gap-2 text-xs; }
+.danger-zone { @apply mt-4 rounded-xl border border-red-500/30 bg-red-500/5 p-4 shadow-sm; }
+.delete-project-btn { @apply px-3 py-1.5 rounded-lg border border-red-500/40 text-red-500 hover:bg-red-500/10 text-[11px] font-semibold transition; }
+.slide-over-info-row { @apply flex flex-col; }
+.money-tab { @apply flex flex-col gap-4; }
+.quote-stage-section { @apply transition-shadow; }
+.revenue-section { @apply bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow; }
+.section-header-row { @apply flex items-center justify-between mb-3; }
+.revenue-kv-grid { @apply grid grid-cols-2 gap-3 mb-3; }
+.revenue-list { @apply flex flex-col gap-1.5 text-[11px]; }
+.revenue-list-item { @apply flex items-center justify-between px-2 py-1.5 rounded-lg bg-[var(--bg)] border border-[var(--border)]; }
+.cost-section { @apply bg-[var(--bg-surface)] rounded-xl p-4 transition-shadow; }
+.cost-kv-grid { @apply grid grid-cols-1 gap-3 mb-3; }
+.cost-list { @apply flex flex-col gap-1.5 text-[11px]; }
+.cost-list-item-outsource { @apply flex items-center justify-between px-2 py-1.5 rounded-lg bg-[var(--bg)] border border-[var(--border)]; }
+.cost-list-item { @apply flex items-center justify-between px-2 py-1.5 rounded-lg bg-[var(--bg)] border border-[var(--border)]; }
+.margin-section { @apply bg-[var(--bg-surface)] rounded-xl p-4; }
+.payment-modal-overlay { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4; }
+.payment-modal-panel { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-sm; }
+.payment-modal-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-center justify-between; }
+.payment-modal-body { @apply p-5 space-y-3; }
+.payment-modal-footer { @apply px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2; }
+.cost-modal-overlay { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4; }
+.cost-modal-panel { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-sm; }
+.cost-modal-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-center justify-between; }
+.cost-modal-body { @apply p-5 space-y-3; }
+.cost-modal-footer { @apply px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2; }
+.kv-item { @apply flex flex-col; }
+.activity-tab { @apply flex flex-col gap-4 transition-shadow; }
+.progress-report-section { @apply transition-shadow; }
+.assignee-list { @apply flex flex-col gap-1.5; }
+.assignee-list-item { @apply flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs; }
+.add-assignee-modal-overlay { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4; }
+.add-assignee-modal-panel { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md; }
+.role-picker { @apply flex gap-1; }
+.assignee-candidate-list { @apply max-h-48 overflow-auto border border-[var(--border)] rounded-lg; }
+.files-list { @apply flex flex-col gap-1.5; }
+.file-list-item-signed { @apply flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs; }
+.file-list-item-doc { @apply flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs; }
+.chat-deeplink-hint { @apply text-[11px] text-[var(--text-dim)] px-1 py-2; }
+.activity-log-list { @apply flex flex-col gap-1.5; }
+.activity-log-item { @apply flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs; }
+.section-card { @apply bg-[var(--bg-surface)] rounded-xl p-4; }
+.section-header-row-tight { @apply flex items-center justify-between mb-2; }
+.empty-state-msg { @apply text-[11px] text-[var(--text-dim)] text-center py-3; }
+.delete-modal-overlay { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4; }
+.delete-modal-panel { @apply relative w-full sm:max-w-md bg-[var(--bg-card)] border border-red-500/30 rounded-2xl shadow-2xl overflow-hidden; }
+.delete-modal-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3; }
+.delete-modal-body { @apply p-5 space-y-3; }
+.delete-modal-footer { @apply px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2 bg-[var(--bg-surface)]/40; }
+/* ── PerformanceTab.tsx ── */
+.performance-tab { @apply space-y-5; }
+.checkin-prompt-banner { @apply w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30 text-left hover:bg-[var(--primary)]/15 transition; }
+.ops-settings-section { @apply space-y-3; }
+.ops-settings-card { @apply p-4 grid grid-cols-1 lg:grid-cols-2 gap-5; }
+.kpi-management-section { @apply space-y-3; }
+.kpi-form-card { @apply p-4; }
+.kpi-row { @apply hover:bg-[var(--bg-surface)]/50; }
+.kpi-entries-section { @apply space-y-3; }
+.kpi-entry-form-card { @apply p-4; }
+.kpi-entry-row { @apply hover:bg-[var(--bg-surface)]/50; }
+.checkin-section { @apply space-y-3; }
+.checkin-form-card { @apply p-4 space-y-3 scroll-mt-24; }
+.checkin-period-status { @apply flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs; }
+.checkin-context-grid { @apply grid grid-cols-1 sm:grid-cols-2 gap-3; }
+.open-issues-panel { @apply rounded-lg border border-[var(--border)] p-3; }
+.open-tasks-panel { @apply rounded-lg border border-[var(--border)] p-3; }
+.checkin-timeline-item { @apply p-4; }
+.execution-plan-section { @apply space-y-3; }
+.execution-plan-list { @apply divide-y divide-[var(--border)]/40; }
+.execution-plan-row { @apply flex items-center gap-2.5 px-3 py-2.5; }
+.execution-plan-add-row { @apply flex items-center gap-2 px-3 py-2.5 bg-[var(--bg-surface)]/30; }
+
+/* ── TasksTab.tsx ── */
+.tasks-tab-root { @apply space-y-4; }
+.tasks-toolbar { @apply flex items-center justify-between gap-3 flex-wrap; }
+.tasks-progress-summary { @apply flex items-center gap-3; }
+.tasks-toolbar-controls { @apply flex items-center gap-2 flex-wrap; }
+.kanban-board { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3; }
+.kanban-column { @apply rounded-xl p-2.5 min-h-[120px] transition border; }
+.kanban-column-header { @apply flex items-center justify-between px-1 mb-2; }
+.kanban-column-cards { @apply space-y-2; }
+.kanban-task-card { @apply rounded-lg border bg-[var(--bg-card)] p-2.5 cursor-grab active:cursor-grabbing hover:border-[var(--primary)]/40 transition; }
+.task-card-labels { @apply flex items-center gap-1 mb-1 flex-wrap; }
+.task-card-meta { @apply flex items-center gap-1.5 mt-1.5 flex-wrap; }
+.gantt-chart-wrap { @apply p-4; }
+.gantt-ticks { @apply relative h-5 mb-2 border-b border-[var(--border)]; }
+.gantt-bars { @apply relative space-y-1.5; }
+.gantt-today-line { @apply absolute top-0 bottom-0 w-px bg-red-500/60 z-10; }
+.gantt-task-row { @apply relative h-7 flex items-center; }
+.gantt-task-bar { @apply absolute h-5 rounded opacity-85 hover:opacity-100 cursor-pointer flex items-center px-1.5 overflow-hidden; }
+.comment-header { @apply flex items-center gap-2 text-[11px] text-[var(--text-dim)]; }
+.comment-reply-row { @apply flex items-center gap-1.5 mt-1.5; }
+.task-comments-thread { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/40 px-4 py-1.5 max-h-[38vh] overflow-y-auto; }
+.task-comment-input-row { @apply flex items-center gap-1.5 mt-2; }
+.task-form-modal-backdrop { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4; }
+.task-form-modal-panel { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto; }
+.task-form-modal-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-center justify-between; }
+.task-view-body { @apply p-5 space-y-4; }
+.task-view-labels { @apply flex items-center gap-1.5 flex-wrap; }
+.task-view-meta { @apply flex items-center gap-x-4 gap-y-1.5 flex-wrap text-xs text-[var(--text-muted)]; }
+.task-view-footer { @apply px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2; }
+.task-edit-body { @apply p-5 space-y-3; }
+.assignee-dropdown { @apply relative; }
+.assignee-dropdown-menu { @apply absolute z-40 mt-1 w-full max-h-52 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl p-1.5; }
+.label-maker-row { @apply flex items-center gap-1.5 mb-2 p-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]/50; }
+.label-chips-row { @apply flex items-center gap-1.5 flex-wrap; }
+.attachment-upload-controls { @apply flex items-center gap-2 mb-2; }
+.attachment-edit-grid { @apply grid grid-cols-3 gap-2; }
+.task-edit-footer { @apply px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2; }
+.task-lightbox-overlay { @apply fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4; }
+.projecthub-page { @apply space-y-6; }
+.projecthub-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.search-input-wrap { @apply relative flex-1 max-w-[320px]; }
+.mine-scope-toggle { @apply flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden text-[13px] font-semibold shrink-0; }
+.sort-control { @apply flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden; }
+.type-filter-chips { @apply flex flex-wrap gap-1.5; }
+.projecthub-summary-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.receivables-rollup { @apply p-4 flex items-center gap-4 flex-wrap border border-[var(--danger)]/30 bg-[var(--danger)]/5; }
+.project-card-grid { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4; }
+.project-card { @apply p-4 cursor-pointer transition hover:-translate-y-0.5 hover:border-[var(--primary)] flex flex-col gap-2.5; }
+.project-form-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
+.project-form-modal-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-center justify-between; }
+.project-type-step { @apply p-5 space-y-3; }
+.project-type-option { @apply text-left px-4 py-3 rounded-xl border transition; }
+.project-form-fields { @apply p-5 space-y-3; }
+.partner-search-field { @apply relative; }
+.partner-search-dropdown { @apply absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg; }
+.margin-type-fields { @apply grid grid-cols-2 gap-3; }
+.goal-kpi-drafts { @apply space-y-2; }
+.kpi-draft-row { @apply rounded-xl border border-[var(--border)] p-2.5 space-y-2 bg-[var(--bg-surface)]/40; }
+.project-date-fields { @apply grid grid-cols-2 gap-3; }
+.project-form-modal-footer { @apply px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2; }
+.delete-project-modal { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4; }
+.delete-project-modal-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-center justify-between; }
+.delete-project-modal-body { @apply p-5 space-y-3; }
+.delete-project-modal-footer { @apply px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2; }
+.dim-table-wrap { @apply overflow-x-auto; }
+.perf-dashboard-panel { @apply p-5 space-y-4 border-2 border-[var(--primary)]/20; }
+.perf-dashboard-header { @apply flex items-center justify-between gap-2; }
+.perf-view-toggle { @apply flex-wrap max-w-full; }
+.perf-dashboard-empty { @apply p-10 text-center text-sm text-[var(--text-muted)]; }
+.briefing-table-wrap { @apply overflow-x-auto; }
+.perf-multi-dim-view { @apply space-y-4; }
+.people-table-wrap { @apply overflow-x-auto; }
+.teams-table-wrap { @apply overflow-x-auto; }
+.dept-table-wrap { @apply overflow-x-auto; }
+.perf-rate-view { @apply space-y-3; }
+.perf-rate-summary { @apply flex items-center gap-3; }
+.perf-rate-row { @apply rounded-xl bg-[var(--bg-surface)] p-3 flex items-center justify-between gap-3; }
+.transactions-ledger { @apply space-y-3; }
+.subdeals-toolbar { @apply flex items-center justify-between gap-2 flex-wrap; }
+.subdeals-table-wrap { @apply overflow-x-auto; }
+.subdeals-row-editing { @apply bg-[var(--bg-surface)]/40; }
+.subdeals-row { @apply hover:bg-[var(--bg-surface)]/50; }
+.subdeals-add-row { @apply bg-[var(--bg-surface)]/20; }
+.subdeals-totals-row { @apply bg-[var(--bg-surface)]/60; }
+.subdeals-campaign-toggle { @apply flex items-center gap-2 text-[11px] text-[var(--text-muted)] cursor-pointer; }
+.subdeals-partner-dropdown { @apply absolute z-20 mt-1 w-full max-h-48 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg; }
+.subdeals-sign-toggle { @apply flex rounded-lg overflow-hidden border border-[var(--border)] shrink-0; }
+.goal-overview { @apply space-y-5; }
+.goal-overview-hero { @apply p-5 flex flex-wrap items-center gap-6; }
+.goal-overview-hero-info { @apply flex-1 min-w-[200px] space-y-2; }
+.goal-overview-status-row { @apply flex items-center gap-2; }
+.goal-overview-pace-warning { @apply text-xs; }
+.goal-overview-period-progress-header { @apply flex items-center justify-between text-[11px] text-[var(--text-muted)] mb-1; }
+.goal-overview-alerts-grid { @apply grid gap-5 sm:grid-cols-2; }
+.goal-overview-issues-card { @apply p-4; }
+.goal-overview-issues-header { @apply flex items-center justify-between mb-3; }
+.goal-overview-issues-list { @apply space-y-1.5; }
+.goal-overview-issue-row { @apply flex items-center gap-2 text-xs; }
+.goal-overview-tasks-card { @apply p-4; }
+.goal-overview-tasks-header { @apply flex items-center justify-between mb-3; }
+.goal-overview-tasks-list { @apply space-y-1.5; }
+.goal-overview-task-row { @apply flex items-center gap-2 text-xs; }
+.goal-overview-kpi-grid { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3; }
+.goal-overview-kpi-card { @apply p-4; }
+.goal-overview-kpi-card-header { @apply flex items-center justify-between gap-2 mb-1; }
+.goal-overview-kpi-card-values { @apply flex items-end justify-between gap-2 mb-1.5; }
+.goal-overview-trend-card { @apply p-4; }
+.goal-overview-trend-header { @apply flex items-center justify-between gap-2 mb-4; }
+.goal-overview-analysis-grid { @apply grid gap-5 lg:grid-cols-3; }
+.goal-overview-breakdown-card { @apply p-4; }
+.goal-overview-breakdown-header { @apply flex items-center justify-between gap-2 mb-4 flex-wrap; }
+.goal-overview-contribution-card { @apply p-4; }
+.goal-overview-contribution-header { @apply flex items-center justify-between gap-2 mb-4 flex-wrap; }
+.goal-overview-checkin-card { @apply p-4; }
+.goal-overview-checkin-note { @apply mt-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)] pt-2 space-y-0.5; }
+.issues-tab { @apply space-y-3; }
+.issues-toolbar { @apply flex items-center justify-between gap-2 flex-wrap; }
+.issues-loading-state { @apply p-10 text-center text-sm text-[var(--text-muted)]; }
+.issues-empty-state { @apply p-10 text-center text-sm text-[var(--text-muted)]; }
+.issues-table-wrap { @apply overflow-x-auto; }
+.issues-row { @apply hover:bg-[var(--bg-surface)]/50; }
+.issues-modal-overlay { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.issues-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[88vh] overflow-y-auto; }
+.issues-modal-header { @apply flex items-center justify-between mb-4; }
+.issues-modal-footer { @apply flex items-center justify-between gap-2.5 mt-5; }
+.goal-hero-empty { @apply p-8 text-center text-sm text-[var(--text-muted)]; }
+.goal-hero { @apply grid gap-5 lg:grid-cols-3; }
+.goal-hero-main { @apply lg:col-span-2 space-y-4 lg:order-1; }
+.goal-hero-pace-warning { @apply p-4 flex items-start gap-3; }
+.goal-hero-kpi-list { @apply space-y-3; }
+.goal-hero-kpi-card { @apply p-4 space-y-2; }
+.goal-hero-kpi-card-header { @apply flex items-center justify-between gap-2 flex-wrap; }
+.goal-hero-kpi-gauge-track { @apply h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.goal-hero-kpi-gauge-fill { @apply h-full rounded-full transition-all; }
+.goal-hero-kpi-card-footer { @apply flex items-center justify-between text-[11px] text-[var(--text-dim)]; }
+.goal-hero-auto-note { @apply text-[11px] text-[var(--text-dim)]; }
+.goal-hero-summary { @apply space-y-4 lg:order-2; }
+.goal-hero-summary-achievement { @apply px-4 py-3; }
+.goal-hero-summary-status { @apply px-4 py-3; }
+.goal-hero-summary-count { @apply px-4 py-3; }
+.quotes-page { @apply space-y-6; }
+.quotes-toolbar { @apply flex flex-wrap items-center justify-end gap-2; }
+.quotes-table-wrap { @apply overflow-hidden; }
+.quotes-empty-state { @apply py-16 px-6 flex flex-col items-center justify-center text-center gap-2; }
+.quotes-table-scroll { @apply overflow-auto max-h-[640px]; }
+.quotes-row { @apply border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50; }
+.quote-create-modal-overlay { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.quote-create-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6; }
+.quote-create-modal-header { @apply flex items-center justify-between mb-4; }
+.quote-create-mode-toggle { @apply flex gap-2 mb-3; }
+.quote-create-modal-footer { @apply flex items-center justify-end gap-2.5 mt-5; }

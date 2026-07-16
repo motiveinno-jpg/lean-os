@@ -111,19 +111,19 @@ export function GoalHero({ deal }: { deal: any }) {
 
   if ((kpis as Kpi[]).length === 0) {
     return (
-      <div className="goal-hero-empty glass-card p-8 text-center text-sm text-[var(--text-muted)]">
+      <div className="goal-hero-empty glass-card">
         등록된 KPI가 없습니다. <b className="text-[var(--text)]">성과</b> 탭에서 KPI를 추가하면 목표·실적·달성률이 여기에 표시됩니다.
       </div>
     );
   }
 
   return (
-    <div className="goal-hero grid gap-5 lg:grid-cols-3">
+    <div className="goal-hero">
       {/* 좌 2/3 — 페이스 경고 + KPI 패널 */}
-      <div className="goal-hero-main lg:col-span-2 space-y-4 lg:order-1">
+      <div className="goal-hero-main">
       {/* 페이스 경고 (대표 KPI) */}
       {worstPace && (
-        <div className={`goal-hero-pace-warning glass-card p-4 flex items-start gap-3 ${worstPace.tone === "danger" ? "border border-red-500/30" : worstPace.tone === "warn" ? "border border-amber-500/30" : ""}`}>
+        <div className={`goal-hero-pace-warning glass-card ${worstPace.tone === "danger" ? "border border-red-500/30" : worstPace.tone === "warn" ? "border border-amber-500/30" : ""}`}>
           <div className="flex-1">
             <div className={`text-sm font-semibold ${paceColor}`}>
               {worst && <span className="text-[var(--text-muted)] font-normal">[{worst.k.label}] </span>}{worstPace.message}
@@ -140,13 +140,13 @@ export function GoalHero({ deal }: { deal: any }) {
       )}
 
       {/* KPI 패널 — 목표/실적/달성률 게이지 */}
-      <div className="goal-hero-kpi-list space-y-3">
+      <div className="goal-hero-kpi-list">
         {rows.map(({ k, actual, ach }) => {
           const pct = ach == null ? null : Math.round(ach * 100);
           const gaugeColor = pct == null ? "bg-[var(--text-dim)]" : pct >= 100 ? "bg-green-500" : pct >= 70 ? "bg-[var(--primary)]" : pct >= 40 ? "bg-amber-500" : "bg-red-500";
           return (
-            <div key={k.id} className="goal-hero-kpi-card glass-card p-4 space-y-2">
-              <div className="goal-hero-kpi-card-header flex items-center justify-between gap-2 flex-wrap">
+            <div key={k.id} className="goal-hero-kpi-card glass-card">
+              <div className="goal-hero-kpi-card-header">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-[var(--text)]">{k.label}</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{k.direction === "down" ? "낮을수록 좋음" : "높을수록 좋음"}</span>
@@ -154,10 +154,10 @@ export function GoalHero({ deal }: { deal: any }) {
                 </div>
                 <span className={`text-sm font-bold mono-number ${pct == null ? "text-[var(--text-dim)]" : pct >= 100 ? "text-[var(--primary)]" : pct < 40 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{pct == null ? "—" : `${pct}%`}</span>
               </div>
-              <div className="goal-hero-kpi-gauge-track h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                <div className={`goal-hero-kpi-gauge-fill h-full rounded-full transition-all ${gaugeColor}`} style={{ width: `${Math.min(100, pct || 0)}%` }} />
+              <div className="goal-hero-kpi-gauge-track">
+                <div className={`goal-hero-kpi-gauge-fill ${gaugeColor}`} style={{ width: `${Math.min(100, pct || 0)}%` }} />
               </div>
-              <div className="goal-hero-kpi-card-footer flex items-center justify-between text-[11px] text-[var(--text-dim)]">
+              <div className="goal-hero-kpi-card-footer">
                 <span>실적 <b className="text-[var(--text-muted)] mono-number">{fmtNum(actual, k.unit)}</b></span>
                 <span>목표 <b className="text-[var(--text-muted)] mono-number">{Number(k.target_value) > 0 ? fmtNum(Number(k.target_value), k.unit) : "—"}</b></span>
               </div>
@@ -167,26 +167,26 @@ export function GoalHero({ deal }: { deal: any }) {
       </div>
 
       {hasAuto && (
-        <p className="goal-hero-auto-note text-[11px] text-[var(--text-dim)]">※ ‘매출 자동’ KPI는 <b className="text-[var(--text-muted)]">매출 세금계산서(공급가액, 무효 제외)</b>를 자동 집계합니다.</p>
+        <p className="goal-hero-auto-note">※ ‘매출 자동’ KPI는 <b className="text-[var(--text-muted)]">매출 세금계산서(공급가액, 무효 제외)</b>를 자동 집계합니다.</p>
       )}
       </div>
 
       {/* 우 1/3 — 종합 요약 위젯(달성률·신호등·KPI 수) */}
-      <div className="goal-hero-summary space-y-4 lg:order-2">
-        <div className="goal-hero-summary-achievement glass-card px-4 py-3">
+      <div className="goal-hero-summary">
+        <div className="goal-hero-summary-achievement glass-card">
           <div className="text-[11px] text-[var(--text-muted)]">종합 달성률 <span className="text-[var(--text-dim)]">(KPI 평균)</span></div>
           <div className={`text-base font-bold mono-number mt-0.5 ${overallPct == null ? "text-[var(--text-dim)]" : overallPct >= 100 ? "text-[var(--primary)]" : overallPct < 40 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
             {overallPct == null ? "—" : `${overallPct}%`}
           </div>
         </div>
-        <div className="goal-hero-summary-status glass-card px-4 py-3">
+        <div className="goal-hero-summary-status glass-card">
           <div className="text-[11px] text-[var(--text-muted)]">종합 상태 <span className="text-[var(--text-dim)]">(최신 체크인)</span></div>
           <div className={`text-base font-bold mt-0.5 flex items-center gap-1.5 ${sm.text}`}>
             <span className={`inline-block w-2.5 h-2.5 rounded-full ${sm.dot}`} />
             {sm.label}
           </div>
         </div>
-        <div className="goal-hero-summary-count glass-card px-4 py-3">
+        <div className="goal-hero-summary-count glass-card">
           <div className="text-[11px] text-[var(--text-muted)]">KPI 수</div>
           <div className="text-base font-bold mono-number mt-0.5 text-[var(--text)]">{(kpis as Kpi[]).length}개</div>
         </div>

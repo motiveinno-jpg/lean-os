@@ -358,12 +358,12 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const [subTab, setSubTab] = useState<"checkin" | "plan" | "entries" | "setup">("checkin");
 
   return (
-    <div className="performance-tab space-y-5">
+    <div className="performance-tab">
       {/* 이번 주 체크인 프롬프트 — 배정 멤버/관리자가 이번 주기 미제출 시 */}
       {showCheckinPrompt && (
         <button
           onClick={() => { setSubTab("checkin"); setTimeout(() => document.getElementById("checkin-form")?.scrollIntoView({ behavior: "smooth", block: "center" }), 50); }}
-          className="checkin-prompt-banner w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30 text-left hover:bg-[var(--primary)]/15 transition"
+          className="checkin-prompt-banner"
         >
           <div className="flex items-center gap-3">
             <span className="text-xl">📝</span>
@@ -385,9 +385,9 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
 
       {subTab === "setup" && (<>
       {/* 성과 운영 — 체크인 주기 + 멤버 배정 */}
-      <section className="ops-settings-section space-y-3">
+      <section className="ops-settings-section">
         <h3 className="text-sm font-bold text-[var(--text)]">성과 운영 <span className="font-normal text-[var(--text-dim)] text-xs">(체크인 주기 · 멤버 배정)</span></h3>
-        <div className="ops-settings-card glass-card p-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="ops-settings-card glass-card">
           {/* 체크인 주기 */}
           <div className="checkin-cadence-panel">
             <div className="text-xs font-bold text-[var(--text-muted)] mb-2">체크인 주기</div>
@@ -445,9 +445,9 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
       </section>
 
       {/* ① KPI 관리 */}
-      <section className="kpi-management-section space-y-3">
+      <section className="kpi-management-section">
         <h3 className="text-sm font-bold text-[var(--text)]">KPI 관리 <span className="font-normal text-[var(--text-dim)] text-xs">(목표 정의)</span></h3>
-        <div className="kpi-form-card glass-card p-4">
+        <div className="kpi-form-card glass-card">
           <div className="text-xs font-bold text-[var(--text-muted)] mb-3">{kpiForm.id ? "KPI 수정" : "+ KPI 추가"}</div>
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
             <div className="sm:col-span-2">
@@ -512,7 +512,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
                   const ach = getKpiAchievement(Number(k.target_value || 0), actual, k.direction);
                   const pct = ach == null ? null : Math.round(ach * 100);
                   return (
-                    <tr key={k.id} className="kpi-row hover:bg-[var(--bg-surface)]/50">
+                    <tr key={k.id} className="kpi-row">
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40">
                         <span className="text-[var(--text)] font-medium">{k.label}</span>
                         <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{k.direction === "down" ? "↓좋음" : "↑좋음"}</span>
@@ -538,7 +538,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
       </>)}
 
       {subTab === "entries" && (
-      <section className="kpi-entries-section space-y-3">
+      <section className="kpi-entries-section">
         <h3 className="text-sm font-bold text-[var(--text)]">실적 입력 <span className="font-normal text-[var(--text-dim)] text-xs">(수동 KPI · 매출 자동은 세금계산서에서 집계)</span></h3>
         {manualKpis.length === 0 ? (
           <div className="glass-card p-6 text-center text-sm text-[var(--text-muted)]">
@@ -546,7 +546,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
           </div>
         ) : (
           <>
-            <div className="kpi-entry-form-card glass-card p-4">
+            <div className="kpi-entry-form-card glass-card">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-3">{editEntryId ? "실적 수정" : "+ 실적 추가"}</div>
               <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
                 <div className="sm:col-span-2">
@@ -599,7 +599,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
                   {(entries as Entry[]).filter((e) => manualKpis.some((k) => k.id === e.kpi_id)).length === 0 ? (
                     <tr><td colSpan={6} className="p-8 text-center text-sm text-[var(--text-muted)]">실적 기록이 없습니다. 위에서 추가하세요.</td></tr>
                   ) : (entries as Entry[]).filter((e) => manualKpis.some((k) => k.id === e.kpi_id)).map((e) => (
-                    <tr key={e.id} className="kpi-entry-row hover:bg-[var(--bg-surface)]/50">
+                    <tr key={e.id} className="kpi-entry-row">
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 mono-number text-[var(--text-muted)]">{String(e.entry_date).slice(0, 10)}</td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text)]">{kpiLabel(e.kpi_id)}</td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text-muted)]">{deptName(e.department_id)}</td>
@@ -621,11 +621,11 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
       )}
 
       {subTab === "checkin" && (
-      <section className="checkin-section space-y-3">
+      <section className="checkin-section">
         <h3 className="text-sm font-bold text-[var(--text)]">성과 체크인 <span className="font-normal text-[var(--text-dim)] text-xs">(신호등 + 3문항 · 작성 시점 KPI 달성률 자동 기록)</span></h3>
-        <div id="checkin-form" className="checkin-form-card glass-card p-4 space-y-3 scroll-mt-24">
+        <div id="checkin-form" className="checkin-form-card glass-card">
           {cadence !== "none" && (
-            <div className={`checkin-period-status flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs ${mySubmittedThisPeriod ? "bg-green-500/10 text-green-600" : "bg-amber-500/10 text-amber-600"}`}>
+            <div className={`checkin-period-status ${mySubmittedThisPeriod ? "bg-green-500/10 text-green-600" : "bg-amber-500/10 text-amber-600"}`}>
               <span>이번 주기 <b>{periodLabel(curPeriod, cadence)}</b>{curDue && <> · 마감 {curDue}</>}</span>
               <span className="font-semibold">{mySubmittedThisPeriod ? "✓ 제출 완료" : "미제출"}</span>
             </div>
@@ -664,8 +664,8 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
             <textarea value={chkDid} onChange={(e) => setChkDid(e.target.value)} rows={2} placeholder="한 일·달성한 것·특이사항 한두 줄" className={`${IN} resize-y`} />
           </div>
           {/* 이슈·다음 계획은 재입력하지 않고 구조화 탭(이슈/실행)을 연결 */}
-          <div className="checkin-context-grid grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="open-issues-panel rounded-lg border border-[var(--border)] p-3">
+          <div className="checkin-context-grid">
+            <div className="open-issues-panel">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-[var(--text-muted)]">🚧 열린 이슈 <span className="text-[var(--danger)]">{(chkOpenIssues as any[]).length}</span></span>
                 <button onClick={() => onGoTab?.("issues")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ 이슈 등록 →</button>
@@ -681,7 +681,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
                 </div>
               )}
             </div>
-            <div className="open-tasks-panel rounded-lg border border-[var(--border)] p-3">
+            <div className="open-tasks-panel">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-[var(--text-muted)]">➡️ 진행/예정 과제 <span className="text-[var(--primary)]">{(chkOpenTasks as any[]).length}</span></span>
                 <button onClick={() => setSubTab("plan")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ 실행 계획 →</button>
@@ -714,7 +714,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
               const sm = STATUS_META[u.status] || STATUS_META.green;
               const snap = Array.isArray(u.kpi_snapshot) ? u.kpi_snapshot : [];
               return (
-                <div key={u.id} className="checkin-timeline-item glass-card p-4">
+                <div key={u.id} className="checkin-timeline-item glass-card">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`inline-block w-2.5 h-2.5 rounded-full ${sm.dot}`} />
@@ -809,12 +809,12 @@ function ExecutionPlan({ dealId, companyId, users, userId }: { dealId: string; c
   const doneN = (tasks as any[]).filter((t) => t.status === "done").length;
 
   return (
-    <section className="execution-plan-section space-y-3">
+    <section className="execution-plan-section">
       <div className="flex items-center gap-2">
         <h3 className="text-sm font-bold text-[var(--text)]">실행 계획 <span className="font-normal text-[var(--text-dim)] text-xs">목표 달성을 위한 할 일 · 체크로 완료</span></h3>
         {(tasks as any[]).length > 0 && <span className="text-[11px] text-[var(--text-muted)] mono-number">{doneN}/{(tasks as any[]).length}</span>}
       </div>
-      <div className="execution-plan-list glass-card divide-y divide-[var(--border)]/40">
+      <div className="execution-plan-list glass-card">
         {isLoading ? (
           <div className="p-6 text-center text-sm text-[var(--text-muted)]">불러오는 중…</div>
         ) : sorted.length === 0 ? (
@@ -823,7 +823,7 @@ function ExecutionPlan({ dealId, companyId, users, userId }: { dealId: string; c
           const overdue = t.due_date && t.status !== "done" && String(t.due_date).slice(0, 10) < today;
           const aid = Array.isArray(t.assignee_ids) && t.assignee_ids[0] ? t.assignee_ids[0] : t.assignee_id;
           return (
-            <div key={t.id} className="execution-plan-row flex items-center gap-2.5 px-3 py-2.5">
+            <div key={t.id} className="execution-plan-row">
               <button onClick={() => toggle(t)} className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${t.status === "done" ? "bg-[var(--success)] border-[var(--success)] text-white" : "border-[var(--border)] hover:border-[var(--primary)]"}`} title={t.status === "done" ? "완료 해제" : "완료로 표시"}>
                 {t.status === "done" && <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
               </button>
@@ -835,7 +835,7 @@ function ExecutionPlan({ dealId, companyId, users, userId }: { dealId: string; c
           );
         })}
         {/* 인라인 추가 */}
-        <div className="execution-plan-add-row flex items-center gap-2 px-3 py-2.5 bg-[var(--bg-surface)]/30">
+        <div className="execution-plan-add-row">
           <span className="w-5 h-5 rounded-md border border-dashed border-[var(--border)] shrink-0" />
           <input value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder="＋ 할 일 입력…"
             className="flex-1 h-8 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />

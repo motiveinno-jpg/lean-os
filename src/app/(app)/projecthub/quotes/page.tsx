@@ -51,24 +51,24 @@ export default function QuotesPage() {
   });
 
   return (
-    <div className="quotes-page space-y-6">
-      <div className="quotes-toolbar page-sticky-header flex flex-wrap items-center justify-end gap-2">
+    <div className="quotes-page">
+      <div className="quotes-toolbar page-sticky-header">
         <button onClick={() => setShowCreate(true)}
           className="btn-primary shrink-0">+ 견적서 작성</button>
       </div>
 
-      <div className="quotes-table-wrap glass-card overflow-hidden">
+      <div className="quotes-table-wrap glass-card">
         {isLoading ? (
           <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : quotes.length === 0 ? (
-          <div className="quotes-empty-state py-16 px-6 flex flex-col items-center justify-center text-center gap-2">
+          <div className="quotes-empty-state">
             <div className="text-4xl mb-1">🧾</div>
             <div className="text-sm font-semibold text-[var(--text)]">아직 견적서가 없습니다</div>
             <div className="text-xs text-[var(--text-muted)]">“+ 견적서 작성”으로 첫 견적서를 만들어 보세요.</div>
             <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 견적서 작성</button>
           </div>
         ) : (
-          <div className="quotes-table-scroll overflow-auto max-h-[640px]">
+          <div className="quotes-table-scroll">
             <table className="w-full text-xs border-collapse" style={{ minWidth: 760 }}>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[var(--bg-card)] text-xs font-semibold text-[var(--text-dim)] border-b border-[var(--border)]">
@@ -83,7 +83,7 @@ export default function QuotesPage() {
               </thead>
               <tbody>
                 {quotes.map((q) => (
-                  <tr key={q.id} className="quotes-row border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
+                  <tr key={q.id} className="quotes-row">
                     <td className="px-3 py-3 mono-number text-[var(--text-muted)] text-[11px]">{q.document_number || fmtDate(q.created_at)}</td>
                     <td className="px-3 py-3 text-[var(--text)] font-medium">{q.name || "(이름 없음)"}</td>
                     <td className="px-3 py-3 text-[var(--text-muted)] truncate">
@@ -172,15 +172,15 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
   useModalKeys(true, onClose, busy ? undefined : create);
 
   return (
-    <div className="quote-create-modal-overlay fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="quote-create-modal bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="quote-create-modal-header flex items-center justify-between mb-4">
+    <div className="quote-create-modal-overlay" onClick={onClose}>
+      <div className="quote-create-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="quote-create-modal-header">
           <h3 className="text-base font-bold">견적서 작성</h3>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
 
         {/* 프로젝트 모드 */}
-        <div className="quote-create-mode-toggle flex gap-2 mb-3">
+        <div className="quote-create-mode-toggle">
           <button onClick={() => setMode("existing")} className={`flex-1 h-9 rounded-lg text-xs font-semibold border transition ${mode === "existing" ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}>기존 프로젝트</button>
           <button onClick={() => setMode("new")} className={`flex-1 h-9 rounded-lg text-xs font-semibold border transition ${mode === "new" ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}>새 프로젝트</button>
         </div>
@@ -208,7 +208,7 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
         <input value={quoteName} onChange={(e) => setQuoteName(e.target.value)} placeholder="비우면 프로젝트명 + 견적서"
           className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
 
-        <div className="quote-create-modal-footer flex items-center justify-end gap-2.5 mt-5">
+        <div className="quote-create-modal-footer">
           <button onClick={onClose} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)]">취소</button>
           <button onClick={create} disabled={busy} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110">{busy ? "생성 중..." : "생성 후 작성"}</button>
         </div>
