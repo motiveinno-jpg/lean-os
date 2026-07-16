@@ -106,6 +106,15 @@ export async function createCompanyWithOwner(
     return { ok: false, error: userErr.message };
   }
 
+  // 2026-07-16 QA: 대표는 companies+users 만 생성되고 employees 행이 없어 구성원
+  //   디렉토리에 본인이 안 보이던 버그. "기존 회원을 직원으로 추가"는 본인 추가를
+  //   명시적으로 막아둬서(api/add-existing-employee) 대표가 스스로를 넣을 방법이
+  //   UI 에 없었음 — 가입 시점에 바로 employees 행을 만들어준다.
+  await db.from("employees").insert({
+    company_id: companyId, user_id: authId, name: displayName, email,
+    position: "대표", hire_date: new Date().toISOString().slice(0, 10), status: "joined",
+  });
+
   await db.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });
   // 트라이얼은 활성 'free'(이름 "14일 무료체험") 플랜으로 — 'starter' 는 비활성이라
   //   billing 요금제 탭에서 현재플랜 뱃지·사용량 한도가 매칭 안 됐음 (2026-07-06 QA)
