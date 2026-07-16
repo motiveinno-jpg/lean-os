@@ -264,14 +264,19 @@ export default function BillingPage() {
         return;
       }
       if (!subscription?.id) return;
-      await db.from('subscriptions').update({
-        status: 'canceled',
-        cancel_reason: '사용자 다운그레이드 (Free)',
-        canceled_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq('id', subscription.id);
-      qc.invalidateQueries({ queryKey: ['subscription'] });
-      toast("Free 플랜으로 변경되었습니다.", "success");
+      try {
+        const res = await fetch('/api/stripe/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: '사용자 다운그레이드 (Free)', immediate: true }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error?.message || 'Free 전환 실패');
+        qc.invalidateQueries({ queryKey: ['subscription'] });
+        toast("Free 플랜으로 변경되었습니다.", "success");
+      } catch (err: any) {
+        toast(friendlyError(err, "Free 전환 중 오류가 발생했습니다."), "error");
+      }
       return;
     }
 
@@ -285,28 +290,20 @@ export default function BillingPage() {
     await handleStripeCheckout(slug);
   }
 
-  /** 구독 해지 모달 확인 */
+  /** 구독 해지 모달 확인 — 서버에서 Stripe 취소까지 수행(클라 DB 직접조작 금지) */
   async function handleCancelConfirm() {
     try {
-      if (subscription?.id) {
-        await db.from('subscriptions').update({
-          status: 'canceled',
-          cancel_reason: cancelReason || null,
-          canceled_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq('id', subscription.id);
-
-        await db.from('billing_events').insert({
-          company_id: companyId,
-          event_type: 'subscription_cancel',
-          metadata: { plan: currentSlug, reason: cancelReason },
-        });
-
-        qc.invalidateQueries({ queryKey: ['subscription'] });
-        toast("해지 요청이 접수되었습니다. 현재 결제 기간 종료 후 Free로 전환됩니다.", "success");
-      }
-    } catch {
-      toast("해지 처리 중 오류가 발생했습니다.", "error");
+      const res = await fetch('/api/stripe/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: cancelReason || null }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error?.message || '해지 처리 실패');
+      qc.invalidateQueries({ queryKey: ['subscription'] });
+      toast("해지 요청이 접수되었습니다. 현재 결제 기간 종료 후 Free로 전환됩니다.", "success");
+    } catch (err: any) {
+      toast(friendlyError(err, "해지 처리 중 오류가 발생했습니다."), "error");
     }
     setShowCancelModal(false);
   }
