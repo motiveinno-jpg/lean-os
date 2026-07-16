@@ -450,7 +450,7 @@ export default function VaultPage() {
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Toolbar — tabs + actions */}
-      <div className="vault-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2 mb-6">
+      <div className="vault-toolbar page-sticky-header">
         <div className="seg-bar">
           {TABS.map((t) => (
             <button
@@ -485,9 +485,9 @@ export default function VaultPage() {
 
       {/* ── Renewal & Duplicate Alerts ── */}
       {showAlerts && (visibleAlerts.length > 0 || duplicateGroups.length > 0) && (
-        <div className="vault-alerts-panel mb-6 space-y-3">
+        <div className="vault-alerts-panel">
           {visibleAlerts.length > 0 && (
-            <div className={`vault-renewal-alert rounded-xl border p-4 ${
+            <div className={`vault-renewal-alert ${
               visibleAlerts.some((a) => a.level === "critical")
                 ? "bg-red-500/5 border-red-500/30"
                 : "bg-yellow-500/5 border-yellow-500/30"
@@ -573,7 +573,7 @@ export default function VaultPage() {
             </div>
           )}
           {duplicateGroups.length > 0 && (
-            <div className="vault-duplicate-alert rounded-xl border border-purple-500/30 bg-purple-500/5 p-4">
+            <div className="vault-duplicate-alert">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-base">🔍</span>
                 <div>
@@ -620,7 +620,7 @@ export default function VaultPage() {
 
       {/* 미사용 구독 경고 */}
       {tab === "accounts" && unusedAccounts.length > 0 && (
-        <div className="vault-unused-warning rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 mb-6 shadow-sm">
+        <div className="vault-unused-warning">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <span className="text-base">💤</span>
@@ -642,7 +642,7 @@ export default function VaultPage() {
       )}
 
       {/* Summary Cards — 자산 관리 스코프(자산·자동탐지)만. 구독은 '구독' 메뉴, 문서는 '파일보관함'으로 이동(2026-05-22)했으므로 제외해 혼란 방지. */}
-      <div className="vault-summary-cards grid grid-cols-2 gap-4 mb-6">
+      <div className="vault-summary-cards">
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">자산 가치</span>
@@ -671,7 +671,7 @@ export default function VaultPage() {
 
       {/* ── Account Form ── */}
       {showForm && tab === "accounts" && (
-        <div className="vault-account-form glass-card p-6 mb-4">
+        <div className="vault-account-form glass-card">
           <h3 className="section-title">{editingId ? "구독/계정 수정" : "구독/계정 추가"}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
@@ -737,7 +737,7 @@ export default function VaultPage() {
 
       {/* ── Asset Form ── */}
       {showForm && tab === "assets" && (
-        <div className="vault-asset-form glass-card p-6 mb-4">
+        <div className="vault-asset-form glass-card">
           <h3 className="section-title">{editingId ? "자산 수정" : "자산 추가"}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
@@ -814,7 +814,7 @@ export default function VaultPage() {
 
       {/* ── Doc Form ── */}
       {showForm && tab === "docs" && (
-        <div className="vault-doc-form glass-card p-6 mb-4">
+        <div className="vault-doc-form glass-card">
           <h3 className="section-title">{editingId ? "문서 수정" : "문서 추가"}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
@@ -888,7 +888,7 @@ export default function VaultPage() {
 
       {/* ═══ Accounts Tab ═══ */}
       {tab === "accounts" && (
-        <div className="vault-accounts-panel glass-card overflow-x-auto">
+        <div className="vault-accounts-panel glass-card">
           {!vault?.accounts?.length ? (
             <div className="py-16 px-6 text-center">
               <div className="text-5xl mb-4">🔐</div>
@@ -897,7 +897,7 @@ export default function VaultPage() {
               <button onClick={() => { setTab("accounts"); setShowForm(true); }} className="btn-primary mt-5">+ 계정 추가</button>
             </div>
           ) : (
-            <table className="vault-accounts-table w-full text-sm min-w-[700px]">
+            <table className="vault-accounts-table">
               <thead>
                 <tr className="border-b border-[var(--border)]">
                   <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">서비스</th>
@@ -1029,7 +1029,7 @@ export default function VaultPage() {
             const acquire = active.reduce((s, a) => s + Number(a.value || 0), 0);
             const book = active.reduce((s, a) => s + computeBookValue(a.value, a.purchase_date, a.useful_life_months).book, 0);
             return (
-              <div className="vault-asset-summary-cards grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+              <div className="vault-asset-summary-cards">
                 <div className="glass-card p-5 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 취득가</span>
@@ -1060,7 +1060,7 @@ export default function VaultPage() {
               </div>
             );
           })()}
-          <div className="vault-assets-panel glass-card overflow-x-auto">
+          <div className="vault-assets-panel glass-card">
           {!vault?.assets?.length ? (
             <div className="py-16 px-6 text-center">
               <div className="text-5xl mb-4">📦</div>
@@ -1069,7 +1069,7 @@ export default function VaultPage() {
               <button onClick={() => { setShowForm(true); setEditingId(null); setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); }} className="btn-primary mt-5">+ 자산 추가</button>
             </div>
           ) : (
-            <table className="vault-assets-table w-full text-sm min-w-[760px]">
+            <table className="vault-assets-table">
               <thead>
                 <tr className="border-b border-[var(--border)]">
                   <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">자산명</th>
@@ -1130,7 +1130,7 @@ export default function VaultPage() {
 
       {/* ═══ Docs Tab ═══ */}
       {tab === "docs" && (
-        <div className="vault-docs-panel glass-card overflow-x-auto">
+        <div className="vault-docs-panel glass-card">
           {!vault?.docs?.length ? (
             <div className="py-16 px-6 text-center">
               <div className="text-5xl mb-4">📄</div>
@@ -1138,7 +1138,7 @@ export default function VaultPage() {
               <div className="text-xs text-[var(--text-muted)]">중요 문서를 안전하게 보관하세요</div>
             </div>
           ) : (
-            <table className="vault-docs-table w-full text-sm min-w-[600px]">
+            <table className="vault-docs-table">
               <thead>
                 <tr className="border-b border-[var(--border)]">
                   <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">문서명</th>
@@ -1194,7 +1194,7 @@ export default function VaultPage() {
           <Link href="/subscriptions" className="text-[var(--primary)] font-semibold hover:underline">구독 목록</Link>
           에 추가됩니다.
         </div>
-        <div className="vault-discovery-panel glass-card overflow-hidden">
+        <div className="vault-discovery-panel glass-card">
           {!vault?.pendingDiscoveries?.length && !(vault as any)?.discovery?.length ? (
             <div className="py-16 px-6 text-center">
               <div className="text-5xl mb-4">🔍</div>
@@ -1262,7 +1262,7 @@ export default function VaultPage() {
         const u = usage[showAccessLogId] || {};
         const opens = (u.opens || []).slice().reverse();
         return (
-          <div className="vault-access-log-modal fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowAccessLogId(null)}>
+          <div className="vault-access-log-modal" onClick={() => setShowAccessLogId(null)}>
             <div className="glass-card w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
                 <div>

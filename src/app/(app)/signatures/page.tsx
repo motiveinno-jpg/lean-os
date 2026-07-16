@@ -296,7 +296,7 @@ export default function SignaturesDashboardPage() {
   return (
     <div className="space-y-6">
       {/* 툴바 — 탭 토글(서명 요청 / 양식 관리) + 액션 */}
-      <header className="signature-dashboard-toolbar page-sticky-header flex flex-wrap items-center justify-between gap-2">
+      <header className="signature-dashboard-toolbar page-sticky-header">
         <div className="signature-tab-toggle seg-bar">
           <button
             onClick={() => setSubTab("requests")}
@@ -312,7 +312,7 @@ export default function SignaturesDashboardPage() {
           </button>
         </div>
         {subTab === "requests" && (
-          <div className="signature-toolbar-actions flex items-center gap-2">
+          <div className="signature-toolbar-actions">
             <button
               onClick={() => setShowOrgBulkWizard(true)}
               className="btn-secondary"
@@ -331,7 +331,7 @@ export default function SignaturesDashboardPage() {
       </header>
 
       {subTab === "templates" && companyId && userId && (
-        <div className="signature-templates-panel space-y-6">
+        <div className="signature-templates-panel">
           {/* 온라인홍보사업 계약서·포기신청서 등 — "단체 일괄 발송"/"새 서명 요청"에서 실제 사용되는
               문서(documents 테이블) 원본을 여기서 바로 보고 수정. OrgBulkWizard/InviteModal 이 같은
               데이터(getDocuments)를 그대로 읽으므로 여기서 수정하면 발송 시 바로 반영됨. */}
@@ -360,7 +360,7 @@ export default function SignaturesDashboardPage() {
       {isManager && totalFailures > 0 && (
         <button
           onClick={() => setShowFailurePanel(true)}
-          className="signature-failure-alert w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/15 transition text-left"
+          className="signature-failure-alert"
           title="최근 7일간 이메일 발송에 실패한 건을 확인하고 재발송하세요"
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -377,7 +377,7 @@ export default function SignaturesDashboardPage() {
       )}
 
       {/* 상태 카운트 카드 */}
-      <div className="signature-status-cards grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="signature-status-cards">
         <button
           onClick={() => setStatusFilter("all")}
           className={`p-4 rounded-xl text-left transition ${
@@ -409,8 +409,8 @@ export default function SignaturesDashboardPage() {
       </div>
 
       {/* 검색 / 일괄 액션 */}
-      <div className="signature-search-bar flex items-center gap-2 flex-wrap">
-        <div className="signature-search-input-wrap relative flex-1 min-w-[200px]">
+      <div className="signature-search-bar">
+        <div className="signature-search-input-wrap">
           <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" strokeWidth={2} /><path strokeLinecap="round" strokeWidth={2} d="M21 21l-4.3-4.3" /></svg>
           <input
             value={search}
@@ -462,11 +462,11 @@ export default function SignaturesDashboardPage() {
       </div>
 
       {/* 서명 요청 카드 리스트 (시안) */}
-      <div className="signature-request-list space-y-3">
+      <div className="signature-request-list">
         {isLoading ? (
           <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : filtered.length === 0 ? (
-          <div className="signature-empty-state glass-card py-16 px-6 text-center">
+          <div className="signature-empty-state glass-card">
             <div className="text-5xl mb-4">✍️</div>
             <div className="text-base font-bold text-[var(--text)]">문서에 서명을 요청해보세요</div>
             <div className="text-xs text-[var(--text-muted)] mt-1.5">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
@@ -478,7 +478,7 @@ export default function SignaturesDashboardPage() {
             const expired = r.expires_at && new Date(r.expires_at) < new Date();
             const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
             return (
-              <div key={r.id} className="signature-request-row group glass-card p-5 flex items-start gap-4">
+              <div key={r.id} className="signature-request-row group glass-card">
                 <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} className="mt-1.5 accent-[var(--primary)] shrink-0" aria-label="선택" />
                 <span className="kpi-icon shrink-0">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
@@ -500,7 +500,7 @@ export default function SignaturesDashboardPage() {
                       <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="block w-full text-left text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate" title="계약서 보기">{r.title}</button>
                       {r.documents?.name && <div className="text-[10px] text-[var(--text-dim)] truncate">{r.documents.name}</div>}
                     </div>
-                    <div className="signature-request-actions flex items-center gap-1 shrink-0">
+                    <div className="signature-request-actions">
                       {canRemind && (
                         <button onClick={() => reminderMut.mutate(r.id)} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송">🔔</button>
                       )}
@@ -519,7 +519,7 @@ export default function SignaturesDashboardPage() {
                       )}
                     </div>
                   </div>
-                  <div className="signature-request-meta flex items-center gap-2 mt-2 flex-wrap">
+                  <div className="signature-request-meta">
                     <span className="inline-flex items-center gap-2 bg-[var(--bg-surface)]/60 rounded-lg px-2.5 py-1">
                       <span className="w-6 h-6 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-[10px] font-semibold shrink-0">{(r.signer_name || "?").slice(0, 1)}</span>
                       <span className="min-w-0">
@@ -551,7 +551,7 @@ export default function SignaturesDashboardPage() {
           const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
           const curPage = Math.min(page, totalPages);
           return (
-            <div className="signature-pagination-bar glass-card flex items-center justify-between px-4 py-3 text-xs">
+            <div className="signature-pagination-bar glass-card">
               <div className="text-[var(--text-muted)]">
                 전체 {filtered.length}건 중 {(curPage - 1) * pageSize + 1}–{Math.min(curPage * pageSize, filtered.length)}
               </div>
@@ -609,7 +609,7 @@ export default function SignaturesDashboardPage() {
 
       {/* PR-3: 서명본 보기 모달 (status='signed' 행) */}
       {viewSignedRow && (
-        <div className="signature-proof-modal fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setViewSignedRow(null)}>
+        <div className="signature-proof-modal" onClick={() => setViewSignedRow(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div>

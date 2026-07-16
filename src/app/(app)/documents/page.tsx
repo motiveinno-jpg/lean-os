@@ -453,13 +453,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   return (
     <div className="document-detail-view">
       {/* Header */}
-      <div className="document-detail-nav flex items-center gap-3 mb-3">
+      <div className="document-detail-nav">
         <button onClick={onBack} className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">
           &larr; 문서 목록
         </button>
       </div>
 
-      <div className="document-detail-header flex items-start justify-between mb-6">
+      <div className="document-detail-header">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-extrabold">{doc.name}</h1>
@@ -501,7 +501,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           </div>
         </div>
 
-        <div className="document-actions-bar flex gap-2">
+        <div className="document-actions-bar">
           <button
             onClick={async () => {
               if (!companyId) return;
@@ -753,7 +753,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       </div>
 
       {showApprovalForm && (
-        <div className="document-approval-form glass-card p-5 mb-6">
+        <div className="document-approval-form glass-card">
           <h3 className="text-sm font-bold text-[var(--text)] mb-3">문서 승인</h3>
           <textarea value={approvalComment} onChange={(e) => setApprovalComment(e.target.value)}
             placeholder="승인 코멘트 (선택)"
@@ -770,7 +770,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
       {/* Inline Share Email Input */}
       {showShareEmailInput && shareUrl && (
-        <div className="document-share-email-panel glass-card p-5 mb-6">
+        <div className="document-share-email-panel glass-card">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-[var(--text)]">공유 링크 생성 완료</h3>
             <button onClick={() => { setShowShareEmailInput(false); setShareUrl(""); }}
@@ -834,7 +834,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
       {/* Signature Request Form (multi-signer) */}
       {showSignRequestForm && (
-        <div className="signature-request-form glass-card p-5 mb-6">
+        <div className="signature-request-form glass-card">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-[var(--text)]">전자서명 요청 ({bulkSigners.length}명)</h3>
             <button
@@ -915,7 +915,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         const pendingCount = (docSignatures as any[]).filter((s) => s.status === "sent" || s.status === "viewed" || s.status === "pending").length;
         const pct = Math.round((signedCount / total) * 100);
         return (
-          <div className="signature-progress-panel glass-card p-4 mb-6">
+          <div className="signature-progress-panel glass-card">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <div className="flex items-center gap-3">
                 <h4 className="text-xs font-bold text-[var(--text-muted)]">서명 진행 ({signedCount}/{total})</h4>
@@ -1027,7 +1027,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       <ShareStatusPanel documentId={id} />
 
       {/* Tabs */}
-      <div className="document-detail-tabs seg-bar mb-6">
+      <div className="document-detail-tabs seg-bar">
         {(
           [
             { key: "content" as const, label: "내용" },
@@ -1057,7 +1057,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
           {/* ── 품목 편집 테이블 (회사별 컬럼 커스터마이징) ── */}
           {((contentType === 'invoice' || contentType === 'quote') || (contentType === 'contract' && (editItems.length > 0 || (canEdit && isEditing)))) && (
-            <div className="document-items-table glass-card overflow-hidden p-4">
+            <div className="document-items-table glass-card">
               <QuoteItemsTable
                 items={editItems}
                 onChange={setEditItems}
@@ -1075,7 +1075,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           {savedModal && (() => {
             const issItems = editItems.filter((i: any) => i && (i.name || Number(i.supplyAmount)));
             return (
-              <div className="invoice-issue-modal fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={() => setSavedModal(false)}>
+              <div className="invoice-issue-modal" onClick={() => setSavedModal(false)}>
                 <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
                   <div className="text-base font-bold text-[var(--text)] mb-1">✅ 견적서가 저장되었습니다</div>
                   <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">매출 세금계산서를 <b className="text-[var(--text)]">견적서 품목대로</b> 발행할까요? (품목 {issItems.length}개)</p>
@@ -1105,7 +1105,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             const grand = supplyTotal + taxTotal - discountVal;
             const w = (n: number) => `₩${(Number(n) || 0).toLocaleString('ko')}`;
             return (
-              <div ref={previewRef} className="quote-preview-panel glass-card overflow-hidden scroll-mt-4">
+              <div ref={previewRef} className="quote-preview-panel glass-card">
                 <div className="px-5 py-3 border-b border-[var(--border)] text-xs text-[var(--text-dim)] font-medium">견적서 미리보기 (저장된 결과물)</div>
                 <div className="p-6 bg-white text-[#222]">
                   <div className="text-center text-2xl font-bold mb-5 tracking-[0.3em] text-[#222]">견 적 서</div>
@@ -1169,7 +1169,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
           {/* ── 결제조건 편집 테이블 (계약서) ── */}
           {contentType === 'contract' && editPaymentSchedule.length > 0 && (
-            <div className="contract-payment-schedule-table glass-card overflow-hidden">
+            <div className="contract-payment-schedule-table glass-card">
               <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
                 <span className="text-xs text-[var(--text-dim)] font-medium">결제조건</span>
                 {canEdit && (
@@ -1249,7 +1249,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           )}
 
           {/* ── 직인/서명 패널 ── */}
-          <div className="document-seal-panel glass-card p-5">
+          <div className="document-seal-panel glass-card">
             <div className="flex items-center gap-4 mb-3">
               <span className="text-xs font-bold text-[var(--text-dim)]">직인 / 서명</span>
               {(doc as any).seal_applied && (
@@ -1323,7 +1323,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
           {/* 문서 내용(마크다운 본문) — 견적/계산서는 헤더·품목으로 대체하므로 숨김 */}
           {!(contentType === 'invoice' || contentType === 'quote') && (
-          <div className="document-content-panel glass-card overflow-hidden">
+          <div className="document-content-panel glass-card">
             <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
               <span className="text-xs text-[var(--text-dim)] font-medium">문서 내용</span>
               <div className="flex items-center gap-2">
@@ -1385,7 +1385,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           )}
 
           {(canEdit || ((contentType === 'invoice' || contentType === 'quote') && !isLocked)) && (
-            <div className="document-save-bar flex items-center gap-3">
+            <div className="document-save-bar">
               <input value={comment} onChange={(e) => setComment(e.target.value)}
                 placeholder="변경 코멘트 (선택)"
                 className="flex-1 px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
@@ -1406,7 +1406,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       )}
 
       {tab === "revisions" && (
-        <div className="document-revisions-list glass-card overflow-hidden">
+        <div className="document-revisions-list glass-card">
           {revisions.length === 0 ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">수정 이력이 없습니다</div>
           ) : (
@@ -1435,7 +1435,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       )}
 
       {tab === "approvals" && (
-        <div className="document-approvals-list glass-card overflow-hidden">
+        <div className="document-approvals-list glass-card">
           {approvals.length === 0 ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">승인 기록이 없습니다</div>
           ) : (
@@ -1802,7 +1802,7 @@ function DocumentsPageInner() {
 
       {/* Doc Form */}
       {showDocForm && (
-        <div className="document-create-form glass-card p-6 mb-6">
+        <div className="document-create-form glass-card">
           <h3 className="section-title">새 문서 생성</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
@@ -1860,7 +1860,7 @@ function DocumentsPageInner() {
 
       {/* Invoice Form */}
       {showInvForm && (
-        <div className="invoice-create-form glass-card p-6 mb-6">
+        <div className="invoice-create-form glass-card">
           <h3 className="section-title">세금계산서 등록</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
@@ -1913,7 +1913,7 @@ function DocumentsPageInner() {
 
       {/* Documents List */}
       {tab === "docs" && (
-        <div className="document-list-table glass-card overflow-hidden">
+        <div className="document-list-table glass-card">
           {filteredDocuments.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">📄</div>
@@ -2002,9 +2002,9 @@ function DocumentsPageInner() {
 
       {/* Contracts Tab */}
       {tab === "contracts" && (
-        <div className="contract-tab-panel space-y-6">
+        <div className="contract-tab-panel">
           {/* 진행중 계약서 */}
-          <div className="contract-list-table glass-card overflow-hidden">
+          <div className="contract-list-table glass-card">
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <h2 className="text-sm font-bold">진행중 계약서</h2>
               <span className="text-xs text-[var(--text-dim)]">{contractDocuments.length}건</span>
@@ -2089,7 +2089,7 @@ function DocumentsPageInner() {
           </div>
 
           {/* 계약서 보관함 */}
-          <div className="contract-archive-panel glass-card overflow-hidden">
+          <div className="contract-archive-panel glass-card">
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold">계약서 보관함</h2>
@@ -2106,7 +2106,7 @@ function DocumentsPageInner() {
             </div>
 
             {showArchiveForm && (
-              <div className="contract-archive-form p-5 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+              <div className="contract-archive-form">
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">계약서명 *</label>
@@ -2203,7 +2203,7 @@ function DocumentsPageInner() {
             {contractArchives.length === 0 && !showArchiveForm ? (
               <div className="p-12 text-center text-sm text-[var(--text-muted)]">기존 계약서(임대차, 용역 등)를 스캔하여 등록하세요</div>
             ) : contractArchives.length > 0 && (
-              <div className="contract-archive-table overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
+              <div className="contract-archive-table"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
                   <tr className="table-head-row">
                     <th className="th-cell text-left">계약서명</th>
@@ -2256,7 +2256,7 @@ function DocumentsPageInner() {
 
       {/* Tax Invoices List */}
       {tab === "invoices" && (
-        <div className="invoice-list-table glass-card overflow-hidden">
+        <div className="invoice-list-table glass-card">
           {invoices.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4">🧾</div>
@@ -2322,9 +2322,9 @@ function DocumentsPageInner() {
 
       {/* ═══ Electronic Signature Tab ═══ */}
       {tab === "signatures" && (
-        <div className="signature-tab-panel space-y-6">
+        <div className="signature-tab-panel">
           {/* Signature Header Actions */}
-          <div className="signature-filter-bar flex items-center justify-between">
+          <div className="signature-filter-bar">
             <div className="flex gap-2">
               {([ { value: "all", label: "전체" }, ...SIGNATURE_STATUS ] as const).map((s) => (
                 <button
@@ -2350,7 +2350,7 @@ function DocumentsPageInner() {
 
           {/* Signature Request Form Modal */}
           {showSignForm && (
-            <div className="signature-create-form bg-[var(--bg-card)] rounded-2xl border border-indigo-500/20 p-6">
+            <div className="signature-create-form">
               <h3 className="text-sm font-bold mb-4 text-indigo-600">새 서명 요청</h3>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="col-span-2">
@@ -2410,7 +2410,7 @@ function DocumentsPageInner() {
           )}
 
           {/* Signature Requests List */}
-          <div className="signature-list-table glass-card overflow-hidden">
+          <div className="signature-list-table glass-card">
             {signatureRequests.length === 0 ? (
               <div className="p-16 text-center">
                 <svg className="w-12 h-12 mx-auto mb-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={1.2} viewBox="0 0 24 24">
@@ -2534,7 +2534,7 @@ function DocumentsPageInner() {
 
           {/* Signature Detail Panel */}
           {selectedSignature && (
-            <div className="signature-detail-panel glass-card p-6">
+            <div className="signature-detail-panel glass-card">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold">서명 상세 정보</h3>
                 <button
@@ -2854,9 +2854,9 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   ];
 
   return (
-    <div className="vault-layout flex flex-col md:flex-row gap-4 md:gap-6">
+    <div className="vault-layout">
       {/* Left: Folder Tree */}
-      <div className="vault-folder-tree w-full md:w-[240px] shrink-0">
+      <div className="vault-folder-tree">
         <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[var(--text)]">폴더</span>
@@ -2916,9 +2916,9 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
       </div>
 
       {/* Right: File list + Upload */}
-      <div className="vault-file-panel flex-1 space-y-4">
+      <div className="vault-file-panel">
         {/* Search + Category filter */}
-        <div className="vault-filter-bar flex gap-3">
+        <div className="vault-filter-bar">
           <div className="flex-1 relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -2950,7 +2950,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         />
 
         {/* File list */}
-        <div className="vault-file-list glass-card p-5">
+        <div className="vault-file-list glass-card">
           <FileList
             files={filteredFiles.map((f: any) => ({
               id: f.id,
@@ -2991,7 +2991,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
   const decisionColor: Record<string, string> = { approved: 'text-green-500', hold: 'text-yellow-500', rejected: 'text-red-500' };
 
   return (
-    <div className="share-status-panel glass-card p-4 mb-6">
+    <div className="share-status-panel glass-card">
       <h4 className="text-xs font-bold text-[var(--text-muted)] mb-3">공유 현황</h4>
       <div className="space-y-2">
         {activeShares.map((share: any) => {

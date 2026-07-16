@@ -740,7 +740,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
 
       {/* Employee Detail Panel — 중앙 모달 팝업(기존엔 목록 하단 인라인이라 멀리 떠서 안 보였음) */}
       {detailEmpId && (
-        <div className="employee-detail-overlay" onClick={() => setDetailEmpId(null)}>
+        <div className="employee-detail-overlay animate-fade-in" onClick={() => setDetailEmpId(null)}>
           <div className="w-full max-w-5xl my-6" onClick={(e) => e.stopPropagation()}>
             <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />
           </div>

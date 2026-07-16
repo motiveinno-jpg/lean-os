@@ -374,13 +374,13 @@ export function OrgBulkWizard({
 
   // ── 렌더 ──
   return (
-    <div className="bulk-wizard-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="bulk-wizard-modal">
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-h-[92vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 + 단계 인디케이터 */}
-        <div className="bulk-wizard-header flex items-center justify-between mb-5">
+        <div className="bulk-wizard-header">
           <div>
             <h2 className="text-lg font-bold text-[var(--text)]">단체 일괄 서명 발송</h2>
             <p className="text-xs text-[var(--text-muted)]">
@@ -390,7 +390,7 @@ export function OrgBulkWizard({
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl">×</button>
         </div>
 
-        <div className="bulk-wizard-steps flex items-center gap-1 mb-5 text-[11px]">
+        <div className="bulk-wizard-steps">
           {[
             { n: 1, label: "계약서" },
             { n: 2, label: "거래처" },
@@ -417,7 +417,7 @@ export function OrgBulkWizard({
 
         {/* Step 1: 계약서 */}
         {step === 1 && (
-          <div className="bulk-wizard-step-doc space-y-3">
+          <div className="bulk-wizard-step-doc">
             <div className="text-sm font-semibold text-[var(--text)]">발송할 계약서를 선택하세요</div>
             <div className="text-xs text-[var(--text-muted)]">
               기존 문서 또는 "양식 관리"에 등록된 양식 중에서 고르세요. 양식을 고르면 자동으로 문서로 만들어 발송합니다.
@@ -426,7 +426,7 @@ export function OrgBulkWizard({
                 💡 변수 토큰 <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> / <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> / <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> / <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 는 거래처별 자동 치환됩니다. <code className="text-[var(--primary)]">{`{{갑_*}}`}</code> 는 회사 공통값.
               </span>
             </div>
-            <div className="bulk-wizard-doc-list border border-[var(--border)] rounded-lg max-h-[360px] overflow-y-auto">
+            <div className="bulk-wizard-doc-list">
               {documents.length === 0 && bizTemplates.length === 0 ? (
                 <div className="p-6 text-center text-sm text-[var(--text-muted)]">작성된 문서·양식이 없습니다.</div>
               ) : (
@@ -491,7 +491,7 @@ export function OrgBulkWizard({
 
         {/* Step 2: 거래처 */}
         {step === 2 && (
-          <div className="bulk-wizard-step-partners space-y-3">
+          <div className="bulk-wizard-step-partners">
             <div className="flex items-center gap-2 flex-wrap">
               <input
                 value={pSearch}
@@ -517,7 +517,7 @@ export function OrgBulkWizard({
               ) : filteredPartners.length === 0 ? (
                 <div className="p-6 text-center text-sm text-[var(--text-muted)]">거래처가 없습니다.</div>
               ) : (
-                <table className="bulk-wizard-partner-table w-full text-sm">
+                <table className="bulk-wizard-partner-table">
                   <thead className="bg-[var(--bg-surface)] text-[var(--text-muted)] sticky top-0">
                     <tr className="text-left">
                       <th className="p-2 w-10">
@@ -597,7 +597,7 @@ export function OrgBulkWizard({
 
         {/* Step 3: 변수 매핑 */}
         {step === 3 && (
-          <div className="bulk-wizard-step-variables space-y-4">
+          <div className="bulk-wizard-step-variables">
             <div>
               <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
                 서명요청 제목 (토큰 사용 가능, 예: <code>{"{{단체명}}"}</code>)
@@ -622,7 +622,7 @@ export function OrgBulkWizard({
                 {tokens.map((token) => {
                   const col = variableMap[token] ?? "";
                   return (
-                    <div key={token} className="bulk-wizard-token-row grid grid-cols-12 gap-2 items-center">
+                    <div key={token} className="bulk-wizard-token-row">
                       <div className="col-span-3 px-2 py-1.5 rounded bg-[var(--bg-surface)] text-xs font-mono text-[var(--primary)]">
                         {`{{${token}}}`}
                       </div>
@@ -663,7 +663,7 @@ export function OrgBulkWizard({
                     </button>
                     {showOverrideTable && (
                       <div className="mt-2 border border-[var(--border)] rounded-lg overflow-x-auto">
-                        <table className="bulk-wizard-override-table text-xs w-full">
+                        <table className="bulk-wizard-override-table">
                           <thead className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
                             <tr>
                               <th className="p-2 text-left">단체</th>
@@ -706,7 +706,7 @@ export function OrgBulkWizard({
 
         {/* Step 4: 발송/만료 */}
         {step === 4 && (
-          <div className="bulk-wizard-step-send space-y-4">
+          <div className="bulk-wizard-step-send">
             <div>
               <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">발송자</label>
               <div className="px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
@@ -734,7 +734,7 @@ export function OrgBulkWizard({
             <div className="pt-3 border-t border-[var(--border)]">
               <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">수신 이메일 ({selectedPartners.length}곳)</label>
               <p className="text-[11px] text-[var(--text-dim)] mb-2">기본값은 거래처에 등록된 담당자 이메일입니다. 다른 곳으로 보내려면 직접 수정하세요. (비우면 기본 이메일로 발송)</p>
-              <div className="bulk-wizard-email-list max-h-56 overflow-y-auto rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]/50">
+              <div className="bulk-wizard-email-list">
                 {selectedPartners.map((p) => {
                   const val = emailOverrides[p.id] ?? (p.contact_email || "");
                   const changed = emailOverrides[p.id] != null && emailOverrides[p.id].trim() !== String(p.contact_email || "").trim();
@@ -786,7 +786,7 @@ export function OrgBulkWizard({
 
         {/* Step 5: 미리보기 */}
         {step === 5 && (
-          <div className="bulk-wizard-step-preview space-y-4">
+          <div className="bulk-wizard-step-preview">
             <div className="text-xs text-[var(--text-muted)]">
               아래는 선택한 거래처 중 첫 번째 단체 기준 미리보기입니다. 단체별로 값이 다르게 치환됩니다.
             </div>
@@ -796,7 +796,7 @@ export function OrgBulkWizard({
               </div>
             ) : (
               <>
-                <div className="bulk-wizard-preview-card p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] space-y-2">
+                <div className="bulk-wizard-preview-card">
                   <div className="text-[10px] text-[var(--text-muted)]">미리보기 대상</div>
                   <div className="text-sm text-[var(--text)] font-semibold">{previewPartner.name}</div>
                   <div className="text-[10px] text-[var(--text-muted)]">→ {(emailOverrides[previewPartner.id]?.trim() || previewPartner.contact_email)}</div>
@@ -868,7 +868,7 @@ export function OrgBulkWizard({
 
         {/* 진행률 바 (submitting + progress 있을 때만 — 100개+ 대량 발송 가시화) */}
         {submitting && progress && progress.total > 0 && (
-          <div className="bulk-wizard-progress-bar mt-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <div className="bulk-wizard-progress-bar">
             <div className="flex items-center justify-between text-xs mb-2">
               <span className="text-[var(--text)] font-semibold">
                 거래처 발송 중... {progress.done} / {progress.total} ({Math.round((progress.done / progress.total) * 100)}%)
@@ -887,7 +887,7 @@ export function OrgBulkWizard({
         )}
 
         {/* 푸터 */}
-        <div className="bulk-wizard-footer flex items-center justify-between gap-2 mt-6 pt-4 border-t border-[var(--border)]">
+        <div className="bulk-wizard-footer">
           <button
             onClick={onClose}
             className="btn-ghost"

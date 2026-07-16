@@ -226,7 +226,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   if (!emp) return null;
 
   return (
-    <div className="employee-detail-modal glass-card">
+    <div className="employee-detail-modal glass-card animate-slide-in">
       {/* 히어로 헤더 — 2026-07-15: 좌우 분할(프로필카드+탭콘텐츠) 구조 폐기, 그라데이션 배너 + 아바타 오버랩 단일 헤더로 재구성 */}
       <div className="employee-detail-hero">
         <div className="h-20 w-full" style={{ background: `linear-gradient(120deg, ${avatarColor(emp.id)}, color-mix(in srgb, ${avatarColor(emp.id)} 25%, var(--bg-card)))` }} />

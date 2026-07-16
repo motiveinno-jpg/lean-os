@@ -1375,7 +1375,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* .employee-view-mode-toggle — pure marker, styled via co-existing seg-bar in JSX */
 .employee-list-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
 .employee-member-role-section { @apply mt-6 pt-6 border-t border-[var(--border)]; }
-.employee-detail-overlay { @apply fixed inset-0 z-[60] flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in; }
+.employee-detail-overlay { @apply fixed inset-0 z-[60] flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto; }
 /* .org-chart-panel — pure marker, styled via co-existing glass-card in JSX */
 .salary-employee-selector { @apply flex gap-4 mb-6; }
 .salary-change-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
@@ -1411,7 +1411,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .employee-invite-banner { @apply mb-4 p-3 rounded-xl text-sm font-medium shadow-sm; } /* dynamic ok/danger color left inline in JSX */
 .attendance-calendar-view { @apply grid gap-4; } /* dynamic lg:grid-cols-4 left inline in JSX */
 .attendance-calendar { @apply overflow-hidden; } /* co-exists with glass-card in JSX; dynamic lg:col-span-3 left inline in JSX */
-.employee-detail-modal { @apply overflow-hidden shadow-2xl animate-slide-in; }
+.employee-detail-modal { @apply overflow-hidden shadow-2xl; }
 .employee-detail-hero { @apply relative; }
 .employee-detail-tabbar { @apply px-6 pt-3 pb-0 border-b border-[var(--border)] bg-[var(--bg-surface)]/20; }
 .employee-detail-body { @apply p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto; }
@@ -1453,3 +1453,136 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .schedule-todo-list { @apply overflow-hidden; }
 .schedule-todo-row { @apply flex items-start gap-3 px-4 py-3 hover:bg-[var(--bg-surface)] transition; }
 .schedule-todo-edit-modal { @apply fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4; }
+
+/* ═══ 클래스명 가독성 정리 재작업 — 배치4(docs) 마커 스타일 (2026-07-16) ═══ */
+.document-detail-nav { @apply flex items-center gap-3 mb-3; }
+.document-detail-header { @apply flex items-start justify-between mb-6; }
+.document-actions-bar { @apply flex gap-2; }
+.document-approval-form { @apply p-5 mb-6; }
+.document-share-email-panel { @apply p-5 mb-6; }
+.signature-request-form { @apply p-5 mb-6; }
+.signature-progress-panel { @apply p-4 mb-6; }
+.document-detail-tabs { @apply mb-6; }
+.document-items-table { @apply overflow-hidden p-4; }
+.invoice-issue-modal { @apply fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4; }
+.quote-preview-panel { @apply overflow-hidden scroll-mt-4; }
+.contract-payment-schedule-table { @apply overflow-hidden; }
+.document-seal-panel { @apply p-5; }
+.document-content-panel { @apply overflow-hidden; }
+.document-save-bar { @apply flex items-center gap-3; }
+.document-revisions-list { @apply overflow-hidden; }
+.document-approvals-list { @apply overflow-hidden; }
+.document-create-form { @apply p-6 mb-6; }
+.invoice-create-form { @apply p-6 mb-6; }
+.document-list-table { @apply overflow-hidden; }
+.contract-tab-panel { @apply space-y-6; }
+.contract-list-table { @apply overflow-hidden; }
+.contract-archive-panel { @apply overflow-hidden; }
+.contract-archive-form { @apply p-5 border-b border-[var(--border)] bg-[var(--bg-surface)]; }
+.contract-archive-table { @apply overflow-auto max-h-[560px] relative; }
+.invoice-list-table { @apply overflow-hidden; }
+.signature-tab-panel { @apply space-y-6; }
+.signature-filter-bar { @apply flex items-center justify-between; }
+.signature-create-form { @apply bg-[var(--bg-card)] rounded-2xl border border-indigo-500/20 p-6; }
+.signature-list-table { @apply overflow-hidden; }
+.signature-detail-panel { @apply p-6; }
+.vault-layout { @apply flex flex-col md:flex-row gap-4 md:gap-6; }
+.vault-folder-tree { @apply w-full md:w-[240px] shrink-0; }
+.vault-file-panel { @apply flex-1 space-y-4; }
+.vault-filter-bar { @apply flex gap-3; }
+.vault-file-list { @apply p-5; }
+.share-status-panel { @apply p-4 mb-6; }
+
+/* Left as-is (no change needed, do not add to globals.css):
+   - btn-primary whitespace-nowrap (line ~828) — btn-primary is forbidden-@apply, no separate marker
+   - btn-secondary whitespace-nowrap (line ~1398) — same
+   - kpi-callout warning (line ~1048) — existing BEM-style modifier (.kpi-callout.warning already defined in globals.css)
+   - th-cell text-left/text-center/text-right (28 instances) — th-cell is forbidden-@apply; alignment util intentionally varies per instance (function-trap-1 case), kept literal
+   - glass-card p-5 (line ~2860, vault folder box) — no distinct marker prefixed, just base component class + 1 util, out of scope
+*/
+.signature-radio-inline { @apply inline-flex flex-wrap gap-[6px_14px] align-middle; }
+.signature-text-inline { @apply inline-block min-w-[140px] max-w-full px-2 py-1 border border-[#cbd5e1] rounded text-sm align-middle outline-none ml-1; }
+.contract-signature-footer { @apply mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-12 print:break-inside-avoid; }
+.sign-loading-screen { @apply min-h-screen flex items-center justify-center bg-[var(--bg)]; }
+.sign-invalid-screen { @apply min-h-screen flex items-center justify-center px-4 bg-gray-50; }
+.sign-expired-screen { @apply min-h-screen flex items-center justify-center px-4 bg-gray-50; }
+.sign-completed-screen { @apply min-h-screen bg-gray-50; }
+.sign-completed-header { @apply bg-white border-b border-gray-200 sticky top-0 z-10 print:hidden; }
+.sign-completed-doc-card { @apply bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-4 shadow-sm print:border-0 print:shadow-none print:rounded-none print:p-0 print:mb-8 print:break-inside-avoid; }
+.sign-completed-items-table { @apply w-full text-sm border-collapse; }
+.sign-page-shell { @apply min-h-screen bg-gray-50; }
+.sign-page-header { @apply bg-white border-b border-gray-200 sticky top-0 z-10; }
+.sign-document-tabs { @apply bg-white border-b border-gray-200; }
+.sign-document-content { @apply max-w-3xl mx-auto px-4 py-6; }
+.sign-signed-doc-card { @apply bg-white rounded-2xl border border-[var(--success)]/30 p-6 md:p-8 shadow-sm; }
+.sign-doc-body-card { @apply bg-white rounded-2xl border border-gray-200 p-6 md:p-8 mb-6 shadow-sm; }
+.sign-inputs-warning { @apply mb-6 px-4 py-3 rounded-xl bg-[var(--warning-dim)] border border-[var(--warning)]/25 text-xs text-[var(--warning)] flex items-start gap-2; }
+.signature-area-card { @apply bg-white rounded-2xl border border-gray-200 p-6 shadow-sm; }
+.signature-method-picker { @apply space-y-3; }
+.signature-canvas-wrapper { @apply relative border-2 border-gray-200 rounded-xl overflow-hidden mb-3 bg-white; }
+.signature-canvas { @apply w-full h-[180px] cursor-crosshair touch-none select-none; }
+.sign-page-footer { @apply border-t border-gray-200 bg-white mt-8; }
+.signature-dashboard-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.signature-toolbar-actions { @apply flex items-center gap-2; }
+.signature-templates-panel { @apply space-y-6; }
+.signature-failure-alert { @apply w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/15 transition text-left; }
+.signature-status-cards { @apply grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3; }
+.signature-search-bar { @apply flex items-center gap-2 flex-wrap; }
+.signature-search-input-wrap { @apply relative flex-1 min-w-[200px]; }
+.signature-request-list { @apply space-y-3; }
+.signature-empty-state { @apply py-16 px-6 text-center; }
+.signature-request-row { @apply p-5 flex items-start gap-4; }
+.signature-request-actions { @apply flex items-center gap-1 shrink-0; }
+.signature-request-meta { @apply flex items-center gap-2 mt-2 flex-wrap; }
+.signature-pagination-bar { @apply flex items-center justify-between px-4 py-3 text-xs; }
+.signature-proof-modal { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4; }
+.vault-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+.vault-alerts-panel { @apply mb-6 space-y-3; }
+.vault-renewal-alert { @apply rounded-xl border p-4; }
+.vault-duplicate-alert { @apply rounded-xl border border-purple-500/30 bg-purple-500/5 p-4; }
+.vault-unused-warning { @apply rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 mb-6 shadow-sm; }
+.vault-summary-cards { @apply grid grid-cols-2 gap-4 mb-6; }
+.vault-account-form { @apply p-6 mb-4; }
+.vault-asset-form { @apply p-6 mb-4; }
+.vault-doc-form { @apply p-6 mb-4; }
+.vault-accounts-panel { @apply overflow-x-auto; }
+.vault-accounts-table { @apply w-full text-sm min-w-[700px]; }
+.vault-asset-summary-cards { @apply grid grid-cols-2 md:grid-cols-3 gap-4 mb-6; }
+.vault-assets-panel { @apply overflow-x-auto; }
+.vault-assets-table { @apply w-full text-sm min-w-[760px]; }
+.vault-docs-panel { @apply overflow-x-auto; }
+.vault-docs-table { @apply w-full text-sm min-w-[600px]; }
+.vault-discovery-panel { @apply overflow-hidden; }
+.vault-access-log-modal { @apply fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4; }
+.signature-failure-panel { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
+.signature-failure-card { @apply w-full max-h-[80vh] overflow-auto rounded-2xl; }
+.signature-failure-group-row { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/60 overflow-hidden; }
+.signature-failure-detail-list { @apply border-t border-[var(--border)] divide-y divide-[var(--border)]; }
+.signature-invite-modal { @apply fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4; }
+.signature-invite-signer-rows { @apply space-y-2; }
+.bulk-wizard-modal { @apply fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4; }
+.bulk-wizard-header { @apply flex items-center justify-between mb-5; }
+.bulk-wizard-steps { @apply flex items-center gap-1 mb-5 text-[11px]; }
+.bulk-wizard-step-doc { @apply space-y-3; }
+.bulk-wizard-doc-list { @apply border border-[var(--border)] rounded-lg max-h-[360px] overflow-y-auto; }
+.bulk-wizard-step-partners { @apply space-y-3; }
+.bulk-wizard-partner-table { @apply w-full text-sm; }
+.bulk-wizard-step-variables { @apply space-y-4; }
+.bulk-wizard-token-row { @apply grid grid-cols-12 gap-2 items-center; }
+.bulk-wizard-override-table { @apply text-xs w-full; }
+.bulk-wizard-step-send { @apply space-y-4; }
+.bulk-wizard-email-list { @apply max-h-56 overflow-y-auto rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]/50; }
+.bulk-wizard-step-preview { @apply space-y-4; }
+.bulk-wizard-preview-card { @apply p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] space-y-2; }
+.bulk-wizard-progress-bar { @apply mt-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.bulk-wizard-footer { @apply flex items-center justify-between gap-2 mt-6 pt-4 border-t border-[var(--border)]; }
+.quote-header-panel { @apply p-4 mb-3; }
+.quote-header-partner-search { @apply flex items-center gap-2 relative; }
+.quote-header-partner-dropdown { @apply absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg max-h-72 overflow-y-auto; }
+.quote-items-toolbar { @apply flex items-center justify-between mb-2; }
+.quote-items-table-wrapper { @apply overflow-x-auto border border-[var(--border)] rounded-lg; }
+.quote-items-summary { @apply mt-3 flex flex-wrap items-center justify-end gap-x-5 gap-y-2 text-xs; }
+.history-picker-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.my-items-picker-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.column-editor-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
+.signed-contract-page { @apply max-w-[var(--content-max)] mx-auto p-6; }

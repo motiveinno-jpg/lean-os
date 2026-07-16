@@ -39,9 +39,9 @@ export function FailurePanel({
   const total = summary.reduce((acc, r) => acc + Number(r.count || 0), 0);
 
   return (
-    <div className="signature-failure-panel fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="signature-failure-panel" onClick={onClose}>
       <div
-        className="glass-card w-full max-h-[80vh] overflow-auto rounded-2xl"
+        className="signature-failure-card glass-card"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-card)]/95 backdrop-blur flex items-center justify-between">
@@ -124,7 +124,7 @@ function FailureGroupRow({
   });
 
   return (
-    <div className="signature-failure-group-row rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/60 overflow-hidden">
+    <div className="signature-failure-group-row">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 hover:bg-[var(--bg-surface)] transition"
@@ -141,7 +141,7 @@ function FailureGroupRow({
         </span>
       </button>
       {open && (
-        <div className="signature-failure-detail-list border-t border-[var(--border)] divide-y divide-[var(--border)]">
+        <div className="signature-failure-detail-list">
           {isLoading ? (
             <div className="px-3.5 py-6 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
           ) : rows.length === 0 ? (
