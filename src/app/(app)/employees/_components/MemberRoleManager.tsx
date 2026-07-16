@@ -8,6 +8,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { Avatar } from "@/components/avatar";
 
 export function MemberRoleManager({ companyId }: { companyId: string }) {
   const { toast } = useToast();
@@ -60,6 +61,7 @@ export function MemberRoleManager({ companyId }: { companyId: string }) {
       ) : (
         members.map((m: any) => (
           <div key={m.id} className="member-role-row">
+            <Avatar name={m.name || m.email} src={m.avatar_url} size={36} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="font-semibold text-sm">{m.name || m.email}</span>

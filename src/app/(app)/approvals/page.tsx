@@ -36,6 +36,7 @@ import { useToast } from "@/components/toast";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { useAvatarMap } from "@/hooks/use-avatar-map";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, resolveSignedUrl } from "@/lib/file-storage";
@@ -1030,7 +1031,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["approval-company-users", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("users").select("id, name, email").eq("company_id", companyId);
+      const { data } = await (supabase as any).from("users").select("id, name, email, avatar_url").eq("company_id", companyId);
       return data || [];
     },
     enabled: !!companyId,
@@ -1039,6 +1040,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
     const u = (companyUsers as any[]).find((x) => x.id === id);
     return u?.name || u?.email || "구성원";
   };
+  const userAvatar = (id: string) => (companyUsers as any[]).find((x) => x.id === id)?.avatar_url || null;
 
   // 승인 완료된 결재 문서 PDF 다운로드
   const handleDownloadApprovalPdf = async (req: any) => {
@@ -1180,7 +1182,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2">
-                        <Avatar name={requesterNames.get(req.requester_id) || "?"} size={24} />
+                        <Avatar name={requesterNames.get(req.requester_id) || "?"} src={userAvatar(req.requester_id)} size={24} />
                         <span className="text-xs text-[var(--text-muted)] truncate max-w-[100px]">{requesterNames.get(req.requester_id) || "-"}</span>
                       </div>
                     </td>
@@ -1466,11 +1468,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["company-users-approvers", companyId],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id, name, email, role").eq("company_id", companyId).order("name");
+      const { data } = await db.from("users").select("id, name, email, role, avatar_url").eq("company_id", companyId).order("name");
       return (data || []).filter((u: any) => u.id !== userId);
     },
     enabled: !!companyId,
   });
+  const approverAvatar = (uid: string) => (companyUsers as any[]).find((u) => u.id === uid)?.avatar_url || null;
 
   // Load policies for preview
   const { data: policies = [] } = useQuery({
@@ -1935,7 +1938,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     {selectedApprovers.map((a, idx) => (
                       <div key={idx} className="flex items-center gap-1.5">
                         <div className="inline-flex items-center gap-2 pl-1.5 pr-2 py-1.5 rounded-full bg-[var(--primary)]/8 border border-[var(--primary)]/25">
-                          <Avatar name={a.name} size={22} />
+                          <Avatar name={a.name} src={approverAvatar(a.userId)} size={22} />
                           <span className="text-xs font-bold text-[var(--text)]">{a.name}</span>
                           <span className="text-[10px] font-bold text-[var(--primary)]">{idx + 1}차</span>
                           <button
@@ -2577,6 +2580,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
     queryFn: () => getApprovalTimeline(requestId),
     enabled: !!requestId,
   });
+  const avatarMap = useAvatarMap(timeline.map((s: any) => s.approver_id));
 
   async function saveComment(stepId: string) {
     try {
@@ -2656,7 +2660,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
           const isEditing = editingStepId === step.id;
           return (
             <div key={step.id} className="flex items-start gap-3 text-xs">
-              <Avatar name={step.approver_name || "담당자"} size={26} />
+              <Avatar name={step.approver_name || "담당자"} src={avatarMap[step.approver_id]} size={26} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-bold">{step.approver_name || "담당자"}</span>
@@ -2707,6 +2711,7 @@ function ApprovalStageSidebar({ requestId, referenceUsers }: { requestId: string
     queryFn: () => getApprovalTimeline(requestId),
     enabled: !!requestId,
   });
+  const avatarMap = useAvatarMap([...steps.map((s: any) => s.approver_id), ...(referenceUsers || []).map((u) => u.id)]);
   if (steps.length === 0 && (!referenceUsers || referenceUsers.length === 0)) return null;
   return (
     <div className="space-y-5">
@@ -2716,7 +2721,7 @@ function ApprovalStageSidebar({ requestId, referenceUsers }: { requestId: string
           <div className="space-y-3">
             {referenceUsers.map((u) => (
               <div key={u.id} className="flex items-center gap-2.5">
-                <Avatar name={u.name} size={26} />
+                <Avatar name={u.name} src={avatarMap[u.id]} size={26} />
                 <div className="flex-1 min-w-0 text-[13px] font-bold truncate">{u.name}</div>
                 <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--bg-surface)] text-[var(--text-dim)]">참조</span>
               </div>
@@ -2730,7 +2735,7 @@ function ApprovalStageSidebar({ requestId, referenceUsers }: { requestId: string
           <div className="space-y-3.5">
             {steps.map((s) => (
               <div key={s.id} className="flex items-start gap-2.5">
-                <Avatar name={s.approver_name || "담당자"} size={28} />
+                <Avatar name={s.approver_name || "담당자"} src={avatarMap[s.approver_id]} size={28} />
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-bold truncate">{s.approver_name || "담당자"}</div>
                   <div className="text-[10px] text-[var(--text-dim)] truncate">{s.stage_name}</div>
@@ -2764,7 +2769,7 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("approval_comments")
-        .select("id, user_id, body, created_at, users:user_id(name, email)")
+        .select("id, user_id, body, created_at, users:user_id(name, email, avatar_url)")
         .eq("request_id", requestId)
         .order("created_at", { ascending: true });
       return (data || []) as any[];
@@ -2842,7 +2847,7 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
           <div className="space-y-2 mb-3">
             {comments.map((c: any) => (
               <div key={c.id} className="flex items-start gap-2">
-                <Avatar name={c.users?.name || c.users?.email || "?"} size={22} />
+                <Avatar name={c.users?.name || c.users?.email || "?"} src={c.users?.avatar_url} size={22} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-[var(--text)]">{c.users?.name || c.users?.email || "구성원"}</span>

@@ -67,6 +67,27 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
 
   const depts = useMemo(() => [...new Set(employees.map((e) => e.department).filter(Boolean))] as string[], [employees]);
 
+  // 프로필 사진 — 마이페이지에서 설정한 users.avatar_url 을 회사 단위로 조회해
+  //   employees 행과 user_id(우선) 또는 email 로 매칭. 없으면 기존 이니셜 원형 유지.
+  const { data: userAvatars = [] } = useQuery<{ id: string; email: string | null; avatar_url: string | null }[]>({
+    queryKey: ["company-user-avatars", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("users").select("id, email, avatar_url").eq("company_id", companyId);
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+  const avatarSrc = useMemo(() => {
+    const byId: Record<string, string> = {};
+    const byEmail: Record<string, string> = {};
+    for (const u of userAvatars) {
+      if (!u.avatar_url) continue;
+      byId[u.id] = u.avatar_url;
+      if (u.email) byEmail[u.email.toLowerCase()] = u.avatar_url;
+    }
+    return (e: Emp) => (e.user_id && byId[e.user_id]) || (e.email && byEmail[e.email.toLowerCase()]) || null;
+  }, [userAvatars]);
+
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter((e) => {
@@ -118,9 +139,14 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
               <button key={e.id} onClick={() => setSel(e)}
                 className="flex-people-card glass-card group">
                 <div className="flex items-center gap-3">
-                  <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-[15px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>
-                    {initials(e.name)}
-                  </span>
+                  {avatarSrc(e) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarSrc(e)!} alt={e.name} className="w-12 h-12 rounded-2xl object-cover shrink-0" />
+                  ) : (
+                    <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-[15px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>
+                      {initials(e.name)}
+                    </span>
+                  )}
                   <span className="min-w-0">
                     <span className="flex items-center gap-1.5">
                       <span className="text-[14px] font-bold text-[var(--text)] truncate group-hover:text-[var(--primary)]">{e.name}</span>
@@ -158,7 +184,12 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
                   <tr key={e.id} onClick={() => setSel(e)} className="flex-people-list-row">
                     <td className="px-4 py-2">
                       <span className="flex items-center gap-2">
-                        <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>{initials(e.name)}</span>
+                        {avatarSrc(e) ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={avatarSrc(e)!} alt={e.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>{initials(e.name)}</span>
+                        )}
                         <span className="font-semibold text-[var(--text)]">{e.name}</span>
                       </span>
                     </td>
@@ -181,6 +212,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
         <ProfilePanel
           companyId={companyId}
           emp={sel}
+          avatarUrl={avatarSrc(sel)}
           isManager={isManager}
           onClose={() => setSel(null)}
           onOpenContracts={(id) => { setSel(null); setContractsEmpId(id); }}
@@ -199,7 +231,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
   );
 }
 
-function ProfilePanel({ companyId, emp, isManager, onClose, onOpenContracts }: { companyId: string; emp: Emp; isManager: boolean; onClose: () => void; onOpenContracts: (employeeId: string) => void }) {
+function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenContracts }: { companyId: string; emp: Emp; avatarUrl?: string | null; isManager: boolean; onClose: () => void; onOpenContracts: (employeeId: string) => void }) {
   const sm = statusMeta(emp.status);
   const year = new Date().getFullYear();
 
@@ -252,9 +284,14 @@ function ProfilePanel({ companyId, emp, isManager, onClose, onOpenContracts }: {
         {/* 헤더 */}
         <div className="flex-people-profile-header">
           <button onClick={onClose} className="absolute top-4 right-4 text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none">✕</button>
-          <span className="inline-flex w-20 h-20 rounded-3xl items-center justify-center text-2xl font-bold text-white" style={{ background: avatarColor(emp.id) }}>
-            {initials(emp.name)}
-          </span>
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt={emp.name} className="inline-block w-20 h-20 rounded-3xl object-cover" />
+          ) : (
+            <span className="inline-flex w-20 h-20 rounded-3xl items-center justify-center text-2xl font-bold text-white" style={{ background: avatarColor(emp.id) }}>
+              {initials(emp.name)}
+            </span>
+          )}
           <div className="mt-3 text-lg font-bold text-[var(--text)]">{emp.name}</div>
           <div className="text-[12px] text-[var(--text-muted)] mt-0.5">{[emp.job_title || emp.position, emp.department].filter(Boolean).join(" · ") || "직책 미지정"}</div>
           <span className="inline-block mt-2 text-[10px] px-2.5 py-1 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>

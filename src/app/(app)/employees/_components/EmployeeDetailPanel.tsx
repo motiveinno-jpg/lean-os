@@ -97,6 +97,24 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
     enabled: !!employeeId,
   });
 
+  // 프로필 사진 — 마이페이지에서 설정한 users.avatar_url. user_id(우선) 또는 email 로 매칭.
+  const { data: avatarUrl = null } = useQuery<string | null>({
+    queryKey: ["employee-avatar", employeeId, emp?.user_id, emp?.email],
+    queryFn: async () => {
+      const db = supabase as any;
+      if (emp?.user_id) {
+        const { data } = await db.from("users").select("avatar_url").eq("id", emp.user_id).maybeSingle();
+        return data?.avatar_url || null;
+      }
+      if (emp?.email) {
+        const { data } = await db.from("users").select("avatar_url").eq("company_id", companyId).eq("email", emp.email).maybeSingle();
+        return data?.avatar_url || null;
+      }
+      return null;
+    },
+    enabled: !!emp,
+  });
+
   // Fetch employee contracts (Flex-style 계약서 탭)
   const { data: empContracts = [] } = useQuery({
     queryKey: ["emp-contracts", employeeId],
@@ -235,12 +253,17 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         </button>
         <div className="px-6 pb-4 -mt-9 flex items-end justify-between gap-4 flex-wrap">
           <div className="flex items-end gap-3.5 min-w-0">
-            <div
-              className="w-[72px] h-[72px] rounded-3xl flex items-center justify-center text-white font-extrabold text-2xl shadow-xl ring-4 ring-[var(--bg-card)] shrink-0"
-              style={{ background: `linear-gradient(135deg, ${avatarColor(emp.id)}, ${avatarColor(emp.id)}99)` }}
-            >
-              {emp.name?.charAt(0)}
-            </div>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt={emp.name || "프로필"} className="w-[72px] h-[72px] rounded-3xl object-cover shadow-xl ring-4 ring-[var(--bg-card)] shrink-0" />
+            ) : (
+              <div
+                className="w-[72px] h-[72px] rounded-3xl flex items-center justify-center text-white font-extrabold text-2xl shadow-xl ring-4 ring-[var(--bg-card)] shrink-0"
+                style={{ background: `linear-gradient(135deg, ${avatarColor(emp.id)}, ${avatarColor(emp.id)}99)` }}
+              >
+                {emp.name?.charAt(0)}
+              </div>
+            )}
             <div className="min-w-0 pb-0.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-lg font-extrabold text-[var(--text)] truncate">{emp.name}</span>
