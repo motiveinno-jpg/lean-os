@@ -1874,3 +1874,158 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .monthly-compare-row { @apply border-b border-[var(--border)]/30; }
 .mini-bars-container { @apply flex items-end gap-1.5 h-28; }
 .mini-bars-bar { @apply flex-1 flex flex-col items-center gap-1 min-w-0; }
+
+/* ═══ 클래스명 가독성 정리 재작업 — 배치7(growth) 마커 스타일 (2026-07-16) ═══ */
+.payments-tab-bar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+.payment-stats-grid { @apply grid grid-cols-2 md:grid-cols-4 gap-4 mb-6; }
+.payment-manual-form-card { @apply p-6 mb-6; }
+.payment-filter-bar { @apply mb-4; }
+.payment-bulk-action-bar { @apply sticky top-0 z-10 mb-3 bg-[var(--primary)]/10 border border-[var(--primary)]/30 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3; }
+.payment-queue-table { @apply overflow-hidden; }
+.payment-receipt-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4; }
+.refund-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4; }
+.fixed-cost-batch-header { @apply flex items-center justify-between mb-6; }
+.fixed-cost-batch-table { @apply overflow-hidden; }
+.payment-batch-detail-modal { @apply fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto; }
+.recurring-detail-modal { @apply fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto; }
+.recurring-detected-banner { @apply bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 mb-6 shadow-md; }
+.recurring-payments-header { @apply flex items-center justify-between mb-6; }
+.recurring-refresh-results { @apply rounded-2xl border p-4 mb-6; }
+.recurring-payment-form-card { @apply p-6 mb-6; }
+.recurring-payments-table { @apply overflow-hidden; }
+.payment-automation-pipeline { @apply p-5; }
+.payment-automation-actions { @apply space-y-2; }
+.payment-automation-result { @apply bg-green-500/5 border border-green-500/20 rounded-xl p-3 shadow-sm; }
+.payment-detected-patterns { @apply bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 shadow-sm; }
+.expense-summary-grid { @apply grid grid-cols-2 md:grid-cols-4 gap-4 mb-6; }
+.expense-filter-bar { @apply flex items-center justify-between mb-4; }
+.expense-request-form-card { @apply p-6 mb-6; }
+.expense-requests-table { @apply overflow-hidden; }
+.partner-kpi-cards { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
+.partner-filter-bar { @apply space-y-3 mb-6; }
+.partner-advanced-filter-bar { @apply flex flex-wrap items-center gap-2; }
+.partner-tag-filter-chips { @apply flex flex-wrap items-center gap-2; }
+.partner-list-table { @apply overflow-hidden; }
+.partner-bulk-action-bar { @apply flex items-center gap-3 px-4 py-2 mb-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.partner-pagination-bar { @apply flex items-center justify-between px-4 py-3 border-t border-[var(--border)] text-xs flex-wrap gap-2; }
+.partner-detail-panel { @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm; }
+.partner-detail-header { @apply flex items-center justify-between px-6 py-4 border-b border-[var(--border)]; }
+.partner-detail-tabs { @apply px-4 pt-3; }
+.partner-info-tab { @apply grid grid-cols-1 sm:grid-cols-2 gap-4; }
+.partner-comm-form { @apply bg-[var(--bg-surface)] rounded-xl p-4 mb-4 border border-[var(--border)]; }
+.partner-import-result-modal { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4; }
+.partner-import-preview-modal { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm; }
+.partner-form-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm; }
+.partner-portal-link-modal { @apply fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4; }
+.mypage-layout { @apply grid gap-5 lg:grid-cols-3 items-start; }
+.mypage-profile-card { @apply p-6; }
+.mypage-avatar-row { @apply flex items-center gap-4 mb-5 pb-5 border-b border-[var(--border)]; }
+.mypage-basic-info { @apply grid grid-cols-2 gap-y-3 gap-x-6 text-sm; }
+.mypage-employee-card { @apply p-6; }
+.mypage-leave-card { @apply p-6; }
+.mypage-leave-stats { @apply grid grid-cols-3 gap-4 mb-4; }
+.mypage-recent-leaves { @apply space-y-2; }
+.mypage-withdraw-card { @apply p-6 border border-[var(--danger)]/30; }
+.ledger-sheet-card { @apply overflow-hidden; }
+.ledger-sheet-header { @apply px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-surface)]/60 flex flex-wrap items-center justify-between gap-3; }
+.ledger-sheet-actions { @apply flex items-center gap-1.5 shrink-0 ml-auto; }
+.ledger-sheet-grid { @apply overflow-auto max-h-[560px]; }
+.ledger-sheet-footnote { @apply px-5 py-2.5 border-t border-[var(--border)] bg-[var(--bg-surface)]/40 text-[10px] text-[var(--text-dim)]; }
+.voucher-edit-overlay { @apply fixed inset-0 z-[70] bg-black/40; }
+.voucher-edit-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-[calc(100vw-2rem)] max-w-3xl max-h-[calc(100vh-3rem)] overflow-y-auto flex flex-col shadow-2xl fixed left-1/2 top-1/2; }
+.voucher-edit-header { @apply sticky top-0 z-10 bg-[var(--bg-card)] rounded-t-2xl px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3 cursor-move select-none; }
+.voucher-edit-table { @apply px-5 py-3 pt-2; }
+.voucher-edit-footer { @apply px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-3; }
+.adj-voucher-overlay { @apply fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4; }
+.adj-voucher-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl; }
+.adj-voucher-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3; }
+.partner-detail-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+.partner-detail-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl; }
+.ledger-partner-detail-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3; }
+.partner-detail-summary { @apply px-5 py-3 border-b border-[var(--border)] grid grid-cols-2 sm:grid-cols-4 gap-2; }
+.ledger-partner-detail-tabs { @apply px-5 pt-2 flex gap-1.5; }
+.partner-detail-invoice-list { @apply flex-1 overflow-auto px-5 py-2; }
+.partner-detail-invoice-row { @apply border-b border-[var(--border)]/50 py-2.5; }
+.close-balance-overlay { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4; }
+.close-balance-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl; }
+.ledger-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.ledger-period-picker { @apply flex items-center gap-2 flex-wrap; }
+.ledger-toolbar-actions { @apply flex items-center gap-2 flex-wrap shrink-0; }
+.ledger-kpi-row { @apply grid grid-cols-2 lg:grid-cols-3 gap-4; }
+.ledger-kpi-total { @apply p-5 flex flex-col gap-3; }
+.ledger-kpi-count { @apply p-5 flex flex-col gap-3; }
+.ledger-kpi-other { @apply p-5 flex flex-col gap-3 text-left hover:bg-[var(--bg-surface)]/60 transition col-span-2 lg:col-span-1; }
+.ledger-ar-aging { @apply p-4; }
+.ar-aging-bucket { @apply rounded-lg px-3 py-2.5; }
+.ledger-partner-list { @apply overflow-hidden; }
+.ledger-partner-list-header { @apply px-3 py-2.5 border-b border-[var(--border)] flex items-center justify-between gap-2; }
+.ledger-partner-list-export-bar { @apply px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]/60 flex items-center justify-between gap-2; }
+.ledger-partner-row { @apply relative flex items-stretch rounded-lg transition; }
+.invite-loading-screen { @apply min-h-screen flex items-center justify-center; }
+.invite-validating-screen { @apply min-h-screen flex items-center justify-center; }
+.invite-invalid-screen { @apply min-h-screen flex items-center justify-center px-4; }
+.invite-accept-screen { @apply min-h-screen flex items-center justify-center px-4 py-8; }
+.invite-logo { @apply text-center mb-6 md:mb-8; }
+.invite-accept-card { @apply p-6 md:p-8 shadow-[var(--shadow-lg)]; }
+.invite-badge { @apply text-center mb-6; }
+.invite-error-banner { @apply mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm; }
+.invite-login-link { @apply text-center text-xs text-[var(--text-dim)] mt-6; }
+.onboarding-page { @apply min-h-[80vh] flex items-center justify-center px-4 py-8; }
+.onboarding-progress-bar { @apply mb-6; }
+.onboarding-error-banner { @apply mb-4 px-4 py-3 rounded-xl text-sm flex items-start gap-2 bg-[var(--danger)]/10 border border-[var(--danger)]/20 shadow-sm; }
+.onboarding-wizard-step-card { @apply overflow-hidden; }
+.onboarding-footer { @apply px-6 sm:px-8 py-4 flex items-center justify-between; }
+.onboarding-skip-all { @apply mt-4 text-center; }
+.onboarding-company-step { @apply space-y-5; }
+.onboarding-bank-step { @apply space-y-5; }
+.onboarding-employee-step { @apply space-y-5; }
+.onboarding-deal-step { @apply space-y-5; }
+.onboarding-complete-step { @apply flex flex-col items-center text-center relative overflow-hidden; }
+.onboarding-quick-links { @apply mt-6 flex flex-wrap gap-3 justify-center relative z-10; }
+.onboarding-step-header { @apply flex items-start gap-3 mb-1; }
+.onboarding-completed-badge { @apply px-3 py-2.5 rounded-xl flex items-start gap-2 bg-[var(--success)]/10 border border-[var(--success)]/20 shadow-sm; }
+.chat-guest-view { @apply max-w-[700px] mx-auto flex flex-col; }
+.chat-guest-header { @apply flex items-center justify-between mb-4 shrink-0; }
+.chat-guest-messages-panel { @apply flex-1 overflow-y-auto bg-[var(--bg-card)] border border-b-0 border-[var(--border)] p-5; }
+.chat-guest-input-wrapper { @apply rounded-b-2xl border border-t-0 border-[var(--border)] overflow-hidden; }
+.chat-sidebar-section { @apply mb-2; }
+.chat-channel-row { @apply w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition; }
+.chat-workspace { @apply flex overflow-hidden; }
+.chat-sidebar { @apply flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40; }
+.chat-conversation-panel { @apply flex-1 min-w-0 flex-col; }
+.chat-create-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+.refund-nav { @apply sticky top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50; }
+.refund-main { @apply max-w-4xl mx-auto px-6 py-16; }
+.refund-summary-table { @apply mb-12 overflow-x-auto; }
+.refund-section { @apply scroll-mt-20; }
+.refund-supplementary { @apply mt-16 p-6 rounded-xl bg-white/[0.03] border border-white/5; }
+.refund-contact { @apply mt-10 p-6 rounded-xl bg-blue-500/5 border border-blue-500/10 text-sm text-slate-300 leading-7; }
+.refund-company-info { @apply mt-6 p-6 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-slate-400 space-y-1; }
+.refund-footer { @apply py-10 px-6 bg-[#060810] text-slate-500 border-t border-white/5; }
+.partner-reconciliation-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.partner-reconciliation-tabs { @apply w-fit; }
+.partner-reconciliation-progress-card { @apply px-6 py-5; }
+.partner-ai-match-overlay { @apply fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
+.partner-queue-tab { @apply space-y-3; }
+.partner-queue-bulk-bar { @apply p-3 flex flex-wrap items-center justify-between gap-2; }
+.partner-queue-table { @apply overflow-hidden; }
+.partner-manual-match-tab { @apply space-y-3; }
+.partner-manual-toolbar { @apply p-4 flex flex-wrap items-center justify-between gap-3; }
+.partner-manual-match-table { @apply overflow-hidden; }
+.partner-manual-match-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
+.partner-confirmed-tab { @apply space-y-3; }
+.partner-confirmed-table { @apply overflow-hidden; }
+.partner-project-link-modal { @apply fixed inset-0 z-[95] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
+.billing-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
+.billing-kpi-row { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
+.billing-usage-card { @apply p-6 mb-6; }
+.billing-plan-grid { @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4; }
+.billing-plan-card { @apply relative rounded-2xl border-2 p-6 transition; }
+.billing-cancel-section { @apply mt-8 p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger-dim)]; }
+.billing-payment-method-card { @apply p-6; }
+.billing-payment-info-card { @apply p-6; }
+.billing-invoices-card { @apply overflow-hidden; }
+.billing-referral-card { @apply p-6; }
+.billing-feedback-card { @apply p-6; }
+.billing-upgrade-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
+.billing-cancel-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }

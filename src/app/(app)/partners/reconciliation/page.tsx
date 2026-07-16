@@ -519,8 +519,8 @@ export default function ReconciliationPage() {
   return (
     <div className="space-y-6">
       {/* 툴바 — 탭 (좌) + 기간·매칭 액션 (우), 타이틀은 공통 헤더바가 담당 */}
-      <div className="partner-reconciliation-toolbar flex flex-wrap items-center justify-between gap-2">
-        <div className="partner-reconciliation-tabs seg-bar w-fit">
+      <div className="partner-reconciliation-toolbar">
+        <div className="partner-reconciliation-tabs seg-bar">
           {([["queue", `거래 정리${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["confirmed", `정리 내역${confirmed.length ? ` (${confirmed.length})` : ""}`]] as const).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)}
               className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>
@@ -559,7 +559,7 @@ export default function ReconciliationPage() {
         const totalCnt = doneCnt + waitCnt;
         const pct = totalCnt > 0 ? Math.round((doneCnt / totalCnt) * 100) : 100;
         return (
-          <div className="partner-reconciliation-progress-card glass-card px-6 py-5">
+          <div className="partner-reconciliation-progress-card glass-card">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
               <div className="flex items-baseline gap-2 shrink-0">
                 <span className="text-3xl font-black mono-number text-[var(--text)] leading-none">{pct}%</span>
@@ -586,7 +586,7 @@ export default function ReconciliationPage() {
 
       {/* AI 전체 매칭 진행 오버레이 — 실시간 진행률 + 애니메이션 */}
       {aiMut.isPending && (
-        <div className="partner-ai-match-overlay fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="partner-ai-match-overlay">
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm p-7 text-center">
             <div className="relative mx-auto mb-3 w-16 h-16 flex items-center justify-center">
               <span className="absolute inset-0 rounded-full bg-purple-500/20 animate-ping" />
@@ -622,7 +622,7 @@ export default function ReconciliationPage() {
       )}
 
       {tab === "queue" && (
-        <div className="partner-queue-tab space-y-3">
+        <div className="partner-queue-tab">
           {qLoading ? (
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : queue.length === 0 ? (
@@ -639,7 +639,7 @@ export default function ReconciliationPage() {
             </div>
           ) : (
             <>
-              <div className="partner-queue-bulk-bar glass-card p-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="partner-queue-bulk-bar glass-card">
                 <div className="flex items-center gap-2 text-[11px]">
                   <button onClick={() => setSelected(new Set(queue.map((m) => m.id)))} className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] font-semibold transition">전체 선택</button>
                   {selected.size > 0 && <button onClick={() => setSelected(new Set())} className="px-2.5 py-1.5 rounded-full text-[var(--text-dim)] hover:text-[var(--text)] transition">해제</button>}
@@ -662,7 +662,7 @@ export default function ReconciliationPage() {
               </div>
               <p className="text-[11px] text-[var(--text-dim)] px-1">확정하면 정산(미수금·미지급 차감)과 <b className="text-[var(--text-muted)]">분개 전표가 함께 장부에 자동 기록</b>됩니다 · 정리 내역에서 되돌리면 정산·전표 둘 다 원복</p>
               {/* 위하고식 그리드: 통장거래 | 세금계산서 | 정산액(+자동분개) | 유형 | 신뢰도 | 처리 */}
-              <div className="partner-queue-table glass-card overflow-hidden">
+              <div className="partner-queue-table glass-card">
                 <div className="overflow-auto max-h-[600px]">
                   <table ref={queueTableRef} className="w-full min-w-[1020px] text-xs border-collapse table-fixed">
                     <thead className="sticky top-0 z-10">
@@ -743,8 +743,8 @@ export default function ReconciliationPage() {
       )}
 
       {tab === "manual" && (
-        <div className="partner-manual-match-tab space-y-3">
-          <div className="partner-manual-toolbar glass-card p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="partner-manual-match-tab">
+          <div className="partner-manual-toolbar glass-card">
             <p className="text-xs text-[var(--text-muted)] min-w-0">
               규칙·AI 가 못 잡은 입출금을 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.
               <span className="ml-2 text-[var(--text-dim)] mono-number">기간 {engStart} ~ {engEnd} (상단에서 변경) · {openTx.filter(manualTxMatch).length}건</span>
@@ -759,7 +759,7 @@ export default function ReconciliationPage() {
               <div className="text-xs text-[var(--text-muted)] mt-1.5">규칙·AI가 못 잡은 입출금이 있으면 여기서 직접 연결할 수 있습니다</div>
             </div>
           ) : (
-            <div className="partner-manual-match-table glass-card overflow-hidden">
+            <div className="partner-manual-match-table glass-card">
               <div className="overflow-auto max-h-[600px]">
                 <table className="w-full min-w-[680px] text-xs border-collapse">
                   <thead className="sticky top-0 z-10">
@@ -813,7 +813,7 @@ export default function ReconciliationPage() {
 
       {/* 수동 매칭 모달 */}
       {matchTx && (
-        <div className="partner-manual-match-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setMatchTx(null)}>
+        <div className="partner-manual-match-modal" onClick={() => setMatchTx(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">거래 연결</div>
@@ -944,7 +944,7 @@ export default function ReconciliationPage() {
       )}
 
       {tab === "confirmed" && (
-        <div className="partner-confirmed-tab space-y-3">
+        <div className="partner-confirmed-tab">
           <div className="glass-card p-4">
             <p className="text-xs text-[var(--text-muted)]">확정된 매칭 내역입니다. 잘못 확정한 건은 “확정 취소”로 되돌리면 미수금과 <b>분개 전표가 함께 원복</b>되고 거래 정리로 돌아갑니다.</p>
           </div>
@@ -955,7 +955,7 @@ export default function ReconciliationPage() {
               <div className="text-xs text-[var(--text-muted)] mt-1.5">거래 정리 탭에서 매칭을 확정하면 여기에 내역이 쌓입니다</div>
             </div>
           ) : (
-            <div className="partner-confirmed-table glass-card overflow-hidden">
+            <div className="partner-confirmed-table glass-card">
               <div className="overflow-auto max-h-[600px]">
                 <table className="w-full min-w-[1020px] text-xs border-collapse">
                   <thead className="sticky top-0 z-10">
@@ -1018,7 +1018,7 @@ export default function ReconciliationPage() {
 
       {/* 확정 후 프로젝트 연결 제안 — 같은 거래처 프로젝트가 있으면 비용 구성에 연결 */}
       {linkPrompt && (
-        <div className="partner-project-link-modal fixed inset-0 z-[95] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setLinkPrompt(null)}>
+        <div className="partner-project-link-modal" onClick={() => setLinkPrompt(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-base font-bold text-[var(--text)]">프로젝트 비용에 연결</h3>

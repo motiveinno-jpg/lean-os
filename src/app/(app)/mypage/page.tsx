@@ -185,14 +185,14 @@ export default function MyPage() {
     : null;
 
   return (
-    <div className="mypage-layout grid gap-5 lg:grid-cols-3 items-start">
+    <div className="mypage-layout">
       {/* 좌 1/3 — 프로필 카드 */}
       <div className="space-y-5">
       {/* 기본 정보 */}
-      <div className="mypage-profile-card glass-card p-6">
+      <div className="mypage-profile-card glass-card">
         <h2 className="section-title">기본 정보</h2>
         {/* 프로필 사진 — 업로드하면 전 화면 아바타가 이 사진으로. 제거 시 이니셜로 복귀. */}
-        <div className="mypage-avatar-row flex items-center gap-4 mb-5 pb-5 border-b border-[var(--border)]">
+        <div className="mypage-avatar-row">
           <Avatar name={userInfo?.name} src={(userInfo as any)?.avatar_url} size={64} />
           <div className="flex flex-col gap-1.5">
             <div className="text-xs text-[var(--text-dim)]">프로필 사진</div>
@@ -211,7 +211,7 @@ export default function MyPage() {
             <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarFile} className="hidden" />
           </div>
         </div>
-        <div className="mypage-basic-info grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
+        <div className="mypage-basic-info">
           <div>
             <div className="text-xs text-[var(--text-dim)] mb-0.5">이름</div>
             <div className="font-medium">{userInfo?.name || "—"}</div>
@@ -236,7 +236,7 @@ export default function MyPage() {
       <div className="lg:col-span-2 space-y-5">
       {/* 직원 정보 */}
       {employee && (
-        <div className="mypage-employee-card glass-card p-6">
+        <div className="mypage-employee-card glass-card">
           <h2 className="section-title">인사 정보</h2>
           <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
             <div>
@@ -278,10 +278,10 @@ export default function MyPage() {
       {employee?.id && <MyPayslips employeeId={employee.id} />}
 
       {/* 연차 현황 */}
-      <div className="mypage-leave-card glass-card p-6">
+      <div className="mypage-leave-card glass-card">
         <h2 className="section-title">{currentYear}년 연차 현황</h2>
         {leaveBalance ? (
-          <div className="mypage-leave-stats grid grid-cols-3 gap-4 mb-4">
+          <div className="mypage-leave-stats">
             <div className="stat-tile items-center text-center">
               <div className="stat-tile-label">총 연차</div>
               <div className="stat-tile-value mono-number text-[var(--primary)]">{leaveBalance.total_days}일</div>
@@ -308,7 +308,7 @@ export default function MyPage() {
         {recentLeaves.length > 0 && (
           <div>
             <div className="text-xs font-semibold text-[var(--text-dim)] mb-2 mt-2">최근 휴가 신청</div>
-            <div className="mypage-recent-leaves space-y-2">
+            <div className="mypage-recent-leaves">
               {recentLeaves.map((leave: any) => (
                 <div key={leave.id} className="flex items-center justify-between text-xs bg-[var(--bg-surface)] rounded-lg px-3 py-2 border border-[var(--border)]">
                   <div className="flex items-center gap-2">
@@ -339,7 +339,7 @@ export default function MyPage() {
       {companyId && <NotificationsTab companyId={companyId} />}
 
       {/* 회원 탈퇴 */}
-      <div className="mypage-withdraw-card glass-card p-6 border border-[var(--danger)]/30">
+      <div className="mypage-withdraw-card glass-card">
         <h2 className="text-sm font-bold mb-2 text-[var(--danger)]">회원 탈퇴</h2>
         <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
           탈퇴하면 <b>로그인 계정이 영구 삭제</b>되고 이름·이메일 등 개인정보가 파기됩니다. <b>되돌릴 수 없습니다.</b>

@@ -690,7 +690,7 @@ export default function PartnersPage() {
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* KPI 카드 4 (거래처) — stat-tile 표준 */}
-      <div className="partner-kpi-cards grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="partner-kpi-cards">
         {(() => {
           const all = rawPartners as any[];
           const active = all.filter((p) => p.is_active).length;
@@ -716,7 +716,7 @@ export default function PartnersPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="partner-filter-bar space-y-3 mb-6">
+      <div className="partner-filter-bar">
       <div className="flex flex-wrap items-center gap-3">
         <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
           className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
@@ -754,7 +754,7 @@ export default function PartnersPage() {
       </div>
 
       {/* 정렬 + 고급 필터 바 — 산업/지역/거래규모 */}
-      <div className="partner-advanced-filter-bar flex flex-wrap items-center gap-2">
+      <div className="partner-advanced-filter-bar">
         <span className="text-xs text-[var(--text-dim)]">필터:</span>
         <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
           className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
@@ -782,7 +782,7 @@ export default function PartnersPage() {
 
       {/* Tag Filter Chips */}
       {allTags.length > 0 && (
-        <div className="partner-tag-filter-chips flex flex-wrap items-center gap-2">
+        <div className="partner-tag-filter-chips">
           <span className="text-xs text-[var(--text-dim)]">태그:</span>
           {allTags.map((tag) => (
             <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
@@ -805,7 +805,7 @@ export default function PartnersPage() {
       </div>
 
       {/* Table */}
-      <div className="partner-list-table glass-card overflow-hidden">
+      <div className="partner-list-table glass-card">
         {isLoading ? (
           <div className="p-16 text-center">
             <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>
@@ -821,7 +821,7 @@ export default function PartnersPage() {
           <>
           {/* PR: 다중선택 액션바 (선택 1+ 시만 노출) */}
           {selectedIds.size > 0 && (
-            <div className="partner-bulk-action-bar flex items-center gap-3 px-4 py-2 mb-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+            <div className="partner-bulk-action-bar">
               <span className="text-xs text-[var(--text-muted)]"><b className="text-[var(--text)]">{selectedIds.size}개</b> 선택됨</span>
               <button
                 onClick={async () => {
@@ -962,7 +962,7 @@ export default function PartnersPage() {
           const startIdx = (curPage - 1) * pageSize + 1;
           const endIdx = Math.min(curPage * pageSize, partners.length);
           return (
-            <div className="partner-pagination-bar flex items-center justify-between px-4 py-3 border-t border-[var(--border)] text-xs flex-wrap gap-2">
+            <div className="partner-pagination-bar">
               <div className="text-[var(--text-muted)]">
                 전체 {partners.length.toLocaleString()}건 중 {startIdx.toLocaleString()}–{endIdx.toLocaleString()}
               </div>
@@ -1018,11 +1018,11 @@ export default function PartnersPage() {
         ].filter(t => t.date).sort((a, b) => (a.date < b.date ? 1 : -1));
 
         return (
-        <div className="partner-detail-panel fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDetailPartner(null)}>
+        <div className="partner-detail-panel" onClick={() => setDetailPartner(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="partner-detail-header flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+            <div className="partner-detail-header">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)] font-bold text-lg">
                   {detailPartner.name?.charAt(0) || "?"}
@@ -1111,7 +1111,7 @@ export default function PartnersPage() {
             </div>
 
             {/* Tabs */}
-            <div className="partner-detail-tabs px-4 pt-3">
+            <div className="partner-detail-tabs">
               <div className="seg-bar w-fit flex-wrap">
                 {([
                   { key: "info" as const, label: "기본정보" },
@@ -1133,7 +1133,7 @@ export default function PartnersPage() {
             <div className="flex-1 overflow-y-auto p-6">
               {/* 기본정보 */}
               {detailTab === "info" && (
-                <div className="partner-info-tab grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="partner-info-tab">
                   {[
                     ["대표자", detailPartner.representative],
                     ["담당자", detailPartner.contact_name],
@@ -1358,7 +1358,7 @@ export default function PartnersPage() {
                   </div>
 
                   {showCommForm && (
-                    <div className="partner-comm-form bg-[var(--bg-surface)] rounded-xl p-4 mb-4 border border-[var(--border)]">
+                    <div className="partner-comm-form">
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <div>
                           <label className={labelCls}>유형 *</label>
@@ -1453,7 +1453,7 @@ export default function PartnersPage() {
       {/* CSV Import Preview Modal */}
       {/* Import 결과 리포트 (confirm 완료 후) */}
       {importResult && (
-        <div className="partner-import-result-modal fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setImportResult(null)}>
+        <div className="partner-import-result-modal" onClick={() => setImportResult(null)}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <h2 className="text-lg font-bold">임포트 결과</h2>
@@ -1514,7 +1514,7 @@ export default function PartnersPage() {
       )}
 
       {(importPreview || importError) && (
-        <div className="partner-import-preview-modal fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}>
+        <div className="partner-import-preview-modal" onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
@@ -1590,7 +1590,7 @@ export default function PartnersPage() {
 
       {/* Create / Edit Modal */}
       {showModal && (
-        <div className="partner-form-modal fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeModal}>
+        <div className="partner-form-modal" onClick={closeModal}>
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[90vh] overflow-y-auto p-4 sm:p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
@@ -1723,7 +1723,7 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
   };
   useModalKeys(true, onClose, copy);
   return (
-    <div className="partner-portal-link-modal fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="partner-portal-link-modal" onClick={onClose}>
       <div className="w-full max-w-md bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h2 className="text-base font-bold text-[var(--text)]">포털 링크가 발급되었습니다</h2>

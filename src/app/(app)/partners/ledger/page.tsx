@@ -207,8 +207,8 @@ export default function PartnerLedgerPage() {
   return (
     <div className="space-y-6">
       {/* ── 툴바: 세그먼트 탭·회계기간·검색·정렬 (좌) + 액션 (우) — 타이틀은 공통 헤더바가 담당 ── */}
-      <div className="ledger-toolbar flex flex-wrap items-center justify-between gap-2">
-        <div className="ledger-period-picker flex items-center gap-2 flex-wrap">
+      <div className="ledger-toolbar">
+        <div className="ledger-period-picker">
           <div className="seg-bar w-fit">
             {(["sales", "purchase"] as const).map((t) => {
               const p = AR_AP[t];
@@ -273,7 +273,7 @@ export default function PartnerLedgerPage() {
             <option value="name">거래처명 순</option>
           </select>
         </div>
-        <div className="ledger-toolbar-actions flex items-center gap-2 flex-wrap shrink-0">
+        <div className="ledger-toolbar-actions">
           <Link href="/partners" className="btn-secondary text-xs">← 거래처</Link>
           <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
             className="btn-secondary text-xs"
@@ -288,18 +288,18 @@ export default function PartnerLedgerPage() {
       </div>
 
       {/* KPI 행: 총 미수금/미지급 + 거래처 수 + 반대편 미니 카드(클릭 전환) */}
-      <div className="ledger-kpi-row grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="ledger-kpi-total glass-card p-5 flex flex-col gap-3">
+      <div className="ledger-kpi-row">
+        <div className="ledger-kpi-total glass-card">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</span>
           <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight" style={{ color: pal.main }}>{won(total)}</span>
         </div>
-        <div className="ledger-kpi-count glass-card p-5 flex flex-col gap-3">
+        <div className="ledger-kpi-count glass-card">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">{pal.label}</span>
           <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></span>
         </div>
         {/* 반대편 미니 요약 — 클릭하면 탭 전환 */}
         <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
-          className="ledger-kpi-other glass-card p-5 flex flex-col gap-3 text-left hover:bg-[var(--bg-surface)]/60 transition col-span-2 lg:col-span-1"
+          className="ledger-kpi-other glass-card"
           title="클릭하여 전환">
           <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1">{other.arrow} {other.label}</span>
           <span className={`text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight ${other.tintText}`}>{won(otherTotal)}</span>
@@ -309,7 +309,7 @@ export default function PartnerLedgerPage() {
 
       {/* 미수 경과(에이징) — 세금계산서 발행 기준. 회수 우선순위 판단용(오래 밀린 미수 강조). 매출처 뷰 전용. */}
       {ledgerType === "sales" && aging && aging.total > 0 && (
-        <div className="ledger-ar-aging glass-card p-4">
+        <div className="ledger-ar-aging glass-card">
           <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
             <span className="text-[12px] font-bold text-[var(--text)]">미수 경과 · 세금계산서 발행 기준</span>
             <span className="text-[10px] text-[var(--text-dim)]">합계 {won(aging.total)} · 원장 총 미수금은 전표·이월 포함(차이 정상)</span>
@@ -321,7 +321,7 @@ export default function PartnerLedgerPage() {
                 "bg-[var(--warning)]/18 text-[var(--warning)]",
                 "bg-[var(--danger)]/12 text-[var(--danger)]"][i];
               return (
-                <div key={b.label} className={`ar-aging-bucket rounded-lg px-3 py-2.5 ${cls}`}>
+                <div key={b.label} className={`ar-aging-bucket ${cls}`}>
                   <div className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{b.label}</div>
                   <div className="text-[15px] font-black mono-number leading-tight mt-0.5">{won(b.amount)}</div>
                   <div className="text-[9px] opacity-70 mt-0.5">{b.count}건</div>
@@ -337,8 +337,8 @@ export default function PartnerLedgerPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-4 items-start">
           {/* ── 좌: 거래처 목록 ── */}
-          <div className="ledger-partner-list glass-card overflow-hidden">
-            <div className="ledger-partner-list-header px-3 py-2.5 border-b border-[var(--border)] flex items-center justify-between gap-2" style={{ background: `color-mix(in srgb, ${pal.main} 7%, var(--bg-surface))` }}>
+          <div className="ledger-partner-list glass-card">
+            <div className="ledger-partner-list-header" style={{ background: `color-mix(in srgb, ${pal.main} 7%, var(--bg-surface))` }}>
               <label className="flex items-center gap-1.5 cursor-pointer select-none" title="전체 선택/해제 — 선택한 거래처를 엑셀 한 파일(거래처별 시트)로 내보냅니다">
                 <input type="checkbox"
                   checked={shown.length > 0 && shown.every((r) => checkedIds.has(r.partner_id ?? "none"))}
@@ -348,7 +348,7 @@ export default function PartnerLedgerPage() {
               <span className="caption">{shown.length}곳</span>
             </div>
             {checkedIds.size > 0 && (
-              <div className="ledger-partner-list-export-bar px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]/60 flex items-center justify-between gap-2">
+              <div className="ledger-partner-list-export-bar">
                 <span className="text-[11px] text-[var(--text-muted)]">{checkedIds.size}곳 선택</span>
                 <button
                   disabled={exporting}
@@ -385,7 +385,7 @@ export default function PartnerLedgerPage() {
                 const out = ledgerOut(r);
                 return (
                   <div key={`${key}-${r.type}`}
-                    className={`ledger-partner-row relative flex items-stretch rounded-lg transition ${active ? "" : "hover:bg-[var(--bg-surface)]/70"}`}
+                    className={`ledger-partner-row ${active ? "" : "hover:bg-[var(--bg-surface)]/70"}`}
                     style={active ? { background: `color-mix(in srgb, ${pal.main} 9%, transparent)` } : undefined}>
                     {active && <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full" style={{ background: pal.main }} />}
                     <label className="flex items-center pl-3 pr-1 cursor-pointer" title="일괄 엑셀 내보내기 선택">
