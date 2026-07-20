@@ -861,6 +861,7 @@ export async function updateApprovalRequest(params: {
   amount?: number;
   description?: string;
   customFields?: Record<string, unknown>;
+  attachments?: string[];
 }): Promise<void> {
   const { data: request, error: reqErr } = await db
     .from('approval_requests')
@@ -877,6 +878,7 @@ export async function updateApprovalRequest(params: {
   if (params.amount !== undefined) updates.amount = params.amount;
   if (params.description !== undefined) updates.description = params.description;
   if (params.customFields !== undefined) updates.custom_fields = params.customFields;
+  if (params.attachments !== undefined) updates.attachments = params.attachments;
 
   const { error } = await db
     .from('approval_requests')

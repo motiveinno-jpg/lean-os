@@ -890,7 +890,9 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   companyId: string; userId: string; invalidate: () => void;
 }) {
   const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["my-requests", userId, companyId],
@@ -921,6 +923,10 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   const [editForm, setEditForm] = useState({ title: "", amount: "", description: "" });
   const [editFieldValues, setEditFieldValues] = useState<Record<string, string>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  // 첨부파일 편집 — 유지할 기존 첨부 URL + 새로 추가할 파일 (2026-07-20 사장님 요청)
+  const [editAttachments, setEditAttachments] = useState<string[]>([]);
+  const [editNewFiles, setEditNewFiles] = useState<File[]>([]);
+  const [editDragging, setEditDragging] = useState(false);
   const editFieldsFor = (req: any) => {
     if (req.request_type === "leave") return [] as ApprovalForm["fields"];
     if (req.form_id) return (editForms as ApprovalForm[]).find((f) => f.id === req.form_id)?.fields || [];
@@ -936,12 +942,31 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
       amount: req.amount ? String(req.amount) : "",
       description: req.request_type === "leave" ? stripped : plainToHtml(stripped),
     });
+    setEditAttachments(Array.isArray(req.attachments) ? req.attachments : []);
+    setEditNewFiles([]);
+    setEditDragging(false);
     setEditReq(req);
   };
   const saveEdit = async () => {
     if (!editReq || savingEdit) return;
     setSavingEdit(true);
     try {
+      // 새 첨부 업로드 — 생성 화면(createMut)과 동일한 경로 규칙
+      const uploadedUrls: string[] = [];
+      const failedUploads: string[] = [];
+      for (const file of editNewFiles) {
+        const path = `approvals/${companyId}/${Date.now()}_${toBase64Url(file.name)}`;
+        const { error } = await supabase.storage.from("documents").upload(path, file);
+        if (!error) {
+          const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
+          uploadedUrls.push(urlData.publicUrl);
+        } else {
+          failedUploads.push(`${file.name}: ${error.message}`);
+        }
+      }
+      if (failedUploads.length > 0) {
+        toast(`첨부파일 업로드 실패 — ${failedUploads.join(" / ")}`, "error");
+      }
       const fields = editFieldsFor(editReq);
       const isLeaveReq = editReq.request_type === "leave";
       let finalDesc: string;
@@ -965,6 +990,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
         amount,
         description: finalDesc,
         customFields: fields.length > 0 ? editFieldValues : undefined,
+        attachments: [...editAttachments, ...uploadedUrls],
       });
       toast("요청을 수정했습니다", "success");
       setEditReq(null);
@@ -981,6 +1007,28 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
     onSuccess: invalidate,
     onError: (err: any) => toast("재제출 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
+
+  // 대기중 요청 본인 삭제 (2026-07-20 사장님 요청) — 승인 진행 전에만 노출
+  const handleDeleteMine = async (req: any) => {
+    const { ok } = await confirm({
+      title: "결재 요청 삭제",
+      desc: `"${req.title}"을(를) 삭제할까요? 결재선·의견도 함께 삭제되며 되돌릴 수 없습니다.`,
+      confirmLabel: "삭제",
+      danger: true,
+    });
+    if (!ok) return;
+    setDeletingId(req.id);
+    try {
+      await deleteApprovalRequest(req.id);
+      if (expandedId === req.id) setExpandedId(null);
+      toast("삭제했습니다", "success");
+      invalidate();
+    } catch (err: any) {
+      toast(`삭제 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
@@ -1050,14 +1098,25 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                         </button>
                       )}
                       {req.status === "pending" && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openEdit(req); }}
-                          className="btn-secondary"
-                          title="대기중인 동안 요청 내용을 수정할 수 있습니다"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                          수정
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEdit(req); }}
+                            className="btn-secondary"
+                            title="대기중인 동안 요청 내용을 수정할 수 있습니다"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            수정
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteMine(req); }}
+                            disabled={deletingId === req.id}
+                            className="btn-secondary text-[var(--danger)] disabled:opacity-50"
+                            title="대기중인 동안 요청을 삭제할 수 있습니다"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                            {deletingId === req.id ? "삭제 중…" : "삭제"}
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1139,6 +1198,66 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                       placeholder="결재 요청에 대한 상세 설명을 입력하세요..." maxHeight="280px" />
                   )}
                 </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">첨부파일</label>
+                  {editAttachments.length > 0 && (
+                    <div className="space-y-1.5 mb-2">
+                      {editAttachments.map((url, i) => (
+                        <div key={url} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)] text-xs">
+                          <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                          </span>
+                          <span className="truncate flex-1 font-medium text-[var(--text)]">{attachmentFileName(url)}</span>
+                          <button type="button" onClick={() => setEditAttachments(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {editNewFiles.length > 0 && (
+                    <div className="space-y-1.5 mb-2">
+                      {editNewFiles.map((f, i) => (
+                        <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)] text-xs">
+                          <span className="w-7 h-7 rounded-lg bg-[var(--success)]/10 text-[var(--success)] flex items-center justify-center shrink-0">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                          </span>
+                          <span className="truncate flex-1 font-medium text-[var(--text)]">{f.name}</span>
+                          <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{(f.size / 1024).toFixed(1)}KB</span>
+                          <button type="button" onClick={() => setEditNewFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label
+                    className={`flex flex-col items-center justify-center gap-1 px-4 py-4 rounded-xl border-2 border-dashed transition cursor-pointer ${
+                      editDragging
+                        ? "border-[var(--primary)] bg-[var(--primary)]/8"
+                        : "border-[var(--border)] bg-[var(--bg)]/50 hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/4"
+                    }`}
+                    onDragOver={(e) => { e.preventDefault(); setEditDragging(true); }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) setEditDragging(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setEditDragging(false);
+                      const dropped = Array.from(e.dataTransfer.files || []);
+                      if (dropped.length > 0) setEditNewFiles(prev => [...prev, ...dropped]);
+                    }}
+                  >
+                    <svg className="w-5 h-5 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span className="text-xs font-semibold text-[var(--text-muted)]">{editDragging ? "여기에 놓아서 첨부" : "클릭하거나 파일을 끌어다 첨부"}</span>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={(e) => {
+                        const picked = Array.from(e.target.files || []);
+                        if (picked.length > 0) setEditNewFiles(prev => [...prev, ...picked]);
+                        e.target.value = "";
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
               <div className="flex gap-2 mt-5">
                 <button onClick={() => setEditReq(null)} className="btn-secondary flex-1">취소</button>
@@ -1148,6 +1267,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
           </div>
         );
       })()}
+      {confirmElement}
     </div>
   );
 }
