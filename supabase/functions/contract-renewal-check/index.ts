@@ -395,7 +395,7 @@ async function sendNotificationEmail(
     `감사합니다.`;
 
   if (webhookUrl) {
-    // Send via external webhook (e.g., SendGrid, Resend, Slack, etc.)
+    // Send via external webhook (e.g., SendGrid, Resend, etc.)
     const res = await tfetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useToast } from "@/components/toast";
 
-type NotifChannel = "email" | "push" | "telegram";
+type NotifChannel = "email" | "push";
 type NotifEvent =
   | "approval_pending"
   | "deal_status"
@@ -20,7 +20,6 @@ type NotifEvent =
 interface NotifPrefs {
   email: { enabled: boolean; address: string; events: Record<NotifEvent, boolean> };
   push: { enabled: boolean; events: Record<NotifEvent, boolean> };
-  telegram: { enabled: boolean; chatId: string; events: Record<NotifEvent, boolean> };
   quietHours: { enabled: boolean; start: string; end: string };
 }
 
@@ -60,19 +59,6 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
       system_alert: true,
     },
   },
-  telegram: {
-    enabled: false,
-    chatId: "",
-    events: {
-      approval_pending: true,
-      deal_status: false,
-      payment_due: true,
-      tax_invoice: false,
-      chat_mention: false,
-      weekly_report: true,
-      system_alert: true,
-    },
-  },
   quietHours: { enabled: false, start: "22:00", end: "08:00" },
 };
 
@@ -85,7 +71,6 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
   const [saving, setSaving] = useState(false);
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState<NotificationPermission | "unknown">("unknown");
-  const [telegramTesting, setTelegramTesting] = useState(false);
   // iOS(사파리)는 '홈 화면에 추가'한 standalone 앱에서만 백그라운드 푸시 지원 — 안내용
   const [iosNeedsA2HS, setIosNeedsA2HS] = useState(false);
 
@@ -204,31 +189,6 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, prefs.push.enabled, companyId]);
 
-  async function testTelegram() {
-    if (!prefs.telegram.chatId.trim()) {
-      toast("텔레그램 Chat ID를 입력해주세요", "error");
-      return;
-    }
-    setTelegramTesting(true);
-    try {
-      const res = await fetch("/api/notifications/telegram-test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chatId: prefs.telegram.chatId }),
-      });
-      if (res.ok) {
-        toast("테스트 메시지 발송 — 텔레그램을 확인하세요", "success");
-      } else {
-        const body = await res.json().catch(() => ({}));
-        toast(body?.error || "발송 실패 — Chat ID를 확인하세요", "error");
-      }
-    } catch {
-      toast("네트워크 오류 — 잠시 후 다시 시도하세요", "error");
-    } finally {
-      setTelegramTesting(false);
-    }
-  }
-
   function setEventEnabled(channel: NotifChannel, event: NotifEvent, enabled: boolean) {
     setPrefs((p) => ({
       ...p,
@@ -257,7 +217,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       <div className="notification-settings-header glass-card">
         <h2 className="text-base font-bold mb-1">알림 설정</h2>
         <p className="text-xs text-[var(--text-muted)]">
-          이메일 · 푸시 · 텔레그램 — 채널별로 받고 싶은 이벤트를 선택하세요. 변경 후 하단의 저장 버튼을 눌러주세요.
+          이메일 · 푸시 — 채널별로 받고 싶은 이벤트를 선택하세요. 변경 후 하단의 저장 버튼을 눌러주세요.
         </p>
       </div>
 
@@ -324,45 +284,6 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
           channel="push"
           enabled={prefs.push.enabled && pushSupported}
           values={prefs.push.events}
-          onChange={setEventEnabled}
-          onAll={setAllEvents}
-        />
-      </ChannelSection>
-
-      {/* Telegram Channel */}
-      <ChannelSection
-        title="✈️ 텔레그램"
-        desc="모바일에서 가장 빠른 알림 — @motive_hajun_bot에게 /start 입력 후 Chat ID 발급받으세요"
-        enabled={prefs.telegram.enabled}
-        onToggle={(v) => setPrefs((p) => ({ ...p, telegram: { ...p.telegram, enabled: v } }))}
-      >
-        <div className="mb-4">
-          <label className="field-label">Telegram Chat ID</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={prefs.telegram.chatId}
-              onChange={(e) => setPrefs((p) => ({ ...p, telegram: { ...p.telegram, chatId: e.target.value } }))}
-              placeholder="예: 123456789"
-              disabled={!prefs.telegram.enabled}
-              className="flex-1 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-sm disabled:opacity-50"
-            />
-            <button
-              onClick={testTelegram}
-              disabled={!prefs.telegram.enabled || telegramTesting}
-              className="px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--primary-light)] text-[var(--primary)] hover:opacity-90 transition disabled:opacity-50"
-            >
-              {telegramTesting ? "발송중..." : "테스트"}
-            </button>
-          </div>
-          <p className="caption mt-1.5">
-            텔레그램에서 @motive_hajun_bot에게 메시지를 보낸 뒤, Chat ID를 입력하세요.
-          </p>
-        </div>
-        <EventGrid
-          channel="telegram"
-          enabled={prefs.telegram.enabled}
-          values={prefs.telegram.events}
           onChange={setEventEnabled}
           onAll={setAllEvents}
         />

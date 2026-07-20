@@ -193,8 +193,6 @@ export async function deleteNotification(id: string) {
 // ════════════════════════════════════════════════════════════════════════
 // 2026-05-29 연장근무 알림 헬퍼 (신청·승인·거절·자동퇴근)
 //   - notifications 테이블 insert (필수)
-//   - 회사 Slack webhook 설정돼 있으면 동시 발송 (옵션, 실패해도 notif insert 는 성공)
-//   - 카카오 알림톡/Telegram 미구현 (현 stack 에 없음) — 향후 lib 추가 시 여기에 분기
 // ════════════════════════════════════════════════════════════════════════
 
 // 회사의 admin/owner user id 목록 조회 (notifications insert 대상).
@@ -206,22 +204,6 @@ async function getCompanyAdminOwnerIds(companyId: string): Promise<string[]> {
     .in('role', ['owner', 'admin']);
   if (error) return [];
   return (data || []).map((u: { id: string }) => u.id);
-}
-
-// Slack 발송 — 실패해도 throw 안 함(알림 insert 흐름 보호).
-async function trySendSlack(companyId: string, title: string, message: string): Promise<void> {
-  try {
-    const { getSlackSettings, sendSlackNotification } = await import('./slack');
-    const settings = await getSlackSettings(companyId);
-    if (!settings?.slack_webhook_url) return;
-    await sendSlackNotification(settings.slack_webhook_url, {
-      event: 'approval_pending',
-      title,
-      message,
-    });
-  } catch {
-    /* slack 미설정/실패는 무시 */
-  }
 }
 
 // A. 신청 → 회사 admin/owner 전원 알림.
@@ -252,8 +234,6 @@ export async function notifyOvertimeRequest(params: {
       }),
     ),
   );
-  // Slack (옵션)
-  await trySendSlack(companyId, `🕘 ${title}`, `${message}\n→ /approvals?tab=overtime`);
 }
 
 // B. 승인/반려 → 신청자에게 알림.
@@ -284,5 +264,4 @@ export async function notifyOvertimeDecision(params: {
   } catch {
     /* notifications insert 실패는 토스트만 표시되도록 throw 안 함 */
   }
-  await trySendSlack(companyId, `${decision === 'approved' ? '✅' : '❌'} ${title}`, message);
 }

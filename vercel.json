@@ -2,11 +2,5 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "installCommand": "npm install",
-  "outputDirectory": ".next",
-  "crons": [
-    {
-      "path": "/api/daily-report",
-      "schedule": "0 22 * * *"
-    }
-  ]
+  "outputDirectory": ".next"
 }

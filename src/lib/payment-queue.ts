@@ -7,7 +7,6 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 import { resolveBank } from './routing';
 import { logAudit } from './audit';
-import { notifyCeoPaymentApproval } from './telegram';
 import type { PaymentQueue } from '@/types/models';
 
 // ── Create a payment queue entry from a cost schedule ──
@@ -109,7 +108,7 @@ export async function createQueueEntry(params: {
 // ── Approve a payment ──
 // When auto_execute_on_approve is enabled in company_settings:
 //   - amount <= auto_execute_limit → immediately execute via CODEF (1-Click)
-//   - amount >  auto_execute_limit → stay "approved" + notify CEO on Telegram
+//   - amount >  auto_execute_limit → stay "approved" until CEO confirms in /payments
 export async function approvePayment(
   paymentId: string,
   userId: string
@@ -136,7 +135,7 @@ export async function approvePayment(
 
   // Automation settings live in companies.automation_settings (JSONB).
   // Relevant keys (saved from Settings → 은행연동 탭):
-  //   auto_transfer_enabled, auto_transfer_limit, ceo_telegram_chat_id
+  //   auto_transfer_enabled, auto_transfer_limit
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cmp = logRead('lib/payment-queue:cmp', await (supabase)
     .from('companies')
@@ -152,19 +151,9 @@ export async function approvePayment(
     return { autoExecuted: false, notified: false };
   }
 
-  // Over the limit → notify CEO, keep "approved" until they confirm
+  // Over the limit → keep "approved" until the CEO confirms in /payments
   if (autoLimit > 0 && amount > autoLimit) {
-    const n = await notifyCeoPaymentApproval({
-      companyId: payment.company_id,
-      paymentId,
-      amount,
-      description: payment.description || '',
-      recipientName: payment.recipient_name,
-      approveUrl: typeof window !== 'undefined'
-        ? `${window.location.origin}/payments`
-        : undefined,
-    });
-    return { autoExecuted: false, notified: n.success };
+    return { autoExecuted: false, notified: false };
   }
 
   // Within limit → auto-execute via CODEF Edge Function

@@ -3,7 +3,7 @@ import { withSentry } from "../_shared/sentry.ts";
 // OwnerView — CODEF Transfer Edge Function
 // Execute a single payment_queue entry via CODEF bank transfer API.
 // Until the CODEF transfer API contract is approved (requires 가맹점 심사), this function runs in
-// "manual" mode: marks payment as executed in DB, logs audit, and notifies the CEO via telegram.
+// "manual" mode: marks payment as executed in DB and logs audit.
 // When CODEF_TRANSFER_ENABLED=true is set, it calls the real transfer API.
 // Payload: { paymentId: string }
 

@@ -6,7 +6,6 @@ import { logRead } from "@/lib/log-read";
 
 import { supabase } from './supabase';
 import { logAudit } from './audit-log';
-import { getSlackSettings, sendSlackNotification } from './slack';
 
 const db = supabase;
 
@@ -429,23 +428,6 @@ export async function autoCloseMonth(
       entity_id: checklist.id,
       entity_name: `${month} 자동마감`,
     });
-
-    // Slack 알림 (webhook 설정된 회사만, 실패해도 무시)
-    try {
-      const slack = await getSlackSettings(companyId);
-      if (slack?.slack_webhook_url) {
-        const cmp = logRead('lib/closing:cmp', await db.from('companies').select('name').eq('id', companyId).maybeSingle());
-        await sendSlackNotification(slack.slack_webhook_url, {
-          event: 'monthly_closed',
-          companyName: cmp?.name,
-          title: `${month} 월 마감 자동 완료`,
-          message: reason,
-          fields: outcomes.filter(o => o.passed).slice(0, 5).map(o => ({
-            label: o.title, value: o.reason,
-          })),
-        });
-      }
-    } catch { /* slack 실패는 마감을 막지 않음 */ }
   } else if (checklist.status === 'locked' || checklist.status === 'completed') {
     reason = `이미 ${checklist.status === 'locked' ? '잠금' : '완료'}됨`;
   } else {

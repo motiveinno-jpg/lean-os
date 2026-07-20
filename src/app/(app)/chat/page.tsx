@@ -254,7 +254,7 @@ function GuestChatView({ token }: { token: string }) {
   );
 }
 
-// ── Chat (Slack-style 2단: 좌 채널 사이드바 + 우 대화) ──
+// ── Chat (메신저형 2단: 좌 채널 사이드바 + 우 대화) ──
 function ChatPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
