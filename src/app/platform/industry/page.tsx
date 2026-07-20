@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 // KSIC 대분류 간소화 — 13개 카테고리
 const INDUSTRY_OPTIONS = [
@@ -68,8 +68,8 @@ export default function PlatformIndustryPage() {
     queryKey: ["op-industry-avg", selectedIndustry],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_financial_averages_by_industry", {
-        p_month: null,
-        p_industry: selectedIndustry || null,
+        p_month: undefined,
+        p_industry: selectedIndustry || undefined,
       });
       if (error) throw error;
       return (data || []) as AvgRow[];

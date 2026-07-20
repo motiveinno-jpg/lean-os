@@ -47,12 +47,13 @@ export default function AttendancePage() {
   const { data: employees = [] } = useQuery({
     queryKey: ["attendance-employees", companyId, isEmployee ? "emp" : "mgr"],
     queryFn: async () => {
-      const data = logRead('attendance/page:data', await (supabase as any)
+      const data = logRead('attendance/page:data', await (supabase)
         .from("employees")
         .select(isEmployee ? ATT_EMP_COLS : "*")
         .eq("company_id", companyId!)
         .order("created_at", { ascending: false }));
-      return data || [];
+      // 조건부 select 유니언은 PostgREST 타입 파서가 못 읽음 — 런타임은 정상, 캐스트로 정합
+      return (data || []) as any[];
     },
     enabled: !!companyId,
   });

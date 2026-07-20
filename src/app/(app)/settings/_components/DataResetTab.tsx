@@ -164,10 +164,10 @@ export function DataResetTab({ companyId }: { companyId: string }) {
   }, [companyId]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
+  const db = supabase;
 
   async function fetchIds(table: string, col: string = "id"): Promise<string[]> {
-    const data = logRead('_components/DataResetTab:data', await db.from(table).select(col).eq("company_id", companyId));
+    const data = logRead('_components/DataResetTab:data', await (db.from(table as never) as any).select(col).eq("company_id", companyId));
     if (!data || data.length === 0) return [];
     return data.map((r: Record<string, string>) => r[col]);
   }
@@ -177,7 +177,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
     // .in()은 URL 길이 제한이 있으므로 100개씩 배치
     for (let i = 0; i < ids.length; i += 100) {
       const batch = ids.slice(i, i + 100);
-      const { error } = await db.from(table).delete().in(fk, batch);
+      const { error } = await (db.from(table as never) as any).delete().in(fk, batch);
       if (error) return `${table}: ${error.message}`;
     }
     return null;

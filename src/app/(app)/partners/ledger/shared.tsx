@@ -14,7 +14,7 @@ import { useToast } from "@/components/toast";
 import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
-const db = supabase as any;
+const db = supabase;
 
 // ── 타입 ──
 export type LedgerRow = {
@@ -579,7 +579,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   // 세부 프로젝트 — 선택한 프로젝트의 sub_deals (세부 귀속 시 실적원가가 v_sub_deal_pnl 에 집계)
   const { data: subDeals = [] } = useQuery<any[]>({
     queryKey: ["voucher-sub-deals", dealId],
-    queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at")); return (data || []) as any[]; },
+    queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId ?? "").order("created_at")); return (data || []) as any[]; },
     enabled: !!dealId, staleTime: 300_000,
   });
 
@@ -664,7 +664,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
       // 프로젝트 태그 (직접원가 귀속) — 신규는 반환 id, 수정은 entryId
       const savedId = isNew ? (res.data as string) : entryId;
       if (savedId) {
-        const { error: tagErr } = await db.rpc("set_voucher_deal", { p_entry_id: savedId, p_deal_id: dealId || null, p_sub_deal_id: dealId ? (subDealId || null) : null });
+        // 생성 타입은 p_deal_id 를 non-null 로 뽑지만 SQL 은 null 허용(태그 해제) — null 전달 유지
+        const { error: tagErr } = await db.rpc("set_voucher_deal", { p_entry_id: savedId, p_deal_id: dealId || null, p_sub_deal_id: dealId ? (subDealId || null) : null } as never);
         if (tagErr) throw new Error(tagErr.message);
       }
       toast(isNew ? "전표 입력됨" : "전표 수정됨", "success");

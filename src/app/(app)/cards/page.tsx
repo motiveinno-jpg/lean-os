@@ -22,7 +22,7 @@ import { EmptyState } from "@/components/empty-state";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 
 // (대형 CARD HOLDER 히어로 제거로 카드사 그라데이션 매핑도 함께 제거 — 2026-07-10 직원 QA)
@@ -155,7 +155,7 @@ export default function CardsPage() {
     queryFn: async () => {
       const data = logRead('cards/page:data', await db.from("corporate_cards")
         .select("*")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .order("created_at", { ascending: true }));
       return (data || []) as any[];
     },
@@ -168,7 +168,7 @@ export default function CardsPage() {
     queryFn: async () => {
       const data = logRead('cards/page:data', await db.from("card_transactions")
         .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .gte("transaction_date", monthRange.from)
         .lte("transaction_date", monthRange.to)
         .limit(50000));
@@ -183,7 +183,7 @@ export default function CardsPage() {
     queryFn: async () => {
       let q = db.from("card_transactions")
         .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(500);
       if (selectedCardId) q = q.eq("card_id", selectedCardId);
@@ -200,7 +200,7 @@ export default function CardsPage() {
   const { data: accounts = [] } = useQuery({
     queryKey: ["cards-page-accounts", companyId],
     queryFn: async () => {
-      const data = logRead('cards/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code"));
+      const data = logRead('cards/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId ?? "").order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -209,7 +209,7 @@ export default function CardsPage() {
   const { data: cardEmployees = [] } = useQuery({
     queryKey: ["cards-page-employees", companyId],
     queryFn: async () => {
-      const data = logRead('cards/page:data', await db.from("employees").select("id, name").eq("company_id", companyId).eq("status", "active").order("name"));
+      const data = logRead('cards/page:data', await db.from("employees").select("id, name").eq("company_id", companyId ?? "").eq("status", "active").order("name"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -217,7 +217,7 @@ export default function CardsPage() {
   const { data: cardMappings = [] } = useQuery({
     queryKey: ["cards-page-mappings", companyId],
     queryFn: async () => {
-      const data = logRead('cards/page:data', await db.from("card_account_mappings").select("category, account_id").eq("company_id", companyId));
+      const data = logRead('cards/page:data', await db.from("card_account_mappings").select("category, account_id").eq("company_id", companyId ?? ""));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 60_000,
@@ -316,7 +316,7 @@ export default function CardsPage() {
     queryFn: async () => {
       let q = db.from("card_transactions")
         .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(300);
       if (filterCardId) q = q.eq("card_id", filterCardId);

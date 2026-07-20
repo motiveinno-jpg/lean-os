@@ -33,7 +33,7 @@ import { IssuesTab } from "./_components/IssuesTab";
 import { MondayBoard } from "@/components/monday-board";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
-const db = supabase as any;
+const db = supabase;
 
 // 견적서 기본 구조 — 프로젝트에서 바로 생성(문서함 이동 없이). 품목은 생성 후 편집기에서 추가.
 const QUOTE_CONTENT = {
@@ -471,7 +471,7 @@ export default function ProjectHubDetailPage() {
   const { data: docTemplates = [], isSuccess: templatesLoaded } = useQuery({
     queryKey: ["projecthub-doc-templates", companyId],
     queryFn: async () => {
-      const data = logRead('[id]/page:data', await db.from("doc_templates").select("id, name, type").eq("company_id", companyId).eq("is_active", true));
+      const data = logRead('[id]/page:data', await db.from("doc_templates").select("id, name, type").eq("company_id", companyId ?? "").eq("is_active", true));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -552,7 +552,7 @@ export default function ProjectHubDetailPage() {
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["projecthub-company-users", companyId],
     queryFn: async () => {
-      const data = logRead('[id]/page:data', await db.from("users").select("id, name").eq("company_id", companyId).order("name", { ascending: true }));
+      const data = logRead('[id]/page:data', await db.from("users").select("id, name").eq("company_id", companyId ?? "").order("name", { ascending: true }));
       return (data || []) as any[];
     },
     enabled: !!companyId && ["delivery", "goal"].includes(normalizeProjectType(deal?.project_type)),
@@ -574,7 +574,7 @@ export default function ProjectHubDetailPage() {
   const { data: allDeals = [] } = useQuery({
     queryKey: ["projecthub-all-deals", companyId],
     queryFn: async () => {
-      const data = logRead('[id]/page:data', await db.from("deals").select("id, parent_deal_id").eq("company_id", companyId).is("archived_at", null));
+      const data = logRead('[id]/page:data', await db.from("deals").select("id, parent_deal_id").eq("company_id", companyId ?? "").is("archived_at", null));
       return (data || []) as { id: string; parent_deal_id: string | null }[];
     },
     enabled: !!companyId,
@@ -714,7 +714,7 @@ export default function ProjectHubDetailPage() {
       if (error) throw new Error(error.message);
       try {
         await db.from("audit_logs").insert({
-          company_id: companyId, entity_type: "deal", entity_id: deleteTarget.id, action: "delete",
+          company_id: companyId as string, entity_type: "deal", entity_id: deleteTarget.id, action: "delete",
           before_json: { archived_at: null, name: deleteTarget.name },
           after_json: { archived_at: nowIso },
           metadata: { soft_delete: true, deal_name: deleteTarget.name, source: "projecthub-campaign-list" },
@@ -736,16 +736,16 @@ export default function ProjectHubDetailPage() {
   const { data: autoContractOn = false } = useQuery({
     queryKey: ["auto-contract-setting", companyId],
     queryFn: async () => {
-      const data = logRead('[id]/page:data', await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
+      const data = logRead('[id]/page:data', await db.from("company_settings").select("settings").eq("company_id", companyId ?? "").maybeSingle());
       return !!((data?.settings as any)?.auto_contract_on_approve);
     },
     enabled: !!companyId && !!pipelineDir,
   });
   const toggleAutoContract = async (val: boolean) => {
     if (!companyId) return;
-    const cur = logRead('[id]/page:cur', await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
+    const cur = logRead('[id]/page:cur', await db.from("company_settings").select("settings").eq("company_id", companyId ?? "").maybeSingle());
     const settings = { ...((cur?.settings as any) || {}), auto_contract_on_approve: val };
-    const { error } = await db.from("company_settings").update({ settings }).eq("company_id", companyId);
+    const { error } = await db.from("company_settings").update({ settings }).eq("company_id", companyId ?? "");
     if (error) { toast("설정 저장 실패: " + error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["auto-contract-setting", companyId] });
     toast(val ? "견적 승인 시 계약서 자동 생성 — 켬" : "견적 승인 시 계약서 자동 생성 — 끔", "success");

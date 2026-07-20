@@ -7,13 +7,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 export function TaxAutomationTab({ companyId }: { companyId: string | null }) {
-  const db2 = supabase as any;
+  const db2 = supabase;
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(false);
   const [settings, setSettings] = useState({ auto_issue_on_deal_close: true, auto_issue_on_payment: false, auto_email_send: false, issue_schedule: "immediate", auto_cancel_on_refund: true, auto_cancel_on_deal_cancel: true, vat_auto_aggregate: true, advance_ratio: 30, matching_tolerance: 1 });
   const { data: companySettings } = useQuery({
     queryKey: ["tax-settings", companyId],
-    queryFn: async () => { if (!companyId) return null; const data = logRead('_components/TaxAutomationTab:data', await db2.from("companies").select("tax_settings").eq("id", companyId).maybeSingle()); return data?.tax_settings || {}; },
+    queryFn: async () => { if (!companyId) return null; const data = logRead('_components/TaxAutomationTab:data', await db2.from("companies").select("tax_settings").eq("id", companyId).maybeSingle()); return (data?.tax_settings || {}) as Record<string, any>; },
     enabled: !!companyId,
   });
   useEffect(() => {

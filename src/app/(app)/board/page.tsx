@@ -15,7 +15,7 @@ import { getCompanyUsers } from "@/lib/queries";
 import { friendlyError } from "@/lib/friendly-error";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
-const db = supabase as any;
+const db = supabase;
 
 type MentionUser = { id: string; name: string | null; email: string };
 
@@ -162,7 +162,7 @@ export default function BoardPage() {
     queryFn: async () => {
       const counts: Record<number, number> = {};
       try {
-        const { data, error } = await db.rpc("get_poll_results", { p_post_id: openId });
+        const { data, error } = await db.rpc("get_poll_results", { p_post_id: openId as string });
         if (error) throw error;
         let total = 0;
         for (const r of (data || []) as any[]) {
@@ -292,7 +292,7 @@ export default function BoardPage() {
         if (error) throw error;
       } else {
         const { error } = await db.from("board_posts").insert({
-          company_id: companyId,
+          company_id: companyId as string,
           author_id: user?.id || null,
           author_name: user?.name || null,
           author_email: user?.email || null,
@@ -365,7 +365,7 @@ export default function BoardPage() {
         .from("board_comments")
         .insert({
           post_id: postId,
-          company_id: companyId,
+          company_id: companyId as string,
           author_id: user?.id || null,
           author_name: user?.name || user?.email || null,
           content: text,
@@ -382,7 +382,7 @@ export default function BoardPage() {
         const post = posts.find((p) => p.id === postId);
         const preview = text.length > 80 ? `${text.slice(0, 80)}…` : text;
         const rows = mentioned.map((uid) => ({
-          company_id: companyId,
+          company_id: companyId as string,
           user_id: uid,
           type: "chat" as const,
           title: "게시판 멘션",
@@ -405,7 +405,7 @@ export default function BoardPage() {
         if (authorId && authorId !== user?.id && !mentioned.includes(authorId)) {
           const preview = text.length > 80 ? `${text.slice(0, 80)}…` : text;
           await db.from("notifications").insert({
-            company_id: companyId,
+            company_id: companyId as string,
             user_id: authorId,
             type: "chat" as const,
             title: "내 게시글에 새 댓글",
@@ -425,7 +425,7 @@ export default function BoardPage() {
         if (parentAuthorId && parentAuthorId !== user?.id && !mentioned.includes(parentAuthorId) && parentAuthorId !== postAuthorId) {
           const preview = text.length > 80 ? `${text.slice(0, 80)}…` : text;
           await db.from("notifications").insert({
-            company_id: companyId,
+            company_id: companyId as string,
             user_id: parentAuthorId,
             type: "chat" as const,
             title: "내 댓글에 답글",
@@ -488,14 +488,14 @@ export default function BoardPage() {
         } else {
           const { error } = await db
             .from("board_poll_votes")
-            .insert({ post_id: postId, company_id: companyId, user_id: user.id, option_index: optionIndex });
+            .insert({ post_id: postId, company_id: companyId as string, user_id: user.id, option_index: optionIndex });
           if (error) throw error;
         }
       } else {
         await db.from("board_poll_votes").delete().eq("post_id", postId).eq("user_id", user.id);
         const { error } = await db
           .from("board_poll_votes")
-          .insert({ post_id: postId, company_id: companyId, user_id: user.id, option_index: optionIndex });
+          .insert({ post_id: postId, company_id: companyId as string, user_id: user.id, option_index: optionIndex });
         if (error) throw error;
       }
     },

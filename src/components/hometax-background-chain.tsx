@@ -35,8 +35,8 @@ export function HometaxBackgroundChain() {
         return;
       }
       try {
-        const db = supabase as any;
-        const ids = entries.map((e) => e.id);
+        const db = supabase;
+        const ids = entries.map((e) => e.id).filter(Boolean) as string[];
         const jobs = logRead('components/hometax-background-chain:jobs', await db.from("hometax_sync_jobs")
           .select("id, status")
           .in("id", ids));

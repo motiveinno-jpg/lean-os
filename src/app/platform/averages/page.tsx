@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 type MetricRow = {
   metric: string;
@@ -48,7 +48,7 @@ export default function PlatformAveragesPage() {
     queryKey: ["op-fin-averages", effectiveMonth],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_financial_averages", {
-        p_month: effectiveMonth || null,
+        p_month: effectiveMonth || undefined,
       });
       if (error) throw error;
       return (data || []) as MetricRow[];

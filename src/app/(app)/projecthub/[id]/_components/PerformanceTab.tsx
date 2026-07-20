@@ -16,7 +16,7 @@ import { getKpiAchievement, KPI_SOURCE_LABEL, type KpiSource } from "@/lib/proje
 import { getCompanyMembers } from "@/lib/hr";
 import { computePeriodStart, computeDueDate, periodLabel, normalizeCadence, CADENCE_LABEL, WEEKDAY_LABEL, todayYMD, type Cadence } from "@/lib/project-checkin";
 
-const db = supabase as any;
+const db = supabase;
 const fmtNum = (n: number, unit: string) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}${unit}`;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const numComma = (s: string) => { const n = Number(String(s).replace(/[^0-9.-]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
@@ -92,7 +92,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const { data: myDeptName = "" } = useQuery({
     queryKey: ["my-department", companyId, user?.id],
     queryFn: async () => {
-      const data = logRead('_components/PerformanceTab:data', await db.from("employees").select("department").eq("company_id", companyId).eq("user_id", user?.id).maybeSingle());
+      const data = logRead('_components/PerformanceTab:data', await db.from("employees").select("department").eq("company_id", companyId).eq("user_id", user?.id ?? "").maybeSingle());
       return (data?.department || "") as string;
     },
     enabled: !!companyId && !!user?.id,

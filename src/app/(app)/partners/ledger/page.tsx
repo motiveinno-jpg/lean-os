@@ -34,7 +34,7 @@ export default function PartnerLedgerPage() {
   const companyId = user?.company_id ?? null;
   const qc = useQueryClient();
   const { toast } = useToast();
-  const db = supabase as any;
+  const db = supabase;
 
   const [ledgerType, setLedgerTypeRaw] = useState<ArApType>(initialType);
   const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 회계기간(연도)
@@ -76,7 +76,7 @@ export default function PartnerLedgerPage() {
   const { data: partnerInfo = { names: {}, codes: {} } } = useQuery<{ names: Record<string, string>; codes: Record<string, number> }>({
     queryKey: ["partner-ledger-names", companyId],
     queryFn: async () => {
-      const data = logRead('ledger/page:data', await db.from("partners").select("id, name, code").eq("company_id", companyId));
+      const data = logRead('ledger/page:data', await db.from("partners").select("id, name, code").eq("company_id", companyId ?? ""));
       const names: Record<string, string> = {};
       const codes: Record<string, number> = {};
       for (const p of (data || []) as any[]) { names[p.id] = p.name; if (p.code != null) codes[p.id] = p.code; }
@@ -95,7 +95,7 @@ export default function PartnerLedgerPage() {
     queryFn: async () => {
       const data = logRead('ledger/page:data', await db.from("journal_entries")
         .select("journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
-        .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
+        .eq("company_id", companyId ?? "").eq("source", "manual").eq("status", "confirmed")
         .gte("entry_date", periodStart).lte("entry_date", periodEnd));
       const m: Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }> = {};
       for (const e of (data || []) as any[]) {
@@ -122,7 +122,7 @@ export default function PartnerLedgerPage() {
       const since = new Date(); since.setDate(since.getDate() - 730);
       const inv = logRead('ledger/page:inv', await db.from("tax_invoices")
         .select("total_amount, supply_amount, settled_amount, issue_date, status")
-        .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
+        .eq("company_id", companyId ?? "").eq("type", "sales").neq("status", "void")
         .gte("issue_date", since.toISOString().slice(0, 10)).limit(5000));
       const buckets = [
         { label: "0–30일", min: 0, max: 30, amount: 0, count: 0 },

@@ -5,7 +5,7 @@ import { DateTimeField } from "@/components/datetime-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 type Incident = {
   id: string;
@@ -59,15 +59,15 @@ export default function PlatformIncidentsPage() {
   const upsert = useMutation({
     mutationFn: async (input: Partial<Incident>) => {
       const { data, error } = await db.rpc("operator_upsert_incident", {
-        p_id: input.id || null,
+        p_id: input.id || undefined,
         p_title: input.title,
-        p_occurred_at: input.occurred_at || null,
-        p_resolved_at: input.resolved_at || null,
+        p_occurred_at: input.occurred_at || undefined,
+        p_resolved_at: input.resolved_at || undefined,
         p_severity: input.severity || "medium",
-        p_symptoms: input.symptoms || null,
-        p_root_cause: input.root_cause || null,
-        p_prevention: input.prevention || null,
-        p_related_commit: input.related_commit || null,
+        p_symptoms: input.symptoms || undefined,
+        p_root_cause: input.root_cause || undefined,
+        p_prevention: input.prevention || undefined,
+        p_related_commit: input.related_commit || undefined,
       });
       if (error) throw error;
       return data;

@@ -249,7 +249,7 @@ function CertFinderSection({ certDerRef, certKeyRef, certFileStatus, certUploadi
 
 export function CertificateManagementTab({ companyId }: { companyId: string | null }) {
   const { toast } = useToast();
-  const db2 = supabase as any;
+  const db2 = supabase;
   const queryClient = useQueryClient();
   const BANK_LIST = [
     { value: "ibk", label: "IBK 기업은행" },
@@ -362,7 +362,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
   // 자동서명 설정
   const { data: certSettings } = useQuery({
     queryKey: ["cert-settings", companyId],
-    queryFn: async () => { if (!companyId) return null; const data = logRead('_components/CertificateManagementTab:data', await db2.from("companies").select("cert_settings").eq("id", companyId).maybeSingle()); return data?.cert_settings || {}; },
+    queryFn: async () => { if (!companyId) return null; const data = logRead('_components/CertificateManagementTab:data', await db2.from("companies").select("cert_settings").eq("id", companyId).maybeSingle()); return (data?.cert_settings || {}) as Record<string, unknown>; },
     enabled: !!companyId,
   });
 
@@ -415,7 +415,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       // 홈택스
       const ht = creds.find((c: any) => c.service === "hometax");
       if (ht?.credentials) {
-        const dec = await tryDecrypt(ht.credentials);
+        const dec = await tryDecrypt(ht.credentials as Record<string, unknown>);
         if (dec.login_method) setHometaxMethod(dec.login_method);
         else if (dec.cert_password && !dec.login_id) setHometaxMethod("certificate");
         else if (dec.login_id) setHometaxMethod("id_pw");
@@ -427,12 +427,12 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       // 레거시: 기존 ibk/hometax/lottecard 데이터 마이그레이션
       const ibk = creds.find((c: any) => c.service === "ibk");
       const lc = creds.find((c: any) => c.service === "lottecard");
-      if (ibk?.credentials?.cert_password && bankEntries.length === 0) {
-        const dec = await tryDecrypt(ibk.credentials);
+      if ((ibk?.credentials as any)?.cert_password && bankEntries.length === 0) {
+        const dec = await tryDecrypt(ibk!.credentials as Record<string, unknown>);
         setBanks([{ company: "ibk", login_id: "", login_password: "", cert_password: dec.cert_password || "" }]);
       }
-      if (lc?.credentials?.login_id && cardEntries.length === 0) {
-        const dec = await tryDecrypt(lc.credentials);
+      if ((lc?.credentials as any)?.login_id && cardEntries.length === 0) {
+        const dec = await tryDecrypt(lc!.credentials as Record<string, unknown>);
         setCards([{ company: "lottecard", login_id: dec.login_id || "", login_password: dec.login_password || "" }]);
       }
     }

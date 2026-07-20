@@ -26,7 +26,7 @@ import { friendlyError, reportError } from "@/lib/friendly-error";
 import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 interface ApprovalRow {
   id: string;
@@ -226,16 +226,16 @@ export default function QuoteApprovalPage() {
       const { data, error } = await db.rpc("submit_quote_decision", {
         p_token: token,
         p_decision: decision,
-        p_note: decision === "rejected" ? rejectNote.trim() : null,
-        p_signature_method: isContractApproval ? signatureMethod : null,
-        p_signature_data_url: isContractApproval ? signatureDataUrl : null,
-        p_signed_contract_url: null,  // PDF Storage 는 후속 라운드
-        p_signed_contract_html: signedHtml,
-        p_signer_ip: null,             // RLS 안에서 서버측 inet 추출은 RPC 한계 — 클라 미전달
-        p_signer_user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : null,
-        p_signer_company_name: isContractApproval ? signerCompanyName.trim() : null,
-        p_signer_business_number: isContractApproval ? signerBusinessNumber.trim() || null : null,
-        p_signer_representative: isContractApproval ? signerRepresentative.trim() : null,
+        p_note: decision === "rejected" ? rejectNote.trim() : undefined,
+        p_signature_method: isContractApproval ? signatureMethod ?? undefined : undefined,
+        p_signature_data_url: isContractApproval ? signatureDataUrl ?? undefined : undefined,
+        p_signed_contract_url: undefined,  // PDF Storage 는 후속 라운드
+        p_signed_contract_html: signedHtml ?? undefined,
+        p_signer_ip: undefined,             // RLS 안에서 서버측 inet 추출은 RPC 한계 — 클라 미전달
+        p_signer_user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 500) : undefined,
+        p_signer_company_name: isContractApproval ? signerCompanyName.trim() : undefined,
+        p_signer_business_number: isContractApproval ? signerBusinessNumber.trim() || undefined : undefined,
+        p_signer_representative: isContractApproval ? signerRepresentative.trim() : undefined,
       });
       if (error) {
         reportError("quote.token.submit", { code: error.code });

@@ -12,7 +12,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 
-const db = supabase as any;
+const db = supabase;
 
 type Ticket = {
   id: string;
@@ -63,7 +63,7 @@ export default function SupportPage() {
       const data = logRead('support/page:data', await db
         .from("support_tickets")
         .select("id, category, subject, content, status, answer, answered_at, created_at")
-        .eq("user_id", userId)
+        .eq("user_id", userId ?? "")
         .order("created_at", { ascending: false }));
       return (data || []) as Ticket[];
     },
@@ -73,8 +73,8 @@ export default function SupportPage() {
   const submitMut = useMutation({
     mutationFn: async () => {
       const { error } = await db.from("support_tickets").insert({
-        company_id: companyId,
-        user_id: userId,
+        company_id: companyId as string,
+        user_id: userId as string,
         category,
         subject: subject.trim(),
         content: content.trim(),

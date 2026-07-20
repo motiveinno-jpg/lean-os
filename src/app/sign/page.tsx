@@ -19,7 +19,7 @@ import { buildPartnerReplacements, applyTokenReplacements } from "@/lib/signer-r
 import { usePrintIsolation } from "@/lib/use-print-isolation";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // 2026-05-28 라이브 서명 본문 렌더 — html-react-parser 로 본문 HTML 을 React tree 로 변환.
 //   토큰({{?라디오:...}}/{{?텍스트:...}}) 자리에 RadioInline/TextInline 컴포넌트 직접 mount.
@@ -456,25 +456,40 @@ function SignContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // 토큰 RPC(get_*_by_token) 반환은 생성 타입상 Json — 실제 shape 을 구조 타입으로 명시
+  type TokenSigReq = {
+    id: string; title: string; status: string | null;
+    expires_at?: string | null; signer_name?: string | null; signer_email?: string | null;
+    template_snapshot_html?: string | null; signer_inputs?: Record<string, string> | null;
+    signature_data?: unknown; signed_at?: string | null;
+    documents?: ({ name?: string | null; content_json?: Record<string, unknown> & { body?: unknown } | null } & Record<string, unknown>) | null;
+  };
+  type TokenPkg = {
+    id: string; status?: string | null; expires_at?: string | null; notes?: string | null;
+    sent_at?: string | null; created_at?: string | null; items?: any[] | null;
+    companies?: ({ seal_url?: string | null } & Record<string, unknown>) | null;
+    employees?: ({ name?: string | null; saved_signature?: string | null } & Record<string, unknown>) | null;
+  } & Record<string, unknown>;
+
   async function loadPackage() {
     try {
       // Get package by sign_token — anon 은 SECURITY DEFINER RPC 로만 접근(직접 select 는 RLS 차단).
       //   토큰=secret 검증 후 패키지+employees(saved_signature 포함)+companies+items 를 한 번에 반환.
-      const p = logRead('sign/page:p', await db.rpc("get_contract_package_by_token", { p_token: token }));
+      const p = logRead('sign/page:p', await db.rpc("get_contract_package_by_token", { p_token: token })) as TokenPkg | null;
 
       if (!p) {
         // Fallback: check general document signature_requests
         //   2026-05-22 anon RLS 우회 — signature_requests SELECT 가 authenticated 전용이라
         //   외부 수신자(비로그인)는 직접 조회 시 "유효하지 않은 링크" 가 됨.
         //   sign_token 검증 SECURITY DEFINER RPC 로 행+문서 반환 (token = secret).
-        const sigReq = logRead('sign/page:sigReq', await db.rpc("get_signature_request_by_token", { p_token: token }));
+        const sigReq = logRead('sign/page:sigReq', await db.rpc("get_signature_request_by_token", { p_token: token })) as TokenSigReq | null;
 
         if (sigReq) {
           const expired = sigReq.expires_at ? new Date(sigReq.expires_at) < new Date() : false;
           // 2026-05-21: anon RLS 우회 — SECURITY DEFINER RPC 로 company + partner 한 번에 조회.
           //   sign_token 검증 후 안전하게 갑/을 컨텍스트 반환.
           //   기존 partners RLS = company_id = get_my_company_id() 가 anon 차단해 표시 단 치환 불가했던 회귀 정공 fix.
-          const ctx = logRead('sign/page:ctx', await db.rpc('get_signature_context_by_token', { p_sign_token: token }));
+          const ctx = logRead('sign/page:ctx', await db.rpc('get_signature_context_by_token', { p_sign_token: token })) as { company?: any; partner?: any } | null;
           const company = ctx?.company || null;
           const partner = ctx?.partner || null;
 
@@ -570,11 +585,11 @@ function SignContent() {
         sealUrl = companySeal;
         sealAppliedAt = sealAppliedAt || p.sent_at || p.created_at || new Date().toISOString();
       }
-      setPkg({ ...p, expired, items: items || [], seal_url: sealUrl, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName, contract_meta: contractMeta });
+      setPkg({ ...p, expired, items: items || [], seal_url: sealUrl, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName, contract_meta: contractMeta } as any);
 
       // Saved signature 도 RPC 가 employees.saved_signature 로 함께 반환
       if (p.employees?.saved_signature) {
-        setSavedSignature(p.employees.saved_signature);
+        setSavedSignature(p.employees.saved_signature as any);
       }
 
       // Check if already completed

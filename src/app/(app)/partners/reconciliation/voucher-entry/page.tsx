@@ -23,7 +23,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { useToast } from "@/components/toast";
 import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown";
 
-const db = supabase as any;
+const db = supabase;
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
 const todayKst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 // 음수 허용(맨 앞 '-'만) — 수정분개용. 저장 시 음수 차변→대변/음수 대변→차변 정규화(DB check debit·credit>=0).
@@ -97,7 +97,7 @@ export default function VoucherEntryPage() {
   const { data: accounts = [], isFetched: acctFetched } = useQuery<Acct[]>({
     queryKey: ["voucher-accounts", companyId],
     queryFn: async () => {
-      const data = logRead('voucher-entry/page:data', await db.from("chart_of_accounts").select("id, code, name").eq("company_id", companyId).order("code"));
+      const data = logRead('voucher-entry/page:data', await db.from("chart_of_accounts").select("id, code, name").eq("company_id", companyId ?? "").order("code"));
       return (data || []) as Acct[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -108,7 +108,7 @@ export default function VoucherEntryPage() {
   const { data: partners = [] } = useQuery<Pt[]>({
     queryKey: ["voucher-partners", companyId],
     queryFn: async () => {
-      const data = logRead('voucher-entry/page:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name"));
+      const data = logRead('voucher-entry/page:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId ?? "").order("name"));
       return (data || []) as Pt[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -120,7 +120,7 @@ export default function VoucherEntryPage() {
     queryFn: async () => {
       const data = logRead('voucher-entry/page:data', await db.from("journal_entries")
         .select("id, voucher_no, voucher_type, description, source, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
-        .eq("company_id", companyId).eq("entry_date", entryDate).eq("status", "confirmed")
+        .eq("company_id", companyId ?? "").eq("entry_date", entryDate).eq("status", "confirmed")
         .order("voucher_no", { ascending: true }));
       return ((data || []) as any[]).map((e) => ({
         id: e.id, voucher_no: e.voucher_no, voucher_type: e.voucher_type, description: e.description || "", source: e.source,
@@ -235,7 +235,9 @@ export default function VoucherEntryPage() {
     try {
       for (const id of editIds) {
         const b = edits[id];
-        const { error } = await db.rpc("update_manual_voucher", { p_entry_id: id, p_description: b.desc, p_lines: linePayload(b.lines) });
+        // p_entry_date 는 기본값 없는 필수 인자 — 누락 시 PGRST202(함수 못찾음)로 수정 저장이 항상 실패했음.
+        //   편집 대상은 전부 entryDate 필터로 로드된 전표라 같은 날짜를 넘기면 날짜 불변.
+        const { error } = await db.rpc("update_manual_voucher", { p_entry_id: id, p_entry_date: entryDate, p_description: b.desc, p_lines: linePayload(b.lines) });
         if (error) throw new Error(errMsg(String(error.message)));
       }
       let newId: string | null = null;

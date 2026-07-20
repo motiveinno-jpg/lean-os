@@ -29,7 +29,7 @@ export default function ReconciliationPage() {
   const matchCd = useSyncCooldown(companyId, "match");
   const qc = useQueryClient();
   const { toast } = useToast();
-  const db = supabase as any;
+  const db = supabase;
   const [tab, setTab] = useState<"queue" | "manual" | "confirmed">("queue");
   const [selected, setSelected] = useState<Set<string>>(new Set()); // 확인 큐 선택 매칭
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
@@ -55,7 +55,7 @@ export default function ReconciliationPage() {
   const { data: queueRaw = [], isLoading: qLoading } = useQuery<QueueRow[]>({
     queryKey: ["settlement-queue", companyId],
     queryFn: async () => {
-      const data = logRead('reconciliation/page:data', await db.from("v_settlement_review_queue").select("*").eq("company_id", companyId)
+      const data = logRead('reconciliation/page:data', await db.from("v_settlement_review_queue").select("*").eq("company_id", companyId ?? "")
         .order("confidence", { ascending: false }));
       return ((data || []) as QueueRow[]).filter((m) => QUEUE_STATUSES.includes(m.status));
     },
@@ -98,7 +98,7 @@ export default function ReconciliationPage() {
   const { data: confirmed = [] } = useQuery<QueueRow[]>({
     queryKey: ["settlement-confirmed", companyId],
     queryFn: async () => {
-      const data = logRead('reconciliation/page:data', await db.from("v_settlement_confirmed").select("*").eq("company_id", companyId)
+      const data = logRead('reconciliation/page:data', await db.from("v_settlement_confirmed").select("*").eq("company_id", companyId ?? "")
         .order("updated_at", { ascending: false }).limit(300));
       return (data || []) as QueueRow[];
     },
@@ -153,7 +153,7 @@ export default function ReconciliationPage() {
     mutationFn: async () => {
       // 진행률 분모 — 아직 AI 시도 안 한 미정산 건수
       const { count: total } = await db.from("bank_transactions").select("id", { count: "exact", head: true })
-        .eq("company_id", companyId).eq("settlement_status", "open").in("type", ["income", "expense"])
+        .eq("company_id", companyId ?? "").eq("settlement_status", "open").in("type", ["income", "expense"])
         .is("ai_attempted_at", null).gt("amount", 0);
       let totalProcessed = 0, totalResolved = 0, totalSuggested = 0;
       setAiProgress({ total: total ?? 0, processed: 0, suggested: 0 });
@@ -229,7 +229,7 @@ export default function ReconciliationPage() {
       const inv = logRead('reconciliation/page:inv', await db.from("tax_invoices").select("id, partner_id, deal_id, counterparty_name, type").eq("id", taxInvoiceId).maybeSingle());
       if (!inv || inv.type !== "purchase" || !inv.partner_id) return;
       const deals = logRead('reconciliation/page:deals', await db.from("deals")
-        .select("id, name, stage").eq("company_id", companyId).eq("partner_id", inv.partner_id)
+        .select("id, name, stage").eq("company_id", companyId ?? "").eq("partner_id", inv.partner_id)
         .order("created_at", { ascending: false }));
       if (!deals || deals.length === 0) return;
       const preset = inv.deal_id && (deals as any[]).some((d) => d.id === inv.deal_id) ? inv.deal_id : deals.length === 1 ? deals[0].id : "";
@@ -320,7 +320,7 @@ export default function ReconciliationPage() {
     queryFn: async () => {
       const data = logRead('reconciliation/page:data', await db.from("bank_transactions")
         .select("id, amount, settled_amount, transaction_date, counterparty, type, invoice_settlements(status, tax_invoices(counterparty_name))")
-        .eq("company_id", companyId).in("settlement_status", ["open", "partial"]).in("type", ["income", "expense"])
+        .eq("company_id", companyId ?? "").in("settlement_status", ["open", "partial"]).in("type", ["income", "expense"])
         .gte("transaction_date", engStart).lte("transaction_date", engEnd)
         .gt("amount", 0).order("transaction_date", { ascending: false }).limit(2000));
       return ((data || []) as any[]).map((t) => {
@@ -350,7 +350,7 @@ export default function ReconciliationPage() {
     queryFn: async () => {
       const data = logRead('reconciliation/page:data', await db.from("tax_invoices")
         .select("id, type, issue_date, total_amount, settled_amount, counterparty_name, partner_id")
-        .eq("company_id", companyId).neq("settlement_status", "settled")
+        .eq("company_id", companyId ?? "").neq("settlement_status", "settled")
         .order("issue_date", { ascending: false }).limit(2000));
       return (data || []) as UnsettledInv[];
     },
@@ -363,7 +363,7 @@ export default function ReconciliationPage() {
     queryFn: async () => {
       const data = logRead('reconciliation/page:data', await db.from("cash_receipts")
         .select("id, type, issue_date, amount, counterparty_name, approval_number")
-        .eq("company_id", companyId).is("bank_transaction_id", null)
+        .eq("company_id", companyId ?? "").is("bank_transaction_id", null)
         .order("issue_date", { ascending: false }).limit(2000));
       return (data || []) as any[];
     },
@@ -375,7 +375,7 @@ export default function ReconciliationPage() {
     queryFn: async () => {
       const data = logRead('reconciliation/page:data', await db.from("card_transactions")
         .select("id, transaction_date, amount, merchant_name, card_name, approval_number")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false }).limit(1000));
       return (data || []) as any[];
     },
@@ -385,7 +385,7 @@ export default function ReconciliationPage() {
   const { data: coaAccounts = [] } = useQuery<any[]>({
     queryKey: ["recon-coa", companyId],
     queryFn: async () => {
-      const data = logRead('reconciliation/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type, is_system").eq("company_id", companyId).order("code"));
+      const data = logRead('reconciliation/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type, is_system").eq("company_id", companyId ?? "").order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId && tab === "manual",
@@ -431,7 +431,7 @@ export default function ReconciliationPage() {
   // 직접입력용 커스텀 계정과목 추가 (is_system=false, 회사스코프 RLS)
   const addAcctMut = useMutation({
     mutationFn: async (a: { code: string; name: string; type: string }) => {
-      const { error } = await db.from("chart_of_accounts").insert({ company_id: companyId, code: a.code.trim(), name: a.name.trim(), account_type: a.type, is_system: false });
+      const { error } = await db.from("chart_of_accounts").insert({ company_id: companyId as string, code: a.code.trim(), name: a.name.trim(), account_type: a.type, is_system: false });
       if (error) throw new Error(error.message);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["recon-coa"] }); setNewAcct(null); toast("계정과목 추가됨", "success"); },
@@ -452,7 +452,7 @@ export default function ReconciliationPage() {
         return;
       }
       const { error } = await db.from("invoice_settlements").insert({
-        company_id: companyId, bank_transaction_id: tx.id, tax_invoice_id: inv.id,
+        company_id: companyId as string, bank_transaction_id: tx.id, tax_invoice_id: inv.id,
         amount, match_type: "manual", match_source: "manual", status: "confirmed", confidence: 1, reason: "수동 연결",
       });
       if (error) throw new Error(error.message);

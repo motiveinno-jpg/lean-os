@@ -59,7 +59,7 @@ const BUSINESS_NUMBER_REGEX = /^\d{3}-\d{2}-\d{5}$/;
 const DEPARTMENTS = ["경영지원", "개발", "디자인", "마케팅", "영업", "인사", "재무", "기획", "기타"];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 
@@ -207,7 +207,7 @@ export default function OnboardingPage() {
         const comp = logRead('onboarding/page:comp', await db
           .from("companies")
           .select("name, business_number, representative, industry, address, phone")
-          .eq("id", companyId)
+          .eq("id", companyId ?? "")
           .maybeSingle());
 
         const hasCompany = !!(comp?.name && comp?.business_number);
@@ -225,19 +225,19 @@ export default function OnboardingPage() {
         const { count: bankCount } = await db
           .from("bank_accounts")
           .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId);
+          .eq("company_id", companyId ?? "");
         const hasBank = (bankCount ?? 0) > 0;
 
         const { count: empCount } = await db
           .from("employees")
           .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId);
+          .eq("company_id", companyId ?? "");
         const hasEmployee = (empCount ?? 0) > 0;
 
         const { count: dealCount } = await db
           .from("deals")
           .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId);
+          .eq("company_id", companyId ?? "");
         const hasDeal = (dealCount ?? 0) > 0;
 
         const newStatus = {
@@ -285,7 +285,7 @@ export default function OnboardingPage() {
         address: company.address || null,
         representative: company.representative.trim(),
         phone: company.phone || null,
-      }).eq("id", companyId);
+      }).eq("id", companyId ?? "");
 
       if (e) throw e;
       setStatus((prev) => ({ ...prev, companyInfo: true }));
@@ -311,7 +311,7 @@ export default function OnboardingPage() {
     setError("");
     try {
       const { error: e } = await db.from("bank_accounts").insert({
-        company_id: companyId,
+        company_id: companyId as string,
         bank_name: bank.bankName,
         account_number: bank.accountNumber.replace(/[^0-9]/g, ""),
         alias: bank.accountAlias || bank.bankName,
@@ -348,7 +348,7 @@ export default function OnboardingPage() {
     setError("");
     try {
       const { error: e } = await db.from("employees").insert({
-        company_id: companyId,
+        company_id: companyId as string,
         name: employee.name.trim(),
         position: employee.position || null,
         department: employee.department || null,
@@ -389,7 +389,7 @@ export default function OnboardingPage() {
       //   expected_close_date/type/stage:'lead' 는 존재하지 않음 — 구 스키마 오류로 insert 실패하던 것 수정).
       //   stage 는 미설정 → DB default('estimate'). NewProjectModal 과 동일 컬럼 사용.
       const { error: e } = await db.from("deals").insert({
-        company_id: companyId,
+        company_id: companyId as string,
         name: deal.name.trim(),
         classification: "B2B",
         contract_total: amount,

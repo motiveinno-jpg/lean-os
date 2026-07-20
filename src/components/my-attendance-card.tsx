@@ -8,7 +8,7 @@ import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCance
 import { useToast } from "@/components/toast";
 import { AttendanceBadges } from "@/components/attendance-badges";
 
-const db = supabase as any;
+const db = supabase;
 
 function fmtTime(ts?: string | null): string {
   if (!ts) return "—";
@@ -175,12 +175,12 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
           <div className="caption mb-0.5">퇴근</div>
           <div className="text-lg font-black font-mono">{fmtTime(todayAtt?.check_out)}</div>
         </div>
-        {todayAtt?.work_hours > 0 && (
+        {(todayAtt?.work_hours ?? 0) > 0 && (
           <>
             <div className="text-[var(--border)]">|</div>
             <div>
               <div className="caption mb-0.5">근무시간</div>
-              <div className="text-lg font-black">{todayAtt.work_hours}h</div>
+              <div className="text-lg font-black">{todayAtt?.work_hours}h</div>
             </div>
           </>
         )}

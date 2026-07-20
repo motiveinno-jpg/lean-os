@@ -19,7 +19,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
 import { IntroCard, StatCard, Section } from "@/components/report-kit";
 
-const db = supabase as any;
+const db = supabase;
 const fmt = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
 
@@ -88,7 +88,7 @@ export default function ManagementSummaryPage() {
     queryKey: ["summary-receivable", companyId],
     queryFn: async () => {
       const data = logRead('summary/page:data', await db.from("tax_invoices")
-        .select("total_amount, issue_date").eq("company_id", companyId)
+        .select("total_amount, issue_date").eq("company_id", companyId ?? "")
         .eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]));
       const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];
       const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);

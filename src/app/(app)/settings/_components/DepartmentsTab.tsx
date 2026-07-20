@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 
-const db = supabase as any;
+const db = supabase;
 type Dept = { id: string; name: string; sort_order: number; archived_at: string | null };
 
 export function DepartmentsTab({ companyId }: { companyId: string | null }) {
@@ -25,7 +25,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
     queryKey: ["settings-departments", companyId],
     queryFn: async () => {
       const data = logRead('_components/DepartmentsTab:data', await db.from("departments").select("id, name, sort_order, archived_at")
-        .eq("company_id", companyId).order("sort_order", { ascending: true }).order("name", { ascending: true }));
+        .eq("company_id", companyId ?? "").order("sort_order", { ascending: true }).order("name", { ascending: true }));
       return (data || []) as Dept[];
     },
     enabled: !!companyId,
@@ -37,7 +37,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
   const addMut = useMutation({
     mutationFn: async (name: string) => {
       const nextOrder = active.reduce((m, d) => Math.max(m, d.sort_order), -1) + 1;
-      const { error } = await db.from("departments").insert({ company_id: companyId, name: name.trim(), sort_order: nextOrder });
+      const { error } = await db.from("departments").insert({ company_id: companyId as string, name: name.trim(), sort_order: nextOrder });
       if (error) throw error;
     },
     onSuccess: () => { setNewName(""); refresh(); toast("부서를 추가했습니다", "success"); },

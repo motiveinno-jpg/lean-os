@@ -13,7 +13,7 @@ import { useToast } from "@/components/toast";
 import { nextQuoteNumber, DOC_STATUS } from "@/lib/documents";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
-const db = supabase as any;
+const db = supabase;
 
 // 견적서 기본 구조 (프로젝트 견적서 탭과 동일)
 const QUOTE_CONTENT = {
@@ -43,7 +43,7 @@ export default function QuotesPage() {
     queryFn: async () => {
       const data = logRead('quotes/page:data', await db.from("documents")
         .select("id, name, status, content_type, contract_amount, created_at, deal_id, document_number, deals(name)")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .in("content_type", ["invoice", "quote"])
         .order("created_at", { ascending: false }).limit(300));
       return (data || []) as any[];
@@ -131,7 +131,7 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
   const { data: deals = [] } = useQuery({
     queryKey: ["quotes-deals", companyId],
     queryFn: async () => {
-      const data = logRead('quotes/page:data', await db.from("deals").select("id, name").eq("company_id", companyId).neq("status", "archived").order("created_at", { ascending: false }));
+      const data = logRead('quotes/page:data', await db.from("deals").select("id, name").eq("company_id", companyId ?? "").neq("status", "archived").order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
     enabled: !!companyId,

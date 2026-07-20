@@ -33,7 +33,7 @@ export function MyCertificates({
   const { data: company } = useQuery({
     queryKey: ["mypage-cert-company", companyId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('_components/MyCertificates:data', await db
         .from("companies")
         .select("name, representative, address, business_number, seal_url")
@@ -65,10 +65,10 @@ export function MyCertificates({
       };
       const companyData = {
         name: company?.name || "",
-        representative: company?.representative,
-        address: company?.address,
-        business_number: company?.business_number,
-        seal_url: company?.seal_url,
+        representative: company?.representative ?? undefined,
+        address: company?.address ?? undefined,
+        business_number: company?.business_number ?? undefined,
+        seal_url: company?.seal_url ?? undefined,
       };
 
       const result =

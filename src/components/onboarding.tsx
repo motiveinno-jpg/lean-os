@@ -122,7 +122,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   // ── Check completion status on mount ──
   useEffect(() => {
     async function checkStatus() {
-      const db = supabase as any;
+      const db = supabase;
       try {
         // Check company info
         const comp = logRead('components/onboarding:comp', await db
@@ -140,13 +140,15 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         const hasBank = (bankCount ?? 0) > 0;
 
         // Check HomeTax / CODEF settings
+        // codef_onboarding_at/bank_list/card_list 는 실컬럼이 아님 — settings JSONB 안에 저장 (아래 step 4 참조)
         const settings = logRead('components/onboarding:settings', await db
           .from("company_settings")
-          .select("codef_connected_id, codef_connected_at")
+          .select("codef_connected_id, codef_connected_at, settings")
           .eq("company_id", companyId)
           .maybeSingle());
+        const settingsJson = (settings?.settings as Record<string, unknown> | null) || {};
         const hasCert = !!(settings?.codef_connected_id);
-        const hasCodef = !!(settings?.codef_connected_id && settings?.codef_onboarding_at);
+        const hasCodef = !!(settings?.codef_connected_id && settingsJson.codef_onboarding_at);
 
         // Check employees
         const { count: empCount } = await db
@@ -171,7 +173,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
           deal: hasDeal,
         };
         if (hasCert && settings?.codef_connected_id) {
-          setCert(prev => ({ ...prev, registered: true, connectedId: settings.codef_connected_id }));
+          setCert(prev => ({ ...prev, registered: true, connectedId: settings.codef_connected_id || "" }));
         }
         setStatus(newStatus);
 
@@ -204,7 +206,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
   const saveStep = useCallback(async (currentStep: number) => {
     setSaving(true);
     setSaveError(null);
-    const db = supabase as any;
+    const db = supabase;
     try {
       if (currentStep === 1) {
         // Save company info
@@ -221,7 +223,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         // Save bank accounts
         for (const bank of banks) {
           const { error: bankErr } = await db.from("bank_accounts").insert({
-            company_id: companyId,
+            company_id: companyId as string,
             bank_name: bank.bank_name,
             account_number: bank.account_number,
             alias: bank.alias,
@@ -239,11 +241,17 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
       } else if (currentStep === 4) {
         // Save CODEF bank/card selection preference
         if (codef.agreed && (codef.banks.length > 0 || codef.cards.length > 0)) {
+          // codef_bank_list 등은 실컬럼이 아니라 upsert 전체가 400 무음 실패였음 → settings JSONB 에 병합 저장
+          const { data: curRow } = await db.from("company_settings").select("settings").eq("company_id", companyId ?? "").maybeSingle();
+          const curSettings = (curRow?.settings as Record<string, unknown> | null) || {};
           await db.from("company_settings").upsert({
-            company_id: companyId,
-            codef_bank_list: codef.banks,
-            codef_card_list: codef.cards,
-            codef_onboarding_at: new Date().toISOString(),
+            company_id: companyId as string,
+            settings: {
+              ...curSettings,
+              codef_bank_list: codef.banks,
+              codef_card_list: codef.cards,
+              codef_onboarding_at: new Date().toISOString(),
+            },
           }, { onConflict: "company_id" });
           setStatus(prev => ({ ...prev, codef: true }));
         }
@@ -251,7 +259,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
         // Save employees
         for (const emp of employees) {
           const { error: empErr } = await db.from("employees").insert({
-            company_id: companyId,
+            company_id: companyId as string,
             name: emp.name,
             position: emp.position || null,
             department: emp.department || null,
@@ -265,14 +273,16 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
       } else if (currentStep === 6) {
         // Create first deal
         if (dealName) {
+          // deals 실제 스키마: contract_total/counterparty (amount/partner_name/type/stage:'lead' 는
+          //   존재하지 않는 컬럼 — insert 전체가 400 무음 실패로 첫 프로젝트가 안 만들어지던 버그.
+          //   onboarding/page.tsx 의 동일 수정과 같은 매핑. stage 미설정 → DB default)
           await db.from("deals").insert({
-            company_id: companyId,
+            company_id: companyId as string,
             name: dealName,
-            type: dealType,
-            amount: parseInt((dealAmount || "0").replace(/[^0-9]/g, ""), 10) || 0,
-            partner_name: dealPartner || null,
+            classification: "B2B",
+            contract_total: parseInt((dealAmount || "0").replace(/[^0-9]/g, ""), 10) || 0,
+            counterparty: dealPartner || null,
             status: "active",
-            stage: "lead",
           });
           setStatus(prev => ({ ...prev, deal: true }));
         }

@@ -24,7 +24,7 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { CurrencyInput } from "@/components/currency-input";
 
-const db = supabase as any;
+const db = supabase;
 
 function fmtW(n: number): string {
   const abs = Math.abs(n);
@@ -80,7 +80,7 @@ export function SubscriptionsPanel() {
       const data = logRead('components/subscriptions-panel:data', await db
         .from("subscriptions")
         .select("*, subscription_plans(*)")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle());

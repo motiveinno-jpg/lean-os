@@ -17,7 +17,7 @@ import { usePrintIsolation } from "@/lib/use-print-isolation";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 /**
  * 본문 html 에서 "거래처 서명" 영역 + 갑 직인 append 블록 sanitize.
@@ -139,7 +139,8 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
           : { p_approval_id: row.id, p_signature_method: ourSigMethod, p_signature_data_url: ourSigDataUrl }
       );
       if (error) throw error;
-      if (res && res.ok === false) throw new Error(res.code || '서명 적용 실패');
+      const r = res as { ok?: boolean; code?: string } | null;
+      if (r && r.ok === false) throw new Error(r.code || '서명 적용 실패');
       // 로컬 row 갱신 (재조회 대신 in-memory)
       setRow({
         ...row,
@@ -173,15 +174,17 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
           .eq("id", id)
           .maybeSingle());
         if (qa) {
+          // payload 는 생성 타입상 Json — 실제 shape 을 구조 타입으로 명시
+          const pl = (qa.payload || {}) as { template_snapshot_html?: string | null; signer_company_name?: string | null; signer_business_number?: string | null; signer_representative?: string | null };
           setRow({
             ...qa,
             _source: 'quote_approval',
-            template_snapshot_html: qa.payload?.template_snapshot_html ?? null,
+            template_snapshot_html: pl.template_snapshot_html ?? null,
             // 을(거래처) 정보 — payload.signer_* 우선
             partner: {
-              name: qa.payload?.signer_company_name ?? qa.recipient_name ?? null,
-              business_number: qa.payload?.signer_business_number ?? null,
-              representative: qa.payload?.signer_representative ?? null,
+              name: pl.signer_company_name ?? qa.recipient_name ?? null,
+              business_number: pl.signer_business_number ?? null,
+              representative: pl.signer_representative ?? null,
             },
           } as SignedRow);
           setLoading(false);

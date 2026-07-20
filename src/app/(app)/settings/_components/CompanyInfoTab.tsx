@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 
 export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
-  const db = supabase as any;
+  const db = supabase;
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [saved, setSaved] = useState(false);
@@ -57,7 +57,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         phone: company.phone || "",
         business_type: company.business_type || "",
         business_category: company.business_category || "",
-        capital: company.tax_settings?.capital != null ? String(company.tax_settings.capital) : "",
+        capital: (company.tax_settings as any)?.capital != null ? String((company.tax_settings as any).capital) : "",
       });
       setSealUrl(company.seal_url || null);
       setLogoUrl(company.logo_url || null);
@@ -78,7 +78,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           business_type: form.business_type || null,
           business_category: form.business_category || null,
           // 자본금 — 전용 컬럼이 없어 tax_settings(jsonb)에 저장. 재무상태표(자본금)가 읽음.
-          tax_settings: { ...(company?.tax_settings || {}), capital: form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")) : null },
+          tax_settings: { ...((company?.tax_settings as Record<string, unknown> | null) || {}), capital: form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")) : null },
         })
         .eq("id", companyId);
       if (error) throw error;
@@ -139,7 +139,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       const updateField = type === "seal" ? "seal_url" : "logo_url";
       const { error: dbErr } = await db
         .from("companies")
-        .update({ [updateField]: publicUrl })
+        .update({ [updateField]: publicUrl } as never)
         .eq("id", companyId);
 
       if (dbErr) throw dbErr;
@@ -160,7 +160,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     const updateField = type === "seal" ? "seal_url" : "logo_url";
     await db
       .from("companies")
-      .update({ [updateField]: null })
+      .update({ [updateField]: null } as never)
       .eq("id", companyId);
 
     if (type === "seal") setSealUrl(null);

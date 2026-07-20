@@ -19,7 +19,7 @@ import { ReportsTabs } from "../_components/ReportsTabs";
 import { fmt, ymNow } from "../_components/kit";
 import { IntroCard, Section } from "@/components/report-kit";
 
-const db = supabase as any;
+const db = supabase;
 function daysUntil(dateStr: string) { return Math.ceil((new Date(dateStr + "T00:00:00").getTime() - Date.now()) / 864e5); }
 
 export default function UpcomingPage() {
@@ -47,7 +47,7 @@ export default function UpcomingPage() {
   const { data: apTotal = 0 } = useQuery<number>({
     queryKey: ["upcoming-ap", companyId],
     queryFn: async () => {
-      const data = logRead('upcoming/page:data', await db.from("tax_invoices").select("total_amount").eq("company_id", companyId)
+      const data = logRead('upcoming/page:data', await db.from("tax_invoices").select("total_amount").eq("company_id", companyId ?? "")
         .eq("type", "purchase").in("status", ["issued", "sent", "pending", "overdue"]));
       return ((data || []) as { total_amount: number | null }[]).reduce((s, r) => s + Number(r.total_amount || 0), 0);
     },

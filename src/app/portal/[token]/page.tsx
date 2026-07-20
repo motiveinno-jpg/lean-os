@@ -53,7 +53,7 @@ export default function PartnerPortalPage() {
     if (!msg) return;
     setSending(true);
     try {
-      const { data, error } = await (supabase as any).rpc("portal_leave_message", { p_token: token, p_message: msg });
+      const { data, error } = await (supabase).rpc("portal_leave_message", { p_token: token, p_message: msg });
       if (!error && data) { setSent(true); setInquiry(""); }
     } catch { /* noop */ }
     setSending(false);
@@ -62,9 +62,9 @@ export default function PartnerPortalPage() {
   useEffect(() => {
     (async () => {
       try {
-        const { data, error } = await (supabase as any).rpc("get_partner_portal_context", { p_token: token });
+        const { data, error } = await (supabase).rpc("get_partner_portal_context", { p_token: token });
         if (error || !data) setError(true);
-        else setCtx(data as PortalCtx);
+        else setCtx(data as unknown as PortalCtx);
       } catch {
         setError(true);
       }

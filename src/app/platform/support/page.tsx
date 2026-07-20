@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 
-const db = supabase as any;
+const db = supabase;
 
 type Ticket = {
   id: string;

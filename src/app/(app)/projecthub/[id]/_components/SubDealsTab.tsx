@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 
-const db = supabase as any;
+const db = supabase;
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 
 type SubDeal = {
@@ -77,7 +77,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
   const { data: partners = [] } = useQuery({
     queryKey: ["sub-deal-partners", companyId],
     queryFn: async () => {
-      const data = logRead('_components/SubDealsTab:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name"));
+      const data = logRead('_components/SubDealsTab:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId ?? "").order("name"));
       return (data || []) as Partner[];
     },
     enabled: !!companyId,

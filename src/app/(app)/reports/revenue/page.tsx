@@ -18,7 +18,7 @@ import { fmt, ymNow, MonthlyCompareCard } from "../_components/kit";
 import { CellDetail } from "../flow/_components/CellDetail";
 import { IntroCard, Section } from "@/components/report-kit";
 
-const db = supabase as any;
+const db = supabase;
 
 export default function RevenuePage() {
   const { role } = useUser();
@@ -45,7 +45,7 @@ export default function RevenuePage() {
     queryFn: async () => {
       const data = logRead('revenue/page:data', await db.from("tax_invoices")
         .select("counterparty_name, supply_amount, total_amount, issue_date, status")
-        .eq("company_id", companyId).eq("type", "sales")
+        .eq("company_id", companyId ?? "").eq("type", "sales")
         .gte("issue_date", `${year}-01-01`).lte("issue_date", `${year}-12-31`));
       const rows = (data || []) as { counterparty_name: string | null; supply_amount: number | null; total_amount: number | null; issue_date: string | null; status: string | null }[];
       // 거래처별 공급가액 합
