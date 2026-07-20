@@ -20,7 +20,7 @@ import { logRead } from "@/lib/log-read";
 
 import { supabase } from "./supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 export interface AutoMarkResult {
   learned: number;   // is_fixed_cost=true 학습 표본 (counterparty+amount 유니크)
@@ -92,10 +92,9 @@ export async function autoMarkRecurringTransactions(companyId: string): Promise<
       const chunk = toMarkIds.slice(i, i + 500);
       const { count } = await db
         .from("bank_transactions")
-        .update({ is_auto_transfer: true })
+        .update({ is_auto_transfer: true }, { count: "exact" })
         .in("id", chunk)
-        .eq("company_id", companyId)
-        .select("id", { count: "exact", head: true });
+        .eq("company_id", companyId);
       marked += count || chunk.length;
     }
   }

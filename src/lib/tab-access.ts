@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 
-const db = supabase as any;
+const db = supabase;
 
 // 부여 가능한 탭(= owner/admin 사이드바 탭). route 는 페이지 prefix.
 export const GRANTABLE_TABS: { route: string; label: string; group: string }[] = [
@@ -58,7 +58,7 @@ export function useMyTabOverrides(): { map: Map<string, boolean>; loading: boole
   const { data, isLoading } = useQuery({
     queryKey: ["my-tab-access", userId],
     queryFn: async () => {
-      const data = logRead('lib/tab-access:data', await db.from("user_tab_access").select("route, allowed").eq("user_id", userId));
+      const data = logRead('lib/tab-access:data', await db.from("user_tab_access").select("route, allowed").eq("user_id", userId ?? ""));
       const m = new Map<string, boolean>();
       for (const r of (data || [])) m.set(r.route as string, (r as any).allowed !== false);
       return m;

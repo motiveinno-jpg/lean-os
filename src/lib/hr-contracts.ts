@@ -12,7 +12,7 @@ import { logAuditTrail } from '@/lib/audit-trail';
 import { generatePackageHash, storeDocumentHash } from '@/lib/document-integrity';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 
@@ -444,7 +444,8 @@ export async function buildContractVariables(
   const probationEndStr = probationEnd.toISOString().slice(0, 10);
 
   // Birth date from resident number (YYMMDD)
-  const rn = employee.resident_number || '';
+  // employees 에 resident_number 컬럼 없음(주민번호 미저장) — 항상 빈값이라 계약서엔 placeholder 로 나감
+  const rn = '';
   let birthDateStr = '';
   if (rn.length >= 6) {
     const yy = rn.slice(0, 2);
@@ -468,12 +469,12 @@ export async function buildContractVariables(
   const vars: Record<string, string> = {
     // English keys (used in built-in templates)
     employee_name: employee.name || '',
-    resident_number: employee.resident_number || '______-_______',
+    resident_number: '______-_______',
     department: employee.department || '',
     position: employee.position || '',
     address: employee.address || '',
     company_name: company.name || '(주)모티브이노베이션',
-    representative_name: company.representative || company.ceo_name || '채희웅',
+    representative_name: company.representative || '채희웅',
     company_address: company.address || '',
     start_date: employee.hire_date || today,
     end_date: nextYearStr,
@@ -494,12 +495,12 @@ export async function buildContractVariables(
 
     // Korean keys (for backward compatibility with custom templates)
     직원명: employee.name || '',
-    주민등록번호: employee.resident_number || '______-_______',
+    주민등록번호: '______-_______',
     부서: employee.department || '',
     직급: employee.position || '',
     입사일: employee.hire_date || today,
     회사명: company.name || '(주)모티브이노베이션',
-    대표자명: company.representative || company.ceo_name || '채희웅',
+    대표자명: company.representative || '채희웅',
     계약시작일: employee.hire_date || today,
     계약종료일: nextYearStr,
     연봉: fmt(Number(employee.salary || 0)),
@@ -651,7 +652,7 @@ export async function createContractPackage(params: {
       .single();
 
     if (itemError) throw itemError;
-    items.push(item);
+    items.push(item as unknown as ContractPackageItem);
   }
 
   // Audit: document_created
@@ -666,7 +667,7 @@ export async function createContractPackage(params: {
     console.error('Audit log error:', e);
   }
 
-  return { package: pkg, items };
+  return { package: pkg as unknown as ContractPackage, items };
 }
 
 // ── Send Contract Package (in-app + email) ──

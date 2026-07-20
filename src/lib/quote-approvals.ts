@@ -23,6 +23,7 @@ import { logRead } from "@/lib/log-read";
 
 import { supabase } from '@/lib/supabase';
 import { reportError } from '@/lib/friendly-error';
+import type { Json } from '@/types/database';
 
 export type QuoteApprovalStage = 'estimate' | 'contract' | 'progress_report' | 'completion' | 'settlement';
 export type QuoteApprovalStatus = 'draft' | 'sent' | 'viewed' | 'approved' | 'rejected' | 'expired'
@@ -51,7 +52,7 @@ export interface ApprovalLite {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ──────────────────────────────────────────────────────────
 // createApproval
@@ -85,7 +86,7 @@ export async function createApproval(params: {
     .eq('id', params.dealId)
     .maybeSingle();
   if (dealErr) throw dealErr;
-  if (!deal) throw new Error('프로젝트를 찾을 수 없습니다');
+  if (!deal?.company_id) throw new Error('프로젝트를 찾을 수 없습니다');
 
   // 2) 토큰 생성 RPC (auth only)
   const { data: tokenRes, error: tokenErr } = await db.rpc('generate_approval_token');
@@ -100,7 +101,7 @@ export async function createApproval(params: {
     partner_id: params.partnerId ?? deal.partner_id ?? null,
     stage: params.stage,
     status: 'draft' as QuoteApprovalStatus,
-    payload: params.payload as unknown,
+    payload: params.payload as Json,
     approval_token: token,
     created_by: userRow.id,  // RLS RESTRICTIVE WITH CHECK 통과용
   };
@@ -164,7 +165,7 @@ export async function sendApproval(params: {
 
   const { error } = await db
     .from('quote_approvals')
-    .update(updatePatch)
+    .update(updatePatch as never)
     .eq('id', params.approvalId);
   if (error) throw error;
 }
@@ -181,7 +182,7 @@ export async function resendApproval(params: {
 }): Promise<{ id: string; token: string }> {
   const { data: newId, error: rpcErr } = await db.rpc('resend_quote_approval', {
     p_prev_id: params.prevId,
-    p_payload: params.payload ?? null,
+    p_payload: (params.payload ?? null) as Json,
   });
   if (rpcErr) throw rpcErr;
   const id = String(newId || '');
@@ -241,7 +242,7 @@ export function subscribeApprovalStatus(
   let disabled = false;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const channel = (supabase as any)
+  const channel = (supabase)
     .channel(`quote_approvals_${dealId}_${stage}`)
     .on(
       'postgres_changes',
@@ -284,7 +285,7 @@ export function subscribeApprovalStatus(
           reportError('quote-approvals.subscribeApprovalStatus.channelError', err ?? status);
           try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (supabase as any).removeChannel(channel);
+            (supabase).removeChannel(channel);
           } catch {
             /* noop */
           }
@@ -295,7 +296,7 @@ export function subscribeApprovalStatus(
   return () => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any).removeChannel(channel);
+      (supabase).removeChannel(channel);
     } catch (e) {
       reportError('quote-approvals.subscribeApprovalStatus.cleanup', e);
     }

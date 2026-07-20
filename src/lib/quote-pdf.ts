@@ -8,7 +8,7 @@ import { generateQuotePDF } from "@/lib/document-generator";
 import { getActiveTemplate, downloadTemplateFile, buildQuoteValues, fillTextTemplate, wrapTemplatePrintHtml } from "@/lib/form-templates";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
 
-const db = supabase as any;
+const db = supabase;
 
 export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?: string | null): Promise<Blob> {
   const company = await db.from("companies").select("*").eq("id", companyId).maybeSingle();
@@ -90,10 +90,10 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
     documentNumber: doc?.document_number || "-",
     companyInfo: {
       name: companyName,
-      representative: company.data?.representative,
-      address: company.data?.address,
-      phone: company.data?.phone,
-      businessNumber: company.data?.business_number,
+      representative: company.data?.representative ?? undefined,
+      address: company.data?.address ?? undefined,
+      phone: company.data?.phone ?? undefined,
+      businessNumber: company.data?.business_number ?? undefined,
     },
     counterparty: cpName || "-",
     items,
@@ -102,7 +102,7 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
     totalAmount: supplyAmt + taxAmt,
     validUntil: cj.header?.validUntil || cj.validUntil || "견적일로부터 30일",
     notes: cj.notes || "",
-    sealUrl: doc?.seal_applied ? company.data?.seal_url : undefined,
+    sealUrl: doc?.seal_applied ? company.data?.seal_url ?? undefined : undefined,
     managerName: mgrName || currentUser?.name || undefined,
     managerContact: mgrName ? (mgrEmail || undefined) : (currentUser?.email || undefined),
     paymentTerms: cj.header?.paymentTerms || undefined,
@@ -110,7 +110,8 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
     bankInfo: bankAcct ? { bankName: bankAcct.bank_name, accountNumber: bankAcct.account_number, accountHolder: bankAcct.alias || companyName } : undefined,
     deliveryDate: cj.deliveryDate || undefined,
     title: doc?.name || undefined,
-    siteUrl: company.data?.website || company.data?.homepage || company.data?.site_url || undefined,
+    // companies 에 website/homepage/site_url 컬럼이 전부 없어 항상 undefined 였음 — 동작 보존
+    siteUrl: undefined,
     counterpartyInfo: partnerRow ? {
       representative: partnerRow.representative || undefined,
       contactName: partnerRow.contact_name || undefined,

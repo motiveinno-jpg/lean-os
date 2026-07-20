@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
-const db = supabase as any;
+const db = supabase;
 
 // ── 추천 1건당 크레딧 (₩10,000) ──
 export const CREDIT_PER_REFERRAL = 10000;
@@ -143,7 +143,7 @@ export async function getReferralStats(
     companyId: data.company_id,
     referredCount: data.referred_count || 0,
     creditEarned: data.credit_earned || 0,
-    createdAt: data.created_at,
+    createdAt: data.created_at ?? '',
   };
 }
 

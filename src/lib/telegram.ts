@@ -33,12 +33,13 @@ export async function sendTelegramMessage(params: {
 /** Retrieve the CEO's telegram chat_id stored in companies.automation_settings. */
 export async function getCompanyTelegramChatId(companyId: string): Promise<string | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = logRead('lib/telegram:data', await (supabase as any)
+  const data = logRead('lib/telegram:data', await (supabase)
     .from('companies')
     .select('automation_settings')
     .eq('id', companyId)
     .maybeSingle());
-  const chatId = data?.automation_settings?.ceo_telegram_chat_id;
+  const s = (data?.automation_settings as Record<string, unknown> | null) || {};
+  const chatId = s.ceo_telegram_chat_id;
   return chatId ? String(chatId) : null;
 }
 

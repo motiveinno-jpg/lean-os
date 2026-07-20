@@ -54,12 +54,12 @@ export async function subscribeWebPush(companyId: string | null, _userId?: strin
   //   재구독(같은 endpoint) 시 무조건 실패, (2) 같은 브라우저에서 계정 전환 시 이전 계정 소유
   //   행에 막힘, (3) 레거시 계정(users.id != auth_id) FK 실패. RPC 가 서버에서 호출자
   //   users.id 를 해석해 endpoint 소유권까지 원자적으로 이관한다.
-  const { error } = await (supabase as any).rpc("upsert_push_subscription", {
+  const { error } = await (supabase).rpc("upsert_push_subscription", {
     p_endpoint: sub.endpoint,
     p_p256dh: json.keys.p256dh,
     p_auth: json.keys.auth,
     p_user_agent: navigator.userAgent,
-    p_company_id: companyId,
+    p_company_id: companyId ?? undefined,
   });
   if (error) console.error("push subscribe save failed:", error.message);
   return !error;
@@ -72,7 +72,7 @@ export async function unsubscribeWebPush(): Promise<void> {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
-      await (supabase as any).from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+      await (supabase).from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
       await sub.unsubscribe();
     }
   } catch { /* best-effort */ }

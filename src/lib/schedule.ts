@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 // ── Events ──────────────────────────────────────────────────────────────
 
@@ -78,7 +78,7 @@ export async function getMonthEvents(
   }
   const { data, error } = await q.order("start_at");
   if (error) throw error;
-  const rows: ScheduleEvent[] = data || [];
+  const rows = (data || []) as ScheduleEvent[];
   return rows.filter((e) => {
     // 일정의 표시 종료 시점: 기간 일정이면 end_at, 아니면 start_at
     const effectiveEnd = e.end_at ?? e.start_at;
@@ -113,7 +113,7 @@ export async function upsertEvent(input: {
   if (input.id) row.id = input.id;
   const { data, error } = await db.from("schedule_events").upsert(row).select().single();
   if (error) throw error;
-  return data;
+  return data as ScheduleEvent;
 }
 
 export async function deleteEvent(id: string): Promise<void> {
@@ -144,7 +144,7 @@ export async function getTodos(userId: string, opts?: { includeDone?: boolean })
   q = q.order("done").order("priority", { ascending: false }).order("position");
   const { data, error } = await q;
   if (error) throw error;
-  return data || [];
+  return (data || []) as ScheduleTodo[];
 }
 
 export async function upsertTodo(input: {
@@ -172,7 +172,7 @@ export async function upsertTodo(input: {
   }
   const { data, error } = await db.from("schedule_todos").upsert(row).select().single();
   if (error) throw error;
-  return data;
+  return data as ScheduleTodo;
 }
 
 export async function toggleTodoDone(id: string, done: boolean): Promise<void> {

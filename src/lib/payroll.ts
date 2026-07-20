@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 import { calculatePayroll, type PayrollItem } from './payment-batch';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Get payroll items for a batch ──
 
@@ -19,18 +19,21 @@ export async function getPayrollItems(batchId: string): Promise<PayrollItem[]> {
     .eq('batch_id', batchId)
     .order('created_at'));
 
+  // payroll_items 에는 비과세/사업주부담 컬럼이 없어 저장분에서는 0 으로 복원됨 (미사용 함수)
   return (data || []).map((item: any) => ({
     employeeId: item.employee_id,
     employeeName: item.employees?.name || '',
     baseSalary: Number(item.base_salary || 0),
+    nonTaxableAmount: 0,
+    taxableIncome: Number(item.base_salary || 0),
     nationalPension: Number(item.national_pension || 0),
     healthInsurance: Number(item.health_insurance || 0),
-    longTermCareInsurance: Number(item.long_term_care_insurance || 0),
     employmentInsurance: Number(item.employment_insurance || 0),
     incomeTax: Number(item.income_tax || 0),
     localIncomeTax: Number(item.local_income_tax || 0),
     deductionsTotal: Number(item.deductions_total || 0),
     netPay: Number(item.net_pay || 0),
+    employerCosts: { nationalPension: 0, healthInsurance: 0, employmentInsurance: 0, industrialAccident: 0, total: 0 },
   }));
 }
 
@@ -43,7 +46,7 @@ export async function savePayrollItems(batchId: string, items: PayrollItem[]): P
     base_salary: item.baseSalary,
     national_pension: item.nationalPension,
     health_insurance: item.healthInsurance,
-    long_term_care_insurance: item.longTermCareInsurance || 0,
+    // long_term_care_insurance 는 payroll_items 에 없는 컬럼 — 넣으면 insert 전체가 400
     employment_insurance: item.employmentInsurance,
     income_tax: item.incomeTax,
     local_income_tax: item.localIncomeTax,

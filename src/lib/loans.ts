@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 
@@ -16,7 +16,7 @@ export interface LoanRow {
   company_id: string;
   name: string;
   lender: string;
-  loan_type: string;
+  loan_type: string | null;
   original_amount: number;
   remaining_balance: number;
   interest_rate: number | null;
@@ -25,23 +25,23 @@ export interface LoanRow {
   payment_day: number | null;
   interest_day: number | null;
   bank_account_id: string | null;
-  status: string;
+  status: string | null;
   notes: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export interface LoanPaymentRow {
   id: string;
   loan_id: string;
   payment_date: string;
-  principal_amount: number;
-  interest_amount: number;
+  principal_amount: number | null;
+  interest_amount: number | null;
   total_amount: number;
   payment_number: number | null;
   bank_transaction_id: string | null;
   notes: string | null;
-  created_at: string;
+  created_at: string | null;
 }
 
 export interface LoanSummary {
@@ -193,7 +193,7 @@ export async function updateLoan(loanId: string, params: Partial<{
   if (params.status !== undefined) update.status = params.status;
   if (params.notes !== undefined) update.notes = params.notes;
 
-  const { error } = await db.from('loans').update(update).eq('id', loanId);
+  const { error } = await db.from('loans').update(update as never).eq('id', loanId);
   if (error) throw error;
 }
 
@@ -386,9 +386,9 @@ export async function acceptLoanMatch(candidate: LoanMatchCandidate): Promise<vo
   await updateLoan(loan.id, { remainingBalance: newBalance });
 
   // Mark transaction as matched
+  // updated_at 은 bank_transactions 에 없는 컬럼 — 넣으면 update 전체가 400 (매칭 표시 무음 실패)
   await db.from('bank_transactions').update({
     mapping_status: 'matched',
     deal_id: null,
-    updated_at: new Date().toISOString(),
   }).eq('id', transaction.id);
 }

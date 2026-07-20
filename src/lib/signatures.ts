@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 import { logAudit } from './audit-log';
 import { applySignerInputsToHtml } from './signature-fields';
 
-const db = supabase as any;
+const db = supabase;
 
 // ── Email Send Failure Classification ──
 // 발송 실패 사유를 사전 정의된 코드로 분류해 signature_send_failures 에 저장.
@@ -43,6 +43,7 @@ async function logSendFailure(args: {
   err: unknown;
 }): Promise<void> {
   try {
+    // 생성 타입은 RPC 인자를 non-null 로 뽑지만 SQL 함수는 null 허용 — null 전달 유지
     await db.rpc('log_signature_send_failure', {
       p_signature_request_id: args.signatureRequestId,
       p_batch_id: args.batchId,
@@ -52,7 +53,7 @@ async function logSendFailure(args: {
       p_send_type: args.sendType,
       p_error_code: classifyEmailError(args.err),
       p_error_message: String((args.err as { message?: string })?.message ?? args.err ?? ''),
-    });
+    } as never);
   } catch {
     /* 로깅 자체 실패는 silent — 발송 흐름 보호 */
   }
@@ -107,7 +108,7 @@ export async function createSignatureRequest(params: {
   let templateSnapshotHtml: string | null = null;
   try {
     const docRow = logRead('lib/signatures:docRow', await db.from('documents').select('content_json').eq('id', params.documentId).maybeSingle());
-    const docBody = docRow?.content_json?.body;
+    const docBody = (docRow?.content_json as { body?: unknown } | null)?.body;
     if (typeof docBody === 'string' && docBody.trim()) {
       const companyRow = logRead('lib/signatures:companyRow', await db.from('companies').select('name, business_number, representative, address').eq('id', params.companyId).maybeSingle());
       const { buildPartnerReplacements, applyTokenReplacements } = await import('./signer-replacements');
@@ -276,7 +277,7 @@ export async function updateSignatureStatus(
 
   const { data, error } = await db
     .from('signature_requests')
-    .update(updates)
+    .update(updates as never)
     .eq('id', id)
     .select()
     .single();
@@ -336,7 +337,8 @@ export async function saveSignature(
 ) {
   if (signToken) {
     // anon 경로: get_signature_request_by_token 으로 검증·스냅샷 조회 → submit_signature_by_token 으로 저장.
-    const ex = logRead('lib/signatures:ex', await db.rpc('get_signature_request_by_token', { p_token: signToken }));
+    const ex = logRead('lib/signatures:ex', await db.rpc('get_signature_request_by_token', { p_token: signToken })) as
+      { id: string; status?: string | null; expires_at?: string | null; template_snapshot_html?: string | null; signer_name?: string | null } | null;
     if (!ex) throw new Error('서명 요청을 찾을 수 없습니다');
     if (ex.status === 'signed') throw new Error('이미 서명 완료된 요청입니다');
     if (ex.expires_at && new Date(ex.expires_at) < new Date()) throw new Error('서명 요청이 만료되었습니다');
@@ -344,10 +346,10 @@ export async function saveSignature(
     const { error } = await db.rpc('submit_signature_by_token', {
       p_token: signToken,
       p_signature_data: signatureData,
-      p_signed_contract_html: signedContractHtml,
+      p_signed_contract_html: signedContractHtml ?? undefined,
       p_signature_method: signatureData.type,
       p_signature_data_url: signatureData.data,
-      p_ip: ipAddress || null,
+      p_ip: ipAddress || undefined,
     });
     if (error) throw error;
     // signer_inputs 저장 — 별도 SECDEF RPC(save_signer_inputs_by_token) 사용 (anon RLS UPDATE 우회).
@@ -450,7 +452,7 @@ export async function saveSignature(
       .eq('document_id', data.document_id));
 
     const allSigned = (allSigs || []).length > 0 &&
-      (allSigs || []).every((s: { status: string }) => s.status === 'signed');
+      (allSigs || []).every((s: { status: string | null }) => s.status === 'signed');
 
     if (allSigned) {
       // Check document status — if not yet approved, approve + lock
@@ -981,12 +983,13 @@ export async function sendSignatureReminder(signatureRequestId: string): Promise
   }
 
   // 리마인더 카운터 증가 + 감사 로그
+  // last_reminded_at 은 signature_requests 에 없는 컬럼 — 같이 넣으면 update 전체가 400 으로
+  // 무음 실패해 reminder_count 가 영영 0 이었음 (5회 제한 미작동 원인)
   try {
     await db.from('signature_requests').update({
       reminder_count: ((req as any).reminder_count || 0) + 1,
-      last_reminded_at: new Date().toISOString(),
     }).eq('id', signatureRequestId);
-  } catch { /* schema may not have these columns yet — ignore */ }
+  } catch { /* best-effort — 카운터 실패해도 발송 흐름 유지 */ }
 
   await logAudit({
     company_id: req.company_id,

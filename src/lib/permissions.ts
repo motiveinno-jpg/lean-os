@@ -7,20 +7,21 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any; // 인터페이스가 non-null 강타입이라 Row 널러블과 충돌 — 타입 정비는 후속 라운드
+const db = supabase; // 인터페이스가 non-null 강타입이라 Row 널러블과 충돌 — 타입 정비는 후속 라운드
 
 // ── Types ──
 
+// 2026-07-20: DB Row 널러블에 맞춰 인터페이스 정비 (기존 non-null 강타입이 as any 캐스트의 원인)
 export interface PermissionGroup {
   id: string;
   company_id: string;
   name: string;
-  description: string;
-  icon: string;
-  is_system: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
+  description: string | null;
+  icon: string | null;
+  is_system: boolean | null;
+  sort_order: number | null;
+  created_at: string | null;
+  updated_at: string | null;
   member_count?: number;
   members?: PermissionGroupMember[];
   permissions?: PermissionDefinition[];
@@ -31,8 +32,8 @@ export interface PermissionDefinition {
   module: string;
   action: string;
   label: string;
-  description: string;
-  sort_order: number;
+  description: string | null;
+  sort_order: number | null;
 }
 
 export interface PermissionGroupMember {
@@ -40,14 +41,14 @@ export interface PermissionGroupMember {
   group_id: string;
   user_id: string;
   company_id: string;
-  created_at: string;
+  created_at: string | null;
   user?: {
     id: string;
-    name: string;
+    name: string | null;
     email: string;
-    role: string;
-    avatar_url?: string;
-  };
+    role: string | null;
+    avatar_url?: string | null;
+  } | null;
 }
 
 // ── Module labels ──
@@ -166,7 +167,7 @@ export async function getPermissionGroupDetail(groupId: string): Promise<Permiss
     ...group,
     members: (members || []).map((m: PermissionGroupMember & { users: unknown }) => ({
       ...m,
-      user: m.users,
+      user: m.users as PermissionGroupMember['user'],
     })),
     permissions,
     member_count: members?.length || 0,
@@ -496,8 +497,8 @@ export async function getCompanyMembersWithPermissions(companyId: string): Promi
     .eq('company_id', companyId));
 
   const deptMap: Record<string, string> = {};
-  (employees || []).forEach((e: { user_id: string; department: string }) => {
-    if (e.user_id) deptMap[e.user_id] = e.department;
+  (employees || []).forEach((e: { user_id: string | null; department: string | null }) => {
+    if (e.user_id) deptMap[e.user_id] = e.department || '';
   });
 
   // 전체 멤버십 조회
@@ -509,19 +510,20 @@ export async function getCompanyMembersWithPermissions(companyId: string): Promi
   const userGroupMap: Record<string, PermissionGroup[]> = {};
   const superAdminSet = new Set<string>();
 
-  (memberships || []).forEach((m: { user_id: string; permission_groups: PermissionGroup }) => {
+  (memberships || []).forEach((m: { user_id: string; permission_groups: Pick<PermissionGroup, 'id' | 'name' | 'icon' | 'is_system' | 'sort_order'> }) => {
     if (!userGroupMap[m.user_id]) userGroupMap[m.user_id] = [];
     if (m.permission_groups) {
-      userGroupMap[m.user_id].push(m.permission_groups);
+      // 부분 select 임베드 — 목록 표시에 필요한 필드만 (PermissionGroup 전체 아님)
+      userGroupMap[m.user_id].push(m.permission_groups as PermissionGroup);
       if (m.permission_groups.name === SYSTEM_GROUPS.SUPER_ADMIN) {
         superAdminSet.add(m.user_id);
       }
     }
   });
 
-  return users.map((u: { id: string; name: string; email: string; role: string; avatar_url?: string }) => ({
-    user: { ...u, department: deptMap[u.id] || '' },
-    groups: (userGroupMap[u.id] || []).sort((a: PermissionGroup, b: PermissionGroup) => a.sort_order - b.sort_order),
+  return users.map((u: { id: string; name: string | null; email: string; role: string | null; avatar_url: string | null }) => ({
+    user: { id: u.id, name: u.name || '', email: u.email, role: u.role || '', avatar_url: u.avatar_url ?? undefined, department: deptMap[u.id] || '' },
+    groups: (userGroupMap[u.id] || []).sort((a: PermissionGroup, b: PermissionGroup) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
     isSuperAdmin: superAdminSet.has(u.id),
   }));
 }

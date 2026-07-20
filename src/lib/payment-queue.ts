@@ -138,12 +138,12 @@ export async function approvePayment(
   // Relevant keys (saved from Settings → 은행연동 탭):
   //   auto_transfer_enabled, auto_transfer_limit, ceo_telegram_chat_id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cmp = logRead('lib/payment-queue:cmp', await (supabase as any)
+  const cmp = logRead('lib/payment-queue:cmp', await (supabase)
     .from('companies')
     .select('automation_settings')
     .eq('id', payment.company_id)
     .maybeSingle());
-  const settings = cmp?.automation_settings || {};
+  const settings = (cmp?.automation_settings as Record<string, unknown> | null) || {};
   const autoExecute = !!settings.auto_transfer_enabled;
   const autoLimit = Number(settings.auto_transfer_limit || 0);
   const amount = Number(payment.amount);

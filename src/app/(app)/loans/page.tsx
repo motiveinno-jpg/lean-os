@@ -386,7 +386,7 @@ export default function LoansPage() {
           ) : (
             <div className="divide-y divide-[var(--border)]/50">
               {loans.map((loan) => {
-                const st = LOAN_STATUS[loan.status] || LOAN_STATUS.active;
+                const st = LOAN_STATUS[loan.status ?? ""] || LOAN_STATUS.active;
                 const isEditing = editingLoan?.id === loan.id;
                 return (
                   <div key={loan.id} className="loan-row">
@@ -398,7 +398,7 @@ export default function LoansPage() {
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-bold text-sm">{loan.name}</span>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
-                            <span className="caption">{LOAN_TYPES[loan.loan_type] || loan.loan_type}</span>
+                            <span className="caption">{LOAN_TYPES[loan.loan_type ?? ""] || loan.loan_type}</span>
                             <MaturityBadge maturityDate={loan.maturity_date} />
                           </div>
                           <div className="text-xs text-[var(--text-muted)] mb-2">{loan.lender}</div>
