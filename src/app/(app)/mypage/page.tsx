@@ -220,18 +220,6 @@ export default function MyPage() {
               {st && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--bg-surface)] border border-[var(--border)] ${st.color}`}>{st.label}</span>}
             </div>
             <div className="mypage-hero-sub">{[userInfo?.email, company?.name].filter(Boolean).join(" · ") || "—"}</div>
-            <div className="mypage-hero-chips">
-              {employee?.department && <span className="mypage-hero-chip">{employee.department}</span>}
-              {employee?.position && <span className="mypage-hero-chip">{employee.position}</span>}
-              {employee?.hire_date && <span className="mypage-hero-chip">입사 {employee.hire_date}</span>}
-              {employee?.employee_number && <span className="mypage-hero-chip">#{employee.employee_number}</span>}
-              {(userInfo as any)?.avatar_url && (
-                <button onClick={handleAvatarRemove} disabled={uploadingAvatar}
-                  className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-muted)] underline underline-offset-2 ml-1">
-                  기본 이미지로
-                </button>
-              )}
-            </div>
           </div>
           {leaveBalance && (
             <div className="mypage-hero-leave">
@@ -241,6 +229,19 @@ export default function MyPage() {
               </div>
             </div>
           )}
+          {/* 칩 줄 — 배너 겹침을 피하려 이름/이메일 줄 아래 독립 행으로 분리 */}
+          <div className="mypage-hero-chips">
+            {employee?.department && <span className="mypage-hero-chip">{employee.department}</span>}
+            {employee?.position && <span className="mypage-hero-chip">{employee.position}</span>}
+            {employee?.hire_date && <span className="mypage-hero-chip">입사 {employee.hire_date}</span>}
+            {employee?.employee_number && <span className="mypage-hero-chip">#{employee.employee_number}</span>}
+            {(userInfo as any)?.avatar_url && (
+              <button onClick={handleAvatarRemove} disabled={uploadingAvatar}
+                className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-muted)] underline underline-offset-2 ml-1">
+                기본 이미지로
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -259,30 +260,30 @@ export default function MyPage() {
         <div className="mypage-employee-card glass-card">
           <h2 className="section-title">인사 정보</h2>
           <div className="mypage-info-grid">
-            <div>
+            <div className="mypage-info-tile">
               <div className="text-xs text-[var(--text-dim)] mb-0.5">부서</div>
               <div className="font-medium">{employee.department || "—"}</div>
             </div>
-            <div>
+            <div className="mypage-info-tile">
               <div className="text-xs text-[var(--text-dim)] mb-0.5">직위</div>
               <div className="font-medium">{employee.position || "—"}</div>
             </div>
-            <div>
+            <div className="mypage-info-tile">
               <div className="text-xs text-[var(--text-dim)] mb-0.5">입사일</div>
               <div className="font-medium">{employee.hire_date || "—"}</div>
             </div>
-            <div>
+            <div className="mypage-info-tile">
               <div className="text-xs text-[var(--text-dim)] mb-0.5">상태</div>
               <div className={`font-medium ${st?.color || ""}`}>{st?.label || employee.status}</div>
             </div>
             {Number(employee.salary) > 0 && (
-              <div>
+              <div className="mypage-info-tile">
                 <div className="text-xs text-[var(--text-dim)] mb-0.5">연봉</div>
                 <div className="font-medium mono-number">₩{(Number(employee.salary) * 12).toLocaleString()}</div>
               </div>
             )}
             {employee.employee_number && (
-              <div>
+              <div className="mypage-info-tile">
                 <div className="text-xs text-[var(--text-dim)] mb-0.5">사번</div>
                 <div className="font-medium">{employee.employee_number}</div>
               </div>

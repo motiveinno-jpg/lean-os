@@ -1931,19 +1931,22 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mypage-page { @apply max-w-5xl mx-auto space-y-5; }
 .mypage-hero { @apply overflow-hidden relative; }
 .mypage-hero-banner { height: 96px; width: 100%; background: linear-gradient(120deg, var(--primary), color-mix(in srgb, var(--primary) 22%, var(--bg-card))); }
-.mypage-hero-body { @apply px-6 pb-5 -mt-10 flex flex-wrap items-end gap-x-5 gap-y-3; }
+/* 겹침을 -mt-6 로 줄이고 칩을 별도 줄로 내려, 이름·이메일·회사명이 배너 그라데이션 위에 걸치지 않게 함 */
+.mypage-hero-body { @apply px-6 pb-5 -mt-6 flex flex-wrap items-end gap-x-5 gap-y-3; }
 .mypage-hero-avatar-wrap { @apply relative shrink-0; }
 .mypage-hero-avatar { @apply ring-4 ring-[var(--bg-card)] shadow-xl; }
 .mypage-avatar-cam-btn { @apply absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] shadow-md transition hover:text-[var(--primary)] hover:border-[var(--primary)]/40; }
 .mypage-hero-identity { @apply min-w-0 flex-1 pb-0.5; }
 .mypage-hero-name-row { @apply flex items-center gap-2 flex-wrap; }
-.mypage-hero-sub { @apply text-xs text-[var(--text-muted)] mt-1 truncate; }
-.mypage-hero-chips { @apply flex flex-wrap items-center gap-1.5 mt-2.5; }
+.mypage-hero-sub { @apply text-[13px] font-medium text-[var(--text-muted)] mt-1 truncate; }
+.mypage-hero-chips { @apply basis-full flex flex-wrap items-center gap-1.5; }
 .mypage-hero-chip { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)]; }
 .mypage-hero-leave { @apply ml-auto shrink-0 text-right px-4 py-2.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .mypage-records-grid { @apply grid gap-5 lg:grid-cols-2 items-start; }
-.mypage-info-grid { @apply grid grid-cols-2 gap-y-3 gap-x-6 text-sm; }
-.mypage-employee-card { @apply p-6; }
+/* 인사 정보 — 반쪽 카드로 남아 다른 카드와 높이·무게가 어긋나던 문제. 전폭 + 타일 그리드로 통일 */
+.mypage-info-grid { @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-sm; }
+.mypage-info-tile { @apply rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3.5 py-2.5; }
+.mypage-employee-card { @apply p-6 lg:col-span-2; }
 .mypage-leave-card { @apply p-6; }
 .mypage-leave-stats { @apply grid grid-cols-3 gap-4 mb-4; }
 .mypage-recent-leaves { @apply space-y-2; }
