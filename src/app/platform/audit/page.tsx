@@ -33,6 +33,18 @@ const ACTION_LABEL: Record<string, string> = {
   resolve_error: "에러 해결",
   upsert_incident: "사고 기록",
   log_action: "기타",
+  // 운영자 액션 API (admin-action) — 계정 지원
+  admin_reset_password: "임시 비밀번호 발급",
+  admin_reset_link: "재설정 링크 생성",
+  admin_change_email: "이메일 변경",
+  admin_set_role: "역할 변경",
+  admin_ban: "계정 잠금",
+  admin_unban: "잠금 해제",
+  // 운영자 액션 API — 구독 관리
+  admin_extend_trial: "체험 연장",
+  admin_change_plan: "플랜 변경",
+  admin_set_subscription_status: "구독 상태 변경",
+  admin_set_seats: "좌석 조정",
 };
 
 export default function PlatformAuditPage() {

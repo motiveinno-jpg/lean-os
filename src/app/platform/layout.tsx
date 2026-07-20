@@ -7,8 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import Link from "next/link";
 
-// OP-A 게이트 강화: 회사명 OR @mo-tive.com 이메일 (둘 다 통과 — 기존 호환 유지)
-const SUPER_ADMIN_COMPANY = "모티브이노베이션";
+// 게이트: 검증된 Auth 로그인 이메일이 @mo-tive.com (서버 is_platform_operator() 와 동일 기준)
 const OPERATOR_EMAIL_PATTERN = /@mo-tive\.com$/i;
 
 // OP-A 메뉴 섹션화: 비즈니스(매출/고객) + 운영(평균/업계/에러/의존성/사고/감사)
@@ -19,6 +18,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/platform", label: "개요", icon: "chart" },
       { href: "/platform/customers", label: "고객사", icon: "building" },
+      { href: "/platform/members", label: "사용자", icon: "users" },
       { href: "/platform/revenue", label: "수익", icon: "dollar" },
       { href: "/platform/feedback", label: "피드백", icon: "message" },
       { href: "/platform/support", label: "고객센터", icon: "message" },
@@ -50,6 +50,7 @@ function NavIcon({ type, active }: { type: string; active: boolean }) {
   switch (type) {
     case "chart": return <svg {...props}><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-9"/></svg>;
     case "building": return <svg {...props}><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></svg>;
+    case "users": return <svg {...props}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>;
     case "dollar": return <svg {...props}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
     case "message": return <svg {...props}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
     case "gift": return <svg {...props}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>;
@@ -78,11 +79,10 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         if (!data.session) { router.replace("/auth"); return; }
         const user = await getCurrentUser();
         if (cancelled) return;
-        // OP-A 게이트: @mo-tive.com 이메일 OR 기존 모티브이노베이션 회사명 (둘 다 허용)
-        const email = user?.email || "";
-        const isOpEmail = OPERATOR_EMAIL_PATTERN.test(email);
-        const isLegacy = user?.role === "owner" && user?.companies?.name === SUPER_ADMIN_COMPANY;
-        if (!user || (!isOpEmail && !isLegacy)) {
+        // 게이트: 서버 is_platform_operator() 와 동일 기준 — 검증된 Auth 로그인 이메일(@mo-tive.com).
+        //   (2026-07-20 P0 봉합) 자가수정 가능한 public.users.email·회사명이 아니라 세션 Auth 이메일로 판정.
+        const authEmail = data.session.user?.email || "";
+        if (!user || !OPERATOR_EMAIL_PATTERN.test(authEmail)) {
           setStatus("denied");
           return;
         }
