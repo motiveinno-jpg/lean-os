@@ -321,24 +321,18 @@ export default function MyPage() {
             <div className="mypage-hero-name-row">
               <span className="text-lg font-extrabold text-[var(--text)] truncate">{userInfo?.name || "—"}</span>
               <span className="badge badge-primary">{roleLabel}</span>
-              {st && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--bg-surface)] border border-[var(--border)] ${st.color}`}>{st.label}</span>}
             </div>
             <div className="mypage-hero-sub">{[userInfo?.email, company?.name].filter(Boolean).join(" · ") || "—"}</div>
           </div>
-          {/* 연차 잔여 배지는 아래 "연차 현황" 카드와 중복이라 제거(2026-07-20) */}
-          {/* 칩 줄 — 배너 겹침을 피하려 이름/이메일 줄 아래 독립 행으로 분리 */}
-          <div className="mypage-hero-chips">
-            {employee?.department && <span className="mypage-hero-chip">{employee.department}</span>}
-            {employee?.position && <span className="mypage-hero-chip">{employee.position}</span>}
-            {employee?.hire_date && <span className="mypage-hero-chip">입사 {employee.hire_date}</span>}
-            {employee?.employee_number && <span className="mypage-hero-chip">#{employee.employee_number}</span>}
-            {(userInfo as any)?.avatar_url && (
+          {/* 연차 잔여 배지는 "연차 현황" 카드와, 부서·직위·입사일 칩은 "인사 정보" 카드와 중복이라 제거(2026-07-20) */}
+          {(userInfo as any)?.avatar_url && (
+            <div className="mypage-hero-chips">
               <button onClick={handleAvatarRemove} disabled={uploadingAvatar}
-                className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-muted)] underline underline-offset-2 ml-1">
+                className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-muted)] underline underline-offset-2">
                 기본 이미지로
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1952,7 +1952,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mypage-record-loading { @apply flex-1 flex items-center justify-center py-8 text-xs text-[var(--text-muted)]; }
 .mypage-record-empty { @apply flex-1 flex flex-col justify-center py-10 text-center; }
 /* 인사 정보 — 반쪽 카드로 남아 다른 카드와 높이·무게가 어긋나던 문제. 전폭 + 타일 그리드로 통일 */
-.mypage-info-grid { @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 text-sm; }
+.mypage-info-grid { @apply grid gap-3 text-sm; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 .mypage-info-tile { @apply rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3.5 py-2.5; }
 .mypage-employee-card { @apply p-6 lg:col-span-3; }
 .mypage-leave-card { @apply p-6 h-full flex flex-col; }
@@ -2223,7 +2223,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .notification-settings-header { @apply p-6; }
 .notification-email-address-field { @apply mb-4; }
 .notification-quiet-hours-card { @apply p-6; }
-.notification-save-bar { @apply sticky bottom-0 -mx-6 px-6 py-4 bg-[var(--bg)]/95 backdrop-blur border-t border-[var(--border)] flex justify-end gap-2; }
+.notification-save-bar { @apply sticky bottom-0 -mx-6 px-6 py-4 pr-24 bg-[var(--bg)]/95 backdrop-blur border-t border-[var(--border)] flex justify-end gap-2; }
 .notification-daily-report-card { @apply p-5; }
 .notification-slack-card { @apply p-5; }
 .notification-channel-card { @apply p-6; }

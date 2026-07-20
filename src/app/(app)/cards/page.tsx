@@ -595,7 +595,7 @@ export default function CardsPage() {
             card
             icon="💳"
             title="등록된 카드가 없습니다"
-            desc="/transactions 카드 탭에서 등록하거나 CODEF 카드 동기화로 자동 등록할 수 있습니다"
+            desc="상단의 카드 연동 버튼으로 CODEF 카드 동기화를 실행하면 자동 등록됩니다"
           />
         ) : (
           <div className="space-y-6">
