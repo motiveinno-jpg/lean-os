@@ -1928,7 +1928,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .partner-form-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm; }
 .partner-portal-link-modal { @apply fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4; }
 /* 마이페이지 2.0 (2026-07-16) — 히어로 프로필 + 세그먼트 탭(인사기록/알림/계정) 재설계 */
-.mypage-page { @apply max-w-5xl mx-auto space-y-5; }
+/* 다른 화면과 동일하게 풀폭 — max-w-5xl 가운데정렬은 상단 헤더바(max-w-[1440px])와 폭이 어긋났음 */
+.mypage-page { @apply space-y-5; }
 .mypage-hero { @apply overflow-hidden relative; }
 .mypage-hero-banner { height: 96px; width: 100%; background: linear-gradient(120deg, var(--primary), color-mix(in srgb, var(--primary) 22%, var(--bg-card))); }
 /* 겹침을 -mt-6 로 줄이고 칩을 별도 줄로 내려, 이름·이메일·회사명이 배너 그라데이션 위에 걸치지 않게 함 */
