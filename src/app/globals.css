@@ -1943,18 +1943,19 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mypage-hero-chips { @apply basis-full flex flex-wrap items-center gap-1.5; }
 .mypage-hero-chip { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)]; }
 /* 인사기록 탭 — 같은 행 카드끼리 높이를 맞춘다(stretch). 계약서↔급여명세서, 연차↔증명서 */
-.mypage-records-grid { @apply grid gap-5 lg:grid-cols-2; }
+.mypage-records-grid { @apply grid gap-5 lg:grid-cols-3; }
 .mypage-record-body { @apply flex-1; }
 .mypage-record-loading { @apply flex-1 flex items-center justify-center py-8 text-xs text-[var(--text-muted)]; }
 .mypage-record-empty { @apply flex-1 flex flex-col justify-center py-10 text-center; }
 /* 인사 정보 — 반쪽 카드로 남아 다른 카드와 높이·무게가 어긋나던 문제. 전폭 + 타일 그리드로 통일 */
-.mypage-info-grid { @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-sm; }
+.mypage-info-grid { @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 text-sm; }
 .mypage-info-tile { @apply rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3.5 py-2.5; }
-.mypage-employee-card { @apply p-6 lg:col-span-2; }
+.mypage-employee-card { @apply p-6 lg:col-span-3; }
 .mypage-leave-card { @apply p-6 h-full flex flex-col; }
 .mypage-contracts-card { @apply p-6 h-full flex flex-col; }
 .mypage-payslips-card { @apply p-6 h-full flex flex-col; }
-.mypage-certificates-card { @apply p-6 h-full flex flex-col; }
+/* 증명서는 발급 폼(유형·용도·버튼)이 가로로 길어 3열 행에 끼우면 좁다 — 하단 전폭 */
+.mypage-certificates-card { @apply p-6 h-full flex flex-col lg:col-span-3; }
 .mypage-leave-stats { @apply grid grid-cols-3 gap-4 mb-4; }
 /* 총 연차 타일 — 클릭 시 사용 내역 모달. 나머지 stat-tile 과 시각적으로 동일하고 호버만 추가 */
 .mypage-leave-stat-btn { @apply w-full transition hover:border-[var(--primary)]/40 hover:bg-[var(--primary)]/5; }
