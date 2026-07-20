@@ -120,6 +120,11 @@ function buildIssuePayload(args: {
     purposeType,                // "영수"(결제완료) / "청구"
     sendToNtsYn: "Y",           // 국세청 즉시 전송 — 2026-07-16 N으로 전환 실험해도 CF-05001 동일 재현되어 원복.
     writeDate,                  // YYYYMMDD
+    // 책번호 — CODEF 공식 답변(2026-07-20): kwon/ho 미포함 시 서버 내부 변환 예외로
+    //   CF-05001 발생. 정식 수정 배포 전까지 빈 문자열(문자열 타입)로 반드시 포함해야 함.
+    //   CODEF 측 수정 반영 안내가 오면 제거 가능.
+    kwon: "",
+    ho: "",
 
     // 공급자 (회사 본인) — invoicerCorpNum 으로 발행 주체 식별
     invoicerCorpNum: (company.business_number || "").replace(/\D/g, ""),
