@@ -23,6 +23,9 @@ const EMP_STATUS: Record<string, { label: string; color: string }> = {
   inactive: { label: "퇴직", color: "text-[var(--text-muted)]" },
 };
 
+const LEAVE_TYPE_LABELS: Record<string, string> = { annual: "연차", sick: "병가", special: "경조휴가", unpaid: "무급휴가" };
+const leaveTypeLabel = (t: string) => LEAVE_TYPE_LABELS[t] || t;
+
 type MyPageTab = "records" | "notif" | "account";
 
 export default function MyPage() {
@@ -154,6 +157,50 @@ export default function MyPage() {
     enabled: !!employee?.id,
   });
 
+  // 사용 연차 상세 — "총 연차" 클릭 시 열리는 올해 승인된 휴가 내역.
+  //   최근 휴가(recentLeaves)는 상태 무관 5건 요약이라 "얼마를 어디에 썼는지"를 못 본다.
+  const [showUsedLeaves, setShowUsedLeaves] = useState(false);
+  const { data: usedLeaves = [], isLoading: usedLeavesLoading } = useQuery({
+    queryKey: ["my-used-leaves", employee?.id, userId, currentYear],
+    queryFn: async () => {
+      const db = supabase;
+      const [{ data: native }, { data: approvals }] = await Promise.all([
+        db.from("leave_requests")
+          .select("id, leave_type, start_date, end_date, days, status")
+          .eq("employee_id", employee!.id)
+          .eq("status", "approved")
+          .gte("start_date", `${currentYear}-01-01`)
+          .lte("start_date", `${currentYear}-12-31`)
+          .order("start_date", { ascending: false }),
+        db.from("approval_requests")
+          .select("id, status, created_at, custom_fields, description")
+          .eq("request_type", "leave")
+          .eq("requester_id", userId!)
+          .eq("status", "approved")
+          .order("created_at", { ascending: false }),
+      ]);
+      const fromApprovals = (approvals || [])
+        .map((a: any) => {
+          const lv = a.custom_fields?.leave || {};
+          const start = lv.start_date || a.created_at?.slice(0, 10);
+          return {
+            id: `approval-${a.id}`,
+            leave_type: lv.leave_type || "annual",
+            start_date: start,
+            end_date: lv.end_date || start,
+            // 구버전 요청은 구조화 필드가 없어 본문에서 일수를 파싱(승인 차감 로직과 동일 규칙).
+            days: Number(lv.days ?? a.description?.match(/(\d+(?:\.\d+)?)일/)?.[1] ?? 0),
+          };
+        })
+        .filter((l: any) => l.start_date?.startsWith(String(currentYear)));
+      return [...(native || []), ...fromApprovals].sort((x: any, y: any) =>
+        (y.start_date || "").localeCompare(x.start_date || ""),
+      );
+    },
+    enabled: !!employee?.id && !!userId && showUsedLeaves,
+  });
+  const usedLeavesTotal = usedLeaves.reduce((sum: number, l: any) => sum + (Number(l.days) || 0), 0);
+
   // 최근 휴가 — 네이티브 leave_requests(과거) + 전자결재 approval_requests(휴가, 2026-07-15 일원화) 병합.
   const { data: recentLeaves = [] } = useQuery({
     queryKey: ["my-recent-leaves", employee?.id, userId],
@@ -221,14 +268,7 @@ export default function MyPage() {
             </div>
             <div className="mypage-hero-sub">{[userInfo?.email, company?.name].filter(Boolean).join(" · ") || "—"}</div>
           </div>
-          {leaveBalance && (
-            <div className="mypage-hero-leave">
-              <div className="text-[10px] font-semibold text-[var(--text-dim)]">연차 잔여</div>
-              <div className={`text-xl font-bold mono-number ${remaining !== null && remaining <= 3 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
-                {remaining ?? 0}<span className="text-xs font-semibold text-[var(--text-dim)]"> / {leaveBalance.total_days}일</span>
-              </div>
-            </div>
-          )}
+          {/* 연차 잔여 배지는 아래 "연차 현황" 카드와 중복이라 제거(2026-07-20) */}
           {/* 칩 줄 — 배너 겹침을 피하려 이름/이메일 줄 아래 독립 행으로 분리 */}
           <div className="mypage-hero-chips">
             {employee?.department && <span className="mypage-hero-chip">{employee.department}</span>}
@@ -306,10 +346,19 @@ export default function MyPage() {
         </div>
         {leaveBalance ? (
           <div className="mypage-leave-stats">
-            <div className="stat-tile items-center text-center">
-              <div className="stat-tile-label">총 연차</div>
+            {/* 총 연차 클릭 → 올해 사용한 연차 상세 */}
+            <button
+              type="button"
+              onClick={() => setShowUsedLeaves(true)}
+              className="mypage-leave-stat-btn stat-tile items-center text-center"
+              title="사용한 연차 내역 보기"
+            >
+              <div className="stat-tile-label flex items-center gap-1">
+                총 연차
+                <svg className="w-3 h-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+              </div>
               <div className="stat-tile-value mono-number text-[var(--primary)]">{leaveBalance.total_days}일</div>
-            </div>
+            </button>
             <div className="stat-tile items-center text-center">
               <div className="stat-tile-label">사용</div>
               <div className="stat-tile-value mono-number text-[var(--warning)]">{leaveBalance.used_days}일</div>
@@ -336,7 +385,7 @@ export default function MyPage() {
               {recentLeaves.map((leave: any) => (
                 <div key={leave.id} className="flex items-center justify-between text-xs bg-[var(--bg-surface)] rounded-lg px-3 py-2 border border-[var(--border)]">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{leave.leave_type === "annual" ? "연차" : leave.leave_type === "sick" ? "병가" : leave.leave_type}</span>
+                    <span className="font-medium">{leaveTypeLabel(leave.leave_type)}</span>
                     <span className="text-[var(--text-muted)]">{leave.start_date}{leave.end_date && leave.end_date !== leave.start_date ? ` ~ ${leave.end_date}` : ""}</span>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
@@ -391,6 +440,54 @@ export default function MyPage() {
         {withdrawErr && <p className="text-xs text-[var(--danger)] mt-2">{withdrawErr}</p>}
       </div>
       </div>
+      )}
+
+      {/* ── 사용 연차 상세 모달 — 연차 현황의 "총 연차" 클릭 진입 ── */}
+      {showUsedLeaves && (
+        <div className="mypage-used-leaves-modal" onClick={() => setShowUsedLeaves(false)}>
+          <div className="modal-backdrop" />
+          <div className="mypage-used-leaves-panel modal-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="mypage-used-leaves-head">
+              <div>
+                <h3 className="text-sm font-bold">{currentYear}년 사용 연차 내역</h3>
+                <p className="text-[11px] text-[var(--text-dim)] mt-0.5">승인 완료된 휴가만 표시됩니다</p>
+              </div>
+              <button onClick={() => setShowUsedLeaves(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition" aria-label="닫기">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="mypage-used-leaves-body">
+              {usedLeavesLoading ? (
+                <div className="py-10 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
+              ) : usedLeaves.length === 0 ? (
+                <div className="py-10 text-center">
+                  <div className="text-3xl mb-2">🗓️</div>
+                  <div className="text-sm font-semibold text-[var(--text-muted)]">올해 사용한 휴가가 없습니다</div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {usedLeaves.map((l: any) => (
+                    <div key={l.id} className="mypage-used-leave-row">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="badge badge-muted shrink-0">{leaveTypeLabel(l.leave_type)}</span>
+                        <span className="text-xs text-[var(--text-muted)] truncate">
+                          {l.start_date}{l.end_date && l.end_date !== l.start_date ? ` ~ ${l.end_date}` : ""}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold mono-number shrink-0">{Number(l.days) || 0}일</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {usedLeaves.length > 0 && (
+              <div className="mypage-used-leaves-foot">
+                <span className="text-xs font-semibold text-[var(--text-muted)]">합계 {usedLeaves.length}건</span>
+                <span className="text-sm font-bold mono-number text-[var(--warning)]">{usedLeavesTotal}일 사용</span>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
