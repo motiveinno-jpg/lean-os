@@ -7,7 +7,7 @@ import { supabase } from './supabase';
 import { logAudit } from './audit-log';
 import { isDev, devCodefEnabled } from './app-env';
 
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 
@@ -153,7 +153,7 @@ export async function syncCardTransactions(companyId: string): Promise<SyncResul
     // Fetch unclassified/unreconciled card transactions
     const { data: unmatched, error: fetchErr } = await db
       .from('card_transactions')
-      .select('id, merchant_name, amount, category, deal_id, approved_at')
+      .select('id, merchant_name, amount, category, deal_id')
       .eq('company_id', companyId)
       .is('deal_id', null)
       .order('transaction_date', { ascending: false })
@@ -167,14 +167,15 @@ export async function syncCardTransactions(companyId: string): Promise<SyncResul
     // Load category classification rules from recurring_payments
     const rules = logRead('lib/data-sync:rules', await db
       .from('recurring_payments')
-      .select('payee_name, category')
+      // 2026-07-16: payee_name 은 존재하지 않는 컬럼(실제 name) — 이 쿼리가 400으로 전멸해 규칙 로드가 항상 빈손이었음
+      .select('name, category')
       .eq('company_id', companyId)
       .eq('is_active', true));
 
     const ruleMap = new Map<string, string>();
     for (const r of rules || []) {
-      if (r.payee_name && r.category) {
-        ruleMap.set(r.payee_name.toLowerCase(), r.category);
+      if (r.name && r.category) {
+        ruleMap.set(r.name.toLowerCase(), r.category);
       }
     }
 
@@ -193,9 +194,10 @@ export async function syncCardTransactions(companyId: string): Promise<SyncResul
       }
 
       if (matchedCategory && !tx.category) {
+        // 2026-07-16: card_transactions 에 updated_at 컬럼 없음 — payload 에 넣으면 400 으로 분류 저장이 전멸했음
         const { error: upErr } = await db
           .from('card_transactions')
-          .update({ category: matchedCategory, updated_at: now() })
+          .update({ category: matchedCategory })
           .eq('id', tx.id);
 
         if (!upErr) classifiedCount++;
@@ -221,7 +223,8 @@ export async function syncFixedCosts(companyId: string, month?: string): Promise
     // Fetch active recurring payments
     const { data: recurring, error: recErr } = await db
       .from('recurring_payments')
-      .select('id, payee_name, amount, category, due_day, is_active, last_paid_at')
+      // 2026-07-16: payee_name/due_day/last_paid_at 은 실제 스키마에 없음(name/day_of_month) — 고정비 동기화가 항상 400 이었음
+      .select('id, name, amount, category, day_of_month, is_active')
       .eq('company_id', companyId)
       .eq('is_active', true);
 
@@ -231,25 +234,27 @@ export async function syncFixedCosts(companyId: string, month?: string): Promise
     }
 
     // Fetch actual payments this month from payment_queue
+    // 2026-07-16: payee_name/recurring_payment_id/due_date 는 실제 스키마에 없음(recipient_name/recurring_rule_id,
+    //   due_date 컬럼 부재 → created_at 월 범위로 대체) — 이 조회가 400 이라 고정비 동기화가 전멸했음
     const { data: actualPayments, error: pqErr } = await db
       .from('payment_queue')
-      .select('id, amount, status, payee_name, recurring_payment_id')
+      .select('id, amount, status, recipient_name, recurring_rule_id')
       .eq('company_id', companyId)
-      .gte('due_date', start)
-      .lt('due_date', end);
+      .gte('created_at', start)
+      .lt('created_at', end);
 
     if (pqErr) return resultErr('fixed_costs', `결제대기열 조회 실패: ${pqErr.message}`);
 
     const paidRecurringIds = new Set(
       (actualPayments || [])
-        .filter((p: any) => p.recurring_payment_id && p.status === 'paid')
-        .map((p: any) => p.recurring_payment_id)
+        .filter((p: any) => p.recurring_rule_id && p.status === 'paid')
+        .map((p: any) => p.recurring_rule_id)
     );
 
     const pendingRecurringIds = new Set(
       (actualPayments || [])
-        .filter((p: any) => p.recurring_payment_id && p.status !== 'paid')
-        .map((p: any) => p.recurring_payment_id)
+        .filter((p: any) => p.recurring_rule_id && p.status !== 'paid')
+        .map((p: any) => p.recurring_rule_id)
     );
 
     let generatedCount = 0;
@@ -260,12 +265,12 @@ export async function syncFixedCosts(companyId: string, month?: string): Promise
       if (paidRecurringIds.has(rp.id) || pendingRecurringIds.has(rp.id)) continue;
 
       // Due day for the current month
-      const dueDay = rp.due_day || 25;
+      const dueDay = rp.day_of_month || 25;
       const dueDate = `${start.slice(0, 7)}-${String(dueDay).padStart(2, '0')}`;
 
       // Check if overdue (past due date and not paid)
       if (new Date(dueDate) < new Date()) {
-        overdueItems.push(rp.payee_name || rp.category || 'Unknown');
+        overdueItems.push(rp.name || rp.category || 'Unknown');
       }
 
       // Generate payment queue entry for missing recurring payments
@@ -273,11 +278,12 @@ export async function syncFixedCosts(companyId: string, month?: string): Promise
         .from('payment_queue')
         .insert({
           company_id: companyId,
-          recurring_payment_id: rp.id,
-          payee_name: rp.payee_name,
+          recurring_rule_id: rp.id,
+          recipient_name: rp.name,
+          description: `고정비 ${rp.name ?? ''} (${dueDate} 예정)`,
           amount: rp.amount,
           category: rp.category,
-          due_date: dueDate,
+          is_recurring: true,
           status: 'pending',
           created_at: now(),
         });
@@ -376,14 +382,16 @@ export async function syncAllData(
   const startedAt = now();
 
   // Create sync log entry
-  const { data: logEntry, error: logErr } = await db
+  // 2026-07-16: sync_logs 실컬럼은 details(Json)·synced_by 뿐 — started_at/triggered_by 개별 컬럼 insert 가
+  //   400 이라 동기화 이력이 한 번도 기록된 적 없음. 부가정보는 details 에 담는다.
+  const { data: logEntry } = await db
     .from('sync_logs')
     .insert({
       company_id: companyId,
       sync_type: 'full',
       status: 'running',
-      started_at: startedAt,
-      triggered_by: triggeredBy || null,
+      synced_by: triggeredBy || null,
+      details: { started_at: startedAt },
     })
     .select('id')
     .single();
@@ -408,9 +416,12 @@ export async function syncAllData(
       .from('sync_logs')
       .update({
         status: hasErrors ? 'failed' : 'completed',
-        results: JSON.stringify(results),
-        total_items: totalItems,
-        completed_at: completedAt,
+        details: JSON.parse(JSON.stringify({
+          started_at: startedAt,
+          completed_at: completedAt,
+          total_items: totalItems,
+          results,
+        })),
       })
       .eq('id', logId);
   }
@@ -449,7 +460,7 @@ export async function getLastSyncStatus(companyId: string): Promise<SyncStatus> 
       .from('sync_logs')
       .select('*')
       .eq('company_id', companyId)
-      .order('started_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -457,18 +468,13 @@ export async function getLastSyncStatus(companyId: string): Promise<SyncStatus> 
       return { isRunning: false, lastSyncAt: null, results: [], totalItems: 0 };
     }
 
-    let results: SyncResult[] = [];
-    try {
-      results = typeof data.results === 'string' ? JSON.parse(data.results) : (data.results || []);
-    } catch {
-      results = [];
-    }
-
+    // 부가정보는 details Json 에 저장됨 (개별 컬럼 아님 — syncAllData 참조)
+    const details = (data.details ?? {}) as { started_at?: string; completed_at?: string; total_items?: number; results?: SyncResult[] };
     return {
       isRunning: data.status === 'running',
-      lastSyncAt: data.completed_at || data.started_at,
-      results,
-      totalItems: data.total_items || 0,
+      lastSyncAt: details.completed_at || details.started_at || data.created_at,
+      results: Array.isArray(details.results) ? details.results : [],
+      totalItems: details.total_items || 0,
     };
   } catch (err: any) {
     console.error('getLastSyncStatus error:', err.message);
@@ -512,7 +518,7 @@ export async function autoDetectFixedCosts(companyId: string): Promise<DetectedF
       if (!key) continue;
       const entry = payeeMap.get(key) || { amounts: [], dates: [] };
       entry.amounts.push(Number(tx.amount) || 0);
-      entry.dates.push(tx.created_at);
+      entry.dates.push(tx.created_at || '');
       payeeMap.set(key, entry);
     }
 
@@ -997,7 +1003,7 @@ export function autoSyncDue(companyId: string, throttleMs = 2 * 60 * 60 * 1000):
 }
 
 export async function getRecentCodefSyncLogs(companyId: string, limit = 5) {
-  const data = logRead('lib/data-sync:data', await (supabase as any)
+  const data = logRead('lib/data-sync:data', await supabase
     .from('sync_logs')
     .select('id, sync_type, status, details, created_at')
     .eq('company_id', companyId)

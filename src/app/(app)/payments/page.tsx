@@ -332,7 +332,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         </div>
         <div className="stat-tile overflow-hidden">
           <div className="stat-tile-label">통장 총 잔고</div>
-          <div className="stat-tile-value truncate">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
+          <div className="stat-tile-value [overflow-wrap:anywhere]">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
           <div className="text-xs text-[var(--text-dim)] truncate">{bankAccounts.length}개 통장</div>
         </div>
       </div>
@@ -1741,7 +1741,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
         </div>
         <div className="stat-tile overflow-hidden">
           <div className="stat-tile-label">승인 완료 (미지급)</div>
-          <div className="stat-tile-value text-[var(--info)] truncate">₩{approvedTotal.toLocaleString()}</div>
+          <div className="stat-tile-value text-[var(--info)] [overflow-wrap:anywhere]">₩{approvedTotal.toLocaleString()}</div>
         </div>
         <div className="stat-tile overflow-hidden">
           <div className="stat-tile-label">이번달 지출</div>

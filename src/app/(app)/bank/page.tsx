@@ -456,8 +456,10 @@ export default function BankPage() {
         <span className="stat-tile-label">{label}</span>
         <span className={`kpi-icon ${tone}`}>{icon}</span>
       </div>
-      <div className="flex items-end gap-2 min-w-0">
-        <span className="stat-tile-value mono-number truncate min-w-0">{value}</span>
+      {/* 2026-07-16 QA: truncate 가 1440px 에서도 금액을 "₩3,300,0…" 로 잘라먹음 — 금액은 절대 말줄임 금지.
+          칩은 공간 부족 시 아랫줄로 내려가고(flex-wrap), 극단적으로 좁으면 금액 내부 줄바꿈 허용. */}
+      <div className="flex items-end gap-2 min-w-0 flex-wrap">
+        <span className="stat-tile-value mono-number min-w-0 [overflow-wrap:anywhere]">{value}</span>
         {delta != null ? (
           <span className={`delta-chip shrink-0 ${(invertDeltaColor ? delta < 0 : delta >= 0) ? "delta-up" : "delta-down"} mb-1`}>
             {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(1)}%

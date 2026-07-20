@@ -57,7 +57,8 @@ export default function PlatformSupportPage() {
     queryFn: async () => {
       const data = logRead('support/page:data', await db
         .from("support_tickets")
-        .select("*, users(name, email), companies(name)")
+        // 2026-07-16: users FK 가 2개(user_id·answered_by)라 무힌트 임베드는 400 — 문의자 기준으로 명시
+        .select("*, users!support_tickets_user_id_fkey(name, email), companies(name)")
         .order("created_at", { ascending: false }));
       return (data || []) as Ticket[];
     },

@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase as any; // 인터페이스가 non-null 강타입이라 Row 널러블과 충돌 — 타입 정비는 후속 라운드
 
 // ── Types ──
 
@@ -125,14 +125,25 @@ export async function getPermissionGroupDetail(groupId: string): Promise<Permiss
 
   if (error || !group) return null;
 
-  // 멤버 조회
-  const members = logRead('lib/permissions:members', await db
+  // 멤버 조회 — 2026-07-16: user_id FK 가 auth.users 를 가리켜 public.users 임베드가 400
+  //   (멤버 목록이 항상 무음 빈값이던 원인). 임베드 대신 users 를 별도 조회해 합친다.
+  const memberRows = logRead('lib/permissions:members', await db
     .from('permission_group_members')
-    .select(`
-      id, group_id, user_id, company_id, created_at,
-      users:user_id (id, name, email, role, avatar_url)
-    `)
+    .select('id, group_id, user_id, company_id, created_at')
     .eq('group_id', groupId));
+
+  let members: any[] = memberRows || [];
+  if (members.length > 0) {
+    const userIds = members.map((m: { user_id: string }) => m.user_id).filter(Boolean);
+    const userRows = logRead('lib/permissions:memberUsers', await db
+      .from('users')
+      .select('id, auth_id, name, email, role, avatar_url')
+      .or(`id.in.(${userIds.join(',')}),auth_id.in.(${userIds.join(',')})`));
+    // user_id 는 auth uid — 최신 계정은 users.id 와 동일, 레거시는 auth_id 로 매칭
+    const byId = new Map((userRows || []).map((u: any) => [u.id, u]));
+    const byAuthId = new Map((userRows || []).filter((u: any) => u.auth_id).map((u: any) => [u.auth_id, u]));
+    members = members.map((m: any) => ({ ...m, users: byId.get(m.user_id) || byAuthId.get(m.user_id) || null }));
+  }
 
   // 권한 조회
   const permLinks = logRead('lib/permissions:permLinks', await db

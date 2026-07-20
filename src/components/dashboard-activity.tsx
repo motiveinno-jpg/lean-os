@@ -65,9 +65,10 @@ export function RecentProjects({ companyId }: { companyId: string }) {
     enabled: !!companyId,
     staleTime: 60_000,
     queryFn: async () => {
-      const data = logRead('components/dashboard-activity:data', await db.from("deals").select("id, name, stage, contract_total, updated_at")
+      // deals 엔 updated_at 컬럼이 없음(42703 400) — 최근활동/생성 시각으로 정렬 (2026-07-16 QA)
+      const data = logRead('components/dashboard-activity:data', await db.from("deals").select("id, name, stage, contract_total, last_activity_at, created_at")
         .eq("company_id", companyId).is("archived_at", null).is("parent_deal_id", null)
-        .order("updated_at", { ascending: false }).limit(5));
+        .order("last_activity_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(5));
       return (data || []) as any[];
     },
   });

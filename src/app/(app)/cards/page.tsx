@@ -1103,7 +1103,7 @@ function Stat({ tone, label, value, sub, icon }: { tone: string; label: string; 
         {icon && <span className={`kpi-icon ${tone}`}>{icon}</span>}
       </div>
       <div>
-        <p className="stat-tile-value mono-number truncate">{value}</p>
+        <p className="stat-tile-value mono-number [overflow-wrap:anywhere]">{value}</p>
         {sub && <p className="text-[11px] text-[var(--text-dim)] mt-1 truncate">{sub}</p>}
       </div>
     </div>

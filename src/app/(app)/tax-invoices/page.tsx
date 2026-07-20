@@ -764,7 +764,8 @@ export default function TaxInvoicesPage() {
         .select('last_hometax_sync_at')
         .eq('company_id', companyId!)
         .maybeSingle());
-      return data?.last_hometax_sync_at as string | null;
+      // react-query 는 undefined 반환을 에러로 취급 — 행/컬럼 없으면 null 로 정규화 (2026-07-16 QA)
+      return (data?.last_hometax_sync_at ?? null) as string | null;
     },
     enabled: !!companyId,
   });

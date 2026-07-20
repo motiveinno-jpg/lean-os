@@ -213,7 +213,7 @@ export default function ByPersonPage() {
             ].map((c) => (
               <div key={c.label} className="by-person-stat-tile stat-tile">
                 <div className="stat-tile-label">{c.label}</div>
-                <div className="stat-tile-value mono-number truncate" style={{ color: c.color }}>{c.big}</div>
+                <div className="stat-tile-value mono-number [overflow-wrap:anywhere]" style={{ color: c.color }}>{c.big}</div>
                 <div className="text-[10px] text-[var(--text-dim)] truncate">{c.hint}</div>
               </div>
             ))}

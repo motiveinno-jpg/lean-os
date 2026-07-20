@@ -16,10 +16,12 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
     queryKey: ["mypage-payslips", employeeId],
     queryFn: async () => {
       const db = supabase;
+      // 2026-07-16 QA: long_term_care_insurance 컬럼은 prod payroll_items 에 없음(42703 400 →
+      //   급여명세가 조용히 빈 화면). 장기요양은 별도 컬럼이 아니라 extras/건보에 포함되는 모델.
       const data = logRead('_components/MyPayslips:data', await db
         .from("payroll_items")
         .select(
-          "id, base_salary, national_pension, health_insurance, long_term_care_insurance, employment_insurance, income_tax, local_income_tax, deductions_total, net_pay, created_at, payment_batches:batch_id(name, status, created_at)",
+          "id, base_salary, national_pension, health_insurance, employment_insurance, income_tax, local_income_tax, deductions_total, net_pay, extras, created_at, payment_batches:batch_id(name, status, created_at)",
         )
         .eq("employee_id", employeeId!)
         .order("created_at", { ascending: false }));
@@ -45,14 +47,17 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
           {payslips.map((p: any) => {
             const batch = p.payment_batches || {};
             const dateStr = batch.created_at ? new Date(batch.created_at).toLocaleDateString("ko-KR") : "";
+            const extras = (Array.isArray(p.extras) ? p.extras : []) as { type: string; name: string; amount: number }[];
             const deductions = [
               { label: "국민연금", v: p.national_pension },
               { label: "건강보험", v: p.health_insurance },
-              { label: "장기요양", v: p.long_term_care_insurance },
               { label: "고용보험", v: p.employment_insurance },
               { label: "소득세", v: p.income_tax },
               { label: "지방소득세", v: p.local_income_tax },
+              // 임의 공제(extras) — 사내대출 등
+              ...extras.filter((e) => e.type === "deduction").map((e) => ({ label: e.name, v: e.amount })),
             ];
+            const allowances = extras.filter((e) => e.type === "allowance");
             const open = openId === p.id;
             return (
               <div key={p.id} className="mypage-payslip-row bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] overflow-hidden">
@@ -80,6 +85,12 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
                       <span className="text-[var(--text-muted)]">기본급(과세)</span>
                       <span className="mono-number font-medium">{won(p.base_salary)}</span>
                     </div>
+                    {allowances.filter((a) => Number(a.amount) > 0).map((a) => (
+                      <div key={a.name} className="flex items-center justify-between py-1.5">
+                        <span className="text-[var(--text-muted)]">{a.name}</span>
+                        <span className="mono-number text-[var(--success)]">+{won(a.amount)}</span>
+                      </div>
+                    ))}
                     {deductions.filter((d) => Number(d.v) > 0).map((d) => (
                       <div key={d.label} className="flex items-center justify-between py-1.5">
                         <span className="text-[var(--text-muted)]">{d.label}</span>

@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 import { upsertRecurringPayment } from './approval-center';
 
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 
@@ -273,17 +273,20 @@ export async function setupExpenseFromContract(
   // Get deal info
   const deal = logRead('lib/smart-setup:deal', await db
     .from('deals')
-    .select('id, name, contract_total, amount')
+    // 2026-07-16: deals.amount 는 존재하지 않는 컬럼 — 이 쿼리가 400 이라 계약 지출 자동 스케줄이 항상 0건이었음
+    .select('id, name, contract_total')
     .eq('id', dealId)
     .single());
 
   if (!deal) return { created: 0, totalAmount: 0 };
 
-  const totalAmount = Number(deal.contract_total || deal.amount || 0);
+  const totalAmount = Number(deal.contract_total || 0);
   if (totalAmount <= 0) return { created: 0, totalAmount: 0 };
 
-  // Check if cost schedule already exists
-  const existing = logRead('lib/smart-setup:existing', await db
+  // ⚠️ 데드코드 주의(2026-07-16): 이 함수는 호출자가 없고, deal_cost_schedule 에는 deal_id/label
+  //   컬럼이 없어(실제: deal_node_id/sub_deal_id) 아래 쿼리는 실행 시 400 이다. 살릴 경우
+  //   deal_nodes 연결 설계부터 다시 해야 함 — 타입 우회는 그 사실을 가리지 않기 위한 국소 조치.
+  const existing = logRead('lib/smart-setup:existing', await (db as any)
     .from('deal_cost_schedule')
     .select('id')
     .eq('deal_id', dealId));
@@ -291,7 +294,7 @@ export async function setupExpenseFromContract(
   if (existing?.length) return { created: 0, totalAmount };
 
   // Create single cost schedule entry (can be split by user later)
-  await db.from('deal_cost_schedule').insert({
+  await (db as any).from('deal_cost_schedule').insert({
     company_id: companyId,
     deal_id: dealId,
     label: `${deal.name} 계약금`,
