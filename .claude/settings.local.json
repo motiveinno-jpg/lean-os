@@ -1,6 +1,24 @@
 {
   "permissions": {
     "allow": [
+      "Bash",
+      "WebFetch",
+      "WebSearch",
+      "Agent",
+      "Skill",
+      "TodoWrite",
+      "NotebookEdit",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskList",
+      "TaskGet",
+      "TaskOutput",
+      "TaskStop",
+      "mcp__claude_ai_Supabase",
+      "mcp__claude_ai_Figma",
+      "mcp__claude_ai_Gmail",
+      "mcp__claude_ai_Google_Calendar",
+      "mcp__claude_ai_Google_Drive",
       "Bash(git *)",
       "Bash(npx tsc *)",
       "Bash(npx tsc --noEmit*)",
@@ -45,6 +63,6 @@
       "mcp__claude_ai_Supabase__generate_typescript_types",
       "mcp__claude_ai_Supabase__search_docs"
     ],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "bypassPermissions"
   }
 }
