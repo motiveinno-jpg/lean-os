@@ -64,8 +64,8 @@ export function QuoteItemsTable({
     if (!companyId) return;
     let alive = true;
     (async () => {
-      const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
-      const cfg = data?.settings?.quote_columns;
+      const data = logRead('_components/QuoteItemsTable:data', await (supabase).from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
+      const cfg = (data?.settings as { quote_columns?: unknown } | null)?.quote_columns;
       if (alive && Array.isArray(cfg) && cfg.length) setCols(cfg);
     })();
     return () => { alive = false; };
@@ -75,10 +75,10 @@ export function QuoteItemsTable({
     setCols(next);
     if (!companyId) return;
     try {
-      const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle());
-      const settings = { ...(data?.settings || {}), quote_columns: next };
-      if (data?.id) await (supabase as any).from("company_settings").update({ settings }).eq("id", data.id);
-      else await (supabase as any).from("company_settings").insert({ company_id: companyId, settings });
+      const data = logRead('_components/QuoteItemsTable:data', await (supabase).from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle());
+      const settings = { ...((data?.settings as Record<string, unknown> | null) || {}), quote_columns: next };
+      if (data?.id) await (supabase).from("company_settings").update({ settings }).eq("id", data.id);
+      else await (supabase).from("company_settings").insert({ company_id: companyId, settings });
     } catch { /* 저장 실패 비치명 */ }
   };
 
@@ -241,7 +241,7 @@ function HistoryPicker({ companyId, partnerName, onClose, onPick }: { companyId:
     if (!companyId) return;
     let alive = true;
     (async () => {
-      const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("documents")
+      const data = logRead('_components/QuoteItemsTable:data', await (supabase).from("documents")
         .select("name, content_json, created_at")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false }).limit(60));
@@ -249,9 +249,9 @@ function HistoryPicker({ companyId, partnerName, onClose, onPick }: { companyId:
       const seen = new Set<string>();
       const items: any[] = [];
       for (const d of (data || [])) {
-        const cj = d.content_json || {};
+        const cj = (d.content_json || {}) as { header?: { partnerName?: string }; items?: unknown };
         const docPartner = cj.header?.partnerName || "";
-        for (const it of (Array.isArray(cj.items) ? cj.items : [])) {
+        for (const it of ((Array.isArray(cj.items) ? cj.items : []) as any[])) {
           if (!it || !it.name) continue;
           const key = `${it.name}|${it.unitPrice || 0}`;
           if (seen.has(key)) continue;
@@ -311,8 +311,9 @@ function MyItemsPicker({ companyId, currentItems, onClose, onPick }: { companyId
 
   const load = async () => {
     if (!companyId) return;
-    const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
-    setPresets(Array.isArray(data?.settings?.my_items) ? data.settings.my_items : []);
+    const data = logRead('_components/QuoteItemsTable:data', await (supabase).from("company_settings").select("settings").eq("company_id", companyId).maybeSingle());
+    const sj = (data?.settings as { my_items?: unknown } | null) || {};
+    setPresets(Array.isArray(sj.my_items) ? (sj.my_items as any[]) : []);
     setLoaded(true);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [companyId]);
@@ -320,10 +321,10 @@ function MyItemsPicker({ companyId, currentItems, onClose, onPick }: { companyId
   const save = async (next: any[]) => {
     setPresets(next);
     if (!companyId) return;
-    const data = logRead('_components/QuoteItemsTable:data', await (supabase as any).from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle());
-    const settings = { ...(data?.settings || {}), my_items: next };
-    if (data?.id) await (supabase as any).from("company_settings").update({ settings }).eq("id", data.id);
-    else await (supabase as any).from("company_settings").insert({ company_id: companyId, settings });
+    const data = logRead('_components/QuoteItemsTable:data', await (supabase).from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle());
+    const settings = { ...((data?.settings as Record<string, unknown> | null) || {}), my_items: next };
+    if (data?.id) await (supabase).from("company_settings").update({ settings }).eq("id", data.id);
+    else await (supabase).from("company_settings").insert({ company_id: companyId, settings });
   };
 
   const saveCurrent = () => {

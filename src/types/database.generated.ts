@@ -5385,6 +5385,7 @@ export type Database = {
         Row: {
           account_number: string | null
           address: string | null
+          admin_notes: Json | null
           bank_account: string | null
           bank_holder: string | null
           bank_name: string | null
@@ -5399,6 +5400,7 @@ export type Database = {
           emergency_contact: string | null
           emergency_phone: string | null
           employee_number: string | null
+          employment_history: Json | null
           employment_type: string | null
           hire_date: string | null
           id: string
@@ -5410,6 +5412,7 @@ export type Database = {
           name: string
           non_taxable_amount: number | null
           onboarding_completed_at: string | null
+          onboarding_docs: Json | null
           phone: string | null
           position: string | null
           resignation_date: string | null
@@ -5425,6 +5428,7 @@ export type Database = {
         Insert: {
           account_number?: string | null
           address?: string | null
+          admin_notes?: Json | null
           bank_account?: string | null
           bank_holder?: string | null
           bank_name?: string | null
@@ -5439,6 +5443,7 @@ export type Database = {
           emergency_contact?: string | null
           emergency_phone?: string | null
           employee_number?: string | null
+          employment_history?: Json | null
           employment_type?: string | null
           hire_date?: string | null
           id?: string
@@ -5450,6 +5455,7 @@ export type Database = {
           name: string
           non_taxable_amount?: number | null
           onboarding_completed_at?: string | null
+          onboarding_docs?: Json | null
           phone?: string | null
           position?: string | null
           resignation_date?: string | null
@@ -5465,6 +5471,7 @@ export type Database = {
         Update: {
           account_number?: string | null
           address?: string | null
+          admin_notes?: Json | null
           bank_account?: string | null
           bank_holder?: string | null
           bank_name?: string | null
@@ -5479,6 +5486,7 @@ export type Database = {
           emergency_contact?: string | null
           emergency_phone?: string | null
           employee_number?: string | null
+          employment_history?: Json | null
           employment_type?: string | null
           hire_date?: string | null
           id?: string
@@ -5490,6 +5498,7 @@ export type Database = {
           name?: string
           non_taxable_amount?: number | null
           onboarding_completed_at?: string | null
+          onboarding_docs?: Json | null
           phone?: string | null
           position?: string | null
           resignation_date?: string | null

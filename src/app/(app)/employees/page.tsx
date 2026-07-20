@@ -291,7 +291,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
   const { data: leaveBalancesForList = [] } = useQuery({
     queryKey: ["leave-balances-list", companyId, currentYear],
     queryFn: async () => {
-      const data = logRead('employees/page:data', await (supabase as any)
+      const data = logRead('employees/page:data', await (supabase)
         .from("leave_balances")
         .select("employee_id, total_days, used_days, remaining_days")
         .eq("company_id", companyId)
@@ -1245,7 +1245,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const { data: monthLeaves = [] } = useQuery({
     queryKey: ["attendance-cal-leaves", companyId, selectedMonth],
     queryFn: async () => {
-      const data = logRead('employees/page:data', await (supabase as any).from("leave_requests")
+      const data = logRead('employees/page:data', await (supabase).from("leave_requests")
         .select("employee_id, start_date, end_date, status")
         .eq("company_id", companyId).eq("status", "approved")
         .lte("start_date", monthEnd).gte("end_date", monthStart));
@@ -1280,7 +1280,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     queryKey: ["allowance-entries-monthly-summary", companyId, selectedMonth],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('employees/page:data', await db
         .from('allowance_entries')
         .select('employee_id, amount, allowance_types!inner(code, name, is_active)')
@@ -1398,8 +1398,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     queryKey: ["today-attendance-status", companyId, kstToday],
     queryFn: async () => {
       const [attRes, leaveRes] = await Promise.all([
-        (supabase as any).from("attendance_records").select("employee_id, status, is_late").eq("company_id", companyId).eq("date", kstToday),
-        (supabase as any).from("leave_requests").select("employee_id").eq("company_id", companyId).eq("status", "approved").lte("start_date", kstToday).gte("end_date", kstToday),
+        (supabase).from("attendance_records").select("employee_id, status, is_late").eq("company_id", companyId).eq("date", kstToday),
+        (supabase).from("leave_requests").select("employee_id").eq("company_id", companyId).eq("status", "approved").lte("start_date", kstToday).gte("end_date", kstToday),
       ]);
       const present = new Set<string>();
       const late = new Set<string>();
@@ -2226,7 +2226,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     if (!companyId || !preview) return;
     setLoadingAllowances(true);
     try {
-      const data = logRead('employees/page:data', await (supabase as any)
+      const data = logRead('employees/page:data', await (supabase)
         .from("allowance_entries")
         .select("employee_id, amount, allowance_types!inner(name, code, display_order, is_active)")
         .eq("company_id", companyId)
@@ -2312,14 +2312,14 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     setLoading(true);
     try {
       // 1) 당월 override 존재 여부 확인 — 없고 전월엔 있으면 복사 제안
-      const curOv = logRead('employees/page:curOv', await (supabase as any)
+      const curOv = logRead('employees/page:curOv', await (supabase)
         .from('payslip_overrides')
         .select('employee_id')
         .eq('company_id', companyId)
         .eq('period_month', periodMonth));
       if (!curOv || curOv.length === 0) {
         const prevKey = prevMonthKey(periodMonth);
-        const prevOv = logRead('employees/page:prevOv', await (supabase as any)
+        const prevOv = logRead('employees/page:prevOv', await (supabase)
           .from('payslip_overrides')
           .select('employee_id, base_salary, non_taxable_amount')
           .eq('company_id', companyId)
@@ -2338,7 +2338,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
               non_taxable_amount: Number(o.non_taxable_amount),
               updated_at: new Date().toISOString(),
             }));
-            const { error: copyErr } = await (supabase as any)
+            const { error: copyErr } = await (supabase)
               .from('payslip_overrides')
               .upsert(rows, { onConflict: 'employee_id,period_month' });
             if (copyErr) {
@@ -2389,7 +2389,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         deduction_overrides: (v.deductions && Object.keys(v.deductions).length > 0) ? v.deductions : null,
         updated_at: new Date().toISOString(),
       }));
-      const { error } = await (supabase as any)
+      const { error } = await (supabase)
         .from('payslip_overrides')
         .upsert(rows, { onConflict: 'employee_id,period_month' });
       if (error) throw error;
@@ -3912,7 +3912,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
   const [purpose, setPurpose] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const db = supabase as any;
+  const db = supabase;
 
   // Certificate logs query
   const { data: certLogs = [] } = useQuery({
@@ -3959,10 +3959,10 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
 
       const companyData = {
         name: companyInfo?.name || "",
-        representative: companyInfo?.representative,
-        address: companyInfo?.address,
-        business_number: companyInfo?.business_number,
-        seal_url: companyInfo?.seal_url,
+        representative: companyInfo?.representative ?? undefined,
+        address: companyInfo?.address ?? undefined,
+        business_number: companyInfo?.business_number ?? undefined,
+        seal_url: companyInfo?.seal_url ?? undefined,
       };
 
       let result;

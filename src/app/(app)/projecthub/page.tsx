@@ -65,7 +65,7 @@ export default function ProjectHubPage() {
   const { data: pnl = [] } = useQuery({
     queryKey: ["projecthub-pnl", companyId],
     queryFn: async () => {
-      const data = logRead('projecthub/page:data', await (supabase as any).from("v_deal_pnl").select("deal_id, revenue, direct_cost, direct_cost_ratio, margin"));
+      const data = logRead('projecthub/page:data', await (supabase).from("v_deal_pnl").select("deal_id, revenue, direct_cost, direct_cost_ratio, margin"));
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -80,7 +80,7 @@ export default function ProjectHubPage() {
   const { data: settleRows = [] } = useQuery({
     queryKey: ["projecthub-settle-rollup", companyId],
     queryFn: async () => {
-      const data = logRead('projecthub/page:data', await (supabase as any).from("tax_invoices")
+      const data = logRead('projecthub/page:data', await (supabase).from("tax_invoices")
         .select("deal_id, total_amount, supply_amount, settled_amount, status")
         .eq("company_id", companyId!).eq("type", "sales").neq("status", "void").not("deal_id", "is", null));
       return (data || []) as any[];
@@ -108,7 +108,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-goal-kpis", companyId, goalDealIds.length],
     queryFn: async () => {
       if (goalDealIds.length === 0) return [];
-      const data = logRead('projecthub/page:data', await (supabase as any).from("project_kpis").select("id, deal_id, target_value, direction, source").in("deal_id", goalDealIds));
+      const data = logRead('projecthub/page:data', await (supabase).from("project_kpis").select("id, deal_id, target_value, direction, source").in("deal_id", goalDealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && goalDealIds.length > 0,
@@ -118,7 +118,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-goal-entries", companyId, goalDealIds.length],
     queryFn: async () => {
       if (goalDealIds.length === 0) return [];
-      const data = logRead('projecthub/page:data', await (supabase as any).from("project_kpi_entries").select("kpi_id, value").in("deal_id", goalDealIds));
+      const data = logRead('projecthub/page:data', await (supabase).from("project_kpi_entries").select("kpi_id, value").in("deal_id", goalDealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && goalDealIds.length > 0,
@@ -128,7 +128,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-goal-autos", companyId, goalDealIds.length],
     queryFn: async () => {
       if (goalDealIds.length === 0) return [];
-      const data = logRead('projecthub/page:data', await (supabase as any).from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", goalDealIds));
+      const data = logRead('projecthub/page:data', await (supabase).from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", goalDealIds));
       return (data || []) as any[];
     },
     enabled: !!companyId && goalDealIds.length > 0,
@@ -138,7 +138,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-tasks", companyId, deliveryDealIds.length],
     queryFn: async () => {
       if (deliveryDealIds.length === 0) return [];
-      const data = logRead('projecthub/page:data', await (supabase as any).from("project_tasks").select("deal_id, status, due_date").in("deal_id", deliveryDealIds).is("archived_at", null));
+      const data = logRead('projecthub/page:data', await (supabase).from("project_tasks").select("deal_id, status, due_date").in("deal_id", deliveryDealIds).is("archived_at", null));
       return (data || []) as any[];
     },
     enabled: !!companyId && deliveryDealIds.length > 0,
@@ -555,7 +555,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   companyId: string; partners: any[]; users: any[]; editDeal?: any; onClose: () => void; onSaved: (id?: string) => void;
 }) {
   const { toast } = useToast();
-  const db = supabase as any;
+  const db = supabase;
   const isEdit = !!editDeal;
   const [saving, setSaving] = useState(false);
   // 생성 흐름: 1단계 유형 선택 → 2단계 입력. 수정은 기존 유형 유지(유형은 수정 불가, 입력만).
@@ -866,7 +866,7 @@ function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
   deal: any; companyId: string | null; onClose: () => void; onDeleted: () => void;
 }) {
   const { toast } = useToast();
-  const db = supabase as any;
+  const db = supabase;
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const target = (deal.name || "").trim();
@@ -882,7 +882,7 @@ function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
       // 감사 로그 (실패해도 비차단) — 보드 삭제와 동일 컬럼 구조
       try {
         await db.from("audit_logs").insert({
-          company_id: companyId, entity_type: "deal", entity_id: deal.id, action: "delete",
+          company_id: companyId as string, entity_type: "deal", entity_id: deal.id, action: "delete",
           before_json: { archived_at: null, name: deal.name },
           after_json: { archived_at: new Date().toISOString() },
           metadata: { soft_delete: true, deal_name: deal.name },

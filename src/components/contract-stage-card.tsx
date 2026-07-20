@@ -108,12 +108,12 @@ export function ContractStageCard({
         }
       } catch (e) { reportError("contract.templates.list", e); }
       try {
-        const co = logRead('components/contract-stage-card:co', await (supabase as any).from("companies").select("name, representative, business_number, seal_url").eq("id", companyId).maybeSingle());
+        const co = logRead('components/contract-stage-card:co', await (supabase).from("companies").select("name, representative, business_number, seal_url").eq("id", companyId).maybeSingle());
         if (co) setCompanyInfo({ name: co.name || "", representative: co.representative || null, business_number: co.business_number || null, seal_url: co.seal_url || null });
       } catch { /* ignore */ }
       if (partnerId) {
         try {
-          const p = logRead('components/contract-stage-card:p', await (supabase as any).from("partners").select("representative, business_number").eq("id", partnerId).maybeSingle());
+          const p = logRead('components/contract-stage-card:p', await (supabase).from("partners").select("representative, business_number").eq("id", partnerId).maybeSingle());
           if (p) { setPartnerRep(p.representative || null); setPartnerBiz(p.business_number || null); }
         } catch { /* ignore */ }
       }
@@ -205,7 +205,7 @@ export function ContractStageCard({
       } else {
         // 기존 draft 재사용 시: 옛 payload 가 빈 양식일 수 있음 → 새 payload 로 강제 갱신.
         //   양식 변경·변수 채움·재발송 시 거래처가 옛 빈 본문 받는 회귀 차단.
-        const { error: upErr } = await (supabase as any)
+        const { error: upErr } = await (supabase)
           .from('quote_approvals')
           .update({ payload })
           .eq('id', approvalId);
@@ -213,7 +213,7 @@ export function ContractStageCard({
       }
       // 안전망: 어느 경로든 token 확보 (draft 재사용 분기에서 token=null 회귀 차단, d8f9aca7 estimate 와 동일 패턴)
       if (!token && approvalId) {
-        const row = logRead('components/contract-stage-card:row', await (supabase as any)
+        const row = logRead('components/contract-stage-card:row', await (supabase)
           .from('quote_approvals')
           .select('approval_token')
           .eq('id', approvalId)
@@ -225,7 +225,7 @@ export function ContractStageCard({
       }
       await sendApproval({ approvalId: approvalId!, recipientEmail: email, recipientName: partnerName || undefined, expiresInDays: 14 });
       try {
-        await (supabase as any).functions.invoke("send-signature-email", {
+        await (supabase).functions.invoke("send-signature-email", {
           body: {
             type: "quote", stage: "contract", to: email,
             signerName: partnerName || undefined,
@@ -257,7 +257,7 @@ export function ContractStageCard({
       const { id: newId, token } = await resendApproval({ prevId: approval.id, payload });
       await sendApproval({ approvalId: newId, recipientEmail: email, recipientName: partnerName || undefined, expiresInDays: 14 });
       try {
-        await (supabase as any).functions.invoke("send-signature-email", {
+        await (supabase).functions.invoke("send-signature-email", {
           body: {
             type: "quote", stage: "contract", to: email,
             signerName: partnerName || undefined,
@@ -347,12 +347,12 @@ export function ContractStageCard({
   </div>
 </div>`;
               const fullySignedHtml = (baseHtml || "") + ourBlock;
-              const { data, error } = await (supabase as any).rpc("submit_our_signature", {
+              const { data, error } = await (supabase).rpc("submit_our_signature", {
                 p_approval_id: approval.id,
                 p_signature_method: ourSignatureMethod,
                 p_signature_data_url: ourSignatureDataUrl,
                 p_signed_contract_html: fullySignedHtml,
-                p_fully_signed_contract_url: null,
+                p_fully_signed_contract_url: undefined,
               });
               if (error) throw error;
               const res = (data || {}) as { ok?: boolean; code?: string };
@@ -533,7 +533,7 @@ export function ContractStageCard({
 // L 양방향: signed_contract_html fetch (RLS quote_approvals_select_admin_or_self 통과)
 async function fetchSignedHtml(approvalId: string): Promise<string> {
   try {
-    const data = logRead('components/contract-stage-card:data', await (supabase as any)
+    const data = logRead('components/contract-stage-card:data', await (supabase)
       .from("quote_approvals")
       .select("signed_contract_html")
       .eq("id", approvalId)

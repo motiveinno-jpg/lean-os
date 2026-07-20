@@ -51,12 +51,12 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   async function confirmTermination() {
     setTerminating(true);
     try {
-      const { error } = await (supabase as any).from("employees").update({
+      const { error } = await (supabase).from("employees").update({
         status: "inactive",
         resignation_date: termDate,
       }).eq("id", employeeId);
       if (error) throw error;
-      const verify = logRead('_components/EmployeeDetailPanel:verify', await (supabase as any).from("employees").select("id,status").eq("id", employeeId).maybeSingle());
+      const verify = logRead('_components/EmployeeDetailPanel:verify', await (supabase).from("employees").select("id,status").eq("id", employeeId).maybeSingle());
       if (!verify || verify.status !== "inactive") throw new Error("상태 업데이트 실패 — 권한을 확인해주세요");
       queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
@@ -92,7 +92,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: emp } = useQuery({
     queryKey: ["employee-detail", employeeId],
     queryFn: async () => {
-      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("employees").select("*").eq("id", employeeId).maybeSingle());
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase).from("employees").select("*").eq("id", employeeId).maybeSingle());
       return data;
     },
     enabled: !!employeeId,
@@ -102,7 +102,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: avatarUrl = null } = useQuery<string | null>({
     queryKey: ["employee-avatar", employeeId, emp?.user_id, emp?.email],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       if (emp?.user_id) {
         const data = logRead('_components/EmployeeDetailPanel:data', await db.from("users").select("avatar_url").eq("id", emp.user_id).maybeSingle());
         return data?.avatar_url || null;
@@ -120,7 +120,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empContracts = [] } = useQuery({
     queryKey: ["emp-contracts", employeeId],
     queryFn: async () => {
-      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("employee_contracts").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }));
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase).from("employee_contracts").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!employeeId && detailTab === "contracts",
@@ -130,7 +130,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empPackages = [] } = useQuery({
     queryKey: ["emp-hr-packages", employeeId],
     queryFn: async () => {
-      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any)
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase)
         .from("hr_contract_packages")
         .select("id, title, status, sign_token, sent_at, completed_at, expires_at, created_at, hr_contract_package_items(id, status)")
         .eq("employee_id", employeeId)
@@ -197,7 +197,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empCertLogs = [] } = useQuery({
     queryKey: ["emp-cert-logs", employeeId],
     queryFn: async () => {
-      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("certificate_logs").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }));
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase).from("certificate_logs").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }));
       return data || [];
     },
     enabled: !!employeeId && detailTab === "certificates",
@@ -207,7 +207,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empLeaveBalance } = useQuery({
     queryKey: ["emp-leave-balance", employeeId, currentYear],
     queryFn: async () => {
-      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("leave_balances").select("*").eq("employee_id", employeeId).eq("year", currentYear).maybeSingle());
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase).from("leave_balances").select("*").eq("employee_id", employeeId).eq("year", currentYear).maybeSingle());
       return data;
     },
     enabled: !!employeeId && detailTab === "leave",
@@ -230,7 +230,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const { data: empLeaveRequests = [] } = useQuery({
     queryKey: ["emp-leave-requests", employeeId],
     queryFn: async () => {
-      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("leave_requests").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }).limit(20));
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase).from("leave_requests").select("*").eq("employee_id", employeeId).order("created_at", { ascending: false }).limit(20));
       return data || [];
     },
     enabled: !!employeeId && detailTab === "leave",
@@ -268,7 +268,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             <div className="min-w-0 pb-0.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-lg font-extrabold text-[var(--text)] truncate">{emp.name}</span>
-                {["active", "joined"].includes(emp.status)
+                {["active", "joined"].includes(emp.status ?? "")
                   ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--success)]/12 text-[var(--success)] shrink-0">재직</span>
                   : <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--text-dim)]/15 text-[var(--text-dim)] shrink-0">퇴직</span>}
               </div>
@@ -441,7 +441,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <InfoRow label="월 급여" value={emp.salary ? `₩${Number(emp.salary).toLocaleString()}` : undefined} />
                   <InfoRow label="연봉 (월급여 × 12)" value={emp.salary ? `₩${(Number(emp.salary) * 12).toLocaleString()}` : undefined} />
                   <InfoRow label="퇴직충당금" value={emp.retirement_accrual ? `₩${Number(emp.retirement_accrual).toLocaleString()}` : undefined} />
-                  <InfoRow label="급여 은행" value={BANK_LABELS[emp.bank_name] || emp.bank_name} />
+                  <InfoRow label="급여 은행" value={BANK_LABELS[emp.bank_name ?? ""] || emp.bank_name} />
                   <InfoRow label="계좌번호" value={emp.bank_account} />
                   <InfoRow label="예금주" value={emp.bank_holder} />
                 </>)}
@@ -744,8 +744,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 </div>
                 <div className="glass-card p-3 text-center">
                   <div className="caption">잔여</div>
-                  <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? empLeaveBalance.total_days - empLeaveBalance.used_days) <= 3 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
-                    {empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days - empLeaveBalance.used_days)}일
+                  <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0)) <= 3 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
+                    {empLeaveBalance.remaining_days ?? ((empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0))}일
                   </div>
                 </div>
               </div>
@@ -954,7 +954,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                         },
                         employees: [{
                           name: emp.name || "",
-                          residentNumber: emp.resident_number || "000000-0000000",
+                          residentNumber: "000000-0000000", // employees 에 resident_number 컬럼 없음(주민번호 미저장) — 항상 placeholder
                           leaveDate: reportDate,
                           monthlySalary: Number(emp.salary) || 0,
                           department: emp.department || "",
@@ -1065,7 +1065,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
   async function saveDocState(key: string, update: Partial<OnboardingDocItem>) {
     const current = { ...saved };
     current[key] = { ...current[key], ...update } as any;
-    await (supabase as any).from("employees").update({ onboarding_docs: current }).eq("id", employeeId);
+    await (supabase).from("employees").update({ onboarding_docs: current }).eq("id", employeeId);
     queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
   }
 
@@ -1204,7 +1204,7 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
         date: new Date().toISOString(),
       };
       const updated = [...notes, newNote];
-      await (supabase as any).from("employees").update({ admin_notes: updated }).eq("id", employeeId);
+      await (supabase).from("employees").update({ admin_notes: updated }).eq("id", employeeId);
       queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
       setNoteText("");
     } finally {
@@ -1273,7 +1273,7 @@ function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId
         note: form.note,
       };
       const updated = [...history, newEntry];
-      await (supabase as any).from("employees").update({ employment_history: updated }).eq("id", employeeId);
+      await (supabase).from("employees").update({ employment_history: updated }).eq("id", employeeId);
       queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
       setForm({ department: "", position: "", date: "", note: "" });
       setShowForm(false);
@@ -1465,7 +1465,7 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
   const { data: targetRole } = useQuery<string | null>({
     queryKey: ["target-user-role", targetUserId],
     queryFn: async () => {
-      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase as any).from("users").select("role").eq("id", targetUserId).maybeSingle());
+      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase).from("users").select("role").eq("id", targetUserId ?? "").maybeSingle());
       return (data?.role as string) ?? null;
     },
     enabled: !!targetUserId,

@@ -323,7 +323,7 @@ export default function TaxInvoicesPage() {
   // 직원 QA #6 — 백그라운드 job 이 hang(CF-12200 등) 하면 completed/failed 로 안 바뀌어 버튼이 영구 잠김.
   //   멈춘 job 을 failed 로 마킹(서버 409 잠금까지 해제) + 로컬 해제 → 다시 시도 가능. (CODEF 수집 로직 미접촉)
   const forceClearStuckJob = async (jid: string, silent = false) => {
-    const db = supabase as any;
+    const db = supabase;
     try {
       await db.from("hometax_sync_jobs").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", jid).in("status", ["pending", "running"]);
     } catch { /* best-effort */ }
@@ -640,7 +640,7 @@ export default function TaxInvoicesPage() {
   const { data: coaAccounts = [] } = useQuery({
     queryKey: ["tax-invoice-coa-accounts", companyId],
     queryFn: async () => {
-      const data = logRead('tax-invoices/page:data', await (supabase as any).from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId!).order("code"));
+      const data = logRead('tax-invoices/page:data', await (supabase).from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId!).order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -652,7 +652,7 @@ export default function TaxInvoicesPage() {
   const applyBulkExpenseCat = async () => {
     if (!bulkExpenseCat || selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
-    const { error } = await (supabase as any).from("tax_invoices").update({ expense_category: bulkExpenseCat }).in("id", ids);
+    const { error } = await (supabase).from("tax_invoices").update({ expense_category: bulkExpenseCat }).in("id", ids);
     if (error) { toast("계정과목 지정 실패: " + error.message, "error"); return; }
     toast(`매입 세금계산서 ${ids.length}건에 '${bulkExpenseCat}' 지정 — 손익계산서에서 매출원가 대신 판관비로 반영됩니다`, "success");
     setBulkExpenseCat(""); setSelectedIds(new Set());
@@ -709,7 +709,7 @@ export default function TaxInvoicesPage() {
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info", companyId],
     queryFn: async () => {
-      const data = logRead('tax-invoices/page:data', await (supabase as any).from('companies').select('name, business_number, representative, address, business_type, business_category').eq('id', companyId!).maybeSingle());
+      const data = logRead('tax-invoices/page:data', await (supabase).from('companies').select('name, business_number, representative, address, business_type, business_category').eq('id', companyId!).maybeSingle());
       return data;
     },
     enabled: !!companyId,
@@ -741,7 +741,7 @@ export default function TaxInvoicesPage() {
   const { data: lastSyncData } = useQuery({
     queryKey: ["last-sync-time", companyId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('tax-invoices/page:data', await db
         .from('hometax_sync_log')
         .select('completed_at')
@@ -758,7 +758,7 @@ export default function TaxInvoicesPage() {
   const { data: lastHometaxSyncAt } = useQuery({
     queryKey: ["last-hometax-sync-at", companyId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('tax-invoices/page:data', await db
         .from('company_settings')
         .select('last_hometax_sync_at')
@@ -774,7 +774,7 @@ export default function TaxInvoicesPage() {
   useEffect(() => {
     if (!companyId || activeJobId) return;
     (async () => {
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('tax-invoices/page:data', await db
         .from('hometax_sync_jobs')
         .select('id, status, updated_at')
@@ -792,7 +792,7 @@ export default function TaxInvoicesPage() {
     queryKey: ["hometax-sync-job", activeJobId],
     queryFn: async () => {
       if (!activeJobId) return null;
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('tax-invoices/page:data', await db
         .from('hometax_sync_jobs')
         .select('*')
@@ -806,7 +806,7 @@ export default function TaxInvoicesPage() {
 
   useEffect(() => {
     if (!activeJobId || !companyId) return;
-    const db = supabase as any;
+    const db = supabase;
     const ch = db.channel(`hometax_sync_jobs:${activeJobId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hometax_sync_jobs', filter: `id=eq.${activeJobId}` }, (payload: any) => {
         queryClient.setQueryData(["hometax-sync-job", activeJobId], payload.new);
@@ -841,7 +841,7 @@ export default function TaxInvoicesPage() {
   const { data: hometaxConnection } = useQuery({
     queryKey: ["hometax-connection", companyId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('tax-invoices/page:data', await db
         .from('automation_credentials')
         .select('id, updated_at, credentials')
@@ -850,7 +850,7 @@ export default function TaxInvoicesPage() {
         .maybeSingle());
       return data ? {
         connected: true,
-        method: data.credentials?.login_method as 'certificate' | 'id_pw' | undefined,
+        method: (data.credentials as any)?.login_method as 'certificate' | 'id_pw' | undefined,
         connectedAt: data.updated_at as string | undefined,
       } : { connected: false };
     },
@@ -1106,7 +1106,7 @@ export default function TaxInvoicesPage() {
   async function handleBulkVoucher() {
     if (!bulkVoucherAccountId || bulkVoucherPosting) { if (!bulkVoucherAccountId) toast("계정과목을 선택하세요", "error"); return; }
     setBulkVoucherPosting(true);
-    const db = supabase as any;
+    const db = supabase;
     let ok = 0, fail = 0, skip = 0;
     try {
       for (const inv of selectedVoucherable) {
@@ -1318,7 +1318,7 @@ export default function TaxInvoicesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             {syncing ? (syncProgress ? `${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...")
-              : activeJobId ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ''})`
+              : activeJobId ? `백그라운드 ${(activeJob?.current_progress as any)?.done || 0}/${(activeJob?.current_progress as any)?.total || 0} (${(activeJob?.current_progress as any)?.label || ''})`
               : hometaxCd.disabled ? `⏳ ${hometaxCd.label}`
               : "홈택스에서 가져오기"}
           </button>
@@ -2688,7 +2688,7 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
   const { data: linkedTx } = useQuery({
     queryKey: ["tx-linked", invoice.id],
     queryFn: async () => {
-      const data = logRead('tax-invoices/page:data', await (supabase as any)
+      const data = logRead('tax-invoices/page:data', await (supabase)
         .from("bank_transactions")
         .select("id, counterparty, amount, transaction_date, description, memo")
         .eq("company_id", companyId).eq("tax_invoice_id", invoice.id).limit(1).maybeSingle());
@@ -2845,7 +2845,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     const rest = stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, ' ').trim() : '');
     const newLabel = rest ? `${token} | ${rest}` : token;
     try {
-      const { error } = await (supabase as any).from('tax_invoices').update({ label: newLabel }).eq('id', inv.id);
+      const { error } = await (supabase).from('tax_invoices').update({ label: newLabel }).eq('id', inv.id);
       if (error) throw error;
       inv.label = newLabel; // 로컬 반영 (목록 재조회 전까지)
       setBilledState(billed);
@@ -3131,7 +3131,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                   const v = e.target.value;
                   const prev = dealId;
                   setDealId(v);
-                  const { error } = await (supabase as any).from("tax_invoices").update({ deal_id: v || null }).eq("id", inv.id);
+                  const { error } = await (supabase).from("tax_invoices").update({ deal_id: v || null }).eq("id", inv.id);
                   if (error) { toast("프로젝트 저장 실패: " + error.message, "error"); setDealId(prev); return; }
                   const picked = (deals || []).find((d: any) => d.id === v);
                   inv.deal_id = v || null;
@@ -3154,7 +3154,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                 onChange={async (e) => {
                   const v = e.target.value;
                   setExpenseCat(v);
-                  const { error } = await (supabase as any).from("tax_invoices").update({ expense_category: v || null }).eq("id", inv.id);
+                  const { error } = await (supabase).from("tax_invoices").update({ expense_category: v || null }).eq("id", inv.id);
                   if (error) { toast("계정과목 저장 실패: " + error.message, "error"); return; }
                   inv.expense_category = v || null;
                   queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });

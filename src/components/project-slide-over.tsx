@@ -505,7 +505,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
     setEditSaving(true);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db = supabase as any;
+      const db = supabase;
       const { error } = await db.from('deals').update({
         name: editForm.name.trim(),
         contract_total: Number(editForm.contract_total) || 0,
@@ -917,7 +917,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
     setCostSaving(true);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db2 = supabase as any;
+      const db2 = supabase;
       // deal_cost_schedule 는 deal_node_id 통해 deal 와 연결 (RLS + getProjectDetail !inner JOIN).
       //   해당 dealId 의 첫 node 사용 → 없으면 자동 생성 (root '기본 비용').
       let nodeId: string | null = null;
@@ -967,7 +967,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
     setPaymentSaving(true);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db2 = supabase as any;
+      const db2 = supabase;
       // 2026-05-21 핫픽스: deal_revenue_schedule 에 company_id 컬럼 없음 — RLS 는 deals JOIN 으로 회사격리.
       //   페이로드에서 company_id 제거 + received_at 추가 (status='paid' 의미 명확화).
       const { error } = await db2.from("deal_revenue_schedule").insert({
@@ -1363,7 +1363,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
   const { data: approvals = [] } = useQuery<ApprovalRow[]>({
     queryKey: ["deal-approvals", dealId],
     queryFn: async () => {
-      const data = logRead('components/project-slide-over:data', await (supabase as any)
+      const data = logRead('components/project-slide-over:data', await (supabase)
         .from("quote_approvals")
         .select(
           "id, stage, status, sent_at, viewed_at, decided_at, our_signed_at, recipient_name, recipient_email, signed_contract_url, fully_signed_contract_url",
@@ -1464,7 +1464,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
   const addAssigneeMut = useMutation({
     mutationFn: async (userId: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db2 = supabase as any;
+      const db2 = supabase;
       const { error } = await db2.from('deal_assignments').insert({
         deal_id: dealId,
         user_id: userId,
@@ -1485,7 +1485,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
   const removeAssigneeMut = useMutation({
     mutationFn: async (assignmentId: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const db2 = supabase as any;
+      const db2 = supabase;
       const { error } = await db2.from('deal_assignments')
         .update({ is_active: false, removed_at: new Date().toISOString() })
         .eq('id', assignmentId);
@@ -1787,7 +1787,7 @@ function DeleteProjectModal({
   const del = useMutation({
     mutationFn: async () => {
       // 1) soft delete — archived_at 만 갱신, 자식 데이터(quote_approvals/revenue/cost) 전부 보존
-      const { error } = await (supabase as any)
+      const { error } = await (supabase)
         .from("deals")
         .update({ archived_at: new Date().toISOString() })
         .eq("id", dealId);
@@ -1796,8 +1796,8 @@ function DeleteProjectModal({
       //    audit_logs 컬럼: id/company_id/user_id/entity_type/entity_id/action/before_json/after_json/metadata.
       //    entity_name 은 metadata 에 포함 (별도 컬럼 없음).
       try {
-        await (supabase as any).from("audit_logs").insert({
-          company_id: companyId,
+        await (supabase).from("audit_logs").insert({
+          company_id: companyId as string,
           entity_type: "deal",
           entity_id: dealId,
           action: "delete",

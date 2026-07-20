@@ -121,7 +121,7 @@ export default function DashboardPage() {
         setCompanyName(u.companies?.name || "");
 
         // Check deal count for onboarding
-        const db = supabase as any;
+        const db = supabase;
         const { count } = await db
           .from("deals")
           .select("id", { count: "exact", head: true })
@@ -178,12 +178,12 @@ export default function DashboardPage() {
       if (Date.now() - last < 30 * 60 * 1000) return;
       localStorage.setItem(key, String(Date.now()));
     } catch { /* ignore */ }
-    (supabase as any)
+    (supabase)
       .rpc("recompute_monthly_financials", { p_company_id: companyId })
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["founder-data", companyId] });
-      })
-      .catch(() => { /* 집계 실패는 비차단 — 원천 hasData 안전망이 CTA 숨김 */ });
+      .then(
+        () => { queryClient.invalidateQueries({ queryKey: ["founder-data", companyId] }); },
+        () => { /* 집계 실패는 비차단 — 원천 hasData 안전망이 CTA 숨김 */ },
+      );
   }, [companyId, queryClient]);
 
   // Real monthly burn = recurring payments + total salary + 사용자 입력 (cash_snapshot.monthly_fixed_cost)
@@ -193,7 +193,7 @@ export default function DashboardPage() {
       const [recurring, totalSalary, snapshot] = await Promise.all([
         getRecurringPayments(companyId!),
         getMonthlyTotalSalary(companyId!),
-        (supabase as any).from('cash_snapshot')
+        (supabase).from('cash_snapshot')
           .select('monthly_fixed_cost').eq('company_id', companyId!).maybeSingle(),
       ]);
       const recurringTotal = (recurring || [])
@@ -215,7 +215,7 @@ export default function DashboardPage() {
       const monthStart = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-01`;
       const _nm = new Date(_now.getFullYear(), _now.getMonth() + 1, 1);
       const nextStart = `${_nm.getFullYear()}-${String(_nm.getMonth() + 1).padStart(2, '0')}-01`;
-      const cards = logRead('dashboard/page:cards', await (supabase as any)
+      const cards = logRead('dashboard/page:cards', await (supabase)
         .from('card_transactions')
         .select('amount, transaction_date')
         .eq('company_id', companyId!)
@@ -481,10 +481,10 @@ export default function DashboardPage() {
           onComplete={() => {
             setShowOnboarding(false);
             queryClient.invalidateQueries({ queryKey: ["founder-data"] });
-            const db = supabase as any;
+            const db = supabase;
             db.from("deals")
               .select("id", { count: "exact", head: true })
-              .eq("company_id", companyId)
+              .eq("company_id", companyId ?? "")
               .then(({ count }: { count: number | null }) => setDealCount(count ?? 0));
           }}
         />
@@ -750,7 +750,7 @@ function SummaryKpisWidget({
   const { data: bankBalance = null } = useQuery({
     queryKey: ["summary-bank-balance", companyId],
     queryFn: async () => {
-      const data = logRead('dashboard/page:data', await (supabase as any)
+      const data = logRead('dashboard/page:data', await (supabase)
         .from('bank_accounts').select('balance').eq('company_id', companyId));
       if (!data) return null;
       return (data as any[]).reduce((s, b) => s + Number(b.balance || 0), 0);
@@ -763,7 +763,7 @@ function SummaryKpisWidget({
   const { data: receivable = 0 } = useQuery({
     queryKey: ["summary-receivable", companyId],
     queryFn: async () => {
-      const data = logRead('dashboard/page:data', await (supabase as any)
+      const data = logRead('dashboard/page:data', await (supabase)
         .from('tax_invoices')
         .select('total_amount, status')
         .eq('company_id', companyId)
@@ -1074,7 +1074,7 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
       // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단) — 요약 위젯과 동일 조건
       // 2026-07-10 QA: due_date 컬럼 부재로 쿼리 전체 400 → 위젯 항상 0 표시되던 버그.
       //   연체 기준 = 발행 후 30일 경과(다른 미수 화면·AI 브리핑과 동일 기준).
-      const data = logRead('dashboard/page:data', await (supabase as any).from('tax_invoices').select('counterparty_name, total_amount, issue_date, status').eq('company_id', companyId).eq('type', 'sales').in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20));
+      const data = logRead('dashboard/page:data', await (supabase).from('tax_invoices').select('counterparty_name, total_amount, issue_date, status').eq('company_id', companyId).eq('type', 'sales').in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20));
       return data || [];
     },
     enabled: !!companyId,
@@ -1134,7 +1134,7 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const data = logRead('dashboard/page:data', await (supabase as any).from('transactions').select('amount, type, transaction_date').eq('company_id', companyId).gte('transaction_date', sixMonthsAgo.toISOString().split('T')[0]).order('transaction_date'));
+      const data = logRead('dashboard/page:data', await (supabase).from('transactions').select('amount, type, transaction_date').eq('company_id', companyId).gte('transaction_date', sixMonthsAgo.toISOString().split('T')[0]).order('transaction_date'));
       if (!data) return [];
       const monthly: Record<string, { expense: number; income: number }> = {};
       data.forEach((tx: any) => {
@@ -1973,7 +1973,7 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
 }
 
 function DealPipelineSummary({ companyId }: { companyId: string }) {
-  const db2 = supabase as any;
+  const db2 = supabase;
   const { data: deals = [] } = useQuery({
     queryKey: ['pipeline-summary', companyId],
     queryFn: async () => {
@@ -2096,7 +2096,7 @@ function DealFunnel({ companyId }: { companyId: string }) {
   const { data: stages = [], isLoading } = useQuery<FunnelStage[]>({
     queryKey: ["deal-funnel", companyId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const { data, error } = await db
         .from("deals")
         .select("id, status, is_dormant, contract_total")
@@ -2152,7 +2152,7 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
   const { data: status } = useQuery<ChecklistStatus>({
     queryKey: ["getting-started", companyId],
     queryFn: async () => {
-      const db = supabase as any;
+      const db = supabase;
       const [company, bank, partner, deal, employee] = await Promise.all([
         db.from("companies").select("id, business_number").eq("id", companyId).maybeSingle(),
         db.from("bank_accounts").select("id", { count: "exact", head: true }).eq("company_id", companyId),
@@ -2649,7 +2649,7 @@ function EmployeeProjectsWidget() {
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ["emp-assigned-deals"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("get_my_assigned_deals");
+      const { data, error } = await (supabase).rpc("get_my_assigned_deals");
       if (error) throw error;
       return (data || []) as EmpAssignedDeal[];
     },
@@ -2719,7 +2719,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
   userName: string; companyId: string | null; companyName: string; userId: string | null; userEmail: string;
 }) {
   const { toast } = useToast();
-  const db = supabase as any;
+  const db = supabase;
   const today = new Date().toISOString().split("T")[0];
   const yearMonth = today.substring(0, 7);
   const currentYear = new Date().getFullYear();
@@ -2807,7 +2807,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
       const data = logRead('dashboard/page:data', await db
         .from("company_settings")
         .select("work_start_time, work_end_time, lunch_minutes")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .maybeSingle());
       return data as { work_start_time: string | null; work_end_time: string | null; lunch_minutes: number | null } | null;
     },
@@ -2834,7 +2834,8 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
         .eq("year", currentYear)
         .maybeSingle());
       if (!data) return { total: 15, used: 0, remaining: 15 };
-      return { total: data.total_days, used: data.used_days, remaining: data.total_days - data.used_days };
+      const t = data.total_days ?? 15, u = data.used_days ?? 0;
+      return { total: t, used: u, remaining: t - u };
     },
     enabled: !!companyId && !!employeeId,
   });
@@ -2997,7 +2998,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
                 {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
               </span>
               {isCheckedIn && !isCheckedOut && (
-                <span className="text-xs text-[var(--text-muted)] font-mono">{elapsedSince(todayAttendance.check_in)}</span>
+                <span className="text-xs text-[var(--text-muted)] font-mono">{elapsedSince(todayAttendance.check_in as string)}</span>
               )}
             </div>
             <Link href="/attendance" className="text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] transition">근태 상세 →</Link>
@@ -3006,19 +3007,19 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
           <div className="flex items-center gap-6 mb-3">
             <div>
               <div className="caption mb-0.5">출근</div>
-              <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_in)}</div>
+              <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_in ?? null)}</div>
             </div>
             <div className="text-[var(--text-dim)]">→</div>
             <div>
               <div className="caption mb-0.5">퇴근</div>
-              <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_out)}</div>
+              <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_out ?? null)}</div>
             </div>
-            {todayAttendance?.work_hours > 0 && (
+            {(todayAttendance?.work_hours ?? 0) > 0 && (
               <>
                 <div className="text-[var(--border)]">|</div>
                 <div>
                   <div className="caption mb-0.5">근무시간</div>
-                  <div className="text-lg font-black">{todayAttendance.work_hours}h</div>
+                  <div className="text-lg font-black">{todayAttendance?.work_hours}h</div>
                 </div>
               </>
             )}
@@ -3228,7 +3229,7 @@ function PartnerDashboard({ companyId, userId }: {
   // userName/companyName 은 라운드6.5 인사말 헤더 제거로 미사용 — 호출부 호환 위해 타입만 유지
   userName: string; companyId: string | null; companyName: string; userId: string | null;
 }) {
-  const db = supabase as any;
+  const db = supabase;
 
   // 진행 중 프로젝트 수
   const { data: dealCount = 0 } = useQuery({
@@ -3291,7 +3292,7 @@ function PartnerDashboard({ companyId, userId }: {
         activities.push({
           type: "chat",
           text: `${m.chat_channels?.name || "채널"}: ${(m.content || "").slice(0, 40)}`,
-          time: m.created_at,
+          time: m.created_at ?? "",
           href: "/chat",
         });
       }
@@ -3307,7 +3308,7 @@ function PartnerDashboard({ companyId, userId }: {
         activities.push({
           type: "doc",
           text: `${d.name || "문서"} — 양식 등록`,
-          time: d.created_at,
+          time: d.created_at ?? "",
           href: "/documents",
         });
       }

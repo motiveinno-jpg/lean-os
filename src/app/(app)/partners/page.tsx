@@ -277,7 +277,7 @@ export default function PartnersPage() {
     queryKey: ["partner-totals", companyId],
     queryFn: async () => {
       if (!companyId) return {};
-      const data = logRead('partners/page:data', await (supabase as any).from("deals")
+      const data = logRead('partners/page:data', await (supabase).from("deals")
         .select("partner_id, contract_total")
         .eq("company_id", companyId)
         .not("partner_id", "is", null));
@@ -315,9 +315,9 @@ export default function PartnersPage() {
     queryKey: ["partner-deals", detailPartner?.id],
     queryFn: async () => {
       if (!detailPartner) return [];
-      const data = logRead('partners/page:data', await (supabase as any).from("deals")
+      const data = logRead('partners/page:data', await (supabase).from("deals")
         .select("id, name, status, contract_total, classification, created_at")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .eq("partner_id", detailPartner.id)
         .order("created_at", { ascending: false }));
       return data || [];
@@ -330,7 +330,7 @@ export default function PartnersPage() {
     queryFn: async () => {
       if (!detailPartner || partnerDeals.length === 0) return [];
       const dealIds = partnerDeals.map((d: any) => d.id);
-      const data = logRead('partners/page:data', await (supabase as any).from("documents")
+      const data = logRead('partners/page:data', await (supabase).from("documents")
         .select("id, name, status, created_at, content_json")
         .in("deal_id", dealIds)
         .order("created_at", { ascending: false })
@@ -345,7 +345,7 @@ export default function PartnersPage() {
     queryFn: async () => {
       if (!detailPartner || partnerDeals.length === 0) return [];
       const dealIds = partnerDeals.map((d: any) => d.id);
-      const data = logRead('partners/page:data', await (supabase as any).from("deal_revenue_schedule")
+      const data = logRead('partners/page:data', await (supabase).from("deal_revenue_schedule")
         .select("*")
         .in("deal_id", dealIds)
         .order("due_date", { ascending: false })
@@ -360,7 +360,7 @@ export default function PartnersPage() {
     queryKey: ["partner-comms", detailPartner?.id],
     queryFn: async () => {
       if (!detailPartner) return [];
-      const data = logRead('partners/page:data', await (supabase as any).from("partner_communications")
+      const data = logRead('partners/page:data', await (supabase).from("partner_communications")
         .select("id, comm_type, summary, notes, comm_date, created_at")
         .eq("partner_id", detailPartner.id)
         .order("comm_date", { ascending: false }));
@@ -371,9 +371,9 @@ export default function PartnersPage() {
 
   const addCommMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase as any).from("partner_communications").insert({
+      const { error } = await (supabase).from("partner_communications").insert({
         partner_id: detailPartner.id,
-        company_id: companyId,
+        company_id: companyId as string,
         comm_type: commForm.type,
         summary: commForm.summary,
         notes: commForm.notes || null,
@@ -392,7 +392,7 @@ export default function PartnersPage() {
 
   const deleteCommMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("partner_communications").delete().eq("id", id);
+      const { error } = await (supabase).from("partner_communications").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -556,7 +556,7 @@ export default function PartnersPage() {
 
     // 1) 중복 검출: business_number 또는 (name + contact_email) 매칭 (회사 단위)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any;
+    const db = supabase;
     const existing = logRead('partners/page:existing', await db
       .from('partners')
       .select('id, name, business_number, contact_email')
@@ -1072,7 +1072,7 @@ export default function PartnersPage() {
                   onClick={async () => {
                     let token: string | null = null;
                     try {
-                      const { data, error } = await (supabase as any).rpc("generate_partner_portal_token", { p_partner_id: detailPartner.id });
+                      const { data, error } = await (supabase).rpc("generate_partner_portal_token", { p_partner_id: detailPartner.id });
                       if (error) { toast("포털 링크 발급 실패: " + (error.message || error.code || ""), "error"); return; }
                       if (!data) { toast("포털 링크 발급 실패 (빈 응답)", "error"); return; }
                       token = String(data);

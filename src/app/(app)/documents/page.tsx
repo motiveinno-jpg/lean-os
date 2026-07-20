@@ -40,7 +40,7 @@ import { useToast } from "@/components/toast";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
-const db = supabase as any;
+const db = supabase;
 
 // ── Document Detail (previously documents/[id]/client.tsx) ──
 
@@ -123,7 +123,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       const pname = (quoteHeader as any)?.partnerName || cj?.header?.partnerName || "";
       let email = ""; let cname = pname;
       if (pid) {
-        const p = logRead('documents/page:p', await (supabase as any).from("partners").select("contact_email, contact_name, name").eq("id", pid).maybeSingle());
+        const p = logRead('documents/page:p', await (supabase).from("partners").select("contact_email, contact_name, name").eq("id", pid).maybeSingle());
         email = p?.contact_email || "";
         cname = p?.contact_name || p?.name || pname;
       }
@@ -224,7 +224,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   // 변수 치환용 — 회사 정보 + 연결 거래처명
   const { data: docCompanyInfo } = useQuery({
     queryKey: ["doc-company-info", companyId],
-    queryFn: async () => (await (supabase as any).from("companies").select("name, representative").eq("id", companyId).maybeSingle()).data,
+    queryFn: async () => (await (supabase).from("companies").select("name, representative").eq("id", companyId ?? "").maybeSingle()).data,
     enabled: !!companyId,
   });
   const { data: docPartnerName } = useQuery({
@@ -232,9 +232,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     queryFn: async () => {
       const dealId = (doc as any)?.deal_id;
       if (!dealId) return null;
-      const deal = logRead('documents/page:deal', await (supabase as any).from("deals").select("partner_id, name").eq("id", dealId).maybeSingle());
+      const deal = logRead('documents/page:deal', await (supabase).from("deals").select("partner_id, name").eq("id", dealId).maybeSingle());
       if (deal?.partner_id) {
-        const p = logRead('documents/page:p', await (supabase as any).from("partners").select("name").eq("id", deal.partner_id).maybeSingle());
+        const p = logRead('documents/page:p', await (supabase).from("partners").select("name").eq("id", deal.partner_id).maybeSingle());
         return p?.name || deal?.name || null;
       }
       return deal?.name || null;
@@ -527,8 +527,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   const supplyAmt = items.reduce((s: number, i: any) => s + i.amount, 0);
                   const taxAmt = Math.round(supplyAmt * 0.1);
                   // 회사 대표 계좌 가져오기
-                  const bankAcct = logRead('documents/page:bankAcct', await db.from('bank_accounts').select('bank_name, account_number, alias').eq('company_id', companyId).eq('is_primary', true).limit(1).maybeSingle());
-                  const currentUser = logRead('documents/page:currentUser', await db.from('users').select('name, email').eq('id', userId).maybeSingle());
+                  const bankAcct = logRead('documents/page:bankAcct', await db.from('bank_accounts').select('bank_name, account_number, alias').eq('company_id', companyId ?? '').eq('is_primary', true).limit(1).maybeSingle());
+                  const currentUser = logRead('documents/page:currentUser', await db.from('users').select('name, email').eq('id', userId ?? '').maybeSingle());
 
                   // 제안사 담당자 — 견적 헤더에서 선택한 담당자 우선(없으면 현재 사용자). 이메일은 이름으로 조회.
                   const mgrName = cj.header?.manager || quoteHeader.manager || '';
@@ -573,10 +573,10 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     documentNumber: (doc as any).document_number || '-',
                     companyInfo: {
                       name: companyName,
-                      representative: company.data?.representative,
-                      address: company.data?.address,
-                      phone: company.data?.phone,
-                      businessNumber: company.data?.business_number,
+                      representative: company.data?.representative ?? undefined,
+                      address: company.data?.address ?? undefined,
+                      phone: company.data?.phone ?? undefined,
+                      businessNumber: company.data?.business_number ?? undefined,
                     },
                     counterparty: cpName || '-',
                     items,
@@ -585,7 +585,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     totalAmount: supplyAmt + taxAmt,
                     validUntil: cj.header?.validUntil || quoteHeader.validUntil || cj.validUntil || '견적일로부터 30일',
                     notes: cj.notes || '',
-                    sealUrl: (doc as any).seal_applied ? company.data?.seal_url : undefined,
+                    sealUrl: (doc as any).seal_applied ? company.data?.seal_url ?? undefined : undefined,
                     managerName: mgrName || currentUser?.name || undefined,
                     managerContact: mgrName ? (mgrEmail || undefined) : (currentUser?.email || undefined),
                     paymentTerms: cj.header?.paymentTerms || quoteHeader.paymentTerms || undefined,
@@ -594,7 +594,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     deliveryDate: cj.deliveryDate || undefined,
                     // 팩트시트 스타일 추가 — 제목(문서명)/견적의뢰기업 상세/제안사 사이트
                     title: (doc as any).name || undefined,
-                    siteUrl: company.data?.website || company.data?.homepage || company.data?.site_url || undefined,
+                    // companies 에 website/homepage/site_url 컬럼 없음 — 항상 undefined 였음 (동작 보존)
+                    siteUrl: undefined,
                     counterpartyInfo: partnerRow ? {
                       representative: partnerRow.representative || undefined,
                       contactName: partnerRow.contact_name || undefined,
@@ -647,9 +648,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     content: pdfContent,
                     companyName,
                     companyInfo: company.data ? {
-                      representative: company.data.representative,
-                      address: company.data.address,
-                      businessNumber: company.data.business_number,
+                      representative: company.data.representative ?? undefined,
+                      address: company.data.address ?? undefined,
+                      businessNumber: company.data.business_number ?? undefined,
                     } : undefined,
                   });
                 }
@@ -1562,7 +1563,7 @@ function DocumentsPageInner() {
     didSeedRef.current = true;
     (async () => {
       for (const tpl of DEFAULT_TEMPLATES) {
-        await (supabase as any).from("doc_templates").insert({
+        await (supabase).from("doc_templates").insert({
           company_id: companyId,
           name: tpl.name,
           type: tpl.type,
@@ -1593,7 +1594,7 @@ function DocumentsPageInner() {
     queryFn: async () => {
       const data = logRead('documents/page:data', await db.from('contract_archives')
         .select('*')
-        .eq('company_id', companyId)
+        .eq('company_id', companyId ?? '')
         .order('created_at', { ascending: false }));
       return data || [];
     },
@@ -2712,14 +2713,14 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         return searchFiles(companyId, fileSearchTerm);
       }
       if (selectedFolderId) {
-        const data = logRead('documents/page:data', await (supabase as any)
+        const data = logRead('documents/page:data', await (supabase)
           .from("document_files")
           .select("*")
           .eq("folder_id", selectedFolderId)
           .order("created_at", { ascending: false }));
         return data || [];
       }
-      const data = logRead('documents/page:data', await (supabase as any)
+      const data = logRead('documents/page:data', await (supabase)
         .from("document_files")
         .select("*")
         .eq("company_id", companyId)
