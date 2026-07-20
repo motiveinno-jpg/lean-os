@@ -15,6 +15,9 @@ import { NotificationsTab } from "../settings/_components/NotificationsTab";
 import { MyContractsCard } from "./_components/MyContractsCard";
 import { MyPayslips } from "./_components/MyPayslips";
 import { MyCertificates } from "./_components/MyCertificates";
+// 내 근태(2026-07-20) — 인사관리>근태관리는 전 직원, 여기는 본인 출퇴근만.
+import { MyAttendance } from "./_components/MyAttendance";
+import { MyAttendanceCard } from "@/components/my-attendance-card";
 
 const EMP_STATUS: Record<string, { label: string; color: string }> = {
   invited: { label: "초대중", color: "text-[var(--warning)]" },
@@ -26,7 +29,7 @@ const EMP_STATUS: Record<string, { label: string; color: string }> = {
 const LEAVE_TYPE_LABELS: Record<string, string> = { annual: "연차", sick: "병가", special: "경조휴가", unpaid: "무급휴가" };
 const leaveTypeLabel = (t: string) => LEAVE_TYPE_LABELS[t] || t;
 
-type MyPageTab = "records" | "notif" | "account";
+type MyPageTab = "records" | "attendance" | "notif" | "account";
 
 export default function MyPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -287,7 +290,7 @@ export default function MyPage() {
 
       {/* ── 섹션 탭 ── */}
       <div className="seg-bar w-fit">
-        {([["records", "인사기록"], ["notif", "알림 설정"], ["account", "계정·보안"]] as const).map(([k, l]) => (
+        {([["records", "인사기록"], ["attendance", "근태"], ["notif", "알림 설정"], ["account", "계정·보안"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>{l}</button>
         ))}
       </div>
@@ -405,6 +408,22 @@ export default function MyPage() {
       {/* 내 증명서 — 재직/경력 증명서 본인 발급 (개인 인사기록) */}
       {employee?.id && <MyCertificates companyId={companyId} userId={userId} employee={employee} />}
       </div>
+      )}
+
+      {/* ── 근태 탭 — 오늘 출퇴근(찍기) + 월별 내 출퇴근 기록 ── */}
+      {tab === "attendance" && (
+        <div className="mypage-attendance-tab space-y-5">
+          {companyId && <MyAttendanceCard companyId={companyId} userId={userId} />}
+          {employee?.id ? (
+            <MyAttendance employeeId={employee.id} />
+          ) : (
+            <div className="glass-card p-6 text-center">
+              <div className="text-3xl mb-2">🕘</div>
+              <div className="text-sm font-semibold text-[var(--text-muted)]">구성원 정보와 연결되지 않았습니다</div>
+              <div className="text-xs text-[var(--text-dim)] mt-1">인사관리에서 내 계정이 구성원으로 등록되면 출퇴근 기록이 표시됩니다.</div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── 알림 설정 탭 — 내 알림 수신 채널·이벤트 ── */}
