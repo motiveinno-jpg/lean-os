@@ -157,7 +157,7 @@ export default function MyPage() {
     enabled: !!employee?.id,
   });
 
-  // 사용 연차 상세 — "총 연차" 클릭 시 열리는 올해 승인된 휴가 내역.
+  // 사용 연차 상세 — 연차 현황의 "사용" 타일 클릭 시 열리는 올해 승인된 휴가 내역.
   //   최근 휴가(recentLeaves)는 상태 무관 5건 요약이라 "얼마를 어디에 썼는지"를 못 본다.
   const [showUsedLeaves, setShowUsedLeaves] = useState(false);
   const { data: usedLeaves = [], isLoading: usedLeavesLoading } = useQuery({
@@ -346,7 +346,11 @@ export default function MyPage() {
         </div>
         {leaveBalance ? (
           <div className="mypage-leave-stats">
-            {/* 총 연차 클릭 → 올해 사용한 연차 상세 */}
+            <div className="stat-tile items-center text-center">
+              <div className="stat-tile-label">총 연차</div>
+              <div className="stat-tile-value mono-number text-[var(--primary)]">{leaveBalance.total_days}일</div>
+            </div>
+            {/* 사용 클릭 → 올해 사용한 연차 상세 */}
             <button
               type="button"
               onClick={() => setShowUsedLeaves(true)}
@@ -354,15 +358,11 @@ export default function MyPage() {
               title="사용한 연차 내역 보기"
             >
               <div className="stat-tile-label flex items-center gap-1">
-                총 연차
+                사용
                 <svg className="w-3 h-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
               </div>
-              <div className="stat-tile-value mono-number text-[var(--primary)]">{leaveBalance.total_days}일</div>
-            </button>
-            <div className="stat-tile items-center text-center">
-              <div className="stat-tile-label">사용</div>
               <div className="stat-tile-value mono-number text-[var(--warning)]">{leaveBalance.used_days}일</div>
-            </div>
+            </button>
             <div className="stat-tile items-center text-center">
               <div className="stat-tile-label">잔여</div>
               <div className={`stat-tile-value mono-number ${remaining !== null && remaining <= 3 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>
