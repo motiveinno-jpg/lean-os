@@ -668,8 +668,10 @@ textarea.field-input { height: auto; min-height: 5rem; padding-top: 0.625rem; pa
 .num-cell { text-align: right; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 
 /* 6) KPI 값 표준 상향 — 화면 다수(employees·attendance·projecthub·partners…)가 26px 로
-   재구현해 표준(.stat-tile-value 20px)과 난립하던 것을 다수파 26px 로 표준을 올려 수렴. */
-.stat-tile-value { font-size: 1.625rem; line-height: 2.125rem; font-weight: 800; }
+   재구현해 표준(.stat-tile-value 20px)과 난립하던 것을 다수파 26px 로 표준을 올려 수렴.
+   2026-07-20 QA: 1280px대 화면에서 9자리 금액("+₩437,817,076")이 카드 폭을 넘쳐 부호만 첫 줄에
+   남는 줄바꿈 깨짐 발생 — 뷰포트에 따라 26px→18px 사이로 유동(clamp)시켜 한 줄 유지. */
+.stat-tile-value { font-size: clamp(1.125rem, 1.8vw, 1.625rem); line-height: 1.3; font-weight: 800; }
 
 /* 7) 파괴 확정 버튼(솔리드) — 확인 모달의 최종 삭제/해지용. .btn-danger(틴트)와 구분. */
 .btn-danger-solid {
@@ -3441,6 +3443,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .sidebar-search-block { @apply pt-3 pb-1; }
 .sidebar-search-btn { @apply w-full flex items-center rounded-xl text-xs text-[var(--text-dim)] bg-[var(--bg)]/70 hover:bg-[var(--bg-surface)] hover:text-[var(--text-muted)] transition border border-[var(--border)]/80; }
 .sidebar-nav { @apply flex-1 py-2 overflow-y-auto space-y-4; }
+/* 2026-07-20 QA: 스크롤 여지가 있을 때만 하단 페이드 — 메뉴 글자 반잘림이 깨진 것처럼 보이던 문제 완화 */
+.sidebar-nav-fade {
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent);
+}
 .sidebar-pinned-link { @apply flex items-center rounded-lg text-[13px] transition-all; }
 .sidebar-group-toggle-btn { @apply w-full flex items-center justify-between px-2 mb-1 text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider hover:text-[var(--text-muted)] transition; }
 .sidebar-group-list { @apply space-y-0.5; }

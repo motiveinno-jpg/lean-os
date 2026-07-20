@@ -10,9 +10,12 @@ const TYPE_LABELS: Record<string, string> = {
   deals: "프로젝트", documents: "문서", partners: "거래처", taxInvoices: "세금계산서",
   bankTransactions: "거래내역", chatMessages: "채팅", employees: "인력",
 };
+// 2026-07-20 QA: 결과 클릭이 엉뚱한 목록으로 가던 버그 수정 —
+//   taxInvoices 가 /transactions(거래 자동화)로, deals 가 존재하지 않는 사이드바 경로(/projects)로 가던 것을
+//   실제 화면(/tax-invoices, /projecthub)으로 정정. bankTransactions 는 통장 화면(/bank)으로.
 const TYPE_ROUTES: Record<string, string> = {
-  deals: "/projects", documents: "/documents", partners: "/partners",
-  taxInvoices: "/transactions", bankTransactions: "/transactions",
+  deals: "/projecthub", documents: "/documents", partners: "/partners",
+  taxInvoices: "/tax-invoices", bankTransactions: "/bank",
   chatMessages: "/chat", employees: "/employees",
 };
 const ENTITY_TYPES = ["deals","documents","partners","taxInvoices","bankTransactions","chatMessages","employees"] as const;
@@ -85,13 +88,26 @@ export function GlobalSearch() {
     timerRef.current = setTimeout(() => doSearch(value), 300);
   };
 
-  const navigate = (type: string) => { setOpen(false); router.push(TYPE_ROUTES[type] ?? "/"); };
+  // 2026-07-20 QA: 목록 첫 화면으로만 던지던 것을 항목까지 연결 —
+  //   partners/documents 는 ?id= 딥링크(상세 자동 오픈)를 이미 지원, deals 는 projecthub 검색어(?q=)로 필터.
+  const navigate = (type: string, item?: any) => {
+    setOpen(false);
+    const base = TYPE_ROUTES[type] ?? "/";
+    if (item?.id && (type === "partners" || type === "documents")) {
+      router.push(`${base}?id=${encodeURIComponent(item.id)}`);
+    } else if (type === "deals" && item?.name) {
+      router.push(`${base}?q=${encodeURIComponent(item.name)}`);
+    } else {
+      router.push(base);
+    }
+  };
 
   // 첫 번째 결과 그룹으로 이동 — Enter 로 검색 결과 첫 항목 선택과 동일 효과
   const firstResultType = results && results.totalCount > 0
     ? ENTITY_TYPES.find((t) => (results[t]?.length ?? 0) > 0) ?? null
     : null;
-  useModalKeys(open, () => setOpen(false), firstResultType ? () => navigate(firstResultType) : undefined);
+  const firstResultItem = firstResultType ? results?.[firstResultType]?.[0] : undefined;
+  useModalKeys(open, () => setOpen(false), firstResultType ? () => navigate(firstResultType, firstResultItem) : undefined);
 
   if (!open) return null;
 
@@ -132,7 +148,7 @@ export function GlobalSearch() {
                 {items.map((item: any) => {
                   const { primary, secondary } = getDisplayText(type, item);
                   return (
-                    <button key={item.id} onClick={() => navigate(type)}
+                    <button key={item.id} onClick={() => navigate(type, item)}
                       className="global-search-result-item">
                       <span className="text-sm text-[var(--text)] truncate">{primary}</span>
                       {secondary && <span className="text-xs text-[var(--text-muted)] shrink-0">{secondary}</span>}

@@ -353,6 +353,7 @@ export type Database = {
           author_email: string | null
           author_name: string | null
           category: string
+          company_id: string | null
           content: string
           created_at: string
           id: string
@@ -364,6 +365,7 @@ export type Database = {
           author_email?: string | null
           author_name?: string | null
           category?: string
+          company_id?: string | null
           content: string
           created_at?: string
           id?: string
@@ -375,6 +377,7 @@ export type Database = {
           author_email?: string | null
           author_name?: string | null
           category?: string
+          company_id?: string | null
           content?: string
           created_at?: string
           id?: string
@@ -382,7 +385,15 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "announcements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       applied_migrations: {
         Row: {
@@ -6874,6 +6885,67 @@ export type Database = {
           },
         ]
       }
+      leave_grants: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          days: number
+          employee_id: string
+          grant_date: string
+          grant_type: string
+          id: string
+          memo: string | null
+          year: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          days: number
+          employee_id: string
+          grant_date: string
+          grant_type?: string
+          id?: string
+          memo?: string | null
+          year: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          days?: number
+          employee_id?: string
+          grant_date?: string
+          grant_type?: string
+          id?: string
+          memo?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_grants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_grants_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_grants_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_promotion_notices: {
         Row: {
           company_id: string
@@ -12158,6 +12230,10 @@ export type Database = {
       }
       fn_process_invoice_queue: { Args: never; Returns: number }
       generate_approval_token: { Args: never; Returns: string }
+      generate_monthly_leave_grants: {
+        Args: { p_company_id?: string }
+        Returns: number
+      }
       generate_partner_portal_token: {
         Args: { p_partner_id: string }
         Returns: string
@@ -12627,6 +12703,7 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_my_monthly_leave_grants: { Args: never; Returns: number }
       update_manual_voucher: {
         Args: {
           p_description: string

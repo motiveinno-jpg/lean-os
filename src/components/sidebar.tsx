@@ -294,6 +294,21 @@ export function Sidebar() {
     .map(href => allNavItems.find(item => item.href === href))
     .filter(Boolean) as NavItem[];
 
+  // 2026-07-20 QA: 스크롤 경계에서 메뉴 글자가 반쯤 잘려("거래 자동화"→"거래 자동하") 깨져 보이던 문제 —
+  //   아래 내용이 더 있을 때만 하단 페이드 마스크를 걸어 잘림을 자연스럽게 처리. 맨 아래 도달 시 페이드 해제.
+  const navRef = useRef<HTMLElement>(null);
+  const [navFade, setNavFade] = useState(false);
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const update = () => setNavFade(el.scrollHeight - el.scrollTop - el.clientHeight > 8);
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", update); ro.disconnect(); };
+  }, []);
+
   // 데스크톱 단일 아이템 렌더 (하위 토글 지원 — 부모는 chevron, 일반은 핀)
   const renderDesktopItem = (item: NavItem, isChild: boolean, hasChildren = false, open = false) => {
     const active = isActivePath(item.href, pathname, allHrefs);
@@ -512,7 +527,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav Groups */}
-      <nav className={`sidebar-nav ${collapsed ? "px-2" : "px-3"}`}>
+      <nav ref={navRef} className={`sidebar-nav ${collapsed ? "px-2" : "px-3"} ${navFade ? "sidebar-nav-fade" : ""}`}>
         {/* Pinned Pages */}
         {pinnedItems.length > 0 && (
           <div className="sidebar-pinned-block">

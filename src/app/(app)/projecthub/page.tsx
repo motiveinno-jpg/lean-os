@@ -8,7 +8,7 @@ import { logRead } from "@/lib/log-read";
 import { useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -213,8 +213,12 @@ export default function ProjectHubPage() {
 
   // 유형 필터 — 전체(기본) + 수익형/목표형/실행형. 2026-07-13 개편: 전체 뷰 + 검색 + 내담당 + 카드형.
   const [typeFilter, setTypeFilter] = useState<"all" | ProjectType>("all");
-  const [search, setSearch] = useState("");
-  const [mineOnly, setMineOnly] = useState(true); // 내 담당 우선(기본) — '전체'로 전환 가능
+  // 2026-07-20 QA: 전역 검색(⌘K)에서 프로젝트 결과 클릭 시 ?q=<이름> 딥링크로 진입 —
+  //   검색어를 초기값으로 물려받고, 남의 담당 프로젝트도 보이도록 내담당 필터는 해제 상태로 시작.
+  const searchParams = useSearchParams();
+  const initialQ = searchParams?.get("q") ?? "";
+  const [search, setSearch] = useState(initialQ);
+  const [mineOnly, setMineOnly] = useState(!initialQ); // 내 담당 우선(기본) — '전체'로 전환 가능
   const userId = user?.id ?? null;
 
   const partnerName = useMemo(() => {
@@ -278,11 +282,25 @@ export default function ProjectHubPage() {
     });
   }, [topDeals, typeFilter, search, mineOnly, userId, sortKey, sortDir, partnerName, userName, pnlByDeal, heroByDeal]);
 
+  // 2026-07-20 QA: 유형 칩 카운트가 내담당·검색 필터를 무시해 "전체 7"인데 KPI·목록은 0으로
+  //   따로 놀던 혼란 — 칩도 동일한 기준(typeFilter 제외한 나머지 필터)을 따르게 한다.
+  const baseDeals = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return topDeals.filter((d) => {
+      if (mineOnly && d.internal_manager_id !== userId) return false;
+      if (q) {
+        const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${userName[d.internal_manager_id] || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [topDeals, mineOnly, userId, search, partnerName, userName]);
+
   // 유형별 요약 구획
   const typeSummary = useMemo(() => {
-    const marginDeals = topDeals.filter((d) => normalizeProjectType(d.project_type) === "margin");
-    const goalDeals = topDeals.filter((d) => normalizeProjectType(d.project_type) === "goal");
-    const deliveryDeals = topDeals.filter((d) => normalizeProjectType(d.project_type) === "delivery");
+    const marginDeals = baseDeals.filter((d) => normalizeProjectType(d.project_type) === "margin");
+    const goalDeals = baseDeals.filter((d) => normalizeProjectType(d.project_type) === "goal");
+    const deliveryDeals = baseDeals.filter((d) => normalizeProjectType(d.project_type) === "delivery");
     const marginSum = marginDeals.reduce((s, d) => {
       const p = pnlByDeal[d.id]; const rev = Number(d.contract_total || 0) || Number(p?.revenue || 0);
       return s + (rev - Number(p?.direct_cost || 0));
@@ -296,7 +314,7 @@ export default function ProjectHubPage() {
       goal: { count: goalDeals.length, avgGoal },
       delivery: { count: deliveryDeals.length, avgDelivery },
     };
-  }, [topDeals, pnlByDeal, heroByDeal]);
+  }, [baseDeals, pnlByDeal, heroByDeal]);
 
   const summary = useMemo(() => {
     const total = rows.length;
@@ -353,7 +371,7 @@ export default function ProjectHubPage() {
 
       {/* 유형 필터 — 전체 + 3유형 칩. 전체가 기본(모든 유형 한눈에), 클릭 시 그 유형만 */}
       <div className="type-filter-chips">
-        {([["all", "전체", topDeals.length]] as [string, string, number][])
+        {([["all", "전체", baseDeals.length]] as [string, string, number][])
           .concat(PROJECT_TYPE_ORDER.map((t) => [t, `${PROJECT_TYPES[t].icon} ${PROJECT_TYPES[t].label}`, typeSummary[t].count] as [string, string, number]))
           .map(([key, label, count]) => {
             const active = typeFilter === key;

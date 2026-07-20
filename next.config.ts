@@ -47,6 +47,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   trailingSlash: true,
+  // 2026-07-20 QA: 홈 디렉터리에 잡 package-lock.json 이 있으면 Next 가 워크스페이스 루트를
+  //   홈 전체로 오인해 빌드/dev 가 수 분씩 느려짐 — 프로젝트 루트를 명시 고정.
+  turbopack: { root: process.cwd() },
   // headless Chrome(서버 PDF 렌더)용 네이티브 패키지는 번들하지 않고 런타임 require
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
   images: {

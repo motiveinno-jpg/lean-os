@@ -76,9 +76,10 @@ export async function globalSearch(
         .ilike('content', pattern)
         .limit(5),
 
+      // 2026-07-20 QA: salary 는 검색 결과에 표시하지 않는 민감 컬럼 — select 에서 제거
       supabase
         .from('employees')
-        .select('id, name, status, salary')
+        .select('id, name, status')
         .eq('company_id', companyId)
         .ilike('name', pattern)
         .limit(5),

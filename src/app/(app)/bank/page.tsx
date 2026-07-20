@@ -88,10 +88,15 @@ export default function BankPage() {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
-  // 직원 QA — 탭 전환 시 히스토리 쌓기: 거래내역에서 뒤로가기 하면 이전 탭(통장)으로 돌아감(카드페이지로 안 나감).
+  // 직원 QA — 서브탭에서 뒤로가기 하면 통장 탭으로 한 번 돌아간 뒤 페이지를 떠남.
+  //   2026-07-20 QA: 탭 전환마다 pushState 를 쌓아 뒤로가기가 탭 되감기에 갇히던 문제 —
+  //   기본탭→서브탭 진입 때만 1회 push, 서브탭끼리는 replace 로 히스토리 오염을 1칸으로 제한.
   const goTab = (t: Tab) => {
+    if (typeof window !== "undefined") {
+      if (tab === "accounts" && t !== "accounts") window.history.pushState({ bankTab: t }, "");
+      else window.history.replaceState({ bankTab: t }, "");
+    }
     setTab(t);
-    if (typeof window !== "undefined") window.history.pushState({ bankTab: t }, "");
   };
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
