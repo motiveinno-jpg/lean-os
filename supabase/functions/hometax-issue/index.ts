@@ -309,6 +309,17 @@ serve(withSentry("hometax-issue", async (req) => {
       });
     }
 
+    // 3-0) 🚨 2026-07-20 인시던트 가드: CODEF가 CF-05001 오류를 반환해도 팝빌에서는
+    //   실제 발행이 진행됨이 확인됨(같은 건 재시도 5회 → 실발행 5건, 팝빌 발행 안내 메일로 확인).
+    //   CODEF가 원인 수정을 안내할 때까지 CF-05001 실패 건의 재발행을 차단한다.
+    if (invoice.nts_error_code === "CF-05001") {
+      return new Response(JSON.stringify({
+        error: "재발행 차단: 이 건은 CF-05001로 실패 표시됐지만 실제로는 팝빌에서 발행됐을 가능성이 높습니다. 재시도하면 중복 발행됩니다.",
+        hint: "다음날 홈택스 동기화로 실제 발행 여부(승인번호)를 확인한 뒤 처리하세요. CODEF 문의 진행 중.",
+        code: "CF05001_REISSUE_BLOCKED",
+      }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // 3) 이미 발행된 건 중복 방지
     if (invoice.nts_issue_status === "issued" && invoice.nts_confirm_no) {
       return new Response(JSON.stringify({
