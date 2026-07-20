@@ -1553,6 +1553,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const [files, setFiles] = useState<File[]>([]);
   const [descriptionInited, setDescriptionInited] = useState<string>("");
   const [selectedApprovers, setSelectedApprovers] = useState<{ userId: string; name: string }[]>([]);
+  // 참조(CC) — 결재선과 별개로 결과를 통보만 받는 인원. 양식·정책 기본값을 프리필한 뒤 요청자가 가감할 수 있다.
+  const [selectedReferences, setSelectedReferences] = useState<{ userId: string; name: string }[]>([]);
+  const [referencesInited, setReferencesInited] = useState<string>("");
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
   // 상세 내용 서식 편집기(표 등) — tiptap 은 마운트 후 content prop 변경을 반영하지 않아
   //   템플릿 프리필/임시저장 복원/제출 초기화 때 ref 로 직접 setContent 한다.
@@ -1738,6 +1741,26 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     setSelectedApprovers(approvers.slice(0, 3));
   }, [selectedForm, form.requestType, descriptionInited, companyUsers]);
 
+  // 참조자 프리필 — 양식(우선) 또는 기본 유형 정책에 지정된 참조 인원을 칩으로 미리 채운다.
+  //   기존엔 제출 시점에만 조용히 붙어 요청자가 누가 참조로 들어가는지 볼 수 없었다(2026-07-20).
+  //   유형이 바뀔 때만 재프리필 — 이후 요청자가 지우거나 추가한 내용은 유지.
+  useEffect(() => {
+    // 구성원 목록 로딩 전에는 프리필하지 않는다 — 빈 배열로 확정돼 기본 참조자가 사라지는 것 방지.
+    if (referencesInited === form.requestType || companyUsers.length === 0) return;
+    const defaults = selectedForm?.reference_user_ids?.length
+      ? selectedForm.reference_user_ids
+      : matchedPolicy?.reference_user_ids?.length
+        ? matchedPolicy.reference_user_ids
+        : [];
+    setSelectedReferences(
+      defaults
+        .map((rid: string) => (companyUsers as any[]).find((u) => u.id === rid))
+        .filter(Boolean)
+        .map((u: any) => ({ userId: u.id, name: u.name || u.email })),
+    );
+    setReferencesInited(form.requestType);
+  }, [form.requestType, referencesInited, selectedForm, matchedPolicy, companyUsers]);
+
   // 2026-07-16: 기본 제공 유형에 정책 입력 필드가 있으면 — 유형 전환 시 고정값(fixed) 필드 프리필 +
   //   필드 없는 유형으로 바뀌면 이전 값 정리.
   useEffect(() => {
@@ -1818,12 +1841,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           : isLeave
             ? { leave: { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays } }
             : undefined,
-        // 참조: 커스텀 양식 → 양식 지정 인원, 기본 유형 → 정책(양식관리 기본 유형 편집)에 지정한 인원
-        referenceUserIds: selectedForm?.reference_user_ids?.length
-          ? selectedForm.reference_user_ids
-          : matchedPolicy?.reference_user_ids?.length
-            ? matchedPolicy.reference_user_ids
-            : undefined,
+        // 참조: 요청자가 화면에서 지정한 인원(양식·정책 기본값이 프리필돼 있고 가감 가능)
+        referenceUserIds: selectedReferences.length > 0 ? selectedReferences.map((r) => r.userId) : undefined,
       });
     },
     onSuccess: () => {
@@ -1833,6 +1852,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
       setFiles([]);
       setSelectedApprovers([]); setCustomFieldValues({});
+      setSelectedReferences([]); setReferencesInited("");
       setDescriptionInited("");
       localStorage.removeItem(`ov-approval-draft-${companyId}`);
       onComplete();
@@ -2201,6 +2221,55 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             </div>
             )}
 
+            {/* Reference(CC) Selection — 결재선과 무관하게 결과를 통보받는 인원. 승인라인 잠금과 무관하게 항상 지정 가능 */}
+            <div className="approval-reference-picker">
+              <label className="field-label">참조자 지정 (선택)</label>
+              <div className="space-y-2">
+                {selectedReferences.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {selectedReferences.map((r, idx) => (
+                      <div key={r.userId} className="inline-flex items-center gap-2 pl-1.5 pr-2 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)]">
+                        <Avatar name={r.name} src={approverAvatar(r.userId)} size={22} />
+                        <span className="text-xs font-bold text-[var(--text)]">{r.name}</span>
+                        <span className="text-[10px] font-bold text-[var(--text-dim)]">참조</span>
+                        <button
+                          onClick={() => setSelectedReferences((prev) => prev.filter((_, i) => i !== idx))}
+                          className="w-4 h-4 rounded-full flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition"
+                          aria-label="참조자 삭제"
+                        >
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {companyUsers.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const u = companyUsers.find((u: any) => u.id === e.target.value);
+                      if (u && !selectedReferences.some((r) => r.userId === u.id)) {
+                        setSelectedReferences((prev) => [...prev, { userId: u.id, name: u.name || u.email }]);
+                      }
+                    }}
+                    className="field-input"
+                  >
+                    <option value="">+ 참조자 추가</option>
+                    {companyUsers
+                      .filter((u: any) => !selectedReferences.some((r) => r.userId === u.id) && !selectedApprovers.some((a) => a.userId === u.id))
+                      .map((u: any) => (
+                        <option key={u.id} value={u.id}>{u.name || u.email} ({u.role})</option>
+                      ))}
+                  </select>
+                )}
+                <p className="text-[11px] text-[var(--text-dim)]">
+                  {selectedReferences.length === 0
+                    ? "참조자는 결재에 참여하지 않고 요청·결과 알림만 받습니다"
+                    : "승인자로 지정된 인원은 목록에서 제외됩니다"}
+                </p>
+              </div>
+            </div>
+
             {/* File upload — 드롭존 스타일 */}
             <div className="approval-file-upload">
               <label className="field-label">첨부파일</label>
@@ -2259,6 +2328,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
                 setFiles([]);
                 setSelectedApprovers([]);
+                setSelectedReferences([]); setReferencesInited("");
                 localStorage.removeItem(`ov-approval-draft-${companyId}`);
               }}
               className="px-4 py-2.5 text-[var(--text-dim)] text-sm hover:text-red-400 transition"
@@ -2374,6 +2444,21 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 </div>
                 <div className="text-xs font-bold pt-1 text-[var(--text)]">최종 승인</div>
                 <div className="text-[11px] text-[var(--text-dim)]">승인자: CEO</div>
+              </div>
+            </div>
+          )}
+
+          {/* 참조 — 결재선 아래에 통보 대상 요약(요청 상세 사이드바의 '참조' 블록과 동일 표기) */}
+          {selectedReferences.length > 0 && (
+            <div className="approval-preview-references mt-4 pt-4 border-t border-[var(--border)]">
+              <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2">참조</div>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedReferences.map((r) => (
+                  <span key={r.userId} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)]">
+                    <Avatar name={r.name} src={approverAvatar(r.userId)} size={18} />
+                    {r.name}
+                  </span>
+                ))}
               </div>
             </div>
           )}
