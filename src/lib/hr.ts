@@ -153,6 +153,34 @@ export async function updateEmployee(employeeId: string, updates: Record<string,
     .update(filtered as any)
     .eq('id', employeeId);
   if (error) throw error;
+
+  // 개인 출퇴근시간 변경 시 그 직원의 최근 30일 근태 자동 재계산 (2026-07-20 버그픽스).
+  //   회사 설정 저장(hr-attendance-settings)과 동일 패턴 — 과거 행의 지각/연장 판정에
+  //   새 개인 기준이 반영되게. 실패해도 저장 자체는 성공 처리.
+  if ('work_start_time' in filtered || 'work_end_time' in filtered) {
+    try {
+      const emp = logRead('lib/hr:emp', await db
+        .from('employees')
+        .select('company_id')
+        .eq('id', employeeId)
+        .maybeSingle());
+      if (emp?.company_id) {
+        const today = new Date();
+        const from = new Date(today);
+        from.setDate(from.getDate() - 30);
+        await recomputeAttendance({
+          companyId: emp.company_id,
+          employeeId,
+          from: from.toISOString().slice(0, 10),
+          to: today.toISOString().slice(0, 10),
+        });
+      }
+    } catch (e) {
+      if (typeof window !== 'undefined') {
+        console.warn('[updateEmployee] 개인 근무시간 변경 재계산 실패 (저장은 성공):', e);
+      }
+    }
+  }
 }
 
 export const CONTRACT_TYPES = [
@@ -759,7 +787,13 @@ export async function reviewAttendanceEditRequest(params: {
       const ciDate = new Date(String(changes.check_in));
       if (!isNaN(ciDate.getTime())) {
         const companyId = (req as any).company_id as string;
-        const policy = await getAttendancePolicy(companyId);
+        // 버그픽스 2026-07-20: 직원 개인 출퇴근시간 override 반영 — 대상 레코드의 employee_id 로 조회.
+        const rec = logRead('lib/hr:rec', await db
+          .from('attendance_records')
+          .select('employee_id')
+          .eq('id', req.attendance_record_id)
+          .maybeSingle());
+        const policy = await getAttendancePolicy(companyId, rec?.employee_id || undefined);
         const kst = new Date(ciDate.getTime() + 9 * 3600 * 1000); // UTC → KST
         const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
         nextIsLate = isLate(kstMin, policy);
@@ -878,7 +912,9 @@ export async function checkIn(companyId: string, employeeId: string, status: str
   //   실패해도 checkIn 자체는 성공 처리 (회귀 방지).
   try {
     const targetDate = new Date().toISOString().slice(0, 10);
-    const settings = await getAttendanceCompanySettings(companyId);
+    // 버그픽스 2026-07-20: 회사 공통 설정만 쓰면 직원 개인 출퇴근시간(employees.work_start_time)이
+    //   무시돼 status(개인 기준)와 is_late(회사 기준)가 서로 다른 판정을 내림 — 유효 설정 사용.
+    const settings = await getEffectiveAttendanceSettings(companyId, employeeId);
     const row = logRead('lib/hr:row', await db
       .from('attendance_records')
       .select('id, check_in, date')
