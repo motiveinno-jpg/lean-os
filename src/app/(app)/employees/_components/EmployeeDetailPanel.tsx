@@ -8,7 +8,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
-import { updateEmployee, LEAVE_TYPES, initLeaveBalance, calculateAnnualLeave } from "@/lib/hr";
+import { updateEmployee, LEAVE_TYPES, calculateAnnualLeave } from "@/lib/hr";
+import { listLeaveGrants, addLeaveGrant, deleteLeaveGrant, setBaseLeaveGrant, GRANT_TYPE_LABELS, type LeaveGrant, type LeaveGrantType } from "@/lib/leave-grants";
 import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
 import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insurance-edi";
@@ -214,17 +215,53 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   });
 
   // 연차 설정(관리자) — 휴가 신청은 전자결재로 이관됨(2026-07-15). 여기선 구성원 총괄 관점의
-  //   연차 총 부여일수 설정/조정만 담당(초기화·수정). initLeaveBalance = upsert.
+  //   연차 총 부여일수 설정/조정만 담당. 2026-07-20 부터 leave_grants(발생 이력)가 단일 출처이고
+  //   leave_balances.total_days 는 그 합계로 동기화된다.
   const [leaveDaysInput, setLeaveDaysInput] = useState<string>("");
+  const invalidateLeave = () => {
+    queryClient.invalidateQueries({ queryKey: ["emp-leave-balance", employeeId] });
+    queryClient.invalidateQueries({ queryKey: ["emp-leave-grants", employeeId] });
+    queryClient.invalidateQueries({ queryKey: ["leave-balances-list"] });
+  };
+  // 총 부여일수 설정 = 그 해 'base' 발생 건을 교체(월 발생·이월·조정 건은 유지). total 은 합계로 재동기화.
   const setLeaveMut = useMutation({
-    mutationFn: (totalDays: number) => initLeaveBalance(companyId, employeeId, currentYear, totalDays),
+    mutationFn: (totalDays: number) => setBaseLeaveGrant({ companyId, employeeId, year: currentYear, days: totalDays }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["emp-leave-balance", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["leave-balances-list"] });
+      invalidateLeave();
       setLeaveDaysInput("");
       toast("연차가 설정되었습니다", "success");
     },
     onError: (e: any) => toast("연차 설정 실패: " + friendlyError(e, "알 수 없는 오류"), "error"),
+  });
+
+  // 연차 발생 이력 — 날짜별 부여/이월/조정 기록. 총 부여일수의 단일 출처.
+  const { data: empLeaveGrants = [] } = useQuery({
+    queryKey: ["emp-leave-grants", employeeId, currentYear],
+    queryFn: () => listLeaveGrants(employeeId, currentYear),
+    enabled: !!employeeId && detailTab === "leave",
+  });
+  const [grantForm, setGrantForm] = useState<{ date: string; days: string; type: LeaveGrantType; memo: string }>({
+    date: "", days: "", type: "adjustment", memo: "",
+  });
+  const addGrantMut = useMutation({
+    mutationFn: () => addLeaveGrant({
+      companyId, employeeId,
+      grantDate: grantForm.date,
+      days: Number(grantForm.days),
+      grantType: grantForm.type,
+      memo: grantForm.memo.trim() || undefined,
+    }),
+    onSuccess: () => {
+      invalidateLeave();
+      setGrantForm({ date: "", days: "", type: "adjustment", memo: "" });
+      toast("연차 발생이 추가되었습니다", "success");
+    },
+    onError: (e: any) => toast("발생 추가 실패: " + friendlyError(e, "알 수 없는 오류"), "error"),
+  });
+  const delGrantMut = useMutation({
+    mutationFn: (g: LeaveGrant) => deleteLeaveGrant(g),
+    onSuccess: () => { invalidateLeave(); toast("발생 이력이 삭제되었습니다", "success"); },
+    onError: (e: any) => toast("삭제 실패: " + friendlyError(e, "알 수 없는 오류"), "error"),
   });
 
   const { data: empLeaveRequests = [] } = useQuery({
@@ -792,6 +829,62 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   </button>
                 </div>
                 <p className="text-[11px] text-[var(--text-dim)] mt-2">사용일수는 승인된 휴가에 따라 자동 반영됩니다.</p>
+              </div>
+            )}
+
+            {/* 연차 발생 이력 — 입사일 기준 부여·월 발생(1년 미만)·이월·조정을 날짜별로 기록.
+                총 부여일수는 항상 이 목록의 합계로 동기화된다(단일 출처). 마이페이지 연차 원장에 그대로 표시. */}
+            {canManageAccess && (
+              <div className="employee-leave-grants glass-card">
+                <div className="text-xs font-bold text-[var(--text-muted)] mb-2">{currentYear}년 연차 발생 이력</div>
+                {empLeaveGrants.length === 0 ? (
+                  <div className="text-[11px] text-[var(--text-dim)] py-3 text-center">발생 이력이 없습니다. 아래에서 추가하세요.</div>
+                ) : (
+                  <div className="space-y-1.5 mb-3">
+                    {empLeaveGrants.map((g) => (
+                      <div key={g.id} className="employee-leave-grant-row">
+                        <span className="badge badge-primary shrink-0">{GRANT_TYPE_LABELS[g.grant_type] || "발생"}</span>
+                        <span className="text-xs text-[var(--text-muted)] shrink-0">{g.grant_date}</span>
+                        <span className="text-xs text-[var(--text-dim)] truncate flex-1 min-w-0">{g.memo || ""}</span>
+                        <span className="text-xs font-bold text-[var(--success)] shrink-0">+{Number(g.days)}일</span>
+                        <button
+                          onClick={() => { if (confirm(`${g.grant_date} 발생 ${g.days}일을 삭제할까요?`)) delGrantMut.mutate(g); }}
+                          disabled={delGrantMut.isPending}
+                          className="text-[var(--text-dim)] hover:text-[var(--danger)] transition shrink-0"
+                          aria-label="발생 삭제"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="employee-leave-grant-form">
+                  <input type="date" value={grantForm.date} onChange={(e) => setGrantForm((p) => ({ ...p, date: e.target.value }))} className="field-input" />
+                  <input
+                    type="text" inputMode="decimal" value={grantForm.days}
+                    onChange={(e) => setGrantForm((p) => ({ ...p, days: e.target.value.replace(/[^0-9.-]/g, "") }))}
+                    placeholder="일수" className="field-input w-20"
+                  />
+                  <select value={grantForm.type} onChange={(e) => setGrantForm((p) => ({ ...p, type: e.target.value as LeaveGrantType }))} className="field-input w-28">
+                    {(Object.keys(GRANT_TYPE_LABELS) as LeaveGrantType[]).map((k) => (
+                      <option key={k} value={k}>{GRANT_TYPE_LABELS[k]}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text" value={grantForm.memo}
+                    onChange={(e) => setGrantForm((p) => ({ ...p, memo: e.target.value }))}
+                    placeholder="메모 (선택)" className="field-input flex-1 min-w-[100px]"
+                  />
+                  <button
+                    onClick={() => addGrantMut.mutate()}
+                    disabled={addGrantMut.isPending || !grantForm.date || grantForm.days === ""}
+                    className="btn-primary btn-sm disabled:opacity-50 shrink-0"
+                  >
+                    {addGrantMut.isPending ? "추가 중..." : "발생 추가"}
+                  </button>
+                </div>
+                <p className="text-[11px] text-[var(--text-dim)] mt-2">총 부여일수는 이 목록의 합계로 자동 계산됩니다. 회수는 일수를 음수로 입력하세요.</p>
               </div>
             )}
 

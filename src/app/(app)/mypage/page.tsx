@@ -18,6 +18,7 @@ import { MyCertificates } from "./_components/MyCertificates";
 // 내 근태(2026-07-20) — 인사관리>근태관리는 전 직원, 여기는 본인 출퇴근만.
 import { MyAttendance } from "./_components/MyAttendance";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
+import { listLeaveGrants, GRANT_TYPE_LABELS } from "@/lib/leave-grants";
 
 const EMP_STATUS: Record<string, { label: string; color: string }> = {
   invited: { label: "초대중", color: "text-[var(--warning)]" },
@@ -182,6 +183,13 @@ export default function MyPage() {
   });
   const ledgerBalance = allBalances.find((b: any) => Number(b.year) === ledgerYear) || null;
 
+  // 발생 이력 — 입사일 기준 부여·월 발생·이월·조정을 날짜별로. (leave_grants, 2026-07-20 신설)
+  const { data: grants = [] } = useQuery({
+    queryKey: ["my-leave-grants", employee?.id, ledgerYear],
+    queryFn: () => listLeaveGrants(employee!.id, ledgerYear),
+    enabled: !!employee?.id && showUsedLeaves,
+  });
+
   const { data: usedLeaves = [], isLoading: usedLeavesLoading } = useQuery({
     queryKey: ["my-used-leaves", employee?.id, userId, ledgerYear],
     queryFn: async () => {
@@ -223,13 +231,30 @@ export default function MyPage() {
     enabled: !!employee?.id && !!userId && showUsedLeaves,
   });
   const usedLeavesTotal = usedLeaves.reduce((sum: number, l: any) => sum + (Number(l.days) || 0), 0);
-  // 발생분에서 건별로 차감한 진행 잔여. 관리자 수동 조정이 있으면 마지막 잔여와 balance.remaining_days 가 다를 수 있다.
   const ledgerGranted = Number(ledgerBalance?.total_days ?? 0);
-  let runningRemain = ledgerGranted;
-  const ledgerRows = usedLeaves.map((l: any) => {
-    runningRemain = Math.round((runningRemain - (Number(l.days) || 0)) * 10) / 10;
-    return { ...l, remain: runningRemain };
-  });
+
+  // 원장 = 발생(+) · 사용(−) 을 날짜순으로 합쳐 잔여를 누적. 발생 이력이 없는 과거 연도는
+  //   leave_balances 합계만으로 1월 1일 부여 1건이 있었던 것으로 본다(백필 이전 데이터 방어).
+  const grantEntries = grants.length > 0
+    ? grants.map((g) => ({
+        id: `grant-${g.id}`, kind: "grant" as const, date: g.grant_date,
+        label: GRANT_TYPE_LABELS[g.grant_type] || "발생", days: Number(g.days) || 0, memo: g.memo,
+      }))
+    : ledgerBalance
+      ? [{ id: "grant-legacy", kind: "grant" as const, date: `${ledgerYear}-01-01`, label: "연차 부여", days: ledgerGranted, memo: null }]
+      : [];
+  const useEntries = usedLeaves.map((l: any) => ({
+    id: l.id, kind: "use" as const, date: l.start_date, label: leaveTypeLabel(l.leave_type),
+    days: Number(l.days) || 0, endDate: l.end_date as string | undefined,
+  }));
+  let runningRemain = 0;
+  const ledgerRows = [...grantEntries, ...useEntries]
+    // 같은 날이면 발생이 먼저(부여 후 사용).
+    .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.kind === "grant" ? -1 : 1))
+    .map((e) => {
+      runningRemain = Math.round((runningRemain + (e.kind === "grant" ? e.days : -e.days)) * 10) / 10;
+      return { ...e, remain: runningRemain };
+    });
   const balanceRemain = ledgerBalance ? Number(ledgerBalance.remaining_days ?? ledgerGranted - Number(ledgerBalance.used_days)) : null;
   const ledgerMismatch = balanceRemain !== null && Math.abs(balanceRemain - runningRemain) > 0.05;
 
@@ -531,37 +556,28 @@ export default function MyPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {/* 발생 — 원장의 시작점 */}
-                  <div className="mypage-ledger-row mypage-ledger-grant">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="badge badge-primary shrink-0">발생</span>
-                      <span className="text-xs font-semibold">{ledgerYear}년 연차 부여</span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs font-bold mono-number text-[var(--success)]">+{ledgerGranted}일</span>
-                      <span className="mypage-ledger-remain">잔여 {ledgerGranted}일</span>
-                    </div>
-                  </div>
-
-                  {/* 사용 — 날짜순 차감, 우측에 진행 잔여 */}
-                  {ledgerRows.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-[var(--text-muted)]">{ledgerYear}년에 사용한 휴가가 없습니다</div>
-                  ) : (
-                    ledgerRows.map((l: any) => (
-                      <div key={l.id} className="mypage-ledger-row">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="badge badge-muted shrink-0">{leaveTypeLabel(l.leave_type)}</span>
-                          <span className="text-xs text-[var(--text-muted)] truncate">
-                            {fmtLedgerDate(l.start_date)}
-                            {l.end_date && l.end_date !== l.start_date ? ` ~ ${fmtLedgerDate(l.end_date)}` : ""} 사용
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-xs font-bold mono-number text-[var(--danger)]">−{Number(l.days) || 0}일</span>
-                          <span className="mypage-ledger-remain">잔여 {l.remain}일</span>
-                        </div>
+                  {/* 발생(+) · 사용(−) 을 날짜순으로 — 우측에 진행 잔여 누적 */}
+                  {ledgerRows.map((e: any) => (
+                    <div key={e.id} className={`mypage-ledger-row ${e.kind === "grant" ? "mypage-ledger-grant" : ""}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`badge shrink-0 ${e.kind === "grant" ? "badge-primary" : "badge-muted"}`}>{e.label}</span>
+                        <span className="text-xs text-[var(--text-muted)] truncate">
+                          {fmtLedgerDate(e.date)}
+                          {e.kind === "grant"
+                            ? ` 발생${e.memo ? ` · ${e.memo}` : ""}`
+                            : `${e.endDate && e.endDate !== e.date ? ` ~ ${fmtLedgerDate(e.endDate)}` : ""} 사용`}
+                        </span>
                       </div>
-                    ))
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`text-xs font-bold mono-number ${e.kind === "grant" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                          {e.kind === "grant" ? "+" : "−"}{e.days}일
+                        </span>
+                        <span className="mypage-ledger-remain">잔여 {e.remain}일</span>
+                      </div>
+                    </div>
+                  ))}
+                  {useEntries.length === 0 && (
+                    <div className="py-6 text-center text-xs text-[var(--text-muted)]">{ledgerYear}년에 사용한 휴가가 없습니다</div>
                   )}
 
                   {ledgerMismatch && (

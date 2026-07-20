@@ -1969,6 +1969,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mypage-ledger-years { @apply mx-5 mt-4 w-fit; }
 .mypage-ledger-row { @apply flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .mypage-ledger-grant { @apply bg-[var(--primary)]/6 border-[var(--primary)]/25; }
+/* 구성원 상세 — 연차 발생 이력 목록/추가 폼 */
+.employee-leave-grants { @apply p-4; }
+.employee-leave-grant-row { @apply flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }
+.employee-leave-grant-form { @apply flex flex-wrap items-center gap-2; }
 .mypage-ledger-remain { @apply text-[11px] font-semibold text-[var(--text-dim)] w-[68px] text-right; font-variant-numeric: tabular-nums; }
 .mypage-recent-leaves { @apply space-y-2; }
 .mypage-withdraw-card { @apply p-6 border border-[var(--danger)]/30; }
