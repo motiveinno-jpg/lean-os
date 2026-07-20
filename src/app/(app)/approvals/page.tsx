@@ -1551,6 +1551,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     reason: "",
   });
   const [files, setFiles] = useState<File[]>([]);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [descriptionInited, setDescriptionInited] = useState<string>("");
   const [selectedApprovers, setSelectedApprovers] = useState<{ userId: string; name: string }[]>([]);
   // 참조(CC) — 결재선과 별개로 결과를 통보만 받는 인원. 양식·정책 기본값을 프리필한 뒤 요청자가 가감할 수 있다.
@@ -2273,14 +2274,36 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             {/* File upload — 드롭존 스타일 */}
             <div className="approval-file-upload">
               <label className="field-label">첨부파일</label>
-              <label className="flex flex-col items-center justify-center gap-1.5 px-4 py-6 rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--bg)]/50 hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/4 transition cursor-pointer">
+              <label
+                className={`flex flex-col items-center justify-center gap-1.5 px-4 py-6 rounded-xl border-2 border-dashed transition cursor-pointer ${
+                  isDraggingFile
+                    ? "border-[var(--primary)] bg-[var(--primary)]/8"
+                    : "border-[var(--border)] bg-[var(--bg)]/50 hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/4"
+                }`}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
+                onDragLeave={(e) => {
+                  // 자식 요소(아이콘·텍스트)로 이동할 때 깜빡이지 않게 — 진짜 영역 밖으로 나갈 때만 해제
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingFile(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(false);
+                  const dropped = Array.from(e.dataTransfer.files || []);
+                  if (dropped.length > 0) setFiles(prev => [...prev, ...dropped]);
+                }}
+              >
                 <svg className="w-6 h-6 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <span className="text-xs font-semibold text-[var(--text-muted)]">클릭해서 파일 첨부</span>
+                <span className="text-xs font-semibold text-[var(--text-muted)]">{isDraggingFile ? "여기에 놓아서 첨부" : "클릭하거나 파일을 끌어다 첨부"}</span>
                 <span className="text-[10px] text-[var(--text-dim)]">여러 개 선택 가능</span>
                 <input
                   type="file"
                   multiple
-                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                  onChange={(e) => {
+                    // 드래그로 넣은 파일이 클릭 첨부 시 사라지지 않게 교체 대신 추가
+                    const picked = Array.from(e.target.files || []);
+                    if (picked.length > 0) setFiles(prev => [...prev, ...picked]);
+                    e.target.value = "";
+                  }}
                   className="hidden"
                 />
               </label>
