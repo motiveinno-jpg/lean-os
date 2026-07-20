@@ -32,7 +32,12 @@ const ROLE_FILTERS = [
 
 export default function PlatformMembersPage() {
   const qc = useQueryClient();
-  const [search, setSearch] = useState("");
+  // 시스템 화면 등에서 ?q=이메일 로 넘어오면 검색어 프리필 (마운트 시 1회).
+  //   전체 클라이언트 렌더 화면이라 window 직접 접근 — useSearchParams 의 Suspense 요구 회피.
+  const [search, setSearch] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("q") || "";
+  });
   const [roleFilter, setRoleFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 

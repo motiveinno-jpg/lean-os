@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -55,12 +56,6 @@ export default function PlatformAveragesPage() {
     },
     enabled: !!effectiveMonth || months.length === 0,
   });
-
-  // 최대값 계산 — 막대 길이 정규화
-  const globalMax = useMemo(() => {
-    const m = rows.reduce((acc, r) => Math.max(acc, Math.abs(r.max_value || 0)), 0);
-    return m || 1;
-  }, [rows]);
 
   const sampleSize = rows[0]?.sample_size ?? 0;
 
@@ -118,7 +113,11 @@ export default function PlatformAveragesPage() {
           const p75 = Number(r.p75_value || 0);
           const min = Number(r.min_value || 0);
           const max = Number(r.max_value || 0);
-          const pct = (v: number) => Math.min(100, Math.max(0, (Math.abs(v) / globalMax) * 100));
+          // 행별 [min, max] 선형 스케일 — 음수 지표(순이익·현금흐름 등)도 올바르게 배치.
+          //   min→0%, max→100%. 지표마다 스케일이 달라 전역 스케일 대신 각 행 도메인 사용.
+          const span = max - min;
+          const pct = (v: number) =>
+            span <= 0 ? 50 : Math.min(100, Math.max(0, ((v - min) / span) * 100));
           return (
             <div key={r.metric} className="platform-metric-card glass-card">
               <div className="flex items-center justify-between mb-3">
@@ -189,7 +188,7 @@ export default function PlatformAveragesPage() {
       {rows.length > 0 && (
         <div className="kpi-callout">
           <b>OP-C</b> · 막대 안 <span className="text-[var(--warning)]">◆</span> 평균, <span className="text-[var(--primary)]">│</span> 중앙값, 박스는 P25~P75.
-          업계별 분리는 <span className="text-[var(--primary)]">/platform/industry</span> (PR-D) 에서.
+          업계별 분리는 <Link href="/platform/industry" className="text-[var(--primary)] hover:underline font-medium">업계 분석</Link>에서.
         </div>
       )}
     </div>

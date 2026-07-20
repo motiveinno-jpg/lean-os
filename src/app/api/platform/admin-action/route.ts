@@ -31,8 +31,25 @@ function generateTempPassword(): string {
   return `Ov-${s}`;
 }
 
+// CSRF 방어 — 쿠키 세션 기반 상태변경 POST 는 same-origin 만 허용.
+//   Origin 헤더가 있으면 요청 host 와 일치해야 함(교차출처 자동제출 차단). Origin 없는 정상 케이스는 통과.
+function isSameOrigin(req: NextRequest): boolean {
+  const origin = req.headers.get("origin");
+  if (!origin) return true; // 서버간 호출·일부 클라이언트는 Origin 미포함 — 세션 인증으로 이미 보호됨
+  try {
+    return new URL(origin).host === req.headers.get("host");
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // 0) CSRF — 교차출처 차단
+    if (!isSameOrigin(req)) {
+      return NextResponse.json({ error: "교차 출처 요청은 허용되지 않습니다." }, { status: 403 });
+    }
+
     // 1) 인증
     const ss = await createSupabaseServerClient();
     const { data: { user: caller } } = await ss.auth.getUser();

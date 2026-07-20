@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 // ── Simple Rate Limiter (Edge-compatible) ──
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_AUTH = 20; // /auth endpoints: 20 req/min
+const RATE_LIMIT_MAX_PLATFORM = 30; // /api/platform 운영자 액션: 30 req/min (고위험 — 연타·자동화 방지)
 const RATE_LIMIT_CLEANUP_THRESHOLD = 500;
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -61,6 +62,14 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/auth') || pathname.startsWith('/api/auth')) {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     if (isRateLimited(`auth:${ip}`, RATE_LIMIT_MAX_AUTH)) {
+      return new NextResponse('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
+    }
+  }
+
+  // Rate limit 플랫폼 운영자 액션 (비밀번호 리셋·계정 잠금 등 고위험 — 연타·자동화 남용 방지)
+  if (pathname.startsWith('/api/platform')) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    if (isRateLimited(`platform:${ip}`, RATE_LIMIT_MAX_PLATFORM)) {
       return new NextResponse('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
     }
   }

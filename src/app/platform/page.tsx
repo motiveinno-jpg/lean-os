@@ -175,17 +175,20 @@ export default function PlatformOverview() {
         </div>
         <div className="space-y-2">
           {companies.slice(0, 8).map((c: any) => {
-            const sub = c.subscriptions?.[0];
+            const subs = Array.isArray(c.subscriptions) ? c.subscriptions : [];
+            const sub = subs.length
+              ? [...subs].sort((a: any, b: any) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())[0]
+              : undefined;
             const plan = sub?.subscription_plans;
             return (
               <div key={c.id} className="platform-signup-row">
-                <div>
-                  <div className="font-semibold text-sm text-[var(--text)]">{c.name}</div>
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm text-[var(--text)] truncate">{c.name}</div>
                   <div className="text-xs text-[var(--text-dim)]">
                     {new Date(c.created_at).toLocaleDateString("ko-KR")}
                   </div>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                <span className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                   plan?.slug === "business" || plan?.slug === "pro" ? "bg-[var(--primary-light)] text-[var(--primary)]" :
                   plan?.slug === "starter" ? "bg-[var(--info-dim)] text-[var(--info)]" :
                   "bg-[var(--bg-surface)] text-[var(--text-muted)]"

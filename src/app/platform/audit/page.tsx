@@ -110,7 +110,7 @@ export default function PlatformAuditPage() {
                     <div className="text-xs text-[var(--text)]">{fmtRelative(a.created_at)}</div>
                     <div className="text-[10px] text-[var(--text-dim)]">{new Date(a.created_at).toLocaleString("ko-KR")}</div>
                   </td>
-                  <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{a.actor_email || a.actor_user_id.slice(0, 8)}</td>
+                  <td className="px-4 py-3 text-[var(--text-muted)] text-xs max-w-[200px] truncate">{a.actor_email || a.actor_user_id?.slice(0, 8) || "—"}</td>
                   <td className="px-4 py-3">
                     <span className="px-2.5 py-1 rounded-full bg-[var(--primary-light)] text-[var(--primary)] text-[11px] font-semibold">
                       {ACTION_LABEL[a.action] || a.action}

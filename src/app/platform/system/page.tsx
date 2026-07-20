@@ -117,7 +117,7 @@ export default function SystemPage() {
                   users.map((u: any) => (
                     <Link
                       key={u.id}
-                      href={`/operator-users?q=${encodeURIComponent(u.email || u.id)}`}
+                      href={`/platform/members?q=${encodeURIComponent(u.email || "")}`}
                       className="platform-user-row"
                     >
                       <div className="min-w-0">
@@ -137,7 +137,7 @@ export default function SystemPage() {
             {/* 역할별 카운트 (기존 유지) */}
             {Object.entries(roleCounts).map(([role, count]) => (
               <div key={role} className="platform-role-count-row">
-                <span className="text-sm text-[var(--text-dim)]">  {role}</span>
+                <span className="text-sm text-[var(--text-dim)] capitalize">{role}</span>
                 <span className="text-sm text-[var(--text-muted)]">{count as number}명</span>
               </div>
             ))}
@@ -176,7 +176,7 @@ export default function SystemPage() {
             {[
               { label: "프레임워크", value: "Next.js 16" },
               { label: "DB", value: "Supabase (PostgreSQL)" },
-              { label: "호스팅", value: "GitHub Pages" },
+              { label: "호스팅", value: "Vercel" },
               { label: "도메인", value: "www.owner-view.com" },
             ].map((item) => (
               <div key={item.label} className="platform-env-item">

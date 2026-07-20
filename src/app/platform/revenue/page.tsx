@@ -81,16 +81,16 @@ export default function RevenuePage() {
           <div className="divide-y divide-[var(--border)]">
             {invoices.map((inv: any) => (
               <div key={inv.id} className="platform-revenue-invoice-row">
-                <div className="flex items-center gap-3">
-                  <div className={`w-2.5 h-2.5 rounded-full ${
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${
                     inv.status === "paid" ? "bg-[var(--success)]" : inv.status === "failed" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"
                   }`} />
-                  <div>
-                    <div className="font-semibold text-sm text-[var(--text)]">{inv.companies?.name}</div>
-                    <div className="text-xs text-[var(--text-dim)]">{inv.invoice_number} · {inv.description || "구독 결제"}</div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-[var(--text)] truncate">{inv.companies?.name || "—"}</div>
+                    <div className="text-xs text-[var(--text-dim)] truncate">{inv.invoice_number} · {inv.description || "구독 결제"}</div>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0 pl-3">
                   <div className="font-bold text-sm mono-number text-[var(--text)]">₩{(inv.total_amount || 0).toLocaleString()}</div>
                   <div className="text-xs text-[var(--text-dim)]">{new Date(inv.created_at).toLocaleDateString("ko-KR")}</div>
                 </div>

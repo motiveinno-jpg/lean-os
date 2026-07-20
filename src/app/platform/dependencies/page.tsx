@@ -13,19 +13,23 @@ type Health = {
   at: string;
 };
 
-function StatusBadge({ status }: { status: "ok" | "warn" | "down" }) {
+type DepStatus = "ok" | "warn" | "down" | "loading";
+
+function StatusBadge({ status }: { status: DepStatus }) {
   const tone =
     status === "ok"
       ? "bg-[var(--success-dim)] text-[var(--success)]"
       : status === "warn"
       ? "bg-[var(--warning-dim)] text-[var(--warning)]"
+      : status === "loading"
+      ? "bg-[var(--bg-surface)] text-[var(--text-muted)]"
       : "bg-[var(--danger-dim)] text-[var(--danger)]";
-  const label = status === "ok" ? "정상" : status === "warn" ? "주의" : "장애";
+  const label = status === "ok" ? "정상" : status === "warn" ? "주의" : status === "loading" ? "확인 중" : "장애";
   return <span className={`platform-dependency-status-badge ${tone}`}>● {label}</span>;
 }
 
 export default function PlatformDependenciesPage() {
-  const { data, isLoading, refetch } = useQuery<Health>({
+  const { data, isLoading, error, refetch } = useQuery<Health>({
     queryKey: ["op-deps-health"],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_dependencies_health");
@@ -35,24 +39,15 @@ export default function PlatformDependenciesPage() {
     refetchInterval: 60000,
   });
 
-  // 상태 판정 휴리스틱
-  const supabaseStatus: "ok" | "warn" | "down" = !data
-    ? "down"
-    : data.supabase.errors_1h > 50
-    ? "warn"
-    : "ok";
-  const stripeStatus: "ok" | "warn" | "down" = !data
-    ? "ok"
-    : data.stripe.failed_invoices_24h > 5
-    ? "warn"
-    : "ok";
-
-  const codefStatus: "ok" | "warn" | "down" =
-    data && data.codef.bank_tx_24h + data.codef.card_tx_24h === 0 ? "warn" : "ok";
+  // 상태 판정 — 로딩/에러를 전 서비스 일관 처리 (로딩=확인 중, 에러=헬스체크 자체 실패로 장애)
+  const baseStatus: DepStatus | null = error ? "down" : !data ? "loading" : null;
+  const supabaseStatus: DepStatus = baseStatus ?? (data!.supabase.errors_1h > 50 ? "warn" : "ok");
+  const stripeStatus: DepStatus = baseStatus ?? (data!.stripe.failed_invoices_24h > 5 ? "warn" : "ok");
+  const codefStatus: DepStatus = baseStatus ?? (data!.codef.bank_tx_24h + data!.codef.card_tx_24h === 0 ? "warn" : "ok");
 
   type Card = {
     name: string;
-    status: "ok" | "warn" | "down";
+    status: DepStatus;
     desc: string;
     links: { label: string; href: string }[];
     blockedOn: string;

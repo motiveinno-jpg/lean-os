@@ -2147,7 +2147,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-feedback-status-summary { @apply flex flex-wrap gap-2 text-xs; }
 .platform-feedback-list { @apply overflow-hidden; }
 .platform-feedback-row { @apply p-5 hover:bg-[var(--bg-surface)]/60 transition; }
-.platform-feedback-actions { @apply flex gap-1 shrink-0; }
+.platform-feedback-actions { @apply flex flex-wrap gap-1 shrink-0 justify-end; }
 
 /* Left as-is (no change needed, do not add to globals.css):
    - platform-audit-footnote kpi-callout (audit/page.tsx line ~120) — marker + existing custom class only, no raw utils

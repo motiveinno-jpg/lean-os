@@ -34,9 +34,28 @@ function fmtDate(s: string | null): string {
   return new Date(s).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
 }
 
+// DateTimeField 는 로컬 벽시계("YYYY-MM-DDTHH:MM")를 주고받는다.
+//   저장값(ISO/UTC)을 폼에 넣을 땐 toISOString(UTC) 이 아니라 로컬 시각으로 변환해야
+//   KST(+9) 기준 9시간 밀림이 생기지 않는다. (증상: 폼 열고 저장만 해도 시각이 밀림)
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromLocalInput(local: string): string | null {
+  if (!local) return null;
+  const d = new Date(local); // 로컬 벽시계로 파싱 → 내부 UTC 타임스탬프
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 function durationLabel(start: string, end: string | null): string {
   if (!end) return "복구 중";
   const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (ms < 0) return "시간 오류"; // 해결시각이 발생시각보다 앞선 입력 실수 방어
   const h = Math.floor(ms / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
   if (h > 0) return `${h}시간 ${m}분`;
@@ -107,6 +126,12 @@ export default function PlatformIncidentsPage() {
       )}
 
       {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
+
+      {!isLoading && items.length === 0 && (
+        <div className="glass-card p-8 text-center text-sm text-[var(--text-dim)]">
+          기록된 사고가 없습니다. 우측 상단 버튼으로 첫 사고를 기록하세요.
+        </div>
+      )}
 
       <div className="platform-incident-list">
         {items.map((i) => (
@@ -186,14 +211,14 @@ function IncidentForm({
       />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <DateTimeField
-          value={value.occurred_at ? new Date(value.occurred_at).toISOString().slice(0, 16) : ""}
-          onChange={(e) => onChange({ ...value, occurred_at: new Date(e.target.value).toISOString() })}
+          value={toLocalInput(value.occurred_at)}
+          onChange={(e) => onChange({ ...value, occurred_at: fromLocalInput(e.target.value) ?? undefined })}
           className="field-input-sm text-sm"
         />
         <DateTimeField
           placeholder="해결시각"
-          value={value.resolved_at ? new Date(value.resolved_at).toISOString().slice(0, 16) : ""}
-          onChange={(e) => onChange({ ...value, resolved_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+          value={toLocalInput(value.resolved_at)}
+          onChange={(e) => onChange({ ...value, resolved_at: fromLocalInput(e.target.value) })}
           className="field-input-sm text-sm"
         />
         <select

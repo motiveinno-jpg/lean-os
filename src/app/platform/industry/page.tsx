@@ -190,7 +190,9 @@ export default function PlatformIndustryPage() {
                   </div>
                 </div>
                 <select
-                  defaultValue=""
+                  // 액션 select — value를 항상 ""로 고정해 선택 후 placeholder로 복귀.
+                  //   실패해도 같은 업종을 다시 고를 수 있음(uncontrolled면 값이 남아 재선택 onChange 미발화).
+                  value=""
                   disabled={setIndustry.isPending}
                   onChange={(e) => {
                     const v = e.target.value;

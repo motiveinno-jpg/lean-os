@@ -8,8 +8,10 @@ const db = supabase;
 
 function fmtW(n: number): string {
   const abs = Math.abs(n);
-  if (abs >= 1e4) return `₩${Math.round(abs / 1e4).toLocaleString()}만`;
-  return `₩${abs.toLocaleString()}`;
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(1)}억`;
+  if (abs >= 1e4) return `${sign}₩${Math.round(abs / 1e4).toLocaleString()}만`;
+  return `${sign}₩${abs.toLocaleString()}`;
 }
 
 export default function ReferralPage() {
@@ -56,8 +58,8 @@ export default function ReferralPage() {
           <div className="divide-y divide-[var(--border)]">
             {referrals.map((r: any, i: number) => (
               <div key={r.id} className="platform-referral-row">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                     i === 0 ? "bg-[var(--warning-dim)] text-[var(--warning)]" :
                     i === 1 ? "bg-[var(--bg-surface)] text-[var(--text-muted)]" :
                     i === 2 ? "bg-[var(--primary-light)] text-[var(--primary)]" :
@@ -65,12 +67,12 @@ export default function ReferralPage() {
                   }`}>
                     {i + 1}
                   </div>
-                  <div>
-                    <div className="font-semibold text-sm text-[var(--text)]">{r.companies?.name || "알 수 없음"}</div>
-                    <div className="text-xs font-mono text-[var(--text-dim)]">{r.code}</div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-[var(--text)] truncate">{r.companies?.name || "알 수 없음"}</div>
+                    <div className="text-xs font-mono text-[var(--text-dim)] truncate">{r.code}</div>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0 pl-3">
                   <div className="font-bold text-sm mono-number text-[var(--text)]">{r.referred_count || 0}명</div>
                   <div className="text-xs text-[var(--text-dim)]">{fmtW(r.credit_earned || 0)}</div>
                 </div>

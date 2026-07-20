@@ -150,6 +150,8 @@ export default function PlatformErrorsPage() {
           {filteredGroups.map((g) => {
             const tone = SEVERITY_TONE[g.explanation.severity];
             const unresolvedCount = g.rows.filter((r) => !r.resolved).length;
+            // "미해결" 필터일 땐 그룹 안 행 목록도 미해결만 — 라벨과 표시 내용 일치
+            const visibleRows = filter === "unresolved" ? g.rows.filter((r) => !r.resolved) : g.rows;
             return (
               <div key={g.code} className="platform-error-group-card glass-card">
                 <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
@@ -176,7 +178,7 @@ export default function PlatformErrorsPage() {
                   </div>
                 </div>
                 <div className="platform-error-row-list">
-                  {g.rows.slice(0, 5).map((r) => (
+                  {visibleRows.slice(0, 5).map((r) => (
                     <button
                       key={r.id}
                       onClick={() => setSelectedId(r.id)}
@@ -196,9 +198,9 @@ export default function PlatformErrorsPage() {
                       <div className="text-[11px] text-[var(--text-dim)] truncate mt-0.5">{r.message}</div>
                     </button>
                   ))}
-                  {g.rows.length > 5 && (
+                  {visibleRows.length > 5 && (
                     <div className="px-5 py-2 text-[11px] text-[var(--text-dim)] text-center">
-                      … 외 {g.rows.length - 5}건
+                      … 외 {visibleRows.length - 5}건
                     </div>
                   )}
                 </div>

@@ -163,10 +163,10 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
       {/* 핵심 지표 */}
       <div className="platform-company-kpi-grid">
         {[
-          { label: "사용자", value: `${data.user_count}명`, sub: `관리자 ${data.admin_count} · 직원 ${data.employee_count}` },
-          { label: "딜", value: `${data.deals_count}개`, sub: `진행중 ${data.deals_active_count}` },
-          { label: "통장 거래", value: `${data.bank_tx_count.toLocaleString()}건`, sub: `카드 ${data.card_tx_count.toLocaleString()}건` },
-          { label: "누적 결제", value: fmtW(Number(data.paid_invoices_total || 0)), sub: `${data.paid_invoices_count}건` },
+          { label: "사용자", value: `${Number(data.user_count || 0)}명`, sub: `관리자 ${Number(data.admin_count || 0)} · 직원 ${Number(data.employee_count || 0)}` },
+          { label: "딜", value: `${Number(data.deals_count || 0)}개`, sub: `진행중 ${Number(data.deals_active_count || 0)}` },
+          { label: "통장 거래", value: `${Number(data.bank_tx_count || 0).toLocaleString()}건`, sub: `카드 ${Number(data.card_tx_count || 0).toLocaleString()}건` },
+          { label: "누적 결제", value: fmtW(Number(data.paid_invoices_total || 0)), sub: `${Number(data.paid_invoices_count || 0)}건` },
         ].map((kpi) => (
           <div key={kpi.label} className="platform-company-kpi-card glass-card">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">{kpi.label}</span>
@@ -181,7 +181,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
         <div className="platform-company-errors-card glass-card">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">24시간 에러</span>
           <div className={`text-[26px] leading-8 font-extrabold mono-number ${data.errors_24h > 50 ? "text-[var(--danger)]" : data.errors_24h > 10 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
-            {data.errors_24h}건
+            {Number(data.errors_24h || 0)}건
           </div>
           <Link href="/platform/errors" className="text-[11px] text-[var(--primary)] hover:underline inline-block">
             전체 에러 해석 →

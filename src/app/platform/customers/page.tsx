@@ -1,13 +1,23 @@
 "use client";
 import { logRead } from "@/lib/log-read";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 const db = supabase;
+
+// 회사의 구독 배열에서 "가장 최근" 구독을 고른다 — 쿼리에 정렬이 없어 [0]이 최신이 아닐 수 있으므로
+//   created_at 내림차순으로 골라 오래된(canceled) 구독이 표시되는 것을 방지.
+function latestSub(company: any): any {
+  const subs = company?.subscriptions;
+  if (!Array.isArray(subs) || subs.length === 0) return undefined;
+  return [...subs].sort(
+    (a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime(),
+  )[0];
+}
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   trialing: { bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]", label: "체험중" },
@@ -30,15 +40,18 @@ export default function CustomersPage() {
     },
   });
 
-  const filtered = companies.filter((c: any) => {
-    if (search && !c.name?.toLowerCase().includes(search.toLowerCase())) return false;
-    if (statusFilter !== "all") {
-      const sub = c.subscriptions?.[0];
-      if (statusFilter === "free" && sub?.subscription_plans?.slug !== "free" && sub) return false;
-      if (statusFilter === "paid" && (!sub || sub.subscription_plans?.slug === "free")) return false;
-    }
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return companies.filter((c: any) => {
+      if (q && !c.name?.toLowerCase().includes(q)) return false;
+      if (statusFilter !== "all") {
+        const sub = latestSub(c);
+        if (statusFilter === "free" && sub?.subscription_plans?.slug !== "free" && sub) return false;
+        if (statusFilter === "paid" && (!sub || sub.subscription_plans?.slug === "free")) return false;
+      }
+      return true;
+    });
+  }, [companies, search, statusFilter]);
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -88,7 +101,7 @@ export default function CustomersPage() {
             </thead>
             <tbody>
               {filtered.map((c: any) => {
-                const sub = c.subscriptions?.[0];
+                const sub = latestSub(c);
                 const plan = sub?.subscription_plans;
                 const st = STATUS_COLORS[sub?.status || "trialing"] || STATUS_COLORS.trialing;
                 return (
@@ -97,10 +110,10 @@ export default function CustomersPage() {
                     onClick={() => router.push(`/platform/companies/${c.id}`)}
                     className="platform-customer-row"
                   >
-                    <td className="px-5 py-3.5">
-                      <div className="font-semibold text-[var(--text)]">{c.name}</div>
+                    <td className="px-5 py-3.5 max-w-[280px]">
+                      <div className="font-semibold text-[var(--text)] truncate">{c.name}</div>
                       {c.industry ? (
-                        <div className="text-xs text-[var(--text-dim)]">{c.industry}</div>
+                        <div className="text-xs text-[var(--text-dim)] truncate">{c.industry}</div>
                       ) : (
                         <div className="text-xs text-[var(--warning)]">업종 미분류</div>
                       )}

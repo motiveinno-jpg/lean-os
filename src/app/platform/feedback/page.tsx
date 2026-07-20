@@ -67,8 +67,8 @@ export default function FeedbackPage() {
               const st = FB_STATUS[fb.status] || FB_STATUS.pending;
               return (
                 <div key={fb.id} className="platform-feedback-row">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${st.bg} ${st.text}`}>{st.label}</span>
                         <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] font-medium">
@@ -78,11 +78,11 @@ export default function FeedbackPage() {
                       <div className="font-semibold text-[var(--text)]">{fb.title}</div>
                       {fb.description && <div className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed">{fb.description}</div>}
                       <div className="text-xs text-[var(--text-dim)] mt-2">
-                        {fb.companies?.name} · {fb.users?.name || fb.users?.email} · {new Date(fb.created_at).toLocaleDateString("ko-KR")}
+                        {fb.companies?.name || "—"} · {fb.users?.name || fb.users?.email || "익명"} · {new Date(fb.created_at).toLocaleDateString("ko-KR")}
                       </div>
                     </div>
                     <div className="platform-feedback-actions">
-                      {["reviewed", "planned", "in_progress", "done", "rejected"].map((s) => (
+                      {["pending", "reviewed", "planned", "in_progress", "done", "rejected"].map((s) => (
                         <button
                           key={s}
                           onClick={() => updateStatus.mutate({ id: fb.id, status: s })}
