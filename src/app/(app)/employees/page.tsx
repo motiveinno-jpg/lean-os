@@ -25,6 +25,10 @@ import {
   // Leave Promotion
   getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
 } from "@/lib/hr";
+import {
+  getMonthlyAccrualSettings, setMonthlyAccrualSettings, syncMonthlyLeaveGrants,
+  ACCRUAL_BASIS_LABELS, type MonthlyAccrualBasis,
+} from "@/lib/leave-grants";
 import { EmployeeDetailPanel } from "./_components/EmployeeDetailPanel";
 import { MemberRoleManager } from "./_components/MemberRoleManager";
 import {
@@ -2888,6 +2892,30 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     onError: (err: any) => toast("부여 방식 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
+  // 1년 미만 근속자 월 1일 자동 발생 — on/off + 기준(입사일/회계연도). 실제 생성은 pg_cron.
+  const { data: accrual = { enabled: false, basis: "hire" as MonthlyAccrualBasis } } = useQuery({
+    queryKey: ["leave-monthly-accrual", companyId],
+    queryFn: () => getMonthlyAccrualSettings(companyId!),
+    enabled: !!companyId,
+  });
+  const saveAccrualMut = useMutation({
+    mutationFn: (next: { enabled: boolean; basis: MonthlyAccrualBasis }) => setMonthlyAccrualSettings(companyId!, next),
+    onSuccess: (_d, next) => {
+      queryClient.invalidateQueries({ queryKey: ["leave-monthly-accrual", companyId] });
+      toast(next.enabled ? `월 1일 자동 발생 켬 · ${ACCRUAL_BASIS_LABELS[next.basis].label}` : "월 1일 자동 발생 끔", "success");
+    },
+    onError: (err: any) => toast("저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
+  });
+  const syncAccrualMut = useMutation({
+    mutationFn: () => syncMonthlyLeaveGrants(),
+    onSuccess: (count: number) => {
+      queryClient.invalidateQueries({ queryKey: ["leave-balances-list"] });
+      queryClient.invalidateQueries({ queryKey: ["emp-leave-grants"] });
+      toast(count > 0 ? `발생 ${count}건이 추가되었습니다` : "추가할 발생분이 없습니다", "success");
+    },
+    onError: (err: any) => toast("반영 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
+  });
+
   // R12: 연차 부여 방식 — 선택+저장 후 작은 요약으로 접힘 (변경 시 펼침)
   const [grantEditing, setGrantEditing] = useState(false);
   const [pendingGrant, setPendingGrant] = useState<LeaveGrantMethod | null>(null);
@@ -3025,6 +3053,60 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           ))}
         </div>
       </div>
+
+      {/* 1년 미만 근속자 월 1일 자동 발생 (근로기준법 60조 2항) — 켜면 매일 자정 자동 생성 */}
+      {!isEmployee && (
+        <div className="leave-accrual-panel glass-card">
+          <label className="leave-accrual-toggle">
+            <input
+              type="checkbox"
+              checked={accrual.enabled}
+              onChange={(e) => saveAccrualMut.mutate({ ...accrual, enabled: e.target.checked })}
+              disabled={saveAccrualMut.isPending}
+              className="w-4 h-4 accent-[var(--primary)] shrink-0"
+            />
+            <div className="min-w-0">
+              <div className="text-sm font-bold">1년 미만 근속자 월 1일 연차 자동 발생</div>
+              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                입사 1년 전까지 매월 1일씩(최대 11일) 자동으로 발생 이력에 쌓입니다. 근로기준법 60조 2항.
+              </p>
+            </div>
+          </label>
+
+          {accrual.enabled && (
+            <div className="leave-accrual-basis">
+              <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">발생 기준</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {(Object.keys(ACCRUAL_BASIS_LABELS) as MonthlyAccrualBasis[]).map((k) => {
+                  const on = accrual.basis === k;
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => saveAccrualMut.mutate({ ...accrual, basis: k })}
+                      disabled={saveAccrualMut.isPending}
+                      className={`leave-accrual-basis-opt ${on ? "leave-accrual-basis-opt-on" : ""}`}
+                    >
+                      <div className="text-xs font-bold">{ACCRUAL_BASIS_LABELS[k].label}</div>
+                      <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{ACCRUAL_BASIS_LABELS[k].desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <button
+                  onClick={() => syncAccrualMut.mutate()}
+                  disabled={syncAccrualMut.isPending}
+                  className="btn-secondary btn-sm disabled:opacity-50"
+                  title="누락된 과거 발생분을 지금 즉시 생성합니다"
+                >
+                  {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
+                </button>
+                <span className="text-[11px] text-[var(--text-dim)]">매일 자정에도 자동으로 반영됩니다</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 연차 부여 방식 — R12: 저장 후 작은 요약으로 접힘, '변경' 시 펼침 */}
       {!isEmployee && (

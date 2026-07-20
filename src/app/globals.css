@@ -1969,6 +1969,13 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mypage-ledger-years { @apply mx-5 mt-4 w-fit; }
 .mypage-ledger-row { @apply flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .mypage-ledger-grant { @apply bg-[var(--primary)]/6 border-[var(--primary)]/25; }
+/* 인사관리 연차 — 1년 미만 근속자 월 자동 발생 설정 */
+.leave-accrual-panel { @apply p-4; }
+.leave-accrual-toggle { @apply flex items-start gap-3 cursor-pointer; }
+.leave-accrual-basis { @apply mt-3 pt-3 border-t border-[var(--border)]; }
+.leave-accrual-basis-opt { @apply text-left px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] transition hover:border-[var(--primary)]/40; }
+.leave-accrual-basis-opt-on { @apply border-[var(--primary)]/50 bg-[var(--primary)]/8; }
+
 /* 구성원 상세 — 연차 발생 이력 목록/추가 폼 */
 .employee-leave-grants { @apply p-4; }
 .employee-leave-grant-row { @apply flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }
