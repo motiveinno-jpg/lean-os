@@ -22,7 +22,7 @@ type BillingCycle = "monthly" | "annual";
 const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommended?: boolean }> = {
   free: { icon: "🎁", features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
   basic: { icon: "🚀", recommended: true, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자계약 · 전자결재 무제한", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏"] },
-  ultra: { icon: "⚡", features: ["프로 전체 +", "은행·카드 동기화 무제한", "연결 계좌·카드 수 제한 없음", "신기능 우선 제공", "우선 지원"] },
+  ultra: { icon: "⚡", features: ["기본요금제 전체 +", "세금계산서·현금영수증 발행 무제한", "AI 브리핑 — 매일 액션 플랜", "은행·카드 동기화 무제한", "신기능 우선 제공 · 우선 지원"] },
   enterprise: { icon: "🏢", features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 보장"] },
 };
 

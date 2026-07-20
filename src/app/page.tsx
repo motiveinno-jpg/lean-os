@@ -21,7 +21,7 @@ const COMPETITORS = [
 const PLANS = [
   { name: "무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 14일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
   { name: "프로", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀의 표준", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자계약 · 전자결재 무제한", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "세금계산서·현금영수증 국세청 발행 월 10건"] },
-  { name: "울트라", regularPrice: null, betaPrice: "88,000", unit: "원/월", period: "VAT 별도 · 데이터 헤비유저", desc: "동기화·자동화 최대치", perSeat: null, hl: false, discount: null, features: ["프로 전체 +", "세금계산서·현금영수증 국세청 발행 무제한", "AI 브리핑 — 매일 우선순위 액션 플랜", "신기능 우선 제공", "우선 지원"] },
+  { name: "울트라", regularPrice: null, betaPrice: "88,000", unit: "원/월", period: "VAT 별도 · 데이터 헤비유저", desc: "동기화·자동화 최대치", perSeat: null, hl: false, discount: null, features: ["기본요금제 전체 +", "세금계산서·현금영수증 국세청 발행 무제한", "AI 브리핑 — 매일 우선순위 액션 플랜", "신기능 우선 제공", "우선 지원"] },
   { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 보장"] },
 ];
 
