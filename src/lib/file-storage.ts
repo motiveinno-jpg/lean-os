@@ -13,7 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { logAudit } from "./audit";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 
@@ -288,15 +288,15 @@ export async function createNewVersion(
     .order("version", { ascending: false })
     .limit(1));
 
-  const nextVersion = versions && versions.length > 0 ? versions[0].version + 1 : parent.version + 1;
+  const nextVersion = versions && versions.length > 0 ? (versions[0].version ?? 0) + 1 : (parent?.version ?? 0) + 1;
 
   // Upload to storage
   const ext = getExtension(file.name);
   const basePath = buildStoragePath(companyId, {
-    documentId: parent.document_id,
-    dealId: parent.deal_id,
-    vaultDocId: parent.vault_doc_id,
-    folderId: parent.folder_id,
+    documentId: parent?.document_id ?? undefined,
+    dealId: parent?.deal_id ?? undefined,
+    vaultDocId: parent?.vault_doc_id ?? undefined,
+    folderId: parent?.folder_id ?? undefined,
   });
   const storagePath = `${basePath}_v${nextVersion}.${ext}`;
 

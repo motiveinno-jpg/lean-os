@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
-const db = supabase as any;
+const db = supabase;
 
 // ── 플랜 타입 정의 ──
 export type PlanSlug = 'free' | 'starter' | 'basic' | 'business' | 'ultra' | 'pro' | 'enterprise';
@@ -157,12 +157,12 @@ export async function getCurrentSubscription(
     seatCount: data.seat_count,
     billingCycle: data.billing_cycle as 'monthly' | 'yearly',
     status: data.status as SubscriptionInfo['status'],
-    currentPeriodStart: data.current_period_start,
-    currentPeriodEnd: data.current_period_end,
+    currentPeriodStart: data.current_period_start ?? '',
+    currentPeriodEnd: data.current_period_end ?? '',
     cancelledAt: data.canceled_at || null,
     cancelReason: data.cancel_reason || null,
     billingKey: data.stripe_customer_id || null,
-    createdAt: data.created_at,
+    createdAt: data.created_at ?? '',
   };
 }
 
@@ -224,12 +224,12 @@ export async function createSubscription(
     seatCount: data.seat_count,
     billingCycle: data.billing_cycle as 'monthly' | 'yearly',
     status: data.status as SubscriptionInfo['status'],
-    currentPeriodStart: data.current_period_start,
-    currentPeriodEnd: data.current_period_end,
+    currentPeriodStart: data.current_period_start ?? '',
+    currentPeriodEnd: data.current_period_end ?? '',
     cancelledAt: null,
     cancelReason: null,
     billingKey: null,
-    createdAt: data.created_at,
+    createdAt: data.created_at ?? '',
   };
 }
 
@@ -359,7 +359,7 @@ export async function updateSubscription(
 
   const { error } = await db
     .from('subscriptions')
-    .update(updatePayload)
+    .update(updatePayload as never)
     .eq('id', subscriptionId);
 
   if (error) throw error;
@@ -478,6 +478,7 @@ export async function createInvoice(
       subscription_id: subscriptionId,
       invoice_number: invoiceNumber,
       amount,
+      total_amount: amount, // 2026-07-20: NOT NULL 컬럼 누락으로 insert 가 항상 400 이었음
       description,
       status: 'pending',
     })
@@ -496,11 +497,11 @@ export async function createInvoice(
     id: data.id,
     companyId: data.company_id,
     subscriptionId: data.subscription_id || null,
-    invoiceNumber: data.invoice_number,
+    invoiceNumber: data.invoice_number ?? '',
     amount: Number(data.amount),
     status: data.status as InvoiceRecord['status'],
     description: data.description || null,
-    issuedAt: data.created_at,
+    issuedAt: data.created_at ?? '',
     paidAt: data.paid_at || null,
   };
 }
@@ -562,7 +563,7 @@ export async function logBillingEvent(
   const { error } = await db.from('billing_events').insert({
     company_id: companyId,
     event_type: eventType,
-    metadata,
+    metadata: metadata as never,
     created_at: new Date().toISOString(),
   });
 

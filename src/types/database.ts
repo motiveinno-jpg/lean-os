@@ -512,12 +512,14 @@ export type Database = {
           created_at: string | null
           description_template: string | null
           entity_type: string
+          fields: Json
           id: string
           is_active: boolean
           label: string | null
           max_amount: number | null
           min_amount: number | null
           name: string
+          reference_user_ids: string[]
           requester_id: string | null
           required_role: string | null
           stages: Json | null
@@ -531,12 +533,14 @@ export type Database = {
           created_at?: string | null
           description_template?: string | null
           entity_type: string
+          fields?: Json
           id?: string
           is_active?: boolean
           label?: string | null
           max_amount?: number | null
           min_amount?: number | null
           name?: string
+          reference_user_ids?: string[]
           requester_id?: string | null
           required_role?: string | null
           stages?: Json | null
@@ -550,12 +554,14 @@ export type Database = {
           created_at?: string | null
           description_template?: string | null
           entity_type?: string
+          fields?: Json
           id?: string
           is_active?: boolean
           label?: string | null
           max_amount?: number | null
           min_amount?: number | null
           name?: string
+          reference_user_ids?: string[]
           requester_id?: string | null
           required_role?: string | null
           stages?: Json | null
@@ -9358,7 +9364,15 @@ export type Database = {
           user_agent?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quote_approvals: {
         Row: {
@@ -12159,6 +12173,10 @@ export type Database = {
       }
       get_company_overview: { Args: { p_company_id: string }; Returns: Json }
       get_company_plan_slug: { Args: never; Returns: string }
+      get_contract_package_by_token: {
+        Args: { p_token: string }
+        Returns: Json
+      }
       get_credential_key: { Args: never; Returns: string }
       get_my_assigned_deals: {
         Args: never
@@ -12606,6 +12624,16 @@ export type Database = {
           p_entry_date: string
           p_entry_id: string
           p_lines: Json
+        }
+        Returns: undefined
+      }
+      upsert_push_subscription: {
+        Args: {
+          p_auth: string
+          p_company_id?: string
+          p_endpoint: string
+          p_p256dh: string
+          p_user_agent?: string
         }
         Returns: undefined
       }

@@ -1226,7 +1226,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   // status 와 is_late 불일치 흡수: is_late=true 면 'late' 우선 (UI 일관성).
   //   edge attendance-checkin INSERT 시 status·is_late 계산 source 가 달라 어긋날 수 있음.
   //   근본 fix(edge 통합) 는 별건 — 본 헬퍼는 표시 단의 안전망.
-  const effectiveStatus = (r: { is_late?: boolean; status?: string | null }): string =>
+  const effectiveStatus = (r: { is_late?: boolean | null; status?: string | null }): string =>
     r.is_late ? 'late' : (r.status || 'present');
 
   // Get month start/end for queries

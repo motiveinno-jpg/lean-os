@@ -3,7 +3,7 @@ import { logRead } from "@/lib/log-read";
  * Document Sharing — 공개 열람 링크 + 열람 추적 + 피드백
  */
 import { supabase } from './supabase';
-const db = supabase as any;
+const db = supabase;
 
 // ── Create Share Link ──
 
@@ -58,12 +58,16 @@ export async function getShareByToken(token: string) {
 
 export async function recordShareView(shareId: string) {
   // Increment counter
-  await db.rpc('increment_share_view_count', { share_id_param: shareId }).catch(() => {
-    // Fallback: just update directly
-    db.from('document_shares')
-      .update({ view_count: db.raw('view_count + 1'), last_viewed_at: new Date().toISOString() })
+  // 2026-07-20: 빌더에는 .catch 가 없어(thenable, Promise 아님) 기존 코드는 매 호출 TypeError
+  //   → 조회수·열람로그가 전멸했었음. 에러는 결과 객체로 받는다. (db.raw 도 supabase-js 에 없는 API)
+  const { error: rpcErr } = await db.rpc('increment_share_view_count', { share_id_param: shareId });
+  if (rpcErr) {
+    // Fallback: 직접 +1 (RPC 실패 시에만 — 원자성은 낮지만 조회수 성격상 허용)
+    const { data: cur } = await db.from('document_shares').select('view_count').eq('id', shareId).maybeSingle();
+    await db.from('document_shares')
+      .update({ view_count: (cur?.view_count ?? 0) + 1, last_viewed_at: new Date().toISOString() })
       .eq('id', shareId);
-  });
+  }
 
   // Log the view
   await db.from('document_share_views').insert({
@@ -153,14 +157,16 @@ async function notifyFeedbackReceived(
     });
   } catch { /* fail silently */ }
 
-  // Record notification
-  await db.from('document_notifications').insert({
+  // Record notification — 실패해도 흐름 유지 (2026-07-20: 빌더 .catch 는 TypeError 라
+  //   이 지점에서 함수가 죽어 아래 승인 파이프라인 트리거까지 전멸했었음)
+  const { error: notifErr } = await db.from('document_notifications').insert({
     company_id: share.company_id,
     document_id: doc.id,
     event_type: 'feedback_received',
     recipient_email: creator.email,
     metadata: { decision, responderName, comment },
-  }).catch(() => {});
+  });
+  if (notifErr) console.error('document_notifications insert 실패:', notifErr.message);
 
   // 승인 피드백 시 → 파이프라인 자동 트리거
   if (decision === 'approved' && doc.deal_id) {

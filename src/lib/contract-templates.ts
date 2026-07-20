@@ -16,7 +16,7 @@
 import { supabase } from "@/lib/supabase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 export interface ContractTemplate {
   id: string;
@@ -49,7 +49,7 @@ export async function listContractTemplates(companyId: string): Promise<Contract
     .order("is_system", { ascending: false })
     .order("sort_order", { ascending: true });
   if (error) throw error;
-  return (data || []).filter((t: ContractTemplate) => t.is_active);
+  return ((data || []) as unknown as ContractTemplate[]).filter((t: ContractTemplate) => t.is_active);
 }
 
 export async function createContractTemplate(params: {
@@ -105,7 +105,7 @@ export async function updateContractTemplate(id: string, patch: Partial<{
 
   const { data, error } = await db
     .from("contract_templates")
-    .update(update)
+    .update(update as never)
     .eq("id", id)
     .select()
     .single();

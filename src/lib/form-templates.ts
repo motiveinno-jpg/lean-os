@@ -1,14 +1,14 @@
 // 핸드오프 → 적용 경로: src/lib/form-templates.ts  (2026-06-29, P2)
 //
 // pdf_form_templates CRUD + storage(form-templates) 업로드 + pdfjs 래스터화 + parse-form-template edge 호출.
-// 패턴: contract-templates.ts(supabase as any), rich-editor.tsx(pdfjs dynamic import) 재사용.
+// 패턴: contract-templates.tssupabase, rich-editor.tsx(pdfjs dynamic import) 재사용.
 
 import { supabase } from "@/lib/supabase";
 import type { OverlayField } from "@/lib/pdf-overlay";
 export type { OverlayField } from "@/lib/pdf-overlay"; // 에디터 등 form-templates 경유 import 호환
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 export type DocType = "quote" | "contract" | "hr_form";
 
@@ -211,7 +211,7 @@ export async function listFormTemplates(docType?: DocType): Promise<PdfFormTempl
   if (docType) q = q.eq("doc_type", docType);
   const { data, error } = await q;
   if (error) throw error;
-  return (data || []) as PdfFormTemplate[];
+  return (data || []) as unknown as PdfFormTemplate[];
 }
 
 /** 회사·doc_type 당 활성 1개 — 견적/계약 생성 시 폴백 판정에 사용. */
@@ -227,7 +227,7 @@ export async function getActiveTemplate(
     .eq("is_active", true)
     .maybeSingle();
   if (error) throw error;
-  return (data as PdfFormTemplate) || null;
+  return (data as unknown as PdfFormTemplate) || null;
 }
 
 export async function saveFormTemplate(input: {
@@ -249,8 +249,8 @@ export async function saveFormTemplate(input: {
       doc_type: input.docType,
       file_path: input.filePath,
       page_count: input.pageCount,
-      page_sizes: input.pageSizes,
-      fields: input.fields,
+      page_sizes: input.pageSizes as never,
+      fields: input.fields as never,
       is_active: false,
       content_html: input.contentHtml ?? null,
       template_mode: input.templateMode ?? "overlay",
@@ -258,7 +258,7 @@ export async function saveFormTemplate(input: {
     .select()
     .single();
   if (error) throw error;
-  return data as PdfFormTemplate;
+  return data as unknown as PdfFormTemplate;
 }
 
 /** 텍스트변환 양식 본문 갱신 */
@@ -276,7 +276,7 @@ export async function updateFormTemplateFields(
 ): Promise<void> {
   const { error } = await db
     .from("pdf_form_templates")
-    .update({ fields, updated_at: new Date().toISOString() })
+    .update({ fields: fields as never, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
 }

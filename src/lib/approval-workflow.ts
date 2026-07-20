@@ -12,7 +12,7 @@ import { createNotification } from './notifications';
 import type { ApprovalFormField } from './approval-forms';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 
@@ -174,9 +174,9 @@ export async function upsertApprovalPolicy(
     reference_user_ids: policy.reference_user_ids ?? [],
   };
 
-  let { data, error } = await db.from('approval_policies').upsert(fullRow).select().single();
+  let { data, error } = await db.from('approval_policies').upsert(fullRow as never).select().single();
   if (error && /label|description_template|allow_line_edit|requester_id|fields|reference_user_ids|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
-    ({ data, error } = await db.from('approval_policies').upsert(baseRow).select().single());
+    ({ data, error } = await db.from('approval_policies').upsert(baseRow as never).select().single());
   }
   if (error) throw error;
   const d = data as Record<string, unknown>;
@@ -286,7 +286,7 @@ export async function createApprovalRequest(params: {
       total_stages: totalStages,
       attachments: params.attachments ?? [],
       form_id: params.formId ?? null,
-      custom_fields: params.customFields ?? {},
+      custom_fields: (params.customFields ?? {}) as never,
       reference_user_ids: params.referenceUserIds ?? [],
     })
     .select()
@@ -880,7 +880,7 @@ export async function updateApprovalRequest(params: {
 
   const { error } = await db
     .from('approval_requests')
-    .update(updates)
+    .update(updates as never)
     .eq('id', params.requestId)
     .eq('status', 'pending');
   if (error) throw error;
@@ -914,7 +914,7 @@ export async function resubmitRequest(
   if (title) updates.title = title;
   if (amount !== undefined) updates.amount = amount;
 
-  await db.from('approval_requests').update(updates).eq('id', requestId);
+  await db.from('approval_requests').update(updates as never).eq('id', requestId);
 
   // Delete old steps
   await db.from('approval_steps').delete().eq('request_id', requestId);
@@ -931,7 +931,7 @@ export async function resubmitRequest(
       .eq('id', request.policy_id)
       .single());
     if (policy?.stages) {
-      stages = policy.stages;
+      stages = policy.stages as unknown as ApprovalStageConfig[];
     }
   }
 

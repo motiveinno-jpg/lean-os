@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const db = supabase as any;
+const db = supabase;
 
 /**
  * Encrypt a plaintext credential using server-side pgcrypto (AES-256).
@@ -58,7 +58,7 @@ export async function encryptJsonCredentials(
   if (!credentials || Object.keys(credentials).length === 0) return credentials;
 
   const { data, error } = await db.rpc('encrypt_json_credentials', {
-    p_creds: credentials,
+    p_creds: credentials as never,
   });
 
   if (error) {
@@ -82,7 +82,7 @@ export async function decryptJsonCredentials(
   if (!credentials || Object.keys(credentials).length === 0) return credentials;
 
   const { data, error } = await db.rpc('decrypt_json_credentials', {
-    p_creds: credentials,
+    p_creds: credentials as never,
   });
 
   if (error) {

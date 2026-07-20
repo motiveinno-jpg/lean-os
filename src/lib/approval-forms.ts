@@ -4,7 +4,7 @@
 import { supabase } from "@/lib/supabase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 export type ApprovalFieldType = "text" | "number" | "amount" | "date" | "select" | "textarea" | "fixed";
 export const FIELD_TYPE_LABEL: Record<ApprovalFieldType, string> = {
@@ -55,7 +55,7 @@ export async function listApprovalForms(): Promise<ApprovalForm[]> {
     .eq("is_active", true)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data || []) as ApprovalForm[];
+  return (data || []) as unknown as ApprovalForm[];
 }
 
 export interface SaveApprovalFormInput {
@@ -88,12 +88,12 @@ export async function saveApprovalForm(input: SaveApprovalFormInput): Promise<st
     updated_at: new Date().toISOString(),
   };
   if (input.id) {
-    const { error } = await db.from("approval_forms").update(row).eq("id", input.id);
+    const { error } = await db.from("approval_forms").update(row as never).eq("id", input.id);
     if (error) throw error;
     return input.id;
   }
   row.created_by = input.createdBy || null;
-  const { data, error } = await db.from("approval_forms").insert(row).select("id").single();
+  const { data, error } = await db.from("approval_forms").insert(row as never).select("id").single();
   if (error) throw error;
   return data.id as string;
 }

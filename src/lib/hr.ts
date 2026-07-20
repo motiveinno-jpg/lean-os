@@ -16,7 +16,7 @@ import {
 
 // Use `any` cast for tables not yet in the generated DB types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Salary History ──
 export async function getSalaryHistory(employeeId: string) {
@@ -247,7 +247,7 @@ export async function getAttendancePolicy(companyId: string, employeeId?: string
       .select('work_start_time, late_grace_minutes, settings')
       .eq('company_id', companyId)
       .maybeSingle());
-    const s = data?.settings || {};
+    const s = (data?.settings as Record<string, unknown> | null) || {};
     // 1) 신규 컬럼 우선
     let wst: string | null = null;
     if (typeof data?.work_start_time === 'string' && /^\d{2}:\d{2}/.test(data.work_start_time)) {
@@ -257,7 +257,7 @@ export async function getAttendancePolicy(companyId: string, employeeId?: string
     }
     let ltm: number | null = null;
     if (Number.isFinite(Number(data?.late_grace_minutes))) {
-      ltm = Math.max(0, Math.min(240, Math.trunc(Number(data.late_grace_minutes))));
+      ltm = Math.max(0, Math.min(240, Math.trunc(Number(data?.late_grace_minutes))));
     } else if (Number.isFinite(Number(s.late_threshold_minutes))) {
       ltm = Math.max(0, Math.min(240, Math.trunc(Number(s.late_threshold_minutes))));
     }
@@ -298,7 +298,7 @@ export async function setAttendancePolicy(
 
   const { error } = await db
     .from('company_settings')
-    .upsert(patch, { onConflict: 'company_id' });
+    .upsert(patch as never, { onConflict: 'company_id' });
   if (error) throw error;
 }
 
@@ -341,12 +341,8 @@ export async function getAttendanceCompanySettings(companyId: string): Promise<A
   try {
     const data = logRead('lib/hr:data', await db
       .from('company_settings')
-      .select(
-        'work_start_time, work_end_time, lunch_minutes, late_grace_minutes, ' +
-        'night_start_time, night_end_time, weekly_work_hours, ' +
-        'is_under_5_employees, is_inclusive_wage, monthly_standard_hours, ' +
-        'on_duty_pay_per_shift, workdays_mask, settings'
-      )
+      // 문자열 연결 select 는 PostgREST 타입 파서가 못 읽음 — 단일 리터럴 유지
+      .select('work_start_time, work_end_time, lunch_minutes, late_grace_minutes, night_start_time, night_end_time, weekly_work_hours, is_under_5_employees, is_inclusive_wage, monthly_standard_hours, on_duty_pay_per_shift, workdays_mask, settings')
       .eq('company_id', companyId)
       .maybeSingle());
     const s = (data?.settings as Record<string, unknown> | null) || {};
@@ -432,7 +428,7 @@ export async function setAttendanceCompanySettings(
   }
   const { error } = await db
     .from('company_settings')
-    .upsert(row, { onConflict: 'company_id' });
+    .upsert(row as never, { onConflict: 'company_id' });
   if (error) throw error;
 }
 
@@ -502,7 +498,7 @@ export async function recomputeAttendance(params: {
       const myEmpId = await db
         .from('employees')
         .select('id')
-        .eq('user_id', me?.id)
+        .eq('user_id', me?.id ?? '')
         .eq('company_id', params.companyId)
         .maybeSingle();
       const selfId = (myEmpId.data as { id: string } | null)?.id;
@@ -779,7 +775,7 @@ export async function reviewAttendanceEditRequest(params: {
 
     const { error: uErr } = await db
       .from('attendance_records')
-      .update(updatePayload)
+      .update(updatePayload as never)
       .eq('id', req.attendance_record_id);
     if (uErr) throw uErr;
   }
@@ -997,7 +993,7 @@ export async function correctAttendanceRecord(recordId: string, updates: {
 
   const { data, error } = await db
     .from('attendance_records')
-    .update(updatePayload)
+    .update(updatePayload as never)
     .eq('id', recordId)
     .select()
     .single();
@@ -1337,7 +1333,7 @@ export async function createLeaveRequest(params: {
     }
 
     if (rows.length > 0) {
-      await db.from('notifications').insert(rows);
+      await db.from('notifications').insert(rows as never);
     }
   } catch (e) {
     console.error('[createLeaveRequest] 알림 발송 실패:', e);
@@ -1640,7 +1636,7 @@ export async function cancelLeaveRequest(id: string) {
           is_read: false,
         });
       }
-      await db.from('notifications').insert(rows);
+      await db.from('notifications').insert(rows as never);
     }
   } catch (e) {
     console.error('[cancelLeaveRequest] 알림 실패:', e);
@@ -2056,7 +2052,7 @@ export async function getLeaveGrantMethod(companyId: string): Promise<LeaveGrant
     .select('settings')
     .eq('company_id', companyId)
     .maybeSingle());
-  const m = data?.settings?.leave_grant_method;
+  const m = (data?.settings as Record<string, unknown> | null)?.leave_grant_method;
   return m === 'manual' ? 'manual' : 'auto';
 }
 
@@ -2068,7 +2064,7 @@ export async function setLeaveGrantMethod(companyId: string, method: LeaveGrantM
     .eq('company_id', companyId)
     .maybeSingle());
 
-  const nextSettings = { ...(existing?.settings || {}), leave_grant_method: method };
+  const nextSettings = { ...((existing?.settings as Record<string, unknown> | null) || {}), leave_grant_method: method };
 
   const { error } = await db
     .from('company_settings')

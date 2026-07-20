@@ -19,7 +19,7 @@ import { createSignatureRequest, sendSignatureEmail, applyCompanySeal } from './
 import type { Json } from '@/types/models';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 
@@ -169,8 +169,9 @@ export async function createDocumentFromDeal(params: {
   if (docType === 'invoice') {
     const items = (passedItems && passedItems.length > 0)
       ? passedItems
-      : (deal.items && Array.isArray(deal.items) && deal.items.length > 0)
-        ? deal.items
+      // deals.items 는 현행 스키마에 없는 컬럼(구스키마 잔재) — 항상 undefined 라 아래 기본 폴백으로 감
+      : ((deal as any).items && Array.isArray((deal as any).items) && (deal as any).items.length > 0)
+        ? (deal as any).items
         : [{
             name: deal.name || '',
             quantity: 1,
@@ -312,7 +313,7 @@ ${today}
       deal_id: dealId,
       name,
       status: 'draft',
-      content_json: contentJson,
+      content_json: contentJson as never,
       version: 1,
       created_by: createdBy,
     })
@@ -722,7 +723,8 @@ export async function onRevenueReceived(params: {
       .from('deal_revenue_schedule')
       .update({
         status: 'received',
-        received_date: new Date().toISOString().split('T')[0],
+        // received_date 는 유령컬럼(실컬럼 received_at) — 이 update 가 400 이라 입금 완료 마킹이 전멸했었음 (2026-07-20)
+        received_at: new Date().toISOString(),
       })
       .eq('id', revenueScheduleId);
 
@@ -758,12 +760,12 @@ export async function onRevenueReceived(params: {
     .select('id, amount, status')
     .eq('deal_id', dealId));
 
-  const allReceived = (schedules || []).every((s: { status: string }) => s.status === 'received');
+  const allReceived = (schedules || []).every((s: { status: string | null }) => s.status === 'received');
   const totalExpected = (schedules || []).reduce(
     (sum: number, s: { amount: number }) => sum + Number(s.amount || 0), 0
   );
   const totalReceived = (schedules || [])
-    .filter((s: { status: string }) => s.status === 'received')
+    .filter((s: { status: string | null }) => s.status === 'received')
     .reduce((sum: number, s: { amount: number }) => sum + Number(s.amount || 0), 0);
 
   // Update deal status if fully paid
@@ -803,7 +805,7 @@ export async function onRevenueReceived(params: {
 
 export async function getDealPipelineStatus(dealId: string): Promise<PipelineStage[]> {
   // Get all documents linked to this deal
-  const docs = logRead('lib/deal-pipeline:docs', await (supabase as any)
+  const docs = logRead('lib/deal-pipeline:docs', await supabase
     .from('documents')
     .select('id, name, status, content_json, created_at, updated_at')
     .eq('deal_id', dealId)
@@ -866,7 +868,7 @@ export async function getDealPipelineStatus(dealId: string): Promise<PipelineSta
   });
 
   // Stage 5: Payment received
-  const allPaid = hasSchedule && (schedules || []).every((s: { status: string }) => s.status === 'received');
+  const allPaid = hasSchedule && (schedules || []).every((s: { status: string | null }) => s.status === 'received');
   stages.push({
     stage: 'payment_received',
     status: allPaid ? 'completed' : hasSchedule ? 'active' : 'pending',

@@ -6,7 +6,7 @@
 import { supabase } from "@/lib/supabase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ledger.ts AccountType 와 동일
 export type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
@@ -72,7 +72,7 @@ export async function getAccountingClosing(companyId: string): Promise<Accountin
     .from("accounting_closing").select("*").eq("company_id", companyId).maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return { ...data, opening_lines: Array.isArray(data.opening_lines) ? data.opening_lines : [] } as AccountingClosing;
+  return { ...data, opening_lines: Array.isArray(data.opening_lines) ? data.opening_lines : [] } as unknown as AccountingClosing;
 }
 
 export interface SaveClosingInput {

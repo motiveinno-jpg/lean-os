@@ -4,7 +4,7 @@ import { logRead } from "@/lib/log-read";
 
 import { supabase } from "./supabase";
 
-const db = supabase as any;
+const db = supabase;
 
 export type ErrorSource = "mutation" | "boundary" | "window" | "promise" | "manual";
 
@@ -296,7 +296,7 @@ export async function logError(params: {
       stack: params.stack ? String(params.stack).slice(0, 4000) : null,
       url: typeof window !== "undefined" ? window.location.href : null,
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-      context: params.context ?? null,
+      context: (params.context ?? null) as never, // Json 타입 소음 — 컬럼 실존 확인됨
     });
   } catch {
     // 로깅 실패는 무시

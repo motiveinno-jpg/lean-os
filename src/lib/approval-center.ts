@@ -10,7 +10,7 @@ import { approveExpense, rejectExpense } from './expenses';
 import { approveLeaveRequest, rejectLeaveRequest } from './hr';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ── Types ──
 
@@ -331,7 +331,7 @@ export async function approveAction(
     case 'approval': {
       // Find the first pending step for the current stage and approve it
       const req = logRead('lib/approval-center:req', await db.from('approval_requests').select('id, current_stage').eq('id', actionId).maybeSingle());
-      if (req) {
+      if (req && req.current_stage != null) {
         const step = logRead('lib/approval-center:step', await db.from('approval_steps')
           .select('id')
           .eq('request_id', actionId)
@@ -378,7 +378,7 @@ export async function rejectAction(
 
     case 'approval': {
       const req = logRead('lib/approval-center:req', await db.from('approval_requests').select('id, current_stage').eq('id', actionId).maybeSingle());
-      if (req) {
+      if (req && req.current_stage != null) {
         const step = logRead('lib/approval-center:step', await db.from('approval_steps')
           .select('id')
           .eq('request_id', actionId)
@@ -505,7 +505,7 @@ export async function upsertRecurringPayment(params: {
 
   const { data, error } = await db
     .from('recurring_payments')
-    .upsert(row)
+    .upsert(row as never) // 동적 payload — 키는 위에서 실컬럼만 조건부 구성
     .select()
     .single();
   if (error) throw error;

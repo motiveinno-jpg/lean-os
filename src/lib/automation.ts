@@ -12,7 +12,7 @@ import { createQueueEntry } from './payment-queue';
 import { resolveBank } from './routing';
 import { autoMatchLoanPayments } from './loans';
 
-const db = supabase as any;
+const db = supabase;
 
 // ══════════════════════════════════════════
 // 1. 은행 거래 자동분류
@@ -219,13 +219,12 @@ export async function autoMatchTransactions(companyId: string) {
 
     // Auto-match only if score >= 90
     if (bestScore >= 90 && bestInvoice) {
+      // 2026-07-20: transaction_matches 실스키마 = transaction_id/match_score/status 뿐
+      //   (company_id·bank_transaction_id·tax_invoice_id·deal_id·match_type 은 유령컬럼 → 매칭 기록이 항상 400).
+      //   계산서 연결의 정식 경로는 invoice_settlements — 여기선 스키마가 허용하는 기록만 남긴다.
       await db.from('transaction_matches').insert({
-        company_id: companyId,
-        bank_transaction_id: tx.id,
-        tax_invoice_id: bestInvoice.id,
-        deal_id: bestInvoice.deal_id || null,
+        transaction_id: tx.id,
         match_score: bestScore,
-        match_type: 'auto',
         status: 'confirmed',
       });
 
@@ -267,7 +266,7 @@ export async function detectDormantDeals(companyId: string) {
   // Create notifications
   const notifications = candidates.map((d: any) => ({
     company_id: companyId,
-    type: 'dormant_deal',
+    type: 'system', // notifications_type_check 에 dormant_deal 없음 → 매번 CHECK 위반이었음 (후속: 마이그로 타입 추가)
     title: `휴면 프로젝트 감지: ${d.name}`,
     message: `30일 이상 활동이 없습니다. 확인이 필요합니다.`,
     entity_type: 'deal',
@@ -275,7 +274,7 @@ export async function detectDormantDeals(companyId: string) {
     is_read: false,
   }));
 
-  await db.from('notifications').insert(notifications).select();
+  await db.from('notifications').insert(notifications as never).select();
 
   return { detected: candidates.length, deals: candidates.map((d: any) => d.name) };
 }
@@ -320,14 +319,14 @@ export async function detectDormantPartners(companyId: string) {
     // ⑤ 리마인더 알림 — 담당자(관리자) 에게 휴면 거래처 연락 권유
     const notifications = newDormant.map((p) => ({
       company_id: companyId,
-      type: 'dormant_partner',
+      type: 'system', // notifications_type_check 에 dormant_partner 없음 → 매번 CHECK 위반이었음
       title: `휴면 거래처 감지: ${p.name}`,
       message: `6개월 이상 거래·연락이 없습니다. 리마인더 연락을 권장합니다.`,
       entity_type: 'partner',
       entity_id: p.id,
       is_read: false,
     }));
-    await db.from('notifications').insert(notifications);
+    await db.from('notifications').insert(notifications as never);
   }
   if (reactivated.length > 0) {
     await db.from('partners').update({ is_dormant: false, dormancy_detected_at: null }).in('id', reactivated.map((p) => p.id));
@@ -355,7 +354,7 @@ export async function autoVerifyClosingChecklist(companyId: string, checklistId:
     if (item.is_completed) continue;
 
     let passed = false;
-    const key = String(item.item_key || item.title || '');
+    const key = String(item.title || ''); // item_key 는 스키마에 없는 컬럼이었음(항상 undefined) — title 이 실키
 
     // Check each item automatically
     if (key.includes('은행') || key.includes('거래수집')) {
@@ -437,6 +436,7 @@ export async function autoApproveSmallExpenses(companyId: string, threshold: num
 
     // Create approval record
     await db.from('expense_approvals').insert({
+      company_id: companyId, // NOT NULL 누락으로 자동승인 기록이 400 이었음
       expense_id: exp.id,
       approver_id: exp.requester_id, // Self-approved by system
       level: 1,
@@ -567,7 +567,7 @@ export async function autoLinkApprovedContractsToSchedule(companyId: string) {
     const { count } = await db
       .from('deal_revenue_schedule')
       .select('id', { count: 'exact', head: true })
-      .eq('deal_id', doc.deal_id);
+      .eq('deal_id', doc.deal_id ?? '');
 
     if ((count || 0) > 0) continue; // Already has schedule
 
@@ -874,11 +874,8 @@ export async function autoCancelTaxInvoiceOnRefund(companyId: string) {
     if (!invoices?.length) continue;
 
     for (const inv of invoices) {
-      await db.from('tax_invoices').update({
-        status: 'void',
-        void_reason: `자동취소: 결제 취소/반려 (${pmt.description || ''})`,
-        voided_at: new Date().toISOString(),
-      }).eq('id', inv.id);
+      // void_reason/voided_at 은 tax_invoices 에 없는 유령컬럼(update 가 항상 400 → 자동 void 전멸)이라 제거
+      await db.from('tax_invoices').update({ status: 'void' }).eq('id', inv.id);
       cancelledCount++;
     }
   }

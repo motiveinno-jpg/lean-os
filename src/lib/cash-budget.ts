@@ -13,7 +13,7 @@ import autoTable from 'jspdf-autotable';
 import { loadKoreanFont } from './pdf-korean-font';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Types
@@ -200,7 +200,7 @@ export async function upsertFixedCost(
   if (item.id) {
     const { data, error } = await db
       .from('fixed_costs')
-      .update(row)
+      .update(row as never)
       .eq('id', item.id)
       .eq('company_id', companyId)
       .select()
@@ -210,7 +210,7 @@ export async function upsertFixedCost(
   } else {
     const { data, error } = await db
       .from('fixed_costs')
-      .insert(row)
+      .insert(row as never)
       .select()
       .single();
     if (error) throw error;
@@ -222,11 +222,11 @@ export async function upsertFixedCost(
     name: result.name,
     amount: Number(result.amount),
     paymentDay: result.payment_day,
-    category: result.category,
+    category: result.category as FixedCostItem['category'],
     isRecurring: result.is_recurring,
-    startDate: result.start_date,
-    endDate: result.end_date,
-    note: result.note,
+    startDate: result.start_date ?? undefined,
+    endDate: result.end_date ?? undefined,
+    note: result.note ?? undefined,
   };
 }
 
@@ -330,7 +330,7 @@ export async function upsertLoan(
   if (loan.id) {
     const { data, error } = await db
       .from('loans')
-      .update(row)
+      .update(row as never)
       .eq('id', loan.id)
       .eq('company_id', companyId)
       .select()
@@ -340,7 +340,7 @@ export async function upsertLoan(
   } else {
     const { data, error } = await db
       .from('loans')
-      .insert(row)
+      .insert(row as never)
       .select()
       .single();
     if (error) throw error;
@@ -355,10 +355,10 @@ export async function upsertLoan(
     maturityDate: result.maturity_date || '',
     originalAmount: Number(result.original_amount),
     remainingAmount: Number(result.remaining_balance),
-    repaymentType: mapRepaymentType(result.loan_type),
+    repaymentType: mapRepaymentType(result.loan_type ?? ''),
     monthlyPayment: estimateMonthlyPayment(result),
     interestRate: Number(result.interest_rate || 0),
-    note: result.notes,
+    note: result.notes ?? undefined,
   };
 }
 
@@ -943,7 +943,7 @@ export async function getDailyCashProjection(
       date: createdDate,
       description: pq.description || '지출',
       amount: -Number(pq.amount),
-      category: CATEGORY_LABELS[pq.category] || pq.category || '지출',
+      category: (pq.category && CATEGORY_LABELS[pq.category]) || pq.category || '지출',
     });
   }
 
@@ -1092,7 +1092,7 @@ async function saveCashProjection(
       {
         company_id: companyId,
         month,
-        projection_data: projections,
+        projection_data: projections as never,
         generated_at: new Date().toISOString(),
         generated_by: user?.id || null,
       },
