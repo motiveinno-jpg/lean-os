@@ -1965,7 +1965,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mypage-used-leaves-head { @apply flex items-start justify-between gap-3 px-5 py-4 border-b border-[var(--border)]; }
 .mypage-used-leaves-body { @apply px-5 py-4 overflow-y-auto; }
 .mypage-used-leaves-foot { @apply flex items-center justify-between px-5 py-3 border-t border-[var(--border)] bg-[var(--bg-surface)]/60; }
-.mypage-used-leave-row { @apply flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+/* 연차 원장 — 연도 탭 + 발생/사용 행(우측에 진행 잔여) */
+.mypage-ledger-years { @apply mx-5 mt-4 w-fit; }
+.mypage-ledger-row { @apply flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.mypage-ledger-grant { @apply bg-[var(--primary)]/6 border-[var(--primary)]/25; }
+.mypage-ledger-remain { @apply text-[11px] font-semibold text-[var(--text-dim)] w-[68px] text-right; font-variant-numeric: tabular-nums; }
 .mypage-recent-leaves { @apply space-y-2; }
 .mypage-withdraw-card { @apply p-6 border border-[var(--danger)]/30; }
 /* 근태 탭 — 내 출퇴근 기록(MyAttendance.tsx). 월 네비 + 요약 타일 + 일별 목록 */

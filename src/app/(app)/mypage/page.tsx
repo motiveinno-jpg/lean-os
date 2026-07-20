@@ -28,6 +28,8 @@ const EMP_STATUS: Record<string, { label: string; color: string }> = {
 
 const LEAVE_TYPE_LABELS: Record<string, string> = { annual: "연차", sick: "병가", special: "경조휴가", unpaid: "무급휴가" };
 const leaveTypeLabel = (t: string) => LEAVE_TYPE_LABELS[t] || t;
+// 연차 원장 표기 — 'YYYY-MM-DD' → 'M월 D일'
+const fmtLedgerDate = (d?: string | null) => (d ? `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일` : "—");
 
 type MyPageTab = "records" | "attendance" | "notif" | "account";
 
@@ -160,11 +162,28 @@ export default function MyPage() {
     enabled: !!employee?.id,
   });
 
-  // 사용 연차 상세 — 연차 현황의 "사용" 타일 클릭 시 열리는 올해 승인된 휴가 내역.
-  //   최근 휴가(recentLeaves)는 상태 무관 5건 요약이라 "얼마를 어디에 썼는지"를 못 본다.
+  // 연차 원장(사용 내역) — 연차 현황의 "사용" 타일 클릭 시 열린다.
+  //   발생(부여) → 사용 건별 차감 → 잔여를 순서대로 누적 표시. 연도 전환으로 전년도 이전 기록도 조회.
   const [showUsedLeaves, setShowUsedLeaves] = useState(false);
+  const [ledgerYear, setLedgerYear] = useState(currentYear);
+
+  // 연도 목록 — 이 직원에게 연차가 부여된 모든 해(전년도 이월 확인용)
+  const { data: allBalances = [] } = useQuery({
+    queryKey: ["my-leave-balances-all", employee?.id],
+    queryFn: async () => {
+      const data = logRead('mypage/page:data', await supabase
+        .from("leave_balances")
+        .select("year, total_days, used_days, remaining_days")
+        .eq("employee_id", employee!.id)
+        .order("year", { ascending: false }));
+      return (data || []) as any[];
+    },
+    enabled: !!employee?.id && showUsedLeaves,
+  });
+  const ledgerBalance = allBalances.find((b: any) => Number(b.year) === ledgerYear) || null;
+
   const { data: usedLeaves = [], isLoading: usedLeavesLoading } = useQuery({
-    queryKey: ["my-used-leaves", employee?.id, userId, currentYear],
+    queryKey: ["my-used-leaves", employee?.id, userId, ledgerYear],
     queryFn: async () => {
       const db = supabase;
       const [{ data: native }, { data: approvals }] = await Promise.all([
@@ -172,15 +191,15 @@ export default function MyPage() {
           .select("id, leave_type, start_date, end_date, days, status")
           .eq("employee_id", employee!.id)
           .eq("status", "approved")
-          .gte("start_date", `${currentYear}-01-01`)
-          .lte("start_date", `${currentYear}-12-31`)
-          .order("start_date", { ascending: false }),
+          .gte("start_date", `${ledgerYear}-01-01`)
+          .lte("start_date", `${ledgerYear}-12-31`)
+          .order("start_date", { ascending: true }),
         db.from("approval_requests")
           .select("id, status, created_at, custom_fields, description")
           .eq("request_type", "leave")
           .eq("requester_id", userId!)
           .eq("status", "approved")
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: true }),
       ]);
       const fromApprovals = (approvals || [])
         .map((a: any) => {
@@ -195,14 +214,24 @@ export default function MyPage() {
             days: Number(lv.days ?? a.description?.match(/(\d+(?:\.\d+)?)일/)?.[1] ?? 0),
           };
         })
-        .filter((l: any) => l.start_date?.startsWith(String(currentYear)));
+        .filter((l: any) => l.start_date?.startsWith(String(ledgerYear)));
+      // 발생 → 사용 순으로 읽도록 날짜 오름차순.
       return [...(native || []), ...fromApprovals].sort((x: any, y: any) =>
-        (y.start_date || "").localeCompare(x.start_date || ""),
+        (x.start_date || "").localeCompare(y.start_date || ""),
       );
     },
     enabled: !!employee?.id && !!userId && showUsedLeaves,
   });
   const usedLeavesTotal = usedLeaves.reduce((sum: number, l: any) => sum + (Number(l.days) || 0), 0);
+  // 발생분에서 건별로 차감한 진행 잔여. 관리자 수동 조정이 있으면 마지막 잔여와 balance.remaining_days 가 다를 수 있다.
+  const ledgerGranted = Number(ledgerBalance?.total_days ?? 0);
+  let runningRemain = ledgerGranted;
+  const ledgerRows = usedLeaves.map((l: any) => {
+    runningRemain = Math.round((runningRemain - (Number(l.days) || 0)) * 10) / 10;
+    return { ...l, remain: runningRemain };
+  });
+  const balanceRemain = ledgerBalance ? Number(ledgerBalance.remaining_days ?? ledgerGranted - Number(ledgerBalance.used_days)) : null;
+  const ledgerMismatch = balanceRemain !== null && Math.abs(balanceRemain - runningRemain) > 0.05;
 
   // 최근 휴가 — 네이티브 leave_requests(과거) + 전자결재 approval_requests(휴가, 2026-07-15 일원화) 병합.
   const { data: recentLeaves = [] } = useQuery({
@@ -356,9 +385,9 @@ export default function MyPage() {
             {/* 사용 클릭 → 올해 사용한 연차 상세 */}
             <button
               type="button"
-              onClick={() => setShowUsedLeaves(true)}
+              onClick={() => { setLedgerYear(currentYear); setShowUsedLeaves(true); }}
               className="mypage-leave-stat-btn stat-tile items-center text-center"
-              title="사용한 연차 내역 보기"
+              title="연차 발생·사용 내역 보기"
             >
               <div className="stat-tile-label flex items-center gap-1">
                 사용
@@ -461,48 +490,95 @@ export default function MyPage() {
       </div>
       )}
 
-      {/* ── 사용 연차 상세 모달 — 연차 현황의 "총 연차" 클릭 진입 ── */}
+      {/* ── 연차 원장 모달 — 연차 현황의 "사용" 타일 클릭 진입. 발생 → 사용 → 잔여를 순서대로 ── */}
       {showUsedLeaves && (
         <div className="mypage-used-leaves-modal" onClick={() => setShowUsedLeaves(false)}>
           <div className="modal-backdrop" />
           <div className="mypage-used-leaves-panel modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="mypage-used-leaves-head">
               <div>
-                <h3 className="text-sm font-bold">{currentYear}년 사용 연차 내역</h3>
-                <p className="text-[11px] text-[var(--text-dim)] mt-0.5">승인 완료된 휴가만 표시됩니다</p>
+                <h3 className="text-sm font-bold">연차 사용 내역</h3>
+                <p className="text-[11px] text-[var(--text-dim)] mt-0.5">발생분에서 승인된 휴가를 차례로 차감한 내역입니다</p>
               </div>
               <button onClick={() => setShowUsedLeaves(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition" aria-label="닫기">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
+
+            {/* 연도 전환 — 연차가 부여된 모든 해(전년도 이전 포함) */}
+            {allBalances.length > 1 && (
+              <div className="mypage-ledger-years seg-bar">
+                {allBalances.map((b: any) => (
+                  <button
+                    key={b.year}
+                    onClick={() => setLedgerYear(Number(b.year))}
+                    className={`seg-item ${ledgerYear === Number(b.year) ? "seg-item-active" : ""}`}
+                  >
+                    {b.year}년
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="mypage-used-leaves-body">
               {usedLeavesLoading ? (
                 <div className="py-10 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
-              ) : usedLeaves.length === 0 ? (
+              ) : !ledgerBalance ? (
                 <div className="py-10 text-center">
                   <div className="text-3xl mb-2">🗓️</div>
-                  <div className="text-sm font-semibold text-[var(--text-muted)]">올해 사용한 휴가가 없습니다</div>
+                  <div className="text-sm font-semibold text-[var(--text-muted)]">{ledgerYear}년 연차 정보가 없습니다</div>
+                  <div className="text-xs text-[var(--text-dim)] mt-1">관리자가 연차를 설정하면 이곳에 표시됩니다.</div>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {usedLeaves.map((l: any) => (
-                    <div key={l.id} className="mypage-used-leave-row">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="badge badge-muted shrink-0">{leaveTypeLabel(l.leave_type)}</span>
-                        <span className="text-xs text-[var(--text-muted)] truncate">
-                          {l.start_date}{l.end_date && l.end_date !== l.start_date ? ` ~ ${l.end_date}` : ""}
-                        </span>
-                      </div>
-                      <span className="text-xs font-bold mono-number shrink-0">{Number(l.days) || 0}일</span>
+                  {/* 발생 — 원장의 시작점 */}
+                  <div className="mypage-ledger-row mypage-ledger-grant">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="badge badge-primary shrink-0">발생</span>
+                      <span className="text-xs font-semibold">{ledgerYear}년 연차 부여</span>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs font-bold mono-number text-[var(--success)]">+{ledgerGranted}일</span>
+                      <span className="mypage-ledger-remain">잔여 {ledgerGranted}일</span>
+                    </div>
+                  </div>
+
+                  {/* 사용 — 날짜순 차감, 우측에 진행 잔여 */}
+                  {ledgerRows.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-[var(--text-muted)]">{ledgerYear}년에 사용한 휴가가 없습니다</div>
+                  ) : (
+                    ledgerRows.map((l: any) => (
+                      <div key={l.id} className="mypage-ledger-row">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="badge badge-muted shrink-0">{leaveTypeLabel(l.leave_type)}</span>
+                          <span className="text-xs text-[var(--text-muted)] truncate">
+                            {fmtLedgerDate(l.start_date)}
+                            {l.end_date && l.end_date !== l.start_date ? ` ~ ${fmtLedgerDate(l.end_date)}` : ""} 사용
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-xs font-bold mono-number text-[var(--danger)]">−{Number(l.days) || 0}일</span>
+                          <span className="mypage-ledger-remain">잔여 {l.remain}일</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+
+                  {ledgerMismatch && (
+                    <p className="text-[11px] text-[var(--text-dim)] pt-1">
+                      ※ 관리자가 연차를 직접 조정한 이력이 있어 최종 잔여({balanceRemain}일)가 내역 합계와 다릅니다.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
-            {usedLeaves.length > 0 && (
+
+            {ledgerBalance && (
               <div className="mypage-used-leaves-foot">
-                <span className="text-xs font-semibold text-[var(--text-muted)]">합계 {usedLeaves.length}건</span>
-                <span className="text-sm font-bold mono-number text-[var(--warning)]">{usedLeavesTotal}일 사용</span>
+                <span className="text-xs font-semibold text-[var(--text-muted)]">
+                  발생 {ledgerGranted}일 · 사용 {usedLeavesTotal}일 ({usedLeaves.length}건)
+                </span>
+                <span className="text-sm font-bold mono-number text-[var(--success)]">잔여 {balanceRemain ?? runningRemain}일</span>
               </div>
             )}
           </div>
