@@ -2053,6 +2053,28 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .onboarding-quick-links { @apply mt-6 flex flex-wrap gap-3 justify-center relative z-10; }
 .onboarding-step-header { @apply flex items-start gap-3 mb-1; }
 .onboarding-completed-badge { @apply px-3 py-2.5 rounded-xl flex items-start gap-2 bg-[var(--success)]/10 border border-[var(--success)]/20 shadow-sm; }
+
+/* 온보딩 인트로 — 역할/페인포인트/맞춤 가치제안 3화면 (2026-07-20) */
+.onboarding-intro-panel { @apply w-full max-w-[640px] mx-auto text-center; }
+.onboarding-intro-heading { @apply text-2xl sm:text-[28px] font-extrabold text-[var(--text)] leading-snug mb-3; }
+.onboarding-intro-sub { @apply text-sm text-[var(--text-muted)] leading-relaxed mb-8; }
+.onboarding-intro-options { @apply flex flex-col gap-3 mb-8 text-left; }
+.onboarding-intro-option { @apply w-full flex items-start gap-3 px-5 py-4 rounded-2xl border-2 border-[var(--border)] bg-[var(--bg-card)] text-left transition-all hover:border-[var(--primary)]/50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]; }
+.onboarding-intro-option-active { @apply border-[var(--primary)] bg-[var(--primary)]/5 shadow-sm; }
+.onboarding-intro-option-num { @apply w-6 h-6 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-bold text-[var(--text-dim)] flex items-center justify-center shrink-0 mt-0.5; }
+.onboarding-intro-option-label { @apply block text-sm font-bold text-[var(--text)]; }
+.onboarding-intro-option-desc { @apply block text-xs text-[var(--text-muted)] mt-1; }
+.onboarding-intro-footer { @apply flex items-center justify-center gap-3; }
+.onboarding-intro-back { @apply px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-card)] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]; }
+.onboarding-intro-value-card { @apply text-left px-5 py-5 rounded-2xl border-2 border-[var(--primary)]/40 bg-[var(--primary)]/5 mb-6; }
+.onboarding-intro-value-title { @apply text-base font-extrabold text-[var(--text)]; }
+.onboarding-intro-value-desc { @apply text-sm text-[var(--text-muted)] leading-relaxed mt-2; }
+.onboarding-intro-badge { @apply inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary)] text-white ml-2 align-middle; }
+.onboarding-intro-extra-title { @apply text-left text-xs font-bold text-[var(--text-dim)] mb-3; }
+.onboarding-intro-extra-list { @apply flex flex-col gap-2 mb-8; }
+.onboarding-intro-extra-item { @apply text-left px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.onboarding-intro-extra-name { @apply block text-[13px] font-bold text-[var(--text)]; }
+.onboarding-intro-extra-desc { @apply block text-xs text-[var(--text-muted)] mt-0.5; }
 .chat-guest-view { @apply max-w-[700px] mx-auto flex flex-col; }
 .chat-guest-header { @apply flex items-center justify-between mb-4 shrink-0; }
 .chat-guest-messages-panel { @apply flex-1 overflow-y-auto bg-[var(--bg-card)] border border-b-0 border-[var(--border)] p-5; }

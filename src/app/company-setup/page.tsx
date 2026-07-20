@@ -60,7 +60,7 @@ export default function CompanySetupPage() {
       // ③ 회사 개설 (+owner 연결, 14일 트라이얼) — 유니크 충돌 시 합류 전환
       const displayName = authUser.user_metadata?.display_name || authUser.user_metadata?.name || authUser.email?.split("@")[0] || "사용자";
       const r = await createCompanyWithOwner(authUser.id, authUser.email || "", companyName.trim(), displayName, bizNoDigits(bizNo));
-      if (r.ok) { router.push("/dashboard"); return; }
+      if (r.ok) { router.push("/onboarding"); return; }
       if (r.duplicate) { setJoinPrompt("등록된 회사"); return; }
       setError(r.error || "회사 생성에 실패했습니다. 다시 시도해주세요.");
     } catch (err: any) {

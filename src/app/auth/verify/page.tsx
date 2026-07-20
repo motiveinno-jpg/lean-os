@@ -72,6 +72,12 @@ export default function VerifyEmailPage() {
           router.push("/company-setup");
           return true;
         }
+        if (result === "created") {
+          // 신규 회사 개설 — 대시보드 대신 온보딩(역할/페인포인트/설정 위저드)부터
+          completed = true;
+          router.push("/onboarding");
+          return true;
+        }
       } catch (err) {
         console.error("setupCompany error:", err);
       }

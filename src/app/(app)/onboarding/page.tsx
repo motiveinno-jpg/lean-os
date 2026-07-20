@@ -58,6 +58,32 @@ const BUSINESS_NUMBER_REGEX = /^\d{3}-\d{2}-\d{5}$/;
 
 const DEPARTMENTS = ["경영지원", "개발", "디자인", "마케팅", "영업", "인사", "재무", "기획", "기타"];
 
+// ── 인트로 단계 (2026-07-20 도입 — 역할 → 페인포인트 → 맞춤 가치제안 3화면 후 기존 위저드 진입).
+//    선택 결과는 companies.automation_settings.onboarding_profile 에 저장 (스키마 무변경).
+type IntroStep = "role" | "pain" | "value";
+
+const INTRO_ROLES = [
+  { key: "ceo", label: "대표 · 경영진", desc: "회사 전체 현황과 자금 흐름을 한눈에 보고 싶어요" },
+  { key: "finance", label: "재무 · 회계 담당", desc: "자금 관리와 증빙·세금계산서 업무를 맡고 있어요" },
+  { key: "hr", label: "인사 · 총무 담당", desc: "직원 관리와 계약·근태 업무를 맡고 있어요" },
+] as const;
+
+const INTRO_PAINS = [
+  { key: "scattered", label: "여러 통장·카드에 돈이 흩어져 있어 잔액이 한눈에 안 보여요" },
+  { key: "blind", label: "물어보기 전에는 오늘 회사 자금 상황을 알 수 없어요" },
+  { key: "hr", label: "직원 출퇴근·연차·급여 챙기는 일이 번거로워요" },
+  { key: "sign", label: "계약서에 서명 받으러 다니는 게 일이에요" },
+  { key: "tax", label: "세금계산서 발행이랑 증빙 정리가 늘 밀려요" },
+] as const;
+
+const INTRO_SOLUTIONS: Record<string, { title: string; badge: string; desc: string }> = {
+  scattered: { title: "통합 계좌 · 카드 조회", badge: "실시간", desc: "흩어진 통장 잔액과 법인카드 승인 내역을 자동으로 모아 한 화면에서 바로 확인해요." },
+  blind: { title: "경영 대시보드 · 생존지표", badge: "매일 자동", desc: "잔고·고정비·생존개월 같은 핵심 지표를 매일 자동으로 정리해 먼저 보여드려요." },
+  hr: { title: "근태 · 연차 · 급여 자동화", badge: "자동", desc: "출퇴근 기록부터 연차 관리, 급여명세서 발송까지 한 곳에서 자동으로 처리해요." },
+  sign: { title: "전자계약 · 전자서명", badge: "무제한", desc: "계약서를 링크로 보내고 법적 효력 있는 전자서명을 그 자리에서 바로 받아요." },
+  tax: { title: "세금계산서 국세청 발행", badge: "자동 수집", desc: "세금계산서를 앱에서 바로 발행하고 매입·매출 증빙을 자동으로 모아드려요." },
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
 
@@ -115,6 +141,12 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // 인트로(역할→페인포인트→가치제안) — null 이면 기존 위저드 표시
+  const [intro, setIntro] = useState<IntroStep | null>(null);
+  const [introRole, setIntroRole] = useState("");
+  const [introPain, setIntroPain] = useState("");
+  const automationSettingsRef = useRef<Record<string, unknown>>({});
 
   const companyId = user?.company_id ?? null;
 
@@ -206,7 +238,7 @@ export default function OnboardingPage() {
       try {
         const comp = logRead('onboarding/page:comp', await db
           .from("companies")
-          .select("name, business_number, representative, industry, address, phone")
+          .select("name, business_number, representative, industry, address, phone, automation_settings")
           .eq("id", companyId ?? "")
           .maybeSingle());
 
@@ -247,6 +279,14 @@ export default function OnboardingPage() {
           deal: hasDeal,
         };
         setStatus(newStatus);
+
+        // 인트로는 아직 안 본 신규에게만 — onboarding_profile 저장 이후엔 다시 안 보임
+        const aset = (comp?.automation_settings as Record<string, unknown> | null) || {};
+        automationSettingsRef.current = aset;
+        const allDone = hasCompany && hasBank && hasEmployee && hasDeal;
+        if (!aset.onboarding_profile && !allDone) {
+          setIntro("role");
+        }
 
         // Auto-advance to first incomplete step
         if (hasCompany && hasBank && hasEmployee && hasDeal) {
@@ -434,6 +474,21 @@ export default function OnboardingPage() {
     router.replace("/dashboard");
   }
 
+  // 인트로 완료 — 선택 결과 저장(실패해도 진행은 막지 않음) 후 위저드 진입
+  async function finishIntro() {
+    setIntro(null);
+    try {
+      await db.from("companies").update({
+        automation_settings: {
+          ...automationSettingsRef.current,
+          onboarding_profile: { role: introRole, pain: introPain, at: new Date().toISOString() },
+        },
+      }).eq("id", companyId ?? "");
+    } catch {
+      // 프로필 저장은 부가 정보 — 실패 시 조용히 진행
+    }
+  }
+
   // ── Keyboard: Enter to submit ──
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -452,6 +507,93 @@ export default function OnboardingPage() {
         <div className="text-center">
           <div className="w-10 h-10 border-3 border-[var(--primary)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm text-[var(--text-muted)]">설정 상태를 확인하는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 인트로 3화면 (역할 → 페인포인트 → 맞춤 가치제안) ──
+  if (intro === "role") {
+    return (
+      <div className="onboarding-page">
+        <div className="onboarding-intro-panel">
+          <h1 className="onboarding-intro-heading">오너뷰에 오신 것을 환영해요!</h1>
+          <p className="onboarding-intro-sub">몇 가지만 여쭤보고 딱 맞게 시작해 드릴게요. 어떤 역할로 오셨나요?</p>
+          <div className="onboarding-intro-options">
+            {INTRO_ROLES.map((r) => (
+              <button
+                key={r.key}
+                onClick={() => setIntroRole(r.key)}
+                className={introRole === r.key ? "onboarding-intro-option onboarding-intro-option-active" : "onboarding-intro-option"}
+              >
+                <span>
+                  <span className="onboarding-intro-option-label">{r.label}</span>
+                  <span className="onboarding-intro-option-desc">{r.desc}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="onboarding-intro-footer">
+            <button className="btn-primary" disabled={!introRole} onClick={() => setIntro("pain")}>다음으로</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (intro === "pain") {
+    return (
+      <div className="onboarding-page">
+        <div className="onboarding-intro-panel">
+          <h1 className="onboarding-intro-heading">회사 운영에서 가장 신경 쓰이거나<br />불편한 점은 무엇인가요?</h1>
+          <p className="onboarding-intro-sub">가장 가까운 하나를 골라주세요. 그 고민부터 해결해 드릴게요.</p>
+          <div className="onboarding-intro-options">
+            {INTRO_PAINS.map((p, i) => (
+              <button
+                key={p.key}
+                onClick={() => setIntroPain(p.key)}
+                className={introPain === p.key ? "onboarding-intro-option onboarding-intro-option-active" : "onboarding-intro-option"}
+              >
+                <span className="onboarding-intro-option-num">{i + 1}</span>
+                <span className="onboarding-intro-option-label">{p.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="onboarding-intro-footer">
+            <button className="onboarding-intro-back" onClick={() => setIntro("role")}>이전</button>
+            <button className="btn-primary" disabled={!introPain} onClick={() => setIntro("value")}>다음으로</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (intro === "value") {
+    const solution = INTRO_SOLUTIONS[introPain] || INTRO_SOLUTIONS.blind;
+    const extras = INTRO_PAINS.filter((p) => p.key !== introPain).map((p) => INTRO_SOLUTIONS[p.key]);
+    return (
+      <div className="onboarding-page">
+        <div className="onboarding-intro-panel">
+          <h1 className="onboarding-intro-heading">그 고민, 오너뷰가<br />이렇게 해결해 드릴게요</h1>
+          <p className="onboarding-intro-sub">기본 설정만 마치면 바로 시작됩니다.</p>
+          <div className="onboarding-intro-value-card">
+            <div className="onboarding-intro-value-title">
+              {solution.title}
+              <span className="onboarding-intro-badge">{solution.badge}</span>
+            </div>
+            <p className="onboarding-intro-value-desc">{solution.desc}</p>
+          </div>
+          <div className="onboarding-intro-extra-title">이 외 제공되는 기능</div>
+          <div className="onboarding-intro-extra-list">
+            {extras.map((f) => (
+              <div key={f.title} className="onboarding-intro-extra-item">
+                <span className="onboarding-intro-extra-name">{f.title}</span>
+                <span className="onboarding-intro-extra-desc">{f.desc}</span>
+              </div>
+            ))}
+          </div>
+          <div className="onboarding-intro-footer">
+            <button className="onboarding-intro-back" onClick={() => setIntro("pain")}>이전</button>
+            <button className="btn-primary" onClick={finishIntro}>지금 시작하기 →</button>
+          </div>
         </div>
       </div>
     );

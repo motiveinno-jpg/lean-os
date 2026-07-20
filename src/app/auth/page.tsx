@@ -87,6 +87,12 @@ export default function AuthPage() {
         router.push("/company-setup");
         return;
       }
+      if (result === "created") {
+        // 로그인 시점에 회사가 새로 만들어진 경우도 온보딩부터
+        setLoading(false);
+        router.push("/onboarding");
+        return;
+      }
     }
 
     setLoading(false);
@@ -179,7 +185,8 @@ export default function AuthPage() {
       return;
     }
     const created = await createCompanyAndUser(authData.user.id, email, companyName.trim(), digits);
-    if (created) router.push(getRedirectPath());
+    // 신규 회사 개설 직후엔 온보딩(역할/페인포인트/설정 위저드)으로 — 기존 사용자 로그인과 구분
+    if (created) router.push("/onboarding");
   }
 
   // 회사 개설(+owner·스냅샷·14일 트라이얼) — company-signup 공용 함수 사용 (company-setup 페이지와 단일 구현)
