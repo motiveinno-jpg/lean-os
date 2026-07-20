@@ -32,18 +32,21 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
   });
 
   return (
-    <div className="mypage-payslips-card glass-card p-6">
-      <h2 className="section-title">내 급여명세</h2>
+    <div className="mypage-payslips-card glass-card">
+      <div className="mypage-payslips-header flex items-center justify-between mb-4">
+        <h2 className="section-title mb-0">내 급여명세서</h2>
+        {payslips.length > 0 && <span className="badge badge-muted">{payslips.length}건</span>}
+      </div>
       {isLoading ? (
-        <div className="py-8 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
+        <div className="mypage-record-loading">불러오는 중...</div>
       ) : payslips.length === 0 ? (
-        <div className="py-10 text-center">
+        <div className="mypage-record-empty">
           <div className="text-3xl mb-2">💳</div>
-          <div className="text-sm font-semibold text-[var(--text-muted)]">발급된 급여명세가 없습니다</div>
-          <div className="text-xs text-[var(--text-dim)] mt-1">급여가 지급되면 월별 명세가 이곳에 표시됩니다.</div>
+          <div className="text-sm font-semibold text-[var(--text-muted)]">발급된 급여명세서가 없습니다</div>
+          <div className="text-xs text-[var(--text-dim)] mt-1">급여가 지급되면 월별 명세서가 이곳에 표시됩니다.</div>
         </div>
       ) : (
-        <div className="mypage-payslips-list space-y-2.5">
+        <div className="mypage-payslips-list mypage-record-body space-y-2.5">
           {payslips.map((p: any) => {
             const batch = p.payment_batches || {};
             const dateStr = batch.created_at ? new Date(batch.created_at).toLocaleDateString("ko-KR") : "";

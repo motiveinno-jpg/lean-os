@@ -106,8 +106,11 @@ export function MyCertificates({
   };
 
   return (
-    <div className="mypage-certificates-card glass-card p-6">
-      <h2 className="section-title">내 증명서</h2>
+    <div className="mypage-certificates-card glass-card">
+      <div className="mypage-certificates-header flex items-center justify-between mb-1">
+        <h2 className="section-title mb-0">내 증명서</h2>
+        {myLogs.length > 0 && <span className="badge badge-muted">발급 {myLogs.length}건</span>}
+      </div>
       <p className="text-xs text-[var(--text-muted)] mb-4">재직·경력 증명서를 직접 발급받아 PDF로 내려받을 수 있습니다.</p>
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
         <div>
@@ -127,7 +130,7 @@ export function MyCertificates({
       </div>
 
       {myLogs.length > 0 && (
-        <div className="mt-5">
+        <div className="mypage-cert-history mt-5 flex-1">
           <div className="text-xs font-semibold text-[var(--text-dim)] mb-2">발급 이력</div>
           <div className="space-y-2">
             {myLogs.slice(0, 5).map((log: any) => (

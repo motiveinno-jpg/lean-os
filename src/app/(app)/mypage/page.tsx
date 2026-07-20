@@ -300,7 +300,10 @@ export default function MyPage() {
 
       {/* 연차 현황 */}
       <div className="mypage-leave-card glass-card">
-        <h2 className="section-title">{currentYear}년 연차 현황</h2>
+        <div className="mypage-leave-header flex items-center justify-between mb-4">
+          <h2 className="section-title mb-0">{currentYear}년 연차 현황</h2>
+          {recentLeaves.length > 0 && <span className="badge badge-muted">신청 {recentLeaves.length}건</span>}
+        </div>
         {leaveBalance ? (
           <div className="mypage-leave-stats">
             <div className="stat-tile items-center text-center">
@@ -319,7 +322,7 @@ export default function MyPage() {
             </div>
           </div>
         ) : (
-          <div className="text-center py-12">
+          <div className="mypage-record-empty">
             <div className="text-3xl mb-3">🌴</div>
             <div className="text-sm font-semibold text-[var(--text-muted)]">연차 정보가 설정되지 않았습니다.</div>
             <div className="text-xs text-[var(--text-dim)] mt-1">관리자가 연차를 설정하면 이곳에 표시됩니다. (휴가 신청은 전자결재에서)</div>
@@ -327,7 +330,7 @@ export default function MyPage() {
         )}
 
         {recentLeaves.length > 0 && (
-          <div>
+          <div className="mypage-leave-recent-block flex-1">
             <div className="text-xs font-semibold text-[var(--text-dim)] mb-2 mt-2">최근 휴가 신청</div>
             <div className="mypage-recent-leaves">
               {recentLeaves.map((leave: any) => (

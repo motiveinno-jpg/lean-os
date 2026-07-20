@@ -1942,12 +1942,19 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mypage-hero-chips { @apply basis-full flex flex-wrap items-center gap-1.5; }
 .mypage-hero-chip { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)]; }
 .mypage-hero-leave { @apply ml-auto shrink-0 text-right px-4 py-2.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)]; }
-.mypage-records-grid { @apply grid gap-5 lg:grid-cols-2 items-start; }
+/* 인사기록 탭 — 같은 행 카드끼리 높이를 맞춘다(stretch). 계약서↔급여명세서, 연차↔증명서 */
+.mypage-records-grid { @apply grid gap-5 lg:grid-cols-2; }
+.mypage-record-body { @apply flex-1; }
+.mypage-record-loading { @apply flex-1 flex items-center justify-center py-8 text-xs text-[var(--text-muted)]; }
+.mypage-record-empty { @apply flex-1 flex flex-col justify-center py-10 text-center; }
 /* 인사 정보 — 반쪽 카드로 남아 다른 카드와 높이·무게가 어긋나던 문제. 전폭 + 타일 그리드로 통일 */
 .mypage-info-grid { @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-sm; }
 .mypage-info-tile { @apply rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3.5 py-2.5; }
 .mypage-employee-card { @apply p-6 lg:col-span-2; }
-.mypage-leave-card { @apply p-6; }
+.mypage-leave-card { @apply p-6 h-full flex flex-col; }
+.mypage-contracts-card { @apply p-6 h-full flex flex-col; }
+.mypage-payslips-card { @apply p-6 h-full flex flex-col; }
+.mypage-certificates-card { @apply p-6 h-full flex flex-col; }
 .mypage-leave-stats { @apply grid grid-cols-3 gap-4 mb-4; }
 .mypage-recent-leaves { @apply space-y-2; }
 .mypage-withdraw-card { @apply p-6 border border-[var(--danger)]/30; }
