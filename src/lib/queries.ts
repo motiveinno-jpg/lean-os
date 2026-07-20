@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
 import { encryptCredential } from './crypto';
-import { createTrialingSubscription } from './billing';
 import { logRead } from './log-read';
 import type { User, Company, Deal, DealNode, CashSnapshot, BankAccount, SubDeal, DealMilestone, DealAssignment, PaymentQueue, DocTemplate, TaxInvoice, ChatChannel, ChatMessage, ChatParticipant, VaultAccount, VaultAsset, VaultDoc, AutoDiscoveryResult, DealClassification, CorporateCard, CardTransaction, ClosingChecklist, ClosingChecklistItem, AuditLog, Partner } from '@/types/models';
 
@@ -63,56 +62,13 @@ async function _fetchCurrentUser(): Promise<CurrentUser | null> {
       .maybeSingle());
     if (fallback?.company_id) return fallback as unknown as CurrentUser;
 
-    // 인증은 됐지만 users 레코드가 없는 경우 — 자동 생성 (verify 페이지 실패 복구)
-    return await autoSetupUser(user);
+    // 인증은 됐지만 users 레코드가 없는 경우 — 회사 개설/합류는 auth 플로우
+    // (provisionCompanyForUser → /company-setup)가 전담한다. 과거의 자동 생성 폴백
+    // (autoSetupUser)은 RLS에 막혀 콘솔 에러만 내는 데드 코드라 제거 (2026-07-20 P0).
+    return null;
   }
   if (!data.company_id) return null;
   return data as unknown as CurrentUser;
-}
-
-async function autoSetupUser(authUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<CurrentUser | null> {
-  const companyName = (authUser.user_metadata?.company_name as string) || authUser.email?.split('@')[0] || '내 회사';
-  const displayName = (authUser.user_metadata?.display_name as string) || authUser.email?.split('@')[0] || '사용자';
-  const userEmail = authUser.email || '';
-
-  const { data: company, error: compErr } = await supabase
-    .from('companies')
-    .insert({ name: companyName })
-    .select()
-    .single();
-  if (compErr) { console.error('autoSetupUser company error:', compErr.message); return null; }
-
-  const { error: userErr } = await supabase.from('users').insert({
-    id: authUser.id,
-    auth_id: authUser.id,
-    company_id: company.id,
-    email: userEmail,
-    name: displayName,
-    role: 'owner',
-  });
-  if (userErr) { console.error('autoSetupUser user error:', userErr.message); return null; }
-
-  await supabase.from('cash_snapshot').insert({
-    company_id: company.id,
-    current_balance: 0,
-    monthly_fixed_cost: 0,
-  });
-
-  // 폴백 경로에서도 14일 트라이얼 구독 생성 — 주 경로(company-signup)와 동일하게 'free'
-  //   ('starter' 는 비활성 레거시 플랜 + 발행한도 컬럼 NULL=무제한이라 한도가 안 걸림, 2026-07-16)
-  try {
-    await createTrialingSubscription(company.id, 'free', 14);
-  } catch (e) {
-    console.warn('autoSetupUser subscription error:', e);
-  }
-
-  // 생성 후 다시 조회
-  const created = logRead('autoSetupUser', await supabase
-    .from('users')
-    .select('*, companies(*)')
-    .eq('auth_id', authUser.id)
-    .maybeSingle());
-  return created as unknown as CurrentUser;
 }
 
 // ── Survival Data Types ──

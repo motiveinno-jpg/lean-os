@@ -77,11 +77,15 @@ export async function getPlans(): Promise<PlanInfo[]> {
 // ── 1.5 출시 게이트: 구독 상태 요약 (app-shell 배너/페이월용, 2026-06-11) ──
 //   getCurrentSubscription 은 trialing 을 제외하므로 게이트 판단엔 부적합 — 전용 경량 조회.
 export interface SubscriptionGateInfo {
-  state: 'active' | 'trialing' | 'trial_expired' | 'past_due' | 'canceled' | 'none';
+  state: 'active' | 'trialing' | 'trial_expired' | 'past_due' | 'canceled' | 'expired' | 'none';
   daysLeft: number | null; // trialing: 체험 종료까지 / canceled(기간잔존): 종료까지
   planName: string | null;
-  blocked: boolean; // 하드 페이월 대상 (trial 만료 · 해지 후 기간 종료)
+  blocked: boolean; // 하드 페이월 대상 (trial 만료 · 해지 후 기간 종료 · 결제 기간 만료)
 }
+
+// active 상태의 결제 기간 만료 유예 — 정상 갱신은 Stripe webhook(customer.subscription.updated)이
+// current_period_end 를 연장해 주므로, 이 유예는 webhook 지연·일시 장애 흡수용.
+const PERIOD_EXPIRY_GRACE_MS = 3 * 86400000;
 
 export async function getSubscriptionGate(companyId: string): Promise<SubscriptionGateInfo> {
   const { data, error } = await db
@@ -116,7 +120,12 @@ export async function getSubscriptionGate(companyId: string): Promise<Subscripti
     }
     return { state: 'canceled', daysLeft: null, planName, blocked: true };
   }
-  // active / paused / cancelling 등
+  // active / paused 등 — 기간 만료 검사 (2026-07-20 P0: status 만 보고 통과시키면
+  // 수동으로 active 처리된 행이 영구 무료가 됨). 기간 정보가 없는 행은 잠그지 않음.
+  const periodEnd = data.current_period_end ? new Date(data.current_period_end).getTime() : null;
+  if (periodEnd && now > periodEnd + PERIOD_EXPIRY_GRACE_MS) {
+    return { state: 'expired', daysLeft: null, planName, blocked: true };
+  }
   return { state: 'active', daysLeft: null, planName, blocked: false };
 }
 

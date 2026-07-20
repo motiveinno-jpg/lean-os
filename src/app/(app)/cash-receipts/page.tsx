@@ -263,7 +263,7 @@ export default function CashReceiptsPage() {
     enabled: !!companyId,
   });
 
-  // 요금제별 현금영수증 국세청 발행 월간 한도 (기본요금제=10건, 울트라=무제한)
+  // 요금제별 현금영수증 국세청 발행 월간 한도 (프로=10건, 울트라=무제한)
   const { data: issuanceStatus } = useQuery({
     queryKey: ["cashbill-issuance-status", companyId],
     queryFn: () => getCashReceiptIssuanceStatus(companyId!),

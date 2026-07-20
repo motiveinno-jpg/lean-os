@@ -715,7 +715,7 @@ export default function TaxInvoicesPage() {
     enabled: !!companyId,
   });
 
-  // 요금제별 세금계산서 국세청 발행 월간 한도 (기본요금제=10건, 울트라=무제한)
+  // 요금제별 세금계산서 국세청 발행 월간 한도 (프로=10건, 울트라=무제한)
   const { data: issuanceStatus } = useQuery({
     queryKey: ["tax-invoice-issuance-status", companyId],
     queryFn: () => getTaxInvoiceIssuanceStatus(companyId!),
