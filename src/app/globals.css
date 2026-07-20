@@ -3759,3 +3759,296 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .alert-box-list { @apply space-y-1 text-sm text-[var(--text-muted)]; }
 
 .ui-card { @apply rounded-[var(--radius-card)] border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm shadow-[var(--shadow-glass)]; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Landing v2 — 2026-07-20 전면 리디자인 (lp2-* 마커 전용)
+   기존 랜딩 클래스(hero-*, engine-* 등)는 건드리지 않고 신규 추가.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 루트 · 테마 변수 ── */
+.lp2-root {
+  --lp-bg: #05060F;
+  --lp-bg-soft: #0A0D1D;
+  --lp-card: rgba(255, 255, 255, 0.035);
+  --lp-card-strong: rgba(255, 255, 255, 0.06);
+  --lp-border: rgba(255, 255, 255, 0.09);
+  --lp-border-strong: rgba(255, 255, 255, 0.16);
+  --lp-text: #F1F5F9;
+  --lp-text-2: #A3AECB;
+  --lp-text-3: #5D6883;
+  --lp-indigo: #6366F1;
+  --lp-violet: #8B5CF6;
+  --lp-cyan: #22D3EE;
+  --lp-emerald: #34D399;
+  --lp-amber: #FBBF24;
+  --lp-rose: #FB7185;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  overflow-x: clip;
+  font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, system-ui, sans-serif;
+}
+.lp2-root[data-theme="light"] {
+  --lp-bg: #F5F6FB;
+  --lp-bg-soft: #EDEFF8;
+  --lp-card: rgba(15, 23, 42, 0.03);
+  --lp-card-strong: rgba(15, 23, 42, 0.05);
+  --lp-border: rgba(15, 23, 42, 0.10);
+  --lp-border-strong: rgba(15, 23, 42, 0.18);
+  --lp-text: #0F172A;
+  --lp-text-2: #46557A;
+  --lp-text-3: #8B96B3;
+}
+.lp2-section { @apply relative px-6 py-24 md:py-32; }
+.lp2-container { @apply max-w-6xl mx-auto relative z-10; }
+.lp2-narrow { @apply max-w-3xl mx-auto relative z-10; }
+.lp2-eyebrow { @apply inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide mb-6; color: var(--lp-cyan); background: color-mix(in srgb, var(--lp-cyan) 9%, transparent); border: 1px solid color-mix(in srgb, var(--lp-cyan) 25%, transparent); }
+.lp2-h2 { @apply text-3xl md:text-5xl font-extrabold tracking-tight mb-4; color: var(--lp-text); }
+.lp2-sub { @apply text-base md:text-lg; color: var(--lp-text-2); }
+.lp2-section-head { @apply text-center mb-14 md:mb-20; }
+
+/* ── 그라데이션 텍스트 ── */
+.lp2-grad-text {
+  background: linear-gradient(100deg, #818CF8, #C084FC 40%, #22D3EE 90%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: lp2-pan 6s ease-in-out infinite alternate;
+}
+@keyframes lp2-pan { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+
+/* ── 오로라 배경 ── */
+.lp2-aurora-wrap { @apply absolute inset-0 overflow-hidden pointer-events-none; }
+.lp2-aurora-a, .lp2-aurora-b, .lp2-aurora-c { position: absolute; border-radius: 9999px; filter: blur(90px); opacity: 0.5; will-change: transform; }
+.lp2-aurora-a { width: 620px; height: 620px; left: -160px; top: -180px; background: radial-gradient(circle, rgba(99,102,241,0.55), transparent 65%); animation: lp2-drift-a 26s ease-in-out infinite alternate; }
+.lp2-aurora-b { width: 540px; height: 540px; right: -140px; top: 60px; background: radial-gradient(circle, rgba(139,92,246,0.45), transparent 65%); animation: lp2-drift-b 32s ease-in-out infinite alternate; }
+.lp2-aurora-c { width: 460px; height: 460px; left: 38%; bottom: -220px; background: radial-gradient(circle, rgba(34,211,238,0.30), transparent 65%); animation: lp2-drift-c 30s ease-in-out infinite alternate; }
+@keyframes lp2-drift-a { from { transform: translate(0,0) scale(1); } to { transform: translate(90px,60px) scale(1.15); } }
+@keyframes lp2-drift-b { from { transform: translate(0,0) scale(1.1); } to { transform: translate(-80px,90px) scale(0.95); } }
+@keyframes lp2-drift-c { from { transform: translate(0,0) scale(1); } to { transform: translate(60px,-70px) scale(1.2); } }
+.lp2-grid-pattern {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(148,163,184,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.07) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, black 30%, transparent 75%);
+}
+.lp2-root[data-theme="light"] .lp2-grid-pattern { background-image: linear-gradient(rgba(15,23,42,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.06) 1px, transparent 1px); }
+
+/* ── 스크롤 리빌 ── */
+.lp2-reveal { opacity: 0; transform: translateY(30px); filter: blur(6px); transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1), filter 0.9s cubic-bezier(0.16,1,0.3,1); will-change: opacity, transform, filter; }
+.lp2-reveal.lp2-in { opacity: 1; transform: translateY(0); filter: blur(0); }
+.lp2-stagger > * { opacity: 0; transform: translateY(26px); transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1); }
+.lp2-stagger.lp2-in > * { opacity: 1; transform: translateY(0); }
+.lp2-stagger.lp2-in > *:nth-child(1) { transition-delay: 0.05s; }
+.lp2-stagger.lp2-in > *:nth-child(2) { transition-delay: 0.14s; }
+.lp2-stagger.lp2-in > *:nth-child(3) { transition-delay: 0.23s; }
+.lp2-stagger.lp2-in > *:nth-child(4) { transition-delay: 0.32s; }
+.lp2-stagger.lp2-in > *:nth-child(5) { transition-delay: 0.41s; }
+.lp2-stagger.lp2-in > *:nth-child(6) { transition-delay: 0.50s; }
+.lp2-stagger.lp2-in > *:nth-child(7) { transition-delay: 0.59s; }
+.lp2-stagger.lp2-in > *:nth-child(8) { transition-delay: 0.68s; }
+@media (prefers-reduced-motion: reduce) {
+  .lp2-reveal, .lp2-stagger > * { transition: none; opacity: 1; transform: none; filter: none; }
+  .lp2-aurora-a, .lp2-aurora-b, .lp2-aurora-c, .lp2-grad-text { animation: none; }
+}
+
+/* ── 내비게이션 ── */
+.lp2-progress { position: fixed; top: 0; left: 0; height: 2.5px; z-index: 60; background: linear-gradient(90deg, var(--lp-indigo), var(--lp-violet), var(--lp-cyan)); border-radius: 0 999px 999px 0; transition: width 0.1s linear; }
+.lp2-nav { @apply fixed top-3 left-1/2 z-50 w-[calc(100%-1.5rem)] max-w-6xl rounded-2xl; transform: translateX(-50%); background: color-mix(in srgb, var(--lp-bg) 72%, transparent); border: 1px solid var(--lp-border); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 8px 32px rgba(2,6,23,0.35); }
+.lp2-nav-inner { @apply flex items-center justify-between gap-4 px-4 md:px-6 py-3; }
+.lp2-nav-logo { @apply flex items-center gap-2.5 shrink-0; }
+.lp2-nav-links { @apply hidden lg:flex items-center gap-1; }
+.lp2-nav-link { @apply px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors; color: var(--lp-text-2); }
+.lp2-nav-link:hover { color: var(--lp-text); background: var(--lp-card-strong); }
+.lp2-nav-actions { @apply flex items-center gap-2; }
+.lp2-nav-login { @apply hidden sm:block px-3 py-1.5 text-[13px] font-medium transition-colors; color: var(--lp-text-2); }
+.lp2-nav-login:hover { color: var(--lp-text); }
+.lp2-theme-btn { @apply w-9 h-9 rounded-xl flex items-center justify-center transition-colors; color: var(--lp-text-2); border: 1px solid var(--lp-border); }
+.lp2-theme-btn:hover { color: var(--lp-text); border-color: var(--lp-border-strong); }
+.lp2-hamburger { @apply lg:hidden w-9 h-9 rounded-xl flex items-center justify-center; color: var(--lp-text-2); border: 1px solid var(--lp-border); }
+.lp2-mobile-menu { @apply lg:hidden flex flex-col gap-1 px-4 pb-4 pt-1; border-top: 1px solid var(--lp-border); }
+.lp2-mobile-link { @apply px-3 py-2.5 rounded-lg text-sm font-medium; color: var(--lp-text-2); }
+.lp2-mobile-link:hover { color: var(--lp-text); background: var(--lp-card-strong); }
+
+/* ── CTA 버튼 ── */
+.lp2-btn-primary { @apply relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-[15px] font-bold text-white overflow-hidden transition-transform duration-300; background: linear-gradient(120deg, #4F46E5, #7C3AED); box-shadow: 0 10px 34px rgba(99,102,241,0.38), inset 0 1px 0 rgba(255,255,255,0.18); }
+.lp2-btn-primary:hover { transform: translateY(-2px) scale(1.02); }
+.lp2-btn-primary::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.35) 50%, transparent 65%); transform: translateX(-120%); animation: lp2-shine 3.4s ease-in-out infinite; }
+@keyframes lp2-shine { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
+.lp2-btn-ghost { @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-[15px] font-bold transition-all duration-300; color: var(--lp-text); background: var(--lp-card-strong); border: 1px solid var(--lp-border-strong); }
+.lp2-btn-ghost:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--lp-indigo) 55%, transparent); }
+.lp2-btn-text { @apply inline-flex items-center gap-1 text-sm font-semibold transition-colors; color: var(--lp-text-2); }
+.lp2-btn-text:hover { color: var(--lp-text); }
+.lp2-nav-cta { @apply hidden sm:inline-flex relative items-center px-4 py-2 rounded-xl text-[13px] font-bold text-white overflow-hidden transition-transform duration-200; background: linear-gradient(120deg, #4F46E5, #7C3AED); box-shadow: 0 4px 18px rgba(99,102,241,0.35); }
+.lp2-nav-cta:hover { transform: translateY(-1px); }
+
+/* ── 히어로 ── */
+.lp2-hero { @apply relative px-6 pt-40 md:pt-48 pb-20 md:pb-28 overflow-hidden; }
+.lp2-hero-inner { @apply max-w-5xl mx-auto text-center relative z-10; }
+.lp2-hero-badge { @apply inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-7; color: var(--lp-text-2); background: var(--lp-card-strong); border: 1px solid var(--lp-border); }
+.lp2-hero-badge-dot { @apply w-1.5 h-1.5 rounded-full; background: var(--lp-emerald); box-shadow: 0 0 0 0 rgba(52,211,153,0.6); animation: lp2-ping 2.2s ease-out infinite; }
+@keyframes lp2-ping { 0% { box-shadow: 0 0 0 0 rgba(52,211,153,0.55); } 70%, 100% { box-shadow: 0 0 0 9px rgba(52,211,153,0); } }
+.lp2-hero-title { @apply text-4xl md:text-[64px] md:leading-[1.12] font-black tracking-tight mb-6; color: var(--lp-text); }
+.lp2-hero-sub { @apply text-base md:text-xl leading-relaxed mb-3; color: var(--lp-text-2); }
+.lp2-hero-tagline { @apply text-sm md:text-base mb-9; color: var(--lp-text-3); }
+.lp2-hero-cta-row { @apply flex flex-wrap items-center justify-center gap-3 mb-12; }
+.lp2-hero-stats { @apply flex flex-wrap items-stretch justify-center gap-0 mx-auto mb-4 rounded-2xl overflow-hidden w-fit; border: 1px solid var(--lp-border); background: var(--lp-card); backdrop-filter: blur(10px); }
+.lp2-hero-stat { @apply px-7 md:px-10 py-4 text-center; }
+.lp2-hero-stat + .lp2-hero-stat { border-left: 1px solid var(--lp-border); }
+.lp2-hero-stat-value { @apply text-2xl md:text-3xl font-black; color: var(--lp-text); font-variant-numeric: tabular-nums; }
+.lp2-hero-stat-label { @apply text-[11px] mt-1; color: var(--lp-text-3); }
+.lp2-hero-checks { @apply flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs mb-16; color: var(--lp-text-3); }
+.lp2-hero-check { @apply inline-flex items-center gap-1.5; }
+
+/* ── 히어로 목업 (3D 틸트) ── */
+.lp2-mock-scene { perspective: 1400px; @apply max-w-4xl mx-auto; }
+.lp2-mock { --lp2-rx: 0deg; --lp2-ry: 0deg; transform: perspective(1400px) rotateX(var(--lp2-rx)) rotateY(var(--lp2-ry)); transition: transform 0.25s ease-out; transform-style: preserve-3d; @apply relative rounded-3xl; background: linear-gradient(180deg, rgba(17,20,40,0.92), rgba(9,11,26,0.96)); border: 1px solid var(--lp-border-strong); box-shadow: 0 40px 90px rgba(2,6,23,0.6), 0 0 0 1px rgba(99,102,241,0.10), 0 0 90px rgba(99,102,241,0.14); }
+.lp2-mock-titlebar { @apply flex items-center gap-1.5 px-5 py-3.5; border-bottom: 1px solid var(--lp-border); }
+.lp2-mock-dot { @apply w-2.5 h-2.5 rounded-full; }
+.lp2-mock-body { @apply p-5 md:p-6; }
+.lp2-mock-stats { @apply grid grid-cols-2 md:grid-cols-4 gap-3 mb-4; }
+.lp2-mock-stat { @apply rounded-xl px-4 py-3 text-left; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); }
+.lp2-mock-widgets { @apply grid grid-cols-3 gap-3; }
+.lp2-mock-widget { @apply flex items-center gap-2.5 rounded-xl px-3.5 py-3; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+.lp2-mock-chart-wrap { @apply mt-4 rounded-xl p-4 pb-2; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+.lp2-spark-line { stroke-dasharray: 480; stroke-dashoffset: 480; }
+.lp2-in .lp2-spark-line { animation: lp2-draw 2.2s cubic-bezier(0.4,0,0.2,1) 0.5s forwards; }
+@keyframes lp2-draw { to { stroke-dashoffset: 0; } }
+.lp2-spark-area { opacity: 0; }
+.lp2-in .lp2-spark-area { animation: lp2-fade 1s ease-out 2.2s forwards; }
+@keyframes lp2-fade { to { opacity: 1; } }
+.lp2-mock-float { @apply absolute rounded-2xl px-4 py-3 hidden md:flex items-center gap-2.5 z-20; background: rgba(13,16,34,0.9); border: 1px solid var(--lp-border-strong); backdrop-filter: blur(12px); box-shadow: 0 18px 44px rgba(2,6,23,0.5); animation: lp2-float 7s ease-in-out infinite alternate; }
+.lp2-mock-float-a { left: -56px; top: 22%; animation-delay: 0.6s; }
+.lp2-mock-float-b { right: -64px; top: 52%; animation-delay: 1.8s; }
+@keyframes lp2-float { from { transform: translateY(-8px); } to { transform: translateY(10px); } }
+
+/* ── 기능 칩 마퀴 ── */
+.lp2-marquee-section { @apply relative py-8 overflow-hidden; border-top: 1px solid var(--lp-border); border-bottom: 1px solid var(--lp-border); background: var(--lp-bg-soft); }
+.lp2-marquee-track { @apply flex gap-3 w-max; animation: lp2-marquee 42s linear infinite; }
+.lp2-marquee-section:hover .lp2-marquee-track { animation-play-state: paused; }
+@keyframes lp2-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.lp2-marquee-chip { @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap; color: var(--lp-text-2); background: var(--lp-card-strong); border: 1px solid var(--lp-border); }
+.lp2-marquee-fade-l, .lp2-marquee-fade-r { @apply absolute top-0 bottom-0 w-24 z-10 pointer-events-none; }
+.lp2-marquee-fade-l { left: 0; background: linear-gradient(90deg, var(--lp-bg-soft), transparent); }
+.lp2-marquee-fade-r { right: 0; background: linear-gradient(270deg, var(--lp-bg-soft), transparent); }
+
+/* ── 페인포인트 ── */
+.lp2-pain-grid { @apply grid md:grid-cols-2 lg:grid-cols-3 gap-4; }
+.lp2-pain-card { @apply relative rounded-2xl p-6 overflow-hidden transition-all duration-300; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-pain-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--lp-indigo) 45%, transparent); box-shadow: 0 18px 44px rgba(2,6,23,0.35); }
+.lp2-pain-badge { @apply inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold mb-3; color: var(--lp-cyan); background: color-mix(in srgb, var(--lp-cyan) 10%, transparent); }
+.lp2-pain-pain { @apply text-sm font-semibold leading-relaxed mb-3 line-through decoration-2; color: var(--lp-text-3); text-decoration-color: color-mix(in srgb, var(--lp-rose) 60%, transparent); }
+.lp2-pain-solve { @apply text-sm leading-relaxed font-medium; color: var(--lp-text-2); }
+.lp2-pain-solve b { color: var(--lp-text); }
+.lp2-pain-summary { @apply mx-auto w-fit text-center rounded-2xl px-8 py-6 mt-12; background: var(--lp-card); border: 1px solid var(--lp-border); }
+
+/* ── 엔진 섹션 ── */
+.lp2-engine-card { @apply relative rounded-3xl overflow-hidden transition-all duration-300; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-engine-card:hover { border-color: color-mix(in srgb, var(--lp-indigo) 40%, transparent); box-shadow: 0 24px 60px rgba(2,6,23,0.4); }
+.lp2-engine-glow { position: absolute; width: 420px; height: 420px; border-radius: 9999px; filter: blur(80px); opacity: 0.14; pointer-events: none; right: -120px; top: -140px; background: radial-gradient(circle, var(--lp-indigo), transparent 70%); }
+.lp2-engine-body { @apply relative p-7 md:p-10; }
+.lp2-engine-head { @apply flex items-start gap-4 mb-6 flex-wrap; }
+.lp2-engine-num { @apply text-[64px] md:text-[84px] font-black leading-none select-none; color: transparent; -webkit-text-stroke: 1.5px color-mix(in srgb, var(--lp-indigo) 55%, transparent); }
+.lp2-engine-name-row { @apply flex items-center gap-3 flex-wrap; }
+.lp2-engine-tagline { @apply rounded-2xl px-5 py-4 mb-5; background: color-mix(in srgb, var(--lp-indigo) 7%, transparent); border-left: 3px solid var(--lp-indigo); }
+.lp2-engine-cols { @apply grid lg:grid-cols-2 gap-8 mt-8; }
+.lp2-engine-step { @apply flex items-start gap-3.5 relative; }
+.lp2-engine-step-line { position: absolute; left: 15px; top: 34px; bottom: -14px; width: 2px; background: linear-gradient(180deg, color-mix(in srgb, var(--lp-indigo) 55%, transparent), transparent); }
+.lp2-engine-step-num { @apply w-8 h-8 rounded-xl flex items-center justify-center text-[13px] font-black text-white shrink-0 z-10; background: linear-gradient(135deg, #4F46E5, #7C3AED); box-shadow: 0 6px 16px rgba(99,102,241,0.4); }
+.lp2-engine-feature { @apply flex items-start gap-3 rounded-xl p-3.5 transition-colors duration-200; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-engine-feature:hover { border-color: var(--lp-border-strong); background: var(--lp-card-strong); }
+.lp2-engine-metrics { @apply grid grid-cols-3 gap-3 mt-5; }
+.lp2-engine-metric { @apply rounded-xl px-3.5 py-3 text-center; background: var(--lp-card-strong); border: 1px solid var(--lp-border); }
+.lp2-engine-api-tag { @apply text-[10px] px-2.5 py-1 rounded-full font-semibold; color: color-mix(in srgb, var(--lp-indigo) 85%, white); background: color-mix(in srgb, var(--lp-indigo) 10%, transparent); border: 1px solid color-mix(in srgb, var(--lp-indigo) 28%, transparent); }
+.lp2-engine-savings { @apply flex flex-col md:flex-row items-center justify-center gap-8 md:gap-14 rounded-3xl px-10 py-9 mx-auto w-fit; background: linear-gradient(140deg, color-mix(in srgb, var(--lp-indigo) 10%, var(--lp-card)), var(--lp-card)); border: 1px solid color-mix(in srgb, var(--lp-indigo) 30%, transparent); }
+.lp2-engine-savings-divider { @apply hidden md:block w-px h-16; background: var(--lp-border-strong); }
+
+/* ── 라이브 데모 ── */
+.lp2-demo-tabs { @apply flex flex-wrap justify-center gap-2 mb-10; }
+.lp2-demo-tab { @apply relative px-4 py-2 rounded-xl text-[13px] font-semibold transition-all duration-200 overflow-hidden; color: var(--lp-text-2); background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-demo-tab:hover { color: var(--lp-text); border-color: var(--lp-border-strong); }
+.lp2-demo-tab-active { color: #fff !important; background: linear-gradient(120deg, #4F46E5, #7C3AED) !important; border-color: transparent !important; box-shadow: 0 8px 24px rgba(99,102,241,0.35); }
+.lp2-demo-tab-progress { position: absolute; left: 0; bottom: 0; height: 2.5px; background: rgba(255,255,255,0.75); animation: lp2-tab-progress 9s linear forwards; }
+@keyframes lp2-tab-progress { from { width: 0; } to { width: 100%; } }
+.lp2-demo-grid { @apply grid lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] gap-6 items-stretch; }
+.lp2-demo-info { @apply rounded-3xl p-7 md:p-8 flex flex-col justify-center; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-demo-replace-badge { @apply inline-flex w-fit items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold mb-4; color: var(--lp-amber); background: color-mix(in srgb, var(--lp-amber) 10%, transparent); border: 1px solid color-mix(in srgb, var(--lp-amber) 25%, transparent); }
+.lp2-demo-stage { @apply relative rounded-3xl p-4 md:p-6 flex flex-col justify-center; background: linear-gradient(180deg, rgba(17,20,40,0.9), rgba(9,11,26,0.95)); border: 1px solid var(--lp-border-strong); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 24px 60px rgba(2,6,23,0.45); }
+.lp2-sim-enter { animation: lp2-pop 0.55s cubic-bezier(0.16,1,0.3,1); }
+@keyframes lp2-pop { from { opacity: 0; transform: translateY(18px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* ── 기능 맵 (벤토) ── */
+.lp2-bento { @apply grid md:grid-cols-2 lg:grid-cols-4 gap-4; }
+.lp2-bento-card { @apply relative rounded-3xl p-6 overflow-hidden transition-all duration-300; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-bento-card:hover { transform: translateY(-4px); box-shadow: 0 20px 50px rgba(2,6,23,0.4); }
+.lp2-bento-icon { @apply w-11 h-11 rounded-2xl flex items-center justify-center text-xl mb-4; }
+.lp2-bento-item { @apply flex items-start gap-2.5 text-[13px] leading-relaxed py-1.5; color: var(--lp-text-2); }
+.lp2-bento-check { @apply mt-0.5 shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black; }
+
+/* ── 비교/계산기 ── */
+.lp2-comp-grid { @apply grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-3 mb-12; }
+.lp2-comp-card { @apply relative rounded-2xl p-4 text-center transition-all duration-300; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-comp-card:hover { transform: translateY(-3px) rotate(-1deg); border-color: color-mix(in srgb, var(--lp-rose) 40%, transparent); }
+.lp2-comp-logo { @apply w-11 h-11 mx-auto rounded-xl flex items-center justify-center text-lg font-black mb-2 relative overflow-hidden; }
+.lp2-comp-slash { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.lp2-calc { @apply rounded-3xl p-7 md:p-9; background: var(--lp-card); border: 1px solid var(--lp-border); backdrop-filter: blur(10px); }
+.lp2-calc-head { @apply flex flex-col md:flex-row md:items-center justify-between gap-5 mb-7; }
+.lp2-calc-cell { @apply rounded-2xl px-5 py-5 text-center; }
+.lp2-calc-cell-red { background: color-mix(in srgb, var(--lp-rose) 7%, transparent); border: 1px solid color-mix(in srgb, var(--lp-rose) 22%, transparent); }
+.lp2-calc-cell-blue { background: color-mix(in srgb, var(--lp-indigo) 8%, transparent); border: 1px solid color-mix(in srgb, var(--lp-indigo) 26%, transparent); }
+.lp2-calc-cell-green { background: color-mix(in srgb, var(--lp-emerald) 7%, transparent); border: 1px solid color-mix(in srgb, var(--lp-emerald) 22%, transparent); }
+.lp2-range { accent-color: #6366F1; }
+
+/* ── 온보딩 스텝 ── */
+.lp2-steps-grid { @apply grid sm:grid-cols-2 lg:grid-cols-4 gap-4 relative; }
+.lp2-step-card { @apply relative rounded-2xl p-6 text-center transition-all duration-300; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-step-card:hover { transform: translateY(-4px); border-color: var(--lp-border-strong); }
+.lp2-step-icon { @apply w-12 h-12 mx-auto rounded-2xl flex items-center justify-center text-2xl mb-4; background: var(--lp-card-strong); border: 1px solid var(--lp-border); }
+.lp2-step-connector { @apply hidden lg:block absolute top-1/2 -right-2 w-4 h-px z-10; background: var(--lp-border-strong); }
+
+/* ── 요금제 ── */
+.lp2-plans { @apply grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch; }
+.lp2-plan { @apply relative rounded-3xl p-6 flex flex-col transition-all duration-300; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-plan:hover { transform: translateY(-5px); border-color: var(--lp-border-strong); box-shadow: 0 20px 50px rgba(2,6,23,0.4); }
+.lp2-plan-best { background: linear-gradient(var(--lp-bg-soft), var(--lp-bg-soft)) padding-box, linear-gradient(140deg, #6366F1, #A855F7, #22D3EE) border-box; border: 1.5px solid transparent; box-shadow: 0 24px 60px rgba(99,102,241,0.28); }
+.lp2-plan-best:hover { transform: translateY(-7px) scale(1.01); box-shadow: 0 30px 70px rgba(99,102,241,0.4); }
+.lp2-plan-best-badge { @apply absolute -top-3 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full text-[11px] font-black text-white tracking-wider; background: linear-gradient(120deg, #6366F1, #A855F7); box-shadow: 0 6px 18px rgba(139,92,246,0.45); }
+.lp2-plan-feature { @apply flex items-start gap-2 text-[13px] leading-relaxed; color: var(--lp-text-2); }
+.lp2-plan-cta { @apply mt-auto block text-center px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200; }
+.lp2-plan-cta-primary { color: #fff; background: linear-gradient(120deg, #4F46E5, #7C3AED); box-shadow: 0 8px 22px rgba(99,102,241,0.35); }
+.lp2-plan-cta-primary:hover { transform: translateY(-1px); }
+.lp2-plan-cta-ghost { color: var(--lp-text); background: var(--lp-card-strong); border: 1px solid var(--lp-border-strong); }
+.lp2-plan-cta-ghost:hover { border-color: color-mix(in srgb, var(--lp-indigo) 50%, transparent); }
+.lp2-diff-table-wrap { @apply max-w-3xl mx-auto mt-12 rounded-2xl overflow-hidden; border: 1px solid var(--lp-border); }
+.lp2-diff-table { @apply w-full text-sm border-collapse; }
+.lp2-diff-table th { @apply px-5 py-3.5 text-left text-xs font-bold; color: var(--lp-text-2); background: var(--lp-card-strong); }
+.lp2-diff-table td { @apply px-5 py-3.5; color: var(--lp-text-2); border-top: 1px solid var(--lp-border); }
+
+/* ── 제휴 폼 ── */
+.lp2-form-card { @apply rounded-3xl p-7 md:p-9; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-field-label { @apply block text-xs font-bold mb-1.5; color: var(--lp-text-2); }
+.lp2-input { @apply w-full px-4 py-3 rounded-xl text-sm transition-colors; color: var(--lp-text); background: var(--lp-card-strong); border: 1px solid var(--lp-border); }
+.lp2-input:focus { outline: none; border-color: color-mix(in srgb, var(--lp-indigo) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-indigo) 15%, transparent); }
+.lp2-input::placeholder { color: var(--lp-text-3); }
+.lp2-form-success { @apply rounded-3xl p-10 text-center; background: color-mix(in srgb, var(--lp-emerald) 7%, transparent); border: 1px solid color-mix(in srgb, var(--lp-emerald) 25%, transparent); }
+
+/* ── FAQ ── */
+.lp2-faq-item { @apply rounded-2xl mb-3 overflow-hidden transition-colors duration-200; background: var(--lp-card); border: 1px solid var(--lp-border); }
+.lp2-faq-item:hover { border-color: var(--lp-border-strong); }
+.lp2-faq-btn { @apply w-full flex items-center justify-between gap-4 px-6 py-5 text-left; }
+.lp2-faq-q { @apply text-sm md:text-[15px] font-bold; color: var(--lp-text); }
+.lp2-faq-chevron { @apply w-4 h-4 shrink-0 transition-transform duration-300; color: var(--lp-text-3); }
+.lp2-faq-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s cubic-bezier(0.16,1,0.3,1); }
+.lp2-faq-open .lp2-faq-panel { grid-template-rows: 1fr; }
+.lp2-faq-panel-inner { overflow: hidden; }
+.lp2-faq-a { @apply px-6 pb-5 text-sm leading-relaxed; color: var(--lp-text-2); }
+
+/* ── 파이널 CTA ── */
+.lp2-final { @apply relative rounded-[2rem] overflow-hidden text-center px-8 py-20 md:py-24; background: linear-gradient(150deg, #10133001, transparent), var(--lp-bg-soft); border: 1px solid var(--lp-border-strong); }
+.lp2-final-orb-a { position: absolute; width: 480px; height: 480px; left: -140px; bottom: -240px; border-radius: 9999px; filter: blur(90px); background: radial-gradient(circle, rgba(99,102,241,0.4), transparent 70%); animation: lp2-drift-a 24s ease-in-out infinite alternate; }
+.lp2-final-orb-b { position: absolute; width: 420px; height: 420px; right: -120px; top: -200px; border-radius: 9999px; filter: blur(90px); background: radial-gradient(circle, rgba(34,211,238,0.28), transparent 70%); animation: lp2-drift-b 28s ease-in-out infinite alternate; }
+
+/* ── 푸터 ── */
+.lp2-footer { @apply px-6 pt-14 pb-10; border-top: 1px solid var(--lp-border); background: var(--lp-bg-soft); }
+.lp2-footer-top { @apply flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 mb-8; border-bottom: 1px solid var(--lp-border); }
+.lp2-footer-info { @apply space-y-1 text-xs leading-relaxed; color: var(--lp-text-3); }
+.lp2-footer-links { @apply flex flex-wrap items-center gap-4 text-xs; color: var(--lp-text-3); }
+.lp2-footer-links a:hover { color: var(--lp-text); }

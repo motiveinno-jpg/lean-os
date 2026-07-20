@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { RollingBrandText } from "@/components/brand-logo";
 import { supabase } from "@/lib/supabase";
@@ -703,49 +703,164 @@ function useInView(threshold = 0.15) {
 }
 
 // ═══════════════════════════════════════════
-// HERO FLOATING ELEMENTS
+// LANDING V2 — 애니메이션 헬퍼
 // ═══════════════════════════════════════════
-function FloatingElements() {
+
+// 스크롤 진입 시 리빌(블러+슬라이드). stagger=true 면 직계 자식들이 순차 등장.
+function Reveal({ children, className = "", stagger = false }: { children: ReactNode; className?: string; stagger?: boolean }) {
+  const { ref, inView } = useInView(0.12);
   return (
-    <div className="hero-floating-elements">
-      {/* Floating icons */}
-      {[
-        { icon: "📊", x: "10%", y: "20%", delay: "0s", dur: "20s" },
-        { icon: "📄", x: "85%", y: "15%", delay: "3s", dur: "22s" },
-        { icon: "💰", x: "75%", y: "70%", delay: "1s", dur: "18s" },
-        { icon: "👥", x: "15%", y: "75%", delay: "5s", dur: "24s" },
-        { icon: "📋", x: "50%", y: "10%", delay: "2s", dur: "19s" },
-        { icon: "✍️", x: "90%", y: "45%", delay: "4s", dur: "21s" },
-        { icon: "🤖", x: "5%", y: "45%", delay: "6s", dur: "23s" },
-        { icon: "🏦", x: "60%", y: "80%", delay: "7s", dur: "17s" },
-      ].map((f, i) => (
-        <div
-          key={i}
-          className="hero-floating-icon"
-          style={{
-            left: f.x,
-            top: f.y,
-            animation: `float-y ${f.dur} ease-in-out ${f.delay} infinite alternate`,
-          }}
-        >
-          {f.icon}
-        </div>
-      ))}
-      {/* Connection lines (decorative SVG paths) */}
-      <svg className="hero-connection-lines" xmlns="http://www.w3.org/2000/svg">
-        <path d="M100,100 Q400,50 700,200 T1200,150" fill="none" stroke="white" strokeWidth="1" />
-        <path d="M200,400 Q500,300 800,450 T1300,350" fill="none" stroke="white" strokeWidth="1" />
-        <path d="M0,250 Q300,200 600,350 T1100,250" fill="none" stroke="white" strokeWidth="0.5" />
-      </svg>
-      {/* Gradient orbs */}
-      <div className="hero-float-orb-1" />
-      <div className="hero-float-orb-2" />
+    <div ref={ref} className={`${stagger ? "lp2-stagger" : "lp2-reveal"} ${inView ? "lp2-in" : ""} ${className}`}>
+      {children}
     </div>
   );
 }
 
+// 뷰포트 진입 시 0 → to 카운트업 숫자.
+function CountUp({ to, decimals = 0, suffix = "", prefix = "", duration = 1800 }: { to: number; decimals?: number; suffix?: string; prefix?: string; duration?: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [val, setVal] = useState(0);
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setStarted(true); }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!started) return;
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
+      setVal(to * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [started, to, duration]);
+  return (
+    <span ref={ref}>
+      {prefix}{val.toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: decimals })}{suffix}
+    </span>
+  );
+}
+
+// 마우스 위치 따라 3D 틸트 (--lp2-rx/--lp2-ry CSS 변수 갱신).
+function useTilt(max = 6) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onMove = (e: MouseEvent) => {
+      const r = el.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      el.style.setProperty("--lp2-ry", `${(px * max).toFixed(2)}deg`);
+      el.style.setProperty("--lp2-rx", `${(-py * max).toFixed(2)}deg`);
+    };
+    const onLeave = () => {
+      el.style.setProperty("--lp2-ry", "0deg");
+      el.style.setProperty("--lp2-rx", "0deg");
+    };
+    el.addEventListener("mousemove", onMove);
+    el.addEventListener("mouseleave", onLeave);
+    return () => { el.removeEventListener("mousemove", onMove); el.removeEventListener("mouseleave", onLeave); };
+  }, [max]);
+  return ref;
+}
+
+// 히어로 목업 — 6-Pack 스탯 + 현금 스파크라인(선 드로잉) + 위젯. 수치는 예시 데이터.
+function HeroMockup() {
+  const tiltRef = useTilt(5);
+  const { ref, inView } = useInView(0.25);
+  return (
+    <div ref={ref} className={`lp2-mock-scene lp2-reveal ${inView ? "lp2-in" : ""}`}>
+      <div ref={tiltRef} className="lp2-mock">
+        <div className="lp2-mock-float lp2-mock-float-a">
+          <span className="w-2 h-5 rounded-full bg-amber-400" />
+          <div>
+            <div className="text-[10px] text-slate-500">승인 대기</div>
+            <div className="text-xs font-bold text-white">3건</div>
+          </div>
+        </div>
+        <div className="lp2-mock-float lp2-mock-float-b">
+          <span className="w-2 h-5 rounded-full bg-emerald-400" />
+          <div>
+            <div className="text-[10px] text-slate-500">AI 브리핑</div>
+            <div className="text-xs font-bold text-white">오늘의 액션 4건</div>
+          </div>
+        </div>
+        <div className="lp2-mock-titlebar">
+          <div className="lp2-mock-dot bg-red-400/80" />
+          <div className="lp2-mock-dot bg-yellow-400/80" />
+          <div className="lp2-mock-dot bg-green-400/80" />
+          <span className="text-[10px] text-slate-500 ml-2">OwnerView Dashboard — CEO View</span>
+        </div>
+        <div className="lp2-mock-body">
+          <div className="lp2-mock-stats">
+            {[
+              { label: "현금", value: "₩8.2억", color: "#818CF8", change: "+12%" },
+              { label: "매출", value: "₩4.5억", color: "#34D399", change: "+23%" },
+              { label: "고정비", value: "₩1.8억", color: "#FBBF24", change: "-5%" },
+              { label: "런웨이", value: "4.6개월", color: "#C084FC", change: "+0.8" },
+            ].map((c) => (
+              <div key={c.label} className="lp2-mock-stat">
+                <div className="text-[10px] text-slate-500">{c.label}</div>
+                <div className="text-sm font-bold text-white">{c.value}</div>
+                <div className="text-[10px] font-semibold" style={{ color: c.color }}>{c.change}</div>
+              </div>
+            ))}
+          </div>
+          <div className="lp2-mock-chart-wrap">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold text-slate-400">현금 흐름 — 90일 예측</span>
+              <span className="text-[9px] text-slate-600">예시 데이터</span>
+            </div>
+            <svg viewBox="0 0 400 90" className="w-full h-[72px]" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="lp2SparkFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366F1" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path className="lp2-spark-area" d="M0,70 C40,62 70,66 100,52 C130,40 160,48 200,38 C240,30 270,36 310,24 C340,16 370,20 400,12 L400,90 L0,90 Z" fill="url(#lp2SparkFill)" />
+              <path className="lp2-spark-line" d="M0,70 C40,62 70,66 100,52 C130,40 160,48 200,38 C240,30 270,36 310,24 C340,16 370,20 400,12" fill="none" stroke="#818CF8" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div className="lp2-mock-widgets mt-4">
+            {[
+              { label: "진행 프로젝트", count: "12건", color: "#818CF8" },
+              { label: "미수금 30일+", count: "1건", color: "#FB7185" },
+              { label: "이번 달 서명", count: "5건", color: "#34D399" },
+            ].map((w) => (
+              <div key={w.label} className="lp2-mock-widget">
+                <div className="w-2 h-5 rounded-full" style={{ background: w.color }} />
+                <div>
+                  <div className="text-[10px] text-slate-500">{w.label}</div>
+                  <div className="text-xs font-bold text-white">{w.count}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 마퀴 칩 — 전부 실제 탑재 기능명 (기능 맵과 동일 소스).
+const MARQUEE_FEATURES = [
+  "경영 흐름 콕핏", "은행·카드 실계좌 동기화", "AI 거래 자동분류", "분개전표 자동 기장", "거래처 원장",
+  "세금계산서 관리", "손익계산서 자동 생성", "프로젝트 파이프라인", "전자계약 · 직인", "전자결재 양식 빌더",
+  "근태 · 연차 관리", "급여명세서 자동 발송", "경비 영수증 OCR", "팀 메신저", "파트너 포털",
+  "엑셀 업로드", "글로벌 검색 ⌘K", "커스텀 대시보드 위젯", "카카오 알림톡", "감사 로그 · RBAC",
+];
+
 // ═══════════════════════════════════════════
-// MAIN COMPONENT
+// MAIN COMPONENT — Landing v2
 // ═══════════════════════════════════════════
 export default function LandingPage() {
   const [activeFeat, setActiveFeat] = useState(0);
@@ -755,7 +870,9 @@ export default function LandingPage() {
   const [partnerSent, setPartnerSent] = useState(false);
   const [partnerSending, setPartnerSending] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  // 2026-05-22 랜딩 라이트/다크 토글 (앱 테마와 독립). 기본 다크, localStorage 유지.
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  // 랜딩 라이트/다크 토글 (앱 테마와 독립, localStorage 유지 — 기존 키 그대로)
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   useEffect(() => {
     try {
@@ -770,6 +887,18 @@ export default function LandingPage() {
       return next;
     });
   };
+
+  // 상단 스크롤 진행바
+  useEffect(() => {
+    const onScroll = () => {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - doc.clientHeight;
+      setScrollProgress(max > 0 ? (doc.scrollTop / max) * 100 : 0);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   async function handlePartnerSubmit() {
     if (!partnerForm.company || !partnerForm.name || !partnerForm.email || !partnerForm.message) return;
@@ -789,872 +918,654 @@ export default function LandingPage() {
       setPartnerSending(false);
     }
   }
-  // revView removed — revenue simulation moved to separate IR report
 
-  // Auto-rotate features
+  // 라이브 데모 탭 자동 순환
   useEffect(() => {
     const t = setInterval(() => setActiveFeat((p) => (p + 1) % FEATURES.length), 9000);
     return () => clearInterval(t);
   }, []);
 
-  // 2026-07 가격 재확인: 플렉스는 10인까지 70,000원 정액(+인원당 7,000원, 여기선 10인 기준 정액으로 반영) — per-person 계산에서 제외.
-  // 모두싸인 Team 플랜 39,900원으로 정정(기존 55,000원 오기재).
+  // 2026-07 가격 재확인: 플렉스는 10인까지 70,000원 정액 — per-person 계산에서 제외.
   const competitorTotal = teamSize * (16000 + 4900 + 4000) + 70000 + 39900 + 120000 + 33000;
-  // 오너뷰는 인원 무관 월 55,000 정액 (50인 초과는 엔터프라이즈 별도 협의)
   const reflectTotal = teamSize <= 50 ? 55000 : null;
   const savings = competitorTotal - (reflectTotal ?? 55000);
   const savingsPercent = Math.round((savings / competitorTotal) * 100);
   const reflectPlan = teamSize <= 50 ? "프로" : "엔터프라이즈";
 
-  const heroRef = useInView();
-  const featRef = useInView();
-  const compRef = useInView();
-  const priceRef = useInView();
-  const partnerRef = useInView();
-
   const SimComponent = SIM_MAP[FEATURES[activeFeat].sim];
 
   return (
-    <div className="landing-root" data-theme={theme} style={{ fontFamily: "'Inter', 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif" }}>
-      <style>{`
-        @keyframes float-y { from { transform: translateY(0px) rotate(0deg); } to { transform: translateY(-30px) rotate(5deg); } }
-        @keyframes slide-up { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fade-in-scale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        @keyframes count-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-        .animate-up { animation: slide-up 0.8s ease-out forwards; }
-        .animate-scale { animation: fade-in-scale 0.6s ease-out forwards; }
-      `}</style>
+    <div className="lp2-root" data-theme={theme}>
+      {/* 스크롤 진행바 */}
+      <div className="lp2-progress" style={{ width: `${scrollProgress}%` }} />
 
-      {/* ── NAV ── */}
-      <nav className="site-nav">
-        <div className="nav-inner">
-          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="nav-logo-link">
-            <OwnerViewLogo size={32} />
-            <span className="text-lg font-bold text-white tracking-tight"><RollingBrandText /></span>
+      {/* ── NAV — 플로팅 글래스 바 ── */}
+      <nav className="lp2-nav">
+        <div className="lp2-nav-inner">
+          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="lp2-nav-logo">
+            <OwnerViewLogo size={30} />
+            <span className="text-base font-bold tracking-tight" style={{ color: "var(--lp-text)" }}><RollingBrandText /></span>
           </a>
-          <div className="nav-links-desktop">
-            <a href="#features" className="lp-nav-link">주요기능</a>
-            <a href="#engines" className="lp-nav-link">엔진</a>
-            <a href="#featuremap" className="lp-nav-link">기능 맵</a>
-            <a href="#compare" className="lp-nav-link">비교</a>
-            <a href="#pricing" className="lp-nav-link">가격</a>
-            <a href="#partner" className="lp-nav-link">제휴문의</a>
-            <a href="#faq" className="lp-nav-link">FAQ</a>
+          <div className="lp2-nav-links">
+            <a href="#features" className="lp2-nav-link">라이브 데모</a>
+            <a href="#engines" className="lp2-nav-link">엔진</a>
+            <a href="#featuremap" className="lp2-nav-link">기능 맵</a>
+            <a href="#compare" className="lp2-nav-link">비교</a>
+            <a href="#pricing" className="lp2-nav-link">가격</a>
+            <a href="#partner" className="lp2-nav-link">제휴문의</a>
+            <a href="#faq" className="lp2-nav-link">FAQ</a>
           </div>
-          <div className="nav-actions">
-            {/* 모바일 햄버거 메뉴 버튼 */}
-            <button
-              className="nav-hamburger-button"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="메뉴 열기"
-              aria-expanded={isMobileMenuOpen}
-            >
+          <div className="lp2-nav-actions">
+            <button className="lp2-hamburger" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label="메뉴 열기" aria-expanded={isMobileMenuOpen}>
               {isMobileMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
               )}
             </button>
-            <button
-              onClick={toggleTheme}
-              className="landing-theme-toggle"
-              aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
-              title={theme === "dark" ? "라이트 모드" : "다크 모드"}
-            >
+            <button onClick={toggleTheme} className="lp2-theme-btn" aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"} title={theme === "dark" ? "라이트 모드" : "다크 모드"}>
               {theme === "dark" ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path strokeLinecap="round" d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+                <svg className="w-4.5 h-4.5 w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" /><path strokeLinecap="round" d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" /></svg>
               ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" /></svg>
               )}
             </button>
-            <Link href="/auth" className="text-sm text-slate-300 hover:text-white transition hidden sm:block">로그인</Link>
-            <Link href="/auth" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-600/20 hidden sm:block">무료로 시작하기</Link>
+            <Link href="/auth" className="lp2-nav-login">로그인</Link>
+            <Link href="/auth" className="lp2-nav-cta">무료로 시작하기</Link>
           </div>
         </div>
-        {/* 모바일 드롭다운 메뉴 */}
         {isMobileMenuOpen && (
-          <div className="mobile-nav-menu">
-            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="mobile-nav-link">주요기능</a>
-            <a href="#engines" onClick={() => setIsMobileMenuOpen(false)} className="mobile-nav-link">도입효과</a>
-            <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="mobile-nav-link">요금제</a>
-            <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="mobile-nav-link">FAQ</a>
-            <div className="mobile-nav-auth-row">
-              <Link href="/auth" className="text-sm text-slate-300 hover:text-white transition py-1">로그인</Link>
-              <Link href="/auth" className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-blue-600/20 text-center">무료로 시작하기</Link>
+          <div className="lp2-mobile-menu">
+            <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="lp2-mobile-link">라이브 데모</a>
+            <a href="#engines" onClick={() => setIsMobileMenuOpen(false)} className="lp2-mobile-link">엔진</a>
+            <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="lp2-mobile-link">요금제</a>
+            <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="lp2-mobile-link">FAQ</a>
+            <div className="flex items-center gap-3 pt-2">
+              <Link href="/auth" className="lp2-mobile-link flex-1 text-center">로그인</Link>
+              <Link href="/auth" className="lp2-btn-primary flex-1 !px-4 !py-2.5 text-sm">무료로 시작하기</Link>
             </div>
           </div>
         )}
       </nav>
 
       {/* ── HERO ── */}
-      <section className="hero-section" ref={heroRef.ref}>
-        {/* Subtle geometric background */}
-        <div className="hero-bg-decoration">
-          <div className="hero-bg-orb-1" />
-          <div className="hero-bg-orb-2" />
-          {/* Subtle dot grid pattern */}
-          <div className="hero-dot-grid" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+      <section className="lp2-hero">
+        <div className="lp2-aurora-wrap">
+          <div className="lp2-aurora-a" />
+          <div className="lp2-aurora-b" />
+          <div className="lp2-aurora-c" />
+          <div className="lp2-grid-pattern" />
         </div>
-        <div className="hero-content">
-          {/* OwnerView Logo — large */}
-          <div className={`hero-logo-wrap ${heroRef.inView ? "animate-scale" : "opacity-0"}`}>
-            <OwnerViewLogo size={72} className="mx-auto" />
-          </div>
-
-          <h1 className={`hero-headline ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            회사의 <RollingText /> 현황
-            <br />
-            자동으로 한눈에!
-          </h1>
-          <p className={`hero-subtext ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            현금, 프로젝트, 세무, 급여, 결재 — 회사 운영의 모든 것을 하나로
-          </p>
-          <p className={`hero-tagline ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            중소기업 대표를 위한 올인원 운영 플랫폼
-          </p>
-          <div className={`hero-cta ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            <Link href="/auth" className="hero-cta-primary">
-              무료로 시작하기
-            </Link>
-            <Link href="/demo" className="hero-cta-secondary">
-              데모 체험
-            </Link>
-            <a href="#features" className="hero-cta-tertiary">
-              기능 둘러보기 →
-            </a>
-          </div>
-          {/* 신뢰 카운터 */}
-          <div className={`hero-trust-counter ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            <div className="hero-trust-stat">
-              <div className="text-2xl md:text-3xl font-black text-white">30<span className="text-blue-400">+</span></div>
-              <div className="text-[11px] text-slate-500 mt-0.5">통합 기능</div>
+        <div className="lp2-hero-inner">
+          <Reveal>
+            <div className="lp2-hero-badge">
+              <span className="lp2-hero-badge-dot" />
+              약속이 아니라, 오늘 로그인하면 전부 있는 기능입니다
             </div>
-            <div className="hero-trust-divider" />
-            <div className="hero-trust-stat">
-              <div className="text-2xl md:text-3xl font-black text-white">4</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">자동화 엔진</div>
+          </Reveal>
+          <Reveal>
+            <h1 className="lp2-hero-title">
+              회사의 <RollingText /> 현황
+              <br />
+              <span className="lp2-grad-text">자동으로 한눈에</span>
+            </h1>
+          </Reveal>
+          <Reveal>
+            <p className="lp2-hero-sub">현금, 프로젝트, 세무, 급여, 결재 — 회사 운영의 모든 것을 하나로</p>
+            <p className="lp2-hero-tagline">중소기업 대표를 위한 올인원 운영 플랫폼</p>
+          </Reveal>
+          <Reveal>
+            <div className="lp2-hero-cta-row">
+              <Link href="/auth" className="lp2-btn-primary">
+                무료로 시작하기
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" /></svg>
+              </Link>
+              <Link href="/demo" className="lp2-btn-ghost">데모 체험</Link>
+              <a href="#features" className="lp2-btn-text">기능 둘러보기 →</a>
             </div>
-            <div className="hero-trust-divider" />
-            <div className="hero-trust-stat">
-              <div className="text-2xl md:text-3xl font-black text-white">89<span className="text-emerald-400">%</span></div>
-              <div className="text-[11px] text-slate-500 mt-0.5">비용 절감</div>
-            </div>
-            <div className="hero-trust-divider" />
-            <div className="hero-trust-stat">
-              <div className="text-2xl md:text-3xl font-black text-white">0<span className="text-slate-500">원</span></div>
-              <div className="text-[11px] text-slate-500 mt-0.5">도입비용</div>
-            </div>
-          </div>
-          {/* Trust badges */}
-          <div className={`hero-trust-badges ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            <span className="hero-trust-badge"><span className="text-emerald-400">✓</span> 카드 등록 없이 무료</span>
-            <span className="hero-trust-badge"><span className="text-emerald-400">✓</span> 가입 즉시 세팅 완료</span>
-            <span className="hero-trust-badge"><span className="text-emerald-400">✓</span> 24시간 자동 운영</span>
-            <span className="hero-trust-badge"><span className="text-emerald-400">✓</span> RLS 기반 데이터 보안</span>
-          </div>
-
-          {/* Hero mini dashboard mockup */}
-          <div className={`hero-dashboard-mockup ${heroRef.inView ? "animate-up" : "opacity-0"}`}>
-            <div className="hero-dashboard-window">
-              <div className="hero-dashboard-titlebar">
-                <div className="hero-dashboard-dot-red" />
-                <div className="hero-dashboard-dot-yellow" />
-                <div className="hero-dashboard-dot-green" />
-                <span className="text-[10px] text-slate-500 ml-2">OwnerView Dashboard — CEO View</span>
+          </Reveal>
+          <Reveal>
+            <div className="lp2-hero-stats">
+              <div className="lp2-hero-stat">
+                <div className="lp2-hero-stat-value"><CountUp to={30} /><span style={{ color: "var(--lp-indigo)" }}>+</span></div>
+                <div className="lp2-hero-stat-label">통합 기능</div>
               </div>
-              <div className="hero-dashboard-stats">
-                {[
-                  { label: "현금", value: "₩8.2억", color: "#3B82F6", change: "+12%" },
-                  { label: "매출", value: "₩4.5억", color: "#10B981", change: "+23%" },
-                  { label: "고정비", value: "₩1.8억", color: "#F59E0B", change: "-5%" },
-                  { label: "생존", value: "4.6개월", color: "#8B5CF6", change: "+0.8" },
-                ].map((c) => (
-                  <div key={c.label} className="hero-dashboard-stat-tile">
-                    <div className="text-[10px] text-slate-500">{c.label}</div>
-                    <div className="text-sm font-bold text-white">{c.value}</div>
-                    <div className="text-[10px] font-medium" style={{ color: c.color }}>{c.change}</div>
-                  </div>
-                ))}
+              <div className="lp2-hero-stat">
+                <div className="lp2-hero-stat-value"><CountUp to={4} duration={1200} /></div>
+                <div className="lp2-hero-stat-label">자동화 엔진</div>
               </div>
-              <div className="hero-dashboard-widgets">
-                {[
-                  { label: "승인 대기", count: "3건", color: "#F59E0B" },
-                  { label: "진행 프로젝트", count: "12건", color: "#3B82F6" },
-                  { label: "AI 알림", count: "5건", color: "#EF4444" },
-                ].map((w) => (
-                  <div key={w.label} className="hero-dashboard-widget">
-                    <div className="w-2 h-5 rounded-full" style={{ background: w.color }} />
-                    <div>
-                      <div className="text-[10px] text-slate-500">{w.label}</div>
-                      <div className="text-xs font-bold text-white">{w.count}</div>
-                    </div>
-                  </div>
-                ))}
+              <div className="lp2-hero-stat">
+                <div className="lp2-hero-stat-value"><CountUp to={89} /><span style={{ color: "var(--lp-emerald)" }}>%</span></div>
+                <div className="lp2-hero-stat-label">비용 절감</div>
+              </div>
+              <div className="lp2-hero-stat">
+                <div className="lp2-hero-stat-value">0<span style={{ color: "var(--lp-text-3)" }}>원</span></div>
+                <div className="lp2-hero-stat-label">도입 비용</div>
               </div>
             </div>
-          </div>
+            <div className="lp2-hero-checks">
+              {["카드 등록 없이 무료", "가입 즉시 세팅 완료", "24시간 자동 운영", "RLS 기반 데이터 보안"].map((t) => (
+                <span key={t} className="lp2-hero-check">
+                  <svg className="w-3.5 h-3.5" style={{ color: "var(--lp-emerald)" }} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  {t}
+                </span>
+              ))}
+            </div>
+          </Reveal>
+          <HeroMockup />
         </div>
       </section>
 
+      {/* ── 기능 칩 마퀴 — 실제 탑재 기능 ── */}
+      <div className="lp2-marquee-section">
+        <div className="lp2-marquee-fade-l" />
+        <div className="lp2-marquee-fade-r" />
+        <div className="lp2-marquee-track">
+          {[...MARQUEE_FEATURES, ...MARQUEE_FEATURES].map((f, i) => (
+            <span key={i} className="lp2-marquee-chip">
+              <svg className="w-3 h-3" style={{ color: "var(--lp-indigo)" }} fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              {f}
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* ── PAIN POINT → SOLUTION ── */}
-      <section className="pain-point-section">
-        <div className="lp-container">
-          <div className="pain-point-header">
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
-              대표님, 이거 다 <span className="text-amber-400">혼자</span> 하고 계시죠?
-            </h2>
-            <p className="text-slate-400 text-lg">회계사 부르고, 세무사 연락하고, 엑셀 정리하고, 계약서 찾고...</p>
-          </div>
-          <div className="pain-point-grid">
+      <section className="lp2-section">
+        <div className="lp2-container">
+          <Reveal className="lp2-section-head">
+            <h2 className="lp2-h2">대표님, 이거 다 <span className="lp2-grad-text">혼자</span> 하고 계시죠?</h2>
+            <p className="lp2-sub">회계사 부르고, 세무사 연락하고, 엑셀 정리하고, 계약서 찾고...</p>
+          </Reveal>
+          <Reveal stagger className="lp2-pain-grid">
             {[
-              { keyword: "급여 자동화", pain: "급여일마다 엑셀 뒤지며 4대보험 수동 계산", solve: "AI가 4대보험/원천세 자동 계산 → 급여명세서·이체 내역 자동 정리, 대표는 확인만", icon: "💰" },
-              { keyword: "계약 파이프라인", pain: "견적서 보냈는데 계약서는 또 따로 만들어야 함", solve: "견적 승인 → 계약서 자동 생성 → 서명 → 세금계산서까지 전자동 파이프라인", icon: "📋" },
-              { keyword: "입금 자동 매칭", pain: "거래처가 입금했는지 통장 앱 왔다갔다 확인", solve: "세금계산서↔계약↔입금 3-Way 매칭. 빠진 건 AI가 찾아 매칭 제안", icon: "🏦" },
-              { keyword: "근태·경비 자동", pain: "직원 연차 몇 일 남았는지, 경비 정산 밀린 건 있는지", solve: "근태/휴가/경비 전부 자동 계산. 대표는 승인 버튼만 누르면 끝", icon: "📊" },
-              { keyword: "서류 3초 검색", pain: "계약서 어디 저장했더라? 작년 견적서 찾느라 30분", solve: "모든 서류 자동 분류·저장·백업. 검색 한 번이면 3초 만에 찾기", icon: "📁" },
-              { keyword: "업무 히스토리 보존", pain: "파트너사와 카톡으로 업무하다 중요한 내용 유실", solve: "프로젝트별 전용 채팅 채널 + 견적·서명·승인 액션카드. 비즈니스 히스토리 영구 보존", icon: "💬" },
+              { keyword: "급여 자동화", pain: "급여일마다 엑셀 뒤지며 4대보험 수동 계산", solve: "4대보험/원천세 자동 계산 → 급여명세서 자동 생성·발송, 대표는 확인만" },
+              { keyword: "계약 파이프라인", pain: "견적서 보냈는데 계약서는 또 따로 만들어야 함", solve: "견적 승인 → 계약서 초안 원클릭 생성(설정 시) → 전자서명까지 한 흐름" },
+              { keyword: "입금 자동 매칭", pain: "거래처가 입금했는지 통장 앱 왔다갔다 확인", solve: "세금계산서↔계약↔입금 3-Way 매칭. 빠진 건 AI가 찾아 매칭 제안" },
+              { keyword: "근태·경비 자동", pain: "직원 연차 몇 일 남았는지, 경비 정산 밀린 건 있는지", solve: "근태/휴가/경비 전부 자동 계산. 대표는 승인 버튼만 누르면 끝" },
+              { keyword: "서류 3초 검색", pain: "계약서 어디 저장했더라? 작년 견적서 찾느라 30분", solve: "모든 서류 자동 분류·저장·백업. 글로벌 검색(⌘K) 한 번이면 끝" },
+              { keyword: "업무 히스토리 보존", pain: "파트너사와 카톡으로 업무하다 중요한 내용 유실", solve: "프로젝트별 전용 채팅 채널 + 액션카드로 비즈니스 히스토리 영구 보존" },
             ].map((item) => (
-              <div key={item.pain} className="pain-point-card group">
-                <div className="pain-point-card-body">
-                  <span className="pain-point-icon">{item.icon}</span>
-                  <div className="pain-point-text">
-                    <span className="pain-point-keyword-badge">{item.keyword}</span>
-                    <div className="pain-point-pain-text">{item.pain}</div>
-                    <div className="pain-point-solve-text">→ {item.solve}</div>
-                  </div>
-                </div>
+              <div key={item.keyword} className="lp2-pain-card">
+                <span className="lp2-pain-badge">{item.keyword}</span>
+                <div className="lp2-pain-pain">{item.pain}</div>
+                <div className="lp2-pain-solve">→ {item.solve}</div>
               </div>
             ))}
-          </div>
-          <div className="text-center">
-            <div className="pain-point-summary">
-              <p className="text-lg md:text-xl font-bold text-white mb-1">
-                회계 · 인사 · 총무 · 재무 · 법무 담당자 없이도
-              </p>
-              <p className="text-sm text-slate-400">
-                <span className="text-blue-400 font-semibold">직원이 있는 것보다 더 한눈에 보이고, 실수 없이, 24시간 돌아가는</span> 라이브 회사 데이터
+          </Reveal>
+          <Reveal>
+            <div className="lp2-pain-summary">
+              <p className="text-lg md:text-xl font-bold mb-1" style={{ color: "var(--lp-text)" }}>회계 · 인사 · 총무 · 재무 담당자 없이도</p>
+              <p className="text-sm" style={{ color: "var(--lp-text-2)" }}>
+                <span className="font-semibold" style={{ color: "var(--lp-indigo)" }}>한눈에 보이고, 실수 없이, 24시간 돌아가는</span> 라이브 회사 데이터
               </p>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── 4 ENGINES ── */}
-      <section className="engines-section" id="engines">
-        <div className="max-w-6xl mx-auto">
-          <div className="engines-header">
-            <div className="engines-eyebrow-badge">
-              다른 SaaS와 근본이 다릅니다
-            </div>
-            <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight">
-              기능이 아닙니다.<br /><span className="text-[#818CF8]">4개의 엔진</span>입니다.
-            </h2>
-            <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-              공공 API + AI + 한국 특화 로직을 조합해<br className="hidden md:block" />
-              경쟁사가 쉽게 따라올 수 없는 자동화 엔진을 만들었습니다
-            </p>
-          </div>
-
-          <div className="space-y-8">
-            {ENGINES.map((engine, idx) => {
-              return (
-              <div key={engine.num} className="engine-row group">
-                {/* Engine card */}
-                <div className="engine-card">
-                  {/* Accent bar */}
-                  <div className="engine-accent-bar" style={{ background: engine.color }} />
-
-                  <div className="engine-body">
-                    {/* Header — Icon + Name + Badge */}
-                    <div className="engine-header">
-                      <div className="engine-icon-badge" style={{ background: `${engine.color}15`, color: engine.color }}>
-                        <EngineGlyph num={engine.num} />
-                      </div>
-                      <div className="engine-title-wrap">
-                        <div className="engine-name-row">
-                          <h3 className="text-2xl md:text-3xl font-extrabold text-white">{engine.name}</h3>
-                          <span className="engine-number-badge" style={{ background: `${engine.color}18`, color: engine.color }}>
-                            ENGINE {engine.num}
-                          </span>
+      <section className="lp2-section" id="engines" style={{ background: "var(--lp-bg-soft)" }}>
+        <div className="lp2-container">
+          <Reveal className="lp2-section-head">
+            <div className="lp2-eyebrow">다른 SaaS와 근본이 다릅니다</div>
+            <h2 className="lp2-h2">기능이 아닙니다.<br /><span className="lp2-grad-text">4개의 엔진</span>입니다.</h2>
+            <p className="lp2-sub">공공 API + AI + 한국 특화 로직을 조합해 만든 자동화 엔진</p>
+          </Reveal>
+          <div className="space-y-6">
+            {ENGINES.map((engine) => (
+              <Reveal key={engine.num}>
+                <div className="lp2-engine-card">
+                  <div className="lp2-engine-glow" />
+                  <div className="lp2-engine-body">
+                    <div className="lp2-engine-head">
+                      <span className="lp2-engine-num">{engine.num}</span>
+                      <div className="flex-1 min-w-0 pt-2">
+                        <div className="lp2-engine-name-row">
+                          <span style={{ color: "var(--lp-indigo)" }}><EngineGlyph num={engine.num} /></span>
+                          <h3 className="text-2xl md:text-3xl font-extrabold" style={{ color: "var(--lp-text)" }}>{engine.name}</h3>
+                          <span className="lp2-engine-api-tag">{engine.eng}</span>
                         </div>
-                        <span className="engine-eng-label">{engine.eng}</span>
-                      </div>
-                      {/* Cost badge — desktop */}
-                      <div className="engine-cost-badge-desktop">
-                        <div className="text-xs text-slate-500 line-through">{engine.replaces} {engine.replacesCost}</div>
-                        <div className="text-sm font-bold" style={{ color: engine.color }}>이 엔진 하나로 대체</div>
+                        <div className="mt-2 text-xs" style={{ color: "var(--lp-text-3)" }}>
+                          <span className="line-through">{engine.replaces} {engine.replacesCost}</span>
+                          <span className="ml-2 font-bold" style={{ color: "var(--lp-indigo)" }}>이 엔진 하나로 대체</span>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Tagline — big and bold */}
-                    <div className="engine-tagline" style={{ background: `${engine.color}08`, borderLeft: `4px solid ${engine.color}` }}>
-                      <p className="text-base md:text-xl font-extrabold text-white leading-snug mb-1">{engine.tagline}</p>
-                      <p className="text-sm text-slate-400">{engine.headline}</p>
+                    <div className="lp2-engine-tagline">
+                      <p className="text-base md:text-xl font-extrabold leading-snug mb-1" style={{ color: "var(--lp-text)" }}>{engine.tagline}</p>
+                      <p className="text-sm" style={{ color: "var(--lp-text-2)" }}>{engine.headline}</p>
                     </div>
-
-                    {/* Description */}
-                    <p className="text-sm md:text-base text-slate-300 leading-relaxed mb-8">{engine.desc}</p>
-
-                    {/* 2-column: Steps + Features / Metrics */}
-                    <div className="engine-columns">
-                      {/* Left: 3 Steps as flow */}
-                      <div className="engine-steps-col">
-                        <div className="engine-steps-label">작동 방식 — 3단계</div>
-                        <div className="engine-steps-list">
+                    <p className="text-sm md:text-base leading-relaxed" style={{ color: "var(--lp-text-2)" }}>{engine.desc}</p>
+                    <div className="lp2-engine-cols">
+                      <div>
+                        <div className="text-[11px] font-black uppercase tracking-widest mb-4" style={{ color: "var(--lp-text-3)" }}>작동 방식 — 3단계</div>
+                        <div className="space-y-4">
                           {engine.steps.map((s, i) => (
-                            <div key={i} className="engine-step-item">
-                              <div className="engine-step-number" style={{ background: engine.color, color: "white" }}>
-                                {i + 1}
+                            <div key={i} className="lp2-engine-step">
+                              {i < 2 && <div className="lp2-engine-step-line" />}
+                              <div className="lp2-engine-step-num">{i + 1}</div>
+                              <div>
+                                <div className="text-sm font-bold mb-0.5" style={{ color: "var(--lp-text)" }}>{s.step}</div>
+                                <div className="text-xs leading-relaxed" style={{ color: "var(--lp-text-2)" }}>{s.detail}</div>
                               </div>
-                              <div className="engine-step-text">
-                                <div className="text-sm font-bold text-white mb-0.5">{s.step}</div>
-                                <div className="text-xs text-slate-400 leading-relaxed">{s.detail}</div>
-                              </div>
-                              {i < 2 && <div className="hidden" />}
                             </div>
                           ))}
                         </div>
-
-                        {/* API tags */}
-                        <div className="engine-api-tags">
-                          <span className="text-[10px] text-slate-600 font-bold uppercase">연동 API:</span>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-6">
+                          <span className="text-[10px] font-bold uppercase" style={{ color: "var(--lp-text-3)" }}>연동:</span>
                           {engine.apis.map((api) => (
-                            <span key={api} className="engine-api-tag" style={{ borderColor: `${engine.color}25`, color: engine.color, background: `${engine.color}08` }}>{api}</span>
+                            <span key={api} className="lp2-engine-api-tag">{api}</span>
                           ))}
                         </div>
                       </div>
-
-                      {/* Right: Features + Metrics */}
-                      <div className="engine-features-col">
-                        <div className="engine-features-label">핵심 기능</div>
-                        <div className="engine-features-grid">
+                      <div>
+                        <div className="text-[11px] font-black uppercase tracking-widest mb-4" style={{ color: "var(--lp-text-3)" }}>핵심 기능</div>
+                        <div className="grid sm:grid-cols-2 gap-3">
                           {engine.features.map((f) => (
-                            <div key={f.name} className="engine-feature-item">
-                              <span className="engine-feature-icon" style={{ background: `${engine.color}1a`, boxShadow: `inset 0 0 0 1px ${engine.color}22`, color: engine.color }}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                              </span>
-                              <div className="engine-feature-text">
-                                <div className="text-xs font-bold text-white mb-0.5 leading-tight">{f.name}</div>
-                                <div className="text-[10px] text-slate-400 leading-snug">{f.desc}</div>
+                            <div key={f.name} className="lp2-engine-feature">
+                              <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--lp-indigo)" }} fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                              <div>
+                                <div className="text-xs font-bold mb-0.5 leading-tight" style={{ color: "var(--lp-text)" }}>{f.name}</div>
+                                <div className="text-[10px] leading-snug" style={{ color: "var(--lp-text-2)" }}>{f.desc}</div>
                               </div>
                             </div>
                           ))}
                         </div>
-
-                        {/* Metrics row — 예시 대시보드 미리보기 (샘플 수치) */}
-                        <div className="engine-metrics-row">
+                        <div className="lp2-engine-metrics">
                           {engine.metrics.map((m) => (
-                            <div key={m.label} className="engine-metric-tile">
-                              <div className="text-[10px] text-slate-500">{m.label}</div>
-                              <div className="text-base font-extrabold text-white">{m.value}</div>
-                              <div className="text-[10px] font-semibold" style={{ color: engine.color }}>{m.sub}</div>
+                            <div key={m.label} className="lp2-engine-metric">
+                              <div className="text-[10px]" style={{ color: "var(--lp-text-3)" }}>{m.label}</div>
+                              <div className="text-base font-extrabold" style={{ color: "var(--lp-text)" }}>{m.value}</div>
+                              <div className="text-[10px] font-semibold" style={{ color: "var(--lp-indigo)" }}>{m.sub}</div>
                             </div>
                           ))}
                         </div>
-                        <div className="mt-2 text-[10px] text-slate-600 text-right">※ 예시 대시보드 화면입니다</div>
+                        <div className="mt-2 text-[10px] text-right" style={{ color: "var(--lp-text-3)" }}>※ 예시 대시보드 화면입니다</div>
                       </div>
-                    </div>
-
-                    {/* Mobile cost badge */}
-                    <div className="engine-cost-badge-mobile">
-                      <div className="text-xs text-slate-500 line-through">{engine.replaces} {engine.replacesCost}</div>
-                      <div className="text-sm font-bold" style={{ color: engine.color }}>이 엔진으로 대체</div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );})}
+              </Reveal>
+            ))}
           </div>
-
-          {/* Total savings */}
-          <div className="mt-16 text-center">
-            <div className="engines-savings-summary">
-              <div className="engines-savings-cost-col">
-                <div className="text-sm text-slate-500 mb-2">4개 엔진 총 절감 인건비</div>
-                <div className="text-4xl md:text-5xl font-extrabold text-white">연 <span className="text-blue-400">1.87억원</span></div>
+          <Reveal className="mt-14">
+            <div className="lp2-engine-savings">
+              <div className="text-center">
+                <div className="text-sm mb-2" style={{ color: "var(--lp-text-3)" }}>4개 엔진 총 절감 인건비</div>
+                <div className="text-4xl md:text-5xl font-extrabold" style={{ color: "var(--lp-text)" }}>연 <span className="lp2-grad-text">1.87억원</span></div>
               </div>
-              <div className="engines-savings-divider" />
-              <div className="engines-savings-price-col">
-                <div className="text-sm text-slate-500 mb-2">OwnerView 프로 요금제</div>
-                <div className="text-2xl font-bold text-white">월 <span className="text-blue-400">55,000원</span> 정액</div>
-                <div className="text-sm text-emerald-400 font-semibold mt-1">인원 무제한 · VAT 별도</div>
+              <div className="lp2-engine-savings-divider" />
+              <div className="text-center">
+                <div className="text-sm mb-2" style={{ color: "var(--lp-text-3)" }}>OwnerView 프로 요금제</div>
+                <div className="text-2xl font-bold" style={{ color: "var(--lp-text)" }}>월 <span style={{ color: "var(--lp-indigo)" }}>55,000원</span> 정액</div>
+                <div className="text-sm font-semibold mt-1" style={{ color: "var(--lp-emerald)" }}>인원 무제한 · VAT 별도</div>
               </div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
-
-      {/* ── FEATURE MAP — 실제 제품 기능 전체 (2026-07 최신화) ── */}
-      <section className="feature-map-section" id="featuremap">
-        <div className="max-w-6xl mx-auto">
-          <div className="feature-map-header">
-            <div className="feature-map-eyebrow">
-              지금 바로 쓸 수 있는 기능들
+      {/* ── LIVE DEMO — 8개 실시간 시뮬레이션 ── */}
+      <section className="lp2-section" id="features">
+        <div className="lp2-container">
+          <Reveal className="lp2-section-head">
+            <div className="lp2-eyebrow">클릭 없이 그냥 보세요</div>
+            <h2 className="lp2-h2">실시간 <span className="lp2-grad-text">라이브 데모</span></h2>
+            <p className="lp2-sub">각 기능이 실제로 어떻게 동작하는지 확인하세요</p>
+          </Reveal>
+          <Reveal>
+            <div className="lp2-demo-tabs">
+              {FEATURES.map((f, i) => (
+                <button key={i} onClick={() => setActiveFeat(i)} className={`lp2-demo-tab ${activeFeat === i ? "lp2-demo-tab-active" : ""}`}>
+                  {f.tab}
+                  {activeFeat === i && <span key={`p-${activeFeat}`} className="lp2-demo-tab-progress" />}
+                </button>
+              ))}
             </div>
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
-              오너뷰 <span className="text-blue-400">기능 맵</span>
-            </h2>
-            <p className="text-slate-400 text-lg">약속이 아니라, 오늘 로그인하면 전부 있는 기능입니다</p>
-          </div>
-          <div className="feature-map-grid">
+            <div className="lp2-demo-grid">
+              <div className="lp2-demo-info" key={`info-${activeFeat}`}>
+                <div className="lp2-sim-enter">
+                  <div className="lp2-demo-replace-badge">
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--lp-amber)" }} />
+                    {FEATURES[activeFeat].replaces} 대체
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-bold mb-3" style={{ color: "var(--lp-text)" }}>{FEATURES[activeFeat].title}</h3>
+                  <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--lp-text-2)" }}>{FEATURES[activeFeat].desc}</p>
+                  <Link href="/auth" className="lp2-btn-primary !px-5 !py-2.5 text-sm w-fit">무료로 체험</Link>
+                </div>
+              </div>
+              <div className="lp2-demo-stage">
+                <div key={`sim-${activeFeat}`} className="lp2-sim-enter">
+                  <SimComponent />
+                </div>
+                <div className="text-center mt-3">
+                  <span className="inline-flex items-center gap-1.5 text-[10px]" style={{ color: "var(--lp-text-3)" }}>
+                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                    실시간 시뮬레이션 — 실제 동작 미리보기
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── FEATURE MAP — 벤토 그리드 ── */}
+      <section className="lp2-section" id="featuremap" style={{ background: "var(--lp-bg-soft)" }}>
+        <div className="lp2-container">
+          <Reveal className="lp2-section-head">
+            <div className="lp2-eyebrow">지금 바로 쓸 수 있는 기능들</div>
+            <h2 className="lp2-h2">오너뷰 <span className="lp2-grad-text">기능 맵</span></h2>
+            <p className="lp2-sub">약속이 아니라, 오늘 로그인하면 전부 있는 기능입니다</p>
+          </Reveal>
+          <Reveal stagger className="lp2-bento">
             {[
               {
-                group: "파이낸스",
-                icon: "💰",
-                color: "#3B82F6",
-                items: [
-                  "경영 흐름 콕핏 — 과거 실적 + 90일 현금 예측",
-                  "은행·카드 실계좌 자동 동기화",
-                  "거래 매칭 확정 시 분개전표 자동 기장",
-                  "거래처 원장 (미수·미지급 채권/채무)",
-                  "세금계산서 · 현금영수증 관리",
-                  "손익계산서 · 비용 분석",
-                ],
+                group: "파이낸스", color: "#818CF8",
+                icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></svg>,
+                items: ["경영 흐름 콕핏 — 과거 실적 + 90일 현금 예측", "은행·카드 실계좌 자동 동기화", "거래 매칭 확정 시 분개전표 자동 기장", "거래처 원장 (미수·미지급 채권/채무)", "세금계산서 · 현금영수증 관리", "손익계산서 · 비용 분석"],
               },
               {
-                group: "워크스페이스",
-                icon: "⚡",
-                color: "#8B5CF6",
-                items: [
-                  "프로젝트 파이프라인 — 견적→계약 원클릭",
-                  "태스크 · 간트 · 성과 체크인",
-                  "전자계약 — 양식 오버레이 · 직인 · 일괄 발송",
-                  "전자결재 — 커스텀 양식 빌더 · 다단계 결재선",
-                  "일정 / 할 일 · 게시판",
-                  "팀 메신저 (채널 · DM · 플로팅)",
-                ],
+                group: "워크스페이스", color: "#C084FC",
+                icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>,
+                items: ["프로젝트 파이프라인 — 견적→계약 원클릭", "태스크 · 간트 · 성과 체크인", "전자계약 — 양식 오버레이 · 직인 · 일괄 발송", "전자결재 — 커스텀 양식 빌더 · 다단계 결재선", "일정 / 할 일 · 게시판", "팀 메신저 (채널 · DM · 플로팅)"],
               },
               {
-                group: "인사관리",
-                icon: "👥",
-                color: "#10B981",
-                items: [
-                  "구성원 관리 · 근로계약 전자서명",
-                  "근태 — 출퇴근 · 연차 · 휴가 신청",
-                  "연장근무 신청 · 자동 퇴근 처리",
-                  "급여명세서 자동 생성 · 이메일 발송",
-                  "경비 청구 — 영수증 OCR 자동 인식",
-                  "탭별 접근 권한 (RBAC)",
-                ],
+                group: "인사관리", color: "#34D399",
+                icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>,
+                items: ["구성원 관리 · 근로계약 전자서명", "근태 — 출퇴근 · 연차 · 휴가 신청", "연장근무 신청 · 자동 퇴근 처리", "급여명세서 자동 생성 · 이메일 발송", "경비 청구 — 영수증 OCR 자동 인식", "탭별 접근 권한 (RBAC)"],
               },
               {
-                group: "편의 · 연동",
-                icon: "🔗",
-                color: "#F59E0B",
-                items: [
-                  "커스텀 대시보드 위젯 + 아침 브리핑",
-                  "카카오 알림톡 · 이메일 · 브라우저 푸시 알림",
-                  "사업자번호 가입 · 팀 합류 승인",
-                  "파트너 포털 · 외부 견적 승인 링크",
-                  "거래처·거래내역 엑셀 업로드",
-                  "글로벌 검색 (⌘K) · 다크 모드",
-                ],
+                group: "편의 · 연동", color: "#FBBF24",
+                icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" /><path strokeLinecap="round" d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" /></svg>,
+                items: ["커스텀 대시보드 위젯 + 아침 브리핑", "카카오 알림톡 · 이메일 · 브라우저 푸시 알림", "사업자번호 가입 · 팀 합류 승인", "파트너 포털 · 외부 견적 승인 링크", "거래처·거래내역 엑셀 업로드", "글로벌 검색 (⌘K) · 다크 모드"],
               },
             ].map((g) => (
-              <div key={g.group} className="feature-map-group-card">
-                <div className="feature-map-accent-bar" style={{ background: g.color }} />
-                <div className="feature-map-card-body">
-                  <div className="feature-map-card-header">
-                    <div className="feature-map-icon" style={{ background: `${g.color}15` }}>{g.icon}</div>
-                    <h3 className="text-lg font-extrabold text-white">{g.group}</h3>
-                  </div>
-                  <ul className="feature-map-list">
-                    {g.items.map((it) => (
-                      <li key={it} className="feature-map-list-item">
-                        <span className="feature-map-check" style={{ color: g.color }}>✓</span>
-                        {it}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              <div key={g.group} className="lp2-bento-card">
+                <div className="lp2-bento-icon" style={{ background: `${g.color}18`, color: g.color }}>{g.icon}</div>
+                <h3 className="text-lg font-extrabold mb-3" style={{ color: "var(--lp-text)" }}>{g.group}</h3>
+                <ul>
+                  {g.items.map((it) => (
+                    <li key={it} className="lp2-bento-item">
+                      <span className="lp2-bento-check" style={{ background: `${g.color}20`, color: g.color }}>✓</span>
+                      {it}
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
-          </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* ── COMPETITOR COMPARISON (witty half-logos) ── */}
-      <section className="competitor-section" id="compare" ref={compRef.ref}>
-        <div className="lp-container">
-          <div className={`competitor-header ${compRef.inView ? "animate-up" : "opacity-0"}`}>
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
-              이 서비스들, <span className="text-red-400">전부 쓰고 계시죠?</span>
-            </h2>
-            <p className="text-slate-400 text-lg">10인 기준 매달 <span className="text-red-400 font-bold">51만원+</span>를 7개 서비스에 분산 결제하는 대신 —</p>
-          </div>
-
-          {/* Competitor half-logo cards */}
-          <div className={`competitor-grid ${compRef.inView ? "animate-up" : "opacity-0"}`}>
+      {/* ── COMPETITOR COMPARISON + 계산기 ── */}
+      <section className="lp2-section" id="compare">
+        <div className="lp2-container">
+          <Reveal className="lp2-section-head">
+            <h2 className="lp2-h2">이 서비스들, <span style={{ color: "var(--lp-rose)" }}>전부 쓰고 계시죠?</span></h2>
+            <p className="lp2-sub">10인 기준 매달 <span className="font-bold" style={{ color: "var(--lp-rose)" }}>51만원+</span>를 7개 서비스에 분산 결제하는 대신 —</p>
+          </Reveal>
+          <Reveal stagger className="lp2-comp-grid">
             {COMPETITORS.map((c) => (
-              <div key={c.name} className="competitor-card group">
-                {/* Half-clipped letter logo */}
-                <div className="competitor-logo-wrap">
-                  <div className="competitor-logo-box" style={{ background: `${c.color}20`, color: c.color }}>
-                    <span className="[clip-path:inset(0_50%_0_0)]">{c.letter}</span>
-                  </div>
-                  {/* Slash through */}
-                  <div className="competitor-logo-slash">
-                    <div className="w-[140%] h-[1.5px] bg-red-400/60 -rotate-45" />
-                  </div>
+              <div key={c.name} className="lp2-comp-card">
+                <div className="lp2-comp-logo" style={{ background: `${c.color}20`, color: c.color }}>
+                  <span className="[clip-path:inset(0_50%_0_0)]">{c.letter}</span>
+                  <div className="lp2-comp-slash"><div className="w-[140%] h-[1.5px] bg-red-400/60 -rotate-45" /></div>
                 </div>
-                <div className="text-xs font-bold text-white/80">{c.name}</div>
-                <div className="text-[10px] text-slate-500">{c.cat}</div>
-                <div className="text-[10px] text-red-400 font-medium mt-1">₩{c.price}</div>
+                <div className="text-xs font-bold" style={{ color: "var(--lp-text)" }}>{c.name}</div>
+                <div className="text-[10px]" style={{ color: "var(--lp-text-3)" }}>{c.cat}</div>
+                <div className="text-[10px] font-medium mt-1" style={{ color: "var(--lp-rose)" }}>₩{c.price}</div>
               </div>
             ))}
-          </div>
-
-          {/* Arrow down to OwnerView */}
-          <div className="competitor-arrow-wrap">
-            <div className="text-slate-500 text-sm mb-3">전부 합치면</div>
-            <svg className="w-6 h-6 text-blue-400 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
-          </div>
-
-          {/* Cost Calculator */}
-          <div className={`cost-calculator ${compRef.inView ? "animate-up" : "opacity-0"}`}>
-            <div className="cost-calculator-header">
-              <div>
-                <h3 className="text-xl font-bold text-white mb-1">비용 비교 계산기</h3>
-                <p className="text-sm text-slate-400">경쟁사는 인원마다 늘지만, 오너뷰는 월 55,000원 정액</p>
+          </Reveal>
+          <Reveal>
+            <div className="lp2-calc">
+              <div className="lp2-calc-head">
+                <div>
+                  <h3 className="text-xl font-bold mb-1" style={{ color: "var(--lp-text)" }}>비용 비교 계산기</h3>
+                  <p className="text-sm" style={{ color: "var(--lp-text-2)" }}>경쟁사는 인원마다 늘지만, 오너뷰는 월 55,000원 정액</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl font-extrabold" style={{ color: "var(--lp-text)" }}>{teamSize}<span className="text-lg" style={{ color: "var(--lp-text-3)" }}>명</span></span>
+                  <input type="range" min={3} max={100} value={teamSize} onChange={(e) => setTeamSize(Number(e.target.value))} className="w-44 lp2-range" />
+                </div>
               </div>
-              <div className="cost-calculator-slider-wrap">
-                <span className="text-3xl font-extrabold text-white">{teamSize}<span className="text-lg text-slate-400">명</span></span>
-                <input type="range" min={3} max={100} value={teamSize} onChange={(e) => setTeamSize(Number(e.target.value))} className="w-40 accent-blue-500" />
-              </div>
-            </div>
-            <div className="cost-calculator-grid">
-              <div className="cost-calculator-stat-red">
-                <div className="text-xs text-red-400 mb-1">개별 구독 합계</div>
-                <div className="text-3xl font-extrabold text-red-400">{Math.round(competitorTotal / 10000).toLocaleString()}<span className="text-base font-normal">만원/월</span></div>
-              </div>
-              <div className="cost-calculator-stat-blue">
-                <div className="text-xs text-blue-400 mb-1">OwnerView {reflectPlan} <span className="text-emerald-400">(정액)</span></div>
-                <div className="text-3xl font-extrabold text-blue-400">{reflectTotal === null ? "별도 협의" : reflectTotal.toLocaleString()}<span className="text-base font-normal">{reflectTotal === null ? "" : "원/월"}</span></div>
-              </div>
-              <div className="cost-calculator-stat-emerald">
-                <div className="text-xs text-emerald-400 mb-1">매월 절감액</div>
-                <div className="text-3xl font-extrabold text-emerald-400">{Math.round(savings / 10000).toLocaleString()}<span className="text-base font-normal">만원 ({savingsPercent}%)</span></div>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="lp2-calc-cell lp2-calc-cell-red">
+                  <div className="text-xs mb-1" style={{ color: "var(--lp-rose)" }}>개별 구독 합계</div>
+                  <div className="text-3xl font-extrabold" style={{ color: "var(--lp-rose)" }}>{Math.round(competitorTotal / 10000).toLocaleString()}<span className="text-base font-normal">만원/월</span></div>
+                </div>
+                <div className="lp2-calc-cell lp2-calc-cell-blue">
+                  <div className="text-xs mb-1" style={{ color: "var(--lp-indigo)" }}>OwnerView {reflectPlan} <span style={{ color: "var(--lp-emerald)" }}>(정액)</span></div>
+                  <div className="text-3xl font-extrabold" style={{ color: "var(--lp-indigo)" }}>{reflectTotal === null ? "별도 협의" : reflectTotal.toLocaleString()}<span className="text-base font-normal">{reflectTotal === null ? "" : "원/월"}</span></div>
+                </div>
+                <div className="lp2-calc-cell lp2-calc-cell-green">
+                  <div className="text-xs mb-1" style={{ color: "var(--lp-emerald)" }}>매월 절감액</div>
+                  <div className="text-3xl font-extrabold" style={{ color: "var(--lp-emerald)" }}>{Math.round(savings / 10000).toLocaleString()}<span className="text-base font-normal">만원 ({savingsPercent}%)</span></div>
+                </div>
               </div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* ── FEATURES + LIVE SIMULATION ── */}
-      <section className="live-demo-section" id="features" ref={featRef.ref}>
-        <div className="lp-container">
-          <div className={`live-demo-header ${featRef.inView ? "animate-up" : "opacity-0"}`}>
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4">
-              실시간 <span className="text-blue-400">라이브 데모</span>
-            </h2>
-            <p className="text-slate-400 text-lg">각 기능이 실제로 어떻게 동작하는지 확인하세요</p>
-          </div>
-
-          {/* Feature tabs */}
-          <div className={`live-demo-tabs ${featRef.inView ? "animate-up" : "opacity-0"}`}>
-            {FEATURES.map((f, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveFeat(i)}
-                className={`feature-tab-button ${
-                  activeFeat === i
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30"
-                    : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5"
-                }`}
-              >
-                {f.tab}
-              </button>
-            ))}
-          </div>
-
-          {/* Feature content + Sim */}
-          <div className="live-demo-grid">
-            {/* Left: Info */}
-            <div className="feature-info-card">
-              <div className="feature-info-badge">
-                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-                {FEATURES[activeFeat].replaces} 대체
-              </div>
-              <h3 className="text-xl md:text-2xl font-bold text-white mb-3">{FEATURES[activeFeat].title}</h3>
-              <p className="text-sm text-slate-400 mb-6 leading-relaxed">{FEATURES[activeFeat].desc}</p>
-              <div className="feature-info-cta">
-                <Link href="/auth" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition">무료로 체험</Link>
-              </div>
-            </div>
-            {/* Right: Live Simulation */}
-            <div className="live-demo-sim-col">
-              <SimComponent />
-              <div className="live-demo-sim-caption">
-                <span className="inline-flex items-center gap-1.5 text-[10px] text-slate-500">
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                  실시간 시뮬레이션 — 실제 동작 미리보기
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
       {/* ── HOW IT WORKS — 도입 장벽 제거 ── */}
-      <section className="onboarding-section">
-        <div className="lp-container">
-          <div className="onboarding-header">
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">&quot;도입이 어렵지 않나요?&quot;</h2>
-            <p className="text-gray-500 text-lg">아닙니다. <span className="text-blue-600 font-bold">거래처 목록·거래내역은 엑셀만 올리면 바로 등록</span>됩니다.</p>
-          </div>
-          <div className="onboarding-subtext">
-            <p className="text-sm text-gray-400 max-w-2xl mx-auto">
+      <section className="lp2-section" style={{ background: "var(--lp-bg-soft)" }}>
+        <div className="lp2-container">
+          <Reveal className="lp2-section-head">
+            <h2 className="lp2-h2">&quot;도입이 어렵지 않나요?&quot;</h2>
+            <p className="lp2-sub">아닙니다. <span className="font-bold" style={{ color: "var(--lp-indigo)" }}>거래처 목록·거래내역은 엑셀만 올리면 바로 등록</span>됩니다.</p>
+            <p className="text-sm max-w-2xl mx-auto mt-4" style={{ color: "var(--lp-text-3)" }}>
               지금 쓰고 있는 거래처 목록, 은행·카드 거래내역 — 엑셀이든 CSV든 그냥 드래그해서 올리세요.
-              항목을 자동으로 인식해 등록합니다. 직원 명단 등 나머지 데이터는 대시보드에서 직접 등록하며 시작하시면 됩니다.
+              항목을 자동으로 인식해 등록합니다. 나머지 데이터는 대시보드에서 직접 등록하며 시작하시면 됩니다.
             </p>
-          </div>
-          <div className="onboarding-steps-grid">
+          </Reveal>
+          <Reveal stagger className="lp2-steps-grid">
             {[
-              { step: "01", title: "간편 가입", desc: "카카오/구글 3초, 사업자번호로 회사 개설", icon: "👤", color: "#3B82F6" },
-              { step: "02", title: "기존 파일 업로드", desc: "거래처·거래내역 엑셀/CSV 드래그&드롭", icon: "📤", color: "#8B5CF6" },
-              { step: "03", title: "자동 등록", desc: "거래처·거래내역 자동 인식·등록", icon: "✅", color: "#10B981" },
-              { step: "04", title: "바로 경영 시작", desc: "대시보드에서 전체 현황 파악", icon: "🚀", color: "#F59E0B" },
+              { step: "01", title: "간편 가입", desc: "카카오/구글 3초, 사업자번호로 회사 개설", icon: "👤", color: "#818CF8" },
+              { step: "02", title: "기존 파일 업로드", desc: "거래처·거래내역 엑셀/CSV 드래그&드롭", icon: "📤", color: "#C084FC" },
+              { step: "03", title: "자동 등록", desc: "거래처·거래내역 자동 인식·등록", icon: "✅", color: "#34D399" },
+              { step: "04", title: "바로 경영 시작", desc: "대시보드에서 전체 현황 파악", icon: "🚀", color: "#FBBF24" },
             ].map((s, i) => (
-              <div key={s.step} className="onboarding-step-card group">
-                {i < 3 && <div className="onboarding-step-connector" />}
-                <div className="onboarding-step-body">
-                  <div className="onboarding-step-icon">{s.icon}</div>
-                  <div className="onboarding-step-badge" style={{ background: `${s.color}15`, color: s.color }}>STEP {s.step}</div>
-                  <h4 className="font-bold text-lg mb-1">{s.title}</h4>
-                  <p className="text-sm text-gray-500">{s.desc}</p>
-                </div>
+              <div key={s.step} className="lp2-step-card">
+                {i < 3 && <div className="lp2-step-connector" />}
+                <div className="lp2-step-icon">{s.icon}</div>
+                <div className="inline-block px-2.5 py-1 rounded-lg text-[10px] font-black mb-2" style={{ background: `${s.color}18`, color: s.color }}>STEP {s.step}</div>
+                <h4 className="font-bold text-lg mb-1" style={{ color: "var(--lp-text)" }}>{s.title}</h4>
+                <p className="text-sm" style={{ color: "var(--lp-text-2)" }}>{s.desc}</p>
               </div>
             ))}
-          </div>
-          {/* Social proof */}
-          <div className="mt-10 text-center">
-            <div className="onboarding-social-proof">
-              <span className="text-emerald-600 text-sm font-semibold">도입 비용</span>
-              <span className="text-2xl font-extrabold text-emerald-700">0원</span>
-              <span className="text-xs text-emerald-500">카드 등록 없이 무료로 시작</span>
+          </Reveal>
+          <Reveal className="mt-10 text-center">
+            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl" style={{ background: "color-mix(in srgb, var(--lp-emerald) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--lp-emerald) 25%, transparent)" }}>
+              <span className="text-sm font-semibold" style={{ color: "var(--lp-emerald)" }}>도입 비용</span>
+              <span className="text-2xl font-extrabold" style={{ color: "var(--lp-emerald)" }}>0원</span>
+              <span className="text-xs" style={{ color: "var(--lp-text-3)" }}>카드 등록 없이 무료로 시작</span>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── PRICING ── */}
-      <section className="pricing-section" id="pricing" ref={priceRef.ref}>
-        <div className="lp-container">
-          <div className={`pricing-header ${priceRef.inView ? "animate-up" : "opacity-0"}`}>
-            <div className="pricing-eyebrow">
-              14일 무료체험 · 카드 등록 없이 시작
-            </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">심플한 4단계 요금제</h2>
-            <p className="text-gray-500 text-lg">14일 무료로 전 기능을 써보고, 필요할 때 정액 요금제로 전환하세요</p>
-          </div>
-
-          <div className="pricing-plans-grid">
+      <section className="lp2-section" id="pricing">
+        <div className="lp2-container">
+          <Reveal className="lp2-section-head">
+            <div className="lp2-eyebrow">14일 무료체험 · 카드 등록 없이 시작</div>
+            <h2 className="lp2-h2">심플한 4단계 요금제</h2>
+            <p className="lp2-sub">14일 무료로 전 기능을 써보고, 필요할 때 정액 요금제로 전환하세요</p>
+          </Reveal>
+          <Reveal stagger className="lp2-plans">
             {PLANS.map((plan) => (
-              <div
-                key={plan.name}
-                className={`plan-card ${
-                  plan.hl
-                    ? "bg-blue-600 text-white shadow-2xl shadow-blue-600/30 scale-[1.03] hover:scale-[1.06] hover:-translate-y-1.5 hover:shadow-blue-600/50 relative ring-2 ring-blue-400/50"
-                    : "bg-white border border-gray-200 hover:border-blue-300 hover:shadow-xl hover:-translate-y-1.5 hover:scale-[1.02]"
-                }`}
-              >
-                {plan.hl && <div className="plan-best-badge">BEST</div>}
-                {plan.discount && <div className={`plan-discount-badge ${plan.hl ? "bg-emerald-400/20 text-emerald-200" : "bg-emerald-50 text-emerald-600"}`}>{plan.discount}</div>}
-                <h4 className={`text-lg font-bold mb-0.5 ${plan.hl ? "" : "text-gray-900"}`}>{plan.name}</h4>
-                <p className={`text-xs mb-3 ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.desc}</p>
-                {plan.regularPrice && (
-                  <div className={`text-sm line-through mb-1 ${plan.hl ? "text-blue-300" : "text-gray-400"}`}>
-                    정상가 {plan.regularPrice}{plan.unit}
-                  </div>
-                )}
+              <div key={plan.name} className={`lp2-plan ${plan.hl ? "lp2-plan-best" : ""}`}>
+                {plan.hl && <div className="lp2-plan-best-badge">BEST</div>}
+                <h4 className="text-lg font-bold mb-0.5" style={{ color: "var(--lp-text)" }}>{plan.name}</h4>
+                <p className="text-xs mb-4" style={{ color: "var(--lp-text-3)" }}>{plan.desc}</p>
                 <div className="mb-0.5">
-                  <span className="text-3xl font-extrabold">{plan.betaPrice}</span>
-                  <span className={`text-sm ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.unit}</span>
+                  <span className="text-3xl font-extrabold" style={{ color: "var(--lp-text)" }}>{plan.betaPrice}</span>
+                  <span className="text-sm ml-0.5" style={{ color: "var(--lp-text-3)" }}>{plan.unit}</span>
                 </div>
-                {plan.period && <div className={`text-xs mb-4 ${plan.hl ? "text-blue-200" : "text-gray-400"}`}>{plan.period}</div>}
-                {!plan.period && <div className="mb-4" />}
-                <ul className="plan-features-list">
+                {plan.period && <div className="text-xs mb-5" style={{ color: "var(--lp-text-3)" }}>{plan.period}</div>}
+                <ul className="space-y-2.5 mb-6">
                   {plan.features.map((f, i) => (
-                    <li key={i} className="plan-feature-item">
-                      <svg className={`plan-feature-check ${plan.hl ? "text-blue-200" : "text-emerald-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      <span className={plan.hl ? "text-blue-50" : "text-gray-600"}>{f}</span>
+                    <li key={i} className="lp2-plan-feature">
+                      <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--lp-emerald)" }} fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      <span>{f}</span>
                     </li>
                   ))}
                 </ul>
-                <Link href={plan.betaPrice === "별도 협의" ? "#partner" : "/auth"} className={`plan-cta-button ${plan.hl ? "bg-white text-blue-600 hover:bg-blue-50 shadow-md" : "bg-blue-600 text-white hover:bg-blue-700"}`}>
+                <Link href={plan.betaPrice === "별도 협의" ? "#partner" : "/auth"} className={`lp2-plan-cta ${plan.hl ? "lp2-plan-cta-primary" : "lp2-plan-cta-ghost"}`}>
                   {plan.betaPrice === "별도 협의" ? "가격 문의하기" : "무료로 시작하기"}
                 </Link>
               </div>
             ))}
-          </div>
-
-          {/* 프로 vs 울트라 — 실제 차등 항목만 비교 (마케팅 문구 아님, 코드로 집행되는 항목) */}
-          <div className="plan-diff-table">
-            <table className="w-full text-sm border-collapse rounded-2xl overflow-hidden border border-gray-200">
+          </Reveal>
+          {/* 프로 vs 울트라 — 실제 차등 항목만 (코드로 집행되는 항목) */}
+          <Reveal className="lp2-diff-table-wrap">
+            <table className="lp2-diff-table">
               <thead>
-                <tr className="plan-diff-header-row">
-                  <th className="plan-diff-header-cell-label">항목</th>
-                  <th className="plan-diff-header-cell-pro">프로</th>
-                  <th className="plan-diff-header-cell-ultra">울트라</th>
+                <tr>
+                  <th>항목</th>
+                  <th>프로</th>
+                  <th style={{ color: "var(--lp-indigo)" }}>울트라</th>
                 </tr>
               </thead>
-              <tbody className="plan-diff-body">
-                <tr className="plan-diff-row">
-                  <td className="plan-diff-cell">세금계산서 국세청 발행</td>
-                  <td className="plan-diff-value-cell-pro">월 10건</td>
-                  <td className="plan-diff-value-cell-ultra">무제한</td>
-                </tr>
-                <tr className="plan-diff-row">
-                  <td className="plan-diff-cell">현금영수증 국세청 발행</td>
-                  <td className="plan-diff-value-cell-pro">월 10건</td>
-                  <td className="plan-diff-value-cell-ultra">무제한</td>
-                </tr>
-                <tr className="plan-diff-row">
-                  <td className="plan-diff-cell">AI 브리핑 (매일 우선순위 액션 플랜)</td>
-                  <td className="plan-diff-value-cell-dash">—</td>
-                  <td className="plan-diff-value-cell-ultra">제공</td>
-                </tr>
-                <tr className="plan-diff-row">
-                  <td className="plan-diff-cell">신기능 얼리 액세스 · 우선 지원</td>
-                  <td className="plan-diff-value-cell-dash">—</td>
-                  <td className="plan-diff-value-cell-ultra">제공</td>
-                </tr>
+              <tbody>
+                <tr><td>세금계산서 국세청 발행</td><td>월 10건</td><td className="font-bold" style={{ color: "var(--lp-text)" }}>무제한</td></tr>
+                <tr><td>현금영수증 국세청 발행</td><td>월 10건</td><td className="font-bold" style={{ color: "var(--lp-text)" }}>무제한</td></tr>
+                <tr><td>AI 브리핑 (매일 우선순위 액션 플랜)</td><td>—</td><td className="font-bold" style={{ color: "var(--lp-text)" }}>제공</td></tr>
+                <tr><td>신기능 얼리 액세스 · 우선 지원</td><td>—</td><td className="font-bold" style={{ color: "var(--lp-text)" }}>제공</td></tr>
               </tbody>
             </table>
-          </div>
-
+          </Reveal>
         </div>
       </section>
 
-      {/* Revenue simulation removed — now in separate IR report HTML */}
-
       {/* ── PARTNERSHIP INQUIRY ── */}
-      <section className="partner-section" id="partner" ref={partnerRef.ref}>
-        <div className="max-w-3xl mx-auto">
-          <div className={`partner-header ${partnerRef.inView ? "animate-up" : "opacity-0"}`}>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">제휴 & 도입 문의</h2>
-            <p className="text-gray-500 text-lg">Enterprise 도입, API 연동, 리셀러 제휴를 상담해 드립니다</p>
-          </div>
+      <section className="lp2-section" id="partner" style={{ background: "var(--lp-bg-soft)" }}>
+        <div className="lp2-narrow">
+          <Reveal className="lp2-section-head">
+            <h2 className="lp2-h2">제휴 &amp; 도입 문의</h2>
+            <p className="lp2-sub">Enterprise 도입, API 연동, 리셀러 제휴를 상담해 드립니다</p>
+          </Reveal>
           {partnerSent ? (
-            <div className="partner-success-message">
-              <div className="partner-success-icon">✅</div>
-              <h3 className="text-xl font-bold text-emerald-700 mb-2">문의가 접수되었습니다</h3>
-              <p className="text-sm text-emerald-600">영업일 기준 1일 이내에 회신드리겠습니다.</p>
+            <div className="lp2-form-success">
+              <div className="text-4xl mb-3">✅</div>
+              <h3 className="text-xl font-bold mb-2" style={{ color: "var(--lp-emerald)" }}>문의가 접수되었습니다</h3>
+              <p className="text-sm" style={{ color: "var(--lp-text-2)" }}>영업일 기준 1일 이내에 회신드리겠습니다.</p>
             </div>
           ) : (
-            <div className={`partner-form-card ${partnerRef.inView ? "animate-up" : "opacity-0"}`}>
-              <div className="partner-fields-grid">
-                <div className="partner-field">
-                  <label className="lp-field-label">회사명 *</label>
-                  <input type="text" value={partnerForm.company} onChange={(e) => setPartnerForm({ ...partnerForm, company: e.target.value })} placeholder="(주)회사명" className="lp-input" />
+            <Reveal>
+              <div className="lp2-form-card">
+                <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="lp2-field-label">회사명 *</label>
+                    <input type="text" value={partnerForm.company} onChange={(e) => setPartnerForm({ ...partnerForm, company: e.target.value })} placeholder="(주)회사명" className="lp2-input" />
+                  </div>
+                  <div>
+                    <label className="lp2-field-label">담당자명 *</label>
+                    <input type="text" value={partnerForm.name} onChange={(e) => setPartnerForm({ ...partnerForm, name: e.target.value })} placeholder="홍길동" className="lp2-input" />
+                  </div>
+                  <div>
+                    <label className="lp2-field-label">이메일 *</label>
+                    <input type="email" value={partnerForm.email} onChange={(e) => setPartnerForm({ ...partnerForm, email: e.target.value })} placeholder="email@company.com" className="lp2-input" />
+                  </div>
+                  <div>
+                    <label className="lp2-field-label">연락처</label>
+                    <input type="tel" value={partnerForm.phone} onChange={(e) => setPartnerForm({ ...partnerForm, phone: e.target.value })} placeholder="010-0000-0000" className="lp2-input" />
+                  </div>
                 </div>
-                <div className="partner-field">
-                  <label className="lp-field-label">담당자명 *</label>
-                  <input type="text" value={partnerForm.name} onChange={(e) => setPartnerForm({ ...partnerForm, name: e.target.value })} placeholder="홍길동" className="lp-input" />
+                <div className="mb-5">
+                  <label className="lp2-field-label">문의 내용 *</label>
+                  <textarea value={partnerForm.message} onChange={(e) => setPartnerForm({ ...partnerForm, message: e.target.value })} placeholder="도입 규모, 필요 기능, 연동 요구사항 등을 알려주세요" rows={4} className="lp2-input resize-none" />
                 </div>
-                <div className="partner-field">
-                  <label className="lp-field-label">이메일 *</label>
-                  <input type="email" value={partnerForm.email} onChange={(e) => setPartnerForm({ ...partnerForm, email: e.target.value })} placeholder="email@company.com" className="lp-input" />
-                </div>
-                <div className="partner-field">
-                  <label className="lp-field-label">연락처</label>
-                  <input type="tel" value={partnerForm.phone} onChange={(e) => setPartnerForm({ ...partnerForm, phone: e.target.value })} placeholder="010-0000-0000" className="lp-input" />
-                </div>
+                <button
+                  onClick={handlePartnerSubmit}
+                  disabled={partnerSending || !partnerForm.company || !partnerForm.name || !partnerForm.email || !partnerForm.message}
+                  className="lp2-btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {partnerSending ? "접수 중..." : "문의 보내기"}
+                </button>
+                <p className="text-[11px] mt-3 text-center" style={{ color: "var(--lp-text-3)" }}>제출된 정보는 상담 목적으로만 사용되며, 개인정보처리방침에 따라 관리됩니다.</p>
               </div>
-              <div className="partner-message-field">
-                <label className="lp-field-label">문의 내용 *</label>
-                <textarea value={partnerForm.message} onChange={(e) => setPartnerForm({ ...partnerForm, message: e.target.value })} placeholder="도입 규모, 필요 기능, 연동 요구사항 등을 알려주세요" rows={4} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 resize-none" />
-              </div>
-              <button
-                onClick={handlePartnerSubmit}
-                disabled={partnerSending || !partnerForm.company || !partnerForm.name || !partnerForm.email || !partnerForm.message}
-                className="partner-submit-button"
-              >
-                {partnerSending ? "접수 중..." : "문의 보내기"}
-              </button>
-              <p className="text-[11px] text-gray-400 mt-3 text-center">제출된 정보는 상담 목적으로만 사용되며, 개인정보처리방침에 따라 관리됩니다.</p>
-            </div>
+            </Reveal>
           )}
         </div>
       </section>
 
       {/* ── FAQ ── */}
-      <section className="faq-section" id="faq">
-        <div className="max-w-3xl mx-auto">
-          <div className="faq-header">
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">자주 묻는 질문</h2>
-          </div>
-          <div className="faq-list">
+      <section className="lp2-section" id="faq">
+        <div className="lp2-narrow">
+          <Reveal className="lp2-section-head">
+            <h2 className="lp2-h2">자주 묻는 질문</h2>
+          </Reveal>
+          <Reveal stagger>
             {FAQS.map((faq, i) => (
-              <div key={i} className="faq-item">
-                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="faq-toggle-button">
-                  <span className="faq-question">{faq.q}</span>
-                  <svg className={`faq-chevron ${openFaq === i ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+              <div key={i} className={`lp2-faq-item ${openFaq === i ? "lp2-faq-open" : ""}`}>
+                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="lp2-faq-btn">
+                  <span className="lp2-faq-q">{faq.q}</span>
+                  <svg className={`lp2-faq-chevron ${openFaq === i ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                 </button>
-                <div className={`faq-answer-panel ${openFaq === i ? "max-h-40 pb-5" : "max-h-0"}`}>
-                  <div className="faq-answer-text">{faq.a}</div>
+                <div className="lp2-faq-panel">
+                  <div className="lp2-faq-panel-inner">
+                    <div className="lp2-faq-a">{faq.a}</div>
+                  </div>
                 </div>
               </div>
             ))}
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section className="final-cta-section">
-        <div className="final-cta-bg">
-          <div className="final-cta-orb-1" />
-          <div className="final-cta-orb-2" />
-        </div>
-        <div className="final-cta-content">
-          <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
-            회사 현황, 한눈에 보고 싶다면<br /><span className="text-blue-400">OwnerView를 시작하세요.</span>
-          </h2>
-          <p className="text-slate-400 text-lg mb-8">거래처 목록·거래내역은 엑셀만 올리면 바로 등록. 카드 등록 없이 무료로 시작.</p>
-          <Link href="/auth" className="final-cta-button">
-            무료로 시작하기
-          </Link>
-          <p className="final-cta-login-row">
-            이미 계정이 있으신가요? <Link href="/auth" className="text-blue-400 hover:underline">로그인</Link>
-          </p>
+      <section className="lp2-section pt-0">
+        <div className="lp2-container">
+          <Reveal>
+            <div className="lp2-final">
+              <div className="lp2-final-orb-a" />
+              <div className="lp2-final-orb-b" />
+              <div className="relative z-10">
+                <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4" style={{ color: "var(--lp-text)" }}>
+                  회사 현황, 한눈에 보고 싶다면<br /><span className="lp2-grad-text">OwnerView를 시작하세요</span>
+                </h2>
+                <p className="text-base md:text-lg mb-9" style={{ color: "var(--lp-text-2)" }}>거래처 목록·거래내역은 엑셀만 올리면 바로 등록. 카드 등록 없이 무료로 시작.</p>
+                <Link href="/auth" className="lp2-btn-primary text-base !px-10 !py-4">무료로 시작하기</Link>
+                <p className="text-sm mt-6" style={{ color: "var(--lp-text-3)" }}>
+                  이미 계정이 있으신가요? <Link href="/auth" className="font-semibold hover:underline" style={{ color: "var(--lp-indigo)" }}>로그인</Link>
+                </p>
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="site-footer">
-        <div className="lp-container">
-          <div className="footer-top-row">
-            <div className="footer-brand">
+      <footer className="lp2-footer">
+        <div className="lp2-container">
+          <div className="lp2-footer-top">
+            <div className="flex items-center gap-2.5">
               <OwnerViewLogo size={28} />
-              <span className="text-white font-bold tracking-tight"><RollingBrandText /></span>
-              <span className="text-xs text-slate-600 ml-2">Company Operating System</span>
+              <span className="font-bold tracking-tight" style={{ color: "var(--lp-text)" }}><RollingBrandText /></span>
+              <span className="text-xs ml-2" style={{ color: "var(--lp-text-3)" }}>Company Operating System</span>
             </div>
-            <div className="footer-links">
-              <a href="#features" className="lp-nav-link">기능</a>
-              <a href="#pricing" className="lp-nav-link">가격</a>
-              <a href="#partner" className="lp-nav-link">제휴문의</a>
-              <a href="#faq" className="lp-nav-link">FAQ</a>
+            <div className="lp2-footer-links">
+              <a href="#features">기능</a>
+              <a href="#pricing">가격</a>
+              <a href="#partner">제휴문의</a>
+              <a href="#faq">FAQ</a>
             </div>
           </div>
-          <div className="footer-bottom-row">
-            <div className="footer-company-info">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="lp2-footer-info">
               <div>(주)모티브이노베이션 | 대표: 채희웅</div>
               <div>사업자등록번호: 155-88-02209 | 통신판매업신고번호: 제 2023-서울강남-04603호</div>
               <div>경기 화성시 동탄구 동탄첨단산업1로 27 IX타워 A동 2514호, 2515호</div>
             </div>
-            <div className="footer-legal-wrap">
-              <div className="footer-legal-links">
-                <Link href="/terms" className="lp-nav-link">이용약관</Link>
-                <Link href="/privacy" className="hover:text-white transition font-semibold">개인정보처리방침</Link>
-                <Link href="/refund" className="lp-nav-link">환불규정</Link>
-                <a href="mailto:creative@mo-tive.com" className="lp-nav-link">creative@mo-tive.com</a>
-              </div>
+            <div className="lp2-footer-links">
+              <Link href="/terms">이용약관</Link>
+              <Link href="/privacy" className="font-semibold" style={{ color: "var(--lp-text-2)" }}>개인정보처리방침</Link>
+              <Link href="/refund">환불규정</Link>
+              <a href="mailto:creative@mo-tive.com">creative@mo-tive.com</a>
             </div>
           </div>
         </div>
