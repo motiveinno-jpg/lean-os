@@ -1413,6 +1413,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .attendance-calendar { @apply overflow-hidden; } /* co-exists with glass-card in JSX; dynamic lg:col-span-3 left inline in JSX */
 .employee-detail-modal { @apply overflow-hidden shadow-2xl; }
 .employee-detail-hero { @apply relative; }
+/* 겹침을 -mt-4 로 (기존 -mt-9 는 하단정렬된 이름·직책 블록 상단이 그라데이션 배너 위로 올라타
+   이름 가독성이 떨어졌다). 아바타 오버랩은 유지하면서 텍스트는 배너 아래에서 시작. */
+.employee-detail-hero-body { @apply px-6 pb-4 -mt-4 flex items-end justify-between gap-4 flex-wrap; }
 .employee-detail-tabbar { @apply px-6 pt-3 pb-0 border-b border-[var(--border)] bg-[var(--bg-surface)]/20; }
 .employee-detail-body { @apply p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto; }
 .employee-info-tab { @apply space-y-5; }

@@ -289,7 +289,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         <button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-xl bg-black/15 hover:bg-black/25 text-white transition backdrop-blur-sm">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
-        <div className="px-6 pb-4 -mt-9 flex items-end justify-between gap-4 flex-wrap">
+        <div className="employee-detail-hero-body">
           <div className="flex items-end gap-3.5 min-w-0">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
