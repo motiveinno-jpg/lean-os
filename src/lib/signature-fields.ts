@@ -200,7 +200,6 @@ if (typeof window !== 'undefined' && (window as any).__SIYAN_FIELDS_DEBUG__) {
     console.assert(v3.ok, '비-기타 선택 시 텍스트 불필요 → valid');
     const v4 = validateInputs(fields, { 포기사유: '기타', 기타사유: '사업종료' });
     console.assert(v4.ok, '둘 다 입력 → valid');
-    console.log('[signature-fields] sanity OK');
   } catch (e) {
     console.warn('[signature-fields] sanity FAIL', e);
   }
