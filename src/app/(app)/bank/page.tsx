@@ -24,7 +24,7 @@ import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { SortToolbar } from "@/components/sort-toolbar";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
+const db = supabase;
 
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -143,7 +143,7 @@ export default function BankPage() {
     mutationFn: async ({ id, category, isFixedCost, memo, tags, employeeId }: { id: string; category: string; isFixedCost: boolean; memo?: string; tags?: string[]; employeeId?: string | null }) => {
       await mapBankTransaction(id, { category: category || null, classification: category || null, isFixedCost, mappedBy: userId || "" });
       // 직원 QA 통장(그랜터) — 사유·태그·사용직원 함께 저장
-      await (supabase as any).from("bank_transactions").update({ memo: memo || null, tags: tags ?? [], used_by_employee_id: employeeId || null }).eq("id", id);
+      await (supabase).from("bank_transactions").update({ memo: memo || null, tags: tags ?? [], used_by_employee_id: employeeId || null }).eq("id", id);
     },
     onSuccess: () => {
       toast("매핑 완료", "success");
@@ -222,7 +222,7 @@ export default function BankPage() {
           const end = new Date().toISOString().slice(0, 10);
           const s = new Date(); s.setDate(s.getDate() - 120);
           const start = s.toISOString().slice(0, 10);
-          const data = logRead('bank/page:data', await (supabase as any).rpc("generate_settlement_suggestions", { p_start: start, p_end: end }));
+          const data = logRead('bank/page:data', await (supabase).rpc("generate_settlement_suggestions", { p_start: start, p_end: end }));
           const sug = Number((data as any)?.suggested || 0);
           if (sug > 0) toast(`입금 매칭 제안 ${sug}건 생성 — '거래 대사'에서 확인·확정하세요`, "info");
         } catch { /* 제안 생성 실패는 비차단 */ }
@@ -267,8 +267,8 @@ export default function BankPage() {
     queryKey: ["bank-page-flow-v2", companyId, ranges.curFrom, ranges.curTo],
     queryFn: async () => {
       const [curRes, prevRes] = await Promise.all([
-        db.from("bank_transactions").select("amount, type, mapping_status").eq("company_id", companyId).gte("transaction_date", ranges.curFrom).lte("transaction_date", ranges.curTo).limit(50000),
-        db.from("bank_transactions").select("amount, type").eq("company_id", companyId).gte("transaction_date", ranges.prevFrom).lte("transaction_date", ranges.prevTo).limit(50000),
+        db.from("bank_transactions").select("amount, type, mapping_status").eq("company_id", companyId ?? "").gte("transaction_date", ranges.curFrom).lte("transaction_date", ranges.curTo).limit(50000),
+        db.from("bank_transactions").select("amount, type").eq("company_id", companyId ?? "").gte("transaction_date", ranges.prevFrom).lte("transaction_date", ranges.prevTo).limit(50000),
       ]);
       const sum = (rows: any[], t: string) => (rows || []).filter((r) => r.type === t).reduce((s: number, r: any) => s + Math.abs(Number(r.amount || 0)), 0);
       const cur = curRes.data || [];
@@ -294,7 +294,7 @@ export default function BankPage() {
       // accountNo 는 client-side 필터 (raw_data->>accountNo PostgREST eq 불안정 — transactions 페이지와 동일 패턴)
       let q = db.from("bank_transactions")
         .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(selectedAccountNo || hasTxRange ? 2000 : 50);
       if (bankTxFrom) q = q.gte("transaction_date", bankTxFrom);
@@ -318,7 +318,7 @@ export default function BankPage() {
   const { data: coaAccounts = [] } = useQuery({
     queryKey: ["bank-page-coa-accounts", companyId],
     queryFn: async () => {
-      const data = logRead('bank/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code"));
+      const data = logRead('bank/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId ?? "").order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -328,7 +328,7 @@ export default function BankPage() {
   const { data: bankEmployees = [] } = useQuery({
     queryKey: ["bank-page-employees", companyId],
     queryFn: async () => {
-      const data = logRead('bank/page:data', await db.from("employees").select("id, name").eq("company_id", companyId).eq("status", "active").order("name"));
+      const data = logRead('bank/page:data', await db.from("employees").select("id, name").eq("company_id", companyId ?? "").eq("status", "active").order("name"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,

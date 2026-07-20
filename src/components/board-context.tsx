@@ -40,7 +40,7 @@ async function loadPrefsFromDB(): Promise<StoredConfig | null> {
     const user = session?.user;
     if (!user) return null;
 
-    const data = logRead('components/board-context:data', await (supabase as any)
+    const data = logRead('components/board-context:data', await (supabase)
       .from("user_preferences")
       .select("role_preset, dashboard_widgets")
       .eq("user_id", user.id)
@@ -62,7 +62,7 @@ async function loadPrefsFromDB(): Promise<StoredConfig | null> {
     return {
       activeViewId: hasCustom ? "custom" : "default",
       customWidgets: hasCustom ? customWidgets : undefined,
-      rolePreset: data.role_preset || undefined,
+      rolePreset: (data.role_preset || undefined) as RolePreset | undefined,
     };
   } catch {
     return null;
@@ -77,7 +77,7 @@ async function savePrefsToDB(config: StoredConfig): Promise<void> {
 
     // Get company_id
     // QA 2026-07-10: auth uid 는 auth_id 컬럼과 비교 (id 와 다른 계정 존재 → 위젯 설정 저장 조용히 실패했음)
-    const userData = logRead('components/board-context:userData', await (supabase as any)
+    const userData = logRead('components/board-context:userData', await (supabase)
       .from("users")
       .select("company_id")
       .eq("auth_id", user.id)
@@ -93,7 +93,7 @@ async function savePrefsToDB(config: StoredConfig): Promise<void> {
       });
     }
 
-    await (supabase as any)
+    await (supabase)
       .from("user_preferences")
       .upsert({
         user_id: user.id,

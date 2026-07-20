@@ -183,7 +183,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
       supabase
         .from("bank_transactions")
         .select("amount, type, transaction_date, counterparty, description, category")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .gte("transaction_date", startDate)
         .order("transaction_date", { ascending: true })
         .range(from, to)
@@ -192,7 +192,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
       supabase
         .from("tax_invoices")
         .select("type, supply_amount, tax_amount, total_amount, issue_date, status, expense_category")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .gte("issue_date", startDate)
         // 2026-05-22 무효(void) 세금계산서는 매출/매입에서 제외 (발생주의 — matched 등 나머지는 모두 인식)
         .neq("status", "void")
@@ -201,7 +201,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     supabase
       .from("employees")
       .select("salary, is_4_insurance, status")
-      .eq("company_id", companyId)
+      .eq("company_id", companyId ?? "")
       .eq("status", "active"),
   ]);
 
@@ -933,17 +933,17 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
           // ① 그 카테고리로 분류된 통장 출금 + ② 그 계정과목을 지정한 매입 세금계산서 (같은 행에 합산되므로 둘 다 표시)
           const catKeys = Object.entries(EXPENSE_CATEGORY_LABELS).filter(([, l]) => l === category).map(([k]) => k);
           const [txRes, tiRes] = await Promise.all([
-            (supabase as any)
+            (supabase)
               .from("bank_transactions")
               .select("transaction_date, counterparty, description, amount, category")
-              .eq("company_id", companyId).in("type", ["expense", "출금"]).eq("category", category)
+              .eq("company_id", companyId ?? "").in("type", ["expense", "출금"]).eq("category", category ?? "")
               .gte("transaction_date", startDate).lt("transaction_date", endExclusive)
               .order("transaction_date", { ascending: true }).limit(2000),
-            (supabase as any)
+            (supabase)
               .from("tax_invoices")
               .select("issue_date, counterparty_name, supply_amount, expense_category, status")
-              .eq("company_id", companyId).in("type", ["purchase", "매입"]).neq("status", "void")
-              .in("expense_category", [...catKeys, category])
+              .eq("company_id", companyId ?? "").in("type", ["purchase", "매입"]).neq("status", "void")
+              .in("expense_category", [...catKeys, category ?? ""])
               .gte("issue_date", startDate).lt("issue_date", endExclusive)
               .order("issue_date", { ascending: true }).limit(2000),
           ]);
@@ -953,10 +953,10 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
           setRows([...txRows, ...tiRows].sort((a, b) => a.date.localeCompare(b.date)));
         } else {
           const types = source === "sales" ? ["sales", "매출"] : ["purchase", "매입"];
-          let q = (supabase as any)
+          let q = (supabase)
             .from("tax_invoices")
             .select("id, issue_date, counterparty_name, supply_amount, type, status, expense_category")
-            .eq("company_id", companyId).in("type", types).neq("status", "void")
+            .eq("company_id", companyId ?? "").in("type", types).neq("status", "void")
             .gte("issue_date", startDate).lt("issue_date", endExclusive)
             .order("issue_date", { ascending: true }).limit(2000);
           // 매출원가 드릴 = 계정과목 미지정 매입 계산서만 (Ⅱ와 동일 기준)
@@ -971,7 +971,7 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
 
   // 매입 계산서 건별 계정과목 지정 → 매출원가에서 그 판관비로 이동 (손익 재계산은 onChanged)
   const assignCategory = async (invoiceId: string, key: string) => {
-    const { error } = await (supabase as any).from("tax_invoices").update({ expense_category: key || null }).eq("id", invoiceId);
+    const { error } = await (supabase).from("tax_invoices").update({ expense_category: key || null }).eq("id", invoiceId);
     if (error) { setErr(error.message); return; }
     setReloadKey((k) => k + 1);
     onChanged?.();

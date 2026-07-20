@@ -44,7 +44,7 @@ import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 
-const db = supabase as any;
+const db = supabase;
 
 type Tab = "my-approvals" | "my-requests" | "all" | "new-request" | "policies" | "forms";
 
@@ -903,7 +903,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["approval-company-users", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("users").select("id, name, email").eq("company_id", companyId);
+      const { data } = await (supabase).from("users").select("id, name, email").eq("company_id", companyId);
       return data || [];
     },
     enabled: !!companyId,
@@ -1228,7 +1228,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["approval-company-users", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("users").select("id, name, email, avatar_url").eq("company_id", companyId);
+      const { data } = await (supabase).from("users").select("id, name, email, avatar_url").eq("company_id", companyId);
       return data || [];
     },
     enabled: !!companyId,
@@ -1607,7 +1607,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const { data: leaveBalance } = useQuery({
     queryKey: ["my-leave-balance", currentEmployee?.id, currentYear],
     queryFn: async () => {
-      const { data } = await db.from("leave_balances").select("total_days, used_days").eq("employee_id", currentEmployee!.id).eq("year", currentYear).maybeSingle();
+      const { data } = await db.from("leave_balances").select("total_days, used_days").eq("employee_id", currentEmployee!.id as string).eq("year", currentYear).maybeSingle();
       return data;
     },
     enabled: !!currentEmployee?.id,
@@ -3073,7 +3073,7 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
   const { data: comments = [] } = useQuery({
     queryKey: ["approval-comments", requestId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data } = await (supabase)
         .from("approval_comments")
         .select("id, user_id, body, created_at, users:user_id(name, email, avatar_url)")
         .eq("request_id", requestId)
@@ -3084,7 +3084,7 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
   });
   const postComment = async () => {
     if (!me || !commentText.trim()) return;
-    const { error } = await (supabase as any).from("approval_comments").insert({
+    const { error } = await (supabase).from("approval_comments").insert({
       company_id: me.company_id, request_id: requestId, user_id: me.id, body: commentText.trim(),
     });
     if (error) { toast("댓글 등록 실패: " + error.message, "error"); return; }
@@ -3092,7 +3092,7 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
     qc.invalidateQueries({ queryKey: ["approval-comments", requestId] });
   };
   const deleteComment = async (id: string) => {
-    await (supabase as any).from("approval_comments").delete().eq("id", id);
+    await (supabase).from("approval_comments").delete().eq("id", id);
     qc.invalidateQueries({ queryKey: ["approval-comments", requestId] });
   };
 

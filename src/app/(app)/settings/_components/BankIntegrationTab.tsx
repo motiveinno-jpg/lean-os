@@ -129,7 +129,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           // 2. 인증서 비밀번호를 암호화하여 automation_credentials 에 저장 (sync 시 사용)
           const { encryptCredential } = await import("@/lib/crypto");
           const enc = await encryptCredential(certPassword);
-          await (supabase as any).from("automation_credentials").upsert({
+          await (supabase).from("automation_credentials").upsert({
             company_id: companyId,
             service: "hometax",
             credentials: { login_method: "certificate", cert_password: enc || "" },
@@ -161,7 +161,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           // ID/PW 정보를 automation_credentials 에 저장 (sync 시 사용)
           const { encryptCredential } = await import("@/lib/crypto");
           const encPw = await encryptCredential(loginPw);
-          await (supabase as any).from("automation_credentials").upsert({
+          await (supabase).from("automation_credentials").upsert({
             company_id: companyId,
             service: "hometax",
             credentials: { login_method: "id_pw", login_id: loginId, login_password: encPw || "" },
@@ -463,7 +463,7 @@ function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () =>
 // CODEF API 키는 서버 환경변수로만 관리 (사용자 노출 X)
 // ═══════════════════════════════════════════
 export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | null; bankAccounts: BankAccount[] }) {
-  const db2 = supabase as any;
+  const db2 = supabase;
   const { toast } = useToast();
 
   // 연결 상태 확인 — 은행/카드는 ConnectedID, 홈택스는 automation_credentials.hometax 존재 여부.
@@ -479,7 +479,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
         codef_connected_id: cs?.codef_connected_id || null,
         codef_connected_at: cs?.codef_connected_at || null,
         hometax_registered: !!ht?.id,
-        hometax_method: ht?.credentials?.login_method || null,
+        hometax_method: (ht?.credentials as any)?.login_method || null,
         hometax_registered_at: ht?.updated_at || null,
       };
     },

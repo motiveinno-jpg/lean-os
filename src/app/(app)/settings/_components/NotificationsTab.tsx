@@ -124,12 +124,12 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       if (companyId) {
         const u = await getCurrentUser();
         if (u) {
-          await (supabase as any)
+          await (supabase)
             .from("notification_prefs")
             .upsert({
               user_id: u.id,
               company_id: companyId,
-              prefs,
+              prefs: prefs as never,
               updated_at: new Date().toISOString(),
             }, { onConflict: "user_id" })
             .then(() => {}, () => {}); // ignore if table missing
@@ -442,7 +442,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
   useEffect(() => {
     if (!companyId) return;
     (async () => {
-      const data = logRead('_components/NotificationsTab:data', await (supabase as any).from("notification_settings")
+      const data = logRead('_components/NotificationsTab:data', await (supabase).from("notification_settings")
         .select("*").eq("company_id", companyId).maybeSingle());
       if (data) {
         setEnabled(!!data.daily_report_enabled);
@@ -469,7 +469,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
     if (!companyId || saving) return;
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from("notification_settings").upsert({
+      const { error } = await (supabase).from("notification_settings").upsert({
         company_id: companyId,
         daily_report_enabled: enabled,
         daily_report_phones: phones,

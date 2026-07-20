@@ -26,7 +26,7 @@ import { FlowMatrix } from "./_components/FlowMatrix";
 /*  화면 간 불일치가 없다. DB 무변경.                                    */
 /* ------------------------------------------------------------------ */
 
-const db = supabase as any;
+const db = supabase;
 
 function fmtKrw(value: number): string {
   if (!value) return "0";
@@ -160,9 +160,9 @@ export default function BusinessFlowPage() {
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('flow/page:data', await db.from("user_preferences").select("flow_settings").eq("user_id", userId).maybeSingle());
-      const fs = data?.flow_settings;
+      const fs = data?.flow_settings as { default_view?: string; default_lens?: string; past_n?: number } | null;
       if (fs && typeof fs === "object") {
         if (fs.default_view === "cockpit" || fs.default_view === "matrix" || fs.default_view === "month") setFlowView(fs.default_view);
         if (fs.default_lens === "income" || fs.default_lens === "expense" || fs.default_lens === "net") setLens(fs.default_lens);
@@ -173,7 +173,7 @@ export default function BusinessFlowPage() {
 
   const saveFlowSettings = async () => {
     if (!userId || !companyId) return;
-    const db = supabase as any;
+    const db = supabase;
     await db.from("user_preferences").upsert({
       user_id: userId, company_id: companyId,
       flow_settings: { default_view: flowView, default_lens: lens, past_n: pastN },
@@ -190,7 +190,7 @@ export default function BusinessFlowPage() {
     queryFn: async () => {
       const data = logRead('flow/page:data', await db.from("deals")
         .select("contract_total, stage")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .eq("status", "active")
         .is("archived_at", null)
         .is("parent_deal_id", null));
@@ -220,7 +220,7 @@ export default function BusinessFlowPage() {
     queryFn: async () => {
       const data = logRead('flow/page:data', await db.from("invoice_settlements")
         .select("amount, bank_transactions!inner(transaction_date)")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .eq("status", "confirmed")
         .gte("bank_transactions.transaction_date", start)
         .lt("bank_transactions.transaction_date", end));
@@ -237,7 +237,7 @@ export default function BusinessFlowPage() {
     queryFn: async () => {
       const data = logRead('flow/page:data', await db.from("tax_invoices")
         .select("total_amount, issue_date")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .eq("type", "sales") // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단)
         .in("status", ["issued", "sent", "pending", "overdue"]));
       const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];

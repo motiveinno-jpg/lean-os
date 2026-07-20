@@ -1691,7 +1691,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
           receipt_urls: form.receipt_urls.length > 0 ? form.receipt_urls : null,
         };
         if (requestType === 'purchase_request') patch.request_type = 'purchase_request';
-        await (supabase as any).from('expense_requests').update(patch).eq('id', data.id);
+        await (supabase).from('expense_requests').update(patch as never).eq('id', data.id);
       }
       queryClient.invalidateQueries({ queryKey: ['expense-requests'] });
       invalidate();
@@ -1919,9 +1919,9 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
                     const newUrls: string[] = [];
                     for (const file of files) {
                       const path = `${companyId}/expense-receipts/${Date.now()}-${file.name}`;
-                      const { error: upErr } = await (supabase as any).storage.from('company-assets').upload(path, file, { cacheControl: '3600', upsert: false });
+                      const { error: upErr } = await (supabase).storage.from('company-assets').upload(path, file, { cacheControl: '3600', upsert: false });
                       if (upErr) throw upErr;
-                      const { data: pub } = (supabase as any).storage.from('company-assets').getPublicUrl(path);
+                      const { data: pub } = (supabase).storage.from('company-assets').getPublicUrl(path);
                       newUrls.push(pub.publicUrl);
                     }
                     setForm({ ...form, receipt_urls: [...form.receipt_urls, ...newUrls] });

@@ -180,7 +180,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   // bank_transactions 의 is_fixed_cost(고정비 — 비용 성격) 토글 mutation
   const toggleFixedMut = useMutation({
     mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
-      const { error } = await (supabase as any).from('bank_transactions').update({ is_fixed_cost: value }).eq('id', id);
+      const { error } = await (supabase).from('bank_transactions').update({ is_fixed_cost: value }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bank-transactions'] }),
@@ -190,7 +190,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   // 2026-05-22 자동이체(is_auto_transfer — 결제 방식) 토글 mutation. 고정비와 독립.
   const toggleAutoMut = useMutation({
     mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
-      const { error } = await (supabase as any).from('bank_transactions').update({ is_auto_transfer: value }).eq('id', id);
+      const { error } = await (supabase).from('bank_transactions').update({ is_auto_transfer: value }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bank-transactions'] }),
@@ -341,7 +341,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       const existing = logRead('transactions/page:existing', await supabase
         .from("bank_transactions")
         .select("transaction_date, amount, counterparty")
-        .eq("company_id", companyId));
+        .eq("company_id", companyId ?? ""));
 
       const existingKeys = new Set(
         (existing || []).map((e: any) =>
@@ -424,7 +424,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       const existingCards = logRead('transactions/page:existingCards', await supabase
         .from("card_transactions")
         .select("transaction_date, amount, merchant_name")
-        .eq("company_id", companyId));
+        .eq("company_id", companyId ?? ""));
 
       const existingCardKeys = new Set(
         (existingCards || []).map((e: any) =>
@@ -553,7 +553,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
       const { data: unmapped, error } = await supabase
         .from("card_transactions")
         .select("id, merchant_name, merchant_category, amount")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .or("mapping_status.eq.unmapped,mapping_status.is.null");
       if (error) throw error;
       if (!unmapped || unmapped.length === 0) {
@@ -585,7 +585,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
   const { data: savedOptions = [] } = useQuery({
     queryKey: ["tx-category-options", companyId],
     queryFn: async () => {
-      const data = logRead('transactions/page:data', await (supabase as any)
+      const data = logRead('transactions/page:data', await (supabase)
         .from("tx_category_options")
         .select("id, kind, name")
         .eq("company_id", companyId!)
@@ -599,9 +599,9 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
   const addOptionMut = useMutation({
     mutationFn: async (p: { kind: "classification" | "category"; name: string }) => {
-      const { error } = await (supabase as any)
+      const { error } = await (supabase)
         .from("tx_category_options")
-        .upsert({ company_id: companyId, kind: p.kind, name: p.name.trim() }, { onConflict: "company_id,kind,name" });
+        .upsert({ company_id: companyId as string, kind: p.kind, name: p.name.trim() }, { onConflict: "company_id,kind,name" });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tx-category-options"] }),
@@ -610,10 +610,10 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
   const deleteOptionMut = useMutation({
     mutationFn: async (p: { kind: "classification" | "category"; name: string }) => {
-      const { error } = await (supabase as any)
+      const { error } = await (supabase)
         .from("tx_category_options")
         .delete()
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .eq("kind", p.kind)
         .eq("name", p.name);
       if (error) throw error;
@@ -1312,7 +1312,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                 if (!manualForm.transaction_date) { toast('거래일을 선택하세요', 'error'); return; }
                 setManualSaving(true);
                 try {
-                  const db = supabase as any;
+                  const db = supabase;
                   const externalId = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
                   const { error } = await db.from('transactions').insert({
                     company_id: companyId,
@@ -1354,7 +1354,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
               <h3 className="text-sm font-bold">수기 입력 내역</h3>
               <button onClick={async () => {
                 if (!companyId) return;
-                const db = supabase as any;
+                const db = supabase;
                 const data = logRead('transactions/page:data', await db.from('transactions').select('*').eq('company_id', companyId).eq('source', 'manual').order('transaction_date', { ascending: false }).limit(50));
                 setManualEntries(data || []);
               }} className="text-xs text-[var(--primary)] font-semibold">새로고침</button>

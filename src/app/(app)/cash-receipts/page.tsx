@@ -131,7 +131,7 @@ export default function CashReceiptsPage() {
   };
   // 직원 QA #7 — 멈춘(hang) 백그라운드 job 을 failed 로 마킹(서버 409 잠금 해제) + 로컬 해제 → 다시 시도 가능 (CODEF 미접촉)
   const forceClearStuckJob = async (jid: string, silent = false) => {
-    const db = supabase as any;
+    const db = supabase;
     try {
       await db.from("hometax_sync_jobs").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", jid).in("status", ["pending", "running"]);
     } catch { /* best-effort */ }
@@ -230,8 +230,8 @@ export default function CashReceiptsPage() {
   const { data: coaAccounts = [] } = useQuery({
     queryKey: ["cash-receipt-coa-accounts", companyId],
     queryFn: async () => {
-      const db = supabase as any;
-      const data = logRead('cash-receipts/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code"));
+      const db = supabase;
+      const data = logRead('cash-receipts/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId ?? "").order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -240,7 +240,7 @@ export default function CashReceiptsPage() {
   const doBulkPost = async () => {
     if (!bulkAccountId || bulkPosting) { if (!bulkAccountId) toast("계정과목을 선택하세요", "error"); return; }
     setBulkPosting(true);
-    const db = supabase as any;
+    const db = supabase;
     let ok = 0, fail = 0, skip = 0;
     try {
       const ids = Array.from(selectedIds);
@@ -296,11 +296,11 @@ export default function CashReceiptsPage() {
   useEffect(() => {
     if (!companyId || activeJobId) return;
     (async () => {
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('cash-receipts/page:data', await db
         .from("hometax_sync_jobs")
         .select("id, status, updated_at")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId ?? "")
         .eq("job_type", "cash_receipt")
         .in("status", ["pending", "running"])
         .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
@@ -315,7 +315,7 @@ export default function CashReceiptsPage() {
     queryKey: ["cashreceipt-sync-job", activeJobId],
     queryFn: async () => {
       if (!activeJobId) return null;
-      const db = supabase as any;
+      const db = supabase;
       const data = logRead('cash-receipts/page:data', await db
         .from("hometax_sync_jobs")
         .select("*")
@@ -330,7 +330,7 @@ export default function CashReceiptsPage() {
   // Realtime 구독.
   useEffect(() => {
     if (!activeJobId || !companyId) return;
-    const db = supabase as any;
+    const db = supabase;
     const ch = db.channel(`cashreceipt_sync_jobs:${activeJobId}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "hometax_sync_jobs", filter: `id=eq.${activeJobId}` }, (payload: any) => {
         queryClient.setQueryData(["cashreceipt-sync-job", activeJobId], payload.new);
@@ -567,7 +567,7 @@ export default function CashReceiptsPage() {
               <span aria-live="polite">
                 {syncStarting ? "시작 중..."
                   : activeJobId
-                    ? `백그라운드 ${activeJob?.current_progress?.done || 0}/${activeJob?.current_progress?.total || 0} (${activeJob?.current_progress?.label || ""})`
+                    ? `백그라운드 ${(activeJob?.current_progress as any)?.done || 0}/${(activeJob?.current_progress as any)?.total || 0} (${(activeJob?.current_progress as any)?.label || ""})`
                     : "홈택스 매출 가져오기"}
               </span>
             </button>
