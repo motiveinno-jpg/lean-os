@@ -480,7 +480,7 @@ function AllowanceTypeModal({
           <button
             onClick={() => saveMut.mutate()}
             disabled={saveMut.isPending || !canSubmit}
-            className="flex-1 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-40"
+            className="flex-1 btn-primary btn-sm"
           >
             {saveMut.isPending ? "저장 중…" : "저장"}
           </button>

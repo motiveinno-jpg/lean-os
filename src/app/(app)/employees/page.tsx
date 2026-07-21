@@ -481,7 +481,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           {pendingInvites.length > 0 && <span className="text-[var(--warning)] font-semibold">초대 대기 {pendingInvites.length}명</span>}
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition">+ 직원 초대</button>
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary">+ 직원 초대</button>
         </div>
       </div>
 
@@ -574,11 +574,11 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="36,000,000" className="field-input" />{form.salary && Number(form.salary) > 0 && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{Math.round(Number(form.salary) / 12).toLocaleString('ko-KR')}</p>}</div>
             <div className="flex items-end gap-2">
               {addExisting ? (
-                <button onClick={() => form.email.trim() && addExistingMut.mutate()} disabled={!form.email.trim() || addExistingMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
+                <button onClick={() => form.email.trim() && addExistingMut.mutate()} disabled={!form.email.trim() || addExistingMut.isPending} className="flex-1 btn-primary">
                   {addExistingMut.isPending ? "추가중..." : "직원으로 추가"}
                 </button>
               ) : (
-                <button onClick={() => form.email.trim() && inviteMut.mutate()} disabled={!form.email.trim() || inviteMut.isPending} className="flex-1 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold disabled:opacity-50">
+                <button onClick={() => form.email.trim() && inviteMut.mutate()} disabled={!form.email.trim() || inviteMut.isPending} className="flex-1 btn-primary">
                   {inviteMut.isPending ? "전송중..." : "초대 전송"}
                 </button>
               )}
@@ -952,7 +952,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
             <option key={e.id} value={e.id}>{e.name} ({e.department || '미배정'})</option>
           ))}
         </select>
-        {selectedEmpId && <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">+ 급여 변경</button>}
+        {selectedEmpId && <button onClick={() => setShowForm(!showForm)} className="btn-primary">+ 급여 변경</button>}
       </div>
 
       {showForm && selectedEmpId && (
@@ -1104,7 +1104,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
   return (
     <div>
       <div className="expense-toolbar">
-        <button onClick={() => setShowForm(!showForm)} className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">+ 경비 청구</button>
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary">+ 경비 청구</button>
       </div>
 
       {showForm && (
@@ -2469,7 +2469,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
               </button>
             </>
           )}
-          <button onClick={generate} disabled={loading || !companyId} className="px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+          <button onClick={generate} disabled={loading || !companyId} className="btn-primary">
             {loading ? "계산 중..." : "급여 명세 미리보기"}
           </button>
         </div>
@@ -3175,7 +3175,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                     setGrantMethodMut.mutate(sel, { onSuccess: () => { setGrantEditing(false); setPendingGrant(null); } });
                   }}
                   disabled={setGrantMethodMut.isPending}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+                  className="btn-primary btn-sm"
                 >
                   {setGrantMethodMut.isPending ? "저장 중..." : "저장"}
                 </button>
@@ -3355,7 +3355,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold"
+          className="btn-primary"
         >
           + 휴가 신청
         </button>
@@ -4139,7 +4139,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
             <button
               onClick={handleIssue}
               disabled={!selectedEmpId || isGenerating}
-              className="w-full px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+              className="w-full btn-primary"
             >
               {isGenerating ? "발급 중..." : "발급"}
             </button>

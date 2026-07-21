@@ -726,7 +726,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
           {isEdit ? <button onClick={remove} disabled={saving} className="px-3 py-1.5 text-xs text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-lg">삭제</button> : <span />}
           <div className="flex gap-2">
             <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-            <button onClick={save} disabled={saving || !title.trim()} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+            <button onClick={save} disabled={saving || !title.trim()} className="btn-primary btn-sm">
               {saving ? "저장 중..." : isEdit ? "저장" : "추가"}
             </button>
           </div>

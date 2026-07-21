@@ -525,7 +525,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
               <button
                 onClick={handleNext}
                 disabled={saving}
-                className="px-5 py-2 rounded-xl text-sm font-bold text-white transition disabled:opacity-60 bg-[var(--primary)]"
+                className="btn-primary"
               >
                 {saving ? "저장 중..." : "다음"}
               </button>
@@ -533,7 +533,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             {step === 7 && (
               <button
                 onClick={handleFinish}
-                className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition bg-[var(--primary)]"
+                className="btn-primary"
               >
                 대시보드로 시작하기
               </button>
@@ -1069,7 +1069,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
                     <button
                       onClick={handleExtractPfx}
                       disabled={selectedIdx === null || !data.certPassword || extracting}
-                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-40 bg-[var(--primary)]"
+                      className="w-full btn-primary"
                     >
                       {extracting ? (
                         <span className="flex items-center justify-center gap-2">
@@ -1147,7 +1147,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
           <button
             onClick={handleRegister}
             disabled={!data.pfxBase64 || !data.certPassword || data.registering}
-            className="w-full py-3 rounded-xl text-sm font-bold text-white transition disabled:opacity-40 bg-[var(--primary)]"
+            className="w-full btn-primary"
           >
             {data.registering ? (
               <span className="flex items-center justify-center gap-2">

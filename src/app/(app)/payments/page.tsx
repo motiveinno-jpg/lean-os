@@ -531,7 +531,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
             </div>
             <div className="flex gap-2 p-4 border-t border-[var(--border)]">
               <button onClick={() => setReceiptItem(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--bg-surface)] text-[var(--text)] hover:bg-[var(--border)] transition">닫기</button>
-              <button onClick={printReceipt} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition">PDF / 인쇄</button>
+              <button onClick={printReceipt} className="flex-1 btn-primary">PDF / 인쇄</button>
             </div>
           </div>
         </div>
@@ -925,7 +925,7 @@ function RecurringDetailModal({
             >닫기</button>
             <button
               onClick={onEdit}
-              className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-sm font-semibold transition"
+              className="btn-primary"
             >수정</button>
           </div>
         </div>
@@ -1470,7 +1470,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
             {detecting ? '분석 중...' : '이체내역 분석'}
           </button>
           <button onClick={handleRunAutomation} disabled={running}
-            className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+            className="btn-primary btn-sm">
             {running ? '실행 중...' : '자동화 실행'}
           </button>
         </div>

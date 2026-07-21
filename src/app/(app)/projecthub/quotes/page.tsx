@@ -212,7 +212,7 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
 
         <div className="quote-create-modal-footer">
           <button onClick={onClose} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)]">취소</button>
-          <button onClick={create} disabled={busy} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110">{busy ? "생성 중..." : "생성 후 작성"}</button>
+          <button onClick={create} disabled={busy} className="btn-primary">{busy ? "생성 중..." : "생성 후 작성"}</button>
         </div>
       </div>
     </div>

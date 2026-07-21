@@ -1354,7 +1354,7 @@ export default function PartnersPage() {
                     <h3 className="text-sm font-semibold text-[var(--text)]">커뮤니케이션 로그</h3>
                     <button
                       onClick={() => setShowCommForm(!showCommForm)}
-                      className="px-3 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg font-semibold transition">
+                      className="btn-primary btn-sm">
                       {showCommForm ? "취소" : "+ 새 기록 추가"}
                     </button>
                   </div>
@@ -1398,7 +1398,7 @@ export default function PartnersPage() {
                         <button
                           onClick={() => commForm.summary && addCommMutation.mutate()}
                           disabled={!commForm.summary || addCommMutation.isPending}
-                          className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-sm font-semibold transition disabled:opacity-50">
+                          className="btn-primary">
                           {addCommMutation.isPending ? "저장 중..." : "저장"}
                         </button>
                       </div>
@@ -1509,7 +1509,7 @@ export default function PartnersPage() {
               )}
             </div>
             <div className="px-6 py-3 border-t border-[var(--border)] flex justify-end">
-              <button onClick={() => setImportResult(null)} className="px-5 py-2 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">확인</button>
+              <button onClick={() => setImportResult(null)} className="btn-primary">확인</button>
             </div>
           </div>
         </div>
@@ -1580,7 +1580,7 @@ export default function PartnersPage() {
                     취소
                   </button>
                   <button onClick={confirmImport} disabled={importing}
-                    className="px-5 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+                    className="btn-primary">
                     {importing ? `처리 중...` : `${importPreview.length}건 저장`}
                   </button>
                 </div>
@@ -1657,7 +1657,7 @@ export default function PartnersPage() {
                 <label className={labelCls}>주소</label>
                 <div className="flex gap-2">
                   <input value={form.address} onChange={(e) => setField("address", e.target.value)} placeholder="주소 검색 버튼을 클릭하세요" className={inputCls + " flex-1"} readOnly={false} />
-                  <button type="button" onClick={async () => { if (typeof window === 'undefined') return; function doOpen() { try { new (window as any).daum.Postcode({ oncomplete: (data: any) => { const addr = data.roadAddress || data.jibunAddress; setField("address", addr + (data.buildingName ? ` (${data.buildingName})` : '')); } }).open(); } catch { toast("주소 검색을 로드하지 못했습니다. 새로고침 후 다시 시도해주세요.", "error"); } } if ((window as any).daum?.Postcode) { doOpen(); return; } function loadScript(retry: number) { const existing = document.getElementById('daum-postcode-script'); if (existing) existing.remove(); const s = document.createElement('script'); s.id = 'daum-postcode-script'; s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'; s.onload = () => { setTimeout(() => doOpen(), 100); }; s.onerror = () => { if (retry > 0) { setTimeout(() => loadScript(retry - 1), 1000); } else { toast("주소 검색 스크립트를 불러올 수 없습니다. 네트워크를 확인해주세요.", "error"); } }; document.head.appendChild(s); } loadScript(2); }} className="px-3 py-2.5 bg-[var(--primary)] text-white rounded-xl text-xs font-semibold whitespace-nowrap hover:opacity-90 transition">주소 검색</button>
+                  <button type="button" onClick={async () => { if (typeof window === 'undefined') return; function doOpen() { try { new (window as any).daum.Postcode({ oncomplete: (data: any) => { const addr = data.roadAddress || data.jibunAddress; setField("address", addr + (data.buildingName ? ` (${data.buildingName})` : '')); } }).open(); } catch { toast("주소 검색을 로드하지 못했습니다. 새로고침 후 다시 시도해주세요.", "error"); } } if ((window as any).daum?.Postcode) { doOpen(); return; } function loadScript(retry: number) { const existing = document.getElementById('daum-postcode-script'); if (existing) existing.remove(); const s = document.createElement('script'); s.id = 'daum-postcode-script'; s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'; s.onload = () => { setTimeout(() => doOpen(), 100); }; s.onerror = () => { if (retry > 0) { setTimeout(() => loadScript(retry - 1), 1000); } else { toast("주소 검색 스크립트를 불러올 수 없습니다. 네트워크를 확인해주세요.", "error"); } }; document.head.appendChild(s); } loadScript(2); }} className="btn-primary btn-sm whitespace-nowrap">주소 검색</button>
                 </div>
                 <input value={form.addressDetail} onChange={(e) => setField("addressDetail", e.target.value)} placeholder="상세주소 (동/호수 등)" className={inputCls + " mt-2"} />
               </div>
@@ -1693,7 +1693,7 @@ export default function PartnersPage() {
                   취소
                 </button>
                 <button onClick={() => form.name && saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}
-                  className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+                  className="btn-primary">
                   {saveMutation.isPending ? "저장 중..." : "저장"}
                 </button>
               </div>
@@ -1761,7 +1761,7 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
           <button onClick={onClose} className="px-4 py-2 text-sm font-semibold rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">
             닫기
           </button>
-          <button onClick={copy} className="px-4 py-2 text-sm font-semibold rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition">
+          <button onClick={copy} className="btn-primary">
             {copied ? "복사됨 ✓" : "📋 복사하기"}
           </button>
         </div>

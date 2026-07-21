@@ -384,7 +384,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
               <button
                 onClick={() => { toggleDoneMut.mutate({ id: actionEvent.id, completed: !actionEvent.completed }); setActionEvent(null); }}
                 disabled={toggleDoneMut.isPending}
-                className="w-full px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+                className="w-full btn-primary btn-sm"
               >
                 {actionEvent.completed ? "↩ 완료 취소" : "✓ 완료 처리"}
               </button>
@@ -824,7 +824,7 @@ function TodoEditModal({
         </div>
         <div className="px-5 py-4 border-t border-[var(--border)] flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-lg">취소</button>
-          <button onClick={submitEdit} disabled={!form.title.trim() || saving} className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50">
+          <button onClick={submitEdit} disabled={!form.title.trim() || saving} className="btn-primary btn-sm">
             {saving ? "저장 중..." : "저장"}
           </button>
         </div>

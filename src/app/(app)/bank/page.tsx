@@ -867,7 +867,7 @@ export default function BankPage() {
                               </select>
                               <div className="flex gap-1.5">
                                 <button type="button" onClick={() => mapMut.mutate({ id: tx.id, category: mapCat, isFixedCost: mapFixed, memo: mapMemo, tags: mapTags.split(",").map((s) => s.trim()).filter(Boolean), employeeId: mapEmployee || null })} disabled={mapMut.isPending}
-                                  className="flex-1 px-2 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white disabled:opacity-50 hover:brightness-110">매핑 완료</button>
+                                  className="flex-1 btn-primary btn-sm">매핑 완료</button>
                                 <button type="button" onClick={() => ignoreMut.mutate(tx.id)} disabled={ignoreMut.isPending}
                                   className="px-2 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">무시</button>
                               </div>
@@ -920,7 +920,7 @@ export default function BankPage() {
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
               <button onClick={() => setShowBulkPost(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
               <button onClick={doBulkPostBank} disabled={bulkPosting || !bulkAccountId}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                className="btn-primary btn-sm">
                 {bulkPosting ? "처리 중..." : `${selectedTxIds.size}건 전표 생성`}
               </button>
             </div>

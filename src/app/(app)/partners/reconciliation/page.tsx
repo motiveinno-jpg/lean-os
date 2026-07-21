@@ -848,7 +848,7 @@ export default function ReconciliationPage() {
                         <div className="text-[11px] text-[var(--text-dim)]">{inv.issue_date} · 잔액 {won(invRemaining(inv))}</div>
                       </div>
                       <button onClick={() => manualMut.mutate({ tx: matchTx, inv, amount: amt })} disabled={manualMut.isPending || amt <= 0}
-                        className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                        className="shrink-0 btn-primary btn-sm">
                         {won(amt)} 연결
                       </button>
                     </div>
@@ -865,7 +865,7 @@ export default function ReconciliationPage() {
                       <div className="text-[11px] text-[var(--text-dim)]">{c.issue_date} · {won(Number(c.amount))}{c.approval_number ? ` · ${c.approval_number}` : ""}</div>
                     </div>
                     <button onClick={() => cashLinkMut.mutate({ tx: matchTx, receipt: c })} disabled={cashLinkMut.isPending}
-                      className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">연결</button>
+                      className="shrink-0 btn-primary btn-sm">연결</button>
                   </div>
                 ))
               )}
@@ -900,7 +900,7 @@ export default function ReconciliationPage() {
                         <div className="text-[11px] text-[var(--text-dim)] mono-number">{a.code} · {a.account_type}</div>
                       </div>
                       <button onClick={() => voucherMut.mutate({ tx: matchTx, accountId: a.id })} disabled={voucherMut.isPending}
-                        className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">전표처리</button>
+                        className="shrink-0 btn-primary btn-sm">전표처리</button>
                     </div>
                   ))}
                   {newAcct ? (
@@ -934,7 +934,7 @@ export default function ReconciliationPage() {
                 {matchDocType === "card" && (
                   <button onClick={() => cardMultiLinkMut.mutate({ tx: matchTx, cardIds: [...selectedCardIds] })}
                     disabled={cardMultiLinkMut.isPending || selectedCardIds.size === 0}
-                    className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                    className="btn-primary btn-sm">
                     선택 {selectedCardIds.size}건 연결
                   </button>
                 )}

@@ -259,7 +259,7 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
               ) : <span />}
               <div className="flex items-center gap-2.5">
                 <button onClick={() => setShowForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)]">취소</button>
-                <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !form.title.trim()} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110">{saveMut.isPending ? "저장 중…" : "저장"}</button>
+                <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !form.title.trim()} className="btn-primary">{saveMut.isPending ? "저장 중…" : "저장"}</button>
               </div>
             </div>
           </div>

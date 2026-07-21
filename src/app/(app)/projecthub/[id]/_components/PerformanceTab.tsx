@@ -495,7 +495,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
           </div>
           <div className="flex justify-end gap-2 mt-3">
             {kpiForm.id && <button onClick={resetKpiForm} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>}
-            <button onClick={saveKpi} disabled={savingKpi} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+            <button onClick={saveKpi} disabled={savingKpi} className="btn-primary btn-sm">
               {savingKpi ? "저장 중..." : kpiForm.id ? "수정" : "추가"}
             </button>
           </div>
@@ -584,7 +584,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
               </div>
               <div className="flex justify-end gap-2 mt-3">
                 {editEntryId && <button onClick={resetEntry} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>}
-                <button onClick={saveEntry} disabled={savingEntry} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                <button onClick={saveEntry} disabled={savingEntry} className="btn-primary btn-sm">
                   {savingEntry ? "저장 중..." : editEntryId ? "수정" : "추가"}
                 </button>
               </div>
@@ -707,7 +707,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
             </div>
           </div>
           <div className="flex justify-end">
-            <button onClick={saveCheckin} disabled={savingChk} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+            <button onClick={saveCheckin} disabled={savingChk} className="btn-primary btn-sm">
               {savingChk ? "등록 중..." : "체크인 등록"}
             </button>
           </div>

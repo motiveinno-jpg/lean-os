@@ -489,7 +489,7 @@ export function ContractStageCard({
               type="button"
               onClick={handleSend}
               disabled={sending || !selectedTemplate}
-              className="px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[11px] font-bold disabled:opacity-50 transition whitespace-nowrap"
+              className="btn-primary btn-sm whitespace-nowrap"
             >
               {sending ? "발송 중…" : "📤 거래처에 계약서 발송"}
             </button>
@@ -682,7 +682,7 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
         {hasHtml && (
           <button
             onClick={() => openDocViewer({ type: 'contract', id: approval.id })}
-            className="px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[11px] font-semibold transition"
+            className="btn-primary btn-sm"
           >
             📄 서명된 계약서 보기
           </button>

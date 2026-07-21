@@ -720,7 +720,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               <button
                 onClick={() => createReferral.mutate()}
                 disabled={createReferral.isPending}
-                className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition disabled:opacity-50"
+                className="btn-primary"
               >
                 {createReferral.isPending ? "생성 중..." : "추천 코드 생성하기"}
               </button>
@@ -779,7 +779,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 <button
                   onClick={() => submitFeedback.mutate()}
                   disabled={!fbTitle.trim() || submitFeedback.isPending}
-                  className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition disabled:opacity-50"
+                  className="btn-primary"
                 >
                   {submitFeedback.isPending ? "전송 중..." : "피드백 보내기"}
                 </button>

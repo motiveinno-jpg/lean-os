@@ -1872,7 +1872,7 @@ export default function TaxInvoicesPage() {
             <button
               onClick={handleBatchIssue}
               disabled={batchIssuing}
-              className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+              className="btn-primary btn-sm"
             >
               {batchIssuing ? "처리 중..." : `미발행 ${selectedIssuable.length}건 일괄 발행`}
             </button>
@@ -1881,7 +1881,7 @@ export default function TaxInvoicesPage() {
             <button
               onClick={() => { setBulkVoucherAccountId(""); setShowBulkVoucher(true); }}
               disabled={batchIssuing}
-              className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition hover:brightness-110"
+              className="btn-primary btn-sm"
             >
               전표처리 {selectedVoucherable.length}건
             </button>
@@ -1894,7 +1894,7 @@ export default function TaxInvoicesPage() {
                 {coaAccounts.map((a: any) => <option key={a.code} value={a.name}>{a.name} ({a.code})</option>)}
               </select>
               <button disabled={!bulkExpenseCat} onClick={applyBulkExpenseCat}
-                className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-40 transition hover:brightness-110">적용</button>
+                className="btn-primary btn-sm">적용</button>
             </div>
           )}
           {selectedDeletable.length > 0 && (
@@ -1936,7 +1936,7 @@ export default function TaxInvoicesPage() {
               </div>
               <button
                 onClick={() => setShowForm(true)}
-                className="no-print mt-5 px-4 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold transition"
+                className="no-print mt-5 btn-primary"
               >
                 + 세금계산서 등록
               </button>
@@ -2125,7 +2125,7 @@ export default function TaxInvoicesPage() {
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
               <button onClick={() => setShowBulkVoucher(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
               <button onClick={handleBulkVoucher} disabled={bulkVoucherPosting || !bulkVoucherAccountId}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                className="btn-primary btn-sm">
                 {bulkVoucherPosting ? "처리 중..." : `${selectedVoucherable.length}건 전표 생성`}
               </button>
             </div>
@@ -2469,7 +2469,7 @@ export default function TaxInvoicesPage() {
               <Link href="/projects" className="flex-1 px-3 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg text-xs text-center hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
                 프로젝트 페이지로 이동
               </Link>
-              <button onClick={() => setMatchDealPopup(null)} className="flex-1 px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold">
+              <button onClick={() => setMatchDealPopup(null)} className="flex-1 btn-primary btn-sm">
                 닫기
               </button>
             </div>
@@ -2763,7 +2763,7 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
                 <div className="text-[11px] text-[var(--text-muted)] truncate">{c.bankDate} · {c.reasons.join(" · ")}</div>
               </div>
               <button onClick={() => doLink(c.bankTxId)} disabled={busy}
-                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[var(--primary)] hover:brightness-110 disabled:opacity-50">연결</button>
+                className="shrink-0 btn-primary btn-sm">연결</button>
             </div>
           ))}
         </div>
@@ -3221,7 +3221,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                   onClick={handleIssue}
                   disabled={issueLoading || issuanceLimitReached}
                   title={issuanceLimitReached ? `${issuanceStatus?.planName || '현재 요금제'}의 이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다` : undefined}
-                  className="px-4 py-2 bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] rounded-lg text-sm font-semibold transition disabled:opacity-50"
+                  className="btn-primary"
                 >
                   {issueLoading ? '발행 중...' : issuanceLimitReached ? '이번 달 발행 한도 소진' : '발행 처리'}
                 </button>

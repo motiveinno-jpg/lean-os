@@ -296,7 +296,7 @@ function HistoryPicker({ companyId, partnerName, onClose, onPick }: { companyId:
         <div className="flex items-center justify-end gap-2.5 px-6 py-3 border-t border-[var(--border)]">
           <button onClick={onClose} className="px-5 h-9 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)]">취소</button>
           <button onClick={() => onPick(filtered.filter((_, i) => sel.has(i)).map((it) => { const { _doc, _partner, ...rest } = it; return rest; }))} disabled={sel.size === 0}
-            className="px-6 h-9 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50">{sel.size}개 추가</button>
+            className="btn-primary">{sel.size}개 추가</button>
         </div>
       </div>
     </div>
@@ -365,7 +365,7 @@ function MyItemsPicker({ companyId, currentItems, onClose, onPick }: { companyId
         <div className="flex items-center justify-end gap-2.5 px-6 py-3 border-t border-[var(--border)]">
           <button onClick={onClose} className="px-5 h-9 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)]">취소</button>
           <button onClick={() => onPick(presets.filter((_, i) => sel.has(i)).map((p) => ({ name: p.name, spec: p.spec || "", unitPrice: p.unitPrice || 0, code: p.code || "", quantity: 1 })))} disabled={sel.size === 0}
-            className="px-6 h-9 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50">{sel.size}개 추가</button>
+            className="btn-primary">{sel.size}개 추가</button>
         </div>
       </div>
     </div>

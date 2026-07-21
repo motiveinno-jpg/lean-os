@@ -759,7 +759,7 @@ export default function CardsPage() {
                 <button
                   type="button"
                   onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:brightness-110 transition"
+                  className="btn-primary btn-sm"
                 >
                   전표처리({selectedTxIds.size})
                 </button>
@@ -975,7 +975,7 @@ export default function CardsPage() {
                 ) : null;
               })()}
               <button onClick={doPostVoucher} disabled={posting || !postAccountId}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                className="btn-primary btn-sm">
                 {posting ? "처리 중..." : "전표 생성"}
               </button>
             </div>
@@ -1007,7 +1007,7 @@ export default function CardsPage() {
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
               <button onClick={() => setShowBulkPost(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
               <button onClick={doBulkPost} disabled={bulkPosting || !bulkAccountId}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                className="btn-primary btn-sm">
                 {bulkPosting ? "처리 중..." : `${selectedTxIds.size}건 전표 생성`}
               </button>
             </div>

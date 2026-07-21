@@ -632,7 +632,7 @@ export default function LoansPage() {
                 </div>
               </div>
               <button onClick={() => payMut.mutate()} disabled={!payForm.loanId || !payForm.paymentDate || payMut.isPending}
-                className="text-xs px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                className="btn-primary btn-sm">
                 {payMut.isPending ? "저장 중..." : "저장"}
               </button>
             </div>
@@ -707,7 +707,7 @@ export default function LoansPage() {
                 setMatchLoading(false);
               }}
               disabled={matchLoading}
-              className="text-xs px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+              className="btn-primary btn-sm"
             >
               {matchLoading ? (
                 <>
@@ -784,7 +784,7 @@ export default function LoansPage() {
                                 setAcceptingId(null);
                               }}
                               disabled={isAccepting}
-                              className="text-[11px] px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50"
+                              className="btn-primary btn-sm"
                             >
                               {isAccepting ? "처리중..." : "승인"}
                             </button>
@@ -872,7 +872,7 @@ export default function LoansPage() {
               className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" placeholder="비고" />
           </div>
           <button onClick={() => createMut.mutate()} disabled={!form.name || !form.lender || createMut.isPending}
-            className="text-sm px-5 py-2.5 rounded-xl bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+            className="btn-primary">
             {createMut.isPending ? "등록 중..." : "대출 등록"}
           </button>
         </div>

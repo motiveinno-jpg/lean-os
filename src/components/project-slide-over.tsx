@@ -764,7 +764,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
             </div>
             <div className="edit-modal-footer">
               <button onClick={() => setEditOpen(false)} disabled={editSaving} className="px-4 py-1.5 text-xs text-[var(--text-muted)] rounded-lg">취소</button>
-              <button onClick={submitEdit} disabled={editSaving || !editForm.name.trim()} className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white rounded-lg font-semibold">
+              <button onClick={submitEdit} disabled={editSaving || !editForm.name.trim()} className="btn-primary btn-sm">
                 {editSaving ? '저장 중…' : '저장'}
               </button>
             </div>
@@ -1205,7 +1205,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                 type="button"
                 onClick={submitPayment}
                 disabled={paymentSaving || !paymentDate || !paymentAmount || Number(paymentAmount) <= 0}
-                className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white rounded-lg font-semibold"
+                className="btn-primary btn-sm"
               >
                 {paymentSaving ? "저장 중…" : "저장"}
               </button>
@@ -1284,7 +1284,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
                 type="button"
                 onClick={submitCost}
                 disabled={costSaving || !costDate || !costAmount || Number(costAmount) <= 0}
-                className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white rounded-lg font-semibold"
+                className="btn-primary btn-sm"
               >
                 {costSaving ? "저장 중…" : "저장"}
               </button>

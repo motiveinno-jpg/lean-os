@@ -693,7 +693,7 @@ export default function SignaturesDashboardPage() {
                   </a>
                 ) : null;
               })()}
-              <button onClick={() => setViewSignedRow(null)} className="px-4 py-1.5 text-xs bg-[var(--primary)] text-white rounded-lg font-semibold">닫기</button>
+              <button onClick={() => setViewSignedRow(null)} className="btn-primary btn-sm">닫기</button>
             </div>
           </div>
         </div>

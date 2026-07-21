@@ -1315,7 +1315,7 @@ export default function ProjectHubDetailPage() {
                 <p className="text-[11px] text-[var(--text-dim)] mt-2">비워도 됩니다 — 생성 후 <b className="text-[var(--text-muted)]">거래</b> 탭에서 매출·매입을 자유롭게 입력하세요. 거래처·담당자는 상위 프로젝트({partner?.name || "미지정"})에서 상속됩니다.</p>
                 <div className="flex items-center justify-end gap-2.5 mt-5">
                   <button onClick={() => setShowChildForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-                  <button onClick={createChild} disabled={creatingChild || !childName.trim()} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingChild ? "생성 중..." : "생성"}</button>
+                  <button onClick={createChild} disabled={creatingChild || !childName.trim()} className="btn-primary">{creatingChild ? "생성 중..." : "생성"}</button>
                 </div>
               </div>
             </div>
@@ -1408,7 +1408,7 @@ export default function ProjectHubDetailPage() {
                 <p className="text-[11px] text-[var(--text-dim)]">매출/매입 금액은 캠페인의 <b className="text-[var(--text-muted)]">‘매출/매입 관리’</b> 탭에서 수정하세요.</p>
                 <div className="flex items-center justify-end gap-2.5 mt-5">
                   <button onClick={() => setEditChild(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-                  <button onClick={saveChild} disabled={savingChild || !editChildName.trim()} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{savingChild ? "저장 중..." : "저장"}</button>
+                  <button onClick={saveChild} disabled={savingChild || !editChildName.trim()} className="btn-primary">{savingChild ? "저장 중..." : "저장"}</button>
                 </div>
               </div>
             </div>
@@ -1504,7 +1504,7 @@ export default function ProjectHubDetailPage() {
               <div className="flex items-center justify-end gap-2.5 mt-5">
                 <button onClick={() => setPayModalQuote(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
                 <button onClick={() => { const d = payModalQuote; setPayModalQuote(null); createContractFromQuote(d); }} disabled={!!creatingContractFrom || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)}
-                  className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">계약 생성</button>
+                  className="btn-primary">계약 생성</button>
               </div>
             </div>
           </div>
@@ -1554,7 +1554,7 @@ export default function ProjectHubDetailPage() {
               <div className="flex items-center justify-end gap-2.5 mt-5">
                 <button onClick={() => setInvoiceModal(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
                 <button onClick={issueInvoices} disabled={!!issuingInvoiceFrom || supply <= 0 || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)}
-                  className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{issuingInvoiceFrom ? "발행 중…" : "발행"}</button>
+                  className="btn-primary">{issuingInvoiceFrom ? "발행 중…" : "발행"}</button>
               </div>
             </div>
           </div>
@@ -1611,7 +1611,7 @@ export default function ProjectHubDetailPage() {
             )}
             <div className="flex items-center justify-end gap-2.5 mt-5">
               <button onClick={() => setShowQuoteForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
-              <button onClick={createDoc} disabled={creatingQuote || (formKind === "contract" && payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{creatingQuote ? "생성 중..." : (formKind === "quote" ? "작성하기" : "생성")}</button>
+              <button onClick={createDoc} disabled={creatingQuote || (formKind === "contract" && payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)} className="btn-primary">{creatingQuote ? "생성 중..." : (formKind === "quote" ? "작성하기" : "생성")}</button>
             </div>
           </div>
         </div>
@@ -1649,7 +1649,7 @@ export default function ProjectHubDetailPage() {
               <button
                 disabled={!previewUrl}
                 onClick={() => { (document.getElementById("quote-preview-iframe") as HTMLIFrameElement | null)?.contentWindow?.print(); }}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">인쇄</button>
+                className="btn-primary">인쇄</button>
             </div>
           </div>
         </div>,

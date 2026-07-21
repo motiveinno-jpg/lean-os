@@ -1186,7 +1186,7 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
       ) : (
         <div className="text-center py-4">
           <p className="text-xs text-[var(--text-muted)] mb-2">아직 거래 내역이 없습니다</p>
-          <Link href="/settings?tab=bank" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition">
+          <Link href="/settings?tab=bank" className="btn-primary btn-sm">
             통장 연결하기 →
           </Link>
         </div>

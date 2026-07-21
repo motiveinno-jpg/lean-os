@@ -437,7 +437,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                 setSavingTemplate(false);
               }}
               disabled={!newTemplateName.trim() || !newTemplateBody.trim() || savingTemplate}
-              className="px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition"
+              className="btn-primary"
             >
               {savingTemplate ? "저장 중..." : editingTemplateId ? "수정 저장" : "서식 저장"}
             </button>
@@ -518,7 +518,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
           <button
             onClick={handleBatchSend}
             disabled={batchSending}
-            className="px-4 py-2 text-xs font-semibold bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-50 transition whitespace-nowrap"
+            className="btn-primary btn-sm whitespace-nowrap"
           >
             {batchSending ? "발송 중..." : `일괄 발송 (${selectedIds.size}건)`}
           </button>
@@ -592,7 +592,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                         <button
                           onClick={() => handleSendSignRequest(p.id)}
                           disabled={sending === p.id}
-                          className="px-4 py-2 text-xs font-semibold bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-50 transition"
+                          className="btn-primary btn-sm"
                         >
                           {sending === p.id ? "발송 중..." : "서명 요청"}
                         </button>

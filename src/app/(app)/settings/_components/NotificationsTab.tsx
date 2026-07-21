@@ -275,7 +275,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         {pushSupported && pushPermission !== "granted" && pushPermission !== "denied" && (
           <button
             onClick={enablePush}
-            className="mb-3 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition"
+            className="mb-3 btn-primary btn-sm"
           >
             푸시 권한 요청
           </button>
@@ -488,7 +488,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
                 placeholder="01012345678"
                 className="flex-1 px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm"
               />
-              <button onClick={addPhone} className="px-3 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold hover:opacity-90">추가</button>
+              <button onClick={addPhone} className="btn-primary btn-sm">추가</button>
             </div>
             {phones.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">

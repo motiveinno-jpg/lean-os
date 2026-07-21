@@ -447,7 +447,7 @@ function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () =>
             {action.tab && (
               <a
                 href={`/settings?tab=${action.tab}`}
-                className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition whitespace-nowrap text-center"
+                className="btn-primary btn-sm whitespace-nowrap"
               >
                 {action.label}
               </a>
@@ -735,7 +735,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                   📅 기간 선택 sync
                 </button>
               )}
-              <button onClick={handleSync} disabled={syncing} className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+              <button onClick={handleSync} disabled={syncing} className="btn-primary btn-sm">
                 {syncing ? "동기화 중..." : hasCodefConnection && hasHometaxConnection ? "전체 동기화" : hasHometaxConnection ? "홈택스 동기화" : "거래내역 동기화"}
               </button>
             </div>
@@ -781,7 +781,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                 ))}
               </div>
               <button onClick={handleRangeSync} disabled={syncing}
-                className="ml-auto px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold transition disabled:opacity-50">
+                className="ml-auto btn-primary btn-sm">
                 {syncing ? '동기화 중...' : '이 기간 sync'}
               </button>
             </div>

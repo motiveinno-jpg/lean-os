@@ -122,7 +122,7 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
                   <button
                     onClick={() => runGenerate(true)}
                     disabled={generating}
-                    className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+                    className="btn-primary btn-sm"
                   >
                     예 — 그대로 복사
                   </button>
@@ -150,7 +150,7 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
                   <button
                     onClick={() => runGenerate(false, true)}
                     disabled={generating}
-                    className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+                    className="btn-primary btn-sm"
                   >
                     확인 — 빈칸 생성
                   </button>

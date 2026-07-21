@@ -255,7 +255,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
                   <option value="admin">관리자</option>
                 </select>
                 <button onClick={() => resolveJoin(r.id, "approve")} disabled={resolvingId === r.id}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+                  className="btn-primary btn-sm">
                   {resolvingId === r.id ? "처리 중..." : "승인"}
                 </button>
                 <button onClick={() => resolveJoin(r.id, "reject")} disabled={resolvingId === r.id}

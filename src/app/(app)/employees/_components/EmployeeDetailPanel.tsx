@@ -1433,7 +1433,7 @@ function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId
             <button
               onClick={addEntry}
               disabled={(!form.department && !form.position) || saving}
-              className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+              className="btn-primary btn-sm"
             >
               {saving ? "저장 중..." : "등록"}
             </button>

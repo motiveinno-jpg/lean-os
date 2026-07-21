@@ -157,7 +157,7 @@ export default function PartnerPortalPage() {
                   <button
                     onClick={submitInquiry}
                     disabled={!inquiry.trim() || sending}
-                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition disabled:opacity-50"
+                    className="btn-primary"
                   >
                     {sending ? "전송 중..." : "문의 보내기"}
                   </button>

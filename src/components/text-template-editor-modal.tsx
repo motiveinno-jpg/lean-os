@@ -75,7 +75,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
         <div className="tpl-editor-footer">
           <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
           <button onClick={save} disabled={saving}
-            className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+            className="btn-primary btn-sm">
             {saving ? "저장 중…" : (saveLabel || "텍스트 양식 저장")}
           </button>
         </div>

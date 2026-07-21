@@ -2433,7 +2433,7 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
 
         <div className="flex gap-2">
           <button onClick={() => onMap({ dealId: dealId || undefined, classification: classification.trim() || undefined, category: category.trim() || undefined, isFixedCost: isFixed })}
-            className="flex-1 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">매핑 저장</button>
+            className="flex-1 btn-primary">매핑 저장</button>
           <button onClick={onClose} className="px-4 py-2.5 text-[var(--text-muted)] text-sm">취소</button>
         </div>
       </div>
@@ -2571,7 +2571,7 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
             isFixedCost: isFixed,
             isDeductible,
           })}
-            className="flex-1 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-semibold">매핑 저장</button>
+            className="flex-1 btn-primary">매핑 저장</button>
           <button onClick={onClose} className="px-4 py-2.5 text-[var(--text-muted)] text-sm">취소</button>
         </div>
       </div>

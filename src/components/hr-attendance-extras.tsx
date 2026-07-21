@@ -223,7 +223,7 @@ export function AttendanceEditRequestDialog({
           <button
             onClick={() => mut.mutate()}
             disabled={mut.isPending || (!form.check_in && !form.check_out && !form.status)}
-            className="flex-1 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-40"
+            className="flex-1 btn-primary btn-sm"
           >
             {mut.isPending ? "전송 중…" : "요청 보내기"}
           </button>
@@ -332,7 +332,7 @@ export function MonthlyRecomputeButton({ companyId, from, to }: { companyId: str
     <button
       onClick={() => mut.mutate()}
       disabled={mut.isPending}
-      className="px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold disabled:opacity-40"
+      className="btn-primary btn-sm"
       title="해당 기간 attendance_records 의 가산수당 분(分) 컬럼을 회사 정책·휴일 기반으로 재산정합니다."
     >
       {mut.isPending ? "재계산 중…" : "가산수당 재계산"}

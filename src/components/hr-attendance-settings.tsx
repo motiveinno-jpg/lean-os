@@ -309,7 +309,7 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
             <button
               onClick={() => seedMut.mutate()}
               disabled={seedMut.isPending}
-              className="px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg text-xs font-semibold disabled:opacity-40"
+              className="btn-primary btn-sm"
             >
               {seedMut.isPending ? "추가 중…" : `${year}년 법정공휴일 일괄 추가`}
             </button>

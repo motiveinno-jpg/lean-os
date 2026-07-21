@@ -315,7 +315,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
           </div>
         </div>
         <div className="ledger-sheet-actions">
-          <button onClick={() => setNewOpen(true)} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--primary)] text-white shadow-sm hover:opacity-90 transition">+ 전표 입력</button>
+          <button onClick={() => setNewOpen(true)} className="btn-primary btn-sm">+ 전표 입력</button>
           <button onClick={downloadCsv} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">엑셀</button>
           <button onClick={onOpenDetail} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition">상세 · 차액 마감</button>
         </div>
@@ -904,7 +904,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
               <div className="flex items-center gap-2">
                 {!isNew && !locked && <button onClick={del} disabled={busy} className="px-3 py-2 text-xs font-semibold text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-lg disabled:opacity-50">삭제</button>}
                 <button onClick={onClose} className="px-3 py-2 text-xs text-[var(--text-muted)]">취소</button>
-                <button onClick={save} disabled={!canSave} className="px-5 py-2 text-xs font-bold rounded-lg bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">{busy ? "저장 중..." : isNew ? "전표 저장" : "수정 저장"}</button>
+                <button onClick={save} disabled={!canSave} className="btn-primary">{busy ? "저장 중..." : isNew ? "전표 저장" : "수정 저장"}</button>
               </div>
             </div>
           </>
@@ -1328,7 +1328,7 @@ function CloseBalanceModal({ invoice, remaining, onClose, onDone, onError }: {
         <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-end gap-2">
           <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">취소</button>
           <button onClick={submit} disabled={!reason || busy || !(amount > 0)}
-            className="px-4 py-2 rounded-lg text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-50">
+            className="btn-primary btn-sm">
             {busy ? "처리 중..." : `${won(amount)} 마감 확정`}
           </button>
         </div>
