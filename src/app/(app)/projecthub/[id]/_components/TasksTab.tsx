@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 실행형 '태스크' 탭 — 칸반(4컬럼) + 간트 토글.
@@ -16,7 +18,7 @@ import { uploadTaskAttachment, taskAttachmentUrl, taskAttachmentDownloadUrl, rem
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => todayKst();
 
 type TaskStatus = "todo" | "doing" | "review" | "done";
 const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
@@ -309,7 +311,7 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
     } catch (e: any) { toast(e?.message || "댓글 등록 실패", "error"); } finally { setBusy(false); }
   };
   const del = async (c: any) => {
-    if (!confirm("이 댓글을 삭제할까요? 아래 달린 답글도 함께 삭제됩니다.")) return;
+    if (!(await appConfirm("이 댓글을 삭제할까요? 아래 달린 답글도 함께 삭제됩니다.", { danger: true }))) return;
     try {
       const { error } = await db.from("task_comments").delete().eq("id", c.id);
       if (error) throw new Error(error.message);
@@ -426,7 +428,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
     } catch (e: any) { toast(e?.message || "라벨 생성 실패", "error"); } finally { setLabelSaving(false); }
   };
   const deleteDictLabel = async (dl: { id: string; name: string }) => {
-    if (!confirm(`'${dl.name}' 라벨을 목록에서 삭제할까요?\n(이미 태스크에 붙어 있는 라벨은 그대로 유지됩니다)`)) return;
+    if (!(await appConfirm(`'${dl.name}' 라벨을 목록에서 삭제할까요?\n(이미 태스크에 붙어 있는 라벨은 그대로 유지됩니다)`, { danger: true }))) return;
     try {
       const { error } = await db.from("task_labels").delete().eq("id", dl.id);
       if (error) throw new Error(error.message);
@@ -512,7 +514,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
   };
 
   const remove = async () => {
-    if (!isEdit || !confirm("이 태스크를 삭제할까요?")) return;
+    if (!isEdit || !(await appConfirm("이 태스크를 삭제할까요?", { danger: true }))) return;
     setSaving(true);
     try {
       const { error } = await db.from("project_tasks").update({ archived_at: new Date().toISOString() }).eq("id", task.id);

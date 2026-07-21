@@ -1,3 +1,4 @@
+import { kstDateStr } from '@/lib/kst';
 import { supabase } from './supabase';
 import { encryptCredential } from './crypto';
 import { logRead } from './log-read';
@@ -176,7 +177,7 @@ function getSurvivalLevel(months: number): SurvivalLevel {
 // ── Main Survival Data Engine ──
 export async function getSurvivalData(companyId: string): Promise<SurvivalData> {
   const now = new Date();
-  const today = now.toISOString().split('T')[0];
+  const today = kstDateStr(now);
 
   const [cash, deals, revenue, costs, transactions, nodes, employees] = await Promise.all([
     supabase.from('cash_snapshot').select('*').eq('company_id', companyId).maybeSingle(),
@@ -215,7 +216,7 @@ export async function getSurvivalData(companyId: string): Promise<SurvivalData> 
   // 30-day window
   const d30 = new Date(now);
   d30.setDate(d30.getDate() + 30);
-  const d30str = d30.toISOString().split('T')[0];
+  const d30str = kstDateStr(d30);
 
   const receivable30d = revenueData
     .filter((r: any) => r.status === 'scheduled' && r.due_date && r.due_date <= d30str)
@@ -228,7 +229,7 @@ export async function getSurvivalData(companyId: string): Promise<SurvivalData> 
   // 90-day window
   const d90 = new Date(now);
   d90.setDate(d90.getDate() + 90);
-  const d90str = d90.toISOString().split('T')[0];
+  const d90str = kstDateStr(d90);
 
   const receivable90d = revenueData
     .filter((r: any) => r.status === 'scheduled' && r.due_date && r.due_date <= d90str)
@@ -287,7 +288,7 @@ export async function getSurvivalData(companyId: string): Promise<SurvivalData> 
   // ── Deadline Approaching (D-7) ──
   const d7 = new Date(now);
   d7.setDate(d7.getDate() + 7);
-  const d7str = d7.toISOString().split('T')[0];
+  const d7str = kstDateStr(d7);
 
   const deadlineDeals: DeadlineDeal[] = nodesData
     .filter((n: any) => n.deadline && n.deadline >= today && n.deadline <= d7str && n.status !== 'completed')
@@ -1839,7 +1840,7 @@ export interface YesterdayTxSummary {
 export async function getYesterdayTransactions(companyId: string): Promise<YesterdayTxSummary> {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const dateStr = yesterday.toISOString().split('T')[0];
+  const dateStr = kstDateStr(yesterday);
 
   const data = logRead('getYesterdayTransactions', await supabase
     .from('bank_transactions')

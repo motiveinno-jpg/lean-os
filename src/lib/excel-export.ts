@@ -1,6 +1,7 @@
 /**
  * Excel Export — xlsx 패키지 활용 다운로드 유틸
  */
+import { todayKst } from '@/lib/kst';
 import * as XLSX from 'xlsx';
 
 export function exportToExcel(
@@ -24,7 +25,7 @@ export function exportFinancialReport(
     '비용': m.expense,
     '순이익': m.netIncome,
   }));
-  exportToExcel(rows, '재무현황', fileName || `재무리포트_${new Date().toISOString().slice(0, 10)}`);
+  exportToExcel(rows, '재무현황', fileName || `재무리포트_${todayKst()}`);
 }
 
 export function exportDrillDownItems(

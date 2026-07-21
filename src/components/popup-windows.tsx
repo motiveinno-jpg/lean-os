@@ -6,6 +6,7 @@
 //   데스크톱 전용(모바일은 일반 링크 이동).
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { useToast } from "@/components/toast";
 
 type Win = {
   id: string; href: string; title: string;
@@ -78,6 +79,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
 
 // ── 창 하나 ──
 function PopupWindow({ win }: { win: Win }) {
+  const { toast } = useToast();
   const ctx = usePopups()!;
   const { close, focus, toggleMin, toggleMax, setRect, setDragging } = ctx;
   const modeRef = useRef<null | "move" | "resize">(null);
@@ -121,7 +123,7 @@ function PopupWindow({ win }: { win: Win }) {
     const feat = `popup=yes,noopener=no,width=${width},height=${height},left=${Math.max(0, left)},top=${Math.max(0, top)}`;
     const wref = window.open(`${w.href}?embed=1`, `ovpop-${w.id}`, feat);
     if (wref) close(w.id); // 성공 시 인앱 팝업 닫음. 차단되면(null) 인앱 팝업 유지.
-    else alert("팝업 차단으로 새 창을 열 수 없습니다. 브라우저 팝업 허용 후 다시 시도해주세요.");
+    else toast("팝업 차단으로 새 창을 열 수 없습니다. 브라우저 팝업 허용 후 다시 시도해주세요.", "error");
   };
 
   if (win.min) return null;

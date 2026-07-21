@@ -4,6 +4,7 @@
 // 회사 소속 user 의 역할(대표/관리자/직원/파트너) 변경 + 인사파일 등록 토글 + 회사 제외.
 // /api/employee/manage 사용 (기존 로직 그대로).
 
+import { appConfirm } from "@/components/global-confirm";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -104,8 +105,8 @@ export function MemberRoleManager({ companyId }: { companyId: string }) {
 
             {/* 회사 제외 */}
             <button
-              onClick={() => {
-                if (confirm(`${m.name || m.email} 을 회사에서 제외하시겠습니까? (계정은 유지, 회사 소속만 끊김)`)) {
+              onClick={async () => {
+                if (await appConfirm(`${m.name || m.email} 을 회사에서 제외하시겠습니까? (계정은 유지, 회사 소속만 끊김)`, { danger: true, confirmLabel: "제외" })) {
                   memberMut.mutate({ action: "remove-from-company", userId: m.id });
                 }
               }}

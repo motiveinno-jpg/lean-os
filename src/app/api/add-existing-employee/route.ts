@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     const department = body.department?.trim() || null;
     const position = body.position?.trim() || null;
     const salaryMonthly = Math.round((Number(body.salary) || 0) / 12); // 연봉 → 월급
-    const hireDate = body.hireDate || new Date().toISOString().slice(0, 10);
+    const hireDate = body.hireDate || todayKst();
 
     // 3) 대상 회원 조회 — public.users 우선, 없으면 auth 에서
     const targetRow = logRead('add-existing-employee/route:targetRow', await admin.from('users').select('id, name').ilike('email', email).maybeSingle());

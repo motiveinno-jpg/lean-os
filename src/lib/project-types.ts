@@ -4,6 +4,7 @@
 //
 // 절대규칙: side-effect 0, DB 의존성 0, 순수 함수만. 단위테스트 가능.
 
+import { todayKst } from "@/lib/kst";
 import { businessDaysBetween } from "@/lib/project-checkin";
 
 export type ProjectType = "margin" | "goal" | "delivery";
@@ -172,7 +173,6 @@ export type PaceWarning = {
   tone: "ok" | "warn" | "danger";
 };
 
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
 // 영업일(평일) 기준 페이스. 예상달성 = 누적 / 경과영업일 × 총영업일.
 //   상태(주간보고 양식 §12-A): 예상달성률 ≥100% ahead(🟢) / 80~99% behind-warn(🟡) / <80% behind-danger(🔴).
@@ -182,7 +182,7 @@ export function getPaceWarning(input: PaceInput): PaceWarning {
   if (target <= 0) return { status: "none", requiredDaily: null, currentDaily: null, projected: null, message: "목표값이 없습니다", tone: "ok" };
   if (actual >= target) return { status: "done", requiredDaily: 0, currentDaily: null, projected: actual, message: "🎉 목표 달성", tone: "ok" };
 
-  const todayStr = input.today ? String(input.today).slice(0, 10) : ymd(new Date());
+  const todayStr = input.today ? String(input.today).slice(0, 10) : todayKst();
   const startStr = input.startDate ? String(input.startDate).slice(0, 10) : null;
   const endStr = input.endDate ? String(input.endDate).slice(0, 10) : null;
 

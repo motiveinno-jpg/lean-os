@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Document Pipeline Engine
@@ -38,7 +39,7 @@ export const DOC_STATUS = {
 //   생성 시 document_number 에 영구 저장 → 문서함·PDF·견적서 메뉴 어디서나 동일 번호.
 //   날짜는 created_at 표시(UTC slice)와 일치시키려 UTC 기준. 같은 날 최대 N+1 부여(최신=큰 번호).
 export async function nextQuoteNumber(companyId: string): Promise<string> {
-  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '/'); // YYYY/MM/DD (UTC)
+  const today = todayKst().replace(/-/g, '/'); // YYYY/MM/DD (UTC)
   const data = logRead('lib/documents:data', await supabase
     .from('documents')
     .select('document_number')

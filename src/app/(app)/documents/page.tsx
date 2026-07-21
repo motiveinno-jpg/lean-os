@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo, useRef, Suspense } from "react";
@@ -329,7 +331,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const issueInvoices = async (mode: "bulk" | "per-item") => {
     const items = editItems.filter((i: any) => i && (i.name || Number(i.supplyAmount)));
     const counterparty = quoteHeader.partnerName || docPartnerName || "";
-    const issueDate = new Date().toISOString().slice(0, 10);
+    const issueDate = todayKst();
     if (items.length === 0) { toast("발행할 품목이 없습니다", "error"); return; }
     if (!counterparty) { toast("거래처를 입력하세요", "error"); return; }
     setIssuing(true);
@@ -560,7 +562,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       partnerRepresentative: partnerRow?.representative,
                       projectName: (doc as any).name,
                       quoteNumber: (doc as any).document_number,
-                      issueDate: new Date().toISOString().slice(0, 10),
+                      issueDate: todayKst(),
                       validUntil: cj.header?.validUntil || quoteHeader.validUntil,
                       supplyAmount: supplyAmt,
                       taxAmount: taxAmt,
@@ -1960,10 +1962,10 @@ function DocumentsPageInner() {
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
                               if (deleteDocMut.isPending) return;
-                              if (confirm(`"${doc.name}" 문서를 영구 삭제하시겠습니까?\n\n편집 이력·승인 등 부속 데이터도 함께 삭제되며 되돌릴 수 없습니다.\n서명받은 계약서는 삭제되지 않고 보관됩니다 (전자계약 > 서명 목록에서 계속 확인 가능)`)) {
+                              if (await appConfirm(`"${doc.name}" 문서를 영구 삭제하시겠습니까?\n\n편집 이력·승인 등 부속 데이터도 함께 삭제되며 되돌릴 수 없습니다.\n서명받은 계약서는 삭제되지 않고 보관됩니다 (전자계약 > 서명 목록에서 계속 확인 가능)`, { danger: true })) {
                                 deleteDocMut.mutate(doc.id);
                               }
                             }}
@@ -2833,7 +2835,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
           </svg>
           <span className="truncate flex-1">{folder.name}</span>
           <button
-            onClick={(e) => { e.stopPropagation(); if (confirm(`"${folder.name}" 폴더를 삭제하시겠습니까?`)) deleteFolderMut.mutate(folder.id); }}
+            onClick={async (e) => { e.stopPropagation(); if (await appConfirm(`"${folder.name}" 폴더를 삭제하시겠습니까?`, { danger: true })) deleteFolderMut.mutate(folder.id); }}
             className="opacity-0 group-hover:opacity-100 w-4 h-4 text-[var(--text-dim)] hover:text-red-400"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

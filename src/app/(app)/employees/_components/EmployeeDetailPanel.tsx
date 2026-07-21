@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
@@ -38,7 +40,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const currentYear = new Date().getFullYear();
 
   const [showTermModal, setShowTermModal] = useState(false);
-  const [termDate, setTermDate] = useState(new Date().toISOString().slice(0, 10));
+  const [termDate, setTermDate] = useState(todayKst());
   const [termChecklist, setTermChecklist] = useState({ equipment: false, systemAccess: false, handover: false, insurance: false });
   const [terminating, setTerminating] = useState(false);
   const [termLossReason, setTermLossReason] = useState("11");
@@ -77,7 +79,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   useModalKeys(showTermModal, () => setShowTermModal(false), termAllChecked && !terminating ? confirmTermination : undefined);
 
   // Retirement pay calculation state
-  const [retirementEndDate, setRetirementEndDate] = useState(new Date().toISOString().slice(0, 10));
+  const [retirementEndDate, setRetirementEndDate] = useState(todayKst());
 
   // Company data for EDI generation
   const { data: companyInfo } = useQuery({
@@ -848,7 +850,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                         <span className="text-xs text-[var(--text-dim)] truncate flex-1 min-w-0">{g.memo || ""}</span>
                         <span className="text-xs font-bold text-[var(--success)] shrink-0">+{Number(g.days)}일</span>
                         <button
-                          onClick={() => { if (confirm(`${g.grant_date} 발생 ${g.days}일을 삭제할까요?`)) delGrantMut.mutate(g); }}
+                          onClick={async () => { if (await appConfirm(`${g.grant_date} 발생 ${g.days}일을 삭제할까요?`, { danger: true })) delGrantMut.mutate(g); }}
                           disabled={delGrantMut.isPending}
                           className="text-[var(--text-dim)] hover:text-[var(--danger)] transition shrink-0"
                           aria-label="발생 삭제"
@@ -1362,7 +1364,7 @@ function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId
       const newEntry = {
         department: form.department,
         position: form.position,
-        date: form.date || new Date().toISOString().slice(0, 10),
+        date: form.date || todayKst(),
         note: form.note,
       };
       const updated = [...history, newEntry];

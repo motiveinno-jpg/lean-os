@@ -1,3 +1,4 @@
+import { todayKst } from '@/lib/kst';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { loadKoreanFont, setKoreanFont } from './pdf-korean-font';
@@ -52,7 +53,7 @@ function formatBirthDate(d: string | undefined): string {
 }
 
 function formatPaymentDate(d: string | undefined): string {
-  if (!d) return new Date().toISOString().slice(0, 10).replace(/-/g, '.');
+  if (!d) return todayKst().replace(/-/g, '.');
   return d.replace(/-/g, '.');
 }
 

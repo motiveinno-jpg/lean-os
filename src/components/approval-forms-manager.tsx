@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 // 결재 양식 관리 + 빌더 (2026-07-01, 플렉스식) — approvals '양식 관리' 탭에서 사용.
@@ -143,7 +144,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   };
 
   const remove = async (f: ApprovalForm) => {
-    if (!confirm(`'${f.name}' 양식을 삭제할까요?`)) return;
+    if (!(await appConfirm(`'${f.name}' 양식을 삭제할까요?`, { danger: true }))) return;
     try { await deleteApprovalForm(f.id); toast("삭제했습니다", "info"); refresh(); }
     catch (e: any) { toast("삭제 실패: " + (e?.message || ""), "error"); }
   };
@@ -243,11 +244,11 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
       {/* 빌더 모달 */}
       {editing && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => {
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={async () => {
           // 직원 QA #11 — 실수로 배경 클릭 시 작성 중인 양식이 날아가지 않도록 확인 (내용 있을 때만)
           const e = editing;
           const dirty = !!(e && ((e.name || "").trim() || (e.fields || []).length > 0 || (e.content_template || "").trim() || (e.description || "").trim()));
-          if (dirty && !window.confirm("양식 추가를 취소하시겠습니까? 작성 중인 내용이 사라집니다.")) return;
+          if (dirty && !(await appConfirm("양식 추가를 취소하시겠습니까? 작성 중인 내용이 사라집니다.", { confirmLabel: "닫기" }))) return;
           setEditing(null);
         }}>
           <div className="form-builder-modal glass-card" onClick={(e) => e.stopPropagation()}>

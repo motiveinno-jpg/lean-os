@@ -8,6 +8,7 @@
 //          workdays_mask (월=1·화=2·수=4·목=8·금=16·토=32·일=64)
 //   - 휴일 캘린더: holidays 테이블 직접 관리 + 한국 법정공휴일 seed RPC
 
+import { kstDateStr } from "@/lib/kst";
 import React, { useEffect, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -65,8 +66,8 @@ export default function HrAttendanceSettingsPanel({ companyId }: { companyId: st
         from.setDate(from.getDate() - 30);
         await recomputeAttendance({
           companyId,
-          from: from.toISOString().slice(0, 10),
-          to: today.toISOString().slice(0, 10),
+          from: kstDateStr(from),
+          to: kstDateStr(today),
         });
         queryClient.invalidateQueries({ queryKey: ["attendance"] });
         queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });

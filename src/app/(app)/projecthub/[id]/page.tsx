@@ -1,4 +1,5 @@
 "use client";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 프로젝트 상세 (라이프사이클 탭) — 기존 deal 데이터 재사용. 2026-06-17 핸드오프 v2.
@@ -257,7 +258,7 @@ export default function ProjectHubDetailPage() {
     const schedule = buildPaySchedule(payMode, payAdv, payMid);
     setIssuingInvoiceFrom(contractDoc.id);
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayKst();
       const cpName = partner?.name || (contractDoc.content_json as any)?.header?.partnerName || "거래처";
       const cpBizno = partner?.business_number || undefined;
       if (schedule && schedule.length > 0) {
@@ -271,7 +272,7 @@ export default function ProjectHubDetailPage() {
           return { ...t, amount, condition: conditions[i] || "협의", dueOffset: dueOffsets[Math.min(i, dueOffsets.length - 1)], status: (i === 0 ? "issued" : "draft") as "issued" | "draft" };
         }).filter((t) => t.amount > 0);
         for (const t of terms) {
-          const due = new Date(Date.now() + t.dueOffset * 86400000).toISOString().slice(0, 10);
+          const due = kstDateStr(new Date(Date.now() + t.dueOffset * 86400000));
           const sched = logRead('[id]/page:sched', await db.from("deal_revenue_schedule").insert({
             deal_id: dealId, label: `${t.label} (${t.ratio}%)`, amount: t.amount, due_date: due, status: "expected", condition_text: t.condition,
           }).select("id").single());
@@ -1992,7 +1993,7 @@ const DELIVERY_STATUS_META: { key: string; label: string; color: string }[] = [
   { key: "done", label: "완료", color: "text-green-500" },
 ];
 function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { deal: any; dealId: string; partner: any; manager: any; companyUsers: any[] }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKst();
   const { data: tasks = [] } = useQuery({
     queryKey: ["project-tasks-overview", dealId],
     queryFn: async () => {

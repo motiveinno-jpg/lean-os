@@ -1,5 +1,6 @@
 "use client";
 
+import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
@@ -1682,6 +1683,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const [selectedReferences, setSelectedReferences] = useState<{ userId: string; name: string }[]>([]);
   const [referencesInited, setReferencesInited] = useState<string>("");
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  // 부서-이름·기안일·결제요청일 자동 프리필 완료 표시 — 유형(양식) 전환 시 재실행 (2026-07-21 사장님 요청)
+  const [autoFieldsInited, setAutoFieldsInited] = useState<string>("");
   // 상세 내용 서식 편집기(표 등) — tiptap 은 마운트 후 content prop 변경을 반영하지 않아
   //   템플릿 프리필/임시저장 복원/제출 초기화 때 ref 로 직접 setContent 한다.
   const descEditorRef = useRef<RichEditorRef>(null);
@@ -1905,6 +1908,31 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // 커스텀 결재양식은 양식 자체 필드가 기준 — 일반 '금액' 입력은 숨기고(중복·혼란),
   //   양식(또는 기본 유형 정책)에 금액 타입 필드가 있으면 그 값을 결재 금액으로 사용, 없으면 금액 없는 결재(0).
   const formAmountField = activeFields.find((fd: any) => fd.type === "amount") || null;
+
+  // 2026-07-21 사장님 요청 — 양식 필드 자동 프리필(수정 가능한 기본값):
+  //   "부서-이름" 텍스트 필드 → 내 직원 정보의 부서 - 이름, 기안일·결제요청일 date 필드 → 오늘(KST).
+  //   직원 정보 로딩이 끝난 뒤 1회만 실행, 이미 값이 있는 필드는 덮어쓰지 않는다.
+  useEffect(() => {
+    if (isLeave || activeFields.length === 0 || autoFieldsInited === form.requestType) return;
+    if (currentEmployee === undefined) return; // 직원 정보 로딩 중 — 완료 후 실행
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+    const dept = (currentEmployee as { department?: string } | null)?.department || "";
+    const empName = currentEmployee?.name || "";
+    const updates: Record<string, string> = {};
+    for (const fd of activeFields) {
+      if (fd.type === "date" && /기안일|요청일/.test(fd.label)) updates[fd.key] = today;
+      else if (fd.type === "text" && fd.label.includes("부서") && fd.label.includes("이름"))
+        updates[fd.key] = dept && empName ? `${dept} - ${empName}` : empName || dept;
+    }
+    if (Object.keys(updates).length > 0) {
+      setCustomFieldValues((s) => {
+        const next = { ...s };
+        for (const [k, v] of Object.entries(updates)) if (!next[k]) next[k] = v;
+        return next;
+      });
+    }
+    setAutoFieldsInited(form.requestType);
+  }, [isLeave, activeFields, autoFieldsInited, form.requestType, currentEmployee]);
   const effectiveAmount = isLeave ? 0
     : activeFields.length > 0
       ? (formAmountField ? (Number(String(customFieldValues[formAmountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0) : 0)
@@ -2289,6 +2317,58 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               </>
             )}
 
+            {/* File upload — 드롭존 스타일. 2026-07-21 사장님 요청으로 승인자/참조자 위로 이동 */}
+            <div className="approval-file-upload">
+              <label className="field-label">첨부파일</label>
+              <label
+                className={`flex flex-col items-center justify-center gap-1.5 px-4 py-6 rounded-xl border-2 border-dashed transition cursor-pointer ${
+                  isDraggingFile
+                    ? "border-[var(--primary)] bg-[var(--primary)]/8"
+                    : "border-[var(--border)] bg-[var(--bg)]/50 hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/4"
+                }`}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
+                onDragLeave={(e) => {
+                  // 자식 요소(아이콘·텍스트)로 이동할 때 깜빡이지 않게 — 진짜 영역 밖으로 나갈 때만 해제
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingFile(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(false);
+                  const dropped = Array.from(e.dataTransfer.files || []);
+                  if (dropped.length > 0) setFiles(prev => [...prev, ...dropped]);
+                }}
+              >
+                <svg className="w-6 h-6 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span className="text-xs font-semibold text-[var(--text-muted)]">{isDraggingFile ? "여기에 놓아서 첨부" : "클릭하거나 파일을 끌어다 첨부"}</span>
+                <span className="text-[10px] text-[var(--text-dim)]">여러 개 선택 가능</span>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    // 드래그로 넣은 파일이 클릭 첨부 시 사라지지 않게 교체 대신 추가
+                    const picked = Array.from(e.target.files || []);
+                    if (picked.length > 0) setFiles(prev => [...prev, ...picked]);
+                    e.target.value = "";
+                  }}
+                  className="hidden"
+                />
+              </label>
+              {files.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {files.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)] text-xs">
+                      <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                      </span>
+                      <span className="truncate flex-1 font-medium text-[var(--text)]">{f.name}</span>
+                      <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{(f.size / 1024).toFixed(1)}KB</span>
+                      <button type="button" onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Approver Selection — 정책이 승인라인 변경을 불허하면 잠금 안내 */}
             {!canEditLine ? (
             <div>
@@ -2395,57 +2475,6 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               </div>
             </div>
 
-            {/* File upload — 드롭존 스타일 */}
-            <div className="approval-file-upload">
-              <label className="field-label">첨부파일</label>
-              <label
-                className={`flex flex-col items-center justify-center gap-1.5 px-4 py-6 rounded-xl border-2 border-dashed transition cursor-pointer ${
-                  isDraggingFile
-                    ? "border-[var(--primary)] bg-[var(--primary)]/8"
-                    : "border-[var(--border)] bg-[var(--bg)]/50 hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/4"
-                }`}
-                onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
-                onDragLeave={(e) => {
-                  // 자식 요소(아이콘·텍스트)로 이동할 때 깜빡이지 않게 — 진짜 영역 밖으로 나갈 때만 해제
-                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingFile(false);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDraggingFile(false);
-                  const dropped = Array.from(e.dataTransfer.files || []);
-                  if (dropped.length > 0) setFiles(prev => [...prev, ...dropped]);
-                }}
-              >
-                <svg className="w-6 h-6 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <span className="text-xs font-semibold text-[var(--text-muted)]">{isDraggingFile ? "여기에 놓아서 첨부" : "클릭하거나 파일을 끌어다 첨부"}</span>
-                <span className="text-[10px] text-[var(--text-dim)]">여러 개 선택 가능</span>
-                <input
-                  type="file"
-                  multiple
-                  onChange={(e) => {
-                    // 드래그로 넣은 파일이 클릭 첨부 시 사라지지 않게 교체 대신 추가
-                    const picked = Array.from(e.target.files || []);
-                    if (picked.length > 0) setFiles(prev => [...prev, ...picked]);
-                    e.target.value = "";
-                  }}
-                  className="hidden"
-                />
-              </label>
-              {files.length > 0 && (
-                <div className="mt-2 space-y-1.5">
-                  {files.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)] text-xs">
-                      <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-                      </span>
-                      <span className="truncate flex-1 font-medium text-[var(--text)]">{f.name}</span>
-                      <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{(f.size / 1024).toFixed(1)}KB</span>
-                      <button type="button" onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           <div className="flex gap-2 mt-6">
@@ -2462,7 +2491,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 const draftKey = `ov-approval-draft-${companyId}`;
                 const draft = { form, leaveForm, description: form.description };
                 localStorage.setItem(draftKey, JSON.stringify(draft));
-                alert("임시저장되었습니다");
+                toast("임시저장되었습니다", "success");
               }}
               className="btn-secondary"
             >
@@ -2979,7 +3008,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                     </button>
                     <button
-                      onClick={() => { if (confirm("이 정책을 삭제하시겠습니까?")) deleteMut.mutate(policy.id); }}
+                      onClick={async () => { if (await appConfirm("이 정책을 삭제하시겠습니까?", { danger: true })) deleteMut.mutate(policy.id); }}
                       disabled={deleteMut.isPending}
                       className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition disabled:opacity-50"
                       title="삭제"

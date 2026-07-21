@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import Link from "next/link";
+import { GlobalConfirmHost } from "@/components/global-confirm";
 
 // 게이트: 검증된 Auth 로그인 이메일이 @mo-tive.com (서버 is_platform_operator() 와 동일 기준)
 const OPERATOR_EMAIL_PATTERN = /@mo-tive\.com$/i;
@@ -190,6 +191,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
       <main className="platform-main-content">
         {children}
       </main>
+      <GlobalConfirmHost />
     </div>
   );
 }

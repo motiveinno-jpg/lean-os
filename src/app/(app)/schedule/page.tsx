@@ -1,5 +1,6 @@
 "use client";
 
+import { todayKst } from "@/lib/kst";
 import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -636,7 +637,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
   });
 
   const undoneCount = todos.filter((t) => !t.done).length;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKst();
 
   return (
     <div className="schedule-todo-tab">

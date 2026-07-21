@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 import { useRef, useState } from "react";
@@ -47,7 +48,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
   }
 
   async function deleteTemplate(id: string) {
-    if (!confirm("이 서식을 삭제하시겠습니까? 발송된 계약서엔 영향 없음.")) return;
+    if (!(await appConfirm("이 서식을 삭제하시겠습니까? 발송된 계약서엔 영향 없음.", { danger: true }))) return;
     try {
       await supabase.from("doc_templates").update({ is_active: false }).eq("id", id);
       queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
@@ -595,7 +596,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                           {sending === p.id ? "발송 중..." : "서명 요청"}
                         </button>
                         <button
-                          onClick={() => { if (confirm("이 계약을 취소하시겠습니까?")) cancelContract.mutate(p.id); }}
+                          onClick={async () => { if (await appConfirm("이 계약을 취소하시겠습니까?", { danger: true, confirmLabel: "계약 취소" })) cancelContract.mutate(p.id); }}
                           className="px-3 py-2 text-xs text-[var(--text-dim)] hover:text-red-400 rounded-lg hover:bg-red-500/10 transition"
                         >
                           삭제

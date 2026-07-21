@@ -8,6 +8,7 @@ import {
   sendInviteEmail,
 } from "@/lib/invitations";
 import { useUser } from "@/components/user-context";
+import { useToast } from "@/components/toast";
 
 interface CsvRow {
   email: string;
@@ -68,6 +69,7 @@ interface BulkInviteProps {
 
 export default function BulkInvite({ companyId, companyName }: BulkInviteProps) {
   const { user } = useUser();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,7 +85,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
 
   const handleFile = useCallback((file: File) => {
     if (!file.name.endsWith(".csv")) {
-      alert("CSV 파일만 업로드할 수 있습니다.");
+      toast("CSV 파일만 업로드할 수 있습니다.", "error");
       return;
     }
 
@@ -96,7 +98,7 @@ export default function BulkInvite({ companyId, companyName }: BulkInviteProps) 
       setProgress(0);
     };
     reader.readAsText(file, "utf-8");
-  }, []);
+  }, [toast]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {

@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 // 거래 원장 — 한 프로젝트(deal)의 매출·매입 항목을 부호 기반 단일 리스트로 관리(2026-07 개편).
@@ -219,7 +220,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center"><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{STATUS_LABEL[s.status || ""] || "—"}</span></td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
                     <button onClick={() => startEdit(s)} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]">수정</button>
-                    <button onClick={() => { if (confirm(`'${s.name}' 항목을 삭제할까요?`)) delMut.mutate(s.id); }} className="ml-1 px-2 py-1 text-[11px] font-semibold rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
+                    <button onClick={async () => { if (await appConfirm(`'${s.name}' 항목을 삭제할까요?`, { danger: true })) delMut.mutate(s.id); }} className="ml-1 px-2 py-1 text-[11px] font-semibold rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
                   </td>
                 </tr>
               );

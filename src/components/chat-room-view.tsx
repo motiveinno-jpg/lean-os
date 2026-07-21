@@ -3,6 +3,7 @@
 // chat/page.tsx 에서 추출 (2026-06-22) — /chat 풀페이지와 플로팅 메신저(floating-messenger)가
 // 동일한 채팅방 뷰를 공유하기 위해 ChatRoomView + 의존 헬퍼(파일갤러리/미리보기/인라인편집)를 분리.
 // 동작 무변경: 코드 이동만, 로직 수정 없음.
+import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -507,7 +508,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
   // 대화방 나가기 — 남은 참가자에게 시스템 메시지, 본인은 목록에서 제거 후 방 닫기
   async function handleLeave() {
     if (!userId || leaving) return;
-    if (!confirm("이 대화방에서 나가시겠습니까?\n나가면 목록에서 사라지고, 다시 참여하려면 초대를 받아야 합니다.")) return;
+    if (!(await appConfirm("이 대화방에서 나가시겠습니까?\n나가면 목록에서 사라지고, 다시 참여하려면 초대를 받아야 합니다.", { confirmLabel: "나가기" }))) return;
     setLeaving(true);
     try {
       await leaveChannel(channelId, userId, myName);
@@ -911,7 +912,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                         })}
                         onReact={(emoji) => reactionMut.mutate({ msgId: msg.id, emoji })}
                         onEdit={msg.sender_id === userId ? () => setEditingId(msg.id) : undefined}
-                        onDelete={msg.sender_id === userId ? () => { if (confirm('메시지를 삭제하시겠습니까?')) deleteMut.mutate(msg.id); } : undefined}
+                        onDelete={msg.sender_id === userId ? async () => { if (await appConfirm('메시지를 삭제하시겠습니까?', { danger: true })) deleteMut.mutate(msg.id); } : undefined}
                       />
                     )}
                   </div>

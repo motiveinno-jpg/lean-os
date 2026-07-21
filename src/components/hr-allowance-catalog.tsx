@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 // L 수당 카탈로그 — 회사 설정 패널 (§C-1).
@@ -153,8 +154,8 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
                       </button>
                       {!t.is_legal_mandatory && (
                         <button
-                          onClick={() => {
-                            if (confirm(`'${t.name}' 수당을 삭제하시겠습니까?`)) {
+                          onClick={async () => {
+                            if (await appConfirm(`'${t.name}' 수당을 삭제하시겠습니까?`, { danger: true })) {
                               delMut.mutate(t.id);
                             }
                           }}

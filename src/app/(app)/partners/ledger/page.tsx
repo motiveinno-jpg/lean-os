@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 거래처 원장 — 매출처(받을 돈)/매입처(줄 돈) 잔액 조회 (2026-06-12 메뉴 분리 핸드오프).
@@ -123,7 +124,7 @@ export default function PartnerLedgerPage() {
       const inv = logRead('ledger/page:inv', await db.from("tax_invoices")
         .select("total_amount, supply_amount, settled_amount, issue_date, status")
         .eq("company_id", companyId ?? "").eq("type", "sales").neq("status", "void")
-        .gte("issue_date", since.toISOString().slice(0, 10)).limit(5000));
+        .gte("issue_date", kstDateStr(since)).limit(5000));
       const buckets = [
         { label: "0–30일", min: 0, max: 30, amount: 0, count: 0 },
         { label: "31–60일", min: 31, max: 60, amount: 0, count: 0 },

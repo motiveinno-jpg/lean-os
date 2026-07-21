@@ -6,6 +6,7 @@
 //   견적/계약과 달리 '활성 1개' 개념 없음 → setActiveTemplate 미사용, doc_type='hr_form' 로 다중 저장.
 //   활용: 저장한 양식에 값을 직접 입력해 채워 출력하거나, 빈 양식을 내려받아 손으로 작성.
 
+import { appConfirm } from "@/components/global-confirm";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -165,7 +166,7 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
   };
 
   const remove = async (t: PdfFormTemplate) => {
-    if (!confirm(`'${t.name}' 양식을 삭제할까요? (원본 PDF도 함께 삭제)`)) return;
+    if (!(await appConfirm(`'${t.name}' 양식을 삭제할까요? (원본 PDF도 함께 삭제)`, { danger: true }))) return;
     try { await deleteFormTemplate(t.id, t.file_path); toast("삭제했습니다", "info"); refresh(); }
     catch (e: any) { toast("삭제 실패: " + (e?.message || ""), "error"); }
   };

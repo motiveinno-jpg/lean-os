@@ -1,5 +1,6 @@
 "use client";
 
+import { appConfirm } from "@/components/global-confirm";
 import { useState } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -356,8 +357,8 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                           className="text-xs text-[var(--primary)] hover:underline font-medium transition">
                           수정
                         </button>
-                        <button onClick={() => {
-                          if (confirm(`"${tpl.name}" 양식을 삭제하시겠습니까?`)) deleteMut.mutate(tpl.id);
+                        <button onClick={async () => {
+                          if (await appConfirm(`"${tpl.name}" 양식을 삭제하시겠습니까?`, { danger: true })) deleteMut.mutate(tpl.id);
                         }}
                           className="text-xs text-red-400 hover:text-red-500 font-medium transition">
                           삭제

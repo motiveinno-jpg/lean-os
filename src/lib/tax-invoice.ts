@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Tax Invoice Engine
@@ -272,7 +273,7 @@ export async function issueTaxInvoice(
   if (opts.dbOnly) {
     const { data, error } = await supabase
       .from('tax_invoices')
-      .update({ status: 'issued', issue_date: new Date().toISOString().split('T')[0] })
+      .update({ status: 'issued', issue_date: todayKst() })
       .eq('id', invoiceId)
       .eq('status', 'draft')
       .select()

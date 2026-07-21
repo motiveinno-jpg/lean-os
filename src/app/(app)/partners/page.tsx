@@ -1,4 +1,5 @@
 "use client";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -642,7 +643,7 @@ export default function PartnersPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `partners_import_failed_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `partners_import_failed_${todayKst()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }, [importResult]);
@@ -669,7 +670,7 @@ export default function PartnersPage() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "거래처");
-    XLSX.writeFile(wb, `거래처_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `거래처_${todayKst()}.xlsx`);
   }, [partners]);
 
   const setField = useCallback(

@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 // 2026-06-11 프로젝트 Monday.com 클론 보드 (사장님: "진짜 아예 똑같다 싶을 정도로").
@@ -20,6 +21,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { useToast } from "@/components/toast";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -84,6 +86,7 @@ const STRIP_W = 6; // 그룹 컬러 스트립 폭(px)
 const ROW_H = 36; // 먼데이 행 높이
 
 export function MondayBoard({ companyId, users = [] }: { companyId: string; users?: Person[] }) {
+  const { toast } = useToast();
   const qc = useQueryClient();
   const initRef = useRef(false);
   const [configCol, setConfigCol] = useState<Col | null>(null);
@@ -291,12 +294,12 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const deleteSelected = async () => {
     const ids = [...selected];
     if (!ids.length) return;
-    if (!confirm(`${ids.length}개 항목을 워크플로우 보드에서 제거할까요?\n프로젝트·태스크·재무 데이터는 그대로 유지되며, 프로젝트 탭에서 계속 볼 수 있습니다.`)) return;
+    if (!(await appConfirm(`${ids.length}개 항목을 워크플로우 보드에서 제거할까요?\n프로젝트·태스크·재무 데이터는 그대로 유지되며, 프로젝트 탭에서 계속 볼 수 있습니다.`, { danger: true, confirmLabel: "제거" }))) return;
     for (const id of ids) {
       const d = deals.find((x) => x.id === id);
       const next = { ...((d?.column_values as any) || {}), __board_hidden: true };
       const { error } = await db.from("deals").update({ column_values: next }).eq("id", id);
-      if (error) { alert("제거 실패: " + error.message); return; }
+      if (error) { toast("제거 실패: " + error.message, "error"); return; }
     }
     setSelected(new Set());
     refetchAll();
@@ -387,7 +390,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
         <PersonFilterButton users={users} value={personFilter} onChange={setPersonFilter} />
         {hiddenCount > 0 && (
           <button
-            onClick={() => { if (confirm(`보드에서 숨긴 ${hiddenCount}개 항목을 다시 표시할까요?`)) unhideAll(); }}
+            onClick={async () => { if (await appConfirm(`보드에서 숨긴 ${hiddenCount}개 항목을 다시 표시할까요?`)) unhideAll(); }}
             className="toolbar-restore-hidden-btn"
             title="워크플로우 보드에서 제거했던 항목 복원"
           >
@@ -428,7 +431,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                   <GroupMenu
                     color={g.color}
                     onRecolor={(c) => recolorGroup(g, c)}
-                    onDelete={() => { if (confirm(`"${g.name}" 그룹을 삭제할까요? 항목은 삭제되지 않고 그룹만 해제됩니다.`)) deleteGroup(g); }}
+                    onDelete={async () => { if (await appConfirm(`"${g.name}" 그룹을 삭제할까요? 항목은 삭제되지 않고 그룹만 해제됩니다.`, { danger: true, confirmLabel: "그룹 삭제" })) deleteGroup(g); }}
                   />
                 )}
               </div>
@@ -1167,7 +1170,7 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
         )}
 
         <div className="modal-footer">
-          <button onClick={() => { if (confirm(`컬럼 "${col.name}" 삭제? 각 항목의 이 값도 사라집니다.`)) onDelete(); }}
+          <button onClick={async () => { if (await appConfirm(`컬럼 "${col.name}" 삭제? 각 항목의 이 값도 사라집니다.`, { danger: true })) onDelete(); }}
             className="text-[12px] font-semibold text-[var(--danger)] hover:underline">컬럼 삭제</button>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">취소</button>

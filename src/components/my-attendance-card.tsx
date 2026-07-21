@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
@@ -98,7 +99,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
     setBusy(false);
   };
   const doCancelCheckOut = async () => {
-    if (!employeeId || !confirm("퇴근 기록을 취소하시겠습니까?")) return;
+    if (!employeeId || !(await appConfirm("퇴근 기록을 취소하시겠습니까?"))) return;
     setBusy(true);
     try {
       await hrCancelCheckOut(employeeId, companyId, today);

@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Data Synchronization System
@@ -55,7 +56,7 @@ function resultSkip(source: string, message: string): SyncResult {
 }
 
 function monthRange(month?: string): { start: string; end: string } {
-  const m = month || new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+  const m = month || todayKst().slice(0, 7); // 'YYYY-MM'
   const start = `${m}-01`;
   const y = parseInt(m.slice(0, 4), 10);
   const mo = parseInt(m.slice(5, 7), 10);

@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -1134,7 +1136,7 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const data = logRead('dashboard/page:data', await (supabase).from('transactions').select('amount, type, transaction_date').eq('company_id', companyId).gte('transaction_date', sixMonthsAgo.toISOString().split('T')[0]).order('transaction_date'));
+      const data = logRead('dashboard/page:data', await (supabase).from('transactions').select('amount, type, transaction_date').eq('company_id', companyId).gte('transaction_date', kstDateStr(sixMonthsAgo)).order('transaction_date'));
       if (!data) return [];
       const monthly: Record<string, { expense: number; income: number }> = {};
       data.forEach((tx: any) => {
@@ -1426,7 +1428,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
           <button
             onClick={async () => {
               if (!finRaw || !companyId) return;
-              const month = sliced[sliced.length - 1]?.month || new Date().toISOString().slice(0, 7);
+              const month = sliced[sliced.length - 1]?.month || todayKst().slice(0, 7);
               await generateMonthlyPLReport({
                 month,
                 companyName: '',
@@ -1733,7 +1735,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
 function ClosingChecklistWidget({ companyId, userId }: { companyId: string | null; userId: string | null }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const month = new Date().toISOString().slice(0, 7);
+  const month = todayKst().slice(0, 7);
 
   const { data: checklist } = useQuery({
     queryKey: ['closing-checklist', companyId, month],
@@ -1893,7 +1895,7 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
           <div className="text-center py-3">
             <div className="text-sm text-[var(--text-dim)] font-semibold mb-2">🔒 마감 잠금됨</div>
             <p className="text-[10px] text-[var(--text-dim)] mb-2">이 달의 데이터 수정이 잠금되었습니다</p>
-            <button onClick={() => { if (confirm("마감 잠금을 해제하시겠습니까? 데이터 수정이 가능해집니다.")) unlockMut.mutate(); }}
+            <button onClick={async () => { if (await appConfirm("마감 잠금을 해제하시겠습니까? 데이터 수정이 가능해집니다.", { confirmLabel: "잠금 해제" })) unlockMut.mutate(); }}
               disabled={unlockMut.isPending}
               className="px-3 py-1.5 text-[10px] bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
               {unlockMut.isPending ? '해제 중...' : '잠금 해제'}
@@ -2487,7 +2489,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
 
   const handleBulkApprove = async () => {
     if (!actions.length || bulkApproving) return;
-    if (!confirm(`${actions.length}건을 모두 승인하시겠습니까?`)) return;
+    if (!(await appConfirm(`${actions.length}건을 모두 승인하시겠습니까?`, { confirmLabel: "모두 승인" }))) return;
     setBulkApproving(true);
     try {
       await bulkApproveActions(
@@ -2720,7 +2722,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
 }) {
   const { toast } = useToast();
   const db = supabase;
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayKst();
   const yearMonth = today.substring(0, 7);
   const currentYear = new Date().getFullYear();
   const [checkingIn, setCheckingIn] = useState(false);
@@ -2924,7 +2926,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
 
   const handleCancelCheckOut = async () => {
     if (!employeeId || !companyId || !todayAttendance?.check_out) return;
-    if (!confirm("퇴근 기록을 취소하시겠습니까?")) return;
+    if (!(await appConfirm("퇴근 기록을 취소하시겠습니까?"))) return;
     try {
       await hrCancelCheckOut(employeeId, companyId);
       toast("퇴근 취소 완료 — 다시 근무 중입니다", "success");

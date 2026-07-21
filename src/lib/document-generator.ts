@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Document Generation Engine
@@ -1776,7 +1777,7 @@ export function generateContractPDF(params: ContractPDFParams): string {
   </div>
 
   <div class="footer">
-    OwnerView Document System | ${escapeHtml(documentNumber)} | Generated: ${new Date().toISOString().split('T')[0]}
+    OwnerView Document System | ${escapeHtml(documentNumber)} | Generated: ${todayKst()}
   </div>
 
 </div>

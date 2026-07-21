@@ -1,5 +1,6 @@
 "use client";
 
+import { kstDateStr } from "@/lib/kst";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TileIcon } from "@/components/ui/icon-tile";
@@ -22,7 +23,7 @@ function startOfMonth(d: Date): string {
 function endOfMonth(d: Date): string {
   const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
   next.setDate(next.getDate() - 1);
-  return next.toISOString().slice(0, 10);
+  return kstDateStr(next);
 }
 
 export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {

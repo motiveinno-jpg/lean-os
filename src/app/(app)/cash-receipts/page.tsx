@@ -1,4 +1,5 @@
 "use client";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo } from "react";
@@ -39,7 +40,7 @@ const INITIAL_FORM = {
   amount: "",
   counterpartyName: "",
   counterpartyBizno: "",
-  issueDate: new Date().toISOString().split("T")[0],
+  issueDate: todayKst(),
   approvalNumber: "",
   identityNumber: "",
   identityType: "phone" as "phone" | "bizno" | "card",
@@ -144,7 +145,7 @@ export default function CashReceiptsPage() {
   const [startDate, setStartDate] = useState(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
   );
-  const [endDate, setEndDate] = useState(now.toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState(kstDateStr(now));
 
   useEffect(() => {
     getCurrentUser().then((u) => {

@@ -1,4 +1,5 @@
 "use client";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 예정 지출 — "앞으로 낼 돈은?"에 답하는 대표용 화면(2026-07-08).
@@ -58,7 +59,7 @@ export default function UpcomingPage() {
     return <AccessDenied detail="예정 지출은 대표·관리자 전용입니다." />;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKst();
   const fixedCosts = budget.find((b) => b.month === month)?.fixedCosts ?? 0;
   const loanMonthly = loans.filter((l) => l.repaymentType !== "bullet").reduce((s, l) => s + Number(l.monthlyPayment || 0), 0);
   const bulletSoon = loans.filter((l) => l.repaymentType === "bullet" && l.maturityDate >= today && daysUntil(l.maturityDate) <= 90);

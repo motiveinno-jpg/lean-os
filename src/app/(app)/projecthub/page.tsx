@@ -1,4 +1,5 @@
 "use client";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 프로젝트(라이프사이클·손익 뷰) — 워크플로우(/projects 보드)와 같은 deals 데이터의 다른 렌즈.
@@ -144,7 +145,7 @@ export default function ProjectHubPage() {
     enabled: !!companyId && deliveryDealIds.length > 0,
   });
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayKst();
   // 목표형 종합 달성률(0~1) — 평균(KPI 달성률). KPI별 실적: manual=entries 합, revenue_auto=v_deal_revenue_actual.
   const goalOverallByDeal = useMemo(() => {
     // kpi_id → 수동 실적 합

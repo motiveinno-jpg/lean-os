@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
@@ -73,7 +74,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const resolveJoin = async (id: string, action: "approve" | "reject") => {
     if (resolvingId) return;
-    if (action === "reject" && !confirm("이 합류 요청을 거절할까요?")) return;
+    if (action === "reject" && !(await appConfirm("이 합류 요청을 거절할까요?", { danger: true, confirmLabel: "거절" }))) return;
     setResolvingId(id);
     try {
       const res = await fetch("/api/join-request/resolve", {

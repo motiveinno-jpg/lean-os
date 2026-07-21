@@ -3,6 +3,7 @@
 // 회사 양식 PDF 관리 (2026-06-29, P2 진입점) — 업로드 → 자동인식 → 매핑 보정 → 저장·활성.
 //   견적/계약 생성 시 활성 양식이 있으면 오버레이로 회사 실제 디자인 재현(없으면 현행 폴백).
 
+import { appConfirm } from "@/components/global-confirm";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -130,7 +131,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
     catch (e: any) { toast("지정 실패: " + (e?.message || ""), "error"); }
   };
   const remove = async (t: PdfFormTemplate) => {
-    if (!confirm(`'${t.name}' 양식을 삭제할까요? (원본 PDF도 함께 삭제)`)) return;
+    if (!(await appConfirm(`'${t.name}' 양식을 삭제할까요? (원본 PDF도 함께 삭제)`, { danger: true }))) return;
     try { await deleteFormTemplate(t.id, t.file_path); toast("삭제했습니다", "info"); refresh(); }
     catch (e: any) { toast("삭제 실패: " + (e?.message || ""), "error"); }
   };

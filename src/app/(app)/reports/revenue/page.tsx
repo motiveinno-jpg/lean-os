@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 매출 현황 — "얼마나 벌었나?"에 답하는 대표용 화면(2026-07-08).
@@ -57,7 +58,7 @@ export default function RevenuePage() {
       const topPartners = Object.entries(byPartner).map(([name, amt]) => ({ name, amt })).sort((a, b) => b.amt - a.amt).slice(0, 6);
       // 미수금 (미입금 상태) + 30일 연체
       const unpaid = rows.filter((r) => ["issued", "sent", "pending", "overdue"].includes(r.status || ""));
-      const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+      const cutoff = kstDateStr(new Date(Date.now() - 30 * 24 * 3600 * 1000));
       const arTotal = unpaid.reduce((s, r) => s + Number(r.total_amount || 0), 0);
       const arOver30 = unpaid.filter((r) => (r.issue_date || "") < cutoff).reduce((s, r) => s + Number(r.total_amount || 0), 0);
       return { topPartners, arTotal, arOver30 };

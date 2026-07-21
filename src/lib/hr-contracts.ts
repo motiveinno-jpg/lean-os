@@ -1,3 +1,4 @@
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView HR Contract Package Engine
@@ -77,7 +78,7 @@ export interface ContractField {
 }
 
 export function buildDefaultContractFields(emp: any | null): ContractField[] {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKst();
   const year = new Date().getFullYear();
   return [
     { key: "직원명", label: "구성원 이름", type: "text", value: emp?.name || "", included: true },
@@ -432,16 +433,16 @@ export async function buildContractVariables(
 
   const fmt = (n: number) => n.toLocaleString('ko-KR');
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKst();
   const nextYear = new Date();
   nextYear.setFullYear(nextYear.getFullYear() + 1);
-  const nextYearStr = nextYear.toISOString().slice(0, 10);
+  const nextYearStr = kstDateStr(nextYear);
 
   // Probation dates (3 months from hire date)
   const hireDate = employee.hire_date ? new Date(employee.hire_date) : new Date();
   const probationEnd = new Date(hireDate);
   probationEnd.setMonth(probationEnd.getMonth() + 3);
-  const probationEndStr = probationEnd.toISOString().slice(0, 10);
+  const probationEndStr = kstDateStr(probationEnd);
 
   // Birth date from resident number (YYMMDD)
   // employees 에 resident_number 컬럼 없음(주민번호 미저장) — 항상 빈값이라 계약서엔 placeholder 로 나감
@@ -935,7 +936,7 @@ async function onAllContractsSigned(packageId: string) {
     await db.from('salary_history').insert({
       company_id: pkg.company_id,
       employee_id: pkg.employee_id,
-      effective_date: new Date().toISOString().slice(0, 10),
+      effective_date: todayKst(),
       salary: monthlySalary,
       change_reason: '연봉계약 체결',
     });
@@ -947,8 +948,8 @@ async function onAllContractsSigned(packageId: string) {
       company_id: pkg.company_id,
       employee_id: pkg.employee_id,
       contract_type: 'full_time',
-      start_date: new Date().toISOString().slice(0, 10),
-      end_date: nextYear.toISOString().slice(0, 10),
+      start_date: todayKst(),
+      end_date: kstDateStr(nextYear),
       salary: monthlySalary,
       status: 'active',
     });

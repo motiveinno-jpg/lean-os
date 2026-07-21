@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 // 고객사 상세 — 운영 콕핏. 조회 + 실제 관리 액션:
@@ -94,7 +95,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
   }, [id]);
 
   const runSub = async (payload: AdminActionPayload, confirmMsg: string) => {
-    if (!window.confirm(confirmMsg)) return;
+    if (!(await appConfirm(confirmMsg))) return;
     setSubPending(payload.action);
     setSubError("");
     try {

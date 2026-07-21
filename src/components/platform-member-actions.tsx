@@ -4,6 +4,7 @@
 //   비밀번호 임시발급/재설정링크 · 이메일 변경 · 역할 변경 · 계정 잠금.
 //   모든 조치는 /api/platform/admin-action 을 통해 감사 기록됨.
 
+import { appConfirm } from "@/components/global-confirm";
 import { useState } from "react";
 import { platformAdminAction, type AdminActionPayload } from "@/lib/platform-admin";
 
@@ -29,7 +30,7 @@ export function PlatformMemberActions({ member, onChanged }: { member: PlatformM
   const [copied, setCopied] = useState(false);
 
   const run = async (payload: AdminActionPayload, confirmMsg?: string) => {
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    if (confirmMsg && !(await appConfirm(confirmMsg))) return;
     setPending(payload.action);
     setError("");
     try {

@@ -1,5 +1,6 @@
 "use client";
 
+import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState } from "react";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
@@ -805,7 +806,7 @@ export default function VaultPage() {
           <div className="flex gap-2">
             <button onClick={() => { if (!assetForm.name.trim()) return; if (editingId) updateAssetMut.mutate(); else createAssetMut.mutate(); }} disabled={!assetForm.name.trim() || createAssetMut.isPending || updateAssetMut.isPending}
               className="btn-primary">{editingId ? "저장" : "추가"}</button>
-            {editingId && <button onClick={() => { if (confirm("이 자산을 삭제하시겠습니까?")) deleteAssetMut.mutate(editingId); }} disabled={deleteAssetMut.isPending}
+            {editingId && <button onClick={async () => { if (await appConfirm("이 자산을 삭제하시겠습니까?", { danger: true })) deleteAssetMut.mutate(editingId); }} disabled={deleteAssetMut.isPending}
               className="btn-danger">삭제</button>}
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="btn-ghost">취소</button>
           </div>
@@ -879,7 +880,7 @@ export default function VaultPage() {
           <div className="flex gap-2">
             <button onClick={() => { if (!docForm.name.trim()) return; if (editingId) updateDocMut.mutate(); else createDocMut.mutate(); }} disabled={!docForm.name.trim() || createDocMut.isPending || updateDocMut.isPending}
               className="btn-primary">{editingId ? "저장" : "추가"}</button>
-            {editingId && <button onClick={() => { if (confirm("이 문서를 삭제하시겠습니까?")) deleteDocMut.mutate(editingId); }} disabled={deleteDocMut.isPending}
+            {editingId && <button onClick={async () => { if (await appConfirm("이 문서를 삭제하시겠습니까?", { danger: true })) deleteDocMut.mutate(editingId); }} disabled={deleteDocMut.isPending}
               className="btn-danger">삭제</button>}
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="btn-ghost">취소</button>
           </div>

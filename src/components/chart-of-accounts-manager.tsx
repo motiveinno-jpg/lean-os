@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 // 계정과목 관리 — 회사 설정 (2026-07-01)
@@ -67,7 +68,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
 
   const remove = async (a: Acct) => {
     if (a.is_system) return;
-    if (!confirm(`'${a.code} ${a.name}' 계정과목을 삭제할까요?`)) return;
+    if (!(await appConfirm(`'${a.code} ${a.name}' 계정과목을 삭제할까요?`, { danger: true }))) return;
     try { const { error } = await db.from("chart_of_accounts").delete().eq("id", a.id); if (error) throw error; toast("삭제했습니다", "info"); refresh(); }
     catch (e: any) { toast("삭제 실패: " + (e?.message || ""), "error"); }
   };

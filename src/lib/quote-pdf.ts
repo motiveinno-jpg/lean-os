@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 // 저장된 견적 문서(content_json)로 실제 견적서 PDF Blob 생성 — projecthub 미리보기/인쇄 공용.
 //   documents 편집기 인라인 생성과 동일 로직(데이터 출처만 cj 고정: 저장본 기준).
@@ -50,7 +51,7 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
       거래처명: cpName,
       사업자번호: partnerRow?.business_number || "",
       대표자: partnerRow?.representative || "",
-      작성일자: new Date().toISOString().slice(0, 10),
+      작성일자: todayKst(),
       품목: items.map((i) => i.name).filter(Boolean).join(", "),
       수량: items.map((i) => String(i.qty)).join(", "),
       단가: items.map((i) => i.unitPrice.toLocaleString("ko-KR")).join(", "),
@@ -74,7 +75,7 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
         partnerRepresentative: partnerRow?.representative,
         projectName: doc?.name,
         quoteNumber: doc?.document_number,
-        issueDate: new Date().toISOString().slice(0, 10),
+        issueDate: todayKst(),
         validUntil: cj.header?.validUntil,
         supplyAmount: supplyAmt,
         taxAmount: taxAmt,

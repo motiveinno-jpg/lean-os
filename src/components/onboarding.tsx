@@ -1,4 +1,5 @@
 "use client";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -264,7 +265,7 @@ export function OnboardingWizard({ companyId, companyName, onComplete }: Onboard
             position: emp.position || null,
             department: emp.department || null,
             email: emp.email || null,
-            hire_date: new Date().toISOString().split("T")[0],
+            hire_date: todayKst(),
             status: "active",
           });
           if (empErr) console.error("Employee save error:", empErr);

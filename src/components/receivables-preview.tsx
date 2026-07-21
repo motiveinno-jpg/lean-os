@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 미수금 회수 미리보기 — 대시보드 카드(2026-07-14). 발행한 매출 세금계산서 중 아직 입금(settled)이
@@ -52,7 +53,7 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
       const rows = logRead('components/receivables-preview:rows', await db.from("tax_invoices")
         .select("counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status")
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
-        .gte("issue_date", since.toISOString().slice(0, 10))
+        .gte("issue_date", kstDateStr(since))
         .limit(1000));
       const now = new Date();
       const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();

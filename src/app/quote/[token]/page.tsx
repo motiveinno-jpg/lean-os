@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
+import { ToastProvider } from "@/components/toast";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -76,7 +77,7 @@ function stageKo(stage: string | null | undefined): string {
   return STAGE_LABEL_KO[stage || "estimate"] || "견적서";
 }
 
-export default function QuoteApprovalPage() {
+function QuoteApprovalPageInner() {
   const params = useParams<{ token: string }>();
   const router = useRouter();
   const token = String(params?.token || "");
@@ -719,5 +720,14 @@ function Notice({ icon, title, message }: { icon: string; title: string; message
       <h1 className="text-lg font-bold text-gray-900 mb-2">{title}</h1>
       <p className="text-sm text-gray-600">{message}</p>
     </div>
+  );
+}
+
+// signature-capture 등 내부 컴포넌트의 toast 사용을 위해 외부 페이지도 자체 래핑 (sign/share 페이지와 동일 패턴)
+export default function QuoteApprovalPage() {
+  return (
+    <ToastProvider>
+      <QuoteApprovalPageInner />
+    </ToastProvider>
   );
 }

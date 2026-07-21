@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import { supabase } from "./supabase";
 
@@ -555,7 +556,7 @@ export function exportProgramToCsv(
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${programName}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `${programName}_${todayKst()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

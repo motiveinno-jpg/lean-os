@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 목표형 '성과' 탭 — 성과관리 모델.
@@ -18,7 +20,7 @@ import { computePeriodStart, computeDueDate, periodLabel, normalizeCadence, CADE
 
 const db = supabase;
 const fmtNum = (n: number, unit: string) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}${unit}`;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => todayKst();
 const numComma = (s: string) => { const n = Number(String(s).replace(/[^0-9.-]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
 
 type Kpi = { id: string; label: string; unit: string; target_value: number; direction: "up" | "down"; source: KpiSource; sort_order: number; owner_id?: string | null };
@@ -167,7 +169,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   };
   const editKpi = (k: Kpi) => setKpiForm({ id: k.id, label: k.label, unit: k.unit || "원", target: Number(k.target_value).toLocaleString("ko-KR"), direction: k.direction, source: k.source, ownerId: k.owner_id || "" });
   const removeKpi = async (k: Kpi) => {
-    if (!confirm(`'${k.label}' KPI와 입력한 실적을 모두 삭제할까요?`)) return;
+    if (!(await appConfirm(`'${k.label}' KPI와 입력한 실적을 모두 삭제할까요?`, { danger: true }))) return;
     try {
       const { error } = await db.from("project_kpis").delete().eq("id", k.id);
       if (error) throw new Error(error.message);
@@ -213,7 +215,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   };
   const startEditEntry = (e: Entry) => { setEditEntryId(e.id); setEntryKpiId(e.kpi_id); setEntryDate(String(e.entry_date).slice(0, 10)); setEntryValue(Number(e.value).toLocaleString("ko-KR")); setEntryMemo(e.memo || ""); setEntryDeptId(e.department_id || ""); };
   const removeEntry = async (id: string) => {
-    if (!confirm("이 실적 기록을 삭제할까요?")) return;
+    if (!(await appConfirm("이 실적 기록을 삭제할까요?", { danger: true }))) return;
     try {
       const { error } = await db.from("project_kpi_entries").delete().eq("id", id);
       if (error) throw new Error(error.message);
@@ -343,7 +345,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
     } catch (e: any) { toast(e?.message || "저장 실패", "error"); } finally { setSavingChk(false); }
   };
   const removeCheckin = async (id: string) => {
-    if (!confirm("이 체크인을 삭제할까요?")) return;
+    if (!(await appConfirm("이 체크인을 삭제할까요?", { danger: true }))) return;
     try {
       const { error } = await db.from("project_updates").delete().eq("id", id);
       if (error) throw new Error(error.message);
@@ -796,7 +798,7 @@ function ExecutionPlan({ dealId, companyId, users, userId }: { dealId: string; c
     refresh();
   };
   const del = async (t: any) => {
-    if (!confirm(`'${t.title}' 삭제할까요?`)) return;
+    if (!(await appConfirm(`'${t.title}' 삭제할까요?`, { danger: true }))) return;
     const { error } = await db.from("project_tasks").update({ archived_at: new Date().toISOString() }).eq("id", t.id);
     if (error) { toast(error.message, "error"); return; }
     refresh();

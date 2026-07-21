@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Cash Budget / Treasury Management
@@ -1045,7 +1046,7 @@ export async function getRetirementPayProvisions(
   if (error) throw error;
   if (!employees?.length) return [];
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKst();
   const provisions: RetirementProvision[] = [];
 
   for (const emp of employees) {

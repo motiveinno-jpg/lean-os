@@ -1,4 +1,5 @@
 "use client";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 목표형 '개요' = 성과 콕핏 (그래프 대시보드). project_type==='goal' overview 에서만 렌더.
@@ -71,7 +72,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   });
   const { data: overdueTasks = [] } = useQuery({
     queryKey: ["goal-overview-overdue-tasks", dealId],
-    queryFn: async () => (await db.from("project_tasks").select("id, title, due_date, status, assignee_id").eq("deal_id", dealId).is("archived_at", null).neq("status", "done").not("due_date", "is", null).lt("due_date", new Date().toISOString().slice(0, 10)).order("due_date", { ascending: true })).data || [],
+    queryFn: async () => (await db.from("project_tasks").select("id, title, due_date, status, assignee_id").eq("deal_id", dealId).is("archived_at", null).neq("status", "done").not("due_date", "is", null).lt("due_date", todayKst()).order("due_date", { ascending: true })).data || [],
     enabled: !!dealId,
   });
   const { data: children = [] } = useQuery({
@@ -225,7 +226,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
             <div className="goal-overview-issues-list">
               {(openIssues as any[]).slice(0, 6).map((i) => {
                 const sevColor = i.severity === "critical" ? DANGER : i.severity === "high" ? AMBER : i.severity === "medium" ? "var(--primary)" : "var(--text-dim)";
-                const overdue = i.due_date && i.due_date < new Date().toISOString().slice(0, 10);
+                const overdue = i.due_date && i.due_date < todayKst();
                 return (
                   <div key={i.id} className="goal-overview-issue-row">
                     <span className="inline-block w-[7px] h-[7px] rounded-full shrink-0" style={{ background: sevColor }} />

@@ -5,6 +5,7 @@
 //   외부 라이브러리 도입 X (단순함 우선). RLS 회사격리만(기존 정책).
 //   start_date 컬럼은 20260521090000 마이그에서 추가, NULL 허용.
 
+import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -266,8 +267,8 @@ function ChecklistView({
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm(`'${m.name}' 마일스톤을 삭제할까요?`)) onDelete(m.id);
+                        onClick={async () => {
+                          if (await appConfirm(`'${m.name}' 마일스톤을 삭제할까요?`, { danger: true })) onDelete(m.id);
                         }}
                         className="milestone-delete-btn"
                       >

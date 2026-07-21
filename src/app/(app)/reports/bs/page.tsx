@@ -1,5 +1,6 @@
 "use client";
 
+import { todayKst } from "@/lib/kst";
 import { useEffect, useState, useCallback } from "react";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
@@ -86,7 +87,7 @@ function formatKrw(value: number): string {
 async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
   // 2026-07-08 직원 QA #5 — AR/AP 집계 시작일을 해당연도 1월1일 고정(회계연도 누적).
   //   시작일 = 기준일이 속한 해의 1/1, 종료 = 기준일. 기준일만 사용자 선택.
-  const cutoff = cutoffDate || new Date().toISOString().slice(0, 10);
+  const cutoff = cutoffDate || todayKst();
   const fromDate = `${cutoff.slice(0, 4)}-01-01`;
   // 큰 테이블(tax_invoices) 은 페이지네이션 — PostgREST 1000건 제약 회피
   const [bankRes, loanRes, invoices, vaultRes, companyRes, settlements] = await Promise.all([
@@ -412,7 +413,7 @@ export default function BalanceSheetPage() {
     setError(null);
 
     // 기준일: 사용자가 지정 했으면 그 날짜, 아니면 오늘
-    const baseDate = cutoffInput || new Date().toISOString().slice(0, 10);
+    const baseDate = cutoffInput || todayKst();
     const baseObj = new Date(baseDate);
     const prevMonth = new Date(baseObj.getFullYear(), baseObj.getMonth() - 1, 1);
     const prevCutoff = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-${String(new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
@@ -480,7 +481,7 @@ export default function BalanceSheetPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayKst();
     a.download = `재무상태표_${today}.csv`;
     a.click();
     URL.revokeObjectURL(url);
@@ -631,7 +632,7 @@ export default function BalanceSheetPage() {
   /* ---------------------------------------------------------------- */
   /*  Main render                                                      */
   /* ---------------------------------------------------------------- */
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKst();
 
   return (
     <div id="bs-printable">

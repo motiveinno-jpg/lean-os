@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // PR3: 프로젝트 슬라이드 패널 (3탭: 개요 / 돈 / 활동)
@@ -899,13 +901,13 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
   const moneyQc = useQueryClient();
   const { toast: moneyToast } = useToast();
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [paymentDate, setPaymentDate] = useState<string>(() => todayKst());
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentSaving, setPaymentSaving] = useState(false);
 
   // 2026-05-21 줄돈 인라인 비용 입력 모달 (사장님 요청: 받을 돈과 동일 패턴)
   const [costModalOpen, setCostModalOpen] = useState(false);
-  const [costDate, setCostDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [costDate, setCostDate] = useState<string>(() => todayKst());
   const [costAmount, setCostAmount] = useState<string>("");
   const [costMemo, setCostMemo] = useState<string>("");
   const [costSaving, setCostSaving] = useState(false);
@@ -952,7 +954,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       setCostModalOpen(false);
       setCostAmount("");
       setCostMemo("");
-      setCostDate(new Date().toISOString().slice(0, 10));
+      setCostDate(todayKst());
     } catch (e) {
       moneyToast(friendlyError(e, "비용 추가에 실패했습니다"), "error");
     } finally {
@@ -984,7 +986,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       moneyQc.invalidateQueries({ queryKey: ["deal-detail", dealId] });
       setPaymentModalOpen(false);
       setPaymentAmount("");
-      setPaymentDate(new Date().toISOString().slice(0, 10));
+      setPaymentDate(todayKst());
     } catch (e) {
       moneyToast(friendlyError(e, "수금 추가에 실패했습니다"), "error");
     } finally {
@@ -1560,8 +1562,8 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                   </span>
                   {canEditAssignments && a.id && (
                     <button
-                      onClick={() => {
-                        if (confirm(`${a.users?.name || '담당자'}을(를) 제거하시겠습니까?`)) {
+                      onClick={async () => {
+                        if (await appConfirm(`${a.users?.name || '담당자'}을(를) 제거하시겠습니까?`, { danger: true, confirmLabel: "제거" })) {
                           removeAssigneeMut.mutate(a.id!);
                         }
                       }}

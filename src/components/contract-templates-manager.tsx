@@ -6,6 +6,7 @@
 //   변수 토큰 `{변수명}` 자동 추출 + 미리보기.
 //   권한: owner/admin 만 (RLS DB 측 admin only, UI 측 친절 안내).
 
+import { appConfirm } from "@/components/global-confirm";
 import { useMemo, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { createPortal } from "react-dom";
@@ -124,7 +125,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
                   수정
                 </button>
                 <button
-                  onClick={() => { if (window.confirm(`'${t.name}' 양식을 삭제하시겠습니까?`)) deleteMut.mutate(t.id); }}
+                  onClick={async () => { if (await appConfirm(`'${t.name}' 양식을 삭제하시겠습니까?`, { danger: true })) deleteMut.mutate(t.id); }}
                   className="text-[10px] px-2 py-1 rounded text-red-400 hover:bg-red-500/10 transition"
                 >
                   삭제

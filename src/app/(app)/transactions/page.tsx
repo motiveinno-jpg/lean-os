@@ -1,4 +1,5 @@
 "use client";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -109,7 +110,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
     amount: '',
     counterparty: '',
     description: '',
-    transaction_date: new Date().toISOString().split('T')[0],
+    transaction_date: todayKst(),
     category: '',
     bank_name: '',
     memo: '',
@@ -324,7 +325,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
         return {
           company_id: companyId,
-          transaction_date: r[dateKey || ""] || new Date().toISOString().slice(0, 10),
+          transaction_date: r[dateKey || ""] || todayKst(),
           amount,
           balance_after: balanceAfter,
           type,
@@ -407,7 +408,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
         return {
           company_id: companyId,
           card_id: selectedCardId || null,
-          transaction_date: r[dateKey || ""] || new Date().toISOString().slice(0, 10),
+          transaction_date: r[dateKey || ""] || todayKst(),
           amount,
           merchant_name: r[merchantKey || ""] || null,
           merchant_category: r[categoryKey || ""] || null,
@@ -1176,7 +1177,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `거래내역_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.download = `거래내역_${todayKst()}.csv`;
             a.click();
             URL.revokeObjectURL(url);
           }}

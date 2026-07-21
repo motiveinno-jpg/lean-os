@@ -1,4 +1,5 @@
 "use client";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 경영 요약 — "지금 우리 회사 괜찮나?"에 한 화면으로 답하는 대표용 진입 화면(2026-07-08).
@@ -91,7 +92,7 @@ export default function ManagementSummaryPage() {
         .select("total_amount, issue_date").eq("company_id", companyId ?? "")
         .eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]));
       const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];
-      const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+      const cutoff = kstDateStr(new Date(Date.now() - 30 * 24 * 3600 * 1000));
       const total = rows.reduce((s, r) => s + Number(r.total_amount || 0), 0);
       const over30 = rows.filter((r) => (r.issue_date || "") < cutoff).reduce((s, r) => s + Number(r.total_amount || 0), 0);
       return { total, over30 };
@@ -121,7 +122,7 @@ export default function ManagementSummaryPage() {
   const runwayTxt = runway >= 999 ? "무기한" : `약 ${runway.toFixed(1)}개월`;
 
   // 다가오는 부가세(가장 가까운 미래 납부, 금액>0)
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKst();
   const nextVat = vat.filter((v) => v.dueDate >= today && Math.abs(v.netVAT) > 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
   const vatDday = nextVat ? daysUntil(nextVat.dueDate) : null;
 

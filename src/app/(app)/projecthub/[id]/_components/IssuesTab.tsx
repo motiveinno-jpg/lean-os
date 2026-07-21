@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 이슈 트래커 — 목표형 프로젝트의 문제점·이슈를 제목·심각도·담당·기한·상태·해결메모로 관리.
@@ -133,7 +135,7 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
     for (const i of issues as Issue[]) c[i.status] = (c[i.status] || 0) + 1;
     return c;
   }, [issues]);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayKst();
 
   useModalKeys(showForm, () => setShowForm(false), (saveMut.isPending || !form.title.trim()) ? undefined : () => saveMut.mutate());
 
@@ -188,7 +190,7 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
                     <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
                       <button onClick={() => taskMut.mutate(iss)} disabled={taskMut.isPending} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-50" title="이 이슈로 실행 과제 생성">→과제</button>
                       <button onClick={() => openEdit(iss)} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]">수정</button>
-                      <button onClick={() => { if (confirm(`'${iss.title}' 이슈를 삭제할까요?`)) delMut.mutate(iss.id); }} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
+                      <button onClick={async () => { if (await appConfirm(`'${iss.title}' 이슈를 삭제할까요?`, { danger: true })) delMut.mutate(iss.id); }} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
                     </td>
                   </tr>
                 );

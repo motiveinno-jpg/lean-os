@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 전표입력 — 2단 구조 (2026-06-12 핸드오프 v2 확정본 §3-3).
@@ -25,7 +27,7 @@ import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown"
 
 const db = supabase;
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
-const todayKst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+
 // 음수 허용(맨 앞 '-'만) — 수정분개용. 저장 시 음수 차변→대변/음수 대변→차변 정규화(DB check debit·credit>=0).
 const num = (s: string | number) => { const n = Number(String(s).replace(/[^0-9-]/g, "").replace(/(?!^)-/g, "")); return Number.isFinite(n) ? n : 0; };
 const comma = (s: string) => {
@@ -273,7 +275,7 @@ export default function VoucherEntryPage() {
   const deleteSelected = async () => {
     const entryIds = [...new Set([...selected].map((s) => s.slice(2)))];
     if (entryIds.length === 0) { toast("삭제할 전표를 선택하세요", "info"); return; }
-    if (!confirm(`저장된 전표 ${entryIds.length}건을 삭제할까요?\n(분개 균형 유지를 위해 전표 단위로 삭제되며, 이력은 보존됩니다)`)) return;
+    if (!(await appConfirm(`저장된 전표 ${entryIds.length}건을 삭제할까요?\n(분개 균형 유지를 위해 전표 단위로 삭제되며, 이력은 보존됩니다)`, { danger: true }))) return;
     setBusy(true);
     try {
       for (const id of entryIds) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { kstDateStr } from "@/lib/kst";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TileIcon } from "@/components/ui/icon-tile";
@@ -102,7 +103,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
 
   const dateFrom = useMemo(() => {
     const d = new Date(today); d.setDate(d.getDate() - 90);
-    return d.toISOString().slice(0, 10);
+    return kstDateStr(d);
   }, [today]);
   const { data: txAll = [] } = useQuery({
     queryKey: ['card-tx-recent-90-paginated', companyId, dateFrom],
@@ -131,8 +132,8 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
       const billingDay = c.billing_day ?? null;
       const paymentDay = c.payment_day ?? null;
       const { start, end } = computeCycle(today, billingDay);
-      const startISO = start.toISOString().slice(0, 10);
-      const endISO = end.toISOString().slice(0, 10);
+      const startISO = kstDateStr(start);
+      const endISO = kstDateStr(end);
       // 2026-05-22 card_id 우선, NULL이면 card_name 으로 fallback 매칭.
       //   CODEF 신규 거래가 card_id NULL 로 들어와도 청구서에 정상 집계 (백필+런타임 이중 안전망).
       //   취소·환불(음수)도 같은 사이클이면 합산에 포함(차감) → 실청구액(net). amount>0 필터 제거.
@@ -373,8 +374,8 @@ function BillingDetailModal({
     return { start: startOfDay(start), end: startOfDay(end) };
   }, [today, billing.billingDay, offset]);
 
-  const startISO = cycle.start.toISOString().slice(0, 10);
-  const endISO = cycle.end.toISOString().slice(0, 10);
+  const startISO = kstDateStr(cycle.start);
+  const endISO = kstDateStr(cycle.end);
 
   const { data: txs = [], isLoading } = useQuery({
     queryKey: ['card-billing-detail', companyId, billing.cardId, startISO, endISO],

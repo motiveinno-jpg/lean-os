@@ -1,4 +1,5 @@
 "use client";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
@@ -1635,7 +1636,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
   const [requestType, setRequestType] = useState<'expense' | 'purchase_request'>('expense');
   const [statusFilter, setStatusFilter] = useState('all');
   // U2: 지출결의서 8필드 확장 — 사유/기안일/결제요청일/상세내역/총금액(부가세토글)/결제방법/비고/첨부파일
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayKst();
   const [form, setForm] = useState({
     title: '', description: '', amount: '', category: 'general', dealId: '',
     reason: '', request_date: today, payment_due_date: '',
@@ -1746,7 +1747,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
         <div className="stat-tile overflow-hidden">
           <div className="stat-tile-label">이번달 지출</div>
           <div className="stat-tile-value text-[var(--success)] truncate">
-            ₩{expenses.filter((e: any) => e.status === 'paid' && e.created_at?.startsWith(new Date().toISOString().slice(0, 7)))
+            ₩{expenses.filter((e: any) => e.status === 'paid' && e.created_at?.startsWith(todayKst().slice(0, 7)))
               .reduce((s: number, e: any) => s + Number(e.amount || 0), 0).toLocaleString()}
           </div>
         </div>

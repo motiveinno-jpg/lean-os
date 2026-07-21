@@ -4,12 +4,13 @@
 //   cash-pulse 와 동일 입력(getCashPulseData)의 revenueSchedules/costSchedules 재사용
 //   → 예측 헤더와 동일 소스(숫자 정합성). 앞으로 90일 예정 입출금을 날짜순으로.
 
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCashPulseData } from "@/lib/queries";
 
 const won = (n: number) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}`;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => todayKst();
 
 type Item = { date: string; amount: number; kind: "in" | "out" };
 
@@ -23,7 +24,7 @@ export function FlowSchedule({ companyId, userId }: { companyId: string; userId?
 
   const { items, inTotal, outTotal } = useMemo(() => {
     const t = todayStr();
-    const horizon = (() => { const d = new Date(); d.setDate(d.getDate() + 90); return d.toISOString().slice(0, 10); })();
+    const horizon = (() => { const d = new Date(); d.setDate(d.getDate() + 90); return kstDateStr(d); })();
     const list: Item[] = [];
     const push = (arr: any[], kind: "in" | "out") => {
       for (const s of arr || []) {

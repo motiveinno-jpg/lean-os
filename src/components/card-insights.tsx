@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
@@ -32,7 +33,7 @@ function startOfMonth(d: Date): string {
 function endOfMonth(d: Date): string {
   const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
   next.setDate(next.getDate() - 1);
-  return next.toISOString().slice(0, 10);
+  return kstDateStr(next);
 }
 
 // ─────────────────────────────────────────
@@ -40,8 +41,8 @@ function endOfMonth(d: Date): string {
 // ─────────────────────────────────────────
 export function TopCardExpensesThisMonth({ companyId }: Props) {
   const now = new Date();
-  const dateFrom = useMemo(() => now.toISOString().slice(0, 7) + "-01", [now]); // 이번달 1일
-  const dateTo = now.toISOString().slice(0, 10);
+  const dateFrom = useMemo(() => kstDateStr(now).slice(0, 7) + "-01", [now]); // 이번달 1일
+  const dateTo = kstDateStr(now);
 
   // nested JOIN(getCardTransactions) 우회 — corporate_cards/deals/tax_invoices FK NULL 시 row 누락 방지.
   // TopExpense 표시에 필요한 컬럼만 직접 SELECT.
@@ -273,7 +274,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
 
   // 최근 6개월 시작·종료
   const sixMonthFrom = useMemo(() => `${months[0]}-01`, [months]);
-  const todayISO = now.toISOString().slice(0, 10);
+  const todayISO = kstDateStr(now);
 
   const { data: cards = [] } = useQuery({
     queryKey: ['corp-cards', companyId],

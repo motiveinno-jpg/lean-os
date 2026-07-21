@@ -1,4 +1,5 @@
 "use client";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -182,7 +183,7 @@ export default function OnboardingPage() {
     position: "",
     department: "",
     email: "",
-    startDate: new Date().toISOString().split("T")[0],
+    startDate: todayKst(),
   });
 
   // Step 4: Deal
@@ -393,7 +394,7 @@ export default function OnboardingPage() {
         position: employee.position || null,
         department: employee.department || null,
         email: employee.email || null,
-        hire_date: employee.startDate || new Date().toISOString().split("T")[0],
+        hire_date: employee.startDate || todayKst(),
         status: "active",
       });
 

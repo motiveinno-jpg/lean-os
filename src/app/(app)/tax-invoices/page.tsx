@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import Link from "next/link";
@@ -871,7 +873,7 @@ export default function TaxInvoicesPage() {
       toast("유효한 세금계산서 데이터가 없습니다", "error");
       return;
     }
-    if (confirm(`${parsed.length}건의 세금계산서를 가져올까요?`)) {
+    if (await appConfirm(`${parsed.length}건의 세금계산서를 가져올까요?`)) {
       await bulkImportTaxInvoices(companyId, parsed);
       invalidate();
     }
@@ -2859,7 +2861,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
 
   const buildPdfParams = (): TaxInvoicePdfParams => ({
     invoiceNumber: `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase()}`,
-    issueDate: inv.issue_date || new Date().toISOString().split('T')[0],
+    issueDate: inv.issue_date || todayKst(),
     type: inv.type,
     supplier: {
       name: supplier.name,
@@ -2881,7 +2883,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     taxAmount: taxAmt,
     totalAmount: totalAmt,
     items: [{
-      date: inv.issue_date || new Date().toISOString().split('T')[0],
+      date: inv.issue_date || todayKst(),
       name: inv.item_name || inv.label || '용역',
       spec: inv.item_spec || '-',
       qty: inv.item_quantity || 1,

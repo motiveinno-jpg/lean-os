@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Automation Engine
@@ -487,7 +488,7 @@ export async function autoCreateTaxInvoiceOnDealClose(companyId: string, dealId:
     counterpartyName,
     counterpartyBizno,
     supplyAmount,
-    issueDate: new Date().toISOString().split('T')[0],
+    issueDate: todayKst(),
   });
 
   return { created: true, invoiceId: invoice?.id };

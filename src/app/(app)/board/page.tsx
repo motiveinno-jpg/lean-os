@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 import type { ReactNode } from "react";
@@ -1127,8 +1128,8 @@ export default function BoardPage() {
                             수정
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm("이 글을 삭제하시겠습니까?"))
+                            onClick={async () => {
+                              if (await appConfirm("이 글을 삭제하시겠습니까?", { danger: true }))
                                 delPost.mutate(p.id);
                             }}
                             className="text-xs px-3 py-1.5 text-[var(--danger)] rounded-lg hover:bg-[var(--danger-dim)] transition"

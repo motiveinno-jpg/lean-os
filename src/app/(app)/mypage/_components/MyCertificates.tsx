@@ -1,4 +1,5 @@
 "use client";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
@@ -58,7 +59,7 @@ export function MyCertificates({
         name: employee.name,
         department: employee.department,
         position: employee.position,
-        hire_date: employee.hire_date || new Date().toISOString().slice(0, 10),
+        hire_date: employee.hire_date || todayKst(),
         end_date: !["active", "joined"].includes(employee.status) ? employee.updated_at?.slice(0, 10) : undefined,
         employee_number: employee.employee_number,
         birth_date: employee.birth_date,

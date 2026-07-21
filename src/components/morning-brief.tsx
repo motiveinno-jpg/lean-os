@@ -12,6 +12,7 @@
 //
 // Pure display component — 데이터는 부모가 넘겨준다.
 
+import { todayKst } from "@/lib/kst";
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -159,7 +160,7 @@ export function MorningBrief({
       monthRevenue: dashboard?.growth.monthRevenue ?? 0,
       monthTarget: dashboard?.growth.monthTarget ?? 0,
     };
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayKst();
     const taxDeadlines = getUpcomingTaxDeadlines(30).slice(0, 4).map((t) => ({ title: t.title, daysLeft: t.daysLeft }));
     let todos: Array<{ title: string; priority: number; dueDate: string | null; overdue: boolean }> = [];
     if (userId) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { kstDateStr } from "@/lib/kst";
 import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -21,7 +22,7 @@ function startOfMonth(d: Date): string {
 function endOfMonth(d: Date): string {
   const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
   next.setDate(next.getDate() - 1);
-  return next.toISOString().slice(0, 10);
+  return kstDateStr(next);
 }
 
 // 통장에서 자동이체(고정지출)로 연결·표시된 실제 출금 내역 — 이번달

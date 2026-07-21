@@ -1,3 +1,4 @@
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView HR Engine
@@ -171,8 +172,8 @@ export async function updateEmployee(employeeId: string, updates: Record<string,
         await recomputeAttendance({
           companyId: emp.company_id,
           employeeId,
-          from: from.toISOString().slice(0, 10),
-          to: today.toISOString().slice(0, 10),
+          from: kstDateStr(from),
+          to: kstDateStr(today),
         });
       }
     } catch (e) {
@@ -911,7 +912,7 @@ export async function checkIn(companyId: string, employeeId: string, status: str
   //   late 만 즉시 갱신. 연장/야간/휴일은 퇴근 시 recomputeAttendance(checkOut chain) 처리.
   //   실패해도 checkIn 자체는 성공 처리 (회귀 방지).
   try {
-    const targetDate = new Date().toISOString().slice(0, 10);
+    const targetDate = todayKst();
     // 버그픽스 2026-07-20: 회사 공통 설정만 쓰면 직원 개인 출퇴근시간(employees.work_start_time)이
     //   무시돼 status(개인 기준)와 is_late(회사 기준)가 서로 다른 판정을 내림 — 유효 설정 사용.
     const settings = await getEffectiveAttendanceSettings(companyId, employeeId);
@@ -959,7 +960,7 @@ export async function checkOut(employeeId: string, companyId: string, date?: str
   //   · recomputeAttendance 안에서 allowance_entries chain 자동 (회사 분기 룰 반영)
   //   · 실패해도 checkOut 자체는 성공 처리 (회귀 방지) — 백그라운드 silent
   try {
-    const targetDate = date || new Date().toISOString().slice(0, 10);
+    const targetDate = date || todayKst();
     await recomputeAttendance({
       companyId,
       employeeId,
@@ -1981,7 +1982,7 @@ export async function sendLeavePromotionNotice(params: {
       unused_days: unusedDays,
       sent_via: 'email',
       email_to: email,
-      deadline: deadline.toISOString().slice(0, 10),
+      deadline: kstDateStr(deadline),
     })
     .select()
     .single();
@@ -2015,7 +2016,7 @@ export async function sendLeavePromotionNotice(params: {
         year,
         noticeType,
         unusedDays,
-        deadline: deadline.toISOString().slice(0, 10),
+        deadline: kstDateStr(deadline),
       }),
     });
 

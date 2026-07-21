@@ -9,6 +9,8 @@
  * - 미수금 2건(30일 이상)
  * → Risk/Margin/Cashflow가 바로 살아남
  */
+import { appConfirm } from '@/components/global-confirm';
+import { kstDateStr } from '@/lib/kst';
 import { supabase } from './supabase';
 
 const now = new Date();
@@ -21,18 +23,18 @@ const lastMonth = (() => {
 function daysAgo(n: number): string {
   const d = new Date(now);
   d.setDate(d.getDate() - n);
-  return d.toISOString().split('T')[0];
+  return kstDateStr(d);
 }
 function daysFromNow(n: number): string {
   const d = new Date(now);
   d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return kstDateStr(d);
 }
 
 export async function generateSampleData(companyId: string): Promise<{ success: boolean; message: string }> {
   // Production safety guard
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    const confirmed = window.confirm('샘플 데이터를 생성하시겠습니까? 기존 샘플 데이터는 삭제됩니다.');
+    const confirmed = await appConfirm('샘플 데이터를 생성하시겠습니까? 기존 샘플 데이터는 삭제됩니다.');
     if (!confirmed) return { success: false, message: '사용자가 취소했습니다' };
   }
   try {

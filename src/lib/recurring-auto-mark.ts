@@ -1,3 +1,4 @@
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 // B1: 자동이체 자동 인식.
 //   직원 원문: "현재: 거래내역에 있는 자동에 체크만 하는 방식 → 매달 체크눌러야함 매우불편해.
@@ -40,7 +41,7 @@ export async function autoMarkRecurringTransactions(companyId: string): Promise<
   // 6개월 데이터 윈도우
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const fromDate = sixMonthsAgo.toISOString().split("T")[0];
+  const fromDate = kstDateStr(sixMonthsAgo);
 
   // 1) 학습 표본 — is_fixed_cost=true 인 거래의 counterparty+amount(1000원 반올림) 패턴
   const learnedRows = logRead('lib/recurring-auto-mark:learnedRows', await db

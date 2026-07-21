@@ -1,4 +1,5 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
@@ -237,7 +238,7 @@ export default function AnnouncementsPage() {
                           수정
                         </button>
                         <button
-                          onClick={() => { if (confirm("이 공지를 삭제하시겠습니까?")) delMut.mutate(a.id); }}
+                          onClick={async () => { if (await appConfirm("이 공지를 삭제하시겠습니까?", { danger: true })) delMut.mutate(a.id); }}
                           className="btn-danger btn-sm"
                         >
                           삭제

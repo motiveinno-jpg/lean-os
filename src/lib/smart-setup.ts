@@ -1,3 +1,4 @@
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Smart Setup Engine
@@ -90,7 +91,7 @@ export async function detectRecurringFromBankTx(companyId: string): Promise<Dete
     .select('counterparty, amount, transaction_date, description, type')
     .eq('company_id', companyId)
     .eq('type', 'expense') // 출금 = type 'expense' (DB 실제값: expense/income)
-    .gte('transaction_date', threeMonthsAgo.toISOString().split('T')[0])
+    .gte('transaction_date', kstDateStr(threeMonthsAgo))
     .order('transaction_date', { ascending: true }));
 
   if (!transactions?.length) return [];
@@ -299,7 +300,7 @@ export async function setupExpenseFromContract(
     deal_id: dealId,
     label: `${deal.name} 계약금`,
     amount: totalAmount,
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    due_date: kstDateStr(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
     status: 'scheduled',
     approved: false,
   });

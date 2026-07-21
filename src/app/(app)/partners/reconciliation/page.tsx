@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 거래 대사 — 입금·계산서 자동 매칭 (2026-06-12 메뉴 분리: 구 거래처원장의 작업 화면).
@@ -44,7 +45,7 @@ export default function ReconciliationPage() {
     sel: 36, tdate: 92, ttype: 56, cp: 170, tamt: 110, idate: 92, icp: 170, iamt: 110, amt: 110, mtype: 80, conf: 92, act: 120,
   });
   // 매칭 엔진 기간 — 기본 최근 100일. 최대 6개월(서버 클램프). 여러 기간 반복해도 기존 매칭 누적.
-  const dStr = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return d.toISOString().slice(0, 10); };
+  const dStr = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return kstDateStr(d); };
   const [engStart, setEngStart] = useState(dStr(100));
   const [engEnd, setEngEnd] = useState(dStr(0));
 

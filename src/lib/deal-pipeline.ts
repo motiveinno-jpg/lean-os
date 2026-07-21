@@ -1,3 +1,4 @@
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Deal Pipeline Orchestrator
@@ -156,7 +157,7 @@ export async function createDocumentFromDeal(params: {
     const paymentTermsText = resolvedSchedule.map(s => `${s.label} ${s.ratio}% (${s.condition || '협의'})`).join(', ');
 
     Object.assign(contentJson, {
-      contractStartDate: new Date().toISOString().split('T')[0],
+      contractStartDate: todayKst(),
       contractEndDate: '',
       paymentTerms: paymentTermsText,
       paymentSchedule: resolvedSchedule,
@@ -192,7 +193,7 @@ export async function createDocumentFromDeal(params: {
       });
     }
     Object.assign(contentJson, {
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      validUntil: kstDateStr(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
       items,
       ...(paymentRatio ? { paymentRatio } : {}),
       ...(resolvedQuoteSchedule ? { paymentSchedule: resolvedQuoteSchedule } : {}),
@@ -206,7 +207,7 @@ export async function createDocumentFromDeal(params: {
   const supplyAmt = contractTotal;
   const taxAmt = Math.round(contractTotal * 0.1);
   const totalAmt = supplyAmt + taxAmt;
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayKst();
   const cj = contentJson as any;
   const itemsArr: any[] = cj.items || [];
 
@@ -521,7 +522,7 @@ async function generateContractDocumentForDeal(params: {
       totalAmount: Math.round(contractTotal * 1.1),
       items,
       contractSubject: content?.dealName || '',
-      contractStartDate: content?.contractStartDate || new Date().toISOString().split('T')[0],
+      contractStartDate: content?.contractStartDate || todayKst(),
       contractEndDate: content?.contractEndDate || '',
       paymentTerms: content?.paymentTerms || '',
       deliveryDeadline: content?.deliveryDeadline || '',
@@ -614,7 +615,7 @@ async function onContractApproved(params: {
       counterpartyName: partnerName,
       counterpartyBizno: partnerBizNo,
       supplyAmount: term.amount,
-      issueDate: new Date().toISOString().split('T')[0],
+      issueDate: todayKst(),
       label: `${term.label} 세금계산서`,
       revenueScheduleId,
       status: isFirstPayment ? 'issued' : 'draft',
@@ -665,7 +666,7 @@ async function createPaymentScheduleFromContract(params: {
         deal_id: dealId,
         label: `${term.label} (${term.ratio}%)`,
         amount: term.amount,
-        due_date: dueDate.toISOString().split('T')[0],
+        due_date: kstDateStr(dueDate),
         status: 'expected',
         condition_text: term.condition,
       })

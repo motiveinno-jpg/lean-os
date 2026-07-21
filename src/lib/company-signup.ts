@@ -1,3 +1,4 @@
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 // 가입·회사 개설·합류 공용 로직 (2026-07-03)
 //   원칙: 1 사업자번호 = 1 회사. 가입 시 사업자번호 필수 → 형식/실체/중복 3중 검증.
@@ -113,7 +114,7 @@ export async function createCompanyWithOwner(
   //   UI 에 없었음 — 가입 시점에 바로 employees 행을 만들어준다.
   await db.from("employees").insert({
     company_id: companyId, user_id: authId, name: displayName, email,
-    position: "대표", hire_date: new Date().toISOString().slice(0, 10), status: "joined",
+    position: "대표", hire_date: todayKst(), status: "joined",
   });
 
   await db.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });

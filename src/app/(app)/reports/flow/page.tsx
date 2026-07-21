@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo } from "react";
@@ -241,7 +242,7 @@ export default function BusinessFlowPage() {
         .eq("type", "sales") // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단)
         .in("status", ["issued", "sent", "pending", "overdue"]));
       const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];
-      const cutoff = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+      const cutoff = kstDateStr(new Date(Date.now() - 30 * 24 * 3600 * 1000));
       const total = rows.reduce((s, r) => s + Number(r.total_amount || 0), 0);
       const over30 = rows
         .filter((r) => (r.issue_date || "") < cutoff)

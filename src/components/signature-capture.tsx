@@ -12,6 +12,7 @@
 // SignatureMethod union 의 "type" 은 과거 타이핑 서명 데이터 표시 호환 위해 유지.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useToast } from "@/components/toast";
 
 export type SignatureMethod = "draw" | "type" | "upload";
 
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function SignatureCapture({ onChange }: Props) {
+  const { toast } = useToast();
   const [mode, setMode] = useState<SignatureMethod>("draw");
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
@@ -116,7 +118,7 @@ export function SignatureCapture({ onChange }: Props) {
   function handleUpload(file: File) {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      alert("이미지 파일만 업로드 가능합니다");
+      toast("이미지 파일만 업로드 가능합니다", "error");
       return;
     }
     const reader = new FileReader();

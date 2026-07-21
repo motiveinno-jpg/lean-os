@@ -1,4 +1,5 @@
 "use client";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // /bank — 통장 자립 페이지(시안 그대로). 시안 portfolio 카드 + 시안 거래내역 표 직접 구현.
@@ -224,9 +225,9 @@ export default function BankPage() {
       //   확정/미수금 반영은 사람이 '거래 대사' 확인 큐에서(확정은 사람 원칙). RPC 는 on-conflict-do-nothing 이라 중복 제안 안 만듦.
       (async () => {
         try {
-          const end = new Date().toISOString().slice(0, 10);
+          const end = todayKst();
           const s = new Date(); s.setDate(s.getDate() - 120);
-          const start = s.toISOString().slice(0, 10);
+          const start = kstDateStr(s);
           const data = logRead('bank/page:data', await (supabase).rpc("generate_settlement_suggestions", { p_start: start, p_end: end }));
           const sug = Number((data as any)?.suggested || 0);
           if (sug > 0) toast(`입금 매칭 제안 ${sug}건 생성 — '거래 대사'에서 확인·확정하세요`, "info");

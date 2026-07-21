@@ -1,3 +1,4 @@
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView CEO Approval Center
@@ -561,7 +562,7 @@ export async function refreshRecurringAmounts(companyId: string): Promise<Refres
   // 2. Get recent bank transactions (3 months)
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-  const cutoff = threeMonthsAgo.toISOString().split('T')[0];
+  const cutoff = kstDateStr(threeMonthsAgo);
 
   const bankTxs = logRead('lib/approval-center:bankTxs', await db
     .from('bank_transactions')

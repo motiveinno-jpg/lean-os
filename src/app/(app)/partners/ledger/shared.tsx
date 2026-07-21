@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 거래처 원장 ↔ 거래 대사 공유 모듈 (2026-06-12 메뉴 분리 핸드오프).
@@ -444,7 +446,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
 //   마감을 거부(프론트+DB 이중검증) + 변경 전 값 journal_entry_audits 보존. 마감월이면 읽기전용.
 type ELine = { key: number; account: { id: string; code: string; name: string } | null; partner: { id: string; name: string } | null; asset?: { kind: "bank" | "card"; id: string; name: string } | null; memo: string; debit: string; credit: string };
 const AR_AP_ACCT_CODES = new Set(["108", "251"]);
-const todayKst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+
 
 // 일자 입력 — 년(4자)·월(2자)·일(2자) 세그먼트. 칸이 차면 자동으로 다음 칸 이동.
 //   네이티브 <input type=date> 는 년도를 6자리(최대 275760년)까지 기다려 키보드 흐름이 끊김 →
@@ -692,7 +694,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   // 전표 삭제 — voucher_reject(status=rejected, 이력 보존). 수정 모드에서만.
   const del = async () => {
     if (busy || isNew || !entryId) return;
-    if (!confirm("이 전표를 삭제할까요?\n거래처 원장에서 사라지고, 변경 이력은 보존됩니다.")) return;
+    if (!(await appConfirm("이 전표를 삭제할까요?\n거래처 원장에서 사라지고, 변경 이력은 보존됩니다.", { danger: true }))) return;
     setBusy(true);
     try {
       const { error } = await db.rpc("voucher_reject", { p_entry_id: entryId });
@@ -957,7 +959,7 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
 
   const handleDelete = async () => {
     if (!s || deleting) return;
-    if (!confirm(`이 차액 마감(${reasonLabel} ${won(amount)})을 삭제할까요?\n계산서 잔액이 원복되고, 연결된 전표도 함께 반려됩니다.`)) return;
+    if (!(await appConfirm(`이 차액 마감(${reasonLabel} ${won(amount)})을 삭제할까요?\n계산서 잔액이 원복되고, 연결된 전표도 함께 반려됩니다.`, { danger: true }))) return;
     setDeleting(true);
     try {
       // 1) 연결 전표 먼저 반려 (마감월이면 서버가 차단 → 정산도 건드리지 않음)

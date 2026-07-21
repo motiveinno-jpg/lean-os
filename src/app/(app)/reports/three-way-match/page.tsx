@@ -5,6 +5,7 @@
 //   추천 규칙: 거래처명 / 대표자명 / 금액±10% — 하나라도 충족 시 노출.
 //   기존 /tax-invoices·/matching 의 3-way 매칭 UI 는 본 페이지로 일원화.
 
+import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -259,9 +260,9 @@ function Inner() {
                           <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-emerald-500/15 text-emerald-400 shrink-0">완료</span>
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              if (confirm(`이 매칭을 해제하시겠습니까?\n\n세금계산서: ${m.invoiceCounterparty || '거래처'} ₩${m.invoiceTotal.toLocaleString()}\n입출금: ${m.bankCounterparty} ₩${m.bankAmount.toLocaleString()}`)) {
+                              if (await appConfirm(`이 매칭을 해제하시겠습니까?\n\n세금계산서: ${m.invoiceCounterparty || '거래처'} ₩${m.invoiceTotal.toLocaleString()}\n입출금: ${m.bankCounterparty} ₩${m.bankAmount.toLocaleString()}`, { confirmLabel: "매칭 해제" })) {
                                 unmatchMut.mutate({ bankTxId: m.bankTxId, invoiceId: m.invoiceId });
                               }
                             }}

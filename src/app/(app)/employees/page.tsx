@@ -1,4 +1,6 @@
 "use client";
+import { appConfirm } from "@/components/global-confirm";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo, useRef } from "react";
@@ -352,7 +354,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         department: form.department || null,
         position: form.position || null,
         salary: Math.round((Number(form.salary) || 0) / 12),
-        hire_date: form.hireDate || new Date().toISOString().slice(0, 10),
+        hire_date: form.hireDate || todayKst(),
         status: "invited",
       });
       return invitation;
@@ -514,7 +516,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <button
               onClick={() => {
                 if (!companyData) return;
-                const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+                const today = todayKst().replace(/-/g, "");
                 const results = generateInsuranceEDI({
                   company: {
                     companyName: companyData.name || "",
@@ -816,7 +818,7 @@ function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id:
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `조직도_${new Date().toISOString().slice(0, 10)}.svg`;
+    a.download = `조직도_${todayKst()}.svg`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1397,7 +1399,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   }, [monthlyAllowanceEntries]);
 
   // 2026-05-22 오늘 출퇴근 현황 — KST 오늘 기준 출근/지각/휴가 집계 (records 의존 X, 별도 fetch).
-  const kstToday = useMemo(() => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10), []);
+  const kstToday = useMemo(() => todayKst(), []);
   const { data: todayStatus } = useQuery({
     queryKey: ["today-attendance-status", companyId, kstToday],
     queryFn: async () => {
@@ -2131,7 +2133,7 @@ function MissingCheckOutModal({
 // ── Quick Attendance Buttons (sub-component) ──
 function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: any) {
   const [selectedEmp, setSelectedEmp] = useState("");
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayKst();
 
   // Check if employee already checked in today
   const todayRecord = selectedEmp
@@ -2330,7 +2332,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
           .eq('period_month', prevKey));
         if (prevOv && prevOv.length > 0) {
           const [py, pm] = prevKey.split('-');
-          const ok = window.confirm(
+          const ok = await appConfirm(
             `${py}년 ${parseInt(pm, 10)}월 명세서 수정값(${prevOv.length}명)이 있습니다.\n${periodLabel} 명세서에 그대로 복사하시겠습니까?`,
           );
           if (ok) {
@@ -2412,7 +2414,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     setSending(true);
     try {
       const { sendPayslipEmails } = await import("@/lib/payment-batch");
-      const label = periodLabel || `${new Date().toISOString().slice(0, 7)} 급여`;
+      const label = periodLabel || `${todayKst().slice(0, 7)} 급여`;
       const result = await sendPayslipEmails("preview", companyId, label, { employeeIds });
       const target = employeeIds && employeeIds.length === 1 ? '개인' : `${result.sent + result.failed}명`;
       toast(`급여명세서 ${target} 발송: ${result.sent}건 성공, ${result.failed}건 실패`, result.failed > 0 ? "error" : "success");
@@ -3716,9 +3718,9 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                           if (isEmployee && !isMine) return null;
                           return (
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (!isFuture) return;
-                                if (confirm(r.status === "approved" ? "승인된 휴가를 취소하시겠습니까? 연차 잔여가 복구됩니다." : "이 휴가 신청을 취소하시겠습니까?")) {
+                                if (await appConfirm(r.status === "approved" ? "승인된 휴가를 취소하시겠습니까? 연차 잔여가 복구됩니다." : "이 휴가 신청을 취소하시겠습니까?")) {
                                   cancelMut.mutate(r.id);
                                 }
                               }}
@@ -4033,7 +4035,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         name: employee.name,
         department: employee.department,
         position: employee.position,
-        hire_date: employee.hire_date || new Date().toISOString().slice(0, 10),
+        hire_date: employee.hire_date || todayKst(),
         end_date: !["active", "joined"].includes(employee.status) ? employee.updated_at?.slice(0, 10) : undefined,
         employee_number: employee.employee_number,
         birth_date: employee.birth_date,

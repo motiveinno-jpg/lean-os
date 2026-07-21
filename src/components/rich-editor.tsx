@@ -10,6 +10,7 @@ import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { useToast } from "@/components/toast";
 
 export interface RichEditorRef {
   insertText: (text: string) => void;
@@ -57,6 +58,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
   { content = "", onChange, placeholder = "내용을 입력하세요...", editable = true, onUploadImage, maxHeight },
   ref
 ) {
+  const { toast } = useToast();
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [pdfProgress, setPdfProgress] = useState<string | null>(null);
@@ -221,7 +223,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     } catch (e) {
       console.error("PDF 삽입 실패:", e);
       setPdfProgress(null);
-      alert("PDF 변환에 실패했습니다. 다시 시도해 주세요.");
+      toast("PDF 변환에 실패했습니다. 다시 시도해 주세요.", "error");
     }
   };
 
@@ -299,7 +301,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           )}
 
           <input ref={imgInputRef} type="file" accept="image/*" className="hidden"
-            onChange={async (e) => { const f = e.target.files?.[0]; if (f) { try { await insertImageFromFile(f); } catch { alert("이미지 삽입 실패"); } } e.target.value = ""; }} />
+            onChange={async (e) => { const f = e.target.files?.[0]; if (f) { try { await insertImageFromFile(f); } catch { toast("이미지 삽입 실패", "error"); } } e.target.value = ""; }} />
           <input ref={pdfInputRef} type="file" accept="application/pdf" className="hidden"
             onChange={async (e) => { const f = e.target.files?.[0]; if (f) await handlePdfInsert(f); e.target.value = ""; }} />
 

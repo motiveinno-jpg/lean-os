@@ -1,6 +1,7 @@
 "use client";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { useEffect, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery } from "@tanstack/react-query";
@@ -495,9 +496,9 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
   const [showRangeSync, setShowRangeSync] = useState(false);
   const [rangeFrom, setRangeFrom] = useState(() => {
     const d = new Date(); d.setFullYear(d.getFullYear() - 1);
-    return d.toISOString().slice(0, 10);
+    return kstDateStr(d);
   });
-  const [rangeTo, setRangeTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [rangeTo, setRangeTo] = useState(() => todayKst());
   const [recentSyncLogs, setRecentSyncLogs] = useState<any[]>([]);
 
   // 은행/카드 ConnectedID 또는 홈택스 자격증명 등록 시 모두 "연결됨" 표시.
@@ -560,8 +561,8 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
         for (let i = 3; i >= 0; i--) {
           const cEnd = new Date(today); cEnd.setMonth(cEnd.getMonth() - i * 3);
           const cStart = new Date(cEnd); cStart.setMonth(cStart.getMonth() - 3); cStart.setDate(cStart.getDate() + 1);
-          const startStr = toCodefDate(cStart.toISOString().slice(0, 10));
-          const endStr = toCodefDate(cEnd.toISOString().slice(0, 10));
+          const startStr = toCodefDate(kstDateStr(cStart));
+          const endStr = toCodefDate(kstDateStr(cEnd));
           const r: any = await syncCodefData(companyId, 'bank_card', startStr, endStr);
           totalBank += r.bankSynced || 0;
           totalCard += r.cardSynced || 0;
@@ -760,7 +761,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                 className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg" />
               <span className="text-xs text-[var(--text-dim)]">~</span>
               <label className="text-xs text-[var(--text-muted)]">종료일</label>
-              <DateField value={rangeTo} min={rangeFrom} max={new Date().toISOString().slice(0,10)} onChange={e => setRangeTo(e.target.value)}
+              <DateField value={rangeTo} min={rangeFrom} max={todayKst()} onChange={e => setRangeTo(e.target.value)}
                 className="px-2 py-1.5 text-xs bg-[var(--bg)] border border-[var(--border)] rounded-lg" />
               <div className="flex items-center gap-1 ml-2">
                 {[
@@ -771,8 +772,8 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                   <button key={p.label} type="button"
                     onClick={() => {
                       const d = new Date(); d.setMonth(d.getMonth() - p.months);
-                      setRangeFrom(d.toISOString().slice(0, 10));
-                      setRangeTo(new Date().toISOString().slice(0, 10));
+                      setRangeFrom(kstDateStr(d));
+                      setRangeTo(todayKst());
                     }}
                     className="px-2 py-1 text-[10px] rounded bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]">
                     {p.label}

@@ -6,6 +6,7 @@
  * 위젯: 5-point 예측 + 브리핑
  */
 
+import { kstDateStr } from '@/lib/kst';
 import { calcRunwayMonths } from './engines';
 
 // ── Input (getCashPulseData가 수집) ──
@@ -60,8 +61,8 @@ function sumScheduledInWindow(
 ): number {
   const end = new Date(fromDate);
   end.setDate(end.getDate() + daysAhead);
-  const endStr = end.toISOString().split('T')[0];
-  const fromStr = fromDate.toISOString().split('T')[0];
+  const endStr = kstDateStr(end);
+  const fromStr = kstDateStr(fromDate);
 
   return schedules
     .filter(s => s.status === 'scheduled' && s.due_date && s.due_date >= fromStr && s.due_date <= endStr)

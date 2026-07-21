@@ -5,6 +5,7 @@
 //   파생행(수입/지출 총액·순이익·누적·차액·부가세 등)은 FlowMatrix 가 계산해 clientItems 로 전달.
 //   .glass-card backdrop-filter + 테이블 overflow 회피 위해 document.body 로 포털.
 
+import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,9 +42,9 @@ export function CellDetail({
   const removeItem = async (it: BudgetDetailItem) => {
     if (!it.refId || !it.refType) return;
     const isBank = it.refType === "bank";
-    const ok = window.confirm(isBank
+    const ok = await appConfirm(isBank
       ? `"${it.label}" 거래의 고정비 체크를 해제할까요? (거래는 유지, 고정비 집계에서만 제외)`
-      : `"${it.label}" 등록 고정비를 삭제할까요? 되돌릴 수 없습니다.`);
+      : `"${it.label}" 등록 고정비를 삭제할까요? 되돌릴 수 없습니다.`, { danger: !isBank });
     if (!ok) return;
     setDeleting(it.refId);
     const db = supabase;

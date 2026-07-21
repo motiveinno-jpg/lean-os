@@ -3,6 +3,7 @@
 //   계정과목(chart_of_accounts) 선택 + 집계구분(계정별/거래처별). 거래처별은 통장·카드·등록거래처로 세분화.
 //   금액은 차변/대변(debit/credit) 2칸. 수집 하한(floor)은 DB data_sync_floor()/codef-sync 에서 적용.
 
+import { kstDateStr } from "@/lib/kst";
 import { supabase } from "@/lib/supabase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,7 +126,7 @@ export function computeSyncFloor(closingDate: string | null): string {
     floors.push(d);
   }
   const max = floors.reduce((a, b) => (a > b ? a : b));
-  return max.toISOString().slice(0, 10);
+  return kstDateStr(max);
 }
 
 // ── PDF 자동 채우기 (2026-07-08) ──
