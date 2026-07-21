@@ -391,6 +391,8 @@ export default function BankPage() {
   useModalKeys(showBulkPost, () => setShowBulkPost(false), bulkPosting || !bulkAccountId ? undefined : doBulkPostBank);
 
   // 정렬 적용 — 원본 쿼리 캐시 불변(복제 정렬). null/빈값은 항상 뒤로.
+  // 대량 거래 렌더 상한 — 최대 2000건 일괄 DOM 렌더 방지 (더 보기로 증분 표시)
+  const [visibleTx, setVisibleTx] = useState(300);
   const sortedTx = useMemo(() => {
     if (!sortKey) return recentTx;
     const dir = sortDir === "asc" ? 1 : -1;
@@ -773,7 +775,7 @@ export default function BankPage() {
                       />
                     </td>
                   </tr>
-                ) : sortedTx.map((tx) => {
+                ) : sortedTx.slice(0, visibleTx).map((tx) => {
                   const isIncome = tx.type === "income";
                   const m = MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped;
                   const posted = !!tx.journal_entry_id;
@@ -878,6 +880,13 @@ export default function BankPage() {
                 })}
               </tbody>
             </table>
+            {sortedTx.length > visibleTx && (
+              <div className="p-3 text-center border-t border-[var(--border)]">
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setVisibleTx((v) => v + 500)}>
+                  더 보기 ({Math.min(visibleTx, sortedTx.length).toLocaleString()} / {sortedTx.length.toLocaleString()}건 표시 중)
+                </button>
+              </div>
+            )}
           </div>
         </div>
         </>

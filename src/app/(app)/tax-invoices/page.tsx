@@ -997,6 +997,8 @@ export default function TaxInvoicesPage() {
       <ColHandle k={k} colIndex={colIndex} />
     </th>
   );
+  // 대량 목록 렌더 상한 — 넓은 기간 선택 시 최대 1만 건 일괄 DOM 렌더로 화면이 멈추던 것 방지 (합계·건수는 전체 기준 유지)
+  const [visibleRows, setVisibleRows] = useState(200);
   const displayList = useMemo(() => {
     const arr = [...currentList];
     arr.sort((a: any, b: any) => {
@@ -1973,7 +1975,7 @@ export default function TaxInvoicesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayList.map((inv: any) => {
+                    {displayList.slice(0, visibleRows).map((inv: any) => {
                       const sc = invoiceStatusMeta(inv.status, inv.type);
                       const posted = !!inv.journal_entry_id;
                       const canSelect = isUnissued(inv) || isVoucherable(inv);
@@ -2068,6 +2070,13 @@ export default function TaxInvoicesPage() {
                     </tr>
                   </tfoot>
                 </table>
+                {displayList.length > visibleRows && (
+                  <div className="p-3 text-center border-t border-[var(--border)]">
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => setVisibleRows((v) => v + 500)}>
+                      더 보기 ({Math.min(visibleRows, displayList.length).toLocaleString()} / {displayList.length.toLocaleString()}건 표시 중)
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
