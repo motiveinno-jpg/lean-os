@@ -104,7 +104,11 @@ export default function CustomersPage() {
               {filtered.map((c: any) => {
                 const sub = latestSub(c);
                 const plan = sub?.subscription_plans;
-                const st = STATUS_COLORS[sub?.status || "trialing"] || STATUS_COLORS.trialing;
+                // 체험 만료(게이트에서 차단 중)인데 status 가 trialing 으로 남아 '체험중'으로 보이던 것 정정
+                const trialExpired = sub?.status === "trialing" && sub?.trial_ends_at && new Date(sub.trial_ends_at).getTime() < Date.now();
+                const st = trialExpired
+                  ? { bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]", label: "체험만료" }
+                  : STATUS_COLORS[sub?.status || "trialing"] || STATUS_COLORS.trialing;
                 return (
                   <tr
                     key={c.id}
