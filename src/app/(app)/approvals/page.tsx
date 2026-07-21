@@ -62,7 +62,8 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
 function StatusBadge({ status }: { status: string }) {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold leading-none ${config.bg} ${config.text}`}>
+    // 2026-07-21 QA: 좁은 표 셀에서 "대기"가 "대/기" 두 줄로 꺾이던 문제 — nowrap
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold leading-none whitespace-nowrap ${config.bg} ${config.text}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${config.dot} ${config.pulse ? "animate-pulse" : ""}`} />
       {config.label}
     </span>
@@ -398,11 +399,13 @@ export default function ApprovalsPage() {
     queryClient.invalidateQueries({ queryKey: ["approval-policies"] });
   };
 
-  // Stats
+  // Stats — 2026-07-21 QA: 전체 현황·양식/정책(관리 탭)에서만 회사 전체 집계,
+  //   개인 탭(내 결재함·내 요청·새 요청)에서는 내가 올린 요청만 집계 (남의 결재 건수가 섞여 보이던 혼란 제거)
+  const statsCompanyScope = tab === "all" || tab === "forms" || tab === "policies";
   const { data: stats } = useQuery({
-    queryKey: ["approval-stats", companyId],
-    queryFn: () => getApprovalStats(companyId!),
-    enabled: !!companyId,
+    queryKey: ["approval-stats", companyId, statsCompanyScope ? "company" : userId],
+    queryFn: () => getApprovalStats(companyId!, statsCompanyScope ? undefined : userId!),
+    enabled: !!companyId && (statsCompanyScope || !!userId),
   });
 
   const { data: myPendingCount } = useQuery({
@@ -465,11 +468,12 @@ export default function ApprovalsPage() {
           { label: "대기 중", value: stats?.pending ?? 0, tone: "warning", valueCls: "text-[var(--warning)]", status: "pending", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" /></svg> },
           { label: "승인 완료", value: stats?.approved ?? 0, tone: "success", valueCls: "text-[var(--success)]", status: "approved", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
           { label: "반려", value: stats?.rejected ?? 0, tone: "danger", valueCls: "text-[var(--danger)]", status: "rejected", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-          { label: "전체 요청", value: stats?.total ?? 0, tone: "", valueCls: "text-[var(--text)]", status: "", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.008v.008H3.75V6.75zm0 5.25h.008v.008H3.75V12zm0 5.25h.008v.008H3.75v-.008z" /></svg> },
+          { label: statsCompanyScope ? "전체 요청" : "내 요청 전체", value: stats?.total ?? 0, tone: "", valueCls: "text-[var(--text)]", status: "", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.008v.008H3.75V6.75zm0 5.25h.008v.008H3.75V12zm0 5.25h.008v.008H3.75v-.008z" /></svg> },
         ].map((k) => (
           <div
             key={k.label}
-            onClick={() => goToAllWithStatus(k.status)}
+            // 2026-07-21 QA: 관리자는 전체 현황으로, 일반 사용자는 (관리 탭이 없으므로) 내 요청 탭으로 이동
+            onClick={() => { if (isAdmin) goToAllWithStatus(k.status); else setTab("my-requests"); }}
             className="approval-stat-card glass-card card-hover"
           >
             <div className="flex items-center justify-between">
@@ -1440,7 +1444,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-3.5 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-xs font-semibold focus:outline-none focus:border-[var(--primary)]"
+          className="approval-type-select"
         >
           {typeOptions.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>

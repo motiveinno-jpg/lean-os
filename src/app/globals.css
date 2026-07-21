@@ -1633,6 +1633,14 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .approval-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .approval-tab-item { @apply inline-flex items-center gap-1.5; }
 .approval-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+/* 2026-07-21 QA: 결재관리 유형 필터 셀렉트 — 네이티브 드롭다운 화살표가 라운드 필 모서리에
+   어정쩡하게 붙던 것을 없애고, 커스텀 셰브론을 여백 맞춰 배치 */
+.approval-type-select {
+  @apply px-3.5 py-2 pr-9 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-xs font-semibold focus:outline-none focus:border-[var(--primary)] appearance-none cursor-pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.875rem center;
+}
 .approval-stat-card { @apply p-5 flex flex-col gap-3 cursor-pointer; }
 .approval-overtime-list { @apply space-y-3; }
 .approval-overtime-row { @apply p-5; }

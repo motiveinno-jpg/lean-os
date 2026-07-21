@@ -1021,12 +1021,16 @@ export async function deleteApprovalRequest(requestId: string): Promise<void> {
 
 /**
  * Get approval stats for a company.
+ * 2026-07-21 QA: 개인 탭(내 결재함·내 요청)의 요약 카드가 회사 전체 건수를 집계해
+ *   "내 요청은 1건인데 다른 사람 것까지 숫자로 나온다"는 혼란 — requesterId 를 주면 내 요청만 집계.
  */
-export async function getApprovalStats(companyId: string) {
-  const data = logRead('lib/approval-workflow:data', await db
+export async function getApprovalStats(companyId: string, requesterId?: string) {
+  let q = db
     .from('approval_requests')
     .select('status')
-    .eq('company_id', companyId));
+    .eq('company_id', companyId);
+  if (requesterId) q = q.eq('requester_id', requesterId);
+  const data = logRead('lib/approval-workflow:data', await q);
 
   const items = data || [];
   return {
