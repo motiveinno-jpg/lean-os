@@ -19,7 +19,14 @@ function hasDirtyInput(root: HTMLElement): boolean {
     const he = el as HTMLInputElement;
     const type = (he.getAttribute("type") || "").toLowerCase();
     if (["checkbox", "radio", "hidden", "file", "submit", "button", "range", "color"].includes(type)) continue;
-    const v = he.value !== undefined && he.value !== null ? he.value : (el as HTMLElement).textContent || "";
+    // 2026-07-21 QA: DB에서 미리 채워진 값(온보딩 회사명 등)만 있어도 "작성분 유실" 경고가 뜨던 것 —
+    //   input/textarea 는 초기값(defaultValue)과 달라진 경우(=사용자가 실제 수정)만 dirty 로 판정.
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+      const v = String(he.value ?? "");
+      if (v.trim() !== "" && v !== String(he.defaultValue ?? "")) return true;
+      continue;
+    }
+    const v = (el as HTMLElement).textContent || "";
     if (String(v).trim() !== "") return true;
   }
   return false;

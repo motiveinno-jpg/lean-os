@@ -302,7 +302,8 @@ export default function PartnerLedgerPage() {
         <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
           className="ledger-kpi-other glass-card"
           title="클릭하여 전환">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1">{other.arrow} {other.label}</span>
+          {/* 2026-07-21 QA: 옆 카드는 "N곳"인데 이 카드만 금액이라 "매입처 ₩0"처럼 단위가 헷갈리던 것 — 무엇의 금액인지 라벨에 명시 */}
+          <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1">{other.arrow} {other.label} {ledgerType === "sales" ? "총 미지급금" : "총 미수금"}</span>
           <span className={`text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight ${other.tintText}`}>{won(otherTotal)}</span>
         </button>
       </div>

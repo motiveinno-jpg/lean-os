@@ -1633,13 +1633,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .approval-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .approval-tab-item { @apply inline-flex items-center gap-1.5; }
 .approval-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
-/* 2026-07-21 QA: 결재관리 유형 필터 셀렉트 — 네이티브 드롭다운 화살표가 라운드 필 모서리에
-   어정쩡하게 붙던 것을 없애고, 커스텀 셰브론을 여백 맞춰 배치 */
+/* 2026-07-21 QA: 결재관리 유형 필터 셀렉트 — 화살표는 전역 select 규칙(파일 하단)이 처리 */
 .approval-type-select {
-  @apply px-3.5 py-2 pr-9 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-xs font-semibold focus:outline-none focus:border-[var(--primary)] appearance-none cursor-pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.875rem center;
+  @apply px-3.5 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-xs font-semibold focus:outline-none focus:border-[var(--primary)] cursor-pointer;
 }
 .approval-stat-card { @apply p-5 flex flex-col gap-3 cursor-pointer; }
 .approval-overtime-list { @apply space-y-3; }
@@ -4080,3 +4076,18 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .lp2-footer-info { @apply space-y-1 text-xs leading-relaxed; color: var(--lp-text-3); }
 .lp2-footer-links { @apply flex flex-wrap items-center gap-4 text-xs; color: var(--lp-text-3); }
 .lp2-footer-links a:hover { color: var(--lp-text); }
+
+/* ═══ 2026-07-21 QA 전역 폴리시 — 사장님 제보류 결함 일괄 방지 ═══ */
+/* 1) 셀렉트 공통: 브라우저 네이티브 화살표(위치·모양 제각각)를 없애고 커스텀 셰브론으로 통일.
+      202곳 개별 수선 대신 전역 1규칙. padding-right 는 유틸리티(px-*)를 이겨야 해서 !important. */
+select:not([multiple]) {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.55rem center;
+  background-size: 12px 12px;
+  padding-right: 1.7rem !important;
+}
+/* 2) 표 셀 안 배지(rounded-full 칩) 줄바꿈 금지 — "대기"가 "대/기"로 세로 꺾이던 류 전역 방지 */
+td .rounded-full { white-space: nowrap; }
