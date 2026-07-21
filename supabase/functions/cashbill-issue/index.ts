@@ -1,53 +1,87 @@
+import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
-// cashbill-issue: 현금영수증 국세청 실발행 — 팝빌(POPBiLL) SDK 직접 연동 (v7, 2026-07-21)
+// cashbill-issue: 현금영수증 국세청 실발행 (CODEF ↔ 팝빌 제휴)
 //
-// 2026-07-21 CODEF 중개(cash-bill regist-issue) → 팝빌 직접 연동 전환.
-//   사유: CODEF 중개 경로가 CF-05001(API 처리 오류)로 전면 실패 — 세금계산서와 동일 인시던트.
-//   CODEF는 오류를 응답해도 팝빌에선 실발행될 수 있어(2026-07-20 세금계산서 5건 중복 확인)
-//   발행 전 최근 3일 동일 식별번호·금액 대조 가드를 둔다. popbill-issue(세금계산서)와 동일하게
-//   LinkID 제휴 + 회원사 UserID 후보 순회. 현금영수증은 공동인증서 불필요.
+// 액션 3종 — 공식 가이드(developer.codef.io 현금영수증 발행 API, 2026-02-02) 기준:
+//   issue   — /v1/kr/public/a/cash-bill/regist-issue (tradeType "승인거래") → documentKey 수신 → cash_receipts insert
+//   refresh — /v1/kr/public/a/cash-bill/regist-issue-info → ntsconfirmNum(국세청 승인번호)·상태코드 갱신
+//             (승인번호는 발행 당일 밤 24시 국세청 일괄 전송 시점에 부여 — 발행 직후엔 비어있는 게 정상)
+//   cancel  — 가이드상 취소도 같은 regist-issue 엔드포인트에 tradeType "취소거래" +
+//             orgConfirmNum(원본 국세청 승인번호)·orgTradeDate(원본 거래일자)·cancelType 필수.
+//             승인번호 나오기 전엔 취소 불가 안내. (2026-07-21 사장님 제공 공식 가이드로 교정 —
+//             종전 별도 regist-cancel-issue 엔드포인트 호출은 가이드에 없는 경로였음)
 //
-// 액션 (요청/응답 계약은 CODEF 버전과 동일 — 프론트 수정 불필요):
-//   issue   — registIssue(승인거래 즉시발행) → 국세청 승인번호 즉시 수신 → cash_receipts insert
-//   refresh — getInfo → stateCode(300 발행완료/304 전송성공/305 전송실패)·승인번호 갱신
-//   cancel  — revokeRegistIssue(취소거래) → status='cancelled' (승인번호 즉시 부여되므로 당일 취소 가능)
-//   search  — 팝빌 발행내역 조회 (진단용 — CODEF CF-05001 시절 유령 발행 대조)
+// 전제: CODEF "현금영수증 발행" 상품 승인 + 팝빌 제휴사 회원가입(발행 전 join-member 자동 시도, 멱등).
+//       공동인증서는 불필요. 정식버전은 api.codef.io (CODEF_ENV=production), 가이드 Timeout 200초.
 //
-// Secrets: POPBILL_LINK_ID, POPBILL_SECRET_KEY, POPBILL_ENV(test|production)
+// 2026-07-21: 사장님 결정으로 CODEF 단독 경로 유지 (팝빌 직접 연동 v7은 롤백).
+//   CF-05001 인시던트(오류 응답인데 실발행) 재발 방지용 재시도 차단 가드 포함 (v8→v9).
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import popbill from "https://esm.sh/popbill@1.64.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const IS_TEST = (Deno.env.get("POPBILL_ENV") || "test") !== "production";
-popbill.config({
-  LinkID: Deno.env.get("POPBILL_LINK_ID") || "",
-  SecretKey: Deno.env.get("POPBILL_SECRET_KEY") || "",
-  IsTest: IS_TEST,
-  IPRestrictOnOff: false,
-  UseStaticIP: false,
-  UseLocalTimeYN: true,
-  defaultErrorHandler: () => {},
-});
-const cb = popbill.CashbillService();
+const CODEF_ENV = Deno.env.get("CODEF_ENV") || "sandbox";
+const CODEF_BASE = CODEF_ENV === "production"
+  ? "https://api.codef.io"
+  : CODEF_ENV === "development"
+    ? "https://development.codef.io"
+    : "https://sandbox.codef.io";
+const CODEF_TOKEN_URL = "https://oauth.codef.io/oauth/token";
 
-// 콜백 기반 SDK → Promise 래핑
-function call<T>(fn: (ok: (r: T) => void, ng: (e: any) => void) => void): Promise<T> {
-  return new Promise<T>((resolve, reject) => fn(resolve, reject));
+const ISSUE_PATH = "/v1/kr/public/a/cash-bill/regist-issue";
+const INFO_PATH = "/v1/kr/public/a/cash-bill/regist-issue-info";
+const JOIN_PATH = "/v1/kr/public/a/pop-bill/join-member";
+
+// 공식 가이드 Timeout 200초 — 발행/취소 호출에 적용 (tfetch 기본 SLOW 180초보다 길다)
+const GUIDE_TIMEOUT_MS = 200_000;
+
+let tokenCache: { token: string; expiresAt: number } | null = null;
+
+async function getCodefToken(clientId: string, clientSecret: string): Promise<string> {
+  if (tokenCache && tokenCache.expiresAt > Date.now()) return tokenCache.token;
+  const basicAuth = btoa(`${clientId}:${clientSecret}`);
+  const res = await tfetch(CODEF_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${basicAuth}` },
+    body: "grant_type=client_credentials&scope=read",
+  });
+  if (!res.ok) throw new Error(`CODEF token error: ${res.status}`);
+  const data = await res.json();
+  tokenCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 60) * 1000 };
+  return data.access_token;
+}
+
+async function codefRequest(token: string, path: string, body: Record<string, unknown>, timeoutMs?: number): Promise<any> {
+  const res = await tfetch(`${CODEF_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Bearer ${token}` },
+    body: encodeURIComponent(JSON.stringify(body)),
+  }, timeoutMs);
+  if (!res.ok) throw new Error(`CODEF API error: ${res.status}`);
+  const text = await res.text();
+  try { return JSON.parse(decodeURIComponent(text)); }
+  catch { return JSON.parse(text); }
+}
+
+function codefErrorHint(code?: string, message?: string): string {
+  if (!code) return "응답이 없습니다. CODEF 연동 상태를 확인하세요.";
+  if (code === "CF-00003") return "CODEF 대시보드에서 '현금영수증 발행' 상품이 승인되지 않았습니다. 상품 관리에서 확인하세요.";
+  if (code === "CF-00401") return "발행 API 권한이 없습니다. CODEF 대시보드에서 현금영수증 발행 상품 승인 상태를 확인하세요.";
+  if (code === "CF-05001") return "CODEF 중개(팝빌 연동) 처리 오류 — CODEF 서버측 원인으로, CODEF 운영팀이 수정해야 해결됩니다. 오류 응답에도 실제 발행됐을 수 있어 같은 건 재시도는 3일간 차단됩니다. 실제 발행 여부는 홈택스에서 확인하세요.";
+  if (code.startsWith("CF-12")) return "기관(팝빌/국세청) 응답 지연·오류. 잠시 후 재시도하세요.";
+  return `CODEF 오류 (${code}${message ? `: ${message}` : ""})`;
 }
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-// KST 오늘/N일 전 (즉시발행이라 거래일 = 오늘. 엣지 런타임은 UTC — +9h 보정)
-const kstDate = (offsetDays = 0) =>
-  new Date(Date.now() + 9 * 3600 * 1000 - offsetDays * 86400 * 1000).toISOString().slice(0, 10);
-const todayKst = () => kstDate(0);
+// KST 오늘 (즉시발행이라 거래일 = 오늘)
+const todayKst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
 serve(withSentry("cashbill-issue", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -73,45 +107,34 @@ serve(withSentry("cashbill-issue", async (req) => {
     const body = await req.json();
     const action = body.action || "issue";
 
-    if (!Deno.env.get("POPBILL_LINK_ID") || !Deno.env.get("POPBILL_SECRET_KEY")) {
-      return json({ error: "팝빌 API 인증정보가 없습니다." }, 500);
-    }
+    const clientId = Deno.env.get("CODEF_CLIENT_ID");
+    const clientSecret = Deno.env.get("CODEF_CLIENT_SECRET");
+    if (!clientId || !clientSecret) return json({ error: "CODEF API 인증정보가 없습니다." }, 500);
 
     const { data: company } = await admin.from("companies").select("*").eq("id", companyId).maybeSingle();
     if (!company) return json({ error: "회사 정보를 찾을 수 없습니다." }, 404);
     const corpNum = String(company.business_number || "").replace(/\D/g, "");
     if (corpNum.length !== 10) return json({ error: "회사 사업자등록번호(10자리)가 없습니다. 설정 → 회사 정보에서 입력하세요." }, 400);
 
-    // 팝빌 회원 UserID 후보 순회 — popbill-issue(세금계산서)와 동일 패턴.
-    //   아이디 불일치 오류일 때만 다음 후보, 그 외 오류는 즉시 반환.
-    const popUserId = `motive${corpNum}`;
-    const idCandidates = [popUserId, `motive_${corpNum}`, "", corpNum];
-    async function tryIds<T>(run: (uid: string) => Promise<T>): Promise<T> {
-      const errs: string[] = [];
-      for (const uid of idCandidates) {
-        try {
-          return await run(uid);
-        } catch (e: any) {
-          const msg = e?.message || String(e);
-          errs.push(`${uid || "(빈값)"}: ${msg}`);
-          if (!/아이디|아닙니다|member|MEMBER/i.test(msg)) throw new Error(msg);
-        }
-      }
-      throw new Error(errs.join(" | "));
-    }
+    const token = await getCodefToken(clientId, clientSecret);
 
-    // ── search: 팝빌 발행내역 조회 (진단용) ──
-    if (action === "search") {
-      const sdate = String(body.sdate || "").replace(/\D/g, "") || kstDate(14).replaceAll("-", "");
-      const edate = String(body.edate || "").replace(/\D/g, "") || todayKst().replaceAll("-", "");
-      const r = await tryIds((uid) => call<any>((ok, ng) =>
-        cb.search(corpNum, "T", sdate, edate, null, null, null, null, null, "", "D", 1, 500, "", uid, ok, ng)));
-      const list = (r?.list || []).map((x: any) => ({
-        mgtKey: x.mgtKey, tradeType: x.tradeType, tradeDate: x.tradeDate, issueDT: x.issueDT,
-        totalAmount: x.totalAmount, identityNum: x.identityNum, customerName: x.customerName,
-        itemName: x.itemName, confirmNum: x.confirmNum, stateCode: x.stateCode,
-      }));
-      return json({ success: true, total: r?.total ?? list.length, list });
+    // ── 발행정보 조회 공통: documentKey → 상태·국세청 승인번호·거래일자 반영 ──
+    async function refreshReceipt(receipt: any): Promise<any> {
+      if (!receipt.document_key) return receipt;
+      const info = await codefRequest(token, INFO_PATH, { documentKeyList: [receipt.document_key] });
+      if (info?.result?.code !== "CF-00000") {
+        throw Object.assign(new Error(codefErrorHint(info?.result?.code, info?.result?.message)), { codef: info?.result });
+      }
+      const d = Array.isArray(info.data) ? info.data[0] : info.data;
+      if (!d) return receipt;
+      const patch: Record<string, unknown> = {
+        nts_state_code: String(d.stateCode || ""),
+        issue_response: d,
+      };
+      if (d.ntsconfirmNum) patch.approval_number = d.ntsconfirmNum;
+      if (String(d.stateCode) === "400") patch.status = "cancelled";
+      const { data: updated } = await admin.from("cash_receipts").update(patch).eq("id", receipt.id).select().maybeSingle();
+      return updated || receipt;
     }
 
     // ══ issue: 승인거래 즉시발행 ══
@@ -125,7 +148,7 @@ serve(withSentry("cashbill-issue", async (req) => {
       const supplyCost = taxationType === "과세" ? Math.round(amount / 1.1) : amount;
       const tax = amount - (taxationType === "과세" ? supplyCost : amount);
 
-      // 가맹점(회사) 정보 — 발행서식 표기용 필수값 검증
+      // 가맹점(회사) 정보 — CODEF 필수값 검증 (corpName/corpCEOName/corpAddress/corpTEL 모두 Required O)
       const corpName = company.name || "";
       const corpCEOName = company.representative || "";
       const corpAddress = company.address || "";
@@ -172,51 +195,38 @@ serve(withSentry("cashbill-issue", async (req) => {
         }
       }
 
-      // 팝빌 회원사 가입 (멱등 — 이미 가입이면 무시하고 진행)
+      // 🚨 2026-07-21 이중발행 가드 — 세금계산서 CF-05001 인시던트(CODEF는 오류 응답, 팝빌은
+      //   실발행돼 5건 중복)와 같은 사고 방지: CF-05001로 실패했던 것과 같은 식별번호·금액의
+      //   재시도를 3일간 차단. CODEF 발행 API는 실패 시 documentKey 를 주지 않아 실제 발행
+      //   여부를 조회로 확인할 방법이 없다 — 홈택스에서 직접 확인하도록 안내.
+      const failedAttempts: { identity: string; amount: number; code: string; at: string }[] =
+        Array.isArray(company.automation_settings?.cashbill_failed_attempts)
+          ? company.automation_settings.cashbill_failed_attempts : [];
+      const retryCutoff = Date.now() - 3 * 86400 * 1000;
+      const blocked = failedAttempts.find((a) =>
+        a.code === "CF-05001" && a.identity === identityRaw && Number(a.amount) === amount &&
+        new Date(a.at).getTime() > retryCutoff);
+      if (blocked) {
+        return json({
+          error: `재시도 차단: 이 식별번호·금액(₩${amount.toLocaleString("ko-KR")})은 ${blocked.at.slice(0, 10)}에 CF-05001로 실패했던 건입니다. CODEF가 오류를 응답해도 실제로는 발행됐을 수 있어(2026-07-20 세금계산서 5건 중복 인시던트) 재시도하면 이중발행 위험이 있습니다.`,
+          hint: "실제 발행 여부를 홈택스(현금영수증 매출내역)에서 먼저 확인하세요. 미발행이 확인됐고 꼭 다시 발행해야 하면 3일 후 재시도하거나 CODEF 원인 수정 후 진행하세요.",
+          code: "CF05001_RETRY_BLOCKED",
+        }, 409);
+      }
+
+      // 팝빌 제휴사 회원가입 (멱등 — 이미 가입이면 무시하고 진행. 가이드: "제휴사 회원가입 절차가 최초 한번 필요")
       try {
-        await call<any>((ok, ng) => cb.joinMember({
-          ID: popUserId,
-          Password: "Mtv!" + crypto.randomUUID().replace(/-/g, "").slice(0, 12),
-          LinkID: Deno.env.get("POPBILL_LINK_ID") || "",
-          CorpNum: corpNum,
-          CEOName: corpCEOName,
-          CorpName: corpName,
-          Addr: corpAddress,
-          BizType: company.business_type || "",
-          BizClass: company.business_category || "",
-          ContactName: corpCEOName || "담당자",
-          ContactEmail: company.automation_settings?.invoicer_email || userRow.email || "",
-          ContactTEL: company.phone || "",
-        }, ok, ng));
+        await codefRequest(token, JOIN_PATH, {
+          corpNum, CEOName: corpCEOName, corpName, corpAddress,
+          bizType: company.business_type || "", bizClass: company.business_category || "",
+          contactName: corpCEOName || "담당자", contactTEL: company.phone || "",
+          contactEmail: company.automation_settings?.invoicer_email || userRow.email || "", contactFAX: "",
+        });
       } catch { /* 가입 실패해도 발행 시도 — 기가입이면 발행은 성공 */ }
 
-      // 🚨 이중발행 가드 — CODEF CF-05001 시절 "오류 응답인데 실발행" 인시던트 대비:
-      //   최근 3일 팝빌 발행분에 같은 식별번호·금액의 승인거래(미상쇄)가 있으면 차단하고 승인번호 안내.
-      //   조회 자체가 실패하면 가드는 생략(발행을 막지 않는다 — 미가입 등은 registIssue 가 정확히 알려줌).
-      try {
-        const sd = kstDate(3).replaceAll("-", "");
-        const ed = todayKst().replaceAll("-", "");
-        const prev = await tryIds((uid) => call<any>((ok, ng) =>
-          cb.search(corpNum, "T", sd, ed, null, null, null, null, null, "", "D", 1, 500, "", uid, ok, ng)));
-        const matches = (prev?.list || []).filter((x: any) =>
-          String(x.identityNum || "").replace(/\D/g, "") === identityRaw &&
-          Math.round(Number(x.totalAmount || 0)) === amount);
-        const issued = matches.filter((x: any) => x.tradeType === "승인거래");
-        const canceled = matches.filter((x: any) => x.tradeType === "취소거래").length;
-        if (issued.length > canceled) {
-          const dup = issued[0];
-          return json({
-            error: `중복 발행 차단: 최근 3일 내 같은 식별번호·금액(₩${amount.toLocaleString("ko-KR")})으로 이미 발행된 현금영수증이 팝빌에 있습니다 (거래일 ${dup.tradeDate || "?"}, 국세청 승인번호 ${dup.confirmNum || "미부여"}).`,
-            hint: "이전 CODEF 오류(CF-05001) 때 실패로 표시됐지만 실제로는 발행됐을 수 있습니다. 해당 건 취소가 필요하면 알려주세요. 별건의 정당한 거래라면 잠시 후 다시 시도하거나 금액·식별번호를 확인하세요.",
-            code: "DUPLICATE_SUSPECTED",
-            raw: dup,
-          }, 409);
-        }
-      } catch { /* 가드 생략 */ }
-
-      const mgtKey = `CB${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`;
-      const cashbill = {
-        mgtKey,
+      // 공식 가이드 입력부 그대로 — 명시된 키 외에는 아무것도 보내지 않는다 (여분 필드가 CF-05001 유발한 전례 있음)
+      const payload: Record<string, unknown> = {
+        corpNum, corpName, corpCEOName, corpAddress, corpTEL,
         tradeType: "승인거래",
         tradeUsage: purpose === "income_deduction" ? "소득공제용" : "지출증빙용",
         tradeOpt: "일반",
@@ -225,28 +235,34 @@ serve(withSentry("cashbill-issue", async (req) => {
         supplyCost: String(supplyCost),
         tax: String(tax),
         serviceFee: "0",
-        franchiseCorpNum: corpNum,
-        franchiseCorpName: corpName,
-        franchiseCEOName: corpCEOName,
-        franchiseAddr: corpAddress,
-        franchiseTEL: corpTEL,
         identityNum: identityRaw,
         customerName: body.customerName || body.counterpartyName || "",
         itemName: body.itemName || "",
         orderNumber: "",
         email: body.email || "",
-        hp: "",
-        smssendYN: false,
+        phoneNo: "",
+        memo: body.memo || "",
+        emailSubject: "",
       };
 
-      let resp: any;
-      try {
-        resp = await tryIds((uid) => call<any>((ok, ng) =>
-          cb.registIssue(corpNum, cashbill, body.memo || "", uid, "", ok, ng)));
-      } catch (e: any) {
-        return json({ error: `현금영수증 발행 실패: ${e?.message || String(e)}`, code: e?.code }, 400);
+      const resp = await codefRequest(token, ISSUE_PATH, payload, GUIDE_TIMEOUT_MS);
+      const rc = resp?.result?.code;
+      const documentKey = resp?.data?.documentKey || "";
+      const dataCode = String(resp?.data?.code ?? "");
+      if (rc !== "CF-00000" || !documentKey) {
+        const msg = resp?.data?.message || resp?.result?.message || "발행 실패";
+        if (rc === "CF-05001") {
+          // 재시도 차단 가드용 실패 기록 (최근 20건만 유지 — best-effort, 실패해도 응답은 그대로)
+          const next = [...failedAttempts, { identity: identityRaw, amount, code: rc, at: new Date().toISOString() }].slice(-20);
+          await admin.from("companies").update({
+            automation_settings: { ...(company.automation_settings || {}), cashbill_failed_attempts: next },
+          }).eq("id", companyId);
+        }
+        return json({ error: `현금영수증 발행 실패: ${msg}`, code: rc, hint: codefErrorHint(rc, msg), raw: resp?.data ?? resp?.result }, 400);
       }
-      const confirmNum = resp?.confirmNum || "";
+      if (dataCode && dataCode !== "1") {
+        return json({ error: `현금영수증 발행 실패: ${resp?.data?.message || "팝빌 오류"} (code ${dataCode})`, raw: resp?.data }, 400);
+      }
 
       const { data: inserted, error: insErr } = await admin.from("cash_receipts").insert({
         company_id: companyId,
@@ -257,28 +273,27 @@ serve(withSentry("cashbill-issue", async (req) => {
         counterparty_name: body.counterpartyName || body.customerName || null,
         counterparty_bizno: purpose === "expenditure_proof" ? (body.identityNum || null) : null,
         issue_date: todayKst(),
-        approval_number: confirmNum || null, // 팝빌 즉시발행 — 국세청 승인번호 즉시 부여
+        approval_number: null, // 국세청 승인번호는 전송(당일 24시) 후 refresh 로 수신
         identity_number: body.identityNum || identityRaw,
         identity_type: body.identityType || (purpose === "income_deduction" ? "phone" : "bizno"),
         purpose,
         status: "issued",
-        source: "codef", // 기존 국세청 실발행 소스 값 유지 (UI 분기·발행 한도 집계와 호환)
+        source: "codef",
         memo: body.memo || null,
-        document_key: mgtKey,
+        document_key: documentKey,
         nts_state_code: "300",
-        issue_response: resp,
+        issue_response: resp.data,
       }).select().single();
       if (insErr) {
-        // 발행은 이미 성공 — DB 실패 시 승인번호를 반드시 사용자에게 남긴다
-        return json({ error: `발행은 완료됐지만 저장 실패: ${insErr.message} — 국세청 승인번호 ${confirmNum || mgtKey} 를 보관하세요.` }, 500);
+        // 발행은 이미 성공 — DB 실패 시 documentKey(가이드: 필수 관리 대상)를 반드시 사용자에게 남긴다
+        return json({ error: `발행은 완료됐지만 저장 실패: ${insErr.message} — 발행문서번호 ${documentKey} 를 보관하세요.` }, 500);
       }
 
-      return json({
-        success: true, receipt: inserted, documentKey: mgtKey,
-        message: confirmNum
-          ? `현금영수증 발행 완료 — 국세청 승인번호 ${confirmNum}`
-          : "현금영수증 발행 완료 — 승인번호는 '승인번호 조회'로 확인하세요.",
-      });
+      // 즉시 발행정보 1회 조회 (승인번호는 보통 아직 없음 — 상태코드·거래일자만 갱신)
+      let receipt = inserted;
+      try { receipt = await refreshReceipt(inserted); } catch { /* 발행 자체는 성공 — 조회 실패 무시 */ }
+
+      return json({ success: true, receipt, documentKey, message: "현금영수증 발행 완료 — 국세청 승인번호는 다음날 '승인번호 조회'로 확인됩니다." });
     }
 
     // ── receipt 로드 + 회사 검증 (refresh/cancel 공통) ──
@@ -287,53 +302,74 @@ serve(withSentry("cashbill-issue", async (req) => {
     const { data: receipt } = await admin.from("cash_receipts").select("*").eq("id", receiptId).maybeSingle();
     if (!receipt || receipt.company_id !== companyId) return json({ error: "현금영수증을 찾을 수 없습니다." }, 404);
     if (receipt.source !== "codef" || !receipt.document_key) {
-      return json({ error: "국세청 실발행으로 발행된 현금영수증이 아닙니다." }, 400);
+      return json({ error: "CODEF 로 발행된 현금영수증이 아닙니다." }, 400);
     }
 
     // ══ refresh: 국세청 승인번호·상태 조회 ══
     if (action === "refresh") {
-      const info = await tryIds((uid) => call<any>((ok, ng) => cb.getInfo(corpNum, receipt.document_key, uid, ok, ng)));
-      const patch: Record<string, unknown> = {
-        nts_state_code: String(info?.stateCode || receipt.nts_state_code || ""),
-        issue_response: info,
-      };
-      if (info?.confirmNum) patch.approval_number = info.confirmNum;
-      const { data: updated } = await admin.from("cash_receipts").update(patch).eq("id", receipt.id).select().maybeSingle();
-      const state = String(updated?.nts_state_code || "");
+      const updated = await refreshReceipt(receipt);
+      const state = String(updated.nts_state_code || "");
       const stateMsg =
         state === "304" ? "국세청 전송 완료" :
         state === "305" ? "국세청 전송 실패" :
-        updated?.approval_number ? `승인번호 ${updated.approval_number} — 국세청 전송 대기 중` : "국세청 전송 대기 중";
-      return json({ success: true, receipt: updated || receipt, message: stateMsg });
+        state === "400" ? "발행 취소됨" :
+        updated.approval_number ? "승인번호 수신" : "국세청 전송 대기 중 (발행 당일 밤 24시 일괄 전송)";
+      return json({ success: true, receipt: updated, message: stateMsg });
     }
 
-    // ══ cancel: 취소거래 발행 (국세청 승인번호 필요 — 즉시발행이라 발행 직후부터 가능) ══
+    // ══ cancel: 취소거래 발행 — 공식 가이드: 같은 regist-issue 에 tradeType "취소거래" +
+    //   orgConfirmNum(원본 국세청 승인번호, 필수)·orgTradeDate(원본 거래일자, 필수)·cancelType.
+    //   가맹점·금액·식별번호 등 Required 필드도 원본 영수증 값으로 전부 포함해야 한다. ══
     if (action === "cancel") {
-      let confirmNum = receipt.approval_number;
-      if (!confirmNum) {
-        try {
-          const info = await tryIds((uid) => call<any>((ok, ng) => cb.getInfo(corpNum, receipt.document_key, uid, ok, ng)));
-          confirmNum = info?.confirmNum || null;
-        } catch { /* 아래 안내로 */ }
+      let target = receipt;
+      if (!target.approval_number) {
+        try { target = await refreshReceipt(receipt); } catch { /* 아래 안내로 */ }
       }
-      if (!confirmNum) {
-        return json({ error: "국세청 승인번호가 아직 없어 취소할 수 없습니다. '승인번호 조회'를 먼저 실행하세요." }, 400);
+      if (!target.approval_number) {
+        return json({ error: "국세청 승인번호가 아직 없어 취소할 수 없습니다. 국세청 전송(발행 다음날) 후 '승인번호 조회'를 먼저 실행하세요." }, 400);
       }
-      const orgTradeDate = String(receipt.issue_date || "").replaceAll("-", "").slice(0, 8);
-      const cancelKey = `CX${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`;
-      let resp: any;
-      try {
-        resp = await tryIds((uid) => call<any>((ok, ng) =>
-          cb.revokeRegistIssue(corpNum, cancelKey, confirmNum, orgTradeDate, false, body.memo || "발행취소", uid,
-            false, null, "", "", "", "", "", "", ok, ng)));
-      } catch (e: any) {
-        return json({ error: `발행취소 실패: ${e?.message || String(e)}`, code: e?.code }, 400);
+      // 원본 거래일자 — 발행정보 응답부 tradeDate 우선, 없으면 발행일(issue_date)을 YYYYMMDD 로
+      const orgTradeDate = String((target.issue_response as any)?.tradeDate || String(target.issue_date || "").replaceAll("-", "")).replace(/\D/g, "").slice(0, 8);
+      const cAmount = Math.round(Number(target.amount || 0));
+      const cSupply = Math.round(Number(target.supply_amount ?? cAmount));
+      const cTax = Math.round(Number(target.tax_amount ?? 0));
+      const payload: Record<string, unknown> = {
+        corpNum,
+        corpName: company.name || "",
+        corpCEOName: company.representative || "",
+        corpAddress: company.address || "",
+        corpTEL: String(company.phone || "").replace(/\D/g, ""),
+        tradeType: "취소거래",
+        tradeUsage: target.purpose === "income_deduction" ? "소득공제용" : "지출증빙용",
+        tradeOpt: "일반",
+        taxationType: cTax > 0 ? "과세" : "비과세",
+        totalAmount: String(cAmount),
+        supplyCost: String(cSupply),
+        tax: String(cTax),
+        serviceFee: "0",
+        orgConfirmNum: target.approval_number,
+        orgTradeDate,
+        cancelType: "1",
+        identityNum: String(target.identity_number || "").replace(/\D/g, ""),
+        customerName: target.counterparty_name || "",
+        itemName: "",
+        orderNumber: "",
+        email: "",
+        phoneNo: "",
+        memo: body.memo || "발행취소",
+        emailSubject: "",
+      };
+      const resp = await codefRequest(token, ISSUE_PATH, payload, GUIDE_TIMEOUT_MS);
+      const rc = resp?.result?.code;
+      const dataCode = String(resp?.data?.code ?? "");
+      if (rc !== "CF-00000" || (dataCode && dataCode !== "1")) {
+        const msg = resp?.data?.message || resp?.result?.message || "취소 실패";
+        return json({ error: `발행취소 실패: ${msg}`, code: rc, hint: codefErrorHint(rc, msg), raw: resp?.data ?? resp?.result }, 400);
       }
       const { data: updated } = await admin.from("cash_receipts").update({
         status: "cancelled",
         nts_state_code: "400",
-        approval_number: confirmNum,
-        issue_response: resp,
+        issue_response: resp.data,
       }).eq("id", receiptId).select().maybeSingle();
       return json({ success: true, receipt: updated, message: "현금영수증 발행취소 완료 (취소거래 국세청 신고)" });
     }
