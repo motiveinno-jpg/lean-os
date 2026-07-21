@@ -31,12 +31,12 @@ export default function UpcomingPage() {
 
   useEffect(() => { getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } }); }, []);
 
-  const { data: pulse } = useQuery({
+  const { data: pulse, isLoading: pulseLoading } = useQuery({
     queryKey: ["upcoming-pulse", companyId, userId],
     queryFn: async () => { const raw = await getCashPulseData(companyId!, userId || undefined); return raw ? buildCashPulse(raw) : null; },
     enabled: !!companyId, staleTime: 60_000,
   });
-  const { data: budget = [] } = useQuery<MonthlyBudget[]>({
+  const { data: budget = [], isLoading: budgetLoading } = useQuery<MonthlyBudget[]>({
     queryKey: ["upcoming-budget", companyId, year], queryFn: () => getMonthlyBudgetOverview(companyId!, year), enabled: !!companyId, staleTime: 60_000,
   });
   const { data: vat = [] } = useQuery<VATPreview[]>({
@@ -69,7 +69,7 @@ export default function UpcomingPage() {
   const next30 = fixedCosts + loanMonthly + vatWithin30;
   const balance = pulse?.currentBalance ?? 0;
   const covered = balance >= next30;
-  const loading = !companyId || !pulse || budget.length === 0;
+  const loading = !companyId || pulseLoading || budgetLoading;
 
   // 항목 리스트 구성
   const items: { icon: string; title: string; note: string; amount: number; danger?: boolean; href?: string }[] = [];

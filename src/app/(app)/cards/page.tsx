@@ -190,7 +190,7 @@ export default function CardsPage() {
       else if (selectedCardName) q = q.eq("card_name", selectedCardName);
       if (cardTxFrom) q = q.gte("transaction_date", cardTxFrom);
       if (cardTxTo) q = q.lte("transaction_date", cardTxTo);
-      const { data } = await q;
+      const data = logRead('cards/page:tx', await q);
       return (data || []) as any[];
     },
     enabled: !!companyId && (!!selectedCardId || !!selectedCardName),
@@ -320,7 +320,7 @@ export default function CardsPage() {
         .order("transaction_date", { ascending: false })
         .limit(300);
       if (filterCardId) q = q.eq("card_id", filterCardId);
-      const { data } = await q;
+      const data = logRead('cards/page:tx', await q);
       return (data || []) as any[];
     },
     enabled: !!companyId && tab === "transactions",
@@ -806,7 +806,7 @@ export default function CardsPage() {
                     <th onDoubleClick={() => onSortTx("merchant_name")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">가맹점{sortKey === "merchant_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                     <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                     <th onDoubleClick={() => onSortTx("card_name")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">카드{sortKey === "card_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-right px-6 py-3.5 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                     <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   </tr>
                 </thead>
@@ -845,7 +845,7 @@ export default function CardsPage() {
                         </td>
                         <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{cat}</td>
                         <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
-                        <td className={`px-6 py-3.5 font-semibold mono-number ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
+                        <td className={`px-6 py-3.5 font-semibold mono-number text-right ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
                         <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] mono-number">
                           {tx.transaction_date}
                           {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">전표처리됨</span>}

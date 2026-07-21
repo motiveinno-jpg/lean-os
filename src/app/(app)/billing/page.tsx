@@ -105,7 +105,7 @@ export default function BillingPage() {
   });
 
   // 청구서 목록
-  const { data: invoices } = useQuery({
+  const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["invoices", companyId],
     queryFn: async () => {
       if (!companyId) return [];
@@ -602,7 +602,9 @@ export default function BillingPage() {
           <div className="p-4 border-b border-[var(--border)]">
             <h3 className="text-sm font-bold text-[var(--text)]">청구서 내역</h3>
           </div>
-          {(invoices || []).length === 0 ? (
+          {invoicesLoading ? (
+            <div className="text-center py-14 text-sm text-[var(--text-muted)]">불러오는 중...</div>
+          ) : (invoices || []).length === 0 ? (
             <div className="text-center py-14">
               <div className="text-4xl mb-3">🧾</div>
               <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">청구서 내역이 없습니다</p>

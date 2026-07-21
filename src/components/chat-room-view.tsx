@@ -1054,13 +1054,16 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                           .map((u: any) => (
                             <button
                               key={u.id}
-                              onClick={async () => {
+                              onClick={async (ev) => {
+                                const btn = ev.currentTarget;
+                                btn.disabled = true; // 더블서밋 가드 — invalidate 전 연타 시 참가자 중복 insert 방지
                                 try {
                                   await inviteParticipant({ channelId, userId: u.id, role: inviteRole });
                                   if (userId) await sendSystemMessage(channelId, userId, `${u.name || u.email}님이 채널에 참가했습니다.`);
                                   queryClient.invalidateQueries({ queryKey: ["chat-participants", channelId] });
                                   queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });
-                                } catch {}
+                                } catch (e) { toast(friendlyError(e), "error"); }
+                                finally { btn.disabled = false; }
                               }}
                               className="invite-member-row"
                             >

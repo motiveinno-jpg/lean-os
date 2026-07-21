@@ -24,7 +24,7 @@ export default function ExpensePage() {
 
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
 
-  const { data: budget = [] } = useQuery<MonthlyBudget[]>({
+  const { data: budget = [], isLoading: budgetLoading } = useQuery<MonthlyBudget[]>({
     queryKey: ["expense-budget", companyId, year],
     queryFn: () => getMonthlyBudgetOverview(companyId!, year),
     enabled: !!companyId, staleTime: 60_000,
@@ -62,7 +62,8 @@ export default function ExpensePage() {
     .map((c) => ({ label: c.label, amt: c.amount })).filter((c) => c.amt > 0)
     .sort((a, b) => b.amt - a.amt).slice(0, 7);
   const catMax = Math.max(1, ...cats.map((c) => c.amt));
-  const loading = !companyId || budget.length === 0;
+  // 2026-07-21 QA — 거래 0건 신규회사가 무한 스피너에 갇히던 문제: 빈 데이터를 로딩으로 오판하지 않도록 isLoading 기준으로 변경
+  const loading = !companyId || budgetLoading;
 
   return (
     <>

@@ -250,8 +250,12 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     refetchAll();
   };
   const addGroup = async () => {
-    await db.from("board_groups").insert({ company_id: companyId, name: "새 그룹", color: COLOR_PALETTE[groups.length % COLOR_PALETTE.length], position: groups.length });
-    refetchAll();
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    try {
+      await db.from("board_groups").insert({ company_id: companyId, name: "새 그룹", color: COLOR_PALETTE[groups.length % COLOR_PALETTE.length], position: groups.length });
+      refetchAll();
+    } finally { creatingRef.current = false; }
   };
   const renameGroup = async (g: Grp, name: string) => {
     if (!name.trim() || name === g.name) return;
@@ -268,10 +272,15 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     await db.from("board_groups").delete().eq("id", g.id);
     refetchAll();
   };
+  const creatingRef = useRef(false); // 더블서밋 가드 — 보드 create 버튼 연타 시 중복 insert 방지
   const addItem = async (groupId: string | null) => {
-    // status/stage 는 deals 기본값(active/estimate) 적용. name NOT NULL 만 채움.
-    await db.from("deals").insert({ company_id: companyId, name: "새 항목", board_group_id: groupId, column_values: {} });
-    refetchAll();
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    try {
+      // status/stage 는 deals 기본값(active/estimate) 적용. name NOT NULL 만 채움.
+      await db.from("deals").insert({ company_id: companyId, name: "새 항목", board_group_id: groupId, column_values: {} });
+      refetchAll();
+    } finally { creatingRef.current = false; }
   };
 
   // ── 선택 (먼데이 플로팅 선택바) ──
@@ -936,9 +945,14 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
     staleTime: 30_000,
   });
 
+  const addingRef = useRef(false); // 더블서밋 가드
   const addItem = async () => {
-    await db.from("project_subitems").insert({ company_id: companyId, deal_id: deal.id, name: "새 항목", column_values: {}, position: items.length });
-    refetch();
+    if (addingRef.current) return;
+    addingRef.current = true;
+    try {
+      await db.from("project_subitems").insert({ company_id: companyId, deal_id: deal.id, name: "새 항목", column_values: {}, position: items.length });
+      refetch();
+    } finally { addingRef.current = false; }
   };
 
   // 계약금액 롤업 (2026-06-12): 항목들의 계약금액 합 → 프로젝트(deals.contract_total) 자동 반영.

@@ -690,6 +690,8 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                           <button
                             onClick={async (ev) => {
                               ev.stopPropagation();
+                              const btn = ev.currentTarget;
+                              btn.disabled = true; // 더블서밋 가드 — 동시 2클릭 시 초대 레코드 중복 생성 방지
                               try {
                                 let inv = await resendEmployeeInvitationByEmail(e.email, companyId);
                                 if (!inv?.invite_token) {
@@ -707,7 +709,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                                 setInviteMsg(result.success ? { ok: true, msg: `${e.email}로 초대 메일 발송 완료` } : { ok: false, msg: result.error || "이메일 발송 실패" });
                               } catch (err: any) {
                                 setInviteMsg({ ok: false, msg: err?.message || "초대 발송 중 오류 발생" });
-                              }
+                              } finally { btn.disabled = false; }
                               setTimeout(() => setInviteMsg(null), 4000);
                             }}
                             className="text-[10px] text-[var(--primary)] hover:underline"

@@ -305,7 +305,7 @@ export default function BankPage() {
         .limit(selectedAccountNo || hasTxRange ? 2000 : 50);
       if (bankTxFrom) q = q.gte("transaction_date", bankTxFrom);
       if (bankTxTo) q = q.lte("transaction_date", bankTxTo);
-      const { data } = await q;
+      const data = logRead('bank/page:tx', await q);
       const rows = (data || []) as any[];
       const filtered = selectedAccountNo ? rows.filter((r) => r.raw_data?.accountNo === selectedAccountNo) : rows;
       // 직원 QA #통장거래내역2 — 같은 날짜 거래는 시간(raw_data.trTime, HHMMSS)까지 반영해 최신순 정렬.
@@ -756,7 +756,7 @@ export default function BankPage() {
                   <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">예금주명{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   <th className="text-left px-6 py-3.5 font-semibold select-none">거래내용</th>
                   <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-right px-6 py-3.5 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   <th className="text-right px-6 py-3.5 font-semibold select-none">잔액</th>
                   <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   <th onDoubleClick={() => onSortTx("type")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">상태{sortKey === "type" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
@@ -813,7 +813,7 @@ export default function BankPage() {
                       </td>
                       <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] max-w-[240px]"><span className="block truncate" title={displayMemo(tx) || undefined}>{displayMemo(tx) || "—"}</span></td>
                       <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{tx.classification || tx.category || "—"}</td>
-                      <td className={`px-6 py-3.5 font-semibold mono-number ${isIncome ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                      <td className={`px-6 py-3.5 font-semibold mono-number text-right ${isIncome ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                         {isIncome ? "+" : "-"}{fmtW(Math.abs(Number(tx.amount || 0)))}
                       </td>
                       <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] mono-number text-right whitespace-nowrap">{tx.balance_after != null ? fmtW(Number(tx.balance_after)) : "—"}</td>

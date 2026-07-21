@@ -72,23 +72,23 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   });
   const { data: overdueTasks = [] } = useQuery({
     queryKey: ["goal-overview-overdue-tasks", dealId],
-    queryFn: async () => (await db.from("project_tasks").select("id, title, due_date, status, assignee_id").eq("deal_id", dealId).is("archived_at", null).neq("status", "done").not("due_date", "is", null).lt("due_date", todayKst()).order("due_date", { ascending: true })).data || [],
+    queryFn: async () => logRead('_components/GoalOverviewTab:overdue', await db.from("project_tasks").select("id, title, due_date, status, assignee_id").eq("deal_id", dealId).is("archived_at", null).neq("status", "done").not("due_date", "is", null).lt("due_date", todayKst()).order("due_date", { ascending: true })) || [],
     enabled: !!dealId,
   });
   const { data: children = [] } = useQuery({
     queryKey: ["goal-overview-children", dealId],
-    queryFn: async () => (await db.from("deals").select("id, name, internal_manager_id").eq("parent_deal_id", dealId).is("archived_at", null)).data || [],
+    queryFn: async () => logRead('_components/GoalOverviewTab:children', await db.from("deals").select("id, name, internal_manager_id").eq("parent_deal_id", dealId).is("archived_at", null)) || [],
     enabled: !!dealId,
   });
   const dealIds = useMemo(() => [dealId, ...(children as any[]).map((c) => c.id)], [dealId, children]);
   const { data: invoices = [] } = useQuery({
     queryKey: ["goal-overview-invoices", companyId, dealIds.join(",")],
-    queryFn: async () => (await db.from("tax_invoices").select("deal_id, partner_id, issue_date, supply_amount").in("deal_id", dealIds).eq("type", "sales").neq("status", "void")).data || [],
+    queryFn: async () => logRead('_components/GoalOverviewTab:invoices', await db.from("tax_invoices").select("deal_id, partner_id, issue_date, supply_amount").in("deal_id", dealIds).eq("type", "sales").neq("status", "void")) || [],
     enabled: !!companyId && dealIds.length > 0,
   });
   const { data: partners = [] } = useQuery({
     queryKey: ["goal-overview-partners", companyId],
-    queryFn: async () => (await db.from("partners").select("id, name").eq("company_id", companyId)).data || [],
+    queryFn: async () => logRead('_components/GoalOverviewTab:partners', await db.from("partners").select("id, name").eq("company_id", companyId)) || [],
     enabled: !!companyId,
   });
   const { data: members = [] } = useQuery({

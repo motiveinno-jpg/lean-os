@@ -1,5 +1,6 @@
 "use client";
 
+import { logRead } from "@/lib/log-read";
 import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { DateField } from "@/components/date-field";
@@ -910,7 +911,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["approval-company-users", companyId],
     queryFn: async () => {
-      const { data } = await (supabase).from("users").select("id, name, email").eq("company_id", companyId);
+      const data = logRead('approvals/page:users', await (supabase).from("users").select("id, name, email").eq("company_id", companyId));
       return data || [];
     },
     enabled: !!companyId,
@@ -1353,7 +1354,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["approval-company-users", companyId],
     queryFn: async () => {
-      const { data } = await (supabase).from("users").select("id, name, email, avatar_url").eq("company_id", companyId);
+      const data = logRead('approvals/page:users-avatar', await (supabase).from("users").select("id, name, email, avatar_url").eq("company_id", companyId));
       return data || [];
     },
     enabled: !!companyId,
@@ -1735,7 +1736,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const { data: leaveBalance } = useQuery({
     queryKey: ["my-leave-balance", currentEmployee?.id, currentYear],
     queryFn: async () => {
-      const { data } = await db.from("leave_balances").select("total_days, used_days").eq("employee_id", currentEmployee!.id as string).eq("year", currentYear).maybeSingle();
+      const data = logRead('approvals/page:leave-balance', await db.from("leave_balances").select("total_days, used_days").eq("employee_id", currentEmployee!.id as string).eq("year", currentYear).maybeSingle());
       return data;
     },
     enabled: !!currentEmployee?.id,
@@ -1803,7 +1804,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["company-users-approvers", companyId],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id, name, email, role, avatar_url").eq("company_id", companyId).order("name");
+      const data = logRead('approvals/page:members', await db.from("users").select("id, name, email, role, avatar_url").eq("company_id", companyId).order("name"));
       return (data || []).filter((u: any) => u.id !== userId);
     },
     enabled: !!companyId,
@@ -2674,7 +2675,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
   const { data: orgUsers = [] } = useQuery({
     queryKey: ["policy-org-users", companyId],
     queryFn: async () => {
-      const { data } = await db.from("users").select("id, name, email, role").eq("company_id", companyId).order("name");
+      const data = logRead('approvals/page:members-role', await db.from("users").select("id, name, email, role").eq("company_id", companyId).order("name"));
       return (data || []) as { id: string; name: string | null; email: string; role: string }[];
     },
     enabled: !!companyId,
@@ -3249,11 +3250,11 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
   const { data: comments = [] } = useQuery({
     queryKey: ["approval-comments", requestId],
     queryFn: async () => {
-      const { data } = await (supabase)
+      const data = logRead('approvals/page:comments', await (supabase)
         .from("approval_comments")
         .select("id, user_id, body, created_at, users:user_id(name, email, avatar_url)")
         .eq("request_id", requestId)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true }));
       return (data || []) as any[];
     },
     enabled: !!requestId,

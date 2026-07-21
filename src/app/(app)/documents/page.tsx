@@ -2882,7 +2882,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               />
               <button
                 onClick={() => newFolderName && createFolderMut.mutate()}
-                disabled={!newFolderName}
+                disabled={!newFolderName || createFolderMut.isPending}
                 className="px-2 py-1.5 bg-[var(--primary)] text-white rounded-lg text-[10px] font-semibold disabled:opacity-50"
               >
                 추가

@@ -29,7 +29,7 @@ export default function RevenuePage() {
 
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
 
-  const { data: budget = [] } = useQuery<MonthlyBudget[]>({
+  const { data: budget = [], isLoading: budgetLoading } = useQuery<MonthlyBudget[]>({
     queryKey: ["revenue-budget", companyId, year],
     queryFn: () => getMonthlyBudgetOverview(companyId!, year),
     enabled: !!companyId, staleTime: 60_000,
@@ -80,7 +80,7 @@ export default function RevenuePage() {
   const ytd = budget.filter((b) => b.month <= month).reduce((s, b) => s + (b.salesRevenue || 0), 0);
   const top = salesData?.topPartners || [];
   const topMax = Math.max(1, ...top.map((t) => t.amt));
-  const loading = !companyId || budget.length === 0;
+  const loading = !companyId || budgetLoading;
 
   return (
     <>

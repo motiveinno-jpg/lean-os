@@ -2226,10 +2226,10 @@ export default function TaxInvoicesPage() {
                             {q.action === 'issue' ? '발행' : q.action === 'modify' ? '수정' : '취소'}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-sm font-medium">{p.counterparty_name || '—'}</td>
+                        <td className="px-5 py-3 text-sm font-medium max-w-[200px]"><span className="block truncate" title={p.counterparty_name || undefined}>{p.counterparty_name || '—'}</span></td>
                         <td className="px-5 py-3 text-sm text-right">{fmt(Number(p.total_amount || 0))}</td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)]">{p.issue_date || '—'}</td>
-                        <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{(q as any).deals?.name || p.deal_name || '—'}</td>
+                        <td className="px-5 py-3 text-xs text-[var(--text-muted)] max-w-[180px]"><span className="block truncate" title={(q as any).deals?.name || p.deal_name || undefined}>{(q as any).deals?.name || p.deal_name || '—'}</span></td>
                         <td className="px-5 py-3 text-center">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             q.status === 'needs_approval' ? 'bg-orange-500/10 text-orange-400'

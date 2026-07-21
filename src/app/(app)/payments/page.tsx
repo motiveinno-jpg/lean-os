@@ -460,7 +460,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                         className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         title={selectable ? '선택' : '벌크 액션 불가 (실행/거부 완료)'} />
                     </td>
-                    <td className="px-5 py-3 text-sm">{item.description || "—"}</td>
+                    <td className="px-5 py-3 text-sm max-w-[240px]"><span className="block truncate" title={item.description || undefined}>{item.description || "—"}</span></td>
                     <td className="px-5 py-3 text-sm text-right font-medium">₩{Number(item.amount).toLocaleString()}</td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{item.bank_accounts?.alias || item.bank_accounts?.bank_name || "미지정"}</td>
                     <td className="px-5 py-3 text-center">
@@ -685,7 +685,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
                     onClick={() => setSelectedBatchId(b.id)}
                     className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition cursor-pointer"
                   >
-                    <td className="px-5 py-3 text-sm font-medium">{b.name}</td>
+                    <td className="px-5 py-3 text-sm font-medium max-w-[240px]"><span className="block truncate" title={b.name || undefined}>{b.name}</span></td>
                     <td className="px-5 py-3 text-sm text-right font-bold">₩{Number(b.total_amount || 0).toLocaleString()}</td>
                     <td className="px-5 py-3 text-sm text-center">{b.item_count || 0}건</td>
                     <td className="px-5 py-3 text-center">

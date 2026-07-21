@@ -8,7 +8,7 @@ import { logRead } from "@/lib/log-read";
 //   ② 각 KPI 실적: revenue_auto = v_deal_revenue_actual 자동 / manual = project_kpi_entries(kpi_id) 입력·목록
 //   ③ 성과 체크인 타임라인(project_updates): 신호등 status + body + 작성 시점 KPI 달성률 스냅샷(kpi_snapshot) 자동 캡처
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -249,9 +249,12 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   // ── 멤버 배정 (deal_assignments) ──
   const assignedIds = new Set((assignments as any[]).map((a) => a.user_id));
   const [addMemberId, setAddMemberId] = useState("");
+  const addingMemberRef = useRef(false); // 더블서밋 가드 — invalidate 전 연타 시 중복 배정 방지
   const addMember = async () => {
     if (!addMemberId) { toast("배정할 구성원을 선택하세요", "error"); return; }
     if (assignedIds.has(addMemberId)) { toast("이미 배정된 구성원입니다", "info"); return; }
+    if (addingMemberRef.current) return;
+    addingMemberRef.current = true;
     try {
       const { error } = await db.from("deal_assignments").insert({ deal_id: dealId, user_id: addMemberId, role: "contributor", is_active: true });
       if (error) throw new Error(error.message);
@@ -259,6 +262,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
       setAddMemberId("");
       toast("멤버를 배정했습니다", "success");
     } catch (e: any) { toast(e?.message || "배정 실패", "error"); }
+    finally { addingMemberRef.current = false; }
   };
   const removeMember = async (id: string) => {
     try {

@@ -64,7 +64,7 @@ export default function ManagementSummaryPage() {
     getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } });
   }, []);
 
-  const { data: pulse } = useQuery({
+  const { data: pulse, isLoading: pulseLoading } = useQuery({
     queryKey: ["summary-pulse", companyId, userId],
     queryFn: async () => {
       const raw = await getCashPulseData(companyId!, userId || undefined);
@@ -73,7 +73,7 @@ export default function ManagementSummaryPage() {
     enabled: !!companyId,
     staleTime: 60_000,
   });
-  const { data: budget = [] } = useQuery<MonthlyBudget[]>({
+  const { data: budget = [], isLoading: budgetLoading } = useQuery<MonthlyBudget[]>({
     queryKey: ["summary-budget", companyId, year],
     queryFn: () => getMonthlyBudgetOverview(companyId!, year),
     enabled: !!companyId,
@@ -126,7 +126,7 @@ export default function ManagementSummaryPage() {
   const nextVat = vat.filter((v) => v.dueDate >= today && Math.abs(v.netVAT) > 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
   const vatDday = nextVat ? daysUntil(nextVat.dueDate) : null;
 
-  const loading = !companyId || !pulse || budget.length === 0;
+  const loading = !companyId || pulseLoading || budgetLoading;
 
   // 규칙 기반 한 줄 요약
   const profitTxt = profit >= 0 ? `이번 달 ${fmtMan(profit)} 흑자` : `이번 달 ${fmtMan(-profit)} 적자`;
