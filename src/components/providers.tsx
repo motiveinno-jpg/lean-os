@@ -48,6 +48,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // 숫자 input 위에서 휠 스크롤 시 값이 슬쩍 바뀌는 오입력 방지 (2026-07-21 QA 스윕)
+  //   포커스된 input[type=number] 위에서 휠이 돌면 blur — 페이지 스크롤은 그대로, 값 변경만 차단.
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement && el.type === "number" && el === e.target) el.blur();
+    };
+    document.addEventListener("wheel", onWheel, { passive: true });
+    return () => document.removeEventListener("wheel", onWheel);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>{children}</ThemeProvider>

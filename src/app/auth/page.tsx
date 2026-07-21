@@ -573,9 +573,9 @@ export default function AuthPage() {
                     className="mt-0.5 w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)]"
                   />
                   <span className="text-xs text-[var(--text-muted)] leading-relaxed">
-                    <Link href="/terms" target="_blank" className="text-[var(--primary)] hover:underline">이용약관</Link>,{" "}
-                    <Link href="/privacy" target="_blank" className="text-[var(--primary)] hover:underline">개인정보처리방침</Link>,{" "}
-                    <Link href="/refund" target="_blank" className="text-[var(--primary)] hover:underline">환불규정</Link>에 동의합니다.
+                    <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">이용약관</Link>,{" "}
+                    <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">개인정보처리방침</Link>,{" "}
+                    <Link href="/refund" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">환불규정</Link>에 동의합니다.
                   </span>
                 </label>
               </div>
