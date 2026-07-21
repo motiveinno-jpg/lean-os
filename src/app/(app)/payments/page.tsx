@@ -1,5 +1,5 @@
 "use client";
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
@@ -467,7 +467,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                       <span className={`text-xs px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
                     </td>
                     <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
-                      {item.created_at ? new Date(item.created_at).toLocaleDateString('ko') : "—"}
+                      {item.created_at ? kstDateStr(new Date(item.created_at)) : "—"}
                     </td>
                     <td className="px-5 py-3 text-center">
                       <div className="flex gap-1.5 justify-center">
@@ -914,7 +914,7 @@ function RecurringDetailModal({
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <ReadOnlyField label="상태" value={item.is_active ? '활성' : '비활성'} />
-            <ReadOnlyField label="등록일" value={item.created_at ? new Date(item.created_at).toLocaleDateString('ko-KR') : '—'} />
+            <ReadOnlyField label="등록일" value={item.created_at ? kstDateStr(new Date(item.created_at)) : '—'} />
             <ReadOnlyField label="마지막 배치 생성" value={item.last_generated_at ? new Date(item.last_generated_at).toLocaleString('ko-KR') : '—'} />
           </div>
 

@@ -1,6 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
@@ -697,9 +697,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                             <div className="min-w-0 flex-1">
                               <div className="text-xs font-medium truncate">{p.title}</div>
                               <div className="text-[10px] text-[var(--text-dim)] mt-0.5 truncate">
-                                {p.created_at ? new Date(p.created_at).toLocaleDateString("ko-KR") : ""}
+                                {p.created_at ? kstDateStr(new Date(p.created_at)) : ""}
                                 {items.length > 0 ? ` · ${signedCount}/${items.length} 서명` : ""}
-                                {p.completed_at ? ` · 완료 ${new Date(p.completed_at).toLocaleDateString("ko-KR")}` : p.sent_at ? ` · 발송 ${new Date(p.sent_at).toLocaleDateString("ko-KR")}` : ""}
+                                {p.completed_at ? ` · 완료 ${kstDateStr(new Date(p.completed_at))}` : p.sent_at ? ` · 발송 ${kstDateStr(new Date(p.sent_at))}` : ""}
                               </div>
                             </div>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${st.color}`}>{st.label}</span>
@@ -754,7 +754,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                     <div key={log.id} className="flex items-center justify-between px-4 py-2.5 glass-card">
                       <div>
                         <div className="text-xs font-medium">{log.certificate_type}</div>
-                        <div className="caption">{log.certificate_number} · {new Date(log.created_at).toLocaleDateString("ko-KR")}</div>
+                        <div className="caption">{log.certificate_number} · {kstDateStr(new Date(log.created_at))}</div>
                       </div>
                       {log.pdf_url && (
                         <a href={log.pdf_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--primary)] hover:underline">PDF</a>
@@ -1241,7 +1241,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
               {item.uploadedAt && (
                 <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                   {item.fileName && <span>{item.fileName} · </span>}
-                  {new Date(item.uploadedAt).toLocaleDateString("ko-KR")} 제출
+                  {kstDateStr(new Date(item.uploadedAt))} 제출
                 </div>
               )}
             </div>

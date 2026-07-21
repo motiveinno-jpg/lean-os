@@ -17,6 +17,7 @@
 // 견적 단계 payload 가정: { items, paymentStages, quoteContent }
 //   다른 stage(contract/progress_report/completion/settlement)는 다음 라운드.
 
+import { kstDateStr } from "@/lib/kst";
 import { useEffect, useMemo, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { useParams, useRouter } from "next/navigation";
@@ -546,7 +547,7 @@ function QuoteApprovalPageInner() {
             <div>
               <Label>발송일</Label>
               <div className="text-gray-800">
-                {row.sent_at ? new Date(row.sent_at).toLocaleDateString("ko-KR") : "—"}
+                {row.sent_at ? kstDateStr(new Date(row.sent_at)) : "—"}
               </div>
             </div>
             <div>

@@ -1,6 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // PR3: 프로젝트 슬라이드 패널 (3탭: 개요 / 돈 / 활동)
@@ -1668,7 +1668,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                   {f.status}
                 </span>
                 <span className="text-[10px] text-[var(--text-dim)] shrink-0">
-                  {f.at ? new Date(f.at).toLocaleDateString("ko-KR") : ""}
+                  {f.at ? kstDateStr(new Date(f.at)) : ""}
                 </span>
               </li>
             ))}
@@ -1682,7 +1682,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                   <span className="text-[var(--text)] truncate">{d.name || "(이름 없음)"}</span>
                 </div>
                 <span className="text-[10px] text-[var(--text-dim)] shrink-0">
-                  {d.created_at ? new Date(d.created_at).toLocaleDateString("ko-KR") : ""}
+                  {d.created_at ? kstDateStr(new Date(d.created_at)) : ""}
                 </span>
               </li>
             ))}

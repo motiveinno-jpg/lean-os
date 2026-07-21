@@ -1,5 +1,5 @@
 "use client";
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
@@ -140,7 +140,7 @@ export function MyCertificates({
                   <span className="font-medium">{log.certificate_type}</span>
                   <span className="text-[var(--text-muted)] truncate">{log.certificate_number}</span>
                 </div>
-                <span className="text-[var(--text-dim)] shrink-0">{log.created_at ? new Date(log.created_at).toLocaleDateString("ko-KR") : ""}</span>
+                <span className="text-[var(--text-dim)] shrink-0">{log.created_at ? kstDateStr(new Date(log.created_at)) : ""}</span>
               </div>
             ))}
           </div>

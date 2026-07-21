@@ -921,7 +921,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
                   <span className="w-4 h-4 flex items-center justify-center text-[11px] flex-shrink-0">📅</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-[var(--text)] truncate">{it.title}</div>
-                    {d && <div className="text-[10px] text-[var(--text-dim)]">{d.toLocaleDateString("ko-KR")}{it.raw.all_day ? "" : ` ${d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}</div>}
+                    {d && <div className="text-[10px] text-[var(--text-dim)]">{kstDateStr(d)}{it.raw.all_day ? "" : ` ${d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}</div>}
                   </div>
                   <span className="text-[9px] font-semibold text-[var(--primary)] flex-shrink-0">일정</span>
                 </Link>
@@ -936,7 +936,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
                   <div className="text-xs font-semibold text-[var(--text)] truncate">{it.title}</div>
                   {d && (
                     <div className={`text-[10px] ${overdue ? 'text-red-400 font-bold' : 'text-[var(--text-dim)]'}`}>
-                      {overdue ? '기한 지남 · ' : ''}{d.toLocaleDateString("ko-KR")}
+                      {overdue ? '기한 지남 · ' : ''}{kstDateStr(d)}
                     </div>
                   )}
                 </div>
@@ -2617,7 +2617,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
                   )}
                   <div className="flex justify-between">
                     <span className="text-[var(--text-dim)]">요청일</span>
-                    <span className="font-medium">{new Date(action.createdAt).toLocaleDateString('ko-KR')}</span>
+                    <span className="font-medium">{kstDateStr(new Date(action.createdAt))}</span>
                   </div>
                   <div className="pt-1.5 border-t border-[var(--border)]">
                     <Link href={tc.href} className="text-[10px] font-semibold hover:underline" style={{ color: tc.color }}>

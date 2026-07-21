@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
@@ -579,9 +580,9 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
                         <span>{p.employees?.name || "미지정"}</span>
                         {p.employees?.department && <span>{p.employees.department}</span>}
-                        {p.created_at && <span>생성: {new Date(p.created_at).toLocaleDateString("ko-KR")}</span>}
-                        {p.sent_at && <span>발송: {new Date(p.sent_at).toLocaleDateString("ko-KR")}</span>}
-                        {p.completed_at && <span>완료: {new Date(p.completed_at).toLocaleDateString("ko-KR")}</span>}
+                        {p.created_at && <span>생성: {kstDateStr(new Date(p.created_at))}</span>}
+                        {p.sent_at && <span>발송: {kstDateStr(new Date(p.sent_at))}</span>}
+                        {p.completed_at && <span>완료: {kstDateStr(new Date(p.completed_at))}</span>}
                       </div>
                     </div>
                   </div>

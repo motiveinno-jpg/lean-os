@@ -3,6 +3,7 @@
 // 급여 배치(급여 일괄 지급) — 2026-07-08 정기지출→인사 이관. payments/page.tsx 에서 추출(동작 무변경).
 //   인사 > 급여 탭에서 마운트. createPayrollBatch → payment_batches 생성 → 승인 → 자동이체 실행.
 
+import { kstDateStr } from "@/lib/kst";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPayrollBatch, approveBatch, triggerBatchExecution, getPrevMonthPayrollSnapshot, type PayrollItem } from "@/lib/payment-batch";
@@ -222,7 +223,7 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
                       <span className={`text-xs font-semibold ${sl.color}`}>{sl.label}</span>
                     </td>
                     <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
-                      {b.created_at ? new Date(b.created_at).toLocaleDateString('ko') : '—'}
+                      {b.created_at ? kstDateStr(new Date(b.created_at)) : '—'}
                     </td>
                     <td className="px-5 py-3 text-center">
                       <div className="batch-row-actions">

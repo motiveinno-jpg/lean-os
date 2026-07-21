@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useState, useEffect } from "react";
@@ -364,7 +365,7 @@ export default function BillingPage() {
         <div className="stat-tile">
           <div className="stat-tile-label">다음 결제</div>
           <div className="stat-tile-value">
-            {subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString("ko-KR") : "—"}
+            {subscription?.current_period_end ? kstDateStr(new Date(subscription.current_period_end)) : "—"}
           </div>
           <div className="text-xs text-[var(--text-dim)]">{hasStripeSubscription ? "자동 결제 예정" : "결제 수단 미등록"}</div>
         </div>
@@ -630,7 +631,7 @@ export default function BillingPage() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <div className="font-bold text-sm text-[var(--text)]">₩{(inv.total_amount || 0).toLocaleString()}</div>
-                        <div className="text-xs text-[var(--text-muted)]">{new Date(inv.created_at).toLocaleDateString("ko-KR")}</div>
+                        <div className="text-xs text-[var(--text-muted)]">{kstDateStr(new Date(inv.created_at))}</div>
                       </div>
                       <div className="flex gap-1.5">
                         {inv.status === "failed" && hasStripeSubscription && (
@@ -645,7 +646,7 @@ export default function BillingPage() {
                           const rows = [
                             ['청구서 번호', inv.invoice_number || '—'],
                             ['상태', statusLabel],
-                            ['발행일', new Date(inv.created_at).toLocaleDateString('ko-KR')],
+                            ['발행일', kstDateStr(new Date(inv.created_at))],
                             ['설명', inv.description || '구독 결제'],
                             ['소계', `₩${Number(inv.subtotal || inv.total_amount || 0).toLocaleString()}`],
                             ['VAT', `₩${Number(inv.tax_amount || 0).toLocaleString()}`],

@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useQuery } from "@tanstack/react-query";
@@ -92,7 +93,7 @@ export default function RevenuePage() {
                 </div>
                 <div className="text-right shrink-0 pl-3">
                   <div className="font-bold text-sm mono-number text-[var(--text)]">₩{(inv.total_amount || 0).toLocaleString()}</div>
-                  <div className="text-xs text-[var(--text-dim)]">{new Date(inv.created_at).toLocaleDateString("ko-KR")}</div>
+                  <div className="text-xs text-[var(--text-dim)]">{kstDateStr(new Date(inv.created_at))}</div>
                 </div>
               </div>
             ))}

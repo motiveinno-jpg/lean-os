@@ -1,6 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo, useRef, Suspense } from "react";
@@ -406,7 +406,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     대표자명: docCompanyInfo?.representative || "",
     거래처명: quoteHeader.partnerName || docPartnerName || "",
     수신: quoteHeader.partnerName || docPartnerName || "",
-    견적일자: doc.created_at ? new Date(doc.created_at).toLocaleDateString("ko-KR") : "",
+    견적일자: doc.created_at ? kstDateStr(new Date(doc.created_at)) : "",
     유효기간: quoteHeader.validUntil || "견적일로부터 30일",
     결제조건: quoteHeader.paymentTerms || "",
     납품조건: quoteHeader.deliveryTerms || "",
@@ -486,7 +486,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             {doc.locked_at && (
               <>
                 <span>|</span>
-                <span>잠금: {new Date(doc.locked_at).toLocaleDateString("ko")}</span>
+                <span>잠금: {kstDateStr(new Date(doc.locked_at))}</span>
               </>
             )}
             {(doc as any).contract_start_date && (
@@ -967,7 +967,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span className={`px-2 py-0.5 rounded-full ${si.bg} ${si.text}`}>{si.label}</span>
                       {sig.signed_at && (
-                        <span className="text-[var(--text-dim)]">{new Date(sig.signed_at).toLocaleDateString("ko")}</span>
+                        <span className="text-[var(--text-dim)]">{kstDateStr(new Date(sig.signed_at))}</span>
                       )}
                       {isPending && (
                         <button
@@ -1121,7 +1121,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     <div className="space-y-0.5 text-right">
                       <div><b>공급자:</b> {docCompanyInfo?.name || ''}</div>
                       {docCompanyInfo?.representative && <div>대표: {docCompanyInfo.representative}</div>}
-                      <div>견적일자: {doc.created_at ? new Date(doc.created_at).toLocaleDateString('ko-KR') : ''}</div>
+                      <div>견적일자: {doc.created_at ? kstDateStr(new Date(doc.created_at)) : ''}</div>
                       <div>유효기간: {quoteHeader.validUntil || '견적일로부터 30일'}</div>
                     </div>
                   </div>
@@ -1993,7 +1993,7 @@ function DocumentsPageInner() {
                         <span className={`text-xs px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
                       </td>
                       <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
-                        {doc.created_at ? new Date(doc.created_at).toLocaleDateString('ko') : "\u2014"}
+                        {doc.created_at ? kstDateStr(new Date(doc.created_at)) : "\u2014"}
                       </td>
                     </tr>
                   );
@@ -2462,15 +2462,15 @@ function DocumentsPageInner() {
                           </span>
                         </td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)] whitespace-nowrap">
-                          {sig.sent_at ? new Date(sig.sent_at).toLocaleDateString("ko") : "--"}
+                          {sig.sent_at ? kstDateStr(new Date(sig.sent_at)) : "--"}
                         </td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)] whitespace-nowrap">
-                          {sig.signed_at ? new Date(sig.signed_at).toLocaleDateString("ko") : "--"}
+                          {sig.signed_at ? kstDateStr(new Date(sig.signed_at)) : "--"}
                         </td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)] whitespace-nowrap">
                           {sig.expires_at ? (
                             <span className={isExpired ? "text-red-400 font-medium" : ""}>
-                              {new Date(sig.expires_at).toLocaleDateString("ko")}
+                              {kstDateStr(new Date(sig.expires_at))}
                             </span>
                           ) : "--"}
                         </td>
@@ -3005,7 +3005,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
               <div className="flex items-center gap-3">
                 <span className="text-xs text-[var(--primary)] font-semibold">🔗 공유 링크</span>
                 <span className="caption">
-                  {new Date(share.created_at).toLocaleDateString('ko-KR')} 생성
+                  {kstDateStr(new Date(share.created_at))} 생성
                 </span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">
                   조회 {share.view_count}회

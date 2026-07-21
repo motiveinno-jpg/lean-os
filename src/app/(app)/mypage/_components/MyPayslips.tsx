@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
@@ -49,7 +50,7 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
         <div className="mypage-payslips-list mypage-record-body space-y-2.5">
           {payslips.map((p: any) => {
             const batch = p.payment_batches || {};
-            const dateStr = batch.created_at ? new Date(batch.created_at).toLocaleDateString("ko-KR") : "";
+            const dateStr = batch.created_at ? kstDateStr(new Date(batch.created_at)) : "";
             const extras = (Array.isArray(p.extras) ? p.extras : []) as { type: string; name: string; amount: number }[];
             const deductions = [
               { label: "국민연금", v: p.national_pension },

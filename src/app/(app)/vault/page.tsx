@@ -1,5 +1,6 @@
 "use client";
 
+import { kstDateStr } from "@/lib/kst";
 import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState } from "react";
 import { DateField } from "@/components/date-field";
@@ -979,7 +980,7 @@ export default function VaultPage() {
                         <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{(u.opens?.length || 0)}회</div>
                       </td>
                       <td className="p-4 text-center text-xs text-[var(--text-muted)]">
-                        {acc.renewal_date ? new Date(acc.renewal_date).toLocaleDateString("ko") : "—"}
+                        {acc.renewal_date ? kstDateStr(new Date(acc.renewal_date)) : "—"}
                       </td>
                       <td className="p-4 text-center">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>
@@ -1108,7 +1109,7 @@ export default function VaultPage() {
                       {!bv.depreciated && <div className="text-[9px] text-[var(--text-dim)] font-normal">감가 미설정</div>}
                     </td>
                     <td className="p-4 text-center text-xs text-[var(--text-muted)]">
-                      {a.purchase_date ? new Date(a.purchase_date).toLocaleDateString("ko") : "—"}
+                      {a.purchase_date ? kstDateStr(new Date(a.purchase_date)) : "—"}
                     </td>
                     <td className="p-4 text-center">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${
@@ -1166,7 +1167,7 @@ export default function VaultPage() {
                         {d.deals?.name || "—"}
                       </td>
                       <td className={`p-4 text-center text-xs ${isExpiring ? "text-yellow-400 font-semibold" : "text-[var(--text-muted)]"}`}>
-                        {d.expiry_date ? new Date(d.expiry_date).toLocaleDateString("ko") : "—"}
+                        {d.expiry_date ? kstDateStr(new Date(d.expiry_date)) : "—"}
                         {isExpiring && " ⚠"}
                       </td>
                       <td className="p-4 text-center">

@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // B 핸드오프: stage='progress_report' 전용 본 폼.
@@ -472,7 +473,7 @@ export function ProgressReportStageCard({
                       </div>
                       <span className={`text-[9px] px-1.5 py-0.5 rounded ${statusTone(s.status)}`}>{statusLabel}</span>
                       <span className="text-[9px] text-[var(--text-dim)]">
-                        {at ? new Date(at).toLocaleDateString("ko-KR") : ""}
+                        {at ? kstDateStr(new Date(at)) : ""}
                       </span>
                     </div>
                     {text && (

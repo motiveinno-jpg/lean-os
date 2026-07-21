@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
@@ -131,7 +132,7 @@ export default function CustomersPage() {
                       <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${st.bg} ${st.text}`}>{st.label}</span>
                     </td>
                     <td className="px-5 py-3.5 text-center text-[var(--text-muted)]">{sub?.seat_count || 1}명</td>
-                    <td className="px-5 py-3.5 text-[var(--text-muted)]">{new Date(c.created_at).toLocaleDateString("ko-KR")}</td>
+                    <td className="px-5 py-3.5 text-[var(--text-muted)]">{kstDateStr(new Date(c.created_at))}</td>
                     <td className="px-5 py-3.5 text-right">
                       <Link
                         href={`/platform/companies/${c.id}`}

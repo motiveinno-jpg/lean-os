@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
@@ -88,7 +89,7 @@ export default function SystemPage() {
                         <div className="text-sm text-[var(--text)] font-medium truncate">{c.name || "(이름 없음)"}</div>
                         <div className="text-[11px] text-[var(--text-dim)]">
                           {c.business_number || "사업자번호 미등록"}
-                          {c.created_at && ` · 가입 ${new Date(c.created_at).toLocaleDateString("ko-KR")}`}
+                          {c.created_at && ` · 가입 ${kstDateStr(new Date(c.created_at))}`}
                         </div>
                       </div>
                       <span className="text-[var(--text-dim)] text-xs shrink-0 ml-2">상세 →</span>
@@ -126,7 +127,7 @@ export default function SystemPage() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <span className="badge badge-muted">{u.role}</span>
-                        {u.created_at && <span className="text-[10px] text-[var(--text-dim)]">{new Date(u.created_at).toLocaleDateString("ko-KR")}</span>}
+                        {u.created_at && <span className="text-[10px] text-[var(--text-dim)]">{kstDateStr(new Date(u.created_at))}</span>}
                       </div>
                     </Link>
                   ))

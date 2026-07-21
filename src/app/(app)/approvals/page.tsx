@@ -1,5 +1,6 @@
 "use client";
 
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
@@ -296,11 +297,7 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  return kstDateStr(new Date(dateStr)); // 앱 표준 YYYY-MM-DD (점표기 혼용 정리)
 }
 
 // PDF 등 다운로드 시 저장 경로를 사용자가 직접 고를 수 있게 — 지원 브라우저(Chrome/Edge)는

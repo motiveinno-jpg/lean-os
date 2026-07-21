@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
@@ -743,7 +744,7 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
     if (h < 24) return `${h}시간 전`;
     const d = Math.floor(h / 24);
     if (d < 7) return `${d}일 전`;
-    return new Date(iso).toLocaleDateString("ko-KR");
+    return kstDateStr(new Date(iso));
   };
 
   useModalKeys(true, onClose, !body.trim() || busy ? undefined : submit);

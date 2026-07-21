@@ -3,6 +3,7 @@
 // chat/page.tsx 에서 추출 (2026-06-22) — /chat 풀페이지와 플로팅 메신저(floating-messenger)가
 // 동일한 채팅방 뷰를 공유하기 위해 ChatRoomView + 의존 헬퍼(파일갤러리/미리보기/인라인편집)를 분리.
 // 동작 무변경: 코드 이동만, 로직 수정 없음.
+import { kstDateStr } from "@/lib/kst";
 import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -166,7 +167,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
                     </div>
                   </div>
                   <div className="text-[10px] text-[var(--text-dim)] shrink-0">
-                    {f.created_at ? new Date(f.created_at).toLocaleDateString("ko") : "—"}
+                    {f.created_at ? kstDateStr(new Date(f.created_at)) : "—"}
                   </div>
                 </button>
               ))}
@@ -969,7 +970,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                     <div>
                       <div className="text-sm font-medium">{p.users?.name || p.users?.email || "—"}</div>
                       <div className="caption">
-                        {p.invited_at ? new Date(p.invited_at).toLocaleDateString("ko") : ""} 참가
+                        {p.invited_at ? kstDateStr(new Date(p.invited_at)) : ""} 참가
                       </div>
                     </div>
                   </div>

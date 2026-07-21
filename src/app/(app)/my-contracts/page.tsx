@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
@@ -141,8 +142,8 @@ export default function MyContractsPage() {
             const totalCount = items.length;
             const expired = p.expires_at && new Date(p.expires_at) < new Date();
             const canSign = !expired && ["sent", "partially_signed"].includes(p.status);
-            const sentDate = p.sent_at ? new Date(p.sent_at).toLocaleDateString("ko-KR") : "—";
-            const expDate = p.expires_at ? new Date(p.expires_at).toLocaleDateString("ko-KR") : "—";
+            const sentDate = p.sent_at ? kstDateStr(new Date(p.sent_at)) : "—";
+            const expDate = p.expires_at ? kstDateStr(new Date(p.expires_at)) : "—";
 
             return (
               <div

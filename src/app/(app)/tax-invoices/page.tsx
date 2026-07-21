@@ -1,6 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import Link from "next/link";
@@ -1944,9 +1944,9 @@ export default function TaxInvoicesPage() {
               {/* 홈택스식 결과 요약 바 — 총 N건 · 공급가액/세액/합계 합산 */}
               <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
                 <span className="font-bold text-[var(--text)]">총 {currentList.length}건</span>
-                <span className="text-[var(--text-muted)]">공급가액 <b className="text-[var(--text)] mono-number">{currentList.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0).toLocaleString("ko")}원</b></span>
-                <span className="text-[var(--text-muted)]">세액 <b className="text-[var(--text)] mono-number">{currentList.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0).toLocaleString("ko")}원</b></span>
-                <span className="text-[var(--text-muted)]">합계금액 <b className="mono-number text-[var(--primary)]">{currentList.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}원</b></span>
+                <span className="text-[var(--text-muted)]">공급가액 <b className="text-[var(--text)] mono-number">₩{currentList.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0).toLocaleString("ko")}</b></span>
+                <span className="text-[var(--text-muted)]">세액 <b className="text-[var(--text)] mono-number">₩{currentList.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0).toLocaleString("ko")}</b></span>
+                <span className="text-[var(--text-muted)]">합계금액 <b className="mono-number text-[var(--primary)]">₩{currentList.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}</b></span>
                 <span className="ml-auto text-[10px] text-[var(--text-dim)]">행을 클릭하면 상세를 확인합니다</span>
               </div>
               {/* 홈택스식 격자 그리드 */}
@@ -2015,7 +2015,7 @@ export default function TaxInvoicesPage() {
                             {inv.source === 'hometax_sync'
                               ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-500 font-semibold">국세청</span>
                               : inv.hometax_synced_at
-                                ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold" title={`전송: ${new Date(inv.hometax_synced_at).toLocaleDateString('ko-KR')}`}>전송완료</span>
+                                ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold" title={`전송: ${kstDateStr(new Date(inv.hometax_synced_at))}`}>전송완료</span>
                                 : <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">미전송</span>}
                           </td>
                           <td className="px-3 py-2 text-center border-l border-[var(--border)]/40">

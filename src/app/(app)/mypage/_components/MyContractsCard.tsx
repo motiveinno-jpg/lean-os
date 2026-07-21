@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo } from "react";
@@ -65,7 +66,7 @@ export function MyContractsCard({ employeeId }: { employeeId: string | null }) {
             const totalCount = items.length;
             const expired = p.expires_at && new Date(p.expires_at) < new Date();
             const canSign = !expired && ["sent", "partially_signed"].includes(p.status);
-            const sentDate = p.sent_at ? new Date(p.sent_at).toLocaleDateString("ko-KR") : "—";
+            const sentDate = p.sent_at ? kstDateStr(new Date(p.sent_at)) : "—";
             return (
               <div key={p.id} className="mypage-contract-row flex items-center justify-between gap-3 bg-[var(--bg-surface)] rounded-xl px-4 py-3 border border-[var(--border)]">
                 <div className="min-w-0 flex-1">

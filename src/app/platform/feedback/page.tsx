@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -78,7 +79,7 @@ export default function FeedbackPage() {
                       <div className="font-semibold text-[var(--text)]">{fb.title}</div>
                       {fb.description && <div className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed">{fb.description}</div>}
                       <div className="text-xs text-[var(--text-dim)] mt-2">
-                        {fb.companies?.name || "—"} · {fb.users?.name || fb.users?.email || "익명"} · {new Date(fb.created_at).toLocaleDateString("ko-KR")}
+                        {fb.companies?.name || "—"} · {fb.users?.name || fb.users?.email || "익명"} · {kstDateStr(new Date(fb.created_at))}
                       </div>
                     </div>
                     <div className="platform-feedback-actions">

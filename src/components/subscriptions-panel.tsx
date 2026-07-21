@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 구독 관리 패널 — 2026-07-08 "정기 지출" 흡수. /subscriptions 페이지에서 추출(동작 무변경).
@@ -297,7 +298,7 @@ export function SubscriptionsPanel() {
                 <td className="p-4 text-right font-bold mono-number">{fmtW(ovMonthly)}</td>
                 <td className="p-4 text-center text-xs text-[var(--text-muted)]">월간</td>
                 <td className="p-4 text-center text-xs text-[var(--text-muted)]">
-                  {ownerViewSub?.current_period_end ? new Date(ownerViewSub.current_period_end).toLocaleDateString("ko") : "—"}
+                  {ownerViewSub?.current_period_end ? kstDateStr(new Date(ownerViewSub.current_period_end)) : "—"}
                 </td>
                 <td className="p-4 text-center text-xs text-[var(--text-muted)]">—</td>
                 <td className="p-4 text-center">
@@ -318,7 +319,7 @@ export function SubscriptionsPanel() {
                   <td className="p-4 text-center"><span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{CATEGORY_LABEL[a.category] || "기타"}</span></td>
                   <td className="p-4 text-right font-bold mono-number">{Number(a.monthly_cost || 0).toLocaleString()}원</td>
                   <td className="p-4 text-center text-xs text-[var(--text-muted)]">{a.billing_cycle === "yearly" ? "연간" : "월간"}</td>
-                  <td className="p-4 text-center text-xs text-[var(--text-muted)]">{a.renewal_date ? new Date(a.renewal_date).toLocaleDateString("ko") : "—"}</td>
+                  <td className="p-4 text-center text-xs text-[var(--text-muted)]">{a.renewal_date ? kstDateStr(new Date(a.renewal_date)) : "—"}</td>
                   <td className="p-4 text-center text-xs text-[var(--text-muted)]">{a.users?.name || a.users?.email || "—"}</td>
                   <td className="p-4 text-center"><span className={`text-[10px] px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span></td>
                 </tr>

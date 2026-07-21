@@ -1,6 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo, useRef } from "react";
@@ -1911,12 +1911,12 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                       {allowanceLines.map((r: any, i: number) => (
                         <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-surface)] text-xs">
                           <span className="text-[var(--text-muted)]">{r.allowance_types?.name || r.allowance_types?.code || "기타"}</span>
-                          <span className="font-semibold mono-number text-[var(--success)]">{Number(r.amount || 0).toLocaleString('ko-KR')}원</span>
+                          <span className="font-semibold mono-number text-[var(--success)]">₩{Number(r.amount || 0).toLocaleString('ko-KR')}</span>
                         </div>
                       ))}
                       <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--success)]/10 text-xs font-bold">
                         <span className="text-[var(--text)]">합계</span>
-                        <span className="mono-number text-[var(--success)]">{(alw?.total ?? 0).toLocaleString('ko-KR')}원</span>
+                        <span className="mono-number text-[var(--success)]">₩{(alw?.total ?? 0).toLocaleString('ko-KR')}</span>
                       </div>
                     </div>
                   )}
@@ -3968,7 +3968,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                             </span>
                           </td>
                           <td className="px-5 py-2.5 text-sm text-center">{Number(n.unused_days)}일</td>
-                          <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.sent_at ? new Date(n.sent_at).toLocaleDateString("ko-KR") : "—"}</td>
+                          <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.sent_at ? kstDateStr(new Date(n.sent_at)) : "—"}</td>
                           <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.deadline || "—"}</td>
                         </tr>
                       ))}
@@ -4191,7 +4191,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{log.purpose || "--"}</td>
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{log.issuer?.name || log.issuer?.email || "--"}</td>
                   <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
-                    {log.created_at ? new Date(log.created_at).toLocaleDateString("ko") : "--"}
+                    {log.created_at ? kstDateStr(new Date(log.created_at)) : "--"}
                   </td>
                 </tr>
               ))}

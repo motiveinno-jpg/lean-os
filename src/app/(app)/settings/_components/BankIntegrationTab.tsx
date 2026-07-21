@@ -809,11 +809,11 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                     : "홈택스가 연결되었습니다. 세금계산서가 자동으로 수집됩니다."}
               </p>
               {connectionStatus?.codef_connected_at && (
-                <p className="text-[10px] text-[var(--text-dim)] mt-1">은행/카드 연결일: {new Date(connectionStatus.codef_connected_at).toLocaleDateString("ko-KR")}</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">은행/카드 연결일: {kstDateStr(new Date(connectionStatus.codef_connected_at))}</p>
               )}
               {hasHometaxConnection && connectionStatus?.hometax_registered_at && (
                 <p className="caption">
-                  홈택스 연결일: {new Date(connectionStatus.hometax_registered_at).toLocaleDateString("ko-KR")}
+                  홈택스 연결일: {kstDateStr(new Date(connectionStatus.hometax_registered_at))}
                   {connectionStatus.hometax_method === "certificate" && " (공동인증서)"}
                   {connectionStatus.hometax_method === "id_pw" && " (ID/PW)"}
                 </p>

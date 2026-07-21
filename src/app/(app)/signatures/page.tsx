@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
@@ -529,8 +530,8 @@ export default function SignaturesDashboardPage() {
                         <span className="block text-[10px] text-[var(--text-dim)] truncate">{r.signer_email}</span>
                       </span>
                     </span>
-                    <span className="text-[11px] text-[var(--text-dim)]">요청 {r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : "—"}</span>
-                    <span className={`text-[11px] ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : "text-[var(--text-dim)]"}`}>만료 {r.expires_at ? new Date(r.expires_at).toLocaleDateString("ko-KR") : "—"}</span>
+                    <span className="text-[11px] text-[var(--text-dim)]">요청 {r.created_at ? kstDateStr(new Date(r.created_at)) : "—"}</span>
+                    <span className={`text-[11px] ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : "text-[var(--text-dim)]"}`}>만료 {r.expires_at ? kstDateStr(new Date(r.expires_at)) : "—"}</span>
                     {r.reminder_count ? <span className="text-[11px] text-[var(--text-dim)]">리마인더 {r.reminder_count}회</span> : null}
                     {r.delivery_status && (() => {
                       const m = ({

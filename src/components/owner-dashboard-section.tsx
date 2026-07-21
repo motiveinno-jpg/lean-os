@@ -13,6 +13,7 @@
 // 게이트: dashboard/page.tsx 가 role === 'owner' || 'admin' 일 때만 마운트.
 //   RPC 자체도 is_company_admin() 가드 — 이중 안전.
 
+import { kstDateStr } from "@/lib/kst";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
@@ -366,7 +367,7 @@ function InProgressListSection({ data }: { data: InProgress[] }) {
                 </div>
                 <div className="text-[11px] text-[var(--text-dim)] truncate">
                   {d.partner?.name || "거래처 미지정"} · {d.manager?.name || "담당 미지정"}
-                  {d.end_date && <> · 마감 {new Date(d.end_date).toLocaleDateString("ko-KR")}</>}
+                  {d.end_date && <> · 마감 {kstDateStr(new Date(d.end_date))}</>}
                 </div>
                 {d.next_action_text && (
                   <div className="text-[11px] text-[var(--primary)] truncate mt-0.5">→ {d.next_action_text}</div>
@@ -448,7 +449,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                           <div className="text-sm font-medium text-[var(--text)] truncate">{r.name}</div>
                           <div className="text-[11px] text-[var(--text-dim)] truncate">
                             {r.partner_name || "거래처 미상"}
-                            {r.done_at && <> · {new Date(r.done_at).toLocaleDateString("ko-KR")}</>}
+                            {r.done_at && <> · {kstDateStr(new Date(r.done_at))}</>}
                           </div>
                         </Link>
                         <div className="text-right shrink-0 w-24">

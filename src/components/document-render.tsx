@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from '@/lib/kst';
 
 // 견적서/계약서 표시 컴포넌트 (단일 소스).
 //   - 공유링크 페이지(src/app/share/page.tsx) 와 발송 전 미리보기 모달이
@@ -83,7 +84,7 @@ export function DocumentRender({
           <div className="text-right">
             <div className="text-xs text-gray-400">{doc?.document_number || ""}</div>
             <div className="text-xs text-gray-400 mt-1">
-              {doc?.created_at ? new Date(doc.created_at).toLocaleDateString("ko-KR") : ""}
+              {doc?.created_at ? kstDateStr(new Date(doc.created_at)) : ""}
             </div>
           </div>
         </div>
@@ -157,7 +158,7 @@ export function DocumentRender({
           </div>
           {isQuote && contentJson.validUntil && (
             <div className="mt-2 text-[11px] text-gray-400 text-right">
-              견적 유효기한: {new Date(contentJson.validUntil).toLocaleDateString("ko-KR")}
+              견적 유효기한: {kstDateStr(new Date(contentJson.validUntil))}
             </div>
           )}
         </div>

@@ -7,6 +7,7 @@
 // 사장님 요청(2026-07-13): 파일보관함으로 연동시키지 말고 전자계약 화면 안에서 완결되게 해달라 —
 // /documents?id= 이동 대신 모달로 편집(RichEditor + saveRevision, 기존 저장 로직 재사용).
 
+import { kstDateStr } from "@/lib/kst";
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -79,7 +80,7 @@ export function DocumentTemplatesPanel({ userId, documents, onSaved }: {
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{typeLabel}</span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
                     <span className="text-[10px] text-[var(--text-dim)]">
-                      {d.created_at ? new Date(d.created_at).toLocaleDateString("ko") : "—"}
+                      {d.created_at ? kstDateStr(new Date(d.created_at)) : "—"}
                     </span>
                   </div>
                 </div>

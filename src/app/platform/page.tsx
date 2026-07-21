@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useQuery } from "@tanstack/react-query";
@@ -185,7 +186,7 @@ export default function PlatformOverview() {
                 <div className="min-w-0">
                   <div className="font-semibold text-sm text-[var(--text)] truncate">{c.name}</div>
                   <div className="text-xs text-[var(--text-dim)]">
-                    {new Date(c.created_at).toLocaleDateString("ko-KR")}
+                    {kstDateStr(new Date(c.created_at))}
                   </div>
                 </div>
                 <span className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold ${

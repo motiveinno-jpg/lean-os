@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
@@ -915,7 +916,7 @@ export default function BoardPage() {
                       )}
                       {p.event_date && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--info-dim)] text-[var(--info)] font-semibold">
-                          📅 {new Date(p.event_date).toLocaleDateString("ko-KR")}
+                          📅 {kstDateStr(new Date(p.event_date))}
                         </span>
                       )}
                       {p.poll_question && (
@@ -961,7 +962,7 @@ export default function BoardPage() {
                       <div className="mt-3 flex items-center gap-2 text-xs px-3 py-2 rounded-lg bg-[var(--info-dim)] text-[var(--info)]">
                         <span>📅</span>
                         <span className="font-semibold">
-                          일정: {new Date(p.event_date).toLocaleDateString("ko-KR")}
+                          일정: {kstDateStr(new Date(p.event_date))}
                         </span>
                       </div>
                     )}

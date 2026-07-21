@@ -1375,7 +1375,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
                       <tr key={tx.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition">
                         <td className="px-2 py-2 text-xs">{tx.transaction_date}</td>
                         <td className="px-2 py-2"><span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tx.type === 'income' ? 'bg-[var(--info-dim)] text-[var(--info)]' : 'bg-[var(--danger-dim)] text-[var(--danger)]'}`}>{tx.type === 'income' ? '입금' : '출금'}</span></td>
-                        <td className="px-2 py-2 text-right font-mono text-xs">{Math.abs(Number(tx.amount)).toLocaleString()}원</td>
+                        <td className="px-2 py-2 text-right font-mono text-xs">₩{Math.abs(Number(tx.amount)).toLocaleString()}</td>
                         <td className="px-2 py-2 text-xs max-w-[160px]"><span className="block truncate" title={tx.counterparty || undefined}>{tx.counterparty || '-'}</span></td>
                         <td className="px-2 py-2 text-xs text-[var(--text-muted)] max-w-[200px]"><span className="block truncate" title={tx.description || undefined}>{tx.description || '-'}</span></td>
                         <td className="px-2 py-2 text-xs">{tx.category || <span className="text-[var(--text-dim)]">미분류</span>}</td>

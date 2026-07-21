@@ -1,5 +1,6 @@
 "use client";
 
+import { kstDateStr } from "@/lib/kst";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -186,7 +187,7 @@ export default function PlatformIndustryPage() {
                   <div className="font-semibold text-sm text-[var(--text)] truncate">{c.name}</div>
                   <div className="text-[11px] text-[var(--text-dim)]">
                     {c.business_number ? `사업자 ${c.business_number} · ` : ""}
-                    가입 {new Date(c.created_at).toLocaleDateString("ko-KR")}
+                    가입 {kstDateStr(new Date(c.created_at))}
                   </div>
                 </div>
                 <select

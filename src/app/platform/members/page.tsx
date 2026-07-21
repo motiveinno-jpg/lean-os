@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 사용자 관리 — 전체 회원 검색 + 계정 지원 액션 (비밀번호/재설정링크/이메일/역할/잠금)
@@ -142,7 +143,7 @@ export default function PlatformMembersPage() {
                             소속 회사 상세 →
                           </Link>
                         )}
-                        <span className="ml-2">가입 {m.created_at ? new Date(m.created_at).toLocaleDateString("ko-KR") : "—"}</span>
+                        <span className="ml-2">가입 {m.created_at ? kstDateStr(new Date(m.created_at)) : "—"}</span>
                       </div>
                     </div>
                   )}

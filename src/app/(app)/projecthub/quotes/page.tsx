@@ -1,4 +1,5 @@
 "use client";
+import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 견적서 — 프로젝트와 별개의 독립 견적서 메뉴(프로젝트 토글 하위). 프로젝트의 견적서 탭과 동일 데이터(documents+deal_id).
@@ -27,7 +28,7 @@ const QUOTE_CONTENT = {
 };
 
 const won = (n: any) => `₩${(Number(n) || 0).toLocaleString("ko")}`;
-const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString("ko-KR") : "—");
+const fmtDate = (s?: string) => (s ? kstDateStr(new Date(s)) : "—");
 
 export default function QuotesPage() {
   const { user } = useUser();
