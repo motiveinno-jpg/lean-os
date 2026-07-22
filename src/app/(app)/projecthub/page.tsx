@@ -293,7 +293,9 @@ export default function ProjectHubPage() {
     if (!lens) return true;
     if (lens === "risk") return isRisk(d);
     if (lens === "due") return isDueSoon(d);
-    if (lens === "progress") return d.stage === "in_progress";
+    // "진행중" = 완료·정산 전(살아있는) 프로젝트. 단계값(in_progress)을 안 옮기고 작업하는
+    //   실사용 패턴 대응 — 견적 단계라도 아직 안 끝났으면 진행중으로 본다(2026-07-22).
+    if (lens === "progress") return !isDone(d);
     if (lens === "receivable") return (outstandingByDeal[d.id] || 0) > 1;
     return true;
   };
@@ -368,7 +370,7 @@ export default function ProjectHubPage() {
     return {
       risk: lensScope.filter(isRisk).length,
       due: lensScope.filter(isDueSoon).length,
-      progress: lensScope.filter((d) => d.stage === "in_progress").length,
+      progress: lensScope.filter((d) => !isDone(d)).length,
       receivableSum, receivableCount,
     };
   }, [lensScope, outstandingByDeal]);
@@ -531,7 +533,7 @@ export default function ProjectHubPage() {
           <button onClick={() => setLens(lens === "progress" ? null : "progress")} className={`ph-lens glass-card ${lens === "progress" ? "ph-lens-on" : ""}`}>
             <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--text-dim)]" />진행중</span>
             <div className="ph-lens-num text-[var(--text)]">{lensCounts.progress}</div>
-            <div className="ph-lens-sub">현재 진행 단계</div>
+            <div className="ph-lens-sub">완료·정산 전 진행 중</div>
             <span className="ph-lens-go">목록 필터 ↓</span>
           </button>
           <button onClick={() => setLens(lens === "receivable" ? null : "receivable")} className={`ph-lens glass-card ${lens === "receivable" ? "ph-lens-on" : ""}`}>
