@@ -1529,6 +1529,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .sign-page-footer { @apply border-t border-gray-200 bg-white mt-8; }
 .signature-dashboard-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .signature-toolbar-actions { @apply flex items-center gap-2; }
+/* 전자계약 월 발송 사용량 칩 (2026-07-22) — 한도 도달 시 빨강 */
+.contract-usage-chip { @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)] whitespace-nowrap; }
+.contract-usage-chip[data-reached="1"] { @apply text-[var(--danger)] border-[var(--danger)]; background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .signature-templates-panel { @apply space-y-6; }
 .signature-failure-alert { @apply w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/15 transition text-left; }
 .signature-status-cards { @apply grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3; }

@@ -30,6 +30,7 @@ import {
   SIGNATURE_STATUS,
   type SignatureStatusValue,
 } from "@/lib/signatures";
+import { getContractIssuanceStatus } from "@/lib/billing";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
@@ -93,6 +94,15 @@ export default function SignaturesDashboardPage() {
     enabled: !!companyId,
     refetchInterval: 30_000,
   });
+
+  // 전자계약 월 발송 한도 (프로=20건, 울트라=무제한). 서버 강제는 signature_requests 트리거.
+  const { data: contractStatus } = useQuery({
+    queryKey: ["contract-issuance-status", companyId],
+    queryFn: () => getContractIssuanceStatus(companyId!),
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+  const contractLimitReached = !!contractStatus && contractStatus.limit !== null && (contractStatus.remaining ?? 0) <= 0;
 
   const { data: documents = [] } = useQuery({
     queryKey: ["documents-for-sign", companyId],
@@ -316,18 +326,30 @@ export default function SignaturesDashboardPage() {
         </div>
         {subTab === "requests" && (
           <div className="signature-toolbar-actions">
+            {contractStatus && contractStatus.limit !== null && (
+              <span
+                className="contract-usage-chip"
+                data-reached={contractLimitReached ? "1" : undefined}
+                title={`${contractStatus.planName || "현재 요금제"} — 전자계약(서명 요청)은 월 ${contractStatus.limit}건까지 발송 가능합니다`}
+              >
+                이번 달 발송 {contractStatus.used}/{contractStatus.limit}건
+              </span>
+            )}
             <button
               onClick={() => setShowOrgBulkWizard(true)}
+              disabled={contractLimitReached}
               className="btn-secondary"
-              title="여러 거래처(미가입 단체)에 같은 계약서를 변수만 바꿔 한 번에 발송"
+              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다` : "여러 거래처(미가입 단체)에 같은 계약서를 변수만 바꿔 한 번에 발송"}
             >
               + 단체 일괄 발송
             </button>
             <button
               onClick={() => setShowInviteModal(true)}
+              disabled={contractLimitReached}
               className="btn-primary"
+              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 울트라로 업그레이드하면 무제한 발송할 수 있습니다.` : undefined}
             >
-              + 새 서명 요청
+              {contractLimitReached ? "이번 달 발송 한도 소진" : "+ 새 서명 요청"}
             </button>
           </div>
         )}

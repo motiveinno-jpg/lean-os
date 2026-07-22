@@ -732,6 +732,32 @@ export async function getCashReceiptIssuanceStatus(companyId: string): Promise<I
   return { limit, used, remaining: Math.max(0, limit - used), planName };
 }
 
+// 전자계약(서명 요청) 월 발송 한도 — 프로 20건, 울트라/엔터 무제한(NULL). 서버 강제는 signature_requests
+//   BEFORE INSERT 트리거(enforce_contract_monthly_limit). 이 함수는 UI 카운터·버튼 가드용.
+export async function getContractIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
+  const subRow = logRead('lib/billing:contractSub', await db
+    .from('subscriptions')
+    .select('subscription_plans(name, monthly_contract_limit)')
+    .eq('company_id', companyId)
+    .in('status', ['active', 'trialing', 'paused', 'past_due'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle());
+  const limit = subRow?.subscription_plans?.monthly_contract_limit ?? null;
+  const planName = subRow?.subscription_plans?.name ?? null;
+  if (limit === null) return { limit: null, used: 0, remaining: null, planName };
+
+  // KST 기준 이달 1일 0시 (트리거와 동일 경계)
+  const monthStart = `${todayKst().slice(0, 7)}-01T00:00:00+09:00`;
+  const { count } = await db
+    .from('signature_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('company_id', companyId)
+    .gte('created_at', monthStart);
+  const used = count || 0;
+  return { limit, used, remaining: Math.max(0, limit - used), planName };
+}
+
 // ── 15. Stripe Checkout 세션 생성 요청 (클라이언트에서 API route 호출) ──
 export async function createStripeCheckout(
   planSlug: string,

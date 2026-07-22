@@ -10433,6 +10433,7 @@ export type Database = {
           max_employees: number | null
           max_seats: number | null
           monthly_cashbill_limit: number | null
+          monthly_contract_limit: number | null
           monthly_credits: number | null
           monthly_tax_invoice_limit: number | null
           name: string
@@ -10455,6 +10456,7 @@ export type Database = {
           max_employees?: number | null
           max_seats?: number | null
           monthly_cashbill_limit?: number | null
+          monthly_contract_limit?: number | null
           monthly_credits?: number | null
           monthly_tax_invoice_limit?: number | null
           name: string
@@ -10477,6 +10479,7 @@ export type Database = {
           max_employees?: number | null
           max_seats?: number | null
           monthly_cashbill_limit?: number | null
+          monthly_contract_limit?: number | null
           monthly_credits?: number | null
           monthly_tax_invoice_limit?: number | null
           name?: string
