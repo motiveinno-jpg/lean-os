@@ -160,10 +160,10 @@ export default function ManagementSummaryPage() {
           />
 
           <div className="summary-stat-grid">
-            <StatCard label="이번 달 손익" value={`${profit >= 0 ? "+" : "−"}${fmt(Math.abs(profit))}`} caption="매출 − 비용" tone={profit >= 0 ? "success" : "danger"} icon="📊" />
-            <StatCard label="이번 달 매출" value={fmt(sales)} caption="세금계산서 기준" tone="success" icon="💰" href="/reports/revenue" />
-            <StatCard label="이번 달 비용" value={fmt(expense)} caption="지출 합계" tone="warning" icon="⚡" href="/reports/expense" />
-            <StatCard label="통장 잔액" value={fmt(balance)} caption={`월 평균 지출 ${fmtMan(burn)}`} tone="primary" icon="🏦" />
+            <StatCard label="이번 달 손익" value={`${profit >= 0 ? "+" : "−"}${fmt(Math.abs(profit))}`} caption="매출 − 비용 · 월별 표 →" tone={profit >= 0 ? "success" : "danger"} icon="📊" href="/reports/monthly" />
+            <StatCard label="이번 달 매출" value={fmt(sales)} caption="세금계산서 기준 · 매출 현황 →" tone="success" icon="💰" href="/reports/revenue" />
+            <StatCard label="이번 달 비용" value={fmt(expense)} caption="지출 합계 · 비용 현황 →" tone="warning" icon="⚡" href="/reports/expense" />
+            <StatCard label="통장 잔액" value={fmt(balance)} caption={`월 평균 지출 ${fmtMan(burn)} · 자금 전망 →`} tone="primary" icon="🏦" href="/reports/outlook" />
           </div>
 
           <div className="summary-sections-grid">
