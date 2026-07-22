@@ -5,6 +5,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
 const corsHeaders = {
@@ -118,7 +119,9 @@ Deno.serve(withSentry("classify-transactions", async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { data: { user } } = await createClient(supabaseUrl, supabaseUrl.includes("localhost") ? serviceKey : authHeader.replace("Bearer ", ""), {
+    // 사용자 인증 — anon 키를 apikey 로, 사용자 JWT 는 Authorization 헤더로 검증(정상 함수들과 동일 패턴).
+    //   (이전엔 사용자 JWT 를 apikey 자리에 넣어 GoTrue 가 거부 → getUser=null → 401 버그. 2026-07-22 수정)
+    const { data: { user } } = await createClient(supabaseUrl, anonKey, {
       auth: { persistSession: false },
       global: { headers: { Authorization: authHeader } },
     }).auth.getUser();
