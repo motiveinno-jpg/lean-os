@@ -57,6 +57,13 @@ export default function OutlookPage() {
   const loading = !companyId || !pulse;
   const maxAbs = Math.max(1, ...points.map((p) => Math.abs(p.balance)), balance);
 
+  // 규칙 기반 요약 코멘트 — 경영요약 '이번 달 상태'와 동일 방식(월 지출·운영가능기간·부족시점 조합, LLM 아님)
+  const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
+  const shortTxt = shortfall
+    ? ` 다만 ${shortfall.label} 무렵 잔액이 마이너스가 될 수 있어 자금 계획이 필요합니다.`
+    : " 예측상 90일 안에는 통장이 마이너스가 되지 않습니다.";
+  const outLine = `현재 지출 속도(월 약 ${fmtMan(burn)})라면 ${runwayTxt} 운영할 수 있습니다.${shortTxt}`;
+
   return (
     <>
       <ReportsTabs />
@@ -65,8 +72,8 @@ export default function OutlookPage() {
       ) : (
         <div className="outlook-page-content">
           <IntroCard
-            eyebrow="운영 가능 기간 (현재 지출 기준)"
-            title={runwayTxt}
+            eyebrow="앞으로 전망 요약"
+            title={outLine}
             desc={`가용 현금 ${fmt(balance)} · 월 지출 약 ${fmt(burn)} 기준의 전망입니다.`}
             callout={shortfall
               ? { label: "자금 부족 예상", value: `${shortfall.label} 무렵 부족`, sub: `그 시점 예상 잔액 ${fmt(shortfall.balance)} — 자금 계획 필요`, tone: "danger" }

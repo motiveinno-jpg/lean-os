@@ -71,6 +71,12 @@ export default function UpcomingPage() {
   const covered = balance >= next30;
   const loading = !companyId || pulseLoading || budgetLoading;
 
+  // 규칙 기반 요약 코멘트 — 경영요약 '이번 달 상태'와 동일 방식(예정액·충당여부·가장 급한 항목 조합, LLM 아님)
+  const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
+  const coverTxt = covered ? `가용 현금 ${fmtMan(balance)}으로 충당할 수 있습니다` : `가용 현금 ${fmtMan(balance)}으로는 부족이 우려됩니다`;
+  const urgentTxt = nextVat && daysUntil(nextVat.dueDate) <= 30 ? ` 가장 급한 항목은 부가세 납부(D-${Math.max(0, daysUntil(nextVat.dueDate))})입니다.` : "";
+  const upLine = `다음 30일 예정 지출은 ${fmtMan(next30)}으로, ${coverTxt}.${urgentTxt}`;
+
   // 항목 리스트 구성
   const items: { icon: string; title: string; note: string; amount: number; danger?: boolean; href?: string }[] = [];
   if (nextVat) items.push({ icon: "🧾", title: "부가세 납부", note: `D-${Math.max(0, daysUntil(nextVat.dueDate))} · ${nextVat.dueDate}`, amount: Math.abs(nextVat.netVAT), href: "/tax-invoices" });
@@ -87,8 +93,8 @@ export default function UpcomingPage() {
       ) : (
         <div className="upcoming-page-content">
           <IntroCard
-            eyebrow="다음 30일"
-            title={fmt(next30)}
+            eyebrow="다음 30일 요약"
+            title={upLine}
             desc={`고정비 + 대출 매달 상환${vatWithin30 ? " + 부가세" : ""} 기준의 예정 지출입니다.`}
             callout={{
               label: "가용 현금 충당 여부",
