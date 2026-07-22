@@ -242,6 +242,63 @@ export function BarLineCombo({ buckets, unit, yUnit = "" }: { buckets: ComboBuck
   );
 }
 
+// ── 실행형 마감 워크로드 (주별 예정 마감 태스크 스택) ──
+//   weeks: 주별 {완료 done · 남음 pending · 지연 over(마감초과·미완료)}. 스택 막대 + 오늘 경계.
+export type WorkloadWeek = { label: string; done: number; pending: number; over: number };
+export function WorkloadChart({ weeks, todayIndex }: { weeks: WorkloadWeek[]; todayIndex?: number }) {
+  const [hi, setHi] = useState<number | null>(null);
+  if (!weeks.length) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">마감일이 지정된 태스크가 없습니다</div>;
+  const W = 760, H = 220, padL = 34, padR = 14, padT = 16, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const totals = weeks.map((w) => w.done + w.pending + w.over);
+  const yMax = niceMax(Math.max(2, ...totals));
+  const N = weeks.length, band = plotW / N, bw = Math.min(44, band * 0.56);
+  const sy = (y: number) => padT + (1 - y / yMax) * plotH;
+  const bx = (i: number) => padL + band * i + band / 2;
+  const ticks = Array.from({ length: 3 }, (_, i) => Math.round((yMax / 2) * i));
+  const hw = hi != null ? weeks[hi] : null;
+  return (
+    <div className="barcombo-wrap">
+      <svg viewBox={`0 0 ${W} ${H}`} className="barcombo-svg" role="img" aria-label="주별 마감 워크로드">
+        {ticks.map((yv, i) => (
+          <g key={i}>
+            <line x1={padL} y1={sy(yv)} x2={W - padR} y2={sy(yv)} stroke={GRID} strokeWidth={1} />
+            <text x={padL - 7} y={sy(yv) + 3.5} textAnchor="end" fontSize={10.5} fill={DIM}>{yv}</text>
+          </g>
+        ))}
+        {todayIndex != null && todayIndex >= 0 && todayIndex < N && (() => {
+          const tx = padL + band * todayIndex;
+          return (<><line x1={tx} y1={padT - 2} x2={tx} y2={H - padB} stroke={DIM} strokeWidth={1} strokeDasharray="3 3" /><text x={tx} y={padT - 4} textAnchor="middle" fontSize={10} fontWeight={700} fill={MUTED}>오늘</text></>);
+        })()}
+        {weeks.map((w, i) => {
+          const x = bx(i) - bw / 2; let base = H - padB;
+          const segs: [number, string][] = [[w.done, SUCCESS], [w.pending, DIM], [w.over, DANGER]];
+          return (
+            <g key={i} style={{ cursor: "pointer" }} onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)}>
+              {/* 투명 히트영역 */}
+              <rect x={x} y={padT} width={bw} height={plotH} fill="transparent" />
+              {segs.map(([v, col], si) => {
+                if (v <= 0) return null;
+                const h = (v / yMax) * plotH; base -= h;
+                return <rect key={si} x={x} y={base} width={bw} height={h} rx={3} fill={col} fillOpacity={hi === i ? 1 : 0.9} />;
+              })}
+              <text x={bx(i)} y={H - 10} textAnchor="middle" fontSize={10} fill={todayIndex === i ? MUTED : DIM}>{w.label}</text>
+            </g>
+          );
+        })}
+      </svg>
+      {hw && (totals[hi!] > 0) && (
+        <div className="barcombo-tip" style={{ left: `${(bx(hi!) / W) * 100}%`, top: `${(sy(totals[hi!]) / H) * 100}%` }}>
+          <b>{hw.label} 마감</b>
+          {hw.over > 0 && <div className="barcombo-tip-row"><i style={{ background: DANGER }} />지연 {hw.over}건</div>}
+          {hw.pending > 0 && <div className="barcombo-tip-row"><i style={{ background: DIM }} />남음 {hw.pending}건</div>}
+          {hw.done > 0 && <div className="barcombo-tip-row"><i style={{ background: SUCCESS }} />완료 {hw.done}건</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ④ 신호등 타임라인 ──
 const ST_COLOR: Record<string, string> = { green: "var(--primary)", yellow: AMBER, red: DANGER };
 export function StatusTimeline({ points }: { points: { label: string; status: string }[] }) {

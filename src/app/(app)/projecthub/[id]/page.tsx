@@ -25,6 +25,7 @@ import { SubDealsTab } from "./_components/SubDealsTab";
 import { getProjectTypeConfig, normalizeProjectType, type ProjectTabKey } from "@/lib/project-types";
 import { PerformanceTab } from "./_components/PerformanceTab";
 import { GoalOverviewTab } from "./_components/GoalOverviewTab";
+import { RadialGauge, WorkloadChart } from "@/components/charts";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
 import { createTaxInvoice } from "@/lib/tax-invoice";
@@ -983,74 +984,81 @@ export default function ProjectHubDetailPage() {
           <MarginOnboarding onTab={setTab} />
         ) : (
         <div className="margin-overview-panel">
-          <MarginCockpit
-            revenue={salesSoT}
-            revenueBasis={revenueBasis}
-            planCost={planCost}
-            actualCost={totalCost}
-            hasActual={totalCost > 0}
-            rolled={hasChildren ? (children as any[]).length : 0}
-            stage={stage}
-          />
+          {/* ① 상태 밴드 */}
+          <MarginBand revenue={salesSoT} planCost={planCost} actualCost={totalCost} pipe={pipe} rolled={hasChildren ? (children as any[]).length : 0} />
+          {/* ② 돈 흐름 + 수익 구조 */}
+          <MoneyFlow pipe={pipe} contractTotal={ownContract} revenue={salesSoT} revenueBasis={revenueBasis} actualCost={totalCost} onOpen={setTab} />
           {confirmedRevenue > 0 && planRevenue > 0 && Math.abs(confirmedRevenue - planRevenue) > Math.max(1000, planRevenue * 0.01) && (
             <div className="amount-mismatch-warning glass-card">
               <span className="shrink-0">⚠</span>
               <span>계약·약정 매출 <b className="mono-number">{won(planRevenue)}</b> 과 계산서 발행액 <b className="mono-number">{won(confirmedRevenue)}</b> 이 다릅니다. 중간에 금액이 바뀌었다면 계약 금액 또는 발행 계산서를 확인·수정하세요.</span>
             </div>
           )}
+          {/* ③ 진행 파이프라인 */}
           <PipelineRibbon pipe={pipe} contractTotal={ownContract} onOpen={setTab} />
-          <SettlementPanel pipe={pipe} contractTotal={ownContract} onOpen={setTab} />
-          <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
           {hasInclusiveSub && (
             <p className="text-[11px] text-[var(--text-dim)]">※ VAT <b className="text-[var(--text-muted)]">포함</b>으로 입력한 매출/매입 항목은 <b className="text-[var(--text-muted)]">공급가액(VAT 제외)</b> 기준으로 환산해 계산됩니다.</p>
           )}
-          <div className="grid gap-5 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-5">
-              <div className="cost-breakdown glass-card">
-                <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--text-muted)]">확정 비용 구성 <span className="font-normal text-[var(--text-dim)]">— 프로젝트에 태그된 지출</span></span>
-                  <span className="text-sm font-bold mono-number text-[var(--text)]">{won(totalCost)}</span>
+          {/* ④ 상세 — 정산 현황 · 확정비용 구성 · 영업단계 · 기본정보 */}
+          <details className="pj-details glass-card">
+            <summary>
+              <span className="flex items-center gap-2.5 flex-wrap">
+                상세
+                {settleFigs(pipe).outstanding > 1 && <span className="pj-detail-chip danger">미수 {won(settleFigs(pipe).outstanding)}</span>}
+                <span className="text-[11px] font-normal text-[var(--text-dim)]">· 정산 현황 · 확정비용 · 영업단계 · 기본정보</span>
+              </span>
+              <span className="pj-detail-chev">▸</span>
+            </summary>
+            <div className="pj-detail-body">
+              <SettlementPanel pipe={pipe} contractTotal={ownContract} onOpen={setTab} />
+              <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
+              <div className="grid gap-5 lg:grid-cols-3">
+                <div className="lg:col-span-2 space-y-5">
+                  <div className="cost-breakdown glass-card">
+                    <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
+                      <span className="text-xs font-bold text-[var(--text-muted)]">확정 비용 구성 <span className="font-normal text-[var(--text-dim)]">— 프로젝트에 태그된 지출</span></span>
+                      <span className="text-sm font-bold mono-number text-[var(--text)]">{won(totalCost)}</span>
+                    </div>
+                    <div className="divide-y divide-[var(--border)]/40">
+                      {COST_SOURCES.map((s) => (
+                        <details key={s.key} className="cost-source-item group">
+                          <summary className="cost-source-summary">
+                            <span className="text-[var(--text-dim)] text-[10px] group-open:rotate-90 transition-transform">▶</span>
+                            <span className="text-sm text-[var(--text)] flex-1">{s.label}</span>
+                            <span className="text-[11px] text-[var(--text-dim)]">{s.count}건</span>
+                            <span className="text-sm font-bold mono-number text-[var(--text)] w-32 text-right">{won(s.total)}</span>
+                          </summary>
+                          <div className="cost-source-detail">
+                            {s.count === 0 ? (
+                              <div className="text-[11px] text-[var(--text-dim)]">태그된 {s.label} 없음 — 각 내역 화면에서 이 프로젝트로 지정하세요.</div>
+                            ) : s.items.slice(0, 80).map((it: any) => <CostItemRow key={it.id} kind={s.key} it={it} />)}
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div className="divide-y divide-[var(--border)]/40">
-                  {COST_SOURCES.map((s) => (
-                    <details key={s.key} className="cost-source-item group">
-                      <summary className="cost-source-summary">
-                        <span className="text-[var(--text-dim)] text-[10px] group-open:rotate-90 transition-transform">▶</span>
-                        <span className="text-sm text-[var(--text)] flex-1">{s.label}</span>
-                        <span className="text-[11px] text-[var(--text-dim)]">{s.count}건</span>
-                        <span className="text-sm font-bold mono-number text-[var(--text)] w-32 text-right">{won(s.total)}</span>
-                      </summary>
-                      <div className="cost-source-detail">
-                        {s.count === 0 ? (
-                          <div className="text-[11px] text-[var(--text-dim)]">태그된 {s.label} 없음 — 각 내역 화면에서 이 프로젝트로 지정하세요.</div>
-                        ) : s.items.slice(0, 80).map((it: any) => <CostItemRow key={it.id} kind={s.key} it={it} />)}
-                      </div>
-                    </details>
-                  ))}
+                <div className="space-y-5">
+                  <div className="project-basic-info glass-card">
+                    <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">기본 정보</h3></div>
+                    <div className="grid grid-cols-1 gap-y-3 text-sm">
+                      <Info label="거래처" value={partner?.name || "—"} />
+                      <Info label="담당자" value={manager?.name || "—"} />
+                      <Info label="분류" value={deal.classification || "—"} />
+                      <Info label="단계" value={STAGE_LABEL[stage]} />
+                      <Info label="시작일" value={fmtDate(deal.start_date)} />
+                      <Info label="종료일" value={fmtDate(deal.end_date)} />
+                      <Info label="상태" value={deal.status || "—"} />
+                      <Info label="다음 액션" value={deal.next_action_text || "—"} />
+                    </div>
+                  </div>
+                  <div className="cost-note-card glass-card">
+                    · <b className="text-[var(--text)]">확정 비용</b> = 태그된 세금계산서·현금영수증·카드·전표 합계. 각 내역 화면에서 이 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳에 중복 태그하지 마세요</b>(이중 계상).
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="space-y-5">
-              <div className="project-basic-info glass-card">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold">기본 정보</h3>
-                </div>
-                <div className="grid grid-cols-1 gap-y-3 text-sm">
-                  <Info label="거래처" value={partner?.name || "—"} />
-                  <Info label="담당자" value={manager?.name || "—"} />
-                  <Info label="분류" value={deal.classification || "—"} />
-                  <Info label="단계" value={STAGE_LABEL[stage]} />
-                  <Info label="시작일" value={fmtDate(deal.start_date)} />
-                  <Info label="종료일" value={fmtDate(deal.end_date)} />
-                  <Info label="상태" value={deal.status || "—"} />
-                  <Info label="다음 액션" value={deal.next_action_text || "—"} />
-                </div>
-              </div>
-              <div className="cost-note-card glass-card">
-                · <b className="text-[var(--text)]">확정 비용</b> = 태그된 세금계산서·현금영수증·카드·전표 합계. 각 내역 화면에서 이 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳에 중복 태그하지 마세요</b>(이중 계상).
-              </div>
-            </div>
-          </div>
+          </details>
         </div>
         )
       )}
@@ -1708,51 +1716,107 @@ function PaymentTermsField({ mode, onMode, adv, onAdv, mid, onMid, supply }: {
 }
 
 // 마진 콕핏 — 예상→확정 한 축. 매출은 단일 산식, 비용만 예상(약정)↔확정(실적)으로 진행.
-function MarginCockpit({ revenue, revenueBasis, planCost, actualCost, hasActual, rolled, stage }: {
-  revenue: number; revenueBasis: string; planCost: number; actualCost: number; hasActual: boolean; rolled: number; stage: ProjectStage;
+// pipe(계산서) → 발행·입금·미수 집계 (여러 컴포넌트 공유)
+function settleFigs(pipe: any) {
+  const invoices = (pipe?.invoices || []) as any[];
+  const billed = invoices.filter((i) => !["draft", "void"].includes(i.status));
+  const billedAmt = billed.reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
+  const paidAmt = billed.reduce((a, i) => a + Number(i.settled_amount || 0), 0);
+  const outstanding = Math.max(0, billedAmt - paidAmt);
+  return { billedAmt, paidAmt, outstanding, issuedCount: billed.length };
+}
+
+// ① 수익형 상태 밴드 — 마진율(도넛)·흑자/적자·예상 마진·수금률
+function MarginBand({ revenue, planCost, actualCost, pipe, rolled }: {
+  revenue: number; planCost: number; actualCost: number; pipe: any; rolled: number;
 }) {
-  const planMargin = revenue - planCost;
-  const actualMargin = revenue - actualCost;
-  const headMargin = hasActual ? actualMargin : planMargin;
+  const hasActual = actualCost > 0;
+  const headMargin = revenue - (hasActual ? actualCost : planCost);
   const headRate = revenue > 0 ? headMargin / revenue : null;
-  const danger = headRate != null && headRate < 0;
-  const over = hasActual && planCost > 0 && actualCost > planCost;
-  const barPct = planMargin > 0 ? Math.max(0, Math.min(100, Math.round((actualMargin / planMargin) * 100))) : actualMargin > 0 ? 100 : 0;
-  const sc = STAGE_COLOR[stage];
+  const ratePct = headRate == null ? null : Math.round(headRate * 100);
+  const { billedAmt, paidAmt, outstanding } = settleFigs(pipe);
+  const collectPct = billedAmt > 0 ? Math.round((paidAmt / billedAmt) * 100) : null;
+  const loss = headMargin < 0;
+  const thin = !loss && ratePct != null && ratePct < 10;
+  const statusColor = loss ? "var(--danger)" : thin ? "var(--warning)" : "var(--success)";
+  const statusLabel = loss ? "적자" : thin ? "박한 마진" : "흑자";
   return (
-    <div className="margin-cockpit glass-card">
-      <div className="margin-cockpit-header">
-        <h3 className="text-sm font-bold text-[var(--text)]">마진 <span className="text-[var(--text-dim)] font-normal">(수익성)</span>{rolled > 0 && <span className="ml-1.5 text-[11px] text-[var(--text-dim)] font-normal">· 세부 {rolled}개 합산</span>}</h3>
-        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
+    <div className="pj-band glass-card">
+      <div className="shrink-0"><RadialGauge pct={ratePct} label={`${hasActual ? "확정" : "예상"} 마진율`} size={104} color={statusColor} /></div>
+      <div className="pj-band-sep" />
+      <div className="pj-band-col">
+        <span className="pj-band-lbl">수익성{rolled > 0 && <span className="font-normal"> · 세부 {rolled}개 합산</span>}</span>
+        <span className="pj-band-status" style={{ color: statusColor }}><span className="inline-block w-3 h-3 rounded-full" style={{ background: statusColor }} />{statusLabel}</span>
+        <span className="text-[11.5px] text-[var(--text-muted)]">마진 <b className="mono-number" style={{ color: statusColor }}>{won(headMargin)}</b></span>
       </div>
-      <div className="margin-cockpit-figures">
+      <div className="pj-band-sep" />
+      <div className="pj-band-col">
+        <span className="pj-band-lbl">{hasActual ? "확정 마진 금액" : "예상 마진 금액"}</span>
+        <span className="pj-band-big mono-number" style={{ color: loss ? "var(--danger)" : "var(--text)" }}>{won(headMargin)}</span>
+        <span className="text-[11.5px] text-[var(--text-muted)]">{hasActual ? "태그된 확정 비용 반영" : "비용 태그 시 확정으로 갱신"}</span>
+      </div>
+      <div className="pj-band-sep" />
+      <div className="pj-band-col">
+        <span className="pj-band-lbl">수금률 (입금/발행)</span>
+        {collectPct == null ? <span className="text-[13px] text-[var(--text-dim)]">계산서 발행 전</span> : (<>
+          <span className="pj-band-big mono-number" style={{ color: outstanding > 1 ? "var(--warning)" : "var(--success)" }}>{collectPct}%</span>
+          <div className="track" style={{ height: 7, borderRadius: 7, background: "var(--bg-surface)", overflow: "hidden", marginTop: 4 }}><div style={{ width: `${collectPct}%`, height: "100%", borderRadius: 7, background: outstanding > 1 ? "var(--warning)" : "var(--success)" }} /></div>
+          <span className="text-[10.5px] text-[var(--text-dim)]">{outstanding > 1 ? `미수 ${won(outstanding)}` : "수금 완료"}</span>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+// ② 수익형 돈 흐름 — 계약→발행→입금→미수 스택 바 + 수익 구조(매출−비용=마진)
+function MoneyFlow({ pipe, contractTotal, revenue, revenueBasis, actualCost, onOpen }: {
+  pipe: any; contractTotal: number; revenue: number; revenueBasis: string; actualCost: number; onOpen: (t: TabKey) => void;
+}) {
+  const { billedAmt, paidAmt, outstanding } = settleFigs(pipe);
+  const flowBase = Math.max(contractTotal, billedAmt, 1);
+  const pctOf = (v: number) => Math.max(0, Math.min(100, (v / flowBase) * 100));
+  const margin = revenue - actualCost;
+  const structBase = Math.max(revenue, actualCost, 1);
+  const marginRate = revenue > 0 ? Math.round((margin / revenue) * 100) : null;
+  const flows = [
+    { nm: "계약금액", v: contractTotal, w: contractTotal > 0 ? pctOf(contractTotal) : 0, color: "color-mix(in srgb, var(--primary) 30%, transparent)", pct: null as number | null, off: 0 },
+    { nm: "계산서 발행", v: billedAmt, w: pctOf(billedAmt), color: "var(--primary)", pct: contractTotal > 0 ? Math.round((billedAmt / flowBase) * 100) : null, off: 0 },
+    { nm: "실입금", v: paidAmt, w: pctOf(paidAmt), color: "var(--success)", pct: contractTotal > 0 ? Math.round((paidAmt / flowBase) * 100) : null, off: 0 },
+  ];
+  return (
+    <div className="pj-sec glass-card">
+      <div className="pj-sec-head">
+        <div><h3 className="text-sm font-bold text-[var(--text)]">돈 흐름</h3><span className="pj-sec-sub">계약 → 발행 → 입금 → 미수</span></div>
+        <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">계산서 열기 →</button>
+      </div>
+      <div className="pj-flow">
+        {flows.map((f) => (
+          <div key={f.nm}>
+            <div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">{f.nm}{f.pct != null && <span className="text-[10.5px] text-[var(--text-dim)] ml-1.5 font-normal">{f.pct}%</span>}</span><span className="mono-number font-bold text-[var(--text-muted)]">{f.v > 0 ? won(f.v) : "—"}</span></div>
+            <div className="pj-flow-track"><i style={{ width: `${f.w}%`, background: f.color }} /></div>
+          </div>
+        ))}
+        {outstanding > 1 && (
+          <div>
+            <div className="pj-flow-row-l"><span className="font-bold text-[var(--danger)]">미수금<span className="text-[10.5px] ml-1.5 font-normal">{Math.round((outstanding / flowBase) * 100)}%</span></span><span className="mono-number font-bold text-[var(--danger)]">{won(outstanding)}</span></div>
+            <div className="pj-flow-track"><i style={{ width: `${pctOf(outstanding)}%`, marginLeft: `${pctOf(paidAmt)}%`, background: "var(--danger)" }} /></div>
+          </div>
+        )}
+      </div>
+      <div className="pj-flow-struct">
         <div>
-          <div className="text-[11px] text-[var(--text-dim)] mb-0.5">{hasActual ? "확정" : "예상"} 마진률</div>
-          <div className={`text-[40px] leading-none font-black mono-number ${danger ? "text-[var(--danger)]" : "text-[var(--primary)]"}`}>{headRate == null ? "—" : `${Math.round(headRate * 100)}%`}</div>
-        </div>
-        <div className="pb-1">
-          <div className="text-[11px] text-[var(--text-dim)] mb-0.5">마진금액</div>
-          <div className={`text-xl font-black mono-number ${danger ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{won(headMargin)}</div>
-        </div>
-      </div>
-      {hasActual ? (
-        <div className="margin-progress-bar">
-          <div className="flex items-center justify-between text-[11px] mb-1">
-            <span className="text-[var(--text-muted)]">예상 마진 <b className="mono-number text-[var(--text)]">{won(planMargin)}</b></span>
-            <span className={over ? "text-[var(--warning)]" : "text-[var(--success)]"}>확정 마진 <b className="mono-number">{won(actualMargin)}</b></span>
+          <div className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-dim)] mb-2.5">수익 구조 <span className="font-normal normal-case">({revenueBasis})</span></div>
+          <div className="pj-flow">
+            <div><div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">매출</span><span className="mono-number font-bold text-[var(--text-muted)]">{won(revenue)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.min(100, (revenue / structBase) * 100)}%`, background: "var(--info)" }} /></div></div>
+            <div><div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">확정 비용</span><span className="mono-number font-bold text-[var(--text-muted)]">{won(actualCost)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.min(100, (actualCost / structBase) * 100)}%`, background: "var(--warning)" }} /></div></div>
+            <div><div className="pj-flow-row-l"><span className="font-bold" style={{ color: margin < 0 ? "var(--danger)" : "var(--success)" }}>= 마진{marginRate != null && <span className="font-normal ml-1">({marginRate}%)</span>}</span><span className="mono-number font-bold" style={{ color: margin < 0 ? "var(--danger)" : "var(--success)" }}>{won(margin)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.max(0, Math.min(100, (margin / structBase) * 100))}%`, background: margin < 0 ? "var(--danger)" : "var(--success)" }} /></div></div>
           </div>
-          <div className="h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${danger ? "bg-[var(--danger)]" : over ? "bg-[var(--warning)]" : "bg-[var(--success)]"}`} style={{ width: `${barPct}%` }} />
-          </div>
-          {over && <div className="text-[11px] text-[var(--warning)] mt-1.5">⚠ 확정 비용이 예상보다 {won(actualCost - planCost)} 더 나갔습니다.</div>}
         </div>
-      ) : (
-        <div className="mt-3 text-[11px] text-[var(--text-dim)]">예상(계획) 기준입니다. 비용을 프로젝트에 태그하면 <b className="text-[var(--text-muted)]">확정 마진</b>이 채워집니다.</div>
-      )}
-      <div className="margin-cockpit-footer">
-        <span className="text-[var(--text-muted)]">매출 <b className="mono-number text-[var(--text)]">{won(revenue)}</b> <span className="text-[10px] text-[var(--text-dim)]">({revenueBasis})</span></span>
-        <span className="text-[var(--text-muted)]">예상 비용 <b className="mono-number text-[var(--text)]">{won(planCost)}</b></span>
-        <span className="text-[var(--text-muted)]">확정 비용 <b className="mono-number text-[var(--text)]">{won(actualCost)}</b></span>
+        <div className="flex flex-col justify-center gap-2">
+          {actualCost === 0 && <div className="text-[11.5px] text-[var(--text-dim)]">비용을 프로젝트에 태그하면 <b className="text-[var(--text-muted)]">확정 마진</b>이 채워집니다.</div>}
+          {revenue > 0 && actualCost > 0 && margin < 0 && <div className="text-[12px] rounded-lg px-3 py-2 bg-[var(--danger)]/8 text-[var(--danger)] font-semibold">⚠ 비용이 매출을 초과 — 적자 프로젝트</div>}
+          {contractTotal > 0 && billedAmt < contractTotal - 1 && <div className="text-[12px] rounded-lg px-3 py-2 bg-[var(--warning)]/8 text-[var(--warning)] font-semibold">계약 대비 계산서 미발행 {won(contractTotal - billedAmt)}</div>}
+        </div>
       </div>
     </div>
   );
@@ -1937,18 +2001,6 @@ function MarginOnboarding({ onTab }: { onTab: (t: TabKey) => void }) {
     </div>
   );
 }
-function Metric({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: "primary" | "danger" }) {
-  const color = value === "—" ? "text-[var(--text-dim)]"
-    : accent === "danger" ? "text-[var(--danger)]"
-    : accent === "primary" ? "text-[var(--primary)]"
-    : "text-[var(--text)]";
-  return (
-    <div className="metric-card glass-card">
-      <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">{label}</div>
-      <div className={`text-xl font-black mono-number mt-1 ${color}`} title={hint}>{value}</div>
-    </div>
-  );
-}
 function CostItemRow({ kind, it }: { kind: string; it: any }) {
   if (kind === "invoice") return <CostRow date={it.issue_date} name={it.counterparty_name} amt={Number(it.supply_amount || it.total_amount || 0)} />;
   if (kind === "cash") return <CostRow date={it.issue_date} name={it.counterparty_name || "현금영수증"} amt={Number(it.supply_amount || it.amount || 0)} />;
@@ -2033,83 +2085,158 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
   const assigneeRows = Object.entries(byAssignee).sort((a, b) => b[1].total - a[1].total);
   const budget = Number(deal.contract_total || 0);
   const endOver = deal.end_date && String(deal.end_date).slice(0, 10) < today && runState !== "완료";
+
+  // 예상 완료 페이스 — 완료 시점 컬럼이 없어 완료수/기간진행률로 추정(기한 내/초과 판정).
+  const parseD = (s: string) => new Date(String(s).slice(0, 10) + "T00:00:00Z").getTime();
+  const DAY = 86400000;
+  let pace: { tone: "ok" | "danger" | "muted"; text: string } | null = null;
+  let periodPct: number | null = null;
+  if (deal.start_date && deal.end_date && total > 0) {
+    const s = parseD(deal.start_date), e = parseD(deal.end_date), n = parseD(today);
+    const totalDays = Math.max(1, Math.round((e - s) / DAY));
+    const elapsed = Math.max(0, Math.min(totalDays, Math.round((n - s) / DAY)));
+    periodPct = Math.round((elapsed / totalDays) * 100);
+    if (done >= total) pace = { tone: "ok", text: "완료됨" };
+    else if (elapsed <= 0) pace = { tone: "muted", text: "시작 전" };
+    else if (done === 0) pace = { tone: "danger", text: "아직 완료된 태스크 없음" };
+    else {
+      const perDay = done / elapsed, remaining = total - done;
+      const over = Math.round((elapsed + remaining / perDay) - totalDays);
+      pace = over > 0 ? { tone: "danger", text: `기한 ${over}일 초과 예상` } : { tone: "ok", text: "기한 내 완료 예상" };
+    }
+  }
+  const paceColor = pace?.tone === "danger" ? "var(--danger)" : pace?.tone === "ok" ? "var(--success)" : "var(--text-dim)";
+
+  // 마감 워크로드 — 마감일 있는 태스크를 7일 창으로 버킷(완료/남음/지연)
+  const dueTasks = (tasks as any[]).filter((t) => t.due_date);
+  const workloadWeeks: { label: string; done: number; pending: number; over: number }[] = [];
+  let workloadTodayIdx = -1;
+  if (dueTasks.length > 0) {
+    const sorted = dueTasks.map((t) => String(t.due_date).slice(0, 10)).sort();
+    const s0 = parseD(sorted[0]), e0 = parseD(sorted[sorted.length - 1]), nowMs = parseD(today);
+    for (let w = 0; s0 + w * 7 * DAY <= e0; w++) {
+      const wStart = s0 + w * 7 * DAY, wEnd = wStart + 7 * DAY;
+      let d = 0, p = 0, o = 0;
+      dueTasks.forEach((t) => {
+        const dd = parseD(t.due_date);
+        if (dd < wStart || dd >= wEnd) return;
+        if (t.status === "done") d++; else if (dd < nowMs) o++; else p++;
+      });
+      const le = new Date(wStart + 6 * DAY);
+      workloadWeeks.push({ label: `~${le.getUTCMonth() + 1}/${le.getUTCDate()}`, done: d, pending: p, over: o });
+      if (nowMs >= wStart && nowMs < wEnd) workloadTodayIdx = w;
+    }
+  }
+
+  const statusSegs = DELIVERY_STATUS_META.map((s) => ({ ...s, n: byStatus[s.key], bg: s.key === "todo" ? "var(--text-dim)" : s.key === "doing" ? "var(--info)" : s.key === "review" ? "var(--warning)" : "var(--success)" }));
+  const runColor = runState === "완료" ? "var(--success)" : delayed > 0 ? "var(--warning)" : runState === "진행 중" ? "var(--info)" : "var(--text-dim)";
+
   return (
-    <div className="delivery-overview-panel">
-      <div className="delivery-metrics-grid">
-        <Metric label="진행률" value={total > 0 ? `${pct}%` : "—"} accent={pct >= 100 && total > 0 ? "primary" : undefined} />
-        <Metric label="완료 / 전체" value={`${done} / ${total}`} />
-        <Metric label="지연" value={String(delayed)} accent={delayed > 0 ? "danger" : undefined} />
-        <Metric label="마감" value={deal.end_date ? dday(deal.end_date) : "—"} hint={deal.end_date ? `종료일 ${fmtDate(deal.end_date)}` : "종료일을 설정하면 D-day가 표시됩니다"} accent={endOver ? "danger" : undefined} />
+    <div className="delivery-overview-panel space-y-5">
+      {/* ① 상태 밴드 */}
+      <div className="pj-band glass-card">
+        <div className="shrink-0"><RadialGauge pct={total > 0 ? pct : null} label="진행률" size={104} /></div>
+        <div className="pj-band-sep" />
+        <div className="pj-band-col">
+          <span className="pj-band-lbl">상태</span>
+          <span className="pj-band-status" style={{ color: runColor }}><span className="inline-block w-3 h-3 rounded-full" style={{ background: runColor }} />{runState}{delayed > 0 && ` · 지연 ${delayed}`}</span>
+          <span className="text-[11.5px] text-[var(--text-muted)]">완료 {done} / 전체 {total}</span>
+        </div>
+        <div className="pj-band-sep" />
+        <div className="pj-band-col">
+          <span className="pj-band-lbl">예상 완료 (이대로라면)</span>
+          {pace ? <span className="pj-band-big" style={{ color: paceColor }}>{pace.text}</span> : <span className="text-[12px] text-[var(--text-dim)]">기간·태스크를 설정하면 표시됩니다</span>}
+          {pace && pace.tone !== "muted" && <span className="text-[11.5px] text-[var(--text-muted)]">완료 페이스 대비 기간 진행 비교</span>}
+        </div>
+        <div className="pj-band-sep" />
+        <div className="pj-band-col">
+          <span className="pj-band-lbl">마감</span>
+          <span className="pj-band-big mono-number" style={{ color: endOver ? "var(--danger)" : "var(--text)" }}>{deal.end_date ? dday(deal.end_date) : "—"}</span>
+          {periodPct != null ? (<>
+            <div style={{ height: 7, borderRadius: 7, background: "var(--bg-surface)", overflow: "hidden", marginTop: 4 }}><div style={{ width: `${periodPct}%`, height: "100%", borderRadius: 7, background: "var(--text-dim)" }} /></div>
+            <span className="text-[10.5px] text-[var(--text-dim)]">종료 {fmtDate(deal.end_date)} · 기간 {periodPct}%</span>
+          </>) : <span className="text-[10.5px] text-[var(--text-dim)]">{deal.end_date ? `종료 ${fmtDate(deal.end_date)}` : "종료일 미설정"}</span>}
+        </div>
       </div>
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-5">
-          <div className="task-progress-card glass-card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold">태스크 진행률</h3>
-              <span className="text-xs mono-number text-[var(--text)]">{done} / {total}</span>
-            </div>
-            <div className="h-3 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-              <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%` }} />
-            </div>
-            <div className="task-status-grid">
-              {DELIVERY_STATUS_META.map((s) => (
-                <div key={s.key} className="rounded-xl bg-[var(--bg-surface)] px-3 py-2 text-center">
-                  <div className={`text-[11px] font-semibold ${s.color}`}>{s.label}</div>
-                  <div className="text-base font-black mono-number text-[var(--text)]">{byStatus[s.key]}</div>
-                </div>
-              ))}
-            </div>
+
+      {/* ② 태스크 상태 스택 */}
+      <div className="pj-sec glass-card">
+        <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">태스크 상태</h3><span className="pj-sec-sub">전체 {total}건</span></div><span className="text-xs mono-number text-[var(--text-muted)]">{pct}%</span></div>
+        {total === 0 ? <p className="text-xs text-[var(--text-dim)]">아직 태스크가 없습니다. ‘태스크’ 탭에서 추가하세요.</p> : (<>
+          <div className="pj-stack">
+            {statusSegs.filter((s) => s.n > 0).map((s) => (<div key={s.key} className="seg" style={{ flex: s.n, background: s.bg }}>{s.n}</div>))}
           </div>
-          <div className="upcoming-deadlines-card glass-card">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold">다가오는 마감</h3>
-              <Link href={`/projecthub/${dealId}?tab=tasks`} className="text-[11px] text-[var(--primary)] hover:underline">태스크 탭 →</Link>
-            </div>
-            {upcoming.length === 0 ? (
-              <p className="text-xs text-[var(--text-dim)]">마감일이 지정된 미완료 태스크가 없습니다.</p>
-            ) : (
-              <div className="divide-y divide-[var(--border)]/40">
-                {upcoming.map((t) => {
-                  const late = String(t.due_date).slice(0, 10) < today;
-                  return (
-                    <div key={t.id} className="upcoming-deadline-row">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold mono-number shrink-0 ${late ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{dday(t.due_date)}</span>
-                      <span className="flex-1 truncate text-[var(--text)]">{t.title || "(제목 없음)"}</span>
-                      <span className="text-[11px] text-[var(--text-dim)] shrink-0">{assigneesOf(t).map(userName).join(", ") || "미지정"}</span>
-                      <span className="text-[11px] text-[var(--text-muted)] mono-number shrink-0">{fmtDate(t.due_date)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <div className="pj-chart-legend">
+            {statusSegs.map((s) => (<span key={s.key} className="k"><i style={{ background: s.bg }} />{s.label} {s.n}</span>))}
           </div>
-          {assigneeRows.length > 0 && (
-            <div className="assignee-progress-card glass-card">
-              <h3 className="text-sm font-bold mb-3">담당자별 현황</h3>
-              <div className="space-y-2.5">
-                {assigneeRows.map(([id, v]) => {
-                  const p = v.total > 0 ? Math.round((v.done / v.total) * 100) : 0;
-                  return (
-                    <div key={id} className="assignee-progress-row">
-                      <span className="text-xs text-[var(--text)] w-24 truncate shrink-0">{userName(id)}</span>
-                      <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                        <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${p}%` }} />
-                      </div>
-                      <span className="text-[11px] mono-number text-[var(--text-muted)] w-14 text-right shrink-0">{v.done} / {v.total}</span>
-                    </div>
-                  );
-                })}
-              </div>
+        </>)}
+      </div>
+
+      {/* ② 마감 워크로드 */}
+      {workloadWeeks.length > 0 && (
+        <div className="pj-sec glass-card">
+          <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">마감 워크로드</h3><span className="pj-sec-sub">주별 예정 마감 · 완료/남음/지연</span></div></div>
+          <WorkloadChart weeks={workloadWeeks} todayIndex={workloadTodayIdx} />
+          <div className="pj-chart-legend">
+            <span className="k"><i style={{ background: "var(--success)" }} />완료</span>
+            <span className="k"><i style={{ background: "var(--text-dim)" }} />남은 태스크</span>
+            <span className="k"><i style={{ background: "var(--danger)" }} />지연(마감 초과·미완료)</span>
+          </div>
+        </div>
+      )}
+
+      {/* ③ 다가오는 마감 + 담당자별 */}
+      <div className="pj-two">
+        <div className="pj-sec glass-card">
+          <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">다가오는 마감</h3></div><Link href={`/projecthub/${dealId}?tab=tasks`} className="text-[11px] text-[var(--primary)] hover:underline">태스크 탭 →</Link></div>
+          {upcoming.length === 0 ? (
+            <p className="text-xs text-[var(--text-dim)]">마감일이 지정된 미완료 태스크가 없습니다.</p>
+          ) : (
+            <div className="divide-y divide-[var(--border)]/40">
+              {upcoming.map((t) => {
+                const late = String(t.due_date).slice(0, 10) < today;
+                return (
+                  <div key={t.id} className="upcoming-deadline-row">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold mono-number shrink-0 ${late ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{dday(t.due_date)}</span>
+                    <span className="flex-1 truncate text-[var(--text)]">{t.title || "(제목 없음)"}</span>
+                    <span className="text-[11px] text-[var(--text-dim)] shrink-0">{assigneesOf(t).map(userName).join(", ") || "미지정"}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
-          <p className="text-[11px] text-[var(--text-dim)]">※ 태스크 추가·칸반·간트는 <b className="text-[var(--text-muted)]">태스크</b> 탭에서 관리합니다.</p>
         </div>
-        <div className="space-y-5">
-          <div className="execution-info-card glass-card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold">실행 정보</h3>
+        {assigneeRows.length > 0 ? (
+          <div className="pj-sec glass-card">
+            <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">담당자별 현황</h3></div></div>
+            <div className="space-y-2.5">
+              {assigneeRows.map(([id, v]) => {
+                const p = v.total > 0 ? Math.round((v.done / v.total) * 100) : 0;
+                return (
+                  <div key={id} className="assignee-progress-row">
+                    <span className="text-xs text-[var(--text)] w-24 truncate shrink-0">{userName(id)}</span>
+                    <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden"><div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${p}%` }} /></div>
+                    <span className="text-[11px] mono-number text-[var(--text-muted)] w-14 text-right shrink-0">{v.done} / {v.total}</span>
+                  </div>
+                );
+              })}
             </div>
-            <div className="grid grid-cols-1 gap-y-3 text-sm">
+          </div>
+        ) : (
+          <div className="pj-sec glass-card flex items-center justify-center text-xs text-[var(--text-dim)]">담당자가 지정된 태스크가 없습니다.</div>
+        )}
+      </div>
+
+      {/* ④ 상세 — 실행 정보 */}
+      <details className="pj-details glass-card">
+        <summary>
+          <span className="flex items-center gap-2.5 flex-wrap">상세{delayed > 0 && <span className="pj-detail-chip danger">지연 {delayed}</span>}<span className="text-[11px] font-normal text-[var(--text-dim)]">· 실행 정보</span></span>
+          <span className="pj-detail-chev">▸</span>
+        </summary>
+        <div className="pj-detail-body">
+          <div className="execution-info-card glass-card">
+            <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">실행 정보</h3></div>
+            <div className="pj-kv">
               <Info label="담당자" value={manager?.name || "—"} />
               <Info label="기간" value={deal.start_date || deal.end_date ? `${fmtDate(deal.start_date)} ~ ${fmtDate(deal.end_date)}` : "—"} />
               <Info label="실행 상태" value={runState} />
@@ -2117,8 +2244,9 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
               {budget > 0 && <Info label="예산" value={won(budget)} />}
             </div>
           </div>
+          <p className="text-[11px] text-[var(--text-dim)]">※ 태스크 추가·칸반·간트는 <b className="text-[var(--text-muted)]">태스크</b> 탭에서 관리합니다.</p>
         </div>
-      </div>
+      </details>
     </div>
   );
 }
