@@ -22,8 +22,8 @@ export function ReportShell({ children }: { children: ReactNode }) {
 export function PageHeader({ title, desc, tags }: { title: string; desc?: string; tags?: string[] }) {
   return (
     <header className="report-header">
-      <h1 className="text-[26px] leading-8 font-extrabold text-[var(--text)] tracking-tight">{title}</h1>
-      {desc && <p className="text-sm text-[var(--text-muted)] mt-1.5 max-w-3xl leading-relaxed">{desc}</p>}
+      <h1 className="text-[21px] leading-7 font-extrabold text-[var(--text)] tracking-tight">{title}</h1>
+      {desc && <p className="text-[13px] text-[var(--text-muted)] mt-1 max-w-3xl leading-relaxed">{desc}</p>}
       {tags && tags.length > 0 && (
         <div className="flex items-center gap-1.5 mt-3 flex-wrap">
           {tags.map((t, i) => <span key={i} className="text-[11px] font-medium px-2.5 py-1 rounded-full text-[var(--primary)] border" style={{ background: soft("var(--primary)", 8), borderColor: soft("var(--primary)", 18) }}>{t}</span>)}
@@ -44,8 +44,8 @@ export function IntroCard({ eyebrow, title, desc, tags, callout, box }: {
       <div className="report-intro-grid">
         <div className="report-intro-text">
           {eyebrow && <div className="text-[11px] font-bold tracking-wider uppercase mb-2" style={{ color: "var(--primary)" }}>{eyebrow}</div>}
-          <h2 className="text-xl font-extrabold text-[var(--text)] tracking-tight">{title}</h2>
-          {desc && <p className="text-sm text-[var(--text-muted)] mt-2 leading-relaxed">{desc}</p>}
+          <h2 className="text-[17px] font-extrabold text-[var(--text)] tracking-tight">{title}</h2>
+          {desc && <p className="text-[13px] text-[var(--text-muted)] mt-1.5 leading-relaxed">{desc}</p>}
           {tags && tags.length > 0 && (
             <div className="flex items-center gap-1.5 mt-3 flex-wrap">
               {tags.map((t, i) => <span key={i} className="text-[11px] font-medium px-2 py-0.5 rounded-full text-[var(--primary)]" style={{ background: soft("var(--primary)", 8) }}>{t}</span>)}
@@ -57,14 +57,14 @@ export function IntroCard({ eyebrow, title, desc, tags, callout, box }: {
             {callout && (
               <div className="report-intro-callout">
                 <div className="text-[11px] text-[var(--text-dim)]">{callout.label}</div>
-                <div className="text-2xl font-extrabold mono-number mt-0.5" style={{ color: toneColor(callout.tone) }}>{callout.value}</div>
+                <div className="text-xl font-extrabold mono-number mt-0.5" style={{ color: toneColor(callout.tone) }}>{callout.value}</div>
                 {callout.sub && <div className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">{callout.sub}</div>}
               </div>
             )}
             {box && (
               <div className="report-intro-box" style={{ background: soft(toneColor(box.tone), 10) }}>
                 <div className="text-[11px] font-semibold" style={{ color: toneColor(box.tone) }}>{box.label}</div>
-                <div className="text-lg font-extrabold mono-number" style={{ color: toneColor(box.tone) }}>{box.value}</div>
+                <div className="text-[15px] font-extrabold mono-number" style={{ color: toneColor(box.tone) }}>{box.value}</div>
                 {box.sub && <div className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-snug">{box.sub}</div>}
               </div>
             )}
@@ -83,11 +83,11 @@ export function StatCard({ label, value, caption, icon, tone, href }: {
   const inner = (
     <>
       <div className="report-stat-head">
-        <span className="text-[13px] text-[var(--text-muted)]">{label}</span>
-        {icon != null && <span className="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0" style={{ background: soft(color === "var(--text)" ? "var(--primary)" : color, 12) }}>{icon}</span>}
+        <span className="text-[12.5px] text-[var(--text-muted)]">{label}</span>
+        {icon != null && <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[13px] shrink-0" style={{ background: soft(color === "var(--text)" ? "var(--primary)" : color, 12) }}>{icon}</span>}
       </div>
-      <div className="text-[26px] leading-8 font-extrabold mono-number mt-2" style={{ color }}>{value}</div>
-      {caption && <div className="text-[11px] text-[var(--text-dim)] mt-1">{caption}</div>}
+      <div className="text-[21px] leading-7 font-extrabold mono-number mt-1.5" style={{ color }}>{value}</div>
+      {caption && <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{caption}</div>}
     </>
   );
   return href

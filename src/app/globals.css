@@ -3223,16 +3223,17 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .attendance-badge-holiday { @apply inline-flex items-center gap-1 rounded font-semibold bg-emerald-500/10 text-emerald-400; }
 .attendance-badge-type { @apply inline-flex items-center gap-1 rounded font-semibold bg-sky-500/10 text-sky-400; }
 
+/* 보고서형 밀도 정리(2026-07-22) — 분석 탭 전반이 과하게 커 보이던 여백/카드를 컴팩트하게 */
 .report-shell { @apply w-full; }
-.report-intro-card { @apply p-6; }
-.report-intro-grid { @apply grid gap-6 md:grid-cols-[1fr_260px]; }
+.report-intro-card { @apply p-5; }
+.report-intro-grid { @apply grid gap-5 md:grid-cols-[1fr_220px]; }
 .report-intro-text { @apply min-w-0; }
-.report-intro-side { @apply md:border-l md:border-[var(--border)] md:pl-6 space-y-3; }
-.report-intro-box { @apply rounded-xl p-3; }
+.report-intro-side { @apply md:border-l md:border-[var(--border)] md:pl-5 space-y-2.5; }
+.report-intro-box { @apply rounded-xl p-2.5; }
 .report-stat-head { @apply flex items-start justify-between gap-2; }
-.report-stat-card { @apply p-5; }
-.report-section { @apply p-5; }
-.report-section-header { @apply flex items-start justify-between gap-2 mb-4 flex-wrap; }
+.report-stat-card { @apply p-4; }
+.report-section { @apply p-4; }
+.report-section-header { @apply flex items-start justify-between gap-2 mb-3 flex-wrap; }
 
 .siyan-card-row { @apply p-4 transition-all; }
 .card-row-body { @apply flex items-start gap-3; }
