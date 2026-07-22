@@ -21,7 +21,7 @@ const fmtShort = (n: number) => {
 };
 
 const toneColor = (t: TrendTone | undefined, accent: string) =>
-  t === "danger" ? "var(--danger, #ef4444)" : t === "muted" ? "var(--text-dim)" : accent;
+  t === "danger" ? "var(--danger, var(--viz-neg))" : t === "muted" ? "var(--text-dim)" : accent;
 
 // Catmull-Rom → 큐빅 베지어 (부드러운 곡선)
 function smoothPath(pts: { x: number; y: number }[]): string {
@@ -96,7 +96,7 @@ export function AreaTrend({
             </linearGradient>
           </defs>
           {zeroY != null && (
-            <line x1="0" y1={zeroY} x2="100" y2={zeroY} stroke="var(--danger, #ef4444)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" opacity={0.4} />
+            <line x1="0" y1={zeroY} x2="100" y2={zeroY} stroke="var(--danger, var(--viz-neg))" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" opacity={0.4} />
           )}
           {markerIndex != null && n > 1 && (
             <line x1={X(markerIndex)} y1="0" x2={X(markerIndex)} y2="100" stroke="var(--text-dim)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" opacity={0.55} />

@@ -56,7 +56,7 @@ const FLOW_STEPS = [
   { no: 3, title: "수금", accent: "var(--success)" },
   { no: 4, title: "비용", accent: "var(--warning)" },
   { no: 5, title: "손익 · 세금", accent: "var(--primary)" },
-  { no: 6, title: "결산", accent: "#06b6d4" },
+  { no: 6, title: "결산", accent: "var(--viz-info)" },
 ] as const;
 
 /* ── 단계 카드 공통 — 상단 액센트 라인 + 단계 번호 칩 ── */
@@ -519,7 +519,7 @@ export default function BusinessFlowPage() {
           </StepCard>
 
           {/* ⑥ 결산 */}
-          <StepCard no={6} title="결산" accent="#06b6d4"
+          <StepCard no={6} title="결산" accent="var(--viz-info)"
             links={[{ href: "/dashboard", label: "월결산 체크리스트" }]}>
             {closing ? (
               <>
@@ -528,7 +528,7 @@ export default function BusinessFlowPage() {
                 {closing.total > 0 && (
                   <MiniBar
                     pct={(closing.done / closing.total) * 100}
-                    color={closing.requiredDone === closing.requiredTotal ? "var(--success)" : "#06b6d4"}
+                    color={closing.requiredDone === closing.requiredTotal ? "var(--success)" : "var(--viz-info)"}
                     label={`전체 진행 ${Math.round((closing.done / closing.total) * 100)}%`}
                   />
                 )}

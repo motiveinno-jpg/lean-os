@@ -61,8 +61,8 @@ export default function ByPersonChart({ people, payByPerson }: ByPersonChartProp
             <stop offset="100%" stopColor="var(--warning)" stopOpacity="0.6" />
           </linearGradient>
           <linearGradient id="bpCardGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="var(--viz-brand)" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="var(--viz-brand)" stopOpacity="0.6" />
           </linearGradient>
         </defs>
 

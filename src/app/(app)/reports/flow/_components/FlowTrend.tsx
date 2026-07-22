@@ -40,7 +40,7 @@ const INCOME_PARTS = [
 ] as const;
 const EXPENSE_PARTS = [
   { key: "fixedCosts", label: "고정비", color: "var(--warning)" },
-  { key: "variableCosts", label: "변동비", color: "#ec4899" }, // 장식용 고유색 — 고정비(--warning)와 구분 유지
+  { key: "variableCosts", label: "변동비", color: "var(--viz-brand)" }, // 장식용 고유색 — 고정비(--warning)와 구분 유지
 ] as const;
 
 const BAR_H = 96;

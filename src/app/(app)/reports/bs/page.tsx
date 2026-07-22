@@ -328,9 +328,9 @@ function computeRatios(d: BsData): RatioInfo[] {
 }
 
 const HEALTH_COLORS: Record<string, string> = {
-  green: "#10b981",
-  yellow: "#f59e0b",
-  red: "#ef4444",
+  green: "var(--viz-pos)",
+  yellow: "var(--viz-warn)",
+  red: "var(--viz-neg)",
 };
 
 /* ------------------------------------------------------------------ */
@@ -538,7 +538,7 @@ export default function BalanceSheetPage() {
               whiteSpace: "nowrap",
               color: delta === undefined || delta === 0
                 ? "var(--text-dim)"
-                : delta > 0 ? "#10b981" : "#ef4444",
+                : delta > 0 ? "var(--viz-pos)" : "var(--viz-neg)",
             }}
           >
             {delta === undefined ? "-" : delta === 0 ? "-" : `${delta > 0 ? "+" : ""}${formatKrw(delta)} ${delta > 0 ? "\u25B2" : "\u25BC"}`}
@@ -879,7 +879,7 @@ export default function BalanceSheetPage() {
                     <div
                       style={{
                         width: `${Math.round((data.fixedAssets / data.totalAssets) * 100)}%`,
-                        background: "#8b5cf6",
+                        background: "var(--viz-brand)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -949,7 +949,7 @@ export default function BalanceSheetPage() {
               <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--success)", display: "inline-block" }} />채권/자본
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "#8b5cf6", display: "inline-block" }} />고정자산
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-brand)", display: "inline-block" }} />고정자산
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--danger)", display: "inline-block" }} />부채
@@ -1018,8 +1018,8 @@ export default function BalanceSheetPage() {
                       <div key={p.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                         <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 140 }}>
                           <div style={{ width: 18, height: assetH, background: "var(--primary)", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`자산: ₩${p.totalAssets.toLocaleString()}`} />
-                          <div style={{ width: 18, height: liabH, background: "#ef4444", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`부채: ₩${p.totalLiabilities.toLocaleString()}`} />
-                          <div style={{ width: 18, height: eqH, background: "#10b981", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`자본: ₩${Math.max(p.totalEquity, 0).toLocaleString()}`} />
+                          <div style={{ width: 18, height: liabH, background: "var(--viz-neg)", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`부채: ₩${p.totalLiabilities.toLocaleString()}`} />
+                          <div style={{ width: 18, height: eqH, background: "var(--viz-pos)", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`자본: ₩${Math.max(p.totalEquity, 0).toLocaleString()}`} />
                         </div>
                         <div style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap" }}>{p.month}</div>
                       </div>
@@ -1033,10 +1033,10 @@ export default function BalanceSheetPage() {
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--primary)", display: "inline-block" }} />자산
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: "#ef4444", display: "inline-block" }} />부채
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-neg)", display: "inline-block" }} />부채
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: "#10b981", display: "inline-block" }} />자본
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-pos)", display: "inline-block" }} />자본
               </span>
             </div>
           </div>
@@ -1109,7 +1109,7 @@ function ClickableRow({ label, amount, prevAmount, isCompareMode, onClick }: {
       {isCompareMode && (
         <td style={{
           padding: "10px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", whiteSpace: "nowrap",
-          color: delta === undefined || delta === 0 ? "var(--text-dim)" : delta > 0 ? "#10b981" : "#ef4444",
+          color: delta === undefined || delta === 0 ? "var(--text-dim)" : delta > 0 ? "var(--viz-pos)" : "var(--viz-neg)",
         }}>
           {delta === undefined ? "-" : delta === 0 ? "-" : `${delta > 0 ? "+" : ""}${Math.round(delta).toLocaleString("ko-KR")} ${delta > 0 ? "▲" : "▼"}`}
         </td>
@@ -1170,7 +1170,7 @@ function DetailModalView({ modal, isCompareMode, onClose }: {
               {(() => {
                 const delta = modal.total - modal.prevTotal!;
                 return (
-                  <div style={{ fontSize: 11, fontWeight: 600, color: delta === 0 ? 'var(--text-dim)' : delta > 0 ? '#10b981' : '#ef4444' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: delta === 0 ? 'var(--text-dim)' : delta > 0 ? 'var(--viz-pos)' : 'var(--viz-neg)' }}>
                     {delta === 0 ? '-' : `${delta > 0 ? '+' : ''}${Math.round(delta).toLocaleString('ko-KR')} ${delta > 0 ? '▲' : '▼'}`}
                   </div>
                 );
