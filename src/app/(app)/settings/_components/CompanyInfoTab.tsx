@@ -366,13 +366,13 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           {/* Seal Upload */}
           <div className="company-seal-upload">
             <label className="field-label mb-2">직인 (회사 도장)</label>
-            <div className="border-2 border-dashed border-[var(--border)] rounded-xl p-4 text-center min-h-[160px] flex flex-col items-center justify-center gap-2">
+            <div className="company-asset-dropzone">
               {sealUrl ? (
                 <>
                   <img
                     src={sealUrl}
                     alt="직인"
-                    className="max-w-[120px] max-h-[120px] object-contain rounded-lg"
+                    className="company-asset-img"
                   />
                   <div className="flex gap-2 mt-2 flex-wrap justify-center">
                     <button
@@ -491,13 +491,13 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           {/* Logo Upload */}
           <div className="company-logo-upload">
             <label className="field-label mb-2">회사 로고</label>
-            <div className="border-2 border-dashed border-[var(--border)] rounded-xl p-4 text-center min-h-[160px] flex flex-col items-center justify-center gap-2">
+            <div className="company-asset-dropzone">
               {logoUrl ? (
                 <>
                   <img
                     src={logoUrl}
                     alt="로고"
-                    className="max-w-[120px] max-h-[120px] object-contain rounded-lg"
+                    className="company-asset-img"
                   />
                   <div className="flex gap-2 mt-2">
                     <button

@@ -2330,6 +2330,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .company-info-basic-form { @apply p-6; }
 .company-seal-logo-panel { @apply p-6; }
 .company-seal-preview-panel { @apply mt-3 p-4 bg-[var(--bg-card)] border border-[var(--success)]/30 rounded-xl; }
+/* 직인·로고 업로드 박스 — 두 칸 동일 크기(이미지 유무와 무관). 로고를 직인 크기에 맞춰 키움. */
+.company-asset-dropzone { @apply border-2 border-dashed border-[var(--border)] rounded-xl p-4 text-center h-[220px] flex flex-col items-center justify-center gap-2; }
+.company-asset-img { @apply max-w-[168px] max-h-[168px] object-contain rounded-lg; }
 .closing-party-list { @apply mt-2 pl-2 sm:pl-6 space-y-1.5 border-l-2 border-[var(--border)]/60; }
 .closing-party-row { @apply flex flex-wrap sm:flex-nowrap items-center gap-1.5; }
 .closing-account-row { @apply px-3 py-2; }
