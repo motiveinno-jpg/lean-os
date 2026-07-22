@@ -80,6 +80,19 @@ export default function RevenuePage() {
   const ytd = budget.filter((b) => b.month <= month).reduce((s, b) => s + (b.salesRevenue || 0), 0);
   const top = salesData?.topPartners || [];
   const topMax = Math.max(1, ...top.map((t) => t.amt));
+
+  // 규칙 기반 요약 코멘트 — 경영요약 '이번 달 상태'와 동일 방식(전월·누적·미수금 조합, LLM 아님)
+  const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
+  const curMn = Number(month.slice(5, 7));
+  const prevMonthKey = curMn === 1 ? `${year - 1}-12` : `${year}-${String(curMn - 1).padStart(2, "0")}`;
+  const lastMonthSales = (curMn === 1 ? prevBudget : budget).find((b) => b.month === prevMonthKey)?.salesRevenue ?? 0;
+  const momPct = lastMonthSales > 0 ? Math.round(((sales - lastMonthSales) / lastMonthSales) * 100) : null;
+  const momTxt = momPct == null ? "지난달 매출이 없어 비교는 어렵지만" : momPct > 0 ? `지난달보다 ${momPct}% 늘었고` : momPct < 0 ? `지난달보다 ${Math.abs(momPct)}% 줄었고` : "지난달과 비슷하고";
+  const arTxt = (salesData?.arOver30 ?? 0) > 0
+    ? ` 다만 30일 넘은 미수금 ${fmtMan(salesData!.arOver30)}가 남아 회수가 필요합니다.`
+    : (salesData?.arTotal ?? 0) > 0 ? ` 아직 못 받은 매출은 ${fmtMan(salesData!.arTotal)}입니다.` : "";
+  const revLine = `이번 달 매출은 ${fmtMan(sales)}으로 ${momTxt}, 올해 누적 ${fmtMan(ytd)}입니다.${arTxt}`;
+
   const loading = !companyId || budgetLoading;
 
   return (
@@ -90,9 +103,9 @@ export default function RevenuePage() {
       ) : (
         <div className="revenue-page-content">
           <IntroCard
-            eyebrow="이번 달 매출"
-            title={fmt(sales)}
-            desc="세금계산서 공급가액 기준입니다. 월별 추세·전년 비교와 거래처별 구성은 아래에서 확인하세요."
+            eyebrow="이번 달 요약"
+            title={revLine}
+            desc="세금계산서 공급가액 기준 · 월별 추세·전년 비교와 거래처별 구성은 아래에서 확인하세요."
             callout={{ label: `올해 누적 매출 (${year}년 1월~이번 달)`, value: fmt(ytd), tone: "success" }}
             box={(salesData?.arOver30 ?? 0) > 0
               ? { label: "30일 이상 미수금", value: fmt(salesData!.arOver30), sub: "회수 관리가 필요합니다", tone: "danger" }

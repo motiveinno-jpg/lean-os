@@ -62,6 +62,17 @@ export default function ExpensePage() {
     .map((c) => ({ label: c.label, amt: c.amount })).filter((c) => c.amt > 0)
     .sort((a, b) => b.amt - a.amt).slice(0, 7);
   const catMax = Math.max(1, ...cats.map((c) => c.amt));
+
+  // 규칙 기반 요약 코멘트 — 경영요약 '이번 달 상태'와 동일 방식(전월·고정비비중·최대항목 조합, LLM 아님)
+  const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
+  const curMn = Number(month.slice(5, 7));
+  const prevMonthKey = curMn === 1 ? `${year - 1}-12` : `${year}-${String(curMn - 1).padStart(2, "0")}`;
+  const lastMonthExp = (curMn === 1 ? prevBudget : budget).find((b) => b.month === prevMonthKey)?.expenseTotal ?? 0;
+  const momPct = lastMonthExp > 0 ? Math.round(((expense - lastMonthExp) / lastMonthExp) * 100) : null;
+  const momTxt = momPct == null ? "지난달 지출이 없어 비교는 어렵지만" : momPct > 0 ? `지난달보다 ${momPct}% 늘었고` : momPct < 0 ? `지난달보다 ${Math.abs(momPct)}% 줄었고` : "지난달과 비슷하고";
+  const catTxt = cats[0]?.label ? ` 가장 큰 지출 항목은 '${cats[0].label}'입니다.` : "";
+  const expLine = `이번 달 지출은 ${fmtMan(expense)}으로 ${momTxt}, 고정비 비중은 ${fixedPct}%입니다.${catTxt}`;
+
   // 2026-07-21 QA — 거래 0건 신규회사가 무한 스피너에 갇히던 문제: 빈 데이터를 로딩으로 오판하지 않도록 isLoading 기준으로 변경
   const loading = !companyId || budgetLoading;
 
@@ -73,8 +84,8 @@ export default function ExpensePage() {
       ) : (
         <div className="expense-page-content">
           <IntroCard
-            eyebrow="이번 달 비용"
-            title={fmt(expense)}
+            eyebrow="이번 달 요약"
+            title={expLine}
             desc="고정비·변동비 구성과 월별 추세, 항목별 지출은 아래에서 확인하세요."
             callout={{ label: "고정비 비중", value: `${fixedPct}%`, sub: `고정 ${fmt(fixed)} · 변동 ${fmt(variable)}`, tone: "primary" }}
           />
