@@ -79,39 +79,45 @@ export default function ExpensePage() {
             callout={{ label: "고정비 비중", value: `${fixedPct}%`, sub: `고정 ${fmt(fixed)} · 변동 ${fmt(variable)}`, tone: "primary" }}
           />
 
-          {/* 고정비 · 변동비 구성 */}
-          <Section title="고정비 · 변동비" desc="이번 달 지출의 고정/변동 구성 비중">
-            <div className="expense-fixed-variable-bar">
-              <div style={{ width: `${fixedPct}%`, background: "var(--primary)" }} title={`고정비 ${fixedPct}%`} />
-              <div style={{ width: `${100 - fixedPct}%`, background: "var(--warning)" }} title={`변동비 ${100 - fixedPct}%`} />
+          {/* 좌: 월별 추세(주 보고서) · 우: 고정/변동 구성 + 항목별 구성 */}
+          <div className="report-cols">
+            <div className="report-col">
+              {/* 월별 비용 · 전년 비교 (행 클릭 → 고정/변동 구성 드릴다운) */}
+              <MonthlyCompareCard title="월별 비용 · 전년 비교" rows={compareRows} accent="var(--warning)" onRowClick={(mn) => setDetailMonth(mn)} />
             </div>
-            <div className="flex justify-between text-[11px] mt-2">
-              <span className="text-[var(--primary)] font-semibold">고정 {fmt(fixed)} ({fixedPct}%)</span>
-              <span className="text-[var(--warning)] font-semibold">변동 {fmt(variable)} ({100 - fixedPct}%)</span>
-            </div>
-          </Section>
+            <div className="report-col">
+              {/* 고정비 · 변동비 구성 */}
+              <Section title="고정비 · 변동비" desc="이번 달 지출의 고정/변동 구성 비중">
+                <div className="expense-fixed-variable-bar">
+                  <div style={{ width: `${fixedPct}%`, background: "var(--primary)" }} title={`고정비 ${fixedPct}%`} />
+                  <div style={{ width: `${100 - fixedPct}%`, background: "var(--warning)" }} title={`변동비 ${100 - fixedPct}%`} />
+                </div>
+                <div className="flex justify-between text-[11px] mt-2">
+                  <span className="text-[var(--primary)] font-semibold">고정 {fmt(fixed)} ({fixedPct}%)</span>
+                  <span className="text-[var(--warning)] font-semibold">변동 {fmt(variable)} ({100 - fixedPct}%)</span>
+                </div>
+              </Section>
 
-          {/* 월별 비용 · 전년 비교 (행 클릭 → 고정/변동 구성 드릴다운) */}
-          <MonthlyCompareCard title="월별 비용 · 전년 비교" rows={compareRows} accent="var(--warning)" onRowClick={(mn) => setDetailMonth(mn)} />
-
-          {/* 어디에 썼나 — 카테고리 */}
-          <Section title="비용 항목별 구성" desc="올해 상위 지출 항목" right={<Link href="/reports/costs" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">상세 비용 분석 →</Link>}>
-            {cats.length === 0 ? (
-              <div className="text-xs text-[var(--text-dim)] py-6 text-center">분류된 비용 데이터가 없습니다. 거래내역을 분류하면 채워집니다.</div>
-            ) : (
-              <div className="expense-category-list">
-                {cats.map((c) => (
-                  <div key={c.label} className="expense-category-row">
-                    <span className="text-sm text-[var(--text)] w-28 shrink-0 truncate">{c.label}</span>
-                    <div className="flex-1 h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${Math.round((c.amt / catMax) * 100)}%`, background: "var(--warning)" }} />
-                    </div>
-                    <span className="mono-number text-xs font-semibold text-[var(--text)] w-24 text-right shrink-0">{fmt(c.amt)}</span>
+              {/* 어디에 썼나 — 카테고리 */}
+              <Section title="비용 항목별 구성" desc="올해 상위 지출 항목" right={<Link href="/reports/costs" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">상세 비용 분석 →</Link>}>
+                {cats.length === 0 ? (
+                  <div className="text-xs text-[var(--text-dim)] py-6 text-center">분류된 비용 데이터가 없습니다. 거래내역을 분류하면 채워집니다.</div>
+                ) : (
+                  <div className="expense-category-list">
+                    {cats.map((c) => (
+                      <div key={c.label} className="expense-category-row">
+                        <span className="text-sm text-[var(--text)] w-28 shrink-0 truncate">{c.label}</span>
+                        <div className="flex-1 h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.round((c.amt / catMax) * 100)}%`, background: "var(--warning)" }} />
+                        </div>
+                        <span className="mono-number text-xs font-semibold text-[var(--text)] w-24 text-right shrink-0">{fmt(c.amt)}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </Section>
+                )}
+              </Section>
+            </div>
+          </div>
         </div>
       )}
 
