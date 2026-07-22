@@ -4,13 +4,25 @@
 //   순수 프레젠테이션 — 입력은 숫자/배열, 색은 CSS 변수. 라이트/다크 자동 대응.
 //   차트 라이브러리 미도입 기조 유지(간트와 동일 철학).
 
-import { useId } from "react";
+import { useId, useState } from "react";
 
 const PRIMARY = "var(--primary)";
 const DIM = "var(--text-dim)";
+const MUTED = "var(--text-muted)";
 const BORDER = "var(--border)";
+const GRID = "var(--grid, var(--border))";
+const SUCCESS = "var(--success)";
 export const AMBER = "#f59e0b";
 export const DANGER = "var(--danger)";
+
+// 눈금 상한을 '깔끔한' 값으로 (1/2/5 × 10^n)
+function niceMax(v: number): number {
+  if (v <= 0) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / e;
+  const m = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+  return m * e;
+}
 
 // 달성률(0~100) → 상태색. >=100 primary / 80~99 amber / <80 danger.
 export function statusColor(pct: number | null | undefined): string {
@@ -130,6 +142,102 @@ export function LineChart({ series, markerX, height = 160, yUnit = "" }: { serie
         ))}
         {yUnit && <span className="text-[10px] text-[var(--text-dim)] ml-auto">단위: {yUnit}</span>}
       </div>
+    </div>
+  );
+}
+
+// ── ② 막대 + 목표선 콤보 (기간별 실적 vs 목표) ──
+//   buckets: 기간(일/주/월) 단위 실적·목표. value=null 은 미래(목표만큼 빈 막대).
+//   막대 색으로 그 기간 목표 달성(초록)·미달(주황). 목표를 잇는 선 + 오늘 경계 + hover 값.
+export type ComboBucket = { label: string; days: number; value: number | null; target: number };
+export function BarLineCombo({ buckets, unit, yUnit = "" }: { buckets: ComboBucket[]; unit: "day" | "week" | "month"; yUnit?: string }) {
+  const [hi, setHi] = useState<number | null>(null);
+  if (!buckets.length) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">표시할 데이터가 없습니다</div>;
+
+  const W = 760, H = 300, padL = 52, padR = 16, padT = 22, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  // 누적 시작일 계산
+  let acc = 0;
+  const bs = buckets.map((b) => { const o = { ...b, startDay: acc }; acc += b.days; return o; });
+  const totalDays = acc || 1;
+  const firstFuture = bs.findIndex((b) => b.value === null);
+  const todayDay = firstFuture < 0 ? totalDays : bs[firstFuture].startDay;
+  const yMax = niceMax(Math.max(1, ...bs.map((b) => Math.max(b.value || 0, b.target))) * 1.18);
+  const sx = (d: number) => padL + (d / totalDays) * plotW;
+  const sy = (y: number) => padT + (1 - y / yMax) * plotH;
+  const maxBw = unit === "day" ? 9 : unit === "week" ? 24 : 56;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(yMax * f));
+  const hasTarget = bs.some((b) => b.target > 0);
+  const tgtPath = bs.map((b, i) => { const x = sx(b.startDay + b.days / 2), y = sy(b.target); return `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`; }).join(" ");
+  const perTargetLabel = Math.round((bs.find((b) => b.target > 0)?.target) || 0);
+  const everyN = unit === "day" ? Math.ceil(bs.length / 9) : 1;
+  const hb = hi != null ? bs[hi] : null;
+
+  return (
+    <div className="barcombo-wrap">
+      <svg viewBox={`0 0 ${W} ${H}`} className="barcombo-svg" role="img" aria-label="기간별 실적 대 목표">
+        {/* Y 눈금 */}
+        {ticks.map((yv, i) => (
+          <g key={i}>
+            <line x1={padL} y1={sy(yv)} x2={W - padR} y2={sy(yv)} stroke={GRID} strokeWidth={1} />
+            <text x={padL - 8} y={sy(yv) + 3.5} textAnchor="end" fontSize={11} fill={DIM}>{yv >= 10000 ? `${Math.round(yv / 10000)}만` : yv}</text>
+          </g>
+        ))}
+        {/* 오늘 이후 음영 + 경계 */}
+        {todayDay < totalDays && (
+          <>
+            <rect x={sx(todayDay)} y={padT} width={W - padR - sx(todayDay)} height={plotH} fill={DIM} opacity={0.05} />
+            <line x1={sx(todayDay)} y1={padT - 4} x2={sx(todayDay)} y2={H - padB} stroke={DIM} strokeWidth={1} strokeDasharray="3 3" />
+            <text x={sx(todayDay)} y={padT - 8} textAnchor="middle" fontSize={10} fontWeight={700} fill={MUTED}>오늘</text>
+          </>
+        )}
+        {/* 막대 */}
+        {bs.map((b, i) => {
+          const cx = sx(b.startDay + b.days / 2);
+          const bw = Math.min(maxBw, (b.days / totalDays) * plotW * 0.66);
+          const x = cx - bw / 2, r = Math.min(unit === "day" ? 2 : 4, bw / 2);
+          if (b.value == null) {
+            const yt = sy(b.target), h = (H - padB) - yt;
+            return <rect key={i} x={x} y={yt} width={bw} height={Math.max(0, h)} rx={r} fill="none" stroke={DIM} strokeWidth={1} strokeDasharray="2 2" opacity={0.5} />;
+          }
+          const hit = hasTarget && b.value >= b.target;
+          const col = !hasTarget ? PRIMARY : hit ? SUCCESS : AMBER;
+          const yt = sy(b.value), h = (H - padB) - yt;
+          return (
+            <rect key={i} x={x} y={yt} width={bw} height={Math.max(0, h)} rx={r} fill={col} fillOpacity={hi === i ? 1 : 0.85}
+              style={{ cursor: "pointer" }} onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)} />
+          );
+        })}
+        {/* 목표선(페이스) */}
+        {hasTarget && (
+          <>
+            <path d={tgtPath} fill="none" stroke={MUTED} strokeWidth={1.8} />
+            {bs.map((b, i) => <circle key={i} cx={sx(b.startDay + b.days / 2)} cy={sy(b.target)} r={unit === "day" ? 1.4 : 2.2} fill={MUTED} />)}
+            <text x={W - padR} y={sy(bs.find((b) => b.target > 0)!.target) - 6} textAnchor="end" fontSize={10.5} fontWeight={700} fill={MUTED}>
+              {unit === "day" ? "일" : unit === "week" ? "주" : "월"} 목표 ~{perTargetLabel >= 10000 ? `${Math.round(perTargetLabel / 10000)}만` : perTargetLabel}
+            </text>
+          </>
+        )}
+        {/* X 라벨 (솎음) */}
+        {bs.map((b, i) => (i % everyN !== 0 && i !== bs.length - 1) ? null : (
+          <text key={i} x={sx(b.startDay + b.days / 2)} y={H - 12} textAnchor="middle" fontSize={10} fill={b.startDay >= todayDay ? DIM : MUTED}>{b.label}</text>
+        ))}
+        {/* hover 프레임 */}
+        {hb && hb.value != null && (() => {
+          const cx = sx(hb.startDay + hb.days / 2), bw = Math.min(maxBw, (hb.days / totalDays) * plotW * 0.66);
+          return <rect x={cx - bw / 2 - 1.5} y={sy(hb.value) - 1.5} width={bw + 3} height={Math.max(0, (H - padB) - sy(hb.value)) + 1.5} rx={4} fill="none" stroke="var(--text)" strokeWidth={1.4} opacity={0.5} />;
+        })()}
+      </svg>
+      {hb && hb.value != null && (() => {
+        const cx = sx(hb.startDay + hb.days / 2), diff = Math.round(hb.value - hb.target), hit = hb.value >= hb.target;
+        return (
+          <div className="barcombo-tip" style={{ left: `${(cx / W) * 100}%`, top: `${(sy(hb.value) / H) * 100}%` }}>
+            <b>{hb.label}{unit !== "month" ? ` · ${hb.days}일` : ""}</b>
+            <div className="barcombo-tip-row"><i style={{ background: hasTarget ? (hit ? SUCCESS : AMBER) : PRIMARY }} />실적 {Math.round(hb.value).toLocaleString("ko-KR")}{yUnit}</div>
+            {hasTarget && <div className="barcombo-tip-row"><i style={{ background: MUTED }} />목표 {Math.round(hb.target).toLocaleString("ko-KR")}{yUnit} ({hit ? "+" : ""}{diff.toLocaleString("ko-KR")}, {hit ? "달성" : "미달"})</div>}
+          </div>
+        );
+      })()}
     </div>
   );
 }

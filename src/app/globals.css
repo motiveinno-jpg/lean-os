@@ -2706,6 +2706,43 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .goal-overview-contribution-header { @apply flex items-center justify-between gap-2 mb-4 flex-wrap; }
 .goal-overview-checkin-card { @apply p-4; }
 .goal-overview-checkin-note { @apply mt-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)] pt-2 space-y-0.5; }
+/* 목표형 개요 재기획(2026-07-22) — 상태 밴드 · 콤보차트 · 상세 접기 */
+.goal-band { @apply p-5 flex flex-wrap items-center gap-x-6 gap-y-4; }
+.goal-band-donut { @apply shrink-0; }
+.goal-band-sep { @apply hidden md:block w-px self-stretch bg-[var(--border)]; min-height: 60px; }
+.goal-band-col { @apply flex flex-col gap-1 min-w-[150px] flex-1; }
+.goal-band-lbl { @apply text-[11px] font-bold text-[var(--text-dim)]; }
+.goal-band-status { @apply inline-flex items-center gap-2 text-[15px] font-extrabold; }
+.goal-band-land { @apply text-[13px] font-bold leading-snug; }
+.goal-chart-head { @apply flex items-start justify-between gap-3 mb-3 flex-wrap; }
+.goal-chart-ctrls { @apply flex items-center gap-2 flex-wrap; }
+.goal-unit-seg { @apply inline-flex rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--bg-surface)]; }
+.goal-unit-seg button { @apply px-3 py-1.5 text-xs font-bold text-[var(--text-muted)] transition; }
+.goal-unit-seg button.on { @apply bg-[var(--primary)] text-white; }
+.goal-unit-seg button + button { @apply border-l border-[var(--border)]; }
+.goal-chart-legend { @apply flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 text-[11.5px] text-[var(--text-muted)]; }
+.goal-chart-legend .k { @apply inline-flex items-center gap-1.5; }
+.goal-chart-legend .sw { @apply w-2.5 h-2.5 rounded-[2px] inline-block; }
+.goal-chart-legend .sw.line { @apply w-4 h-[2px] rounded-none bg-[var(--text-muted)]; }
+.goal-chart-legend .sw.dashed { @apply w-2.5 h-2.5 rounded-[2px] bg-transparent; border: 1.5px dashed var(--text-dim); }
+.goal-kpi-pace { @apply text-[11.5px] font-bold; }
+.barcombo-wrap { @apply relative w-full; }
+.barcombo-svg { @apply w-full h-auto block; }
+.barcombo-tip { @apply absolute pointer-events-none bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[11.5px] shadow-xl whitespace-nowrap z-10; transform: translate(-50%, -115%); }
+.barcombo-tip b { @apply text-[12px]; }
+.barcombo-tip-row { @apply flex items-center gap-1.5 mt-0.5 text-[var(--text-muted)]; }
+.barcombo-tip-row i { @apply w-2 h-2 rounded-[2px] inline-block; }
+.goal-overview-details { @apply overflow-hidden; }
+.goal-overview-details > summary { @apply cursor-pointer px-5 py-4 flex items-center justify-between gap-3 text-sm font-bold; list-style: none; }
+.goal-overview-details > summary::-webkit-details-marker { display: none; }
+.goal-detail-chip { @apply text-[11px] font-bold px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.goal-detail-chip.danger { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
+.goal-detail-chev { @apply text-[var(--text-dim)] transition-transform; }
+.goal-overview-details[open] .goal-detail-chev { transform: rotate(90deg); }
+.goal-detail-body { @apply px-5 pb-5 space-y-5; }
+.goal-checkin-legend { @apply flex gap-3 mt-2.5 text-[10.5px] text-[var(--text-muted)]; }
+.goal-checkin-legend span { @apply inline-flex items-center gap-1; }
+.goal-checkin-legend i { @apply w-2 h-2 rounded-full inline-block; }
 .issues-tab { @apply space-y-3; }
 .issues-toolbar { @apply flex items-center justify-between gap-2 flex-wrap; }
 .issues-loading-state { @apply p-10 text-center text-sm text-[var(--text-muted)]; }

@@ -61,6 +61,57 @@ export function buildTrend(opts: {
   return { actual, pace, todayX: todayWeek, weekLabels };
 }
 
+// 기간별 실적 버킷(일/주/월) — 막대+목표선 콤보 차트용(2026-07-22).
+//   entries: 일자별 실적 증분. target/기간을 일 단위로 분배해 버킷 목표를 만든다.
+//   미래 버킷(오늘 이후)은 value=null(목표만큼 빈 막대로 표시). 기간(start·end) 없으면 목표선 0.
+export type Bucket = { label: string; days: number; value: number | null; target: number };
+export function bucketSeries(opts: {
+  entries: { date: string; value: number }[];
+  target: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  unit: "day" | "week" | "month";
+  today?: string;
+}): Bucket[] {
+  const DAY = 86400000;
+  const parse = (s: string) => parseYMD(s.slice(0, 10)).getTime();
+  const today = (opts.today || todayYMD()).slice(0, 10);
+  const dates = opts.entries.map((e) => e.date).filter(Boolean).map((d) => d.slice(0, 10)).sort();
+  const hasPeriod = !!(opts.startDate && opts.endDate);
+  const start = (opts.startDate || dates[0] || today).slice(0, 10);
+  const endRaw = (opts.endDate || dates[dates.length - 1] || today).slice(0, 10);
+  const startMs = parse(start);
+  const endMs = Math.max(parse(endRaw), startMs);
+  const total = Math.max(1, Math.round((endMs - startMs) / DAY) + 1);
+  const dailyTarget = hasPeriod && opts.target > 0 ? Number(opts.target) / total : 0;
+  const todayDay = clamp(Math.round((parse(today) - startMs) / DAY), 0, total);
+
+  // 일자별 실적 합
+  const dayVal: Record<number, number> = {};
+  for (const e of opts.entries) {
+    if (!e.date) continue;
+    const di = clamp(Math.floor((parse(e.date) - startMs) / DAY), 0, total - 1);
+    dayVal[di] = (dayVal[di] || 0) + Number(e.value || 0);
+  }
+  const sumRange = (a: number, b: number) => { let s = 0; for (let d = a; d < b; d++) s += dayVal[d] || 0; return s; };
+  const lbl = (day: number) => { const d = addDays(parseYMD(start), day); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
+
+  const out: Bucket[] = [];
+  if (opts.unit === "day") {
+    for (let d = 0; d < total; d++) out.push({ label: lbl(d), days: 1, value: d >= todayDay ? null : (dayVal[d] || 0), target: dailyTarget });
+  } else if (opts.unit === "week") {
+    for (let s = 0; s < total; s += 7) { const days = Math.min(7, total - s); out.push({ label: lbl(s), days, value: s >= todayDay ? null : sumRange(s, s + days), target: dailyTarget * days }); }
+  } else {
+    let d = 0;
+    while (d < total) {
+      const m = addDays(parseYMD(start), d).getUTCMonth(); const s = d; let days = 0;
+      while (d < total && addDays(parseYMD(start), d).getUTCMonth() === m) { days++; d++; }
+      out.push({ label: `${m + 1}월`, days, value: s >= todayDay ? null : sumRange(s, s + days), target: dailyTarget * days });
+    }
+  }
+  return out;
+}
+
 // 스파크라인용 — 주간 누적 실적 y 배열(없으면 빈 배열).
 export function sparkPoints(entries: { date: string; value: number }[], startDate?: string | null, endDate?: string | null): number[] {
   if (!entries || entries.length === 0) return [];

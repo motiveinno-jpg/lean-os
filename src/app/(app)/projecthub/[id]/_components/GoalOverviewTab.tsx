@@ -10,8 +10,8 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getKpiAchievement, getOverallAchievement, getOverallStatus, getPaceWarning, KPI_SOURCE_LABEL, type KpiSource } from "@/lib/project-types";
-import { buildTrend, sparkPoints, periodProgress } from "@/lib/goal-metrics";
-import { RadialGauge, ProgressBar, Sparkline, BarList, LineChart, StatusTimeline, statusColor, DANGER, AMBER } from "@/components/charts";
+import { bucketSeries, periodProgress } from "@/lib/goal-metrics";
+import { RadialGauge, ProgressBar, BarList, BarLineCombo, StatusTimeline, statusColor, DANGER, AMBER } from "@/components/charts";
 
 const db = supabase;
 const won = (n: number) => Math.round(Number(n || 0)).toLocaleString("ko-KR");
@@ -32,6 +32,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   const dealId = deal.id as string;
   const companyId = deal.company_id as string;
   const [trendKpiId, setTrendKpiId] = useState<string>("");
+  const [chartUnit, setChartUnit] = useState<"day" | "week" | "month">("day"); // 기간 단위 — 기본 일별
   const [breakdown, setBreakdown] = useState<"channel" | "campaign" | "manager">("channel");
   const [contribDim, setContribDim] = useState<"dept" | "member">("dept"); // 성과 기여 다각도(부서/개인)
 
@@ -107,11 +108,21 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
     : Number(entriesSumByKpi[k.id] || 0);
 
   const kpiList = kpis as Kpi[];
-  const rows = kpiList.map((k) => {
+  const prog = periodProgress(deal.start_date, deal.end_date);
+  // KPI 행 — 달성률 + 페이스(이대로면 예상 %). 위험(낮은 달성)한 것을 위로 정렬.
+  const rowsUnsorted = kpiList.map((k) => {
     const actual = actualOf(k);
     const ach = getKpiAchievement(Number(k.target_value || 0), actual, k.direction);
-    return { k, actual, pct: ach == null ? null : Math.round(ach * 100) };
+    const pct = ach == null ? null : Math.round(ach * 100);
+    // 페이스: 기간·상향목표일 때만. 이대로면 예상 달성률 = 현재실적 ÷ 기간진행률.
+    let projPct: number | null = null;
+    if (prog && k.direction === "up" && Number(k.target_value) > 0 && prog.elapsed > 0) {
+      const projected = actual * (prog.total / prog.elapsed);
+      projPct = Math.round((projected / Number(k.target_value)) * 100);
+    }
+    return { k, actual, pct, projPct };
   });
+  const rows = [...rowsUnsorted].sort((a, b) => (a.pct ?? 999) - (b.pct ?? 999));
   const overall = getOverallAchievement(kpiList.map((k) => ({ target: Number(k.target_value || 0), actual: actualOf(k), direction: k.direction })));
   const overallPct = overall == null ? null : Math.round(overall * 100);
   const latestUpdate = (updates as any[]).length ? (updates as any[])[(updates as any[]).length - 1] : null;
@@ -120,24 +131,18 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   // 페이스(예상착지) — 가장 위험한 KPI 대표
   const worst = rows.filter((r) => r.pct != null).sort((a, b) => (a.pct! - b.pct!))[0];
   const worstPace = worst ? getPaceWarning({ targetAmount: Number(worst.k.target_value || 0), actualAmount: worst.actual, startDate: deal.start_date, endDate: deal.end_date }) : null;
-  const prog = periodProgress(deal.start_date, deal.end_date);
 
-  // ② 추세 — 선택 KPI (기본: 첫 KPI)
+  // ② 콤보 차트 — 선택 KPI(기본 첫 KPI)의 일자별 실적을 선택 단위(일/주/월)로 버킷팅.
   const selKpi = kpiList.find((k) => k.id === trendKpiId) || kpiList[0];
-  const trend = useMemo(() => {
-    if (!selKpi) return null;
+  const selHasSeries = !!selKpi && (selKpi.source === "manual" || selKpi.source === "revenue_auto");
+  const chartBuckets = useMemo(() => {
+    if (!selKpi || !selHasSeries) return null;
     let pts: { date: string; value: number }[] = [];
     if (selKpi.source === "manual") pts = (entries as Entry[]).filter((e) => e.kpi_id === selKpi.id).map((e) => ({ date: String(e.entry_date).slice(0, 10), value: Number(e.value || 0) }));
-    else if (selKpi.source === "revenue_auto") pts = (invoices as Inv[]).filter((i) => i.deal_id === dealId && i.issue_date).map((i) => ({ date: String(i.issue_date).slice(0, 10), value: Number(i.supply_amount || 0) }));
-    return buildTrend({ entries: pts, target: Number(selKpi.target_value || 0), startDate: deal.start_date, endDate: deal.end_date });
-  }, [selKpi, entries, invoices, dealId, deal.start_date, deal.end_date]);
-
-  // 스파크라인 점 (KPI별)
-  const sparkOf = (k: Kpi): number[] => {
-    if (k.source === "manual") return sparkPoints((entries as Entry[]).filter((e) => e.kpi_id === k.id).map((e) => ({ date: String(e.entry_date).slice(0, 10), value: Number(e.value || 0) })), deal.start_date, deal.end_date);
-    if (k.source === "revenue_auto") return sparkPoints((invoices as Inv[]).filter((i) => i.deal_id === dealId && i.issue_date).map((i) => ({ date: String(i.issue_date).slice(0, 10), value: Number(i.supply_amount || 0) })), deal.start_date, deal.end_date);
-    return [];
-  };
+    else pts = (invoices as Inv[]).filter((i) => i.deal_id === dealId && i.issue_date).map((i) => ({ date: String(i.issue_date).slice(0, 10), value: Number(i.supply_amount || 0) }));
+    return bucketSeries({ entries: pts, target: Number(selKpi.target_value || 0), startDate: deal.start_date, endDate: deal.end_date, unit: chartUnit });
+  }, [selKpi, selHasSeries, entries, invoices, dealId, deal.start_date, deal.end_date, chartUnit]);
+  const chartHasData = !!chartBuckets && chartBuckets.some((b) => (b.value || 0) > 0);
 
   // ③ 분해
   const breakdownItems = useMemo(() => {
@@ -186,169 +191,213 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
     );
   }
 
+  const issueCount = (openIssues as any[]).length;
+  const overdueCount = (overdueTasks as any[]).length;
+
   return (
     <div className="goal-overview">
-      {/* 히어로 */}
-      <div className="goal-overview-hero glass-card">
-        <RadialGauge pct={overallPct} label="종합 달성률" />
-        <div className="goal-overview-hero-info">
-          <div className="goal-overview-status-row">
-            <span className="inline-block w-3 h-3 rounded-full" style={{ background: STATUS_META[status].dot }} />
-            <span className="text-sm font-bold text-[var(--text)]">{STATUS_META[status].label}</span>
-          </div>
-          {worstPace && (
-            <div className="goal-overview-pace-warning" style={{ color: worstPace.tone === "danger" ? DANGER : worstPace.tone === "warn" ? AMBER : "var(--text-muted)" }}>
-              {worstPace.message}
-            </div>
-          )}
-          {prog ? (
-            <div className="goal-overview-period-progress">
-              <div className="goal-overview-period-progress-header">
-                <span>기간 진행 (영업일)</span>
-                <span className="mono-number">{prog.elapsed} / {prog.total}일</span>
-              </div>
-              <ProgressBar pct={Math.round(prog.pct * 100)} color="var(--text-dim)" height={6} />
-            </div>
-          ) : <div className="text-[11px] text-[var(--text-dim)]">기간(시작·종료일)을 설정하면 페이스 분석이 표시됩니다.</div>}
+      {/* ① 상태 요약 밴드 — 종합 달성률 · 상태 · 예상 착지 · 기간 */}
+      <div className="goal-band glass-card">
+        <div className="goal-band-donut"><RadialGauge pct={overallPct} label="종합 달성률" size={104} /></div>
+        <div className="goal-band-sep" />
+        <div className="goal-band-col">
+          <span className="goal-band-lbl">상태</span>
+          <span className="goal-band-status" style={{ color: STATUS_META[status].dot }}>
+            <span className="inline-block w-3 h-3 rounded-full" style={{ background: STATUS_META[status].dot }} />{STATUS_META[status].label}
+          </span>
+          {worst && <span className="text-[11px] text-[var(--text-muted)] truncate">{worst.k.label} 지표가 가장 뒤처짐</span>}
+        </div>
+        <div className="goal-band-sep" />
+        <div className="goal-band-col">
+          <span className="goal-band-lbl">예상 착지 (이대로라면)</span>
+          {worstPace ? (
+            <span className="goal-band-land" style={{ color: worstPace.tone === "danger" ? DANGER : worstPace.tone === "warn" ? AMBER : "var(--success)" }}>{worstPace.message}</span>
+          ) : <span className="text-[12px] text-[var(--text-dim)]">기간을 설정하면 예상 착지가 표시됩니다</span>}
+        </div>
+        <div className="goal-band-sep" />
+        <div className="goal-band-col">
+          <span className="goal-band-lbl">기간</span>
+          {prog ? (<>
+            <span className="text-[18px] font-extrabold mono-number">{Math.max(0, prog.total - prog.elapsed)}<span className="text-[12px] font-semibold text-[var(--text-dim)]">일 남음</span></span>
+            <ProgressBar pct={Math.round(prog.pct * 100)} color="var(--text-dim)" height={6} />
+            <span className="text-[10.5px] text-[var(--text-dim)]">진행 {Math.round(prog.pct * 100)}% · 영업일 {prog.elapsed}/{prog.total}</span>
+          </>) : <span className="text-[12px] text-[var(--text-dim)]">시작·종료일 미설정</span>}
         </div>
       </div>
 
-      {/* 지금 볼 것 — 열린 이슈 · 지연 과제 (개선 유도), 전체 폭 2열로 상단 배치 */}
-      <div className="goal-overview-alerts-grid">
-        <section className="goal-overview-issues-card glass-card">
-          <div className="goal-overview-issues-header">
-            <h3 className="text-sm font-bold text-[var(--text)]">열린 이슈 <span className="font-normal text-[var(--text-dim)] text-xs">문제점·리스크</span></h3>
-            <span className={`text-xs font-bold ${(openIssues as any[]).length ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{(openIssues as any[]).length}건</span>
-          </div>
-          {(openIssues as any[]).length === 0 ? (
-            <div className="text-xs text-[var(--text-dim)]">열린 이슈가 없습니다. 👍</div>
-          ) : (
-            <div className="goal-overview-issues-list">
-              {(openIssues as any[]).slice(0, 6).map((i) => {
-                const sevColor = i.severity === "critical" ? DANGER : i.severity === "high" ? AMBER : i.severity === "medium" ? "var(--primary)" : "var(--text-dim)";
-                const overdue = i.due_date && i.due_date < todayKst();
-                return (
-                  <div key={i.id} className="goal-overview-issue-row">
-                    <span className="inline-block w-[7px] h-[7px] rounded-full shrink-0" style={{ background: sevColor }} />
-                    <span className="flex-1 truncate text-[var(--text)]">{i.title}</span>
-                    {i.due_date && <span className={`mono-number text-[10px] ${overdue ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>{String(i.due_date).slice(5, 10)}{overdue ? "⚠" : ""}</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-        <section className="goal-overview-tasks-card glass-card">
-          <div className="goal-overview-tasks-header">
-            <h3 className="text-sm font-bold text-[var(--text)]">지연 과제 <span className="font-normal text-[var(--text-dim)] text-xs">마감 초과</span></h3>
-            <span className={`text-xs font-bold ${(overdueTasks as any[]).length ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{(overdueTasks as any[]).length}건</span>
-          </div>
-          {(overdueTasks as any[]).length === 0 ? (
-            <div className="text-xs text-[var(--text-dim)]">마감 지난 과제가 없습니다. 👍</div>
-          ) : (
-            <div className="goal-overview-tasks-list">
-              {(overdueTasks as any[]).slice(0, 6).map((t) => (
-                <div key={t.id} className="goal-overview-task-row">
-                  <span className="inline-block w-[7px] h-[7px] rounded-full shrink-0 bg-[var(--danger)]" />
-                  <span className="flex-1 truncate text-[var(--text)]">{t.title}</span>
-                  <span className="mono-number text-[10px] text-[var(--danger)] font-semibold">{String(t.due_date).slice(5, 10)}⚠</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* KPI 현황 — 전체 폭, 3열 그리드 */}
-      <section className="goal-overview-kpi-section">
-        <h3 className="text-sm font-bold text-[var(--text)] mb-2">KPI 현황</h3>
-        <div className="goal-overview-kpi-grid">
-          {rows.map(({ k, actual, pct }) => {
-            const sp = sparkOf(k);
-            return (
-              <div key={k.id} className="goal-overview-kpi-card glass-card">
-                <div className="goal-overview-kpi-card-header">
-                  <span className="text-sm font-semibold text-[var(--text)] truncate">{k.label}</span>
-                  {k.source !== "manual" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] shrink-0">{KPI_SOURCE_LABEL[k.source]}</span>}
-                </div>
-                <div className="goal-overview-kpi-card-values">
-                  <div className="text-xs text-[var(--text-muted)]">
-                    <span className="mono-number text-[var(--text)] font-bold text-sm">{fmtNum(actual, k.unit)}</span>
-                    <span className="text-[var(--text-dim)]"> / {fmtNum(Number(k.target_value), k.unit)}</span>
-                  </div>
-                  <span className="text-sm font-extrabold mono-number" style={{ color: statusColor(pct) }}>{pct == null ? "—" : `${pct}%`}</span>
-                </div>
-                <ProgressBar pct={pct} />
-                {sp.length > 1 && <div className="mt-2"><Sparkline points={sp} color={statusColor(pct)} width={200} height={26} /></div>}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 추세 — 전체 폭(차트 가독성) */}
+      {/* ② 핵심 그래프 — 기간별 실적 vs 목표 (일/주/월 콤보) */}
       <section className="goal-overview-trend-card glass-card">
-        <div className="goal-overview-trend-header">
-          <h3 className="text-sm font-bold text-[var(--text)]">누적 실적 vs 목표 페이스</h3>
-          <select value={selKpi?.id || ""} onChange={(e) => setTrendKpiId(e.target.value)} className="px-2.5 py-1 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]">
-            {kpiList.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
-          </select>
-        </div>
-        {selKpi && (selKpi.source === "profit_auto" || selKpi.source === "count_auto") ? (
-          <div className="text-xs text-[var(--text-dim)] py-6 text-center">이 KPI는 누적 시계열을 제공하지 않습니다(이익/건수 자동). 목표 대비 현재 달성률은 위 스코어카드를 참고하세요.</div>
-        ) : trend ? (
-          <LineChart
-            series={[
-              { color: "var(--primary)", points: trend.actual, label: "실제 누적" },
-              { color: "var(--text-dim)", dash: true, points: trend.pace, label: "목표 페이스" },
-            ]}
-            markerX={trend.todayX}
-            yUnit={selKpi?.unit}
-          />
-        ) : null}
-      </section>
-
-      {/* 분석 — 매출 분해 · 성과 기여 · 체크인 (하단 3열) */}
-      <div className="goal-overview-analysis-grid">
-        <section className="goal-overview-breakdown-card glass-card">
-          <div className="goal-overview-breakdown-header">
-            <h3 className="text-sm font-bold text-[var(--text)]">매출 분해</h3>
-            <div className="seg-bar flex-wrap max-w-full">
-              {([["channel", "채널"], ["campaign", "세부"], ["manager", "담당자"]] as const).map(([k, l]) => (
-                <button key={k} onClick={() => setBreakdown(k)} className={`seg-item ${breakdown === k ? "seg-item-active" : ""}`}>{l}</button>
+        <div className="goal-chart-head">
+          <div>
+            <h3 className="text-sm font-bold text-[var(--text)]">기간별 실적 vs 목표</h3>
+            <span className="text-[11px] text-[var(--text-dim)]">막대가 목표선 위면 그 기간 목표 달성 · 아래면 미달</span>
+          </div>
+          <div className="goal-chart-ctrls">
+            <div className="goal-unit-seg">
+              {([["day", "일별"], ["week", "주별"], ["month", "월별"]] as const).map(([u, l]) => (
+                <button key={u} onClick={() => setChartUnit(u)} className={chartUnit === u ? "on" : ""}>{l}</button>
               ))}
             </div>
+            <select value={selKpi?.id || ""} onChange={(e) => setTrendKpiId(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]">
+              {kpiList.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+            </select>
           </div>
-          <BarList items={breakdownItems} unit="원" emptyText="태깅된 매출이 없습니다. 세금계산서를 이 프로젝트에 태깅하면 자동 반영됩니다." />
-        </section>
-
-        {selKpi && selKpi.source === "manual" && (
-          <section className="goal-overview-contribution-card glass-card">
-            <div className="goal-overview-contribution-header">
-              <h3 className="text-sm font-bold text-[var(--text)]">성과 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label}</span></h3>
-              <div className="seg-bar">
-                {([["dept", "부서"], ["member", "개인"]] as const).map(([k, l]) => (
-                  <button key={k} onClick={() => setContribDim(k)} className={`seg-item ${contribDim === k ? "seg-item-active" : ""}`}>{l}</button>
-                ))}
-              </div>
+        </div>
+        {!selHasSeries ? (
+          <div className="text-xs text-[var(--text-dim)] py-8 text-center">이 KPI는 기간별 시계열을 제공하지 않습니다(이익/건수 자동). 목표 대비 현재 달성률은 아래 KPI 현황을 참고하세요.</div>
+        ) : !chartHasData ? (
+          <div className="text-xs text-[var(--text-dim)] py-8 text-center">아직 기록된 실적이 없습니다. ‘성과’ 탭에서 실적을 입력하면 기간별로 표시됩니다.</div>
+        ) : (
+          <>
+            <BarLineCombo buckets={chartBuckets!} unit={chartUnit} yUnit={selKpi?.unit || ""} />
+            <div className="goal-chart-legend">
+              <span className="k"><i className="sw" style={{ background: "var(--success)" }} />목표 달성 기간</span>
+              <span className="k"><i className="sw" style={{ background: AMBER }} />목표 미달 기간</span>
+              <span className="k"><i className="sw line" />기간 목표(페이스)</span>
+              <span className="k"><i className="sw dashed" />남은 기간(목표)</span>
+              {selKpi?.unit && <span className="text-[var(--text-dim)] ml-auto">단위: {selKpi.unit} / {chartUnit === "day" ? "일" : chartUnit === "week" ? "주" : "월"}</span>}
             </div>
-            <BarList items={contribution || []} unit={selKpi.unit} emptyText={contribDim === "member" ? "개인별 실적 입력이 없습니다. ‘성과’ 탭에서 실적을 입력하면 입력자별로 표시됩니다." : "부서별 실적 입력이 없습니다. ‘성과’ 탭 실적 입력에서 부서를 지정하면 표시됩니다."} />
-          </section>
+          </>
         )}
+      </section>
 
-        <section className="goal-overview-checkin-card glass-card">
-          <h3 className="text-sm font-bold text-[var(--text)] mb-4">성과 체크인 추이</h3>
-          <StatusTimeline points={checkinPoints} />
-          {latestUpdate && (latestUpdate.did || latestUpdate.issues || latestUpdate.next_plan) && (
-            <div className="goal-overview-checkin-note">
-              <div className="text-[10px] text-[var(--text-dim)]">최근 체크인 · {nameOf(latestUpdate.created_by)} · {String(latestUpdate.update_date || "").slice(0, 10)}</div>
-              {latestUpdate.did && <div>✅ {latestUpdate.did}</div>}
-              {latestUpdate.issues && <div className="text-amber-600">🚧 {latestUpdate.issues}</div>}
-              {latestUpdate.next_plan && <div>➡️ {latestUpdate.next_plan}</div>}
+      {/* ③ KPI 현황 — 위험(낮은 달성) 우선, 페이스 표시 */}
+      <section className="goal-overview-kpi-section">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="text-sm font-bold text-[var(--text)]">KPI 현황</h3>
+          <span className="text-[11px] text-[var(--text-dim)]">· 뒤처진 지표를 위로</span>
+        </div>
+        <div className="goal-overview-kpi-grid">
+          {rows.map(({ k, actual, pct, projPct }) => (
+            <div key={k.id} className="goal-overview-kpi-card glass-card">
+              <div className="goal-overview-kpi-card-header">
+                <span className="text-sm font-semibold text-[var(--text)] truncate">{k.label}</span>
+                {k.source !== "manual" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] shrink-0">{KPI_SOURCE_LABEL[k.source]}</span>}
+              </div>
+              <div className="goal-overview-kpi-card-values">
+                <div className="text-xs text-[var(--text-muted)]">
+                  <span className="mono-number text-[var(--text)] font-bold text-sm">{fmtNum(actual, k.unit)}</span>
+                  <span className="text-[var(--text-dim)]"> / {fmtNum(Number(k.target_value), k.unit)}</span>
+                </div>
+                <span className="text-lg font-extrabold mono-number" style={{ color: statusColor(pct) }}>{pct == null ? "—" : `${pct}%`}</span>
+              </div>
+              <ProgressBar pct={pct} />
+              {projPct != null && (
+                <span className="goal-kpi-pace" style={{ color: projPct >= 100 ? "var(--success)" : projPct >= 90 ? AMBER : DANGER }}>
+                  {projPct >= 100 ? "▲" : "▼"} 이 페이스면 목표의 {projPct}% 예상
+                </span>
+              )}
             </div>
-          )}
-        </section>
-      </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ④ 상세 분석 — 이슈·지연 · 분해 · 기여 · 체크인 (접기, 요약 카운트는 항상 노출) */}
+      <details className="goal-overview-details glass-card">
+        <summary>
+          <span className="flex items-center gap-2.5 flex-wrap">
+            상세 분석
+            <span className={`goal-detail-chip ${issueCount ? "danger" : ""}`}>열린 이슈 {issueCount}</span>
+            <span className={`goal-detail-chip ${overdueCount ? "danger" : ""}`}>지연 과제 {overdueCount}</span>
+            <span className="text-[11px] font-normal text-[var(--text-dim)]">· 분해 · 기여 · 체크인</span>
+          </span>
+          <span className="goal-detail-chev">▸</span>
+        </summary>
+        <div className="goal-detail-body">
+          {/* 이슈 · 지연 */}
+          <div className="goal-overview-alerts-grid">
+            <section className="goal-overview-issues-card glass-card">
+              <div className="goal-overview-issues-header">
+                <h3 className="text-sm font-bold text-[var(--text)]">열린 이슈 <span className="font-normal text-[var(--text-dim)] text-xs">문제점·리스크</span></h3>
+                <span className={`text-xs font-bold ${issueCount ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{issueCount}건</span>
+              </div>
+              {issueCount === 0 ? (
+                <div className="text-xs text-[var(--text-dim)]">열린 이슈가 없습니다. 👍</div>
+              ) : (
+                <div className="goal-overview-issues-list">
+                  {(openIssues as any[]).slice(0, 6).map((i) => {
+                    const sevColor = i.severity === "critical" ? DANGER : i.severity === "high" ? AMBER : i.severity === "medium" ? "var(--primary)" : "var(--text-dim)";
+                    const overdue = i.due_date && i.due_date < todayKst();
+                    return (
+                      <div key={i.id} className="goal-overview-issue-row">
+                        <span className="inline-block w-[7px] h-[7px] rounded-full shrink-0" style={{ background: sevColor }} />
+                        <span className="flex-1 truncate text-[var(--text)]">{i.title}</span>
+                        {i.due_date && <span className={`mono-number text-[10px] ${overdue ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>{String(i.due_date).slice(5, 10)}{overdue ? "⚠" : ""}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+            <section className="goal-overview-tasks-card glass-card">
+              <div className="goal-overview-tasks-header">
+                <h3 className="text-sm font-bold text-[var(--text)]">지연 과제 <span className="font-normal text-[var(--text-dim)] text-xs">마감 초과</span></h3>
+                <span className={`text-xs font-bold ${overdueCount ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{overdueCount}건</span>
+              </div>
+              {overdueCount === 0 ? (
+                <div className="text-xs text-[var(--text-dim)]">마감 지난 과제가 없습니다. 👍</div>
+              ) : (
+                <div className="goal-overview-tasks-list">
+                  {(overdueTasks as any[]).slice(0, 6).map((t) => (
+                    <div key={t.id} className="goal-overview-task-row">
+                      <span className="inline-block w-[7px] h-[7px] rounded-full shrink-0 bg-[var(--danger)]" />
+                      <span className="flex-1 truncate text-[var(--text)]">{t.title}</span>
+                      <span className="mono-number text-[10px] text-[var(--danger)] font-semibold">{String(t.due_date).slice(5, 10)}⚠</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+
+          {/* 분해 · 기여 · 체크인 */}
+          <div className="goal-overview-analysis-grid">
+            <section className="goal-overview-breakdown-card glass-card">
+              <div className="goal-overview-breakdown-header">
+                <h3 className="text-sm font-bold text-[var(--text)]">매출 분해</h3>
+                <div className="seg-bar flex-wrap max-w-full">
+                  {([["channel", "채널"], ["campaign", "세부"], ["manager", "담당자"]] as const).map(([k, l]) => (
+                    <button key={k} onClick={() => setBreakdown(k)} className={`seg-item ${breakdown === k ? "seg-item-active" : ""}`}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <BarList items={breakdownItems} unit="원" emptyText="태깅된 매출이 없습니다. 세금계산서를 이 프로젝트에 태깅하면 자동 반영됩니다." />
+            </section>
+
+            {selKpi && selKpi.source === "manual" && (
+              <section className="goal-overview-contribution-card glass-card">
+                <div className="goal-overview-contribution-header">
+                  <h3 className="text-sm font-bold text-[var(--text)]">성과 기여 <span className="font-normal text-[var(--text-dim)] text-xs">{selKpi.label}</span></h3>
+                  <div className="seg-bar">
+                    {([["dept", "부서"], ["member", "개인"]] as const).map(([k, l]) => (
+                      <button key={k} onClick={() => setContribDim(k)} className={`seg-item ${contribDim === k ? "seg-item-active" : ""}`}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                <BarList items={contribution || []} unit={selKpi.unit} emptyText={contribDim === "member" ? "개인별 실적 입력이 없습니다. ‘성과’ 탭에서 실적을 입력하면 입력자별로 표시됩니다." : "부서별 실적 입력이 없습니다. ‘성과’ 탭 실적 입력에서 부서를 지정하면 표시됩니다."} />
+              </section>
+            )}
+
+            <section className="goal-overview-checkin-card glass-card">
+              <h3 className="text-sm font-bold text-[var(--text)] mb-3">성과 체크인 추이</h3>
+              <StatusTimeline points={checkinPoints} />
+              <div className="goal-checkin-legend">
+                <span><i style={{ background: "var(--primary)" }} />정상</span>
+                <span><i style={{ background: AMBER }} />주의</span>
+                <span><i style={{ background: DANGER }} />위험</span>
+              </div>
+              {latestUpdate && (latestUpdate.did || latestUpdate.issues || latestUpdate.next_plan) && (
+                <div className="goal-overview-checkin-note">
+                  <div className="text-[10px] text-[var(--text-dim)]">최근 체크인 · {nameOf(latestUpdate.created_by)} · {String(latestUpdate.update_date || "").slice(0, 10)}</div>
+                  {latestUpdate.did && <div>✅ {latestUpdate.did}</div>}
+                  {latestUpdate.issues && <div className="text-amber-600">🚧 {latestUpdate.issues}</div>}
+                  {latestUpdate.next_plan && <div>➡️ {latestUpdate.next_plan}</div>}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
