@@ -10,6 +10,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.owner-view.com"),
   title: {
     template: "%s | 오너뷰",
     default: "오너뷰 — 회사 운영 현황을 자동으로 정리해 한눈에",

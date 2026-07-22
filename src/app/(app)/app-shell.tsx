@@ -46,10 +46,11 @@ const OWNER_TABS = [
   { href: "/projecthub", label: "프로젝트", icon: "briefcase" },
   { href: "/payments", label: "결제", icon: "card" },
   { href: "/chat", label: "메신저", icon: "chat" },
+  { href: "/mypage", label: "마이", icon: "user" },
 ];
 
 function BottomTabIcon({ name, active }: { name: string; active: boolean }) {
-  const cn = `w-5 h-5 ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`;
+  const cn = `mobile-bottom-nav-icon ${active ? "mobile-bottom-nav-icon-active" : ""}`;
   const p = { className: cn, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   switch (name) {
     case "home": return <svg {...p}><path d="M3 12l9-8 9 8"/><path d="M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>;
@@ -60,6 +61,7 @@ function BottomTabIcon({ name, active }: { name: string; active: boolean }) {
     case "umbrella": return <svg {...p}><path d="M12 2a9 9 0 019 9H3a9 9 0 019-9z"/><path d="M12 11v8a2.5 2.5 0 005 0"/></svg>;
     case "book": return <svg {...p}><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>;
     case "card": return <svg {...p}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+    case "user": return <svg {...p}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg>;
     default: return null;
   }
 }
@@ -71,20 +73,19 @@ function MobileBottomNav() {
   const tabs = role === "partner" ? PARTNER_TABS : role === "owner" ? OWNER_TABS : EMPLOYEE_TABS;
 
   return (
-    // P0-D: 모바일 첫진입 발견성 — 라벨 10px→12px(text-xs) 가독성 회복,
-    //   탭 높이 56→60px 로 살짝 키워 손가락 타깃 + 라벨 균형 확보.
-    <nav className="chrome-glass md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)]/60 safe-area-bottom" style={{ boxShadow: "0 -4px 16px rgba(0,0,0,0.06)" }}>
-      <div className="flex items-center justify-around h-[60px] px-1">
+    // 모바일 첫진입 발견성 — 5개 핵심 메뉴를 같은 폭으로 배치하고 현재 메뉴는 배경까지 강조.
+    <nav className="mobile-bottom-nav safe-area-bottom">
+      <div className="mobile-bottom-nav-items">
         {tabs.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(tab.href + "/");
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 min-w-0 min-h-[44px] transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}
+              className={`mobile-bottom-nav-link ${active ? "mobile-bottom-nav-link-active" : ""}`}
             >
               <BottomTabIcon name={tab.icon} active={active} />
-              <span className={`text-xs font-medium truncate ${active ? "text-[var(--primary)] font-semibold" : ""}`}>{tab.label}</span>
+              <span className={`mobile-bottom-nav-label ${active ? "mobile-bottom-nav-label-active" : ""}`}>{tab.label}</span>
             </Link>
           );
         })}

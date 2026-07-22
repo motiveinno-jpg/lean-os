@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
-import { AttendanceTab } from "@/app/(app)/employees/page";
+import { AttendanceTab } from "@/app/(app)/employees/EmployeesPageClient";
 import { OvertimeRequestCard } from "@/components/overtime-request-card";
 import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
 import { OvertimeStats } from "@/components/overtime-stats";

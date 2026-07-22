@@ -237,6 +237,14 @@ body {
 
 /* Safe area for iOS notch / home indicator */
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.mobile-bottom-nav { @apply md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)]/60 bg-[var(--bg-card)]/95 backdrop-blur-xl; box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08); }
+.mobile-bottom-nav-items { @apply flex items-center justify-around h-16 px-1.5 gap-0.5; }
+.mobile-bottom-nav-link { @apply flex flex-col items-center justify-center gap-1 flex-1 min-w-0 min-h-[52px] px-1 py-1.5 rounded-xl text-[var(--text-muted)] transition-colors; }
+.mobile-bottom-nav-link-active { @apply text-[var(--primary)] bg-[var(--primary)]/8; }
+.mobile-bottom-nav-icon { @apply w-5 h-5 text-[var(--text-muted)] transition-colors; }
+.mobile-bottom-nav-icon-active { @apply text-[var(--primary)]; }
+.mobile-bottom-nav-label { @apply max-w-full truncate text-xs leading-none font-medium; }
+.mobile-bottom-nav-label-active { @apply text-[var(--primary)] font-bold; }
 
 /* Touch-friendly tap targets on mobile */
 @media (max-width: 768px) {
@@ -1956,6 +1964,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 폭은 상단 헤더바에 맞춘다 — 셸 본문 래퍼는 max-w-[1440px] 이지만 헤더바는 max-w-[1400px] 라
    와이드 모니터에서 본문이 40px 더 튀어나온다. 좌우 시작·끝선은 셸이 이미 맞춰줌. */
 .mypage-page { @apply space-y-5 max-w-[1400px]; }
+.mypage-section-tabs { @apply max-w-full overflow-x-auto; scrollbar-width: none; }
+.mypage-section-tabs::-webkit-scrollbar { display: none; }
 .mypage-hero { @apply overflow-hidden relative; }
 .mypage-hero-banner { height: 96px; width: 100%; background: linear-gradient(120deg, var(--primary), color-mix(in srgb, var(--primary) 22%, var(--bg-card))); }
 /* 겹침을 -mt-6 로 줄이고 칩을 별도 줄로 내려, 이름·이메일·회사명이 배너 그라데이션 위에 걸치지 않게 함 */

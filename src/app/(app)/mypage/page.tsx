@@ -337,9 +337,9 @@ export default function MyPage() {
       </div>
 
       {/* ── 섹션 탭 ── */}
-      <div className="seg-bar w-fit">
+      <div className="mypage-section-tabs seg-bar" role="tablist" aria-label="마이페이지 메뉴">
         {([["records", "인사기록"], ["attendance", "근태"], ["notif", "알림 설정"], ["account", "계정·보안"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>{l}</button>
+          <button key={k} onClick={() => setTab(k)} className={`seg-item ${tab === k ? "seg-item-active" : ""}`} role="tab" aria-selected={tab === k}>{l}</button>
         ))}
       </div>
 

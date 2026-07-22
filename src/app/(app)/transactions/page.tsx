@@ -59,7 +59,7 @@ export default function TransactionsPage() {
   return <TransactionsView initialTab="inbox" visibleTabs={['inbox', 'rules']} />;
 }
 
-export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: TransactionsViewProps = {}) {
+function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: TransactionsViewProps = {}) {
   const { role } = useUser();
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
