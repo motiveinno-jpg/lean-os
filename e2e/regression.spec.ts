@@ -1,8 +1,9 @@
 import { test, expect, Page } from '@playwright/test';
 
 // ─── Config ───
-const OV_SB_URL = 'https://njbvdkuvtdtkxyylwngn.supabase.co';
-const OV_SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qYnZka3V2dGR0a3h5eWx3bmduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1MjQyMDIsImV4cCI6MjA4ODEwMDIwMn0.Tcbxj-SP5814QEiaTBMi5SRjmB-ExRYV_b0zt_m9Kho';
+// 하드코딩 anon key 제거 — 환경변수에서 로드(없으면 REST 헬스 테스트 skip).
+const OV_SB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://njbvdkuvtdtkxyylwngn.supabase.co';
+const OV_SB_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 function trackJsErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -82,7 +83,10 @@ test.describe('Flow 3: Landing Page', () => {
     await page.waitForTimeout(3000);
 
     const bodyText = await page.textContent('body') || '';
-    expect(bodyText).toMatch(/모티브|MOTIVE|956-87-02691|OwnerView/i);
+    // 실제 사업자정보가 노출되는지 강하게 검증 (OwnerView 문자열만으론 통과 금지)
+    expect(bodyText).toContain('모티브이노베이션');
+    expect(bodyText).toContain('155-88-02209'); // 사업자등록번호
+    expect(bodyText).toMatch(/통신판매업신고번호[^가-힣]*제\s*2023-서울강남-04603호/); // 통신판매업
   });
 });
 
@@ -120,9 +124,21 @@ test.describe('Flow 4: Protected Routes Redirect', () => {
 // ═══════════════════════════════════════
 test.describe('Flow 5: Supabase API Health', () => {
   test('Supabase REST API 응답', async ({ request }) => {
+    test.skip(!OV_SB_ANON_KEY, 'NEXT_PUBLIC_SUPABASE_ANON_KEY env 미설정 — REST 헬스 skip');
     const resp = await request.get(`${OV_SB_URL}/rest/v1/`, {
       headers: { apikey: OV_SB_ANON_KEY },
     });
     expect(resp.status()).toBeLessThan(500);
+  });
+});
+
+// ═══════════════════════════════════════
+// FLOW 6: /status 공개 접근 (비로그인 200)
+// ═══════════════════════════════════════
+test.describe('Flow 6: Public Status Page', () => {
+  test('/status 비로그인 200 (auth 리다이렉트 없음)', async ({ page }) => {
+    const resp = await page.goto('/status/', { waitUntil: 'domcontentloaded' });
+    expect(resp?.status()).toBe(200);
+    expect(page.url()).not.toContain('/auth');
   });
 });

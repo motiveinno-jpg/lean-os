@@ -20,15 +20,15 @@ const COMPETITORS = [
 
 const PLANS = [
   { name: "무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 14일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
-  { name: "프로", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀의 표준", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약(서명) 월 20건", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "세금계산서·현금영수증 국세청 발행 월 10건"] },
-  { name: "울트라", regularPrice: null, betaPrice: "88,000", unit: "원/월", period: "VAT 별도 · 발행량 많은 팀", desc: "국세청 발행 무제한 + AI 브리핑", perSeat: null, hl: false, discount: null, features: ["프로의 모든 기능 그대로", "세금계산서·현금영수증 국세청 발행 무제한", "AI 브리핑 — 매일 우선순위 액션 플랜", "신기능 얼리 액세스", "우선 지원"] },
-  { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 보장"] },
+  { name: "프로", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀의 표준", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약(서명) 월 20건", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "세금계산서 국세청 발행 월 10건 · 현금영수증 발행(베타)"] },
+  { name: "울트라", regularPrice: null, betaPrice: "88,000", unit: "원/월", period: "VAT 별도 · 발행량 많은 팀", desc: "국세청 발행 무제한 + AI 브리핑", perSeat: null, hl: false, discount: null, features: ["프로의 모든 기능 그대로", "세금계산서 국세청 발행 무제한 · 현금영수증 발행(베타)", "AI 브리핑 — 매일 우선순위 액션 플랜", "신기능 얼리 액세스", "우선 지원"] },
+  { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 협의"] },
 ];
 
 const FAQS = [
   { q: "기존 엑셀/관리파일을 가져올 수 있나요?", a: "네. 거래처 목록과 은행·카드 거래내역은 엑셀/CSV 파일을 업로드하면 바로 등록됩니다. 직원 명단 등 다른 데이터는 현재 수동 등록만 지원합니다." },
-  { q: "각 기능이 전문 솔루션 수준인가요?", a: "OwnerView의 각 기능은 해당 분야 전문 솔루션과 동등한 품질을 제공합니다. 차이점은 모든 기능이 유기적으로 연결된다는 것입니다." },
-  { q: "무료→유료 전환 시 데이터 유지되나요?", a: "물론입니다. 모든 데이터는 100% 유지되며 추가 설정 없이 즉시 확장 기능을 사용할 수 있습니다." },
+  { q: "각 기능이 전문 솔루션 수준인가요?", a: "OwnerView는 회계·급여·전자계약·세무 등 실무에 필요한 핵심 기능을 한 곳에서 제공합니다. 강점은 흩어진 도구 대신 모든 기능이 유기적으로 연결된다는 점입니다." },
+  { q: "무료→유료 전환 시 데이터 유지되나요?", a: "네. 입력하신 데이터는 그대로 유지되며, 추가 설정 없이 확장 기능을 이용할 수 있습니다." },
   { q: "파트너사도 함께 사용할 수 있나요?", a: "네. 링크 하나로 초대 가능하며 별도 요금 없이 프로젝트 확인, 서류 검토, 채팅에 참여할 수 있습니다." },
   { q: "직원은 어떻게 합류하나요?", a: "관리자가 이메일로 초대하거나, 직원이 회사 사업자등록번호로 가입 후 합류 요청을 보내면 관리자 승인 한 번으로 연결됩니다. 카카오/구글 계정으로도 가입할 수 있습니다." },
   { q: "보안은 안전한가요?", a: "역할기반 접근제어(RBAC), 감사로그, SOC2 인증 인프라(Supabase)를 사용하며, 모든 통신은 TLS로 암호화됩니다." },
@@ -1437,7 +1437,7 @@ export default function LandingPage() {
               <tbody>
                 <tr><td>전자계약 발송 (서명 요청)</td><td>월 20건</td><td className="lp2-diff-ultra-cell">무제한</td></tr>
                 <tr><td>세금계산서 국세청 발행</td><td>월 10건</td><td className="lp2-diff-ultra-cell">무제한</td></tr>
-                <tr><td>현금영수증 국세청 발행</td><td>월 10건</td><td className="lp2-diff-ultra-cell">무제한</td></tr>
+                <tr><td>현금영수증 국세청 발행 <span style={{fontSize:"11px",color:"var(--lp-text-3)"}}>(베타)</span></td><td>월 10건</td><td className="lp2-diff-ultra-cell">무제한</td></tr>
                 <tr><td>AI 브리핑 (매일 우선순위 액션 플랜)</td><td>—</td><td className="lp2-diff-ultra-cell">제공</td></tr>
                 <tr><td>신기능 얼리 액세스 · 우선 지원</td><td>—</td><td className="lp2-diff-ultra-cell">제공</td></tr>
               </tbody>

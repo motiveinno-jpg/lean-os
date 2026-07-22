@@ -553,7 +553,7 @@ export default function CashReceiptsPage() {
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            {issuanceLimitReached ? "발행 한도 소진" : "국세청 발행"}
+            {issuanceLimitReached ? "발행 한도 소진" : "국세청 발행 (베타)"}
           </button>
           <button
               onClick={startSync}
@@ -1098,8 +1098,8 @@ export default function CashReceiptsPage() {
         <div className="cash-receipt-issue-modal fixed inset-0 cashbill-issue-modal">
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
-              <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">발행 즉시 효력이 생기며, 당일 밤 24시에 국세청으로 일괄 전송됩니다. 승인번호는 전송 후 부여됩니다.</div>
+              <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold align-middle">베타</span></div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">발행 즉시 효력이 생기며, 당일 밤 24시에 국세청으로 일괄 전송됩니다. 승인번호는 전송 후 부여됩니다. (베타 — 발행이 실패하면 안내 메시지가 표시됩니다.)</div>
             </div>
             <div className="p-5 space-y-3">
               <div className="flex gap-2">
