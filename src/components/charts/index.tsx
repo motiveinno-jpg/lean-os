@@ -6,14 +6,15 @@
 
 import { useId, useState } from "react";
 
-const PRIMARY = "var(--primary)";
+// 차트 색은 저채도 시각화 팔레트(--viz-*)를 우선 사용해 그래프가 튀지 않게 함(폴백=시맨틱색).
+const PRIMARY = "var(--viz-brand, var(--primary))";
 const DIM = "var(--text-dim)";
 const MUTED = "var(--text-muted)";
 const BORDER = "var(--border)";
 const GRID = "var(--grid, var(--border))";
-const SUCCESS = "var(--success)";
-export const AMBER = "#f59e0b";
-export const DANGER = "var(--danger)";
+const SUCCESS = "var(--viz-pos, var(--success))";
+export const AMBER = "var(--viz-warn, #d99a34)";
+export const DANGER = "var(--viz-neg, var(--danger))";
 
 // 눈금 상한을 '깔끔한' 값으로 (1/2/5 × 10^n)
 function niceMax(v: number): number {

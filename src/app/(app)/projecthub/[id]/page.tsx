@@ -1738,7 +1738,7 @@ function MarginBand({ revenue, planCost, actualCost, pipe, rolled }: {
   const collectPct = billedAmt > 0 ? Math.round((paidAmt / billedAmt) * 100) : null;
   const loss = headMargin < 0;
   const thin = !loss && ratePct != null && ratePct < 10;
-  const statusColor = loss ? "var(--danger)" : thin ? "var(--warning)" : "var(--success)";
+  const statusColor = loss ? "var(--viz-neg)" : thin ? "var(--viz-warn)" : "var(--viz-pos)";
   const statusLabel = loss ? "적자" : thin ? "박한 마진" : "흑자";
   return (
     <div className="pj-band glass-card">
@@ -1759,8 +1759,8 @@ function MarginBand({ revenue, planCost, actualCost, pipe, rolled }: {
       <div className="pj-band-col">
         <span className="pj-band-lbl">수금률 (입금/발행)</span>
         {collectPct == null ? <span className="text-[13px] text-[var(--text-dim)]">계산서 발행 전</span> : (<>
-          <span className="pj-band-big mono-number" style={{ color: outstanding > 1 ? "var(--warning)" : "var(--success)" }}>{collectPct}%</span>
-          <div className="track" style={{ height: 7, borderRadius: 7, background: "var(--bg-surface)", overflow: "hidden", marginTop: 4 }}><div style={{ width: `${collectPct}%`, height: "100%", borderRadius: 7, background: outstanding > 1 ? "var(--warning)" : "var(--success)" }} /></div>
+          <span className="pj-band-big mono-number" style={{ color: outstanding > 1 ? "var(--viz-warn)" : "var(--viz-pos)" }}>{collectPct}%</span>
+          <div className="track" style={{ height: 7, borderRadius: 7, background: "var(--bg-surface)", overflow: "hidden", marginTop: 4 }}><div style={{ width: `${collectPct}%`, height: "100%", borderRadius: 7, background: outstanding > 1 ? "var(--viz-warn)" : "var(--viz-pos)" }} /></div>
           <span className="text-[10.5px] text-[var(--text-dim)]">{outstanding > 1 ? `미수 ${won(outstanding)}` : "수금 완료"}</span>
         </>)}
       </div>
@@ -1779,9 +1779,9 @@ function MoneyFlow({ pipe, contractTotal, revenue, revenueBasis, actualCost, onO
   const structBase = Math.max(revenue, actualCost, 1);
   const marginRate = revenue > 0 ? Math.round((margin / revenue) * 100) : null;
   const flows = [
-    { nm: "계약금액", v: contractTotal, w: contractTotal > 0 ? pctOf(contractTotal) : 0, color: "color-mix(in srgb, var(--primary) 30%, transparent)", pct: null as number | null, off: 0 },
-    { nm: "계산서 발행", v: billedAmt, w: pctOf(billedAmt), color: "var(--primary)", pct: contractTotal > 0 ? Math.round((billedAmt / flowBase) * 100) : null, off: 0 },
-    { nm: "실입금", v: paidAmt, w: pctOf(paidAmt), color: "var(--success)", pct: contractTotal > 0 ? Math.round((paidAmt / flowBase) * 100) : null, off: 0 },
+    { nm: "계약금액", v: contractTotal, w: contractTotal > 0 ? pctOf(contractTotal) : 0, color: "color-mix(in srgb, var(--viz-brand) 28%, transparent)", pct: null as number | null, off: 0 },
+    { nm: "계산서 발행", v: billedAmt, w: pctOf(billedAmt), color: "var(--viz-brand)", pct: contractTotal > 0 ? Math.round((billedAmt / flowBase) * 100) : null, off: 0 },
+    { nm: "실입금", v: paidAmt, w: pctOf(paidAmt), color: "var(--viz-pos)", pct: contractTotal > 0 ? Math.round((paidAmt / flowBase) * 100) : null, off: 0 },
   ];
   return (
     <div className="pj-sec glass-card">
@@ -1798,8 +1798,8 @@ function MoneyFlow({ pipe, contractTotal, revenue, revenueBasis, actualCost, onO
         ))}
         {outstanding > 1 && (
           <div>
-            <div className="pj-flow-row-l"><span className="font-bold text-[var(--danger)]">미수금<span className="text-[10.5px] ml-1.5 font-normal">{Math.round((outstanding / flowBase) * 100)}%</span></span><span className="mono-number font-bold text-[var(--danger)]">{won(outstanding)}</span></div>
-            <div className="pj-flow-track"><i style={{ width: `${pctOf(outstanding)}%`, marginLeft: `${pctOf(paidAmt)}%`, background: "var(--danger)" }} /></div>
+            <div className="pj-flow-row-l"><span className="font-bold" style={{ color: "var(--viz-neg)" }}>미수금<span className="text-[10.5px] ml-1.5 font-normal">{Math.round((outstanding / flowBase) * 100)}%</span></span><span className="mono-number font-bold" style={{ color: "var(--viz-neg)" }}>{won(outstanding)}</span></div>
+            <div className="pj-flow-track"><i style={{ width: `${pctOf(outstanding)}%`, marginLeft: `${pctOf(paidAmt)}%`, background: "var(--viz-neg)" }} /></div>
           </div>
         )}
       </div>
@@ -1807,9 +1807,9 @@ function MoneyFlow({ pipe, contractTotal, revenue, revenueBasis, actualCost, onO
         <div>
           <div className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-dim)] mb-2.5">수익 구조 <span className="font-normal normal-case">({revenueBasis})</span></div>
           <div className="pj-flow">
-            <div><div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">매출</span><span className="mono-number font-bold text-[var(--text-muted)]">{won(revenue)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.min(100, (revenue / structBase) * 100)}%`, background: "var(--info)" }} /></div></div>
-            <div><div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">확정 비용</span><span className="mono-number font-bold text-[var(--text-muted)]">{won(actualCost)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.min(100, (actualCost / structBase) * 100)}%`, background: "var(--warning)" }} /></div></div>
-            <div><div className="pj-flow-row-l"><span className="font-bold" style={{ color: margin < 0 ? "var(--danger)" : "var(--success)" }}>= 마진{marginRate != null && <span className="font-normal ml-1">({marginRate}%)</span>}</span><span className="mono-number font-bold" style={{ color: margin < 0 ? "var(--danger)" : "var(--success)" }}>{won(margin)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.max(0, Math.min(100, (margin / structBase) * 100))}%`, background: margin < 0 ? "var(--danger)" : "var(--success)" }} /></div></div>
+            <div><div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">매출</span><span className="mono-number font-bold text-[var(--text-muted)]">{won(revenue)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.min(100, (revenue / structBase) * 100)}%`, background: "var(--viz-info)" }} /></div></div>
+            <div><div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">확정 비용</span><span className="mono-number font-bold text-[var(--text-muted)]">{won(actualCost)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.min(100, (actualCost / structBase) * 100)}%`, background: "var(--viz-warn)" }} /></div></div>
+            <div><div className="pj-flow-row-l"><span className="font-bold" style={{ color: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }}>= 마진{marginRate != null && <span className="font-normal ml-1">({marginRate}%)</span>}</span><span className="mono-number font-bold" style={{ color: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }}>{won(margin)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.max(0, Math.min(100, (margin / structBase) * 100))}%`, background: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }} /></div></div>
           </div>
         </div>
         <div className="flex flex-col justify-center gap-2">
@@ -2105,7 +2105,7 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
       pace = over > 0 ? { tone: "danger", text: `기한 ${over}일 초과 예상` } : { tone: "ok", text: "기한 내 완료 예상" };
     }
   }
-  const paceColor = pace?.tone === "danger" ? "var(--danger)" : pace?.tone === "ok" ? "var(--success)" : "var(--text-dim)";
+  const paceColor = pace?.tone === "danger" ? "var(--viz-neg)" : pace?.tone === "ok" ? "var(--viz-pos)" : "var(--text-dim)";
 
   // 마감 워크로드 — 마감일 있는 태스크를 7일 창으로 버킷(완료/남음/지연)
   const dueTasks = (tasks as any[]).filter((t) => t.due_date);
@@ -2146,8 +2146,8 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
     burnup = { actual, scope: total, totalDays, todayX };
   }
 
-  const statusSegs = DELIVERY_STATUS_META.map((s) => ({ ...s, n: byStatus[s.key], bg: s.key === "todo" ? "var(--text-dim)" : s.key === "doing" ? "var(--info)" : s.key === "review" ? "var(--warning)" : "var(--success)" }));
-  const runColor = runState === "완료" ? "var(--success)" : delayed > 0 ? "var(--warning)" : runState === "진행 중" ? "var(--info)" : "var(--text-dim)";
+  const statusSegs = DELIVERY_STATUS_META.map((s) => ({ ...s, n: byStatus[s.key], bg: s.key === "todo" ? "var(--text-dim)" : s.key === "doing" ? "var(--viz-info)" : s.key === "review" ? "var(--viz-warn)" : "var(--viz-pos)" }));
+  const runColor = runState === "완료" ? "var(--viz-pos)" : delayed > 0 ? "var(--viz-warn)" : runState === "진행 중" ? "var(--viz-info)" : "var(--text-dim)";
 
   return (
     <div className="delivery-overview-panel space-y-5">

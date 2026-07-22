@@ -65,6 +65,13 @@
   --page-to: #DEE0F6;
   --shadow-glass: 0 20px 40px -12px rgba(0,0,0,0.08);
   --radius-card: 20px;
+  /* 시각화(차트·콕핏 바) 전용 저채도 팔레트 — 시맨틱색(성공/경고/위험)보다 채도를 낮춰 그래프가 튀지 않게(2026-07-22).
+     텍스트 배지 등 일반 UI는 기존 --success/--warning/--danger 유지, 큰 색면(막대·도넛)만 이 팔레트 사용. */
+  --viz-brand: #5B54D9;   /* 소프트 인디고 */
+  --viz-pos: #3F9B7C;     /* 뮤트 그린 (기존 #059669 대비 저채도) */
+  --viz-warn: #C48A38;    /* 뮤트 오커/앰버 (기존 #D97706·#f59e0b 대비 차분) */
+  --viz-neg: #CB5F58;     /* 뮤트 브릭 레드 (기존 #DC2626 대비 차분) */
+  --viz-info: #5480BE;    /* 뮤트 블루 */
 }
 
 [data-theme="dark"] {
@@ -116,6 +123,12 @@
   --page-to: #0B0C10;
   --shadow-glass: 0 20px 40px -12px rgba(0,0,0,0.5);
   --radius-card: 20px;
+  /* 시각화 저채도 팔레트 — 다크 대비용(네온 아닌 차분한 톤) */
+  --viz-brand: #7A77E6;
+  --viz-pos: #57BC96;
+  --viz-warn: #D3AC5F;
+  --viz-neg: #DE8079;
+  --viz-info: #6F9FDA;
 }
 
 /* 모바일 첫 로그인 비율 가드 (2026-07-10 사장님 QA) — 어느 페이지에 뷰포트보다 넓은 요소가
