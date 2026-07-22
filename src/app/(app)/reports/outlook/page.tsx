@@ -15,6 +15,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { ReportsTabs } from "../_components/ReportsTabs";
 import { fmt } from "../_components/kit";
 import { IntroCard, Section } from "@/components/report-kit";
+import { AreaTrend, type TrendPoint } from "../flow/_components/AreaTrend";
 
 const TONE: Record<string, string> = { success: "var(--success)", warning: "var(--warning)", danger: "var(--danger)" };
 function runwayTone(months: number): string {
@@ -55,7 +56,12 @@ export default function OutlookPage() {
   ].map((s) => ({ ...s, tone: s.tone || runwayTone(s.months) }));
 
   const loading = !companyId || !pulse;
-  const maxAbs = Math.max(1, ...points.map((p) => Math.abs(p.balance)), balance);
+
+  // 잔액 전망 선그래프 포인트(오늘~D+90) — 두꺼운 막대 대신 얇은 곡선으로. 미래는 muted, 마이너스는 danger.
+  const todayIdx = points.findIndex((p) => p.days === 0);
+  const trendPts: TrendPoint[] = points.map((p) => ({ label: p.label, value: p.balance, tone: p.balance < 0 ? "danger" : p.days === 0 ? "normal" : "muted" }));
+  // 기간별 예상 잔액(D+30/60/90) — 오늘 대비 증감과 함께 우측에 수치로 보강.
+  const horizon = points.filter((p) => p.days === 30 || p.days === 60 || p.days === 90);
 
   // 규칙 기반 요약 코멘트 — 경영요약 '이번 달 상태'와 동일 방식(월 지출·운영가능기간·부족시점 조합, LLM 아님)
   const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
@@ -80,34 +86,47 @@ export default function OutlookPage() {
               : { label: "자금 부족 예상", value: "90일 내 부족 없음 🟢", sub: "예측상 통장이 마이너스가 되지 않습니다", tone: "success" }}
           />
 
-          {/* 통장 잔액 예측(오늘~D+90) */}
-          <Section title="현금 잔액 전망" desc="향후 90일 예측">
-            <div className="outlook-forecast-bars">
-              {points.map((p) => {
-                const neg = p.balance < 0;
-                const h = Math.max(3, Math.round((Math.abs(p.balance) / maxAbs) * 100));
-                return (
-                  <div key={p.label} className="outlook-forecast-bar">
-                    <span className="mono-number text-[10px] font-semibold" style={{ color: neg ? "var(--danger)" : "var(--text-muted)" }}>{fmt(p.balance)}</span>
-                    <div className="w-full rounded-t-md" style={{ height: `${h}%`, background: neg ? "var(--danger)" : "color-mix(in srgb, var(--primary) 55%, transparent)" }} title={`${p.label}: ${fmt(p.balance)}`} />
-                    <span className="text-[10px] text-[var(--text-dim)]">{p.label}</span>
-                  </div>
-                );
-              })}
+          {/* 좌: 잔액 전망 곡선(주 그래프) · 우: 지출 시나리오 + 기간별 예상 잔액 */}
+          <div className="report-cols">
+            <div className="report-col">
+              {/* 통장 잔액 예측(오늘~D+90) — 얇은 곡선 */}
+              <Section title="현금 잔액 전망" desc="오늘부터 향후 90일까지 통장 잔액 예측입니다. 점선은 오늘, 회색 점은 예측 시점입니다.">
+                <AreaTrend points={trendPts} height={168} markerIndex={todayIdx >= 0 ? todayIdx : undefined} showValues />
+              </Section>
             </div>
-          </Section>
-
-          {/* 시나리오 */}
-          <Section title="시나리오 분석" desc="지출 변동 시 운영 가능 기간">
-            <div className="outlook-scenario-grid">
-              {scen.map((s) => (
-                <div key={s.label} className="outlook-scenario-tile stat-tile">
-                  <div className="stat-tile-label">{s.label}</div>
-                  <div className="stat-tile-value mono-number" style={{ color: TONE[s.tone] }}>{s.months >= 999 ? "무기한" : `${s.months.toFixed(1)}개월`}</div>
+            <div className="report-col">
+              {/* 지출 시나리오 */}
+              <Section title="지출 시나리오" desc="지출 속도가 바뀌면 운영 가능 기간이 어떻게 달라지는지">
+                <div className="outlook-scenario-grid">
+                  {scen.map((s) => (
+                    <div key={s.label} className="outlook-scenario-tile stat-tile">
+                      <div className="stat-tile-label">{s.label}</div>
+                      <div className="stat-tile-value mono-number" style={{ color: TONE[s.tone] }}>{s.months >= 999 ? "무기한" : `${s.months.toFixed(1)}개월`}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </Section>
+
+              {/* 기간별 예상 잔액 — 오늘 대비 증감 */}
+              <Section title="기간별 예상 잔액" desc="오늘 잔액 대비 늘고 줄어드는 폭">
+                <div className="outlook-horizon-list">
+                  {horizon.map((p) => {
+                    const delta = p.balance - balance;
+                    const neg = p.balance < 0;
+                    return (
+                      <div key={p.label} className="outlook-horizon-row">
+                        <span className="text-sm text-[var(--text-muted)]">{p.label} 예상</span>
+                        <span className="text-right">
+                          <span className="block mono-number text-sm font-bold" style={{ color: neg ? "var(--danger)" : "var(--text)" }}>{fmt(p.balance)}</span>
+                          <span className="block text-[10px] mono-number" style={{ color: delta >= 0 ? "var(--success)" : "var(--danger)" }}>{delta >= 0 ? "▲" : "▼"} {fmt(Math.abs(delta))}</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Section>
             </div>
-          </Section>
+          </div>
 
           <div className="text-center">
             <Link href="/reports/flow" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:underline no-underline">

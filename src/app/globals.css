@@ -1907,10 +1907,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .area-trend-labels { @apply flex mt-2; }
 
 .outlook-page-content { @apply space-y-5 mt-1; }
-.outlook-forecast-bars { @apply flex items-end gap-3 h-36; }
-/* self-stretch: 부모(items-end)에서도 컬럼을 트랙(h-36)만큼 늘려 안쪽 막대의 height:% 기준을 확보 (막대 붕괴 방지) */
-.outlook-forecast-bar { @apply flex-1 self-stretch flex flex-col items-center justify-end gap-1 min-w-0; }
 .outlook-scenario-grid { @apply grid grid-cols-1 sm:grid-cols-3 gap-3; }
+/* 기간별 예상 잔액 리스트(우측 컬럼) — 막대 대신 얇은 곡선으로 옮기며 신설 */
+.outlook-horizon-list { @apply space-y-2; }
+.outlook-horizon-row { @apply flex items-center justify-between rounded-xl bg-[var(--bg-surface)] px-3.5 py-2.5; }
 
 .monthly-detail-page { @apply space-y-6; }
 .monthly-detail-intro { @apply text-xs text-[var(--text-muted)] -mt-2; }
