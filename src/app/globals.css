@@ -4094,3 +4094,9 @@ select:not([multiple]) {
 }
 /* 2) 표 셀 안 배지(rounded-full 칩) 줄바꿈 금지 — "대기"가 "대/기"로 세로 꺾이던 류 전역 방지 */
 td .rounded-full { white-space: nowrap; }
+
+/* billing/page.tsx — 결제 주기 토글 (2026-07-22 연간 결제 복원, 연간 10% 할인) */
+.billing-cycle-toggle { @apply flex items-center justify-center gap-1 mb-5 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] w-fit mx-auto; }
+.billing-cycle-btn { @apply px-4 py-1.5 rounded-lg text-sm font-semibold text-[var(--text-muted)] transition cursor-pointer; }
+.billing-cycle-btn-active { @apply bg-[var(--bg-card)] text-[var(--text)] shadow-sm; }
+.billing-cycle-save { @apply ml-1.5 text-[10px] font-bold text-[var(--success)]; }

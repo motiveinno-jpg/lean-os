@@ -39,7 +39,7 @@ export default function BillingPage() {
   }
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("plan");
-  const [cycle] = useState<BillingCycle>("monthly"); // 월간 단일 (연간 토글 제거)
+  const [cycle, setCycle] = useState<BillingCycle>("monthly"); // 2026-07-22 연간 토글 복원 (연간 10% 할인)
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState<string | null>(null);
@@ -432,6 +432,11 @@ export default function BillingPage() {
             );
           })()}
 
+          <div className="billing-cycle-toggle">
+            <button type="button" onClick={() => setCycle("monthly")} className={`billing-cycle-btn ${cycle === "monthly" ? "billing-cycle-btn-active" : ""}`}>월간 결제</button>
+            <button type="button" onClick={() => setCycle("annual")} className={`billing-cycle-btn ${cycle === "annual" ? "billing-cycle-btn-active" : ""}`}>연간 결제<span className="billing-cycle-save">10% 할인</span></button>
+          </div>
+
           <div className="billing-plan-grid">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
@@ -479,6 +484,7 @@ export default function BillingPage() {
                           </div>
                           <div className="text-xs text-[var(--text-muted)] mt-1">
                             /월 (VAT 별도){monthlySeat > 0 ? ` + ₩${monthlySeat.toLocaleString()}/인` : ""}
+                            {cycle === "annual" && <div className="mt-0.5 font-semibold text-[var(--success)]">연 ₩{(monthlyPrice * 12).toLocaleString()} 일괄 청구</div>}
                           </div>
                         </>
                       )}
@@ -797,7 +803,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
             <p className="text-sm text-[var(--text-muted)] mb-4">
               {showUpgradeModal === "free"
                 ? "Free 플랜으로 다운그레이드하시겠습니까? 현재 결제 기간이 끝나면 기능이 제한됩니다."
-                : `${showUpgradeModal.charAt(0).toUpperCase() + showUpgradeModal.slice(1)} 플랜으로 업그레이드합니다.`}
+                : `${(plans || []).find((pl: any) => pl.slug === showUpgradeModal)?.name || showUpgradeModal} 플랜으로 업그레이드합니다.`}
             </p>
             <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4">
               <div className="text-xs text-[var(--text-muted)] mb-1">변경 후 예상 금액</div>
@@ -808,7 +814,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                   const base = cycle === "annual" ? Math.round(p.base_price * 0.9) : p.base_price; // 연간 10% 할인
                   const seat = cycle === "annual" ? Math.round(p.per_seat_price * 0.9) : p.per_seat_price;
                   const total = base + seat * (subscription?.seat_count || 1);
-                  return `₩${total.toLocaleString()}/월`;
+                  return cycle === "annual" ? `₩${(total * 12).toLocaleString()}/년 (월 ₩${total.toLocaleString()} 상당)` : `₩${total.toLocaleString()}/월`;
                 })()}
               </div>
             </div>
