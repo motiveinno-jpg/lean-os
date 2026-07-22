@@ -1908,7 +1908,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
 .outlook-page-content { @apply space-y-5 mt-1; }
 .outlook-forecast-bars { @apply flex items-end gap-3 h-36; }
-.outlook-forecast-bar { @apply flex-1 flex flex-col items-center justify-end gap-1 min-w-0; }
+/* self-stretch: 부모(items-end)에서도 컬럼을 트랙(h-36)만큼 늘려 안쪽 막대의 height:% 기준을 확보 (막대 붕괴 방지) */
+.outlook-forecast-bar { @apply flex-1 self-stretch flex flex-col items-center justify-end gap-1 min-w-0; }
 .outlook-scenario-grid { @apply grid grid-cols-1 sm:grid-cols-3 gap-3; }
 
 .monthly-detail-page { @apply space-y-6; }
