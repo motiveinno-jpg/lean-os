@@ -2613,6 +2613,29 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .receivables-rollup { @apply p-4 flex items-center gap-4 flex-wrap border border-[var(--danger)]/30 bg-[var(--danger)]/5; }
 .project-card-grid { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4; }
 .project-card { @apply p-4 cursor-pointer transition hover:-translate-y-0.5 hover:border-[var(--primary)] flex flex-col gap-2.5; }
+/* 내 프로젝트 콕핏(2026-07-22) — 클릭 렌즈 + 다음 액션 줄 + 카드 ⋯메뉴 */
+.ph-lens-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.ph-lens { @apply text-left cursor-pointer p-4 relative transition hover:-translate-y-0.5; }
+.ph-lens-on { @apply ring-1 ring-[var(--primary)] border-[var(--primary)]/50; }
+.ph-lens-label { @apply flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)]; }
+.ph-lens-dot { @apply w-2 h-2 rounded-full shrink-0; }
+.ph-lens-num { @apply text-[27px] font-extrabold tracking-tight mt-1.5; font-variant-numeric: tabular-nums; }
+.ph-lens-sub { @apply text-[11px] text-[var(--text-dim)] mt-0.5; }
+.ph-lens-go { @apply absolute right-3.5 bottom-3 text-[11px] font-bold text-[var(--primary)] opacity-0 transition; }
+.ph-lens:hover .ph-lens-go { @apply opacity-100; }
+.ph-filter-pill { @apply inline-flex items-center gap-1.5 text-[11.5px] font-bold text-[var(--primary)] bg-[var(--primary-light)] border border-[var(--primary)]/25 px-2.5 py-1 rounded-full cursor-pointer; }
+.ph-next-row { @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[11.5px] font-semibold; }
+.ph-next-txt { @apply text-[var(--text-muted)] flex-1 min-w-0 truncate; }
+.ph-next-dday { @apply font-extrabold px-2 py-0.5 rounded-full text-[10.5px] shrink-0; }
+.ph-next-risk { @apply bg-[var(--danger-dim)]; }
+.ph-next-risk .ph-next-txt { @apply text-[var(--danger)]; }
+.ph-next-risk .ph-next-dday { @apply bg-[var(--danger)] text-white; }
+.ph-next-soon .ph-next-dday { @apply bg-[var(--warning)] text-white; }
+.ph-next-ok .ph-next-dday { @apply bg-[var(--success)]/20 text-[var(--success)]; }
+.ph-card-menu { @apply absolute right-2 bottom-9 z-20 w-28 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-xl overflow-hidden py-1; }
+.ph-card-menu button { @apply w-full text-left px-3 py-2 text-xs font-medium hover:bg-[var(--bg-surface)] transition; }
+.ph-open-btn { @apply text-xs font-extrabold text-[var(--primary)] inline-flex items-center gap-1; }
+.ph-kebab { @apply w-[26px] h-[26px] rounded-lg border border-[var(--border)] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition text-base leading-none shrink-0; }
 .project-form-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
 .project-form-modal-header { @apply px-5 py-4 border-b border-[var(--border)] flex items-center justify-between; }
 .project-type-step { @apply p-5 space-y-3; }

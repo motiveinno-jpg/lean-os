@@ -37,6 +37,9 @@ export default function ProjectHubPage() {
   const [showDashboard, setShowDashboard] = useState(true); // 성과 대시보드 — 목표형 탭 선택 시 기본 열림(토글 가능)
   const [editDeal, setEditDeal] = useState<any | null>(null);
   const [delDeal, setDelDeal] = useState<any | null>(null);
+  // 콕핏(2026-07-22) — "지금 챙길 것" 렌즈 필터 + 카드 ⋯메뉴 열림 상태
+  const [lens, setLens] = useState<null | "risk" | "due" | "progress" | "receivable">(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ["projecthub-deals", companyId],
@@ -88,17 +91,21 @@ export default function ProjectHubPage() {
     },
     enabled: !!companyId,
   });
-  const settleSummary = useMemo(() => {
+  // 프로젝트별 미수금(발행 - 실입금) — 콕핏 미수 렌즈·카드 다음액션에서 재사용.
+  const outstandingByDeal = useMemo(() => {
     const byDeal: Record<string, number> = {};
     for (const r of settleRows as any[]) {
       if (r.status === "draft") continue;
       const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
       byDeal[r.deal_id] = (byDeal[r.deal_id] || 0) + bal;
     }
-    let totalOutstanding = 0, projects = 0;
-    for (const k in byDeal) { if (byDeal[k] > 1) { totalOutstanding += byDeal[k]; projects++; } }
-    return { totalOutstanding, projects };
+    return byDeal;
   }, [settleRows]);
+  const settleSummary = useMemo(() => {
+    let totalOutstanding = 0, projects = 0;
+    for (const k in outstandingByDeal) { if (outstandingByDeal[k] > 1) { totalOutstanding += outstandingByDeal[k]; projects++; } }
+    return { totalOutstanding, projects };
+  }, [outstandingByDeal]);
 
   // 유형별 실적 — 목표형(자동/수동), 실행형(태스크). 핵심지표 정규화·요약·위험 판정에 사용.
   const goalDealIds = useMemo(() => topDeals.filter((d) => normalizeProjectType(d.project_type) === "goal").map((d) => d.id), [topDeals]);
@@ -232,23 +239,71 @@ export default function ProjectHubPage() {
     for (const u of users as any[]) m[u.id] = u.name;
     return m;
   }, [users]);
-  // 제목줄 클릭 정렬
-  type PSortKey = "name" | "partner" | "manager" | "stage" | "contract" | "direct_cost" | "cost_ratio" | "progress" | "period";
-  const [sortKey, setSortKey] = useState<PSortKey>("contract");
+  // 제목줄 클릭 정렬 — 콕핏 기본값은 긴급도순(2026-07-22)
+  type PSortKey = "urgency" | "name" | "partner" | "manager" | "stage" | "contract" | "direct_cost" | "cost_ratio" | "progress" | "period";
+  const [sortKey, setSortKey] = useState<PSortKey>("urgency");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   // 카드 뷰 정렬 옵션 — 모든 유형 공통
   const SORT_OPTIONS: [PSortKey, string][] = [
-    ["contract", "계약금액"], ["progress", "진행·달성률"], ["stage", "단계"], ["name", "프로젝트명"], ["period", "시작일"],
+    ["urgency", "긴급도"], ["contract", "계약금액"], ["progress", "진행·달성률"], ["stage", "단계"], ["name", "프로젝트명"], ["period", "시작일"],
   ];
+  const isDone = (d: any) => d.stage === "completed" || d.stage === "settlement";
+  // 마감까지 남은 일수(음수=초과). end_date 없으면 null.
+  const daysToEnd = (d: any): number | null => {
+    if (!d.end_date) return null;
+    const end = new Date(`${String(d.end_date).slice(0, 10)}T00:00:00`);
+    const now = new Date(`${todayStr}T00:00:00`);
+    return Math.round((end.getTime() - now.getTime()) / 86_400_000);
+  };
+  // 이번 주 마감 — 진행 중이면서 마감이 0~7일 이내
+  const isDueSoon = (d: any) => {
+    if (isDone(d)) return false;
+    const dd = daysToEnd(d);
+    return dd != null && dd >= 0 && dd <= 7;
+  };
   // 위험 판정 — 마진<0 · 달성 정체(0%) · 기한초과 · 태스크 지연
   const isRisk = (d: any) => {
     const type = normalizeProjectType(d.project_type);
     const h = heroByDeal[d.id];
-    const overdue = d.end_date && String(d.end_date).slice(0, 10) < todayStr && d.stage !== "completed" && d.stage !== "settlement";
+    const overdue = d.end_date && String(d.end_date).slice(0, 10) < todayStr && !isDone(d);
     if (type === "delivery") return !!h?.delayed || !!overdue;
     // 목표형 위험 — 종합 달성률 정체(거의 0%)이거나 기한 초과. KPI(raw) 있어야 판정.
     if (type === "goal") return (h?.raw != null && h.raw < 0.0001) || !!overdue;
     return !!h?.risk || !!overdue;
+  };
+  // 카드 "다음 액션" 줄 — 기존 데이터(마감일·단계·미수·지연태스크)만으로 구성.
+  const nextAction = (d: any): { icon: string; text: string; dday: string; tone: "risk" | "soon" | "ok" } => {
+    const dd = daysToEnd(d);
+    const type = normalizeProjectType(d.project_type);
+    const out = outstandingByDeal[d.id] || 0;
+    if (isDone(d)) {
+      if (out > 1) return { icon: "💵", text: "정산 대기 · 미수 있음", dday: won(out), tone: "soon" };
+      return { icon: "✅", text: d.stage === "settlement" ? "정산 단계" : "완료", dday: "완료", tone: "ok" };
+    }
+    if (dd != null && dd < 0) return { icon: "⏰", text: "마감 기한 초과", dday: `D+${-dd}`, tone: "risk" };
+    if (type === "delivery" && heroByDeal[d.id]?.delayed) return { icon: "💤", text: "지연된 태스크 있음", dday: "지연", tone: "risk" };
+    if (dd != null && dd <= 7) return { icon: "⏰", text: "마감 임박", dday: `D-${dd}`, tone: "soon" };
+    if (type === "margin" && out > 1) return { icon: "💵", text: "미수금 회수 필요", dday: won(out), tone: "soon" };
+    if (dd != null) return { icon: "🗓", text: "다음 마감", dday: `D-${dd}`, tone: "ok" };
+    return { icon: "🗓", text: "기간 미정", dday: "—", tone: "ok" };
+  };
+
+  // 렌즈 필터 판정 — 지금 챙길 것 칩 클릭 시 목록을 좁힌다.
+  const matchesLens = (d: any) => {
+    if (!lens) return true;
+    if (lens === "risk") return isRisk(d);
+    if (lens === "due") return isDueSoon(d);
+    if (lens === "progress") return d.stage === "in_progress";
+    if (lens === "receivable") return (outstandingByDeal[d.id] || 0) > 1;
+    return true;
+  };
+  // 긴급도 랭크(낮을수록 위) — 위험 → 이번주마감 → 미수 → 나머지 → 완료
+  const urgencyRank = (d: any) => {
+    if (isDone(d)) return 4;
+    if (isRisk(d)) return 0;
+    if (isDueSoon(d)) return 1;
+    if ((outstandingByDeal[d.id] || 0) > 1) return 2;
+    return 3;
   };
 
   const rows = useMemo(() => {
@@ -256,6 +311,7 @@ export default function ProjectHubPage() {
     const filtered = topDeals.filter((d) => {
       if (typeFilter !== "all" && normalizeProjectType(d.project_type) !== typeFilter) return false;
       if (mineOnly && d.internal_manager_id !== userId) return false;
+      if (!matchesLens(d)) return false;
       if (q) {
         const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${userName[d.internal_manager_id] || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -263,7 +319,16 @@ export default function ProjectHubPage() {
       return true;
     });
     return filtered.slice().sort((a, b) => {
-      // 위험 항목 최상단 고정
+      // 긴급도 정렬 — 랭크 오름차순 + 마감 임박 우선. 방향 토글과 무관하게 항상 급한 게 위로.
+      if (sortKey === "urgency") {
+        const ra = urgencyRank(a), rb = urgencyRank(b);
+        if (ra !== rb) return ra - rb;
+        const da = daysToEnd(a), db = daysToEnd(b);
+        const va = da == null ? Infinity : da, vb = db == null ? Infinity : db;
+        if (va !== vb) return va - vb;
+        return Number(b.contract_total || 0) - Number(a.contract_total || 0);
+      }
+      // 그 외 정렬에서도 위험 항목 최상단 고정
       const ra = isRisk(a) ? 1 : 0, rb = isRisk(b) ? 1 : 0;
       if (ra !== rb) return rb - ra;
       let c = 0;
@@ -281,7 +346,32 @@ export default function ProjectHubPage() {
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       return sortDir === "asc" ? c : -c;
     });
-  }, [topDeals, typeFilter, search, mineOnly, userId, sortKey, sortDir, partnerName, userName, pnlByDeal, heroByDeal]);
+  }, [topDeals, typeFilter, search, mineOnly, userId, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, heroByDeal, outstandingByDeal]);
+
+  // 렌즈 카운트 — 유형·내담당·검색 스코프(lens 제외)에서 집계. baseDeals 는 typeFilter 미반영이라 별도 구성.
+  const lensScope = useMemo(() => rows.length === 0 || lens ? topDeals.filter((d) => {
+    const q = search.trim().toLowerCase();
+    if (typeFilter !== "all" && normalizeProjectType(d.project_type) !== typeFilter) return false;
+    if (mineOnly && d.internal_manager_id !== userId) return false;
+    if (q) {
+      const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${userName[d.internal_manager_id] || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }) : rows, [rows, lens, topDeals, typeFilter, mineOnly, userId, search, partnerName, userName]);
+  const lensCounts = useMemo(() => {
+    let receivableSum = 0, receivableCount = 0;
+    for (const d of lensScope) {
+      const o = outstandingByDeal[d.id] || 0;
+      if (o > 1) { receivableSum += o; receivableCount++; }
+    }
+    return {
+      risk: lensScope.filter(isRisk).length,
+      due: lensScope.filter(isDueSoon).length,
+      progress: lensScope.filter((d) => d.stage === "in_progress").length,
+      receivableSum, receivableCount,
+    };
+  }, [lensScope, outstandingByDeal]);
 
   // 2026-07-20 QA: 유형 칩 카운트가 내담당·검색 필터를 무시해 "전체 7"인데 KPI·목록은 0으로
   //   따로 놀던 혼란 — 칩도 동일한 기준(typeFilter 제외한 나머지 필터)을 따르게 한다.
@@ -317,22 +407,13 @@ export default function ProjectHubPage() {
     };
   }, [baseDeals, pnlByDeal, heroByDeal]);
 
-  const summary = useMemo(() => {
-    const total = rows.length;
-    const inProgress = rows.filter((d) => d.stage === "in_progress").length;
-    const totalContract = rows.reduce((s, d) => s + Number(d.contract_total || 0), 0);
-    // VAT포함 합계 = Σ(공급가 + round(공급가×0.1)) — 행별 반올림 합산이라 목록 합계와 일치
-    const totalContractWithVat = rows.reduce((s, d) => { const sup = Number(d.contract_total || 0); return s + sup + Math.round(sup * 0.1); }, 0);
-    const ratios = rows.map((d) => pnlByDeal[d.id]?.direct_cost_ratio).filter((r) => r != null && Number(r) > 0).map(Number);
-    const avgRatio = ratios.length ? ratios.reduce((s, r) => s + r, 0) / ratios.length : null;
-    return { total, inProgress, totalContract, totalContractWithVat, avgRatio };
-  }, [rows, pnlByDeal]);
-
   if (tabLoading) return null;
   if (!tabAllowed) return <AccessDenied detail="프로젝트 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
 
   return (
     <div className="projecthub-page">
+      {/* 카드 ⋯메뉴 바깥 클릭 닫기 */}
+      {openMenu && <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />}
       {/* 툴바 — 검색·내담당·성과대시보드·생성 */}
       <div className="projecthub-toolbar page-sticky-header">
         <div className="flex items-center gap-2 flex-1 min-w-[200px]">
@@ -431,50 +512,34 @@ export default function ProjectHubPage() {
         />
       )}
 
-      {/* 요약 카드 — 현재 필터(전체/유형) 기준 (stat-tile 표준) */}
-      <div className="projecthub-summary-grid">
-        <div className="stat-tile">
-          <div className="flex items-center justify-between">
-            <span className="stat-tile-label">{typeFilter === "all" ? "📁 전체 프로젝트" : `${PROJECT_TYPES[typeFilter].icon} ${PROJECT_TYPES[typeFilter].label} 프로젝트`}</span>
-            <span className="kpi-icon"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg></span>
-          </div>
-          <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">{summary.total}</span></div>
-        </div>
-        <div className="stat-tile">
-          <div className="flex items-center justify-between">
-            <span className="stat-tile-label">진행중</span>
-            <span className="kpi-icon warning"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" /></svg></span>
-          </div>
-          <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">{summary.inProgress}</span></div>
-        </div>
-        {/* 3번째 — 유형별 핵심: 수익형/전체=총계약, 목표형=평균 달성률, 실행형=평균 진행률 */}
-        {(typeFilter === "margin" || typeFilter === "all") ? (
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">총 계약금액 <span className="font-normal">(VAT별도)</span></span>
-              <span className="kpi-icon success"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></svg></span>
-            </div>
-            <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">{won(summary.totalContract)}</span></div>
-            <div className="kpi-callout">VAT포함 <b>{won(summary.totalContractWithVat)}</b></div>
-          </div>
-        ) : (
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">{typeFilter === "goal" ? "평균 달성률" : "평균 진행률"}</span>
-              <span className="kpi-icon"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 19h16M7 15v4M12 10v9M17 5v14" /></svg></span>
-            </div>
-            <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">
-              {(() => { const v = typeFilter === "goal" ? typeSummary.goal.avgGoal : typeSummary.delivery.avgDelivery; return v == null ? <span className="text-[var(--text-dim)]">—</span> : `${v}%`; })()}
-            </span></div>
-          </div>
-        )}
-        {/* 4번째 — 위험(전 유형 공통) */}
-        <div className="stat-tile">
-          <div className="flex items-center justify-between">
-            <span className="stat-tile-label">위험 · 지연</span>
-            <span className="kpi-icon danger"><svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" /></svg></span>
-          </div>
-          <div className="flex items-end gap-2"><span className="stat-tile-value mono-number">{rows.filter(isRisk).length}</span></div>
+      {/* ① 지금 챙길 것 — 개수 타일을 클릭 렌즈로(2026-07-22). 누르면 아래 목록이 그 조건만 표시 */}
+      <div>
+        <p className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-dim)] mb-2 ml-0.5">지금 챙길 것 · 누르면 아래 목록이 그 조건만 보여줘요</p>
+        <div className="ph-lens-grid">
+          <button onClick={() => setLens(lens === "risk" ? null : "risk")} className={`ph-lens glass-card ${lens === "risk" ? "ph-lens-on" : ""}`}>
+            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />위험 · 지연</span>
+            <div className="ph-lens-num text-[var(--danger)]">{lensCounts.risk}</div>
+            <div className="ph-lens-sub">기한 초과·마진 적자·태스크 지연</div>
+            <span className="ph-lens-go">목록 필터 ↓</span>
+          </button>
+          <button onClick={() => setLens(lens === "due" ? null : "due")} className={`ph-lens glass-card ${lens === "due" ? "ph-lens-on" : ""}`}>
+            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--warning)]" />이번 주 마감</span>
+            <div className="ph-lens-num text-[var(--warning)]">{lensCounts.due}</div>
+            <div className="ph-lens-sub">7일 내 마감 예정</div>
+            <span className="ph-lens-go">목록 필터 ↓</span>
+          </button>
+          <button onClick={() => setLens(lens === "progress" ? null : "progress")} className={`ph-lens glass-card ${lens === "progress" ? "ph-lens-on" : ""}`}>
+            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--text-dim)]" />진행중</span>
+            <div className="ph-lens-num text-[var(--text)]">{lensCounts.progress}</div>
+            <div className="ph-lens-sub">현재 진행 단계</div>
+            <span className="ph-lens-go">목록 필터 ↓</span>
+          </button>
+          <button onClick={() => setLens(lens === "receivable" ? null : "receivable")} className={`ph-lens glass-card ${lens === "receivable" ? "ph-lens-on" : ""}`}>
+            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />{mineOnly ? "내 미수금" : "미수금"}</span>
+            <div className="ph-lens-num text-[var(--danger)] !text-[19px] !mt-2.5">{lensCounts.receivableCount > 0 ? won(lensCounts.receivableSum) : "₩0"}</div>
+            <div className="ph-lens-sub">발행했지만 미입금 · {lensCounts.receivableCount}건</div>
+            <span className="ph-lens-go">목록 필터 ↓</span>
+          </button>
         </div>
       </div>
 
@@ -493,8 +558,20 @@ export default function ProjectHubPage() {
         </div>
       )}
 
-      {/* 목록 그리드 */}
-      {/* 목록 — 카드형(2026-07-13). 유형 뱃지로 전체 뷰에서도 유형 구분. 클릭 시 상세. */}
+      {/* ② 목록 헤더 — 활성 렌즈 표시(해제) + 건수 */}
+      <div className="flex items-center justify-between gap-2 flex-wrap -mb-1">
+        <div>
+          {lens && (
+            <button onClick={() => setLens(null)} className="ph-filter-pill">
+              {lens === "risk" ? "🔴 위험·지연" : lens === "due" ? "⏰ 이번 주 마감" : lens === "progress" ? "🔵 진행중" : "💸 미수금"}{" "}
+              {lens === "receivable" ? `${lensCounts.receivableCount}건만` : `${rows.length}건만`} 보는 중 · 해제 ✕
+            </button>
+          )}
+        </div>
+        <span className="text-[12px] text-[var(--text-muted)]">총 <b className="text-[var(--text)]">{rows.length}</b>건</span>
+      </div>
+
+      {/* 목록 — 카드형. 긴급도순 정렬 + 다음 액션 줄(2026-07-22). 클릭 시 상세. */}
       {isLoading ? (
         <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
@@ -551,12 +628,29 @@ export default function ProjectHubPage() {
                     {ptype === "delivery" && hero.delayed && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-500 font-semibold shrink-0">지연</span>}
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-[var(--border)]/40">
+                {/* 다음 액션 줄 — 마감/미수/완료를 한 줄로(2026-07-22) */}
+                {(() => {
+                  const na = nextAction(d);
+                  return (
+                    <div className={`ph-next-row ph-next-${na.tone}`}>
+                      <span className="text-xs">{na.icon}</span>
+                      <span className="ph-next-txt">다음: {na.text}</span>
+                      <span className="ph-next-dday mono-number">{na.dday}</span>
+                    </div>
+                  );
+                })()}
+                <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-[var(--border)]/40 relative">
                   <span className="text-[11px] text-[var(--text-muted)] mono-number truncate">{footerLeft}</span>
-                  <span className="flex items-center gap-1 shrink-0">
-                    <button onClick={(e) => { e.stopPropagation(); setEditDeal(d); }} className="btn-ghost btn-sm">수정</button>
-                    <button onClick={(e) => { e.stopPropagation(); setDelDeal(d); }} className="text-[11px] text-[var(--danger)]/70 hover:text-[var(--danger)] px-1">삭제</button>
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={(e) => { e.stopPropagation(); router.push(`/projecthub/${d.id}`); }} className="ph-open-btn">열기 →</button>
+                    <button onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === d.id ? null : d.id); }} className="ph-kebab" title="수정·삭제" aria-label="더보기">⋯</button>
                   </span>
+                  {openMenu === d.id && (
+                    <div className="ph-card-menu" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => { setOpenMenu(null); setEditDeal(d); }}>✏ 수정</button>
+                      <button onClick={() => { setOpenMenu(null); setDelDeal(d); }} className="!text-[var(--danger)]">🗑 삭제</button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
