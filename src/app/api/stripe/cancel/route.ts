@@ -48,15 +48,15 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const reason: string | null = body?.reason || null;
-    // immediate=true: Stripe 구독이 아닌(체험/무료) 사용자의 즉시 Free 전환. 기간말 해지가 아니라 바로 canceled.
-    const immediate: boolean = body?.immediate === true;
+    // immediate=true 요청은 체험(trialing)에서만 실제 즉시 종료. 유료 구독은 항상 기간말 해지(요금 낸 기간 보존).
+    const immediateReq: boolean = body?.immediate === true;
 
     // 회사의 현재 구독을 서버에서 조회 — body 의 subscription_id 를 신뢰하지 않음
     const sub = logRead('cancel/route:sub', await admin
       .from('subscriptions')
-      .select('id, company_id, stripe_subscription_id, plan_slug, status')
+      .select('id, company_id, stripe_subscription_id, plan_slug, status, current_period_end, trial_ends_at, cancel_at_period_end')
       .eq('company_id', companyId)
-      .in('status', ['active', 'trialing', 'paused', 'past_due', 'cancelling'])
+      .in('status', ['active', 'trialing', 'paused', 'past_due'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle());
@@ -68,19 +68,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Stripe 구독이면 기간 종료 시 해지로 설정 (즉시 환불 아님)
+    // 즉시 종료는 체험만 허용. 유료(active/paused/past_due)는 immediate 요청이어도 기간말 해지로 처리.
+    const isTrial = sub.status === 'trialing';
+    const doImmediate = immediateReq && isTrial;
+
+    // Stripe 구독이면: 기간말 해지는 cancel_at_period_end=true, 체험 즉시 종료는 실제 cancel.
     if (sub.stripe_subscription_id) {
       const stripe = getStripe();
-      await stripe.subscriptions.update(sub.stripe_subscription_id, {
-        cancel_at_period_end: true,
-      });
+      if (doImmediate) {
+        await stripe.subscriptions.cancel(sub.stripe_subscription_id);
+      } else {
+        await stripe.subscriptions.update(sub.stripe_subscription_id, {
+          cancel_at_period_end: true,
+        });
+      }
     }
 
     const now = new Date().toISOString();
-    // Stripe 구독은 항상 기간말 해지(cancelling). immediate 는 Stripe 없는 체험/무료만.
-    const patch = (immediate && !sub.stripe_subscription_id)
-      ? { status: 'canceled', cancel_reason: reason, canceled_at: now, updated_at: now }
-      : { status: 'cancelling', cancel_at_period_end: true, cancel_reason: reason, cancel_requested_at: now, updated_at: now };
+    // 기간말 해지: status 유지(active 등) + cancel_at_period_end=true — 종료 시점(webhook)에만 Free 전환.
+    // 체험 즉시 종료: canceled 로 바로 전환.
+    const patch = doImmediate
+      ? { status: 'canceled', cancel_at_period_end: false, cancel_reason: reason, canceled_at: now, cancel_requested_at: now, updated_at: now }
+      : { cancel_at_period_end: true, cancel_reason: reason, cancel_requested_at: now, updated_at: now };
 
     const { error: dbErr } = await admin
       .from('subscriptions')
@@ -94,18 +103,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 해지 후 이용 가능 종료 시점: 기간말 해지=현재 기간 종료(체험이면 체험 종료), 즉시=지금.
+    const effectiveUntil = doImmediate
+      ? now
+      : (sub.current_period_end ?? sub.trial_ends_at ?? null);
+
     await admin.from('billing_events').insert({
       company_id: companyId,
-      event_type: 'subscription_cancel_requested',
+      event_type: doImmediate ? 'subscription_canceled' : 'subscription_cancel_requested',
       metadata: {
         subscription_id: sub.id,
         stripe_subscription_id: sub.stripe_subscription_id,
         plan: sub.plan_slug,
         reason,
+        immediate: doImmediate,
+        effective_until: effectiveUntil,
       },
     });
 
-    return NextResponse.json({ data: { success: true, cancel_at_period_end: true } });
+    return NextResponse.json({
+      data: {
+        success: true,
+        immediate: doImmediate,
+        cancel_at_period_end: !doImmediate,
+        effective_until: effectiveUntil,
+      },
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : '구독 해지 처리 중 오류가 발생했습니다';
     console.error('[stripe/cancel] error:', message);

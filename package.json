@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit",
     "check:migrations": "node scripts/check-migrations.mjs",
     "smoke:rls": "node scripts/rls-smoke.mjs",
-    "preflight": "npm run check:migrations && npm run smoke:rls && npm run smoke:db-guards",
+    "preflight": "npm run check:migrations && npm run smoke:rls && npm run smoke:db-guards && npm run smoke:entitlement",
     "test": "vitest run",
-    "smoke:db-guards": "node scripts/db-guards-smoke.mjs"
+    "smoke:db-guards": "node scripts/db-guards-smoke.mjs",
+    "smoke:entitlement": "node scripts/entitlement-matrix.mjs"
   },
   "keywords": [],
   "author": "",

@@ -105,6 +105,21 @@ export default function BillingPage() {
     enabled: !!companyId,
   });
 
+  // entitlement 단일 소스(get_company_entitlement RPC) — 해지 예약/유효기간/실효 플랜 표시.
+  //   RLS: SECURITY DEFINER + 호출자 회사 검증 가드(타 회사 조회 시 none 반환).
+  const { data: entitlement } = useQuery({
+    queryKey: ["entitlement", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data } = await (db as any).rpc("get_company_entitlement", { p_company_id: companyId });
+      return (Array.isArray(data) ? data[0] : data) as {
+        effective_plan_slug: string; entitled: boolean; cancel_at_period_end: boolean;
+        effective_until: string | null; display_status: string;
+      } | null;
+    },
+    enabled: !!companyId,
+  });
+
   // 청구서 목록
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["invoices", companyId],
@@ -196,6 +211,15 @@ export default function BillingPage() {
   const currentPlan = subscription?.subscription_plans as any;
   const currentSlug = currentPlan?.slug || "free";
   const hasStripeSubscription = !!subscription?.stripe_customer_id;
+
+  // entitlement 기반 표시: 해지 예약 중이면 기존 플랜 유지 노출, 실효(만료/해지 완료) 시 Free.
+  const cancelScheduled = entitlement?.display_status === "cancel_scheduled";
+  const planDisplayName = entitlement?.entitled
+    ? (currentPlan?.name || "Free")
+    : "Free";
+  const effectiveUntilStr = entitlement?.effective_until
+    ? kstDateStr(new Date(entitlement.effective_until))
+    : null;
 
   /** Stripe Checkout */
   async function handleStripeCheckout(planSlug: string) {
@@ -350,10 +374,16 @@ export default function BillingPage() {
       <div className="billing-kpi-row">
         <div className="stat-tile">
           <div className="stat-tile-label">현재 플랜</div>
-          <div className="stat-tile-value">{currentPlan?.name || "Free"}</div>
-          <div className="text-xs text-[var(--text-dim)]">
-            {subscription?.seat_count || 1}명 · {subscription?.billing_cycle === "annual" ? "연간" : "월간"} 결제
-          </div>
+          <div className="stat-tile-value">{planDisplayName}</div>
+          {cancelScheduled && effectiveUntilStr ? (
+            <div className="billing-cancel-scheduled-badge">
+              {effectiveUntilStr}까지 이용 가능 · 이후 Free 전환
+            </div>
+          ) : (
+            <div className="text-xs text-[var(--text-dim)]">
+              {subscription?.seat_count || 1}명 · {subscription?.billing_cycle === "annual" ? "연간" : "월간"} 결제
+            </div>
+          )}
         </div>
         <div className="stat-tile">
           <div className="stat-tile-label">월 결제 금액</div>
@@ -525,12 +555,18 @@ export default function BillingPage() {
             })}
           </div>
 
-          {currentSlug !== "free" && (
+          {entitlement?.entitled && currentSlug !== "free" && (
             <div className="billing-cancel-section">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-semibold text-sm text-[var(--text)]">구독 해지</div>
-                  <div className="text-xs text-[var(--text-muted)]">현재 결제 기간이 끝나면 Free 플랜으로 전환됩니다.</div>
+                  <div className="font-semibold text-sm text-[var(--text)]">
+                    {cancelScheduled ? "해지 예약됨" : "구독 해지"}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {cancelScheduled && effectiveUntilStr
+                      ? `${effectiveUntilStr}까지 기존 플랜을 그대로 이용하고, 이후 Free로 전환됩니다. 예약 취소는 아래에서 가능합니다.`
+                      : "현재 결제 기간이 끝나면 Free 플랜으로 전환됩니다."}
+                  </div>
                 </div>
                 {hasStripeSubscription ? (
                   <button
@@ -538,8 +574,12 @@ export default function BillingPage() {
                     disabled={isPaymentLoading}
                     className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--danger)] border border-[var(--danger)]/40 hover:bg-[var(--danger-dim)] transition disabled:opacity-50"
                   >
-                    {isPaymentLoading ? "로딩 중..." : "Stripe에서 해지"}
+                    {isPaymentLoading ? "로딩 중..." : cancelScheduled ? "구독 관리" : "Stripe에서 해지"}
                   </button>
+                ) : cancelScheduled ? (
+                  <span className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)]">
+                    예약 완료
+                  </span>
                 ) : (
                   <button
                     onClick={() => setShowCancelModal(true)}

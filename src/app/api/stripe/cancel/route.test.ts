@@ -1,6 +1,7 @@
-// 구독 해지 라우트 — "해지해도 Stripe 청구 지속" 재발 방지 (2026-07-16 🔴3 수정분 회귀 테스트).
-//   핵심 불변식: Stripe 구독이면 반드시 stripe.subscriptions.update(cancel_at_period_end) 실호출 +
-//   DB 는 기간말 해지(cancelling). 즉시 canceled 는 Stripe 없는 체험/무료만.
+// 구독 해지 라우트 — "해지해도 Stripe 청구 지속" 재발 방지 (2026-07-16 🔴3) +
+//   해지 정합성 P0(2026-07-22): 'cancelling' 상태 폐기. Stripe 구독이면 반드시
+//   stripe.subscriptions.update(cancel_at_period_end) 실호출 + DB 는 status 유지(active) +
+//   cancel_at_period_end=true 로 기간말 해지 예약. 즉시 canceled 는 Stripe 없는 체험(trialing)만.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const h = vi.hoisted(() => {
@@ -13,6 +14,7 @@ const h = vi.hoisted(() => {
     inserted: [] as { table: string; row: Row }[],
     updateError: null as { message: string } | null,
     stripeUpdate: vi.fn(),
+    stripeCancel: vi.fn(),
   };
   function chain(table: string) {
     const s: any = { op: "select", row: null };
@@ -39,7 +41,7 @@ const h = vi.hoisted(() => {
 
 vi.mock("stripe", () => ({
   default: class MockStripe {
-    subscriptions = { update: h.state.stripeUpdate };
+    subscriptions = { update: h.state.stripeUpdate, cancel: h.state.stripeCancel };
   },
 }));
 vi.mock("@/lib/supabase-server", () => ({
@@ -69,6 +71,7 @@ beforeEach(() => {
   st.updated = []; st.inserted = [];
   st.updateError = null;
   st.stripeUpdate.mockReset().mockResolvedValue({});
+  st.stripeCancel.mockReset().mockResolvedValue({});
 });
 
 describe("권한 게이트", () => {
@@ -93,26 +96,32 @@ describe("권한 게이트", () => {
 });
 
 describe("해지 흐름", () => {
-  it("Stripe 구독이면 실취소(cancel_at_period_end) 호출 + DB cancelling", async () => {
-    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "basic", status: "active" };
+  it("Stripe 구독이면 실취소(cancel_at_period_end) 호출 + DB status 유지·예약 플래그", async () => {
+    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "basic", status: "active", current_period_end: "2026-08-01T00:00:00Z" };
     const res = await POST(makeRequest({ reason: "비쌈" }));
     expect(res.status).toBe(200);
     expect(st.stripeUpdate).toHaveBeenCalledWith("sub_stripe_1", { cancel_at_period_end: true });
     const up = st.updated.find((u) => u.table === "subscriptions");
-    expect(up?.row.status).toBe("cancelling");
+    // 'cancelling' 상태로 내리지 않음 — status 미변경, cancel_at_period_end 예약.
+    expect(up?.row.status).toBeUndefined();
+    expect(up?.row.cancel_at_period_end).toBe(true);
     expect(up?.row.cancel_reason).toBe("비쌈");
+    expect(up?.row.cancel_requested_at).toBeTruthy();
     expect(st.inserted.find((i) => i.table === "billing_events")?.row.event_type).toBe("subscription_cancel_requested");
   });
 
-  it("immediate 여도 Stripe 구독이면 즉시 canceled 로 내리지 않는다(기간말 해지 강제)", async () => {
-    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "basic", status: "active" };
+  it("immediate 여도 Stripe(유료 active) 면 즉시 canceled 로 내리지 않고 기간말 예약", async () => {
+    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "basic", status: "active", current_period_end: "2026-08-01T00:00:00Z" };
     await POST(makeRequest({ immediate: true }));
+    expect(st.stripeUpdate).toHaveBeenCalledWith("sub_stripe_1", { cancel_at_period_end: true });
+    expect(st.stripeCancel).not.toHaveBeenCalled();
     const up = st.updated.find((u) => u.table === "subscriptions");
-    expect(up?.row.status).toBe("cancelling");
+    expect(up?.row.status).toBeUndefined();
+    expect(up?.row.cancel_at_period_end).toBe(true);
   });
 
-  it("Stripe 없는 체험/무료 + immediate 면 즉시 canceled, Stripe 미호출", async () => {
-    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: null, plan_slug: "free", status: "trialing" };
+  it("Stripe 없는 체험(trialing) + immediate 면 즉시 canceled, Stripe 미호출", async () => {
+    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: null, plan_slug: "free", status: "trialing", trial_ends_at: "2026-08-01T00:00:00Z" };
     const res = await POST(makeRequest({ immediate: true }));
     expect(res.status).toBe(200);
     expect(st.stripeUpdate).not.toHaveBeenCalled();
@@ -121,11 +130,20 @@ describe("해지 흐름", () => {
     expect(up?.row.canceled_at).toBeTruthy();
   });
 
+  it("유료(active) 는 immediate 없으면 기간말 예약(status 유지)", async () => {
+    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: null, plan_slug: "basic", status: "active", current_period_end: "2026-08-01T00:00:00Z" };
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    const up = st.updated.find((u) => u.table === "subscriptions");
+    expect(up?.row.status).toBeUndefined();
+    expect(up?.row.cancel_at_period_end).toBe(true);
+  });
+
   it("해지할 구독이 없으면 404", async () => {
     expect((await POST(makeRequest())).status).toBe(404);
   });
 
-  it("Stripe 취소 실패 시 500 — DB 를 canceled/cancelling 로 바꾸지 않는다", async () => {
+  it("Stripe 취소 실패 시 500 — DB 를 canceled/예약으로 바꾸지 않는다", async () => {
     st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "basic", status: "active" };
     st.stripeUpdate.mockRejectedValueOnce(new Error("stripe down"));
     const res = await POST(makeRequest());

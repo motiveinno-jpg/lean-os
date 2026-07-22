@@ -254,7 +254,9 @@ export default function DashboardPage() {
     enabled: !!companyId,
     staleTime: 5 * 60_000,
   });
-  const aiBriefingEnabled = subscription?.planSlug === "ultra" || subscription?.planSlug === "enterprise";
+  // entitled=false(기간 만료·해지 완료)면 플랜 슬러그가 남아있어도 AI 브리핑 차단.
+  const aiBriefingEnabled = !!subscription?.entitled
+    && (subscription?.planSlug === "ultra" || subscription?.planSlug === "enterprise");
 
   // 현금 상태 data
   const { data: pulseRaw } = useQuery({

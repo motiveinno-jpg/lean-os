@@ -93,7 +93,7 @@ serve(withSentry("cancel-subscription", async (req) => {
 
     const { data: sub } = await sbAdmin
       .from("subscriptions")
-      .select("id, company_id, stripe_subscription_id, plan_slug")
+      .select("id, company_id, stripe_subscription_id, plan_slug, current_period_end")
       .eq("id", subscription_id)
       .maybeSingle();
 
@@ -108,11 +108,11 @@ serve(withSentry("cancel-subscription", async (req) => {
       });
     }
 
-    // Update local DB
+    // 기간말 해지: status 는 active 유지 — 종료 시점(webhook subscription.deleted)에만 Free 전환.
+    //   'cancelling' 상태는 미사용(CHECK 위반). cancel_at_period_end + cancel_requested_at 로 예약 표현.
     const { error: dbErr } = await sbAdmin
       .from("subscriptions")
       .update({
-        status: "cancelling",
         cancel_at_period_end: true,
         cancel_reason: reason || null,
         cancel_requested_at: new Date().toISOString(),
@@ -134,14 +134,15 @@ serve(withSentry("cancel-subscription", async (req) => {
         stripe_subscription_id: sub.stripe_subscription_id,
         plan: sub.plan_slug,
         reason: reason || null,
+        effective_until: sub.current_period_end ?? null,
       },
     });
 
-    console.log(
-      `[cancel-sub] Cancelled: company=${profile.company_id} plan=${sub.plan_slug}`
-    );
-
-    return jsonResponse({ success: true, cancel_at_period_end: true });
+    return jsonResponse({
+      success: true,
+      cancel_at_period_end: true,
+      effective_until: sub.current_period_end ?? null,
+    });
   } catch (err) {
     console.error("[cancel-sub] Error:", err);
     return jsonResponse(

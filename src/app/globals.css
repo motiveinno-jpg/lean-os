@@ -2156,6 +2156,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .billing-plan-grid { @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4; }
 .billing-plan-card { @apply relative rounded-2xl border-2 p-6 transition; }
 .billing-cancel-section { @apply mt-8 p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger-dim)]; }
+.billing-cancel-scheduled-badge { @apply mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400; }
 .billing-payment-method-card { @apply p-6; }
 .billing-payment-info-card { @apply p-6; }
 .billing-invoices-card { @apply overflow-hidden; }

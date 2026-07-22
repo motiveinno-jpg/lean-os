@@ -167,15 +167,22 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   };
 
   const mappedStatus = statusMap[subscription.status] || 'active';
+  const cancelAtPeriodEnd = !!subscription.cancel_at_period_end;
 
-  await db.from('subscriptions')
-    .update({
-      status: mappedStatus,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('stripe_subscription_id', subscription.id);
+  // Stripe 를 진실원천으로 cancel_at_period_end 동기화. 예약 취소(false)면 cancel 메타 초기화(복원).
+  const patch: Record<string, unknown> = {
+    status: mappedStatus,
+    cancel_at_period_end: cancelAtPeriodEnd,
+    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (!cancelAtPeriodEnd) {
+    patch.cancel_requested_at = null;
+    patch.cancel_reason = null;
+  }
+
+  await db.from('subscriptions').update(patch).eq('stripe_subscription_id', subscription.id);
 
   await db.from('billing_events').insert({
     company_id: companyId,
@@ -183,6 +190,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     metadata: {
       stripeSubscriptionId: subscription.id,
       status: subscription.status,
+      cancelAtPeriodEnd,
     },
     created_at: new Date().toISOString(),
   });
@@ -190,22 +198,31 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const db = getSupabaseAdmin() as any;
-  const companyId = subscription.metadata?.companyId;
+  const now = new Date().toISOString();
 
-  await db.from('subscriptions')
+  // 기간 종료로 실제 해지 확정 → canceled + 예약 플래그 정리. 이 시점에만 Free 전환.
+  const { data: rows } = await db.from('subscriptions')
     .update({
       status: 'canceled',
-      canceled_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      cancel_at_period_end: false,
+      canceled_at: now,
+      updated_at: now,
     })
-    .eq('stripe_subscription_id', subscription.id);
+    .eq('stripe_subscription_id', subscription.id)
+    .select('company_id');
+
+  // company_id: Stripe 메타 우선, 없으면 방금 갱신된 구독행에서 파생.
+  const companyId = subscription.metadata?.companyId || rows?.[0]?.company_id || null;
 
   if (companyId) {
+    // 종료 시점에만 회사 캐시 플랜을 Free 로 — 기간 종료 전(cancel 예약)에는 절대 내리지 않음.
+    await db.from('companies').update({ current_plan: 'free' }).eq('id', companyId);
+
     await db.from('billing_events').insert({
       company_id: companyId,
       event_type: 'subscription_deleted',
       metadata: { stripeSubscriptionId: subscription.id },
-      created_at: new Date().toISOString(),
+      created_at: now,
     });
   }
 }

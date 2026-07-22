@@ -37,6 +37,40 @@ export interface SubscriptionInfo {
   cancelReason: string | null;
   billingKey: string | null;
   createdAt: string;
+  // 해지 예약(cancel_at_period_end=true) — active 유지, effectiveUntil 까지 기존 플랜, 이후 Free.
+  cancelAtPeriodEnd: boolean;
+  effectiveUntil: string | null;
+  displayStatus: string;
+  // entitlement 기반 실권한 — 기간 만료(유예 초과) 등에서 false. 기능 게이트는 이 값을 신뢰.
+  entitled: boolean;
+}
+
+// ── entitlement: 구독 권한의 단일 진실원천 (get_company_entitlement RPC) ──
+//   'cancelling' 상태 미사용 — active + cancel_at_period_end 로 해지예약 표현(Stripe 정합).
+//   앱 전역(게이트/현재구독/발행한도/AI/대시보드)이 이 판정을 공유한다.
+export interface Entitlement {
+  effectivePlanSlug: PlanSlug;
+  entitled: boolean;
+  cancelAtPeriodEnd: boolean;
+  effectiveUntil: string | null;
+  displayStatus: string;
+}
+
+export async function getEntitlement(companyId: string): Promise<Entitlement> {
+  // 신규 RPC 는 아직 database.ts 타입에 없어 any 캐스팅 (파일 상단 db 캐스팅 관례와 동일).
+  const { data, error } = await (db as any).rpc('get_company_entitlement', { p_company_id: companyId });
+  const row: any = Array.isArray(data) ? data[0] : data;
+  // 조회 실패 시 오차단 회피(fail-open은 게이트에서 blocked 판단으로 처리) — free/비권한 반환.
+  if (error || !row) {
+    return { effectivePlanSlug: 'free', entitled: false, cancelAtPeriodEnd: false, effectiveUntil: null, displayStatus: 'none' };
+  }
+  return {
+    effectivePlanSlug: (row.effective_plan_slug || 'free') as PlanSlug,
+    entitled: !!row.entitled,
+    cancelAtPeriodEnd: !!row.cancel_at_period_end,
+    effectiveUntil: row.effective_until ?? null,
+    displayStatus: row.display_status || 'none',
+  };
 }
 
 export interface InvoiceRecord {
@@ -84,50 +118,62 @@ export interface SubscriptionGateInfo {
   blocked: boolean; // 하드 페이월 대상 (trial 만료 · 해지 후 기간 종료 · 결제 기간 만료)
 }
 
-// active 상태의 결제 기간 만료 유예 — 정상 갱신은 Stripe webhook(customer.subscription.updated)이
-// current_period_end 를 연장해 주므로, 이 유예는 webhook 지연·일시 장애 흡수용.
-const PERIOD_EXPIRY_GRACE_MS = 3 * 86400000;
+// 실효 플랜(entitlement)의 발행 한도 컬럼 조회 — 만료/해지 완료 시 free 한도로 폴백.
+//   기존 status 필터 방식은 구독행이 없으면(만료/해지) limit=null 로 잡혀 '무제한'이 되던 구멍이 있었음.
+async function getEffectivePlanLimit(
+  companyId: string,
+  column: 'monthly_tax_invoice_limit' | 'monthly_cashbill_limit' | 'monthly_contract_limit',
+): Promise<{ limit: number | null; planName: string | null }> {
+  const ent = await getEntitlement(companyId);
+  const slug = ent.effectivePlanSlug; // 비권한이면 RPC 가 이미 'free' 반환
+  const { data } = await (db as any)
+    .from('subscription_plans')
+    .select(`name, ${column}`)
+    .eq('slug', slug)
+    .maybeSingle();
+  return { limit: (data?.[column] ?? null) as number | null, planName: (data?.name ?? null) as string | null };
+}
+
+// 결제 기간 만료 유예(webhook 지연 흡수, 3일)는 이제 get_company_entitlement RPC 내부에 있음.
 
 export async function getSubscriptionGate(companyId: string): Promise<SubscriptionGateInfo> {
-  const { data, error } = await db
-    .from('subscriptions')
-    .select('status, trial_ends_at, current_period_end, subscription_plans(name)')
-    .eq('company_id', companyId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  // 조회 실패 / 구독 행 없음(레거시 회사) → 잠그지 않음 (오차단이 최악의 실패 모드)
-  if (error || !data) return { state: 'none', daysLeft: null, planName: null, blocked: false };
+  // 단일 진실원천(get_company_entitlement)에서 파생 — 게이트/발행한도/AI 판정 일원화.
+  const ent = await getEntitlement(companyId);
 
-  const planName = data.subscription_plans?.name ?? null;
-  const status = String(data.status || '');
+  // 플랜명은 표시용(현재 최신 구독행 기준). 실패해도 게이트 판정엔 영향 없음.
+  let planName: string | null = null;
+  try {
+    const { data } = await db
+      .from('subscriptions')
+      .select('subscription_plans(name)')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    planName = (data as { subscription_plans?: { name?: string } } | null)?.subscription_plans?.name ?? null;
+  } catch { /* 표시용 — 무시 */ }
+
   const now = Date.now();
+  const untilMs = ent.effectiveUntil ? new Date(ent.effectiveUntil).getTime() : null;
+  const daysLeft = untilMs ? Math.max(0, Math.ceil((untilMs - now) / 86400000)) : null;
 
-  if (status === 'trialing') {
-    const ends = data.trial_ends_at ? new Date(data.trial_ends_at).getTime() : null;
-    if (ends && ends < now) return { state: 'trial_expired', daysLeft: 0, planName, blocked: true };
-    const daysLeft = ends ? Math.max(0, Math.ceil((ends - now) / 86400000)) : null;
-    return { state: 'trialing', daysLeft, planName, blocked: false };
-  }
-  if (status === 'past_due') {
-    // 결제 실패 — dunning 은 Stripe 가 진행. 앱은 경고 배너만 (즉시 차단 X)
-    return { state: 'past_due', daysLeft: null, planName, blocked: false };
-  }
-  if (status === 'canceled') {
-    const end = data.current_period_end ? new Date(data.current_period_end).getTime() : null;
-    if (end && end > now) {
-      // 해지했지만 결제 기간 잔존 → 기간 끝까지 사용 허용
-      return { state: 'active', daysLeft: Math.ceil((end - now) / 86400000), planName, blocked: false };
-    }
-    return { state: 'canceled', daysLeft: null, planName, blocked: true };
-  }
-  // active / paused 등 — 기간 만료 검사 (2026-07-20 P0: status 만 보고 통과시키면
-  // 수동으로 active 처리된 행이 영구 무료가 됨). 기간 정보가 없는 행은 잠그지 않음.
-  const periodEnd = data.current_period_end ? new Date(data.current_period_end).getTime() : null;
-  if (periodEnd && now > periodEnd + PERIOD_EXPIRY_GRACE_MS) {
-    return { state: 'expired', daysLeft: null, planName, blocked: true };
-  }
-  return { state: 'active', daysLeft: null, planName, blocked: false };
+  // display_status → 게이트 state 매핑. 해지예약(cancel_scheduled)·past_due·paused 는 아직 이용 가능 → 'active'.
+  const stateMap: Record<string, SubscriptionGateInfo['state']> = {
+    none: 'none',
+    trialing: 'trialing',
+    trial_expired: 'trial_expired',
+    active: 'active',
+    cancel_scheduled: 'active',
+    past_due: 'past_due',
+    paused: 'active',
+    expired: 'expired',
+    canceled: 'canceled',
+  };
+  const state = stateMap[ent.displayStatus] ?? (ent.entitled ? 'active' : 'none');
+
+  // 구독행 없음(레거시 회사) → 오차단 금지. 그 외 비권한(만료/해지 종료)만 하드 차단.
+  const blocked = !ent.entitled && ent.displayStatus !== 'none';
+  return { state, daysLeft, planName, blocked };
 }
 
 // ── 2. 현재 구독 정보 조회 ──
@@ -148,6 +194,9 @@ export async function getCurrentSubscription(
 
   const plan = data.subscription_plans;
   const planSlug = plan?.slug || 'free';
+
+  // 해지예약/기간 정보는 entitlement 단일 소스에서 (cancel_at_period_end · effectiveUntil).
+  const ent = await getEntitlement(companyId);
 
   return {
     id: data.id,
@@ -173,6 +222,10 @@ export async function getCurrentSubscription(
     cancelReason: data.cancel_reason || null,
     billingKey: data.stripe_customer_id || null,
     createdAt: data.created_at ?? '',
+    cancelAtPeriodEnd: ent.cancelAtPeriodEnd,
+    effectiveUntil: ent.effectiveUntil,
+    displayStatus: ent.displayStatus,
+    entitled: ent.entitled,
   };
 }
 
@@ -240,6 +293,10 @@ export async function createSubscription(
     cancelReason: null,
     billingKey: null,
     createdAt: data.created_at ?? '',
+    cancelAtPeriodEnd: false,
+    effectiveUntil: data.current_period_end ?? null,
+    displayStatus: data.status as string,
+    entitled: true,
   };
 }
 
@@ -681,16 +738,7 @@ export interface IssuanceLimitStatus {
 }
 
 export async function getTaxInvoiceIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
-  const subRow = logRead('lib/billing:subRow', await db
-    .from('subscriptions')
-    .select('subscription_plans(name, monthly_tax_invoice_limit)')
-    .eq('company_id', companyId)
-    .in('status', ['active', 'trialing', 'paused', 'past_due'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle());
-  const limit = subRow?.subscription_plans?.monthly_tax_invoice_limit ?? null;
-  const planName = subRow?.subscription_plans?.name ?? null;
+  const { limit, planName } = await getEffectivePlanLimit(companyId, 'monthly_tax_invoice_limit');
   if (limit === null) return { limit: null, used: 0, remaining: null, planName };
 
   // KST 기준 이달 1일 0시 (nts_issued_at 은 timestamptz — 오프셋 붙인 ISO 로 비교).
@@ -707,16 +755,7 @@ export async function getTaxInvoiceIssuanceStatus(companyId: string): Promise<Is
 }
 
 export async function getCashReceiptIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
-  const subRow = logRead('lib/billing:subRow', await db
-    .from('subscriptions')
-    .select('subscription_plans(name, monthly_cashbill_limit)')
-    .eq('company_id', companyId)
-    .in('status', ['active', 'trialing', 'paused', 'past_due'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle());
-  const limit = subRow?.subscription_plans?.monthly_cashbill_limit ?? null;
-  const planName = subRow?.subscription_plans?.name ?? null;
+  const { limit, planName } = await getEffectivePlanLimit(companyId, 'monthly_cashbill_limit');
   if (limit === null) return { limit: null, used: 0, remaining: null, planName };
 
   const now = new Date();
@@ -735,16 +774,7 @@ export async function getCashReceiptIssuanceStatus(companyId: string): Promise<I
 // 전자계약(서명 요청) 월 발송 한도 — 프로 20건, 울트라/엔터 무제한(NULL). 서버 강제는 signature_requests
 //   BEFORE INSERT 트리거(enforce_contract_monthly_limit). 이 함수는 UI 카운터·버튼 가드용.
 export async function getContractIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
-  const subRow = logRead('lib/billing:contractSub', await db
-    .from('subscriptions')
-    .select('subscription_plans(name, monthly_contract_limit)')
-    .eq('company_id', companyId)
-    .in('status', ['active', 'trialing', 'paused', 'past_due'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle());
-  const limit = subRow?.subscription_plans?.monthly_contract_limit ?? null;
-  const planName = subRow?.subscription_plans?.name ?? null;
+  const { limit, planName } = await getEffectivePlanLimit(companyId, 'monthly_contract_limit');
   if (limit === null) return { limit: null, used: 0, remaining: null, planName };
 
   // KST 기준 이달 1일 0시 (트리거와 동일 경계)
