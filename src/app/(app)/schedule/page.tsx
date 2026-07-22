@@ -466,7 +466,7 @@ function EventModal({
   const colorOptions: EventColor[] = ["blue", "green", "red", "amber", "violet", "gray"];
 
   return (
-    <div className="schedule-event-modal fixed inset-0" onClick={onClose}>
+    <div className="schedule-event-modal fixed inset-0">
       <div className="glass-card w-full max-w-md my-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">{form.id ? "일정 수정" : "일정 추가"}</h3>
@@ -796,7 +796,7 @@ function TodoEditModal({
   useModalKeys(true, onClose, !form.title.trim() || saving ? undefined : submitEdit);
 
   return (
-    <div className="schedule-todo-edit-modal fixed inset-0" onClick={onClose}>
+    <div className="schedule-todo-edit-modal fixed inset-0">
       <div className="glass-card w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">할 일 수정</h3>

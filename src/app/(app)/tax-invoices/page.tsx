@@ -1611,7 +1611,7 @@ export default function TaxInvoicesPage() {
 
       {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
       {showForm && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
         <div className="tax-invoice-registration-modal" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] shrink-0">
@@ -3291,7 +3291,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
 }) {
   const [submitting, setSubmitting] = useState(false);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="tax-invoice-modification-modal glass-card" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">수정세금계산서 발행</h3>

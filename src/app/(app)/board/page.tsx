@@ -687,7 +687,7 @@ export default function BoardPage() {
       </div>
 
       {showForm && (
-        <div className="board-post-form-overlay fixed inset-0" onClick={resetForm}>
+        <div className="board-post-form-overlay fixed inset-0">
         <div className="board-post-form-modal glass-card" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
             <h3 className="text-sm font-bold">

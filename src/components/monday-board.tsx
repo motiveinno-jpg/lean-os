@@ -1156,7 +1156,7 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
   useModalKeys(true, onClose, save);
 
   return (
-    <div className="column-config-modal fixed inset-0" onClick={onClose}>
+    <div className="column-config-modal fixed inset-0">
       <div className="glass-card w-full max-w-md p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)" }}>
         <div className="modal-header">
           <h3 className="text-base font-bold text-[var(--text)]">컬럼 설정 <span className="text-[11px] font-normal text-[var(--text-dim)]">· {TYPE_LABEL[col.type] || col.type}</span></h3>

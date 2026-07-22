@@ -1290,7 +1290,7 @@ export default function ProjectHubDetailPage() {
           </div>
 
           {showChildForm && (
-            <div className="add-subproject-modal fixed inset-0" onClick={() => setShowChildForm(false)}>
+            <div className="add-subproject-modal fixed inset-0">
               <div className="add-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold">세부 프로젝트(캠페인) 추가</h3>
@@ -1378,7 +1378,7 @@ export default function ProjectHubDetailPage() {
 
           {/* 캠페인 수정 모달 */}
           {editChild && (
-            <div className="edit-subproject-modal fixed inset-0" onClick={() => setEditChild(null)}>
+            <div className="edit-subproject-modal fixed inset-0">
               <div className="edit-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold">캠페인 수정</h3>
@@ -1489,7 +1489,7 @@ export default function ProjectHubDetailPage() {
       {payModalQuote && (() => {
         const supply = quoteAmount(payModalQuote);
         return (
-          <div className="contract-payment-modal fixed inset-0" onClick={() => setPayModalQuote(null)}>
+          <div className="contract-payment-modal fixed inset-0">
             <div className="contract-payment-modal-card" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold">계약 생성 — 결제 조건</h3>
@@ -1524,7 +1524,7 @@ export default function ProjectHubDetailPage() {
         });
         const existingCount = ((pipe?.invoices || []) as any[]).length;
         return (
-          <div className="projecthub-invoice-issue-modal fixed inset-0" onClick={() => setInvoiceModal(null)}>
+          <div className="projecthub-invoice-issue-modal fixed inset-0">
             <div className="invoice-issue-modal-card" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold">계산서 발행</h3>
@@ -1562,7 +1562,7 @@ export default function ProjectHubDetailPage() {
       })()}
 
       {showQuoteForm && (
-        <div className="document-create-modal fixed inset-0" onClick={() => setShowQuoteForm(false)}>
+        <div className="document-create-modal fixed inset-0">
           <div className="document-create-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold">{formKind === "quote" ? "견적서 작성" : "계약서(전자계약) 작성"}</h3>

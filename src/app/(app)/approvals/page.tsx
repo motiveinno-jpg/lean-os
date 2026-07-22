@@ -1143,7 +1143,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
         const isLeaveReq = editReq.request_type === "leave";
         const amountField = fields.find((fd) => fd.type === "amount");
         return (
-          <div className="approval-detail-modal fixed inset-0" onClick={() => setEditReq(null)}>
+          <div className="approval-detail-modal fixed inset-0">
             <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-sm font-bold mb-1">요청 수정</h3>
               <p className="text-[11px] text-[var(--text-dim)] mb-4">대기중인 동안만 수정할 수 있으며, 수정 내용은 승인자에게 그대로 표시됩니다.</p>

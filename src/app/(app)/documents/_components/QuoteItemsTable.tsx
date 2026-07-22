@@ -404,7 +404,7 @@ function ColumnEditor({ cols, onClose, onSave }: { cols: QuoteCol[]; onClose: ()
   useModalKeys(true, onClose, () => onSave(active));
 
   return (
-    <div className="column-editor-modal fixed inset-0" onClick={onClose}>
+    <div className="column-editor-modal fixed inset-0">
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold">품목 열 편집</h3>

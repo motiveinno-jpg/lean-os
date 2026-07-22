@@ -40,7 +40,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="tpl-editor-overlay fixed inset-0" onClick={onClose}>
+    <div className="tpl-editor-overlay fixed inset-0">
       <div className="tpl-editor-panel" onClick={(e) => e.stopPropagation()}>
         <div className="tpl-editor-header">
           <div className="text-sm font-bold text-[var(--text)]">텍스트 양식 편집 — {title}</div>

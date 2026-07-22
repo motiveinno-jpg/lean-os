@@ -2035,7 +2035,7 @@ function MissingCheckOutModal({
   useModalKeys(true, onClose, missingRows.length === 0 || saving.size > 0 ? undefined : saveAll);
 
   return (
-    <div className="attendance-checkout-modal fixed inset-0" onClick={onClose}>
+    <div className="attendance-checkout-modal fixed inset-0">
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}

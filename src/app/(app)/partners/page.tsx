@@ -1516,7 +1516,7 @@ export default function PartnersPage() {
       )}
 
       {(importPreview || importError) && (
-        <div className="partner-import-preview-modal fixed inset-0" onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}>
+        <div className="partner-import-preview-modal fixed inset-0">
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[85vh] overflow-hidden flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
@@ -1592,7 +1592,7 @@ export default function PartnersPage() {
 
       {/* Create / Edit Modal */}
       {showModal && (
-        <div className="partner-form-modal fixed inset-0" onClick={closeModal}>
+        <div className="partner-form-modal fixed inset-0">
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-[90vw] sm: max-h-[90vh] overflow-y-auto p-4 sm:p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">

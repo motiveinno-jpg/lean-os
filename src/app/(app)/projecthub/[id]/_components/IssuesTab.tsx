@@ -202,7 +202,7 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
 
       {/* 등록/수정 모달 */}
       {showForm && (
-        <div className="issues-modal-overlay fixed inset-0" onClick={() => setShowForm(false)}>
+        <div className="issues-modal-overlay fixed inset-0">
           <div className="issues-modal" onClick={(e) => e.stopPropagation()}>
             <div className="issues-modal-header">
               <h3 className="text-base font-bold">{form.id ? "이슈 수정" : "이슈 등록"}</h3>

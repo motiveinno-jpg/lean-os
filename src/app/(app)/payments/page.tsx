@@ -539,7 +539,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 
       {/* 환불 모달 */}
       {refundItem && (
-        <div className="refund-modal fixed inset-0" onClick={() => !refundSubmitting && setRefundItem(null)}>
+        <div className="refund-modal fixed inset-0">
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
               <h3 className="text-lg font-extrabold text-orange-400 mb-2">

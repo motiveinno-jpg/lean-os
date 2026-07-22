@@ -244,7 +244,7 @@ function TemplateEditorModal({
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="template-editor-modal fixed inset-0" onClick={onClose}>
+    <div className="template-editor-modal fixed inset-0">
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}

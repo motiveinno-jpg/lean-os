@@ -2066,7 +2066,7 @@ export function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS
 
       {/* Card Add/Edit Modal */}
       {showCardForm && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowCardForm(false)}>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="card-form-modal" onClick={e => e.stopPropagation()}>
             <h3 className="section-title">{editingCard ? '카드 수정' : '법인카드 등록'}</h3>
             <div className="space-y-3 mb-4">

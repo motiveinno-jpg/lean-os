@@ -622,7 +622,7 @@ function QuoteApprovalPageInner() {
 
       {/* L 계약: stage='contract' 승인 시 서명 모달 */}
       {showSignatureModal && (
-        <div className="signature-modal-overlay fixed inset-0" onClick={() => setShowSignatureModal(false)}>
+        <div className="signature-modal-overlay fixed inset-0">
           <div
             className="signature-modal-card"
             onClick={(e) => e.stopPropagation()}

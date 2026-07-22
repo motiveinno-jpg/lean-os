@@ -327,7 +327,7 @@ function AllowanceTypeModal({
   useModalKeys(true, onClose, saveMut.isPending || !canSubmit ? undefined : () => saveMut.mutate());
 
   return (
-    <div className="allowance-modal-overlay fixed inset-0" onClick={onClose}>
+    <div className="allowance-modal-overlay fixed inset-0">
       <div
         className="allowance-modal glass-card"
         onClick={(e) => e.stopPropagation()}

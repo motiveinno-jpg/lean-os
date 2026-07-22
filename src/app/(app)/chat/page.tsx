@@ -463,7 +463,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
 
       {/* ── 생성 모달 (프로젝트/팀/DM 통합) ── */}
       {creating && (
-        <div className="chat-create-modal fixed inset-0" onClick={() => setCreating(null)}>
+        <div className="chat-create-modal fixed inset-0">
           <div className="glass-card w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-bold text-[var(--text)]">새로 만들기</h3>

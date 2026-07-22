@@ -207,7 +207,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
 
       {/* 매핑 보정 에디터 (모달) — body 포털(transform/backdrop-filter 조상 회피) */}
       {editing && typeof document !== "undefined" && createPortal(
-        <div className="form-template-editor-modal fixed inset-0" onClick={() => setEditing(null)}>
+        <div className="form-template-editor-modal fixed inset-0">
           <div className="form-template-editor-modal-body" onClick={(e) => e.stopPropagation()}>
             <div className="text-sm font-bold text-[var(--text)] mb-2">필드 위치 보정 — {DOC_LABEL[docType]} · {name}</div>
             <FormTemplateEditor

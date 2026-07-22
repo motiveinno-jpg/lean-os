@@ -260,7 +260,7 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
 
       {/* 필드 배치 에디터 (모달) */}
       {editing && typeof document !== "undefined" && createPortal(
-        <div className="hr-form-field-editor-modal fixed inset-0" onClick={() => setEditing(null)}>
+        <div className="hr-form-field-editor-modal fixed inset-0">
           <div className="bg-[var(--bg-card)] rounded-xl max-w-[1000px] w-full max-h-[90vh] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
             <div className="hr-form-field-editor-header">채울 필드 위치 지정 — {name}</div>
             <FormTemplateEditor
@@ -278,7 +278,7 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
 
       {/* 채우기 모달 */}
       {filling && typeof document !== "undefined" && createPortal(
-        <div className="hr-form-fill-modal fixed inset-0" onClick={() => setFilling(null)}>
+        <div className="hr-form-fill-modal fixed inset-0">
           <div className="bg-[var(--bg-card)] rounded-xl max-w-md w-full max-h-[85vh] overflow-auto p-5" onClick={(e) => e.stopPropagation()}>
             <div className="hr-form-fill-header">{filling.tpl.name} — 값 입력</div>
             {fillKeys(filling.tpl).length === 0 ? (

@@ -689,7 +689,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   useModalKeys(true, onClose, !isEdit && step === 1 ? () => setStep(2) : (saving || !form.name.trim() ? undefined : submit));
 
   return (
-    <div className="project-form-modal fixed inset-0" onClick={onClose}>
+    <div className="project-form-modal fixed inset-0">
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="project-form-modal-header">
           <div className="text-sm font-bold text-[var(--text)]">

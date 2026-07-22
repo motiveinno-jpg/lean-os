@@ -161,7 +161,7 @@ function DocumentEditModal({ doc, userId, onClose, onSaved }: {
   });
 
   return (
-    <div className="doc-edit-modal fixed inset-0" onClick={onClose}>
+    <div className="doc-edit-modal fixed inset-0">
       <div
         className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}

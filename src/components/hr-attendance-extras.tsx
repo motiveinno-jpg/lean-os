@@ -164,7 +164,7 @@ export function AttendanceEditRequestDialog({
   if (!open) return null;
 
   return (
-    <div className="attendance-edit-dialog-overlay fixed inset-0" onClick={onClose}>
+    <div className="attendance-edit-dialog-overlay fixed inset-0">
       <div
         className="attendance-edit-dialog-panel glass-card"
         onClick={(e) => e.stopPropagation()}

@@ -598,7 +598,7 @@ function OurSignatureModal({
   void partnerName; void partnerRep; void partnerBiz;
   useModalKeys(true, onClose, submitting || !ourSignatureDataUrl ? undefined : onSubmit);
   return (
-    <div className="our-signature-modal-overlay fixed inset-0" onClick={onClose}>
+    <div className="our-signature-modal-overlay fixed inset-0">
       <div className="our-signature-modal glass-card" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-[var(--text)]">우리(갑) 서명 / 날인</h2>

@@ -1095,7 +1095,7 @@ export default function CashReceiptsPage() {
 
       {/* 국세청 실발행 모달 — CODEF·팝빌 연동 즉시발행 */}
       {showIssueModal && (
-        <div className="cash-receipt-issue-modal fixed inset-0 cashbill-issue-modal" onClick={() => !issuing && setShowIssueModal(false)}>
+        <div className="cash-receipt-issue-modal fixed inset-0 cashbill-issue-modal">
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행</div>
