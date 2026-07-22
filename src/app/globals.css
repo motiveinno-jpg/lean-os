@@ -1961,9 +1961,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .partner-form-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm; }
 .partner-portal-link-modal { @apply fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4; }
 /* 마이페이지 2.0 (2026-07-16) — 히어로 프로필 + 세그먼트 탭(인사기록/알림/계정) 재설계 */
-/* 폭은 상단 헤더바에 맞춘다 — 셸 본문 래퍼는 max-w-[1440px] 이지만 헤더바는 max-w-[1400px] 라
-   와이드 모니터에서 본문이 40px 더 튀어나온다. 좌우 시작·끝선은 셸이 이미 맞춰줌. */
-.mypage-page { @apply space-y-5 max-w-[1400px]; }
+/* 폭은 셸 본문 래퍼(max-w-[1400px], 헤더바와 동일)가 전역으로 맞춰준다 — 개별 페이지는 space-y 만. */
+.mypage-page { @apply space-y-5; }
 .mypage-section-tabs { @apply max-w-full overflow-x-auto; scrollbar-width: none; }
 .mypage-section-tabs::-webkit-scrollbar { display: none; }
 .mypage-hero { @apply overflow-hidden relative; }
