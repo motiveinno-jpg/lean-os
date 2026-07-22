@@ -840,13 +840,13 @@ export default function BalanceSheetPage() {
             <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4, fontWeight: 500 }}>
               자산 {data.totalAssets > 0 ? `₩${Math.round(data.totalAssets).toLocaleString("ko-KR")}` : ""}
             </div>
-            <div style={{ display: "flex", height: 24, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
+            <div style={{ display: "flex", height: 20, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
               {data.totalAssets > 0 && (
                 <>
                   <div
                     style={{
                       width: `${Math.round((data.cashAndDeposits / data.totalAssets) * 100)}%`,
-                      background: "var(--primary)",
+                      background: "var(--viz-info)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -862,7 +862,7 @@ export default function BalanceSheetPage() {
                   <div
                     style={{
                       width: `${Math.round((data.accountsReceivable / data.totalAssets) * 100)}%`,
-                      background: "var(--success)",
+                      background: "var(--viz-pos)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -902,13 +902,13 @@ export default function BalanceSheetPage() {
             <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4, fontWeight: 500 }}>
               부채 + 자본
             </div>
-            <div style={{ display: "flex", height: 24, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
+            <div style={{ display: "flex", height: 20, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
               {(data.totalLiabilities + data.totalEquity) > 0 && (
                 <>
                   <div
                     style={{
                       width: `${Math.round((data.totalLiabilities / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100)}%`,
-                      background: "var(--danger)",
+                      background: "var(--viz-neg)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -924,7 +924,7 @@ export default function BalanceSheetPage() {
                   <div
                     style={{
                       width: `${Math.round((Math.max(data.totalEquity, 0) / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100)}%`,
-                      background: "var(--success)",
+                      background: "var(--viz-pos)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -943,16 +943,16 @@ export default function BalanceSheetPage() {
           </div>
           <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-dim)", flexWrap: "wrap" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--primary)", display: "inline-block" }} />현금
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-info)", display: "inline-block" }} />현금
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--success)", display: "inline-block" }} />채권/자본
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-pos)", display: "inline-block" }} />채권/자본
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-brand)", display: "inline-block" }} />고정자산
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--danger)", display: "inline-block" }} />부채
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-neg)", display: "inline-block" }} />부채
             </span>
           </div>
         </div>

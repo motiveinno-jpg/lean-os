@@ -86,12 +86,12 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" className="pnl-chart-svg">
         <defs>
           <linearGradient id="pnlRevGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.55" />
+            <stop offset="0%" stopColor="var(--viz-brand)" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="var(--viz-brand)" stopOpacity="0.42" />
           </linearGradient>
           <linearGradient id="pnlExpGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.40" />
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.20" />
+            <stop offset="0%" stopColor="var(--viz-brand)" stopOpacity="0.26" />
+            <stop offset="100%" stopColor="var(--viz-brand)" stopOpacity="0.15" />
           </linearGradient>
         </defs>
         {gridVals.map((v, i) => {
@@ -117,10 +117,10 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
           );
         })}
 
-        <path d={netPath} fill="none" stroke="var(--success)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={netPath} fill="none" stroke="var(--viz-pos)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
         {months.map((_, i) => {
           const { cx } = groupAt(i);
-          return <circle key={i} cx={cx} cy={toY(net[i])} r={4.5} fill="var(--success)" stroke="var(--bg-card)" strokeWidth={2} />;
+          return <circle key={i} cx={cx} cy={toY(net[i])} r={3.5} fill="var(--viz-pos)" stroke="var(--bg-card)" strokeWidth={1.5} />;
         })}
 
         {months.map((m, i) => {
@@ -129,14 +129,14 @@ export default function PnlChart({ months, totalRevenue, totalExpenses, netIncom
         })}
       </svg>
       <div className="pnl-chart-legend">
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)]">
-          <span className="dot-primary" />매출
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--viz-brand)]/30 bg-[var(--viz-brand)]/10 text-[var(--viz-brand)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--viz-brand)]" />매출
         </span>
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--primary)]/20 bg-[var(--primary)]/5 text-[var(--text-muted)]">
-          <span className="w-2 h-2 rounded-full" style={{ background: "color-mix(in srgb, var(--primary) 35%, transparent)" }} />총 비용
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--viz-brand)]/20 bg-[var(--viz-brand)]/5 text-[var(--text-muted)]">
+          <span className="w-2 h-2 rounded-full" style={{ background: "color-mix(in srgb, var(--viz-brand) 35%, transparent)" }} />총 비용
         </span>
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--success)]/30 bg-[var(--success-dim)] text-[var(--success)]">
-          <span className="w-2 h-2 rounded-full bg-[var(--success)]" />당기순이익
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--viz-pos)]/30 bg-[var(--viz-pos)]/10 text-[var(--viz-pos)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--viz-pos)]" />당기순이익
         </span>
       </div>
     </div>

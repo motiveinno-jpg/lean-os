@@ -52,12 +52,12 @@ export default function CostsChart({ months, fixed, variable }: CostsChartProps)
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", height: 200, width: "auto", maxWidth: "100%", margin: "0 auto" }}>
         <defs>
           <linearGradient id="costFixedGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--warning)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="var(--warning)" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="var(--viz-warn)" stopOpacity="0.68" />
+            <stop offset="100%" stopColor="var(--viz-warn)" stopOpacity="0.4" />
           </linearGradient>
           <linearGradient id="costVarGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--info)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="var(--info)" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="var(--viz-info)" stopOpacity="0.68" />
+            <stop offset="100%" stopColor="var(--viz-info)" stopOpacity="0.4" />
           </linearGradient>
         </defs>
 
@@ -93,11 +93,11 @@ export default function CostsChart({ months, fixed, variable }: CostsChartProps)
         })}
       </svg>
       <div className="costs-chart-legend">
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--warning)]/30 bg-[var(--warning-dim)] text-[var(--warning)]">
-          <span className="w-2 h-2 rounded-full bg-[var(--warning)]" />고정비
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--viz-warn)]/30 bg-[var(--viz-warn)]/10 text-[var(--viz-warn)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--viz-warn)]" />고정비
         </span>
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--info)]/30 bg-[var(--info-dim)] text-[var(--info)]">
-          <span className="w-2 h-2 rounded-full bg-[var(--info)]" />변동비
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--viz-info)]/30 bg-[var(--viz-info)]/10 text-[var(--viz-info)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--viz-info)]" />변동비
         </span>
       </div>
     </div>
