@@ -6,6 +6,7 @@ import type { NextRequest } from 'next/server';
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_AUTH = 20; // /auth endpoints: 20 req/min
 const RATE_LIMIT_MAX_PLATFORM = 30; // /api/platform 운영자 액션: 30 req/min (고위험 — 연타·자동화 방지)
+const RATE_LIMIT_MAX_PDF = 10; // /api/*-pdf: 10 req/min (puppeteer 고비용 — 남용·DoS 방지)
 const RATE_LIMIT_CLEANUP_THRESHOLD = 500;
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -45,6 +46,7 @@ const PUBLIC_ROUTES = [
   '/platform',
   '/demo',
   '/maintenance',
+  '/status',
 ];
 
 function isPublicRoute(pathname: string): boolean {
@@ -70,6 +72,15 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/platform')) {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     if (isRateLimited(`platform:${ip}`, RATE_LIMIT_MAX_PLATFORM)) {
+      return new NextResponse('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
+    }
+  }
+
+  // Rate limit PDF 렌더 (puppeteer — CPU/메모리 고비용, 남용·DoS 방지). IP당 분당 10회.
+  //   서버리스 인스턴스별 in-memory 라 완벽하진 않음 — 강한 보장은 Vercel WAF/Firewall 권장(운영 액션 항목).
+  if (pathname === '/api/html-pdf' || pathname === '/api/contract-pdf') {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    if (isRateLimited(`pdf:${ip}`, RATE_LIMIT_MAX_PDF)) {
       return new NextResponse('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
     }
   }

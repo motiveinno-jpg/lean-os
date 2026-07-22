@@ -9,6 +9,7 @@ import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RichEditor, type RichEditorRef } from "@/components/rich-editor";
 import { fillTextTemplate } from "@/lib/form-templates";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, onSave, onClose }: {
@@ -68,7 +69,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
               <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">발급 미리보기 <span className="text-[var(--text-dim)]">(변수는 발급 시 값으로 채워짐)</span></div>
               <div className="tpl-preview w-full max-h-[58vh] min-h-[300px] px-4 py-3 rounded-xl bg-white text-black border border-[var(--border)] overflow-auto text-[13px] leading-relaxed"
                 style={{ fontFamily: "'Pretendard', system-ui, sans-serif" }}
-                dangerouslySetInnerHTML={{ __html: fillTextTemplate(html, {}, { highlightMissing: true }) }} />
+                dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(fillTextTemplate(html, {}, { highlightMissing: true })) }} />
             </div>
           )}
         </div>

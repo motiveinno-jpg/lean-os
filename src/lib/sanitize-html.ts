@@ -29,3 +29,17 @@ export function sanitizeDocumentHtml(dirty: string | null | undefined): string {
     FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "formaction"],
   });
 }
+
+// PDF 서버 렌더용 — 회사양식 레이아웃을 위해 <style>/<head> 를 허용하되 script·on*·iframe·object·link·meta 는 차단.
+//   (실행 위험은 sanitize + puppeteer 네트워크 차단으로 이중 방어. DOMPurify 가 CSS 내 expression/javascript: 도 정제.)
+export function sanitizePdfHtml(dirty: string | null | undefined): string {
+  if (!dirty) return "";
+  return DOMPurify.sanitize(String(dirty), {
+    WHOLE_DOCUMENT: true,
+    ADD_TAGS: ["style", "html", "head", "body", "meta"],
+    ADD_ATTR: ["style", "class"],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
+    FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "input", "button", "link"],
+    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "formaction", "srcdoc"],
+  });
+}

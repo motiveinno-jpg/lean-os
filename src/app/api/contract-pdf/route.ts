@@ -5,22 +5,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { buildSignedContractPrintHtml, STRIP_BODY_SIGNATURE_FN } from "@/lib/contract-print-html";
 import chromium from "@sparticuz/chromium";
 import puppeteer, { type Browser } from "puppeteer-core";
+import { fetchAssetAsDataUrl } from "@/lib/pdf-fetch-guard";
 
 // 서명완료 계약서 → 네이티브 인쇄 품질 PDF (업체별 1파일). 클라이언트가 chunk 로 호출 → zip.
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 // URL 이미지 → dataURL (계약 양식 오버레이의 갑 직인 seal_url 변환용)
-async function fetchAsDataUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const ct = res.headers.get("content-type") || "image/png";
-    const buf = Buffer.from(await res.arrayBuffer());
-    return `data:${ct};base64,${buf.toString("base64")}`;
-  } catch { return null; }
-}
-
 // 서버리스 warm 인스턴스 재사용 — 콜드스타트(브라우저 launch) 1회로 분산
 let _browser: Browser | null = null;
 async function getBrowser(): Promise<Browser> {
@@ -97,7 +88,7 @@ export async function POST(req: NextRequest) {
           overlayBytes = await blob.arrayBuffer();
           overlayFields = (tpl.fields as any[]) || [];
           const sealUrl = (list[0] as any)?.companies?.seal_url;
-          if (sealUrl) sealDataUrl = await fetchAsDataUrl(sealUrl);
+          if (sealUrl) sealDataUrl = await fetchAssetAsDataUrl(sealUrl);
         }
       }
     } catch { overlayFields = null; overlayBytes = null; }

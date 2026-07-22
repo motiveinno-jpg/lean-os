@@ -147,7 +147,7 @@ async function codefRequest(token: string, path: string, body: Record<string, an
       keyFile: a.keyFile ? `[${a.keyFile.length} chars]` : undefined,
     }));
   }
-  console.log(`[CODEF] ${path}`, JSON.stringify(sanitizedBody));
+  console.log(`[CODEF] ${path}`); // 요청 body 미로깅(민감정보)
 
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), CODEF_REQUEST_TIMEOUT_MS);
@@ -178,7 +178,7 @@ async function codefRequest(token: string, path: string, body: Record<string, an
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    console.error(`[CODEF] HTTP ${res.status}: ${errText}`);
+    console.error(`[CODEF] HTTP ${res.status}`);
     meterPush(path, `HTTP_${res.status}`);
     throw new Error(`CODEF API error: ${res.status}`);
   }
@@ -190,7 +190,7 @@ async function codefRequest(token: string, path: string, body: Record<string, an
   } catch {
     parsed = JSON.parse(text);
   }
-  console.log(`[CODEF] Response:`, JSON.stringify({ code: parsed.result?.code, message: parsed.result?.message, extraMessage: parsed.result?.extraMessage }));
+  console.log(`[CODEF] Response:`, JSON.stringify({ code: parsed.result?.code, message: parsed.result?.message }));
   meterPush(path, parsed.result?.code || "UNKNOWN");
   return parsed;
 }
@@ -357,7 +357,6 @@ async function syncBankTransactions(
     const dataKeys = Object.keys(acctListResult.data || {});
     debug.push(`bank ${org} account-list OK, data keys: [${dataKeys.join(",")}]`);
     // 진단 — IBK 보통예금이 다른 키로 오는지 확인용 (raw response capture)
-    console.log(`[BANK-ACCOUNT-LIST-RAW] org=${org}`, JSON.stringify(acctListResult.data || {}).slice(0, 3000));
 
     // CODEF bank account-list returns categorized arrays.
     // 입출금 = resAccountList 가 표준이지만, IBK 는 기업자유예금/보통예금을 resDepositTrust 로 보냄 (검증).
@@ -380,7 +379,6 @@ async function syncBankTransactions(
     if (demandDeposits.length > 0) {
       const firstAcct = demandDeposits[0];
       debug.push(`bank ${org} firstAccount keys: [${Object.keys(firstAcct).join(",")}]`);
-      debug.push(`bank ${org} firstAccount sample: resAccount=${firstAcct.resAccount}, resAccountNo=${firstAcct.resAccountNo}, resAccountDisplay=${firstAcct.resAccountDisplay}`);
     } else if (otherTotal > 0) {
       // 입출금 계좌가 없고 다른 종류만 있을 때 — 명확한 메시지 한 번만
       const otherDesc = [
@@ -448,7 +446,7 @@ async function syncBankTransactions(
       const _topKeys = typeof _data === "object" && !Array.isArray(_data) ? Object.keys(_data) : [];
       const _listLen = Array.isArray(_data?.resTrHistoryList) ? _data.resTrHistoryList.length :
                       Array.isArray(_data) ? _data.length : null;
-      debug.push(`bank ${org} acct=${accountNo} code=${result.result?.code} extraMsg='${result.result?.extraMessage || ""}' topKeys=[${_topKeys.slice(0,8).join(",")}] listLen=${_listLen}`);
+      debug.push(`bank ${org} acct=***${String(accountNo).slice(-4)} code=${result.result?.code} listLen=${_listLen}`);
 
       if (result.result?.code !== "CF-00000") {
         const code = result.result?.code || "UNKNOWN";
@@ -522,7 +520,7 @@ async function syncBankTransactions(
       }
 
       if (acctSkipNoDate > 0 || acctInsertErrors > 0) {
-        debug.push(`bank ${org} acct=${accountNo} skipNoDate=${acctSkipNoDate} insertErrors=${acctInsertErrors} firstErr='${firstInsertErr.slice(0,200)}'`);
+        debug.push(`bank ${org} acct=***${String(accountNo).slice(-4)} skipNoDate=${acctSkipNoDate} insertErrors=${acctInsertErrors}`);
       }
     }
   }
@@ -602,7 +600,6 @@ async function syncCardBilling(
 
       if (charges.length > 0 && !debuggedChargeKeys) {
         debug.push(`card ${org} firstCharge keys: [${Object.keys(charges[0]).join(",")}]`);
-        debug.push(`card ${org} firstCharge sample: resUsedDate=${charges[0].resUsedDate}, resUsedAmount=${charges[0].resUsedAmount}, resStoreName=${charges[0].resStoreName}`);
         debuggedChargeKeys = true;
       }
 
@@ -841,7 +838,7 @@ async function registerAccount(
   if (result.result?.code !== "CF-00000") {
     const hint = codefErrorHint(result.result?.code);
     const extraMessage = result.result?.extraMessage || result.data?.errorMessage || "";
-    console.error(`[CODEF] Registration failed — full response:`, JSON.stringify(result));
+    console.error(`[CODEF] Registration failed: ${result?.result?.code || "unknown"}`);
     const err: any = new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
     err.codefResponse = result;
     err.diagnostics = {
@@ -881,7 +878,6 @@ async function getAccountList(
   if (result.result?.code !== "CF-00000") return [];
   // CODEF returns { data: { connectedId, accountList: [...] } }
   const accounts = result.data?.accountList ?? result.data;
-  console.log(`[CODEF] accountList raw:`, JSON.stringify(accounts));
   return Array.isArray(accounts) ? accounts : accounts ? [accounts] : [];
 }
 
@@ -1033,12 +1029,6 @@ async function syncHometaxInvoices(
     const invoices = Array.isArray(raw) ? raw : raw ? [raw] : [];
     totalResponseCount += invoices.length;
     debug.push(`${direction} invoices.length=${invoices.length}`);
-    if (invoices.length > 0) {
-      const f = invoices[0];
-      debug.push(`${direction} sample resApprovalNo='${f.resApprovalNo}' resIssueDate='${f.resIssueDate}' resReportingDate='${f.resReportingDate}' resSendDate='${f.resSendDate}'`);
-      // 대표자·이메일 필드 확인용(재동기화 시 실제 응답에 어떤 이메일 키가 있는지 파악)
-      debug.push(`${direction} sample rep/email fields: [${Object.keys(f).filter((k) => /Name$|Email/i.test(k)).join(",")}]`);
-    }
 
     const isSales = direction === "매출";
     let upsertErrors = 0;
@@ -1221,22 +1211,7 @@ async function syncHometaxCashReceipts(
     ...(identity ? { identity } : {}),
   });
   debug.push(`cash-receipt sync ${cappedStart}~${cappedEnd} identity=${identity ? "set" : "none"}`);
-  // 진단 — 0건 vs parsing 누락 구분 (raw 전체) + base URL.
-  console.log("[CASH-RECEIPT-DEBUG]", JSON.stringify({
-    period: `${cappedStart}~${cappedEnd}`,
-    identitySet: !!identity,
-    codefEnv: CODEF_ENV,
-    codefBase: CODEF_BASE,
-    code: result.result?.code,
-    message: result.result?.message,
-    extraMessage: result.result?.extraMessage,
-    dataType: Array.isArray(result.data) ? "array" : typeof result.data,
-    topKeys: result.data && typeof result.data === "object" && !Array.isArray(result.data) ? Object.keys(result.data) : [],
-    dataLen: Array.isArray(result.data) ? result.data.length : null,
-    sample: Array.isArray(result.data) && result.data[0] ? result.data[0] : null,
-    rawDataPreview: JSON.stringify(result.data).slice(0, 800),
-  }));
-
+  // 현금영수증 진단 상세 로그 제거(민감정보) — 오류코드는 아래 분기에서 처리.
   if (result.result?.code !== "CF-00000") {
     errors.push({
       accountNo: "",
@@ -1259,10 +1234,6 @@ async function syncHometaxCashReceipts(
   const receipts = Array.isArray(raw) ? raw : raw && raw.resApprovalNo ? [raw] : [];
   totalResponseCount = receipts.length;
   debug.push(`receipts.length=${receipts.length}`);
-  if (receipts.length > 0) {
-    const f = receipts[0];
-    debug.push(`sample resApprovalNo='${f.resApprovalNo}' resUsedDate='${f.resUsedDate}' resTransTypeNm='${f.resTransTypeNm}'`);
-  }
 
   const rowsToUpsert: any[] = [];
   for (const r of receipts) {
@@ -1971,7 +1942,6 @@ serve(withSentry("codef-sync", async (req) => {
           resTotalPageCount: firstRow.resTotalPageCount,
           resTotalCount: firstRow.resTotalCount,
         } : null,
-        sampleApprovalNos: isArray ? dataRaw.slice(0, 3).map((r: any) => r.resApprovalNo) : [],
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
