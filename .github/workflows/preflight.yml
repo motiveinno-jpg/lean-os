@@ -1,14 +1,9 @@
-name: preflight (DB applied + RLS smoke)
+name: preflight (typecheck · test · build · DB gate)
 
-# P0-3 + P0-5 게이트.
-#   - check:migrations — supabase/migrations/*.sql ↔ applied_migrations ledger diff
-#     → 미적용 1건이라도 있으면 fail
-#   - smoke:rls — authenticated 컨텍스트 부트스트랩 sim (lessons.md 검증 기법)
-#     재귀/timeout/hung 감지 시 fail
-#
-# 활성화 조건: 레포 Secrets 에 SUPABASE_ACCESS_TOKEN 추가 후 자동 동작.
-#   토큰 없으면 step 이 skip(or fail-soft) — main 머지 차단은 branch protection
-#   에서 본 워크플로를 "required check" 로 설정해 강제.
+# main 보호 게이트. branch protection 에서 이 워크플로를 "required check" 로 지정해 강제한다.
+#   순서: npm ci --ignore-scripts → typecheck → unit test → production build
+#         → migration check → RLS smoke → DB guard smoke.
+#   SUPABASE_ACCESS_TOKEN 시크릿이 없으면 skip 이 아니라 FAIL (게이트 무력화 방지, 2026-07-22 P0).
 
 on:
   pull_request:
@@ -23,50 +18,41 @@ permissions:
 jobs:
   preflight:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-
-      - name: check migrations applied
-        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: node scripts/check-migrations.mjs
-
-      - name: RLS regression smoke
-        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: node scripts/rls-smoke.mjs
-
-      # 정산 과배분 차단·전표 자동기장·카드 중복차단 등 DB 트리거 가드 실존 확인 (2026-07-06)
-      - name: DB guards smoke
-        if: ${{ env.SUPABASE_ACCESS_TOKEN != '' }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: node scripts/db-guards-smoke.mjs
-
-      - name: warn if secret missing
-        if: ${{ env.SUPABASE_ACCESS_TOKEN == '' }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - name: Require SUPABASE_ACCESS_TOKEN (fail if missing)
         run: |
-          echo "::warning::SUPABASE_ACCESS_TOKEN secret not set — preflight gates skipped. Add it in repo Settings > Secrets to activate."
+          if [ -z "${SUPABASE_ACCESS_TOKEN}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN secret is not set — DB gates cannot run. Add it in repo Settings > Secrets to unblock preflight."
+            exit 1
+          fi
 
-  # 크리티컬 경로 유닛 테스트 + 타입체크 (2026-07-06) — 시크릿 불필요, 항상 실행.
-  #   가입 검증(assertBizNoActive 판정표)·사업자번호 checksum·브레드크럼 매핑 회귀 방지.
-  unit:
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
-      # --ignore-scripts: puppeteer/playwright 브라우저 다운로드 등 postinstall 생략 (tsc·vitest에 불필요)
-      - run: npm ci --ignore-scripts
+
+      # --ignore-scripts: puppeteer/playwright 브라우저 다운로드 등 postinstall 생략 (게이트에 불필요, 공급망 표면 축소)
+      - name: install
+        run: npm ci --ignore-scripts
+
       - name: typecheck
         run: npx tsc --noEmit
+
       - name: unit tests
         run: npx vitest run
+
+      - name: production build
+        run: npm run build
+
+      - name: check migrations applied
+        run: node scripts/check-migrations.mjs
+
+      - name: RLS regression smoke
+        run: node scripts/rls-smoke.mjs
+
+      - name: DB guards smoke
+        run: node scripts/db-guards-smoke.mjs

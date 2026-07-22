@@ -78,20 +78,22 @@ async function main() {
   }
 
   for (const file of args) {
-    const sql = readFileSync(resolve(REPO_ROOT, file), "utf8");
-    const ok = await runSql(pat, sql, file);
-    if (!ok) {
-      process.exitCode = 1;
-      return;
-    }
-    // P0-3: 적용 성공 시 applied_migrations ledger 에 자기-기록 → check 스크립트
-    //   가 코드↔DB 적용 누락을 탐지할 수 있게. ledger 테이블 자체가 아직 없으면
-    //   조용히 스킵(부트스트랩 마이그 적용 직전 케이스).
+    const rawSql = readFileSync(resolve(REPO_ROOT, file), "utf8");
     const m = file.match(/([^\\/]+?)\.sql$/i);
     const version = m ? m[1] : null;
-    if (version) {
-      const insertSql = `INSERT INTO public.applied_migrations(version) VALUES ('${version.replace(/'/g, "''")}') ON CONFLICT (version) DO NOTHING;`;
-      await runSql(pat, insertSql, `ledger:${version}`).catch(() => {}); // 실패는 비치명 — 적용은 이미 성공.
+    // P0-3 (2026-07-22): 마이그 SQL 실행 + ledger 기록을 단일 트랜잭션으로 —
+    //   하나라도 실패하면 둘 다 롤백(적용됐는데 ledger 누락 → 거짓 pending 방지).
+    //   ⚠️ CREATE INDEX CONCURRENTLY / ALTER TYPE ADD VALUE 등 트랜잭션 불가 DDL 은
+    //      이 래핑과 호환 안 됨 → 에러 시 전체 롤백(안전). 그런 마이그는 개별 처리 필요.
+    const ledgerInsert = version
+      ? `INSERT INTO public.applied_migrations(version) VALUES ('${version.replace(/'/g, "''")}') ON CONFLICT (version) DO NOTHING;`
+      : "";
+    const txSql = `BEGIN;\n${rawSql}\n;\n${ledgerInsert}\nCOMMIT;`;
+    const ok = await runSql(pat, txSql, `${file} (+ledger, 단일 tx)`);
+    if (!ok) {
+      console.error(`✗ ${file} — 트랜잭션 롤백(마이그·ledger 모두 미적용). CONCURRENTLY 류면 개별 적용 필요.`);
+      process.exitCode = 1;
+      return;
     }
   }
 }

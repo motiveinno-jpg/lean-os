@@ -20,7 +20,7 @@
   "license": "ISC",
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
-    "@sentry/nextjs": "10.48.0",
+    "@sentry/nextjs": "^10.67.0",
     "@sparticuz/chromium": "^131.0.1",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.98.0",
@@ -40,11 +40,11 @@
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "html-react-parser": "^6.1.2",
-    "isomorphic-dompurify": "^3.18.0",
-    "jspdf": "^4.2.0",
+    "isomorphic-dompurify": "^3.19.0",
+    "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",
-    "next": "^16.1.6",
+    "next": "^16.2.11",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
     "postcss": "^8.5.8",
@@ -64,6 +64,9 @@
     "@types/ws": "^8.18.1",
     "playwright": "^1.58.2",
     "vitest": "^4.1.9",
-    "ws": "^8.19.0"
+    "ws": "^8.21.1"
+  },
+  "overrides": {
+    "sharp": "^0.35.3"
   }
 }
