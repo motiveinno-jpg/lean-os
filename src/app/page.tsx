@@ -21,7 +21,7 @@ const COMPETITORS = [
 const PLANS = [
   { name: "무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 14일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
   { name: "프로", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀의 표준", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자계약 · 전자결재 무제한", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "세금계산서·현금영수증 국세청 발행 월 10건"] },
-  { name: "울트라", regularPrice: null, betaPrice: "88,000", unit: "원/월", period: "VAT 별도 · 데이터 헤비유저", desc: "동기화·자동화 최대치", perSeat: null, hl: false, discount: null, features: ["프로 전체 +", "세금계산서·현금영수증 국세청 발행 무제한", "AI 브리핑 — 매일 우선순위 액션 플랜", "신기능 우선 제공", "우선 지원"] },
+  { name: "울트라", regularPrice: null, betaPrice: "88,000", unit: "원/월", period: "VAT 별도 · 발행량 많은 팀", desc: "국세청 발행 무제한 + AI 브리핑", perSeat: null, hl: false, discount: null, features: ["프로의 모든 기능 그대로", "세금계산서·현금영수증 국세청 발행 무제한", "AI 브리핑 — 매일 우선순위 액션 플랜", "신기능 얼리 액세스", "우선 지원"] },
   { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 보장"] },
 ];
 
@@ -1421,20 +1421,24 @@ export default function LandingPage() {
             ))}
           </Reveal>
           {/* 프로 vs 울트라 — 실제 차등 항목만 (코드로 집행되는 항목) */}
+          <Reveal className="lp2-diff-head">
+            <h3 className="lp2-diff-title">프로에서 울트라로 — 딱 4가지가 달라집니다</h3>
+            <p className="lp2-diff-sub">나머지 기능은 완전히 동일합니다. 국세청 발행량이 많거나 매일 AI 브리핑이 필요할 때만 울트라를 선택하세요.</p>
+          </Reveal>
           <Reveal className="lp2-diff-table-wrap">
             <table className="lp2-diff-table">
               <thead>
                 <tr>
                   <th>항목</th>
-                  <th>프로</th>
-                  <th style={{ color: "var(--lp-indigo)" }}>울트라</th>
+                  <th>프로 · 55,000원</th>
+                  <th className="lp2-diff-ultra-col">울트라 · 88,000원</th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td>세금계산서 국세청 발행</td><td>월 10건</td><td className="font-bold" style={{ color: "var(--lp-text)" }}>무제한</td></tr>
-                <tr><td>현금영수증 국세청 발행</td><td>월 10건</td><td className="font-bold" style={{ color: "var(--lp-text)" }}>무제한</td></tr>
-                <tr><td>AI 브리핑 (매일 우선순위 액션 플랜)</td><td>—</td><td className="font-bold" style={{ color: "var(--lp-text)" }}>제공</td></tr>
-                <tr><td>신기능 얼리 액세스 · 우선 지원</td><td>—</td><td className="font-bold" style={{ color: "var(--lp-text)" }}>제공</td></tr>
+                <tr><td>세금계산서 국세청 발행</td><td>월 10건</td><td className="lp2-diff-ultra-cell">무제한</td></tr>
+                <tr><td>현금영수증 국세청 발행</td><td>월 10건</td><td className="lp2-diff-ultra-cell">무제한</td></tr>
+                <tr><td>AI 브리핑 (매일 우선순위 액션 플랜)</td><td>—</td><td className="lp2-diff-ultra-cell">제공</td></tr>
+                <tr><td>신기능 얼리 액세스 · 우선 지원</td><td>—</td><td className="lp2-diff-ultra-cell">제공</td></tr>
               </tbody>
             </table>
           </Reveal>

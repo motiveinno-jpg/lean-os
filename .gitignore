@@ -71,3 +71,4 @@ qa/
 *.docx
 *.pptx
 *.xlsx
+.env*

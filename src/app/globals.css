@@ -4067,10 +4067,16 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .lp2-plan-cta-primary:hover { transform: translateY(-1px); }
 .lp2-plan-cta-ghost { color: var(--lp-text); background: var(--lp-card-strong); border: 1px solid var(--lp-border-strong); }
 .lp2-plan-cta-ghost:hover { border-color: color-mix(in srgb, var(--lp-indigo) 50%, transparent); }
-.lp2-diff-table-wrap { @apply max-w-3xl mx-auto mt-12 rounded-2xl overflow-hidden; border: 1px solid var(--lp-border); }
+.lp2-diff-head { @apply max-w-3xl mx-auto mt-14 mb-5 text-center; }
+.lp2-diff-title { @apply text-xl md:text-2xl font-extrabold mb-2; color: var(--lp-text); }
+.lp2-diff-sub { @apply text-sm leading-relaxed; color: var(--lp-text-3); }
+.lp2-diff-table-wrap { @apply max-w-3xl mx-auto mt-0 rounded-2xl overflow-hidden; border: 1px solid var(--lp-border); }
 .lp2-diff-table { @apply w-full text-sm border-collapse; }
 .lp2-diff-table th { @apply px-5 py-3.5 text-left text-xs font-bold; color: var(--lp-text-2); background: var(--lp-card-strong); }
 .lp2-diff-table td { @apply px-5 py-3.5; color: var(--lp-text-2); border-top: 1px solid var(--lp-border); }
+/* 울트라 열 강조 — 승리 항목이 한눈에 보이도록 틴트 + 볼드 */
+.lp2-diff-table th.lp2-diff-ultra-col { color: var(--lp-indigo); background: color-mix(in srgb, var(--lp-indigo) 12%, var(--lp-card-strong)); }
+.lp2-diff-table td.lp2-diff-ultra-cell { @apply font-bold; color: var(--lp-text); background: color-mix(in srgb, var(--lp-indigo) 7%, transparent); }
 
 /* ── 제휴 폼 ── */
 .lp2-form-card { @apply rounded-3xl p-7 md:p-9; background: var(--lp-card); border: 1px solid var(--lp-border); }
