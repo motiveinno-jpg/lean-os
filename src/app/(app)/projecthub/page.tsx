@@ -261,14 +261,16 @@ export default function ProjectHubPage() {
     const dd = daysToEnd(d);
     return dd != null && dd >= 0 && dd <= 7;
   };
-  // 위험 판정 — 마진<0 · 달성 정체(0%) · 기한초과 · 태스크 지연
+  // 위험 판정(엄격, 2026-07-22) — 실제 적자·지연·기한초과만. 초기·미착수 상태는 위험 아님.
+  //   · 수익형: 매출>0 이고 마진<0(getHeroMetric.risk 가 이미 revenue<=0 가드) 또는 기한초과
+  //   · 실행형: 마감 지난 미완료 태스크 있음 또는 기한초과
+  //   · 목표형: 기한초과만. (달성률 0% 자체는 위험 아님 — 이제 막 시작한 정상 프로젝트가 위로 몰리던 것 제거)
   const isRisk = (d: any) => {
     const type = normalizeProjectType(d.project_type);
     const h = heroByDeal[d.id];
     const overdue = d.end_date && String(d.end_date).slice(0, 10) < todayStr && !isDone(d);
     if (type === "delivery") return !!h?.delayed || !!overdue;
-    // 목표형 위험 — 종합 달성률 정체(거의 0%)이거나 기한 초과. KPI(raw) 있어야 판정.
-    if (type === "goal") return (h?.raw != null && h.raw < 0.0001) || !!overdue;
+    if (type === "goal") return !!overdue;
     return !!h?.risk || !!overdue;
   };
   // 카드 "다음 액션" 줄 — 기존 데이터(마감일·단계·미수·지연태스크)만으로 구성.
