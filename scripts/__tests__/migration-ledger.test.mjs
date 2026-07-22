@@ -1,13 +1,29 @@
 // 마이그레이션 reconcile 회귀 — 거짓 실패(공식엔 있는데 형식달라 pending) / 거짓 성공(어디에도 없는데 통과) 방지.
 import { describe, it, expect } from "vitest";
-import { reconcile, timestampOf } from "../migration-ledger.mjs";
+import { reconcile, timestampOf, nameOf } from "../migration-ledger.mjs";
 
 const BOOT = "20260520010000_applied_migrations_ledger";
 
-describe("timestampOf", () => {
+describe("timestampOf / nameOf", () => {
   it("파일명에서 타임스탬프 프리픽스 추출", () => {
     expect(timestampOf("20260722043006_foo_bar")).toBe("20260722043006");
     expect(timestampOf("nope")).toBe(null);
+  });
+  it("파일 접미사(=schema_migrations.name) 추출", () => {
+    expect(nameOf("20260722160000_project_tasks_completed_at")).toBe("project_tasks_completed_at");
+    expect(nameOf("no_timestamp")).toBe("no_timestamp");
+  });
+});
+
+describe("reconcile — schema_migrations.name(파일 접미사) 매칭", () => {
+  it("version(타임스탬프)이 달라도 name(접미사)이 공식 ledger 에 있으면 applied", () => {
+    const files = ["20260722160000_project_tasks_completed_at"];
+    // Supabase 는 version 을 적용시각으로 기록(파일 타임스탬프와 다름), name 은 접미사.
+    const schemaVersions = new Set(["20260722043006"]); // 파일 타임스탬프(20260722160000)와 불일치
+    const schemaNames = new Set(["project_tasks_completed_at"]); // 접미사 매칭
+    const r = reconcile(files, schemaVersions, new Set(), "20260101000000_x", false, schemaNames);
+    expect(r.ok).toBe(true);
+    expect(r.pending).toEqual([]);
   });
 });
 

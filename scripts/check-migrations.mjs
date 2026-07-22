@@ -63,11 +63,13 @@ async function main() {
     .map((f) => f.replace(/\.sql$/i, ""))
     .sort();
 
-  // 1차: 공식 ledger. 조회 실패 시 게이트 실패 처리 — 거짓 성공 방지.
-  let schemaVersions;
+  // 1차: 공식 ledger. version(적용시각) + name(파일 접미사) 둘 다 로드 — name 이 파일 매칭 핵심키.
+  //   조회 실패 시 게이트 실패 처리 — 거짓 성공 방지.
+  let schemaVersions, schemaNames;
   try {
-    const rows = await query(pat, "SELECT version FROM supabase_migrations.schema_migrations;");
+    const rows = await query(pat, "SELECT version, name FROM supabase_migrations.schema_migrations;");
     schemaVersions = new Set(rows.map((r) => String(r.version)));
+    schemaNames = new Set(rows.filter((r) => r.name != null).map((r) => String(r.name)));
   } catch (e) {
     console.error(`❌ 공식 ledger(schema_migrations) 조회 실패 — 게이트 통과 불가: ${e.message}`);
     process.exitCode = 1;
@@ -81,11 +83,12 @@ async function main() {
     appliedVersions = new Set(rows.map((r) => String(r.version)));
   } catch { /* legacy ledger 없음 — 공식만으로 판정 */ }
 
-  const r = reconcile(files, schemaVersions, appliedVersions, LEDGER_BOOTSTRAP, strict);
+  const r = reconcile(files, schemaVersions, appliedVersions, LEDGER_BOOTSTRAP, strict, schemaNames);
   const out = {
     ok: r.ok,
     total_files: files.length,
     schema_ledger_count: schemaVersions.size,
+    schema_name_count: schemaNames.size,
     applied_ledger_count: appliedVersions.size,
     checked: r.checked,
     pending: r.pending,
