@@ -437,8 +437,8 @@ export default function BillingPage() {
               const slug = plan.slug as string;
               const meta = PLAN_FEATURES[slug] || { icon: "📦", features: [] };
               const isCurrent = currentSlug === slug;
-              const monthlyPrice = cycle === "annual" ? Math.round(plan.base_price * 0.8) : plan.base_price;
-              const monthlySeat = cycle === "annual" ? Math.round(plan.per_seat_price * 0.8) : plan.per_seat_price;
+              const monthlyPrice = cycle === "annual" ? Math.round(plan.base_price * 0.9) : plan.base_price; // 연간 10% 할인 (2026-07-22 20%→10%)
+              const monthlySeat = cycle === "annual" ? Math.round(plan.per_seat_price * 0.9) : plan.per_seat_price;
 
               return (
                 <div
@@ -805,8 +805,8 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 {showUpgradeModal === "free" ? "무료" : (() => {
                   const p = (plans || []).find((pl: any) => pl.slug === showUpgradeModal);
                   if (!p) return "-";
-                  const base = cycle === "annual" ? Math.round(p.base_price * 0.8) : p.base_price;
-                  const seat = cycle === "annual" ? Math.round(p.per_seat_price * 0.8) : p.per_seat_price;
+                  const base = cycle === "annual" ? Math.round(p.base_price * 0.9) : p.base_price; // 연간 10% 할인
+                  const seat = cycle === "annual" ? Math.round(p.per_seat_price * 0.9) : p.per_seat_price;
                   const total = base + seat * (subscription?.seat_count || 1);
                   return `₩${total.toLocaleString()}/월`;
                 })()}
