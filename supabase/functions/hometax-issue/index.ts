@@ -347,15 +347,15 @@ serve(withSentry("hometax-issue", async (req) => {
     }
     const planLimit = subRow?.subscription_plans?.monthly_tax_invoice_limit;
     if (typeof planLimit === "number") {
-      const monthStart = new Date();
-      monthStart.setUTCDate(1);
-      monthStart.setUTCHours(0, 0, 0, 0);
+      // KST 기준 이달 1일 0시 (현금영수증 카운트와 동일). UTC 월경계는 월초 9시간이 전월로 잡혀 한도가 어긋났음.
+      const kstYm = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7);
+      const monthStart = `${kstYm}-01T00:00:00+09:00`;
       const { count } = await supabase
         .from("tax_invoices")
         .select("id", { count: "exact", head: true })
         .eq("company_id", invoice.company_id)
         .eq("nts_issue_status", "issued")
-        .gte("nts_issued_at", monthStart.toISOString());
+        .gte("nts_issued_at", monthStart);
       if ((count || 0) >= planLimit) {
         return new Response(JSON.stringify({
           error: `이번 달 세금계산서 발행 한도(${planLimit}건)를 모두 사용했습니다.`,

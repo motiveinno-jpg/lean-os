@@ -1,4 +1,5 @@
 import { logRead } from "@/lib/log-read";
+import { todayKst } from "@/lib/kst";
 /**
  * OwnerView Billing Engine
  * Stripe 결제 연동 + 구독 관리 + 인보이스
@@ -692,15 +693,15 @@ export async function getTaxInvoiceIssuanceStatus(companyId: string): Promise<Is
   const planName = subRow?.subscription_plans?.name ?? null;
   if (limit === null) return { limit: null, used: 0, remaining: null, planName };
 
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
+  // KST 기준 이달 1일 0시 (nts_issued_at 은 timestamptz — 오프셋 붙인 ISO 로 비교).
+  //   기존 UTC 월경계는 월초 9시간(00~09시 KST)이 전월로 잡혀 한도가 어긋나던 버그 — 현금영수증 카운트와 동일하게 KST 통일.
+  const monthStart = `${todayKst().slice(0, 7)}-01T00:00:00+09:00`;
   const { count } = await db
     .from('tax_invoices')
     .select('id', { count: 'exact', head: true })
     .eq('company_id', companyId)
     .eq('nts_issue_status', 'issued')
-    .gte('nts_issued_at', monthStart.toISOString());
+    .gte('nts_issued_at', monthStart);
   const used = count || 0;
   return { limit, used, remaining: Math.max(0, limit - used), planName };
 }
