@@ -103,8 +103,16 @@ async function main() {
   }
 
   // 4) 5초+ hung 쿼리 0 (커넥션풀 누적 없음).
+  //    ⚠️ 정상 Supabase Realtime WAL sender(application_name=realtime_replication_connection,
+  //       wait_event=WalSenderWaitForWal, query=START_REPLICATION ...)는 무기한 대기가 정상이라 오판 금지.
+  //       실제 client backend SQL 만 대상으로: backend_type='client backend' + replication/WAL sender 제외.
   const hungRes = await runSql(pat,
-    "SELECT count(*)::int AS h FROM pg_stat_activity WHERE state='active' AND now()-query_start > interval '5 seconds';");
+    `SELECT count(*)::int AS h FROM pg_stat_activity
+     WHERE state='active'
+       AND backend_type='client backend'
+       AND now()-query_start > interval '5 seconds'
+       AND coalesce(query,'') NOT ILIKE 'START_REPLICATION%'
+       AND coalesce(application_name,'') <> 'realtime_replication_connection';`);
   if (!hungRes.ok) checks.hung_5s = { ok: false, error: hungRes.error };
   else { const n = hungRes.data?.[0]?.h ?? -1; checks.hung_5s = { ok: n === 0, value: n }; }
 
