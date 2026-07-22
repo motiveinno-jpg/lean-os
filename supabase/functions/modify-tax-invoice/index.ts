@@ -77,30 +77,45 @@ serve(withSentry("modify-tax-invoice", async (req) => {
       return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const reasonCode = MODIFICATION_REASON_CODES[reason] || "01";
+    void MODIFICATION_REASON_CODES; // 국세청 코드값은 전송(hometax-issue) 단계에서 사용
     const modDate = modification_date || new Date().toISOString().slice(0, 10);
-    const supplyAmount = new_supply_amount ?? original.supply_amount;
-    const taxAmount = Math.round(supplyAmount * 0.1);
+    // 취소(전액 반대) = new_supply_amount 미지정 → 원본 음수. 부분 수정(공급가액 변동) = 지정값.
+    const hasNewAmount = new_supply_amount !== undefined && new_supply_amount !== null;
+    const supplyAmount = hasNewAmount ? Number(new_supply_amount) : -Number(original.supply_amount);
+    const taxAmount = hasNewAmount ? Math.round(Number(new_supply_amount) * 0.1) : -Number(original.tax_amount);
 
-    // Create modification record
+    // 수정세금계산서 레코드 생성 — 실제 tax_invoices 스키마(counterparty_*/type/tax_kind/settlement_status) 기준.
+    //   2026-07-22: 기존 코드가 존재하지 않는 컬럼(invoice_number/supplier_brn/buyer_brn/invoice_type/direction 등)에
+    //   insert + NOT NULL 컬럼(type/counterparty_name/tax_kind/nts_issue_status/settled_amount/settlement_status) 누락으로
+    //   무조건 실패("수정세금계산서 발행 실패")하던 것 수정.
     const { data: modified, error: insertErr } = await supabase
       .from("tax_invoices")
       .insert({
         company_id: original.company_id,
-        invoice_number: `M-${original.invoice_number}`,
-        issue_date: modDate,
-        supplier_brn: original.supplier_brn,
-        supplier_name: original.supplier_name,
-        buyer_brn: original.buyer_brn,
-        buyer_name: original.buyer_name,
+        type: original.type,
+        counterparty_name: original.counterparty_name,
+        counterparty_bizno: original.counterparty_bizno,
+        counterparty_business_type: original.counterparty_business_type,
+        counterparty_business_item: original.counterparty_business_item,
+        counterparty_representative: original.counterparty_representative,
+        counterparty_email: original.counterparty_email,
         supply_amount: supplyAmount,
         tax_amount: taxAmount,
         total_amount: supplyAmount + taxAmount,
-        invoice_type: "04", // 수정세금계산서
-        direction: original.direction,
-        modification_reason: reason,
-        modification_code: reasonCode,
+        issue_date: modDate,
+        tax_kind: original.tax_kind,
+        item_name: original.item_name,
+        label: `수정세금계산서 · ${reason}`,
+        partner_id: original.partner_id,
+        deal_id: original.deal_id,
+        source: original.source ?? "manual",
         original_invoice_id: original.id,
+        modification_reason: reason,
+        modification_date: modDate,
+        nts_issue_status: "draft",
+        settled_amount: 0,
+        settlement_status: original.settlement_status,
+        status: "draft",
       })
       .select()
       .maybeSingle();
@@ -109,10 +124,10 @@ serve(withSentry("modify-tax-invoice", async (req) => {
       return new Response(JSON.stringify({ error: `수정세금계산서 생성 실패: ${insertErr.message}` }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Mark original as modified
+    // 원본을 '수정됨'으로 표시 (modified_by_invoice_id 컬럼은 스키마에 없어 제거)
     await supabase
       .from("tax_invoices")
-      .update({ status: "modified", modified_by_invoice_id: modified.id })
+      .update({ status: "modified" })
       .eq("id", invoice_id);
 
     return new Response(JSON.stringify({
