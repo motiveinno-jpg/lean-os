@@ -25,7 +25,7 @@ import { SubDealsTab } from "./_components/SubDealsTab";
 import { getProjectTypeConfig, normalizeProjectType, type ProjectTabKey } from "@/lib/project-types";
 import { PerformanceTab } from "./_components/PerformanceTab";
 import { GoalOverviewTab } from "./_components/GoalOverviewTab";
-import { RadialGauge, WorkloadChart } from "@/components/charts";
+import { RadialGauge, WorkloadChart, BurnUpChart } from "@/components/charts";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
 import { createTaxInvoice } from "@/lib/tax-invoice";
@@ -2049,7 +2049,7 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
   const { data: tasks = [] } = useQuery({
     queryKey: ["project-tasks-overview", dealId],
     queryFn: async () => {
-      const data = logRead('[id]/page:data', await db.from("project_tasks").select("id, title, status, due_date, assignee_id, assignee_ids").eq("deal_id", dealId).is("archived_at", null));
+      const data = logRead('[id]/page:data', await db.from("project_tasks").select("id, title, status, due_date, assignee_id, assignee_ids, completed_at").eq("deal_id", dealId).is("archived_at", null));
       return (data || []) as any[];
     },
     enabled: !!dealId,
@@ -2128,6 +2128,24 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
     }
   }
 
+  // 번업 — 완료 시점(completed_at) 누적 vs 전체 스코프. 기간(시작·종료)이 있어야 이상 페이스/마감 판단.
+  let burnup: { actual: { x: number; y: number }[]; scope: number; totalDays: number; todayX: number } | null = null;
+  if (deal.start_date && deal.end_date && total > 0) {
+    const s = parseD(deal.start_date), e = parseD(deal.end_date), n = parseD(today);
+    const totalDays = Math.max(1, Math.round((e - s) / DAY));
+    const todayX = Math.max(0, Math.min(totalDays, Math.round((n - s) / DAY)));
+    const compByDay: Record<number, number> = {};
+    (tasks as any[]).forEach((t) => {
+      if (t.status !== "done" || !t.completed_at) return;
+      const x = Math.max(0, Math.min(todayX, Math.round((parseD(t.completed_at) - s) / DAY)));
+      compByDay[x] = (compByDay[x] || 0) + 1;
+    });
+    let acc = 0; const actual: { x: number; y: number }[] = [{ x: 0, y: 0 }];
+    for (let d = 0; d <= todayX; d++) { if (compByDay[d]) { acc += compByDay[d]; actual.push({ x: d, y: acc }); } }
+    if (actual[actual.length - 1].x !== todayX) actual.push({ x: todayX, y: acc });
+    burnup = { actual, scope: total, totalDays, todayX };
+  }
+
   const statusSegs = DELIVERY_STATUS_META.map((s) => ({ ...s, n: byStatus[s.key], bg: s.key === "todo" ? "var(--text-dim)" : s.key === "doing" ? "var(--info)" : s.key === "review" ? "var(--warning)" : "var(--success)" }));
   const runColor = runState === "완료" ? "var(--success)" : delayed > 0 ? "var(--warning)" : runState === "진행 중" ? "var(--info)" : "var(--text-dim)";
 
@@ -2159,6 +2177,20 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
         </div>
       </div>
 
+      {/* ② 번업 — 완료 누적 vs 전체 (기한 내 완료 판단) */}
+      {burnup && (
+        <div className="pj-sec glass-card">
+          <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">완료 번업</h3><span className="pj-sec-sub">완료 누적 vs 전체 · 점선(회색)=이상 페이스 · 위/아래로 앞섬·뒤처짐 판단</span></div></div>
+          <BurnUpChart actual={burnup.actual} scope={burnup.scope} totalDays={burnup.totalDays} todayX={burnup.todayX} />
+          <div className="pj-chart-legend">
+            <span className="k"><i style={{ background: "var(--primary)" }} />완료 누적</span>
+            <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: "var(--text-muted)" }} />이상 페이스</span>
+            <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: "var(--success)" }} />전체(스코프)</span>
+            <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: paceColor }} />마감 시 예상</span>
+          </div>
+        </div>
+      )}
+
       {/* ② 태스크 상태 스택 */}
       <div className="pj-sec glass-card">
         <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">태스크 상태</h3><span className="pj-sec-sub">전체 {total}건</span></div><span className="text-xs mono-number text-[var(--text-muted)]">{pct}%</span></div>
@@ -2171,19 +2203,6 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
           </div>
         </>)}
       </div>
-
-      {/* ② 마감 워크로드 */}
-      {workloadWeeks.length > 0 && (
-        <div className="pj-sec glass-card">
-          <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">마감 워크로드</h3><span className="pj-sec-sub">주별 예정 마감 · 완료/남음/지연</span></div></div>
-          <WorkloadChart weeks={workloadWeeks} todayIndex={workloadTodayIdx} />
-          <div className="pj-chart-legend">
-            <span className="k"><i style={{ background: "var(--success)" }} />완료</span>
-            <span className="k"><i style={{ background: "var(--text-dim)" }} />남은 태스크</span>
-            <span className="k"><i style={{ background: "var(--danger)" }} />지연(마감 초과·미완료)</span>
-          </div>
-        </div>
-      )}
 
       {/* ③ 다가오는 마감 + 담당자별 */}
       <div className="pj-two">
@@ -2234,6 +2253,17 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
           <span className="pj-detail-chev">▸</span>
         </summary>
         <div className="pj-detail-body">
+          {workloadWeeks.length > 0 && (
+            <div className="glass-card p-5">
+              <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">마감 워크로드</h3><span className="pj-sec-sub">주별 예정 마감 · 완료/남음/지연</span></div></div>
+              <WorkloadChart weeks={workloadWeeks} todayIndex={workloadTodayIdx} />
+              <div className="pj-chart-legend">
+                <span className="k"><i style={{ background: "var(--success)" }} />완료</span>
+                <span className="k"><i style={{ background: "var(--text-dim)" }} />남은 태스크</span>
+                <span className="k"><i style={{ background: "var(--danger)" }} />지연(마감 초과·미완료)</span>
+              </div>
+            </div>
+          )}
           <div className="execution-info-card glass-card">
             <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">실행 정보</h3></div>
             <div className="pj-kv">

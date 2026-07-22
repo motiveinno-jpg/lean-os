@@ -242,6 +242,66 @@ export function BarLineCombo({ buckets, unit, yUnit = "" }: { buckets: ComboBuck
   );
 }
 
+// ── 실행형 번업 (완료 누적 vs 스코프 · 이상 페이스 · 마감 시 예상) ──
+//   actual: 완료 누적점 {x:일차, y:누적완료}. scope: 전체 태스크. totalDays: 기간. todayX: 오늘 일차.
+export function BurnUpChart({ actual, scope, totalDays, todayX }: { actual: { x: number; y: number }[]; scope: number; totalDays: number; todayX: number }) {
+  const [hi, setHi] = useState<number | null>(null);
+  if (!actual.length || scope <= 0 || totalDays <= 0) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">표시할 데이터가 없습니다</div>;
+  const W = 760, H = 280, padL = 40, padR = 16, padT = 20, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const yMax = niceMax(scope * 1.12);
+  const sx = (x: number) => padL + Math.min(1, x / totalDays) * plotW;
+  const sy = (y: number) => padT + (1 - y / yMax) * plotH;
+  const done = actual[actual.length - 1]?.y ?? 0;
+  const line = actual.map((p, i) => `${i ? "L" : "M"}${sx(p.x).toFixed(1)} ${sy(p.y).toFixed(1)}`).join(" ");
+  const area = `${line} L${sx(actual[actual.length - 1].x).toFixed(1)} ${sy(0)} L${sx(actual[0].x).toFixed(1)} ${sy(0)} Z`;
+  // 마감 시 예상 완료 = 현재 속도(done/todayX) 유지 가정
+  const slope = todayX > 0 ? done / todayX : 0;
+  const projAtEnd = Math.max(0, Math.min(yMax, done + slope * (totalDays - todayX)));
+  const willMiss = projAtEnd < scope - 0.5 && done < scope;
+  const ticks = [0, 0.5, 1].map((f) => Math.round(scope * f));
+  const hp = hi != null ? actual[hi] : null;
+  return (
+    <div className="barcombo-wrap">
+      <svg viewBox={`0 0 ${W} ${H}`} className="barcombo-svg" role="img" aria-label="번업 — 완료 누적 대 전체">
+        {/* Y 눈금 */}
+        {ticks.map((yv, i) => (<g key={i}><line x1={padL} y1={sy(yv)} x2={W - padR} y2={sy(yv)} stroke={GRID} strokeWidth={1} /><text x={padL - 7} y={sy(yv) + 3.5} textAnchor="end" fontSize={10.5} fill={DIM}>{yv}</text></g>))}
+        {/* 스코프(전체) 상단선 */}
+        <line x1={padL} y1={sy(scope)} x2={W - padR} y2={sy(scope)} stroke={SUCCESS} strokeWidth={1.4} strokeDasharray="2 3" />
+        <text x={W - padR} y={sy(scope) - 6} textAnchor="end" fontSize={10.5} fontWeight={700} fill={SUCCESS}>전체 {scope}</text>
+        {/* 이상 페이스 (0,0)→(마감, 전체) */}
+        <line x1={sx(0)} y1={sy(0)} x2={sx(totalDays)} y2={sy(scope)} stroke={MUTED} strokeWidth={1.6} strokeDasharray="5 4" opacity={0.7} />
+        {/* 마감 세로선 */}
+        <line x1={sx(totalDays)} y1={padT} x2={sx(totalDays)} y2={H - padB} stroke={DIM} strokeWidth={1} />
+        <text x={sx(totalDays)} y={padT - 6} textAnchor="end" fontSize={10} fontWeight={700} fill={MUTED}>마감</text>
+        {/* 오늘 세로선 */}
+        {todayX < totalDays && (<><line x1={sx(todayX)} y1={padT - 2} x2={sx(todayX)} y2={H - padB} stroke={DIM} strokeWidth={1} strokeDasharray="3 3" /><text x={sx(todayX)} y={padT - 6} textAnchor="middle" fontSize={10} fontWeight={700} fill={MUTED}>오늘</text></>)}
+        {/* 실제 완료 누적 (면적+선) */}
+        <path d={area} fill="url(#burnA)" opacity={0.9} />
+        <path d={line} fill="none" stroke={PRIMARY} strokeWidth={2.6} strokeLinejoin="round" strokeLinecap="round" />
+        {/* 마감까지 예상(현 속도 유지) */}
+        {done > 0 && done < scope && todayX < totalDays && (
+          <line x1={sx(todayX)} y1={sy(done)} x2={sx(totalDays)} y2={sy(projAtEnd)} stroke={willMiss ? DANGER : SUCCESS} strokeWidth={1.8} strokeDasharray="4 3" />
+        )}
+        {/* 끝점 + 라벨 */}
+        <circle cx={sx(todayX)} cy={sy(done)} r={4.5} fill={PRIMARY} stroke="var(--bg-card)" strokeWidth={2} />
+        {/* hover 점 */}
+        {actual.map((p, i) => (<circle key={i} cx={sx(p.x)} cy={sy(p.y)} r={7} fill="transparent" style={{ cursor: "pointer" }} onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)} />))}
+        {/* X 라벨 */}
+        <text x={sx(0)} y={H - 10} textAnchor="start" fontSize={10} fill={DIM}>시작</text>
+        <text x={sx(totalDays)} y={H - 10} textAnchor="end" fontSize={10} fill={DIM}>마감</text>
+        <defs><linearGradient id="burnA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={PRIMARY} stopOpacity={0.26} /><stop offset="1" stopColor={PRIMARY} stopOpacity={0.02} /></linearGradient></defs>
+      </svg>
+      {hp && (
+        <div className="barcombo-tip" style={{ left: `${(sx(hp.x) / W) * 100}%`, top: `${(sy(hp.y) / H) * 100}%` }}>
+          <b>{hp.x}일차</b>
+          <div className="barcombo-tip-row"><i style={{ background: PRIMARY }} />완료 {hp.y} / {scope}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 실행형 마감 워크로드 (주별 예정 마감 태스크 스택) ──
 //   weeks: 주별 {완료 done · 남음 pending · 지연 over(마감초과·미완료)}. 스택 막대 + 오늘 경계.
 export type WorkloadWeek = { label: string; done: number; pending: number; over: number };
