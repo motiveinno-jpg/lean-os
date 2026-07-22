@@ -1776,48 +1776,53 @@ function MoneyFlow({ pipe, contractTotal, revenue, revenueBasis, actualCost, onO
   const flowBase = Math.max(contractTotal, billedAmt, 1);
   const pctOf = (v: number) => Math.max(0, Math.min(100, (v / flowBase) * 100));
   const margin = revenue - actualCost;
-  const structBase = Math.max(revenue, actualCost, 1);
   const marginRate = revenue > 0 ? Math.round((margin / revenue) * 100) : null;
   const flows = [
     { nm: "계약금액", v: contractTotal, w: contractTotal > 0 ? pctOf(contractTotal) : 0, color: "color-mix(in srgb, var(--viz-brand) 28%, transparent)", pct: null as number | null, off: 0 },
     { nm: "계산서 발행", v: billedAmt, w: pctOf(billedAmt), color: "var(--viz-brand)", pct: contractTotal > 0 ? Math.round((billedAmt / flowBase) * 100) : null, off: 0 },
     { nm: "실입금", v: paidAmt, w: pctOf(paidAmt), color: "var(--viz-pos)", pct: contractTotal > 0 ? Math.round((paidAmt / flowBase) * 100) : null, off: 0 },
   ];
+  const flagMissBill = contractTotal > 0 && billedAmt < contractTotal - 1;
   return (
-    <div className="pj-sec glass-card">
-      <div className="pj-sec-head">
-        <div><h3 className="text-sm font-bold text-[var(--text)]">돈 흐름</h3><span className="pj-sec-sub">계약 → 발행 → 입금 → 미수</span></div>
-        <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">계산서 열기 →</button>
-      </div>
-      <div className="pj-flow">
-        {flows.map((f) => (
-          <div key={f.nm}>
-            <div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">{f.nm}{f.pct != null && <span className="text-[10.5px] text-[var(--text-dim)] ml-1.5 font-normal">{f.pct}%</span>}</span><span className="mono-number font-bold text-[var(--text-muted)]">{f.v > 0 ? won(f.v) : "—"}</span></div>
-            <div className="pj-flow-track"><i style={{ width: `${f.w}%`, background: f.color }} /></div>
-          </div>
-        ))}
-        {outstanding > 1 && (
-          <div>
-            <div className="pj-flow-row-l"><span className="font-bold" style={{ color: "var(--viz-neg)" }}>미수금<span className="text-[10.5px] ml-1.5 font-normal">{Math.round((outstanding / flowBase) * 100)}%</span></span><span className="mono-number font-bold" style={{ color: "var(--viz-neg)" }}>{won(outstanding)}</span></div>
-            <div className="pj-flow-track"><i style={{ width: `${pctOf(outstanding)}%`, marginLeft: `${pctOf(paidAmt)}%`, background: "var(--viz-neg)" }} /></div>
-          </div>
-        )}
-      </div>
-      <div className="pj-flow-struct">
-        <div>
-          <div className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-dim)] mb-2.5">수익 구조 <span className="font-normal normal-case">({revenueBasis})</span></div>
-          <div className="pj-flow">
-            <div><div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">매출</span><span className="mono-number font-bold text-[var(--text-muted)]">{won(revenue)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.min(100, (revenue / structBase) * 100)}%`, background: "var(--viz-info)" }} /></div></div>
-            <div><div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">확정 비용</span><span className="mono-number font-bold text-[var(--text-muted)]">{won(actualCost)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.min(100, (actualCost / structBase) * 100)}%`, background: "var(--viz-warn)" }} /></div></div>
-            <div><div className="pj-flow-row-l"><span className="font-bold" style={{ color: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }}>= 마진{marginRate != null && <span className="font-normal ml-1">({marginRate}%)</span>}</span><span className="mono-number font-bold" style={{ color: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }}>{won(margin)}</span></div><div className="pj-flow-track"><i style={{ width: `${Math.max(0, Math.min(100, (margin / structBase) * 100))}%`, background: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }} /></div></div>
-          </div>
+    <div className="pj-report">
+      {/* 좌: 돈 흐름 바 */}
+      <section className="pj-report-main glass-card">
+        <div className="pj-sec-head">
+          <div><h3 className="text-sm font-bold text-[var(--text)]">돈 흐름</h3><span className="pj-sec-sub">계약 → 발행 → 입금 → 미수</span></div>
+          <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">계산서 →</button>
         </div>
-        <div className="flex flex-col justify-center gap-2">
-          {actualCost === 0 && <div className="text-[11.5px] text-[var(--text-dim)]">비용을 프로젝트에 태그하면 <b className="text-[var(--text-muted)]">확정 마진</b>이 채워집니다.</div>}
-          {revenue > 0 && actualCost > 0 && margin < 0 && <div className="text-[12px] rounded-lg px-3 py-2 bg-[var(--danger)]/8 text-[var(--danger)] font-semibold">⚠ 비용이 매출을 초과 — 적자 프로젝트</div>}
-          {contractTotal > 0 && billedAmt < contractTotal - 1 && <div className="text-[12px] rounded-lg px-3 py-2 bg-[var(--warning)]/8 text-[var(--warning)] font-semibold">계약 대비 계산서 미발행 {won(contractTotal - billedAmt)}</div>}
+        <div className="pj-flow">
+          {flows.map((f) => (
+            <div key={f.nm}>
+              <div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">{f.nm}{f.pct != null && <span className="text-[10.5px] text-[var(--text-dim)] ml-1.5 font-normal">{f.pct}%</span>}</span><span className="mono-number font-bold text-[var(--text-muted)]">{f.v > 0 ? won(f.v) : "—"}</span></div>
+              <div className="pj-flow-track"><i style={{ width: `${f.w}%`, background: f.color }} /></div>
+            </div>
+          ))}
+          {outstanding > 1 && (
+            <div>
+              <div className="pj-flow-row-l"><span className="font-bold" style={{ color: "var(--viz-neg)" }}>미수금<span className="text-[10.5px] ml-1.5 font-normal">{Math.round((outstanding / flowBase) * 100)}%</span></span><span className="mono-number font-bold" style={{ color: "var(--viz-neg)" }}>{won(outstanding)}</span></div>
+              <div className="pj-flow-track"><i style={{ width: `${pctOf(outstanding)}%`, marginLeft: `${pctOf(paidAmt)}%`, background: "var(--viz-neg)" }} /></div>
+            </div>
+          )}
         </div>
-      </div>
+      </section>
+      {/* 우: 핵심 지표(수익 구조) + 자동 점검 */}
+      <section className="pj-report-side glass-card">
+        <div className="text-sm font-bold text-[var(--text)] mb-3">핵심 지표 <span className="text-[11px] font-normal text-[var(--text-dim)]">({revenueBasis})</span></div>
+        <div className="pj-figs">
+          <div><div className="pj-fig-l">매출</div><div className="pj-fig-v text-[var(--text)]">{won(revenue)}</div></div>
+          <div><div className="pj-fig-l">확정 비용</div><div className="pj-fig-v text-[var(--text)]">{won(actualCost)}</div></div>
+          <div><div className="pj-fig-l">마진</div><div className="pj-fig-v" style={{ color: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }}>{won(margin)}</div></div>
+          <div><div className="pj-fig-l">마진율</div><div className="pj-fig-v" style={{ color: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }}>{marginRate == null ? "—" : `${marginRate}%`}</div></div>
+        </div>
+        <div className="flex flex-col gap-1.5 mt-4 pt-3 border-t border-[var(--border)]">
+          {actualCost === 0 && <div className="text-[11.5px] text-[var(--text-dim)]">비용을 태그하면 <b className="text-[var(--text-muted)]">확정 마진</b>이 채워집니다.</div>}
+          {revenue > 0 && actualCost > 0 && margin < 0 && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--danger)]/8 text-[var(--danger)] font-semibold">⚠ 비용이 매출 초과 — 적자</div>}
+          {flagMissBill && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--warning)]/8 text-[var(--warning)] font-semibold">계약 대비 미발행 {won(contractTotal - billedAmt)}</div>}
+          {outstanding > 1 && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--danger)]/8 text-[var(--danger)] font-semibold">미수금 {won(outstanding)}</div>}
+          {actualCost > 0 && margin >= 0 && !flagMissBill && outstanding <= 1 && <div className="text-[11.5px] text-[var(--text-dim)] flex items-center gap-1.5"><span style={{ color: "var(--viz-pos)" }}>✓</span> 특이사항 없음</div>}
+        </div>
+      </section>
     </div>
   );
 }
@@ -2177,72 +2182,74 @@ function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { de
         </div>
       </div>
 
-      {/* ② 번업 — 완료 누적 vs 전체 (기한 내 완료 판단) */}
-      {burnup && (
-        <div className="pj-sec glass-card">
-          <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">완료 번업</h3><span className="pj-sec-sub">완료 누적 vs 전체 · 점선(회색)=이상 페이스 · 위/아래로 앞섬·뒤처짐 판단</span></div></div>
-          <BurnUpChart actual={burnup.actual} scope={burnup.scope} totalDays={burnup.totalDays} todayX={burnup.todayX} />
-          <div className="pj-chart-legend">
-            <span className="k"><i style={{ background: "var(--primary)" }} />완료 누적</span>
-            <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: "var(--text-muted)" }} />이상 페이스</span>
-            <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: "var(--success)" }} />전체(스코프)</span>
-            <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: paceColor }} />마감 시 예상</span>
-          </div>
-        </div>
-      )}
+      {/* ②③ 보고서형 2단 — 좌: 번업 그래프 / 우: 태스크 상태 + 담당자별 */}
+      <div className="pj-report">
+        <section className="pj-report-main glass-card">
+          {burnup ? (<>
+            <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">완료 번업</h3><span className="pj-sec-sub">완료 누적 vs 전체 · 점선=이상 페이스</span></div></div>
+            <BurnUpChart actual={burnup.actual} scope={burnup.scope} totalDays={burnup.totalDays} todayX={burnup.todayX} />
+            <div className="pj-chart-legend">
+              <span className="k"><i style={{ background: "var(--viz-brand)" }} />완료 누적</span>
+              <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: "var(--text-muted)" }} />이상 페이스</span>
+              <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: "var(--viz-pos)" }} />전체</span>
+              <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: paceColor }} />마감 시 예상</span>
+            </div>
+          </>) : (<>
+            <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">태스크 상태</h3><span className="pj-sec-sub">전체 {total}건</span></div></div>
+            {total === 0 ? <p className="text-xs text-[var(--text-dim)]">아직 태스크가 없습니다. ‘태스크’ 탭에서 추가하세요.</p> : (<>
+              <div className="pj-stack">{statusSegs.filter((s) => s.n > 0).map((s) => (<div key={s.key} className="seg" style={{ flex: s.n, background: s.bg }}>{s.n}</div>))}</div>
+              <div className="pj-chart-legend">{statusSegs.map((s) => (<span key={s.key} className="k"><i style={{ background: s.bg }} />{s.label} {s.n}</span>))}</div>
+              <p className="text-[11px] text-[var(--text-dim)] mt-3">기간(시작·종료일)을 설정하면 완료 번업 그래프가 표시됩니다.</p>
+            </>)}
+          </>)}
+        </section>
 
-      {/* ② 태스크 상태 스택 */}
-      <div className="pj-sec glass-card">
-        <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">태스크 상태</h3><span className="pj-sec-sub">전체 {total}건</span></div><span className="text-xs mono-number text-[var(--text-muted)]">{pct}%</span></div>
-        {total === 0 ? <p className="text-xs text-[var(--text-dim)]">아직 태스크가 없습니다. ‘태스크’ 탭에서 추가하세요.</p> : (<>
-          <div className="pj-stack">
-            {statusSegs.filter((s) => s.n > 0).map((s) => (<div key={s.key} className="seg" style={{ flex: s.n, background: s.bg }}>{s.n}</div>))}
-          </div>
-          <div className="pj-chart-legend">
-            {statusSegs.map((s) => (<span key={s.key} className="k"><i style={{ background: s.bg }} />{s.label} {s.n}</span>))}
-          </div>
-        </>)}
-      </div>
-
-      {/* ③ 다가오는 마감 + 담당자별 */}
-      <div className="pj-two">
-        <div className="pj-sec glass-card">
-          <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">다가오는 마감</h3></div><Link href={`/projecthub/${dealId}?tab=tasks`} className="text-[11px] text-[var(--primary)] hover:underline">태스크 탭 →</Link></div>
-          {upcoming.length === 0 ? (
-            <p className="text-xs text-[var(--text-dim)]">마감일이 지정된 미완료 태스크가 없습니다.</p>
-          ) : (
-            <div className="divide-y divide-[var(--border)]/40">
-              {upcoming.map((t) => {
-                const late = String(t.due_date).slice(0, 10) < today;
-                return (
-                  <div key={t.id} className="upcoming-deadline-row">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold mono-number shrink-0 ${late ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{dday(t.due_date)}</span>
-                    <span className="flex-1 truncate text-[var(--text)]">{t.title || "(제목 없음)"}</span>
-                    <span className="text-[11px] text-[var(--text-dim)] shrink-0">{assigneesOf(t).map(userName).join(", ") || "미지정"}</span>
-                  </div>
-                );
-              })}
+        <section className="pj-report-side glass-card gap-4">
+          {burnup && total > 0 && (
+            <div>
+              <div className="text-sm font-bold text-[var(--text)] mb-2">태스크 상태 <span className="text-[11px] font-normal text-[var(--text-dim)]">{pct}%</span></div>
+              <div className="pj-stack">{statusSegs.filter((s) => s.n > 0).map((s) => (<div key={s.key} className="seg" style={{ flex: s.n, background: s.bg }}>{s.n}</div>))}</div>
+              <div className="pj-chart-legend">{statusSegs.map((s) => (<span key={s.key} className="k"><i style={{ background: s.bg }} />{s.label} {s.n}</span>))}</div>
             </div>
           )}
-        </div>
-        {assigneeRows.length > 0 ? (
-          <div className="pj-sec glass-card">
-            <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">담당자별 현황</h3></div></div>
-            <div className="space-y-2.5">
-              {assigneeRows.map(([id, v]) => {
-                const p = v.total > 0 ? Math.round((v.done / v.total) * 100) : 0;
-                return (
-                  <div key={id} className="assignee-progress-row">
-                    <span className="text-xs text-[var(--text)] w-24 truncate shrink-0">{userName(id)}</span>
-                    <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden"><div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${p}%` }} /></div>
-                    <span className="text-[11px] mono-number text-[var(--text-muted)] w-14 text-right shrink-0">{v.done} / {v.total}</span>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="flex-1">
+            <div className="text-sm font-bold text-[var(--text)] mb-2.5">담당자별 현황</div>
+            {assigneeRows.length === 0 ? <p className="text-xs text-[var(--text-dim)]">담당자가 지정된 태스크가 없습니다.</p> : (
+              <div className="space-y-2.5">
+                {assigneeRows.map(([id, v]) => {
+                  const p = v.total > 0 ? Math.round((v.done / v.total) * 100) : 0;
+                  return (
+                    <div key={id} className="assignee-progress-row">
+                      <span className="text-xs text-[var(--text)] w-20 truncate shrink-0">{userName(id)}</span>
+                      <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden"><div className="h-full rounded-full bg-[var(--viz-brand)]" style={{ width: `${p}%` }} /></div>
+                      <span className="text-[11px] mono-number text-[var(--text-muted)] w-12 text-right shrink-0">{v.done}/{v.total}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+        </section>
+      </div>
+
+      {/* ③ 다가오는 마감 (전폭) */}
+      <div className="pj-sec glass-card">
+        <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">다가오는 마감</h3></div><Link href={`/projecthub/${dealId}?tab=tasks`} className="text-[11px] text-[var(--primary)] hover:underline">태스크 탭 →</Link></div>
+        {upcoming.length === 0 ? (
+          <p className="text-xs text-[var(--text-dim)]">마감일이 지정된 미완료 태스크가 없습니다.</p>
         ) : (
-          <div className="pj-sec glass-card flex items-center justify-center text-xs text-[var(--text-dim)]">담당자가 지정된 태스크가 없습니다.</div>
+          <div className="divide-y divide-[var(--border)]/40">
+            {upcoming.map((t) => {
+              const late = String(t.due_date).slice(0, 10) < today;
+              return (
+                <div key={t.id} className="upcoming-deadline-row">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold mono-number shrink-0 ${late ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{dday(t.due_date)}</span>
+                  <span className="flex-1 truncate text-[var(--text)]">{t.title || "(제목 없음)"}</span>
+                  <span className="text-[11px] text-[var(--text-dim)] shrink-0">{assigneesOf(t).map(userName).join(", ") || "미지정"}</span>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 

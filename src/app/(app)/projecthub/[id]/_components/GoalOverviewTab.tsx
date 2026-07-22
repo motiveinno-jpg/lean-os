@@ -225,72 +225,67 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
         </div>
       </div>
 
-      {/* ② 핵심 그래프 — 기간별 실적 vs 목표 (일/주/월 콤보) */}
-      <section className="goal-overview-trend-card glass-card">
-        <div className="goal-chart-head">
-          <div>
-            <h3 className="text-sm font-bold text-[var(--text)]">기간별 실적 vs 목표</h3>
-            <span className="text-[11px] text-[var(--text-dim)]">막대가 목표선 위면 그 기간 목표 달성 · 아래면 미달</span>
-          </div>
-          <div className="goal-chart-ctrls">
-            <div className="goal-unit-seg">
-              {([["day", "일별"], ["week", "주별"], ["month", "월별"]] as const).map(([u, l]) => (
-                <button key={u} onClick={() => setChartUnit(u)} className={chartUnit === u ? "on" : ""}>{l}</button>
-              ))}
+      {/* ②③ 보고서형 2단 — 좌: 기간별 실적 그래프 / 우: KPI 현황(뒤처진 것 위로) */}
+      <div className="pj-report">
+        <section className="pj-report-main glass-card">
+          <div className="goal-chart-head">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text)]">기간별 실적 vs 목표</h3>
+              <span className="text-[11px] text-[var(--text-dim)]">막대가 목표선 위면 달성 · 아래면 미달</span>
             </div>
-            <select value={selKpi?.id || ""} onChange={(e) => setTrendKpiId(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]">
-              {kpiList.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
-            </select>
-          </div>
-        </div>
-        {!selHasSeries ? (
-          <div className="text-xs text-[var(--text-dim)] py-8 text-center">이 KPI는 기간별 시계열을 제공하지 않습니다(이익/건수 자동). 목표 대비 현재 달성률은 아래 KPI 현황을 참고하세요.</div>
-        ) : !chartHasData ? (
-          <div className="text-xs text-[var(--text-dim)] py-8 text-center">아직 기록된 실적이 없습니다. ‘성과’ 탭에서 실적을 입력하면 기간별로 표시됩니다.</div>
-        ) : (
-          <>
-            <BarLineCombo buckets={chartBuckets!} unit={chartUnit} yUnit={selKpi?.unit || ""} />
-            <div className="goal-chart-legend">
-              <span className="k"><i className="sw" style={{ background: "var(--success)" }} />목표 달성 기간</span>
-              <span className="k"><i className="sw" style={{ background: AMBER }} />목표 미달 기간</span>
-              <span className="k"><i className="sw line" />기간 목표(페이스)</span>
-              <span className="k"><i className="sw dashed" />남은 기간(목표)</span>
-              {selKpi?.unit && <span className="text-[var(--text-dim)] ml-auto">단위: {selKpi.unit} / {chartUnit === "day" ? "일" : chartUnit === "week" ? "주" : "월"}</span>}
+            <div className="goal-chart-ctrls">
+              <div className="goal-unit-seg">
+                {([["day", "일별"], ["week", "주별"], ["month", "월별"]] as const).map(([u, l]) => (
+                  <button key={u} onClick={() => setChartUnit(u)} className={chartUnit === u ? "on" : ""}>{l}</button>
+                ))}
+              </div>
+              <select value={selKpi?.id || ""} onChange={(e) => setTrendKpiId(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]">
+                {kpiList.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+              </select>
             </div>
-          </>
-        )}
-      </section>
+          </div>
+          {!selHasSeries ? (
+            <div className="text-xs text-[var(--text-dim)] py-8 text-center">이 KPI는 기간별 시계열을 제공하지 않습니다(이익/건수 자동). 목표 대비 현재 달성률은 우측 KPI 현황을 참고하세요.</div>
+          ) : !chartHasData ? (
+            <div className="text-xs text-[var(--text-dim)] py-8 text-center">아직 기록된 실적이 없습니다. ‘성과’ 탭에서 실적을 입력하면 표시됩니다.</div>
+          ) : (
+            <>
+              <BarLineCombo buckets={chartBuckets!} unit={chartUnit} yUnit={selKpi?.unit || ""} />
+              <div className="goal-chart-legend">
+                <span className="k"><i className="sw" style={{ background: "var(--viz-pos)" }} />달성</span>
+                <span className="k"><i className="sw" style={{ background: AMBER }} />미달</span>
+                <span className="k"><i className="sw line" />목표</span>
+                <span className="k"><i className="sw dashed" />남은 기간</span>
+                {selKpi?.unit && <span className="text-[var(--text-dim)] ml-auto">단위: {selKpi.unit} / {chartUnit === "day" ? "일" : chartUnit === "week" ? "주" : "월"}</span>}
+              </div>
+            </>
+          )}
+        </section>
 
-      {/* ③ KPI 현황 — 위험(낮은 달성) 우선, 페이스 표시 */}
-      <section className="goal-overview-kpi-section">
-        <div className="flex items-center gap-2 mb-2">
-          <h3 className="text-sm font-bold text-[var(--text)]">KPI 현황</h3>
-          <span className="text-[11px] text-[var(--text-dim)]">· 뒤처진 지표를 위로</span>
-        </div>
-        <div className="goal-overview-kpi-grid">
-          {rows.map(({ k, actual, pct, projPct }) => (
-            <div key={k.id} className="goal-overview-kpi-card glass-card">
-              <div className="goal-overview-kpi-card-header">
-                <span className="text-sm font-semibold text-[var(--text)] truncate">{k.label}</span>
-                {k.source !== "manual" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] shrink-0">{KPI_SOURCE_LABEL[k.source]}</span>}
-              </div>
-              <div className="goal-overview-kpi-card-values">
-                <div className="text-xs text-[var(--text-muted)]">
-                  <span className="mono-number text-[var(--text)] font-bold text-sm">{fmtNum(actual, k.unit)}</span>
-                  <span className="text-[var(--text-dim)]"> / {fmtNum(Number(k.target_value), k.unit)}</span>
+        <section className="pj-report-side glass-card">
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-sm font-bold text-[var(--text)]">KPI 현황</h3>
+            <span className="text-[11px] text-[var(--text-dim)]">뒤처진 것 위로</span>
+          </div>
+          <div className="flex-1">
+            {rows.map(({ k, actual, pct, projPct }) => (
+              <div key={k.id} className="pj-kpi-row">
+                <div className="pj-kpi-row-top">
+                  <span className="text-[12.5px] font-semibold text-[var(--text)] truncate">{k.label}
+                    {k.source !== "manual" && <span className="text-[9px] px-1 py-0.5 ml-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] align-middle">{KPI_SOURCE_LABEL[k.source]}</span>}
+                  </span>
+                  <span className="text-[15px] font-extrabold mono-number shrink-0" style={{ color: statusColor(pct) }}>{pct == null ? "—" : `${pct}%`}</span>
                 </div>
-                <span className="text-lg font-extrabold mono-number" style={{ color: statusColor(pct) }}>{pct == null ? "—" : `${pct}%`}</span>
+                <ProgressBar pct={pct} height={6} />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10.5px] text-[var(--text-muted)] mono-number truncate">{fmtNum(actual, k.unit)} <span className="text-[var(--text-dim)]">/ {fmtNum(Number(k.target_value), k.unit)}</span></span>
+                  {projPct != null && <span className="text-[10.5px] font-bold shrink-0" style={{ color: projPct >= 100 ? "var(--viz-pos)" : projPct >= 90 ? AMBER : DANGER }}>{projPct >= 100 ? "▲" : "▼"} 예상 {projPct}%</span>}
+                </div>
               </div>
-              <ProgressBar pct={pct} />
-              {projPct != null && (
-                <span className="goal-kpi-pace" style={{ color: projPct >= 100 ? "var(--success)" : projPct >= 90 ? AMBER : DANGER }}>
-                  {projPct >= 100 ? "▲" : "▼"} 이 페이스면 목표의 {projPct}% 예상
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      </div>
 
       {/* ④ 상세 분석 — 이슈·지연 · 분해 · 기여 · 체크인 (접기, 요약 카운트는 항상 노출) */}
       <details className="goal-overview-details glass-card">

@@ -2788,6 +2788,15 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pj-chart-legend i { @apply w-2.5 h-2.5 rounded-[3px] inline-block; }
 .pj-two { @apply grid gap-5 lg:grid-cols-2; }
 .pj-kv { @apply grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 text-sm; }
+/* 보고서형 2단 — 좌측 그래프(~60%) · 우측 지표(~40%)로 밀도 있게(2026-07-22) */
+.pj-report { @apply grid gap-4 lg:grid-cols-5 items-stretch; }
+.pj-report-main { @apply lg:col-span-3 p-4; }
+.pj-report-side { @apply lg:col-span-2 p-4 flex flex-col; }
+.pj-figs { @apply grid grid-cols-2 gap-x-4 gap-y-3; }
+.pj-fig-l { @apply text-[10.5px] font-semibold text-[var(--text-dim)]; }
+.pj-fig-v { @apply text-[15px] font-extrabold leading-tight; font-variant-numeric: tabular-nums; }
+.pj-kpi-row { @apply flex flex-col gap-1 py-2 border-t border-[var(--border)]/50 first:border-0 first:pt-0; }
+.pj-kpi-row-top { @apply flex items-center justify-between gap-2; }
 .issues-tab { @apply space-y-3; }
 .issues-toolbar { @apply flex items-center justify-between gap-2 flex-wrap; }
 .issues-loading-state { @apply p-10 text-center text-sm text-[var(--text-muted)]; }
