@@ -38,7 +38,8 @@ export default function ProjectHubPage() {
   const [editDeal, setEditDeal] = useState<any | null>(null);
   const [delDeal, setDelDeal] = useState<any | null>(null);
   // 콕핏(2026-07-22) — "지금 챙길 것" 렌즈 필터 + 카드 ⋯메뉴 열림 상태
-  const [lens, setLens] = useState<null | "risk" | "due" | "progress" | "receivable">(null);
+  // 4번째 렌즈는 유형별로 달라짐 — 수익형/전체=미수금, 목표형=달성 저조, 실행형=지연 과제
+  const [lens, setLens] = useState<null | "risk" | "due" | "progress" | "receivable" | "goalBehind" | "delayed">(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
@@ -299,6 +300,10 @@ export default function ProjectHubPage() {
     //   실사용 패턴 대응 — 견적 단계라도 아직 안 끝났으면 진행중으로 본다(2026-07-22).
     if (lens === "progress") return !isDone(d);
     if (lens === "receivable") return (outstandingByDeal[d.id] || 0) > 1;
+    // 목표형 전용 — 종합 달성률이 목표 절반 미만(달성 저조)
+    if (lens === "goalBehind") { const h = heroByDeal[d.id]; return !isDone(d) && h?.raw != null && h.raw < 0.5; }
+    // 실행형 전용 — 마감 지난 미완료 태스크 있음(지연 과제)
+    if (lens === "delayed") return !isDone(d) && !!heroByDeal[d.id]?.delayed;
     return true;
   };
   // 긴급도 랭크(낮을수록 위) — 위험 → 이번주마감 → 미수 → 나머지 → 완료
@@ -374,8 +379,10 @@ export default function ProjectHubPage() {
       due: lensScope.filter(isDueSoon).length,
       progress: lensScope.filter((d) => !isDone(d)).length,
       receivableSum, receivableCount,
+      goalBehind: lensScope.filter((d) => { const h = heroByDeal[d.id]; return !isDone(d) && h?.raw != null && h.raw < 0.5; }).length,
+      delayed: lensScope.filter((d) => !isDone(d) && !!heroByDeal[d.id]?.delayed).length,
     };
-  }, [lensScope, outstandingByDeal]);
+  }, [lensScope, outstandingByDeal, heroByDeal]);
 
   // 2026-07-20 QA: 유형 칩 카운트가 내담당·검색 필터를 무시해 "전체 7"인데 KPI·목록은 0으로
   //   따로 놀던 혼란 — 칩도 동일한 기준(typeFilter 제외한 나머지 필터)을 따르게 한다.
@@ -462,7 +469,7 @@ export default function ProjectHubPage() {
           .map(([key, label, count]) => {
             const active = typeFilter === key;
             return (
-              <button key={key} onClick={() => setTypeFilter(key as "all" | ProjectType)}
+              <button key={key} onClick={() => { setTypeFilter(key as "all" | ProjectType); setLens(null); }}
                 className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${active ? "bg-[var(--primary)] text-white shadow-sm" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]"}`}>
                 {label} <span className={active ? "opacity-80" : "text-[var(--text-dim)]"}>{count}</span>
               </button>
@@ -538,12 +545,29 @@ export default function ProjectHubPage() {
             <div className="ph-lens-sub">완료·정산 전 진행 중</div>
             <span className="ph-lens-go">목록 필터 ↓</span>
           </button>
-          <button onClick={() => setLens(lens === "receivable" ? null : "receivable")} className={`ph-lens glass-card ${lens === "receivable" ? "ph-lens-on" : ""}`}>
-            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />{mineOnly ? "내 미수금" : "미수금"}</span>
-            <div className="ph-lens-num text-[var(--danger)] !text-[19px] !mt-2.5">{lensCounts.receivableCount > 0 ? won(lensCounts.receivableSum) : "₩0"}</div>
-            <div className="ph-lens-sub">발행했지만 미입금 · {lensCounts.receivableCount}건</div>
-            <span className="ph-lens-go">목록 필터 ↓</span>
-          </button>
+          {/* 4번째 렌즈 — 유형 목적별: 수익형/전체=미수금(돈) · 목표형=달성 저조 · 실행형=지연 과제 */}
+          {(typeFilter === "all" || typeFilter === "margin") ? (
+            <button onClick={() => setLens(lens === "receivable" ? null : "receivable")} className={`ph-lens glass-card ${lens === "receivable" ? "ph-lens-on" : ""}`}>
+              <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />{mineOnly ? "내 미수금" : "미수금"}</span>
+              <div className="ph-lens-num text-[var(--danger)] !text-[19px] !mt-2.5">{lensCounts.receivableCount > 0 ? won(lensCounts.receivableSum) : "₩0"}</div>
+              <div className="ph-lens-sub">발행했지만 미입금 · {lensCounts.receivableCount}건</div>
+              <span className="ph-lens-go">목록 필터 ↓</span>
+            </button>
+          ) : typeFilter === "goal" ? (
+            <button onClick={() => setLens(lens === "goalBehind" ? null : "goalBehind")} className={`ph-lens glass-card ${lens === "goalBehind" ? "ph-lens-on" : ""}`}>
+              <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />달성 저조</span>
+              <div className="ph-lens-num text-[var(--danger)]">{lensCounts.goalBehind}</div>
+              <div className="ph-lens-sub">종합 달성률 목표 절반 미만</div>
+              <span className="ph-lens-go">목록 필터 ↓</span>
+            </button>
+          ) : (
+            <button onClick={() => setLens(lens === "delayed" ? null : "delayed")} className={`ph-lens glass-card ${lens === "delayed" ? "ph-lens-on" : ""}`}>
+              <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />지연 과제</span>
+              <div className="ph-lens-num text-[var(--danger)]">{lensCounts.delayed}</div>
+              <div className="ph-lens-sub">마감 지난 미완료 태스크</div>
+              <span className="ph-lens-go">목록 필터 ↓</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -567,7 +591,7 @@ export default function ProjectHubPage() {
         <div>
           {lens && (
             <button onClick={() => setLens(null)} className="ph-filter-pill">
-              {lens === "risk" ? "🔴 위험·지연" : lens === "due" ? "⏰ 이번 주 마감" : lens === "progress" ? "🔵 진행중" : "💸 미수금"}{" "}
+              {lens === "risk" ? "🔴 위험·지연" : lens === "due" ? "⏰ 이번 주 마감" : lens === "progress" ? "🔵 진행중" : lens === "goalBehind" ? "🎯 달성 저조" : lens === "delayed" ? "💤 지연 과제" : "💸 미수금"}{" "}
               {lens === "receivable" ? `${lensCounts.receivableCount}건만` : `${rows.length}건만`} 보는 중 · 해제 ✕
             </button>
           )}
