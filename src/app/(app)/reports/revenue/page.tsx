@@ -122,8 +122,8 @@ export default function RevenuePage() {
               <MonthlyCompareCard title="월별 매출 · 전년 비교" rows={compareRows} accent="var(--success)" onRowClick={(mn) => setDetailMonth(mn)} />
             </div>
             <div className="report-col">
-              {/* 어디서 벌었나 — 거래처 TOP (비중 %) */}
-              <Section title="거래처별 매출" desc="올해 상위 거래처" right={<Link href="/partners" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">거래처 관리 →</Link>}>
+              {/* 거래처별 구성 + 미수금 — 한 카드로 통합(막대 + 하위 지표) */}
+              <Section title="거래처별 매출" desc="올해 상위 거래처와 아직 못 받은 돈(미수금)" right={<Link href="/partners" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">거래처 관리 →</Link>}>
                 {top.length === 0 ? (
                   <div className="text-xs text-[var(--text-dim)] py-6 text-center">올해 매출 세금계산서가 없습니다.</div>
                 ) : (
@@ -141,23 +141,22 @@ export default function RevenuePage() {
                     <div className="lp-bar-foot"><span>상위 {top.length}곳 합계</span><span className="mono-number font-semibold text-[var(--text-muted)]">{fmt(topSum)}</span></div>
                   </>
                 )}
-              </Section>
-
-              {/* 핵심 지표 — 미수금 (2 타일) */}
-              <Section title="미수금" desc="아직 못 받은 돈 (회수 예정)">
-                <div className="lp-tile-grid">
-                  <div className="stat-tile">
-                    <div className="stat-tile-label">미수금 합계</div>
-                    <div className="stat-tile-value mono-number text-[var(--text)]">{fmt(salesData?.arTotal ?? 0)}</div>
+                <div className="lp-subsection">
+                  <div className="lp-subsection-title">미수금 <span className="font-normal text-[var(--text-dim)]">아직 못 받은 돈 (회수 예정)</span></div>
+                  <div className="lp-tile-grid">
+                    <div className="stat-tile">
+                      <div className="stat-tile-label">미수금 합계</div>
+                      <div className="stat-tile-value mono-number text-[var(--text)]">{fmt(salesData?.arTotal ?? 0)}</div>
+                    </div>
+                    <Link href="/partners/ledger" className="revenue-ar-over30-tile stat-tile" style={{ borderColor: (salesData?.arOver30 ?? 0) > 0 ? "color-mix(in srgb, var(--danger) 30%, transparent)" : undefined }}>
+                      <div className="stat-tile-label">30일 이상 경과</div>
+                      <div className="stat-tile-value mono-number" style={{ color: (salesData?.arOver30 ?? 0) > 0 ? "var(--danger)" : "var(--text)" }}>{fmt(salesData?.arOver30 ?? 0)}</div>
+                    </Link>
                   </div>
-                  <Link href="/partners/ledger" className="revenue-ar-over30-tile stat-tile" style={{ borderColor: (salesData?.arOver30 ?? 0) > 0 ? "color-mix(in srgb, var(--danger) 30%, transparent)" : undefined }}>
-                    <div className="stat-tile-label">30일 이상 경과</div>
-                    <div className="stat-tile-value mono-number" style={{ color: (salesData?.arOver30 ?? 0) > 0 ? "var(--danger)" : "var(--text)" }}>{fmt(salesData?.arOver30 ?? 0)}</div>
-                  </Link>
+                  {(salesData?.arOver30 ?? 0) > 0 && (
+                    <div className="text-[11px] text-[var(--danger)] mt-2">30일 이상 경과한 미수금이 있습니다 — 거래처 원장에서 회수를 관리하세요.</div>
+                  )}
                 </div>
-                {(salesData?.arOver30 ?? 0) > 0 && (
-                  <div className="text-[11px] text-[var(--danger)] mt-2">30일 이상 경과한 미수금이 있습니다 — 거래처 원장에서 회수를 관리하세요.</div>
-                )}
               </Section>
             </div>
           </div>

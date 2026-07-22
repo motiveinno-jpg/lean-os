@@ -98,8 +98,8 @@ export default function ExpensePage() {
               <MonthlyCompareCard title="월별 비용 · 전년 비교" rows={compareRows} accent="var(--warning)" onRowClick={(mn) => setDetailMonth(mn)} />
             </div>
             <div className="report-col">
-              {/* 어디에 썼나 — 카테고리 (비중 %) — 매출 탭의 '거래처별'과 동일 구조 */}
-              <Section title="비용 항목별 구성" desc="올해 상위 지출 항목" right={<Link href="/reports/costs" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">상세 비용 분석 →</Link>}>
+              {/* 항목별 구성 + 고정/변동 — 한 카드로 통합(막대 + 하위 지표). 매출 탭과 동일 구조 */}
+              <Section title="비용 항목별 구성" desc="올해 상위 지출 항목과 고정·변동 구성" right={<Link href="/reports/costs" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">상세 비용 분석 →</Link>}>
                 {cats.length === 0 ? (
                   <div className="text-xs text-[var(--text-dim)] py-6 text-center">분류된 비용 데이터가 없습니다. 거래내역을 분류하면 채워집니다.</div>
                 ) : (
@@ -117,18 +117,17 @@ export default function ExpensePage() {
                     <div className="lp-bar-foot"><span>상위 {cats.length}개 항목 합계</span><span className="mono-number font-semibold text-[var(--text-muted)]">{fmt(catSum)}</span></div>
                   </>
                 )}
-              </Section>
-
-              {/* 핵심 지표 — 고정비·변동비 (2 타일) — 매출 탭의 '미수금'과 동일 구조 */}
-              <Section title="고정비 · 변동비" desc={`이번 달 지출 구성 · 고정비 비중 ${fixedPct}%`}>
-                <div className="lp-tile-grid">
-                  <div className="stat-tile">
-                    <div className="stat-tile-label">고정비 ({fixedPct}%)</div>
-                    <div className="stat-tile-value mono-number" style={{ color: "var(--primary)" }}>{fmt(fixed)}</div>
-                  </div>
-                  <div className="stat-tile">
-                    <div className="stat-tile-label">변동비 ({100 - fixedPct}%)</div>
-                    <div className="stat-tile-value mono-number" style={{ color: "var(--warning)" }}>{fmt(variable)}</div>
+                <div className="lp-subsection">
+                  <div className="lp-subsection-title">고정비 · 변동비 <span className="font-normal text-[var(--text-dim)]">고정비 비중 {fixedPct}%</span></div>
+                  <div className="lp-tile-grid">
+                    <div className="stat-tile">
+                      <div className="stat-tile-label">고정비 ({fixedPct}%)</div>
+                      <div className="stat-tile-value mono-number" style={{ color: "var(--primary)" }}>{fmt(fixed)}</div>
+                    </div>
+                    <div className="stat-tile">
+                      <div className="stat-tile-label">변동비 ({100 - fixedPct}%)</div>
+                      <div className="stat-tile-value mono-number" style={{ color: "var(--warning)" }}>{fmt(variable)}</div>
+                    </div>
                   </div>
                 </div>
               </Section>
