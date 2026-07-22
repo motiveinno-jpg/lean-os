@@ -118,7 +118,9 @@ function buildIssuePayload(args: {
     issueType: "정발행",
     taxType: "과세",            // 영세/면세는 추후 invoice 유형 컬럼 연동
     purposeType,                // "영수"(결제완료) / "청구"
-    sendToNtsYn: "Y",           // 국세청 즉시 전송 — 2026-07-16 N으로 전환 실험해도 CF-05001 동일 재현되어 원복.
+    sendToNtsYn: "N",           // 2026-07-22 CODEF(헥토데이터) 공식 안내: Y(즉시전송) 시 Codef 로직 버그로 CF-05001 반환.
+                                //   N 이면 팝빌 정상 등록 후 다음 영업일 국세청 전송(승인번호는 전송 후 부여). CODEF "Y" 버그 수정 안내 오면 원복.
+                                //   (7/16 N 실패는 당시 kwon/ho 누락이라는 별개 CF-05001 원인 때문 — 7/20 책번호 fix 후엔 sendToNtsYn 만 남은 원인.)
     writeDate,                  // YYYYMMDD
     // 책번호 — CODEF 공식 답변(2026-07-20): kwon/ho 미포함 시 서버 내부 변환 예외로
     //   CF-05001 발생. 정식 수정 배포 전까지 빈 문자열(문자열 타입)로 반드시 포함해야 함.
