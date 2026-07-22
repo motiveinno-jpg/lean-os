@@ -1787,10 +1787,18 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .report-cols { @apply grid gap-5 items-start lg:grid-cols-[1.5fr_1fr]; }
 .report-col { @apply space-y-5 min-w-0; }
 .revenue-page-content { @apply space-y-5 mt-1; }
-.revenue-top-partners-list { @apply space-y-2.5; }
-.revenue-partner-row { @apply flex items-center gap-3; }
-.revenue-ar-summary-grid { @apply grid grid-cols-2 gap-4; }
 .revenue-ar-over30-tile { @apply no-underline hover:border-[var(--primary)] transition; }
+
+/* 손익(매출·비용) 공용 — 두 탭의 구성 막대리스트/지표 타일 크기를 단일 소스로 통일(2026-07-22) */
+.lp-bar-list { @apply space-y-2.5; }
+.lp-bar-row { @apply flex items-center gap-2.5; }
+.lp-bar-name { @apply text-sm text-[var(--text)] w-24 shrink-0 truncate; }
+.lp-bar-track { @apply flex-1 h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.lp-bar-fill { @apply h-full rounded-full; }
+.lp-bar-amt { @apply text-xs font-semibold text-[var(--text)] w-[76px] text-right shrink-0; }
+.lp-bar-share { @apply text-[11px] text-[var(--text-dim)] w-9 text-right shrink-0; }
+.lp-bar-foot { @apply text-[11px] text-[var(--text-dim)] mt-3 pt-3 border-t border-[var(--border)] flex items-center justify-between; }
+.lp-tile-grid { @apply grid grid-cols-2 gap-3; }
 .by-person-chart-card { @apply p-5; }
 .by-person-chart-header { @apply mb-4; }
 .by-person-chart-svg { @apply block; }
@@ -1819,9 +1827,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .flow-bar-col { @apply flex-1 flex flex-col items-center gap-1.5; }
 .flow-bar-legend { @apply flex flex-wrap gap-3 mt-3; }
 .expense-page-content { @apply space-y-5 mt-1; }
-.expense-fixed-variable-bar { @apply flex h-3 rounded-full overflow-hidden bg-[var(--bg-surface)]; }
-.expense-category-list { @apply space-y-2.5; }
-.expense-category-row { @apply flex items-center gap-3; }
 .flow-cell-detail-overlay { @apply fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4; }
 .flow-cell-detail-panel { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col; }
 .flow-cell-detail-header { @apply flex items-center justify-between px-5 pt-4 pb-2; }

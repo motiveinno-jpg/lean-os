@@ -80,6 +80,7 @@ export default function RevenuePage() {
   const ytd = budget.filter((b) => b.month <= month).reduce((s, b) => s + (b.salesRevenue || 0), 0);
   const top = salesData?.topPartners || [];
   const topMax = Math.max(1, ...top.map((t) => t.amt));
+  const topSum = top.reduce((s, t) => s + t.amt, 0);
 
   // 규칙 기반 요약 코멘트 — 경영요약 '이번 달 상태'와 동일 방식(전월·누적·미수금 조합, LLM 아님)
   const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
@@ -121,29 +122,31 @@ export default function RevenuePage() {
               <MonthlyCompareCard title="월별 매출 · 전년 비교" rows={compareRows} accent="var(--success)" onRowClick={(mn) => setDetailMonth(mn)} />
             </div>
             <div className="report-col">
-              {/* 어디서 벌었나 — 거래처 TOP */}
+              {/* 어디서 벌었나 — 거래처 TOP (비중 %) */}
               <Section title="거래처별 매출" desc="올해 상위 거래처" right={<Link href="/partners" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">거래처 관리 →</Link>}>
                 {top.length === 0 ? (
                   <div className="text-xs text-[var(--text-dim)] py-6 text-center">올해 매출 세금계산서가 없습니다.</div>
                 ) : (
-                  <div className="revenue-top-partners-list">
-                    {top.map((t) => (
-                      <div key={t.name} className="revenue-partner-row">
-                        <span className="text-sm text-[var(--text)] w-28 shrink-0 truncate">{t.name}</span>
-                        <div className="flex-1 h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${Math.round((t.amt / topMax) * 100)}%`, background: "var(--success)" }} />
+                  <>
+                    <div className="lp-bar-list">
+                      {top.map((t) => (
+                        <div key={t.name} className="lp-bar-row">
+                          <span className="lp-bar-name">{t.name}</span>
+                          <div className="lp-bar-track"><div className="lp-bar-fill" style={{ width: `${Math.round((t.amt / topMax) * 100)}%`, background: "var(--success)" }} /></div>
+                          <span className="lp-bar-amt mono-number">{fmt(t.amt)}</span>
+                          <span className="lp-bar-share mono-number">{topSum > 0 ? Math.round((t.amt / topSum) * 100) : 0}%</span>
                         </div>
-                        <span className="mono-number text-xs font-semibold text-[var(--text)] w-24 text-right shrink-0">{fmt(t.amt)}</span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                    <div className="lp-bar-foot"><span>상위 {top.length}곳 합계</span><span className="mono-number font-semibold text-[var(--text-muted)]">{fmt(topSum)}</span></div>
+                  </>
                 )}
               </Section>
 
-              {/* 아직 못 받은 돈 (미수금) */}
+              {/* 핵심 지표 — 미수금 (2 타일) */}
               <Section title="미수금" desc="아직 못 받은 돈 (회수 예정)">
-                <div className="revenue-ar-summary-grid">
-                  <div className="revenue-ar-total-tile stat-tile">
+                <div className="lp-tile-grid">
+                  <div className="stat-tile">
                     <div className="stat-tile-label">미수금 합계</div>
                     <div className="stat-tile-value mono-number text-[var(--text)]">{fmt(salesData?.arTotal ?? 0)}</div>
                   </div>

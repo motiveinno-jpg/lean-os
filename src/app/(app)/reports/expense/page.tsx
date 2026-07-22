@@ -62,6 +62,7 @@ export default function ExpensePage() {
     .map((c) => ({ label: c.label, amt: c.amount })).filter((c) => c.amt > 0)
     .sort((a, b) => b.amt - a.amt).slice(0, 7);
   const catMax = Math.max(1, ...cats.map((c) => c.amt));
+  const catSum = cats.reduce((s, c) => s + c.amt, 0);
 
   // 규칙 기반 요약 코멘트 — 경영요약 '이번 달 상태'와 동일 방식(전월·고정비비중·최대항목 조합, LLM 아님)
   const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
@@ -97,35 +98,39 @@ export default function ExpensePage() {
               <MonthlyCompareCard title="월별 비용 · 전년 비교" rows={compareRows} accent="var(--warning)" onRowClick={(mn) => setDetailMonth(mn)} />
             </div>
             <div className="report-col">
-              {/* 고정비 · 변동비 구성 */}
-              <Section title="고정비 · 변동비" desc="이번 달 지출의 고정/변동 구성 비중">
-                <div className="expense-fixed-variable-bar">
-                  <div style={{ width: `${fixedPct}%`, background: "var(--primary)" }} title={`고정비 ${fixedPct}%`} />
-                  <div style={{ width: `${100 - fixedPct}%`, background: "var(--warning)" }} title={`변동비 ${100 - fixedPct}%`} />
-                </div>
-                <div className="flex justify-between text-[11px] mt-2">
-                  <span className="text-[var(--primary)] font-semibold">고정 {fmt(fixed)} ({fixedPct}%)</span>
-                  <span className="text-[var(--warning)] font-semibold">변동 {fmt(variable)} ({100 - fixedPct}%)</span>
-                </div>
-              </Section>
-
-              {/* 어디에 썼나 — 카테고리 */}
+              {/* 어디에 썼나 — 카테고리 (비중 %) — 매출 탭의 '거래처별'과 동일 구조 */}
               <Section title="비용 항목별 구성" desc="올해 상위 지출 항목" right={<Link href="/reports/costs" className="text-xs text-[var(--primary)] font-semibold hover:underline no-underline">상세 비용 분석 →</Link>}>
                 {cats.length === 0 ? (
                   <div className="text-xs text-[var(--text-dim)] py-6 text-center">분류된 비용 데이터가 없습니다. 거래내역을 분류하면 채워집니다.</div>
                 ) : (
-                  <div className="expense-category-list">
-                    {cats.map((c) => (
-                      <div key={c.label} className="expense-category-row">
-                        <span className="text-sm text-[var(--text)] w-28 shrink-0 truncate">{c.label}</span>
-                        <div className="flex-1 h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${Math.round((c.amt / catMax) * 100)}%`, background: "var(--warning)" }} />
+                  <>
+                    <div className="lp-bar-list">
+                      {cats.map((c) => (
+                        <div key={c.label} className="lp-bar-row">
+                          <span className="lp-bar-name">{c.label}</span>
+                          <div className="lp-bar-track"><div className="lp-bar-fill" style={{ width: `${Math.round((c.amt / catMax) * 100)}%`, background: "var(--warning)" }} /></div>
+                          <span className="lp-bar-amt mono-number">{fmt(c.amt)}</span>
+                          <span className="lp-bar-share mono-number">{catSum > 0 ? Math.round((c.amt / catSum) * 100) : 0}%</span>
                         </div>
-                        <span className="mono-number text-xs font-semibold text-[var(--text)] w-24 text-right shrink-0">{fmt(c.amt)}</span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                    <div className="lp-bar-foot"><span>상위 {cats.length}개 항목 합계</span><span className="mono-number font-semibold text-[var(--text-muted)]">{fmt(catSum)}</span></div>
+                  </>
                 )}
+              </Section>
+
+              {/* 핵심 지표 — 고정비·변동비 (2 타일) — 매출 탭의 '미수금'과 동일 구조 */}
+              <Section title="고정비 · 변동비" desc={`이번 달 지출 구성 · 고정비 비중 ${fixedPct}%`}>
+                <div className="lp-tile-grid">
+                  <div className="stat-tile">
+                    <div className="stat-tile-label">고정비 ({fixedPct}%)</div>
+                    <div className="stat-tile-value mono-number" style={{ color: "var(--primary)" }}>{fmt(fixed)}</div>
+                  </div>
+                  <div className="stat-tile">
+                    <div className="stat-tile-label">변동비 ({100 - fixedPct}%)</div>
+                    <div className="stat-tile-value mono-number" style={{ color: "var(--warning)" }}>{fmt(variable)}</div>
+                  </div>
+                </div>
               </Section>
             </div>
           </div>
