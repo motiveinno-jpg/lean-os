@@ -26,6 +26,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "홈",
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
+      { href: "/copilot", label: "대표 참모", icon: "sparkles", roles: ["owner", "admin"] },
       { href: "/mypage", label: "마이페이지", icon: "user" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
