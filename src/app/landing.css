@@ -1,0 +1,247 @@
+/* /landing-preview-2 — "따뜻한 에디토리얼" 변형. lp4- 네임스페이스.
+   목표: AI 템플릿 느낌 제거 — 보라 그라디언트/글로우 오브/글래스/그라데이션 텍스트 전부 금지.
+   실제 프리미엄 브랜드처럼: 따뜻한 크림 배경 + 짙은 잉크 + 단일 강조색(블루) + 소량의 웜 오렌지 포인트,
+   강한 에디토리얼 타이포 · 굵은 보더 · 절제된 그림자 · 다크 웜 히어로로 대비. */
+
+.lp4-root {
+  --ink: #1a1613;          /* 따뜻한 near-black */
+  --ink2: #57534e;
+  --ink3: #a8a29e;
+  --line: #e7e5e4;
+  --line2: #d6d3d1;
+  --cream: #faf8f5;
+  --stone: #f3f0eb;
+  --paper: #ffffff;
+  --blue: #2563eb;         /* 단일 주 강조 */
+  --blue-d: #1d4ed8;
+  --orange: #ea580c;       /* 웜 포인트(소량) */
+  --ok: #047857;
+  background: var(--cream); color: var(--ink); min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.lp4-root *, .lp4-root *::before, .lp4-root *::after { box-sizing: border-box; }
+.lp4-container { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+.lp4-narrow { max-width: 760px; margin: 0 auto; padding: 0 28px; }
+.lp4-section { padding: 104px 0; }
+.lp4-bg-cream { background: var(--cream); }
+.lp4-bg-stone { background: var(--stone); }
+.lp4-bg-paper { background: var(--paper); }
+.lp4-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink2); }
+.lp4-eyebrow::before { content:""; width: 20px; height: 2px; background: var(--orange); display:inline-block; }
+.lp4-h2 { font-size: clamp(30px,4.2vw,46px); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; margin: 16px 0 0; }
+.lp4-sub { font-size: 17px; color: var(--ink2); margin-top: 16px; line-height: 1.6; }
+.lp4-sec-head { max-width: 760px; margin: 0 auto 60px; }
+.lp4-sec-head-c { text-align: center; }
+.lp4-accent { color: var(--blue); }
+.lp4-underline { box-shadow: inset 0 -.5em 0 rgba(234,88,12,.16); }
+
+/* Nav */
+.lp4-nav { position: sticky; top: 0; z-index: 50; background: rgba(250,248,245,.85); backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid transparent; transition: border-color .2s; }
+.lp4-nav-on { border-bottom: 1px solid var(--line); }
+.lp4-nav-inner { max-width: 1180px; margin: 0 auto; padding: 15px 28px; display: flex; align-items: center; justify-content: space-between; }
+.lp4-logo { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 17px; letter-spacing: -.02em; }
+.lp4-menu { display: none; gap: 32px; }
+.lp4-menu a { font-size: 14.5px; font-weight: 500; color: var(--ink2); }
+.lp4-menu a:hover { color: var(--ink); }
+.lp4-nav-right { display: flex; align-items: center; gap: 16px; }
+.lp4-login { font-size: 14.5px; font-weight: 600; color: var(--ink2); }
+.lp4-pill { display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: #fff; font-weight: 600; font-size: 14px; padding: 9px 18px; border-radius: 8px; transition: background .15s; }
+.lp4-pill:hover { background: #000; }
+@media (min-width: 920px){ .lp4-menu { display: flex; } }
+
+/* Buttons */
+.lp4-btn { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; border-radius: 10px; transition: all .15s; }
+.lp4-btn-blue { background: var(--blue); color: #fff; padding: 14px 28px; font-size: 15px; }
+.lp4-btn-blue:hover { background: var(--blue-d); }
+.lp4-btn-dark { background: var(--ink); color: #fff; padding: 14px 28px; font-size: 15px; }
+.lp4-btn-dark:hover { background: #000; }
+.lp4-btn-line { background: transparent; color: var(--ink); border: 1px solid var(--line2); padding: 13px 24px; font-size: 15px; }
+.lp4-btn-line:hover { border-color: var(--ink); }
+.lp4-btn-onwhite { background: #fff; color: var(--ink); padding: 14px 26px; font-size: 15px; }
+.lp4-btn-onwhite:hover { background: #f5f5f4; }
+.lp4-btn-outline-light { border: 1px solid rgba(255,255,255,.35); color: #fff; padding: 14px 24px; font-size: 15px; }
+.lp4-btn-outline-light:hover { background: rgba(255,255,255,.1); }
+
+/* HERO — 다크 웜 밴드(대비), 그라디언트/오브 없음 */
+.lp4-hero { background: var(--ink); color: #fff; position: relative; }
+.lp4-hero-dots { position:absolute; inset:0; opacity:.5; background-image: radial-gradient(rgba(255,255,255,.09) 1px, transparent 1px); background-size: 22px 22px; }
+.lp4-hero-inner { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr; gap: 44px; align-items: center; padding: 88px 0 92px; }
+@media (min-width: 960px){ .lp4-hero-inner { grid-template-columns: 1.05fr .95fr; gap: 60px; } }
+.lp4-hero-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,.82); border: 1px solid rgba(255,255,255,.18); padding: 6px 13px; border-radius: 999px; }
+.lp4-hero-badge-dot { width: 7px; height: 7px; border-radius: 999px; background: #34d399; }
+.lp4-hero-title { font-size: clamp(36px,5.4vw,58px); font-weight: 800; letter-spacing: -.04em; line-height: 1.05; margin: 22px 0 0; color: #fff; }
+.lp4-hero-title em { font-style: normal; color: #fff; box-shadow: inset 0 -.14em 0 var(--orange); }
+.lp4-hero-sub { font-size: 19px; color: rgba(255,255,255,.82); margin-top: 22px; line-height: 1.55; }
+.lp4-hero-desc { font-size: 15px; color: rgba(255,255,255,.6); margin-top: 10px; line-height: 1.6; }
+.lp4-hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.lp4-hero-checks { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 30px; }
+.lp4-hero-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255,255,255,.72); }
+.lp4-hero-check svg { color: #34d399; }
+
+/* Product mockup — 라이트 카드, 그림자로 부양 */
+.lp4-mock-float { animation: lp4-float 8s ease-in-out infinite; }
+.lp4-mock-window { background: #fff; border-radius: 14px; box-shadow: 0 40px 80px -30px rgba(0,0,0,.6); overflow: hidden; }
+.lp4-mock-bar { display: flex; align-items: center; gap: 6px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--cream); }
+.lp4-mock-dot { width: 10px; height: 10px; border-radius: 999px; }
+.lp4-mock-body { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lp4-kpi { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: #fff; }
+.lp4-kpi-label { font-size: 11px; color: var(--ink3); }
+.lp4-kpi-value { font-size: 21px; font-weight: 800; letter-spacing: -.02em; margin-top: 3px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.lp4-kpi-sub { font-size: 11px; font-weight: 700; margin-top: 3px; }
+.lp4-mock-wide { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--cream); }
+.lp4-brief-head { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.lp4-brief-head span { color: var(--orange); }
+.lp4-brief-line { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink2); margin-top: 8px; }
+.lp4-brief-line b { color: var(--ink); }
+.lp4-bars { display: flex; align-items: flex-end; gap: 6px; height: 44px; margin-top: 10px; }
+.lp4-bar-col { flex: 1; background: var(--blue); opacity: .85; border-radius: 2px 2px 0 0; }
+
+/* Stats — 라인 구획, 잉크 숫자 */
+.lp4-stats { background: var(--paper); border-bottom: 1px solid var(--line); }
+.lp4-stats-grid { display: grid; grid-template-columns: repeat(2,1fr); }
+@media (min-width: 720px){ .lp4-stats-grid { grid-template-columns: repeat(4,1fr); } }
+.lp4-stat { text-align: center; padding: 38px 16px; border-right: 1px solid var(--line); }
+.lp4-stat:last-child { border-right: none; }
+.lp4-stat-value { font-size: 40px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.lp4-stat-label { font-size: 13px; color: var(--ink2); margin-top: 4px; }
+
+/* Problem — 종이 카드, 좌측 잉크 라인 */
+.lp4-pain-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+@media (min-width: 720px){ .lp4-pain-grid { grid-template-columns: repeat(2,1fr); } }
+@media (min-width: 1000px){ .lp4-pain-grid { grid-template-columns: repeat(3,1fr); } }
+.lp4-pain { border: 1px solid var(--line); border-radius: 14px; padding: 26px; background: #fff; transition: box-shadow .2s, transform .2s; }
+.lp4-pain:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -20px rgba(0,0,0,.2); }
+.lp4-pain-badge { display: inline-block; font-size: 12px; font-weight: 700; color: var(--ink); border: 1px solid var(--line2); padding: 4px 11px; border-radius: 999px; }
+.lp4-pain-pain { font-size: 14.5px; color: var(--ink2); margin-top: 16px; line-height: 1.5; }
+.lp4-pain-solve { display: flex; gap: 7px; font-size: 14px; color: var(--ink); font-weight: 600; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); line-height: 1.55; max-height: 0; opacity: 0; overflow: hidden; transition: max-height .35s, opacity .3s, margin .3s, padding .3s; }
+.lp4-pain:hover .lp4-pain-solve { max-height: 170px; opacity: 1; }
+.lp4-pain-solve b { color: var(--blue); flex-shrink: 0; }
+
+/* Feature tabs */
+.lp4-feat-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+@media (min-width: 900px){ .lp4-feat-grid { grid-template-columns: 290px 1fr; gap: 44px; } }
+.lp4-feat-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+@media (min-width: 900px){ .lp4-feat-tabs { flex-direction: column; overflow: visible; } }
+.lp4-feat-tab { display:flex; align-items:center; gap:10px; text-align: left; padding: 15px 16px; border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--ink2); white-space: nowrap; border: 1px solid transparent; transition: all .15s; }
+.lp4-feat-tab:hover { background: #fff; }
+.lp4-feat-tab-on { background: #fff; color: var(--ink); border-color: var(--line); box-shadow: 0 4px 14px -8px rgba(0,0,0,.2); }
+.lp4-feat-tab-num { font-size: 12px; font-weight: 800; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.lp4-feat-tab-on .lp4-feat-tab-num { color: var(--blue); }
+.lp4-feat-panel { border: 1px solid var(--line); border-radius: 16px; padding: 36px; background: #fff; min-height: 260px; animation: lp4-cross .3s ease; }
+.lp4-feat-replaces { font-size: 12px; font-weight: 700; color: var(--orange); letter-spacing: .02em; }
+.lp4-feat-title { font-size: 24px; font-weight: 800; letter-spacing: -.025em; margin-top: 10px; line-height: 1.28; }
+.lp4-feat-desc { font-size: 15px; color: var(--ink2); margin-top: 16px; line-height: 1.7; }
+.lp4-feat-flow { margin-top: 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lp4-feat-step { display:inline-flex; align-items:center; gap:8px; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--cream); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.lp4-feat-step b { color: var(--blue); }
+.lp4-feat-arrow { color: var(--ink3); }
+
+/* Engines — 화이트 카드 + 상단 컬러 바(절제) */
+.lp4-eng-steps { display: grid; grid-template-columns: 1fr; gap: 20px; }
+@media (min-width: 880px){ .lp4-eng-steps { grid-template-columns: repeat(4,1fr); } }
+.lp4-eng { border: 1px solid var(--line); border-radius: 16px; padding: 26px; background: #fff; border-top: 3px solid var(--ink); transition: transform .2s, box-shadow .2s; }
+.lp4-eng:hover { transform: translateY(-3px); box-shadow: 0 20px 44px -22px rgba(0,0,0,.24); }
+.lp4-eng-0 { border-top-color: var(--blue); }
+.lp4-eng-1 { border-top-color: var(--ink); }
+.lp4-eng-2 { border-top-color: var(--orange); }
+.lp4-eng-3 { border-top-color: var(--ok); }
+.lp4-eng-num { font-size: 12px; font-weight: 800; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.lp4-eng-name { font-size: 19px; font-weight: 800; letter-spacing: -.02em; margin-top: 8px; }
+.lp4-eng-eng { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+.lp4-eng-head { font-size: 14px; font-weight: 600; margin-top: 14px; line-height: 1.5; }
+.lp4-eng-desc { font-size: 13px; color: var(--ink2); margin-top: 8px; line-height: 1.6; }
+.lp4-eng-list { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 9px; }
+.lp4-eng-step { display: flex; gap: 9px; font-size: 12.5px; color: var(--ink2); line-height: 1.5; }
+.lp4-eng-step-dot { flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: var(--cream); border: 1px solid var(--line2); color: var(--ink); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.lp4-eng-rep { margin-top: 16px; font-size: 12px; color: var(--ink3); }
+.lp4-eng-rep b { color: var(--ok); }
+
+/* Compare — 화이트 vs 다크 잉크 카드 */
+.lp4-cmp-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+@media (min-width: 860px){ .lp4-cmp-grid { grid-template-columns: 1fr 1fr; } }
+.lp4-cmp { border: 1px solid var(--line); border-radius: 16px; padding: 28px; background: #fff; }
+.lp4-cmp-hl { border: none; background: var(--ink); color: #fff; }
+.lp4-cmp-title { font-size: 16px; font-weight: 800; }
+.lp4-cmp-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.lp4-cmp-hl .lp4-cmp-row { border-color: rgba(255,255,255,.14); }
+.lp4-cmp-row:last-child { border-bottom: none; }
+.lp4-cmp-name { color: var(--ink2); }
+.lp4-cmp-hl .lp4-cmp-name { color: rgba(255,255,255,.72); }
+.lp4-cmp-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+.lp4-cmp-total { margin-top: 14px; padding-top: 16px; border-top: 2px solid var(--line); display: flex; align-items: baseline; justify-content: space-between; }
+.lp4-cmp-hl .lp4-cmp-total { border-color: rgba(255,255,255,.2); }
+.lp4-cmp-total-val { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.lp4-calc { border: 1px solid var(--line); border-radius: 14px; padding: 24px; margin-top: 24px; background: #fff; }
+.lp4-slider { width: 100%; accent-color: var(--blue); }
+
+/* Pricing — 잉크 하이라이트 */
+.lp4-price-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+@media (min-width: 640px){ .lp4-price-grid { grid-template-columns: repeat(2,1fr); } }
+@media (min-width: 1040px){ .lp4-price-grid { grid-template-columns: repeat(4,1fr); } }
+.lp4-price { border: 1px solid var(--line); border-radius: 16px; padding: 28px; background: #fff; display: flex; flex-direction: column; transition: transform .18s, box-shadow .18s; }
+.lp4-price:hover { transform: translateY(-3px); box-shadow: 0 18px 44px -24px rgba(0,0,0,.24); }
+.lp4-price-hl { border: 2px solid var(--ink); }
+.lp4-price-best { display: inline-block; align-self: flex-start; font-size: 11px; font-weight: 800; color: #fff; background: var(--ink); padding: 4px 12px; border-radius: 999px; margin-bottom: 12px; letter-spacing: .04em; }
+.lp4-price-name { font-size: 18px; font-weight: 800; }
+.lp4-price-desc { font-size: 13px; color: var(--ink3); margin-top: 4px; }
+.lp4-price-reg { font-size: 14px; color: var(--ink3); text-decoration: line-through; margin-top: 16px; }
+.lp4-price-off { font-size: 11px; font-weight: 800; color: var(--orange); background: rgba(234,88,12,.1); padding: 2px 8px; border-radius: 6px; margin-left: 6px; }
+.lp4-price-amt { font-size: 34px; font-weight: 800; letter-spacing: -.03em; margin-top: 4px; }
+.lp4-price-unit { font-size: 14px; color: var(--ink3); font-weight: 500; }
+.lp4-price-period { font-size: 12px; color: var(--ink2); margin-top: 8px; line-height: 1.5; min-height: 34px; }
+.lp4-price-feats { list-style: none; padding: 0; margin: 20px 0; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.lp4-price-feat { display: flex; gap: 8px; font-size: 13.5px; color: var(--ink2); line-height: 1.45; }
+.lp4-price-feat svg { flex-shrink: 0; color: var(--ok); margin-top: 2px; }
+.lp4-price-cta { text-align: center; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 14px; transition: all .15s; }
+.lp4-price-cta-dark { background: var(--ink); color: #fff; }
+.lp4-price-cta-dark:hover { background: #000; }
+.lp4-price-cta-line { border: 1px solid var(--line2); color: var(--ink); }
+.lp4-price-cta-line:hover { border-color: var(--ink); }
+
+/* FAQ */
+.lp4-faq { border-bottom: 1px solid var(--line); }
+.lp4-faq-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 4px; text-align: left; font-size: 16px; font-weight: 600; }
+.lp4-faq-chev { flex-shrink: 0; transition: transform .25s; color: var(--ink3); }
+.lp4-faq-open .lp4-faq-chev { transform: rotate(180deg); color: var(--blue); }
+.lp4-faq-panel { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+.lp4-faq-open .lp4-faq-panel { max-height: 260px; }
+.lp4-faq-a { padding: 0 4px 22px; font-size: 14.5px; color: var(--ink2); line-height: 1.7; max-width: 640px; }
+
+/* Form */
+.lp4-form { border: 1px solid var(--line); border-radius: 16px; padding: 32px; background: #fff; }
+.lp4-flabel { display: block; font-size: 13px; font-weight: 600; color: var(--ink2); margin-bottom: 6px; }
+.lp4-input { width: 100%; padding: 12px 14px; border: 1px solid var(--line2); border-radius: 10px; font-size: 14px; color: var(--ink); background: #fff; outline: none; transition: border-color .15s; }
+.lp4-input:focus { border-color: var(--ink); }
+
+/* Final CTA — 다크 잉크 밴드 */
+.lp4-final { text-align: center; border-radius: 24px; padding: 80px 24px; background: var(--ink); position: relative; overflow: hidden; }
+.lp4-final-dots { position:absolute; inset:0; opacity:.4; background-image: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px); background-size: 22px 22px; }
+.lp4-final-h { font-size: clamp(30px,4.2vw,48px); font-weight: 800; letter-spacing: -.03em; line-height: 1.12; color: #fff; position: relative; z-index: 2; }
+.lp4-final-h em { font-style: normal; box-shadow: inset 0 -.14em 0 var(--orange); }
+
+/* Footer */
+.lp4-footer { border-top: 1px solid var(--line); background: var(--stone); padding: 48px 0; }
+.lp4-footer-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 28px; border-bottom: 1px solid var(--line2); }
+.lp4-flinks { display: flex; flex-wrap: wrap; gap: 22px; font-size: 13.5px; }
+.lp4-flinks a { color: var(--ink2); }
+.lp4-flinks a:hover { color: var(--ink); }
+.lp4-finfo { font-size: 12.5px; color: var(--ink3); line-height: 1.8; margin-top: 26px; }
+
+/* Reveal */
+.lp4-reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
+.lp4-reveal-in { opacity: 1; transform: none; }
+
+@keyframes lp4-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+@keyframes lp4-cross { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp4-mock-float { animation: none !important; }
+  .lp4-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .lp4-feat-panel { animation: none !important; }
+  .lp4-pain, .lp4-eng, .lp4-price, .lp4-btn { transition: none !important; }
+}
+@media (max-width: 700px) {
+  .lp4-mock-float { animation: none; }
+  .lp4-section { padding: 68px 0; }
+}
