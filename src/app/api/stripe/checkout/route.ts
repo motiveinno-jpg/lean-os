@@ -94,11 +94,19 @@ export async function POST(request: NextRequest) {
       cancel_url: resolvedCancelUrl,
       customer_email: user.email,
       metadata: { companyId, planSlug, seatCount: String(requestedSeats), userId: user.id },
-      subscription_data: {
-        trial_period_days: TRIAL_DAYS,
-        trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
-        metadata: { companyId, planSlug, seatCount: String(requestedSeats) },
-      },
+      // 부가세 10% 별도 청구 — 구독 전체에 기본 세율 적용(설정 시). 미설정이면 세금 없이 진행.
+      ...(process.env.STRIPE_TAX_RATE_VAT
+        ? { subscription_data: {
+              trial_period_days: TRIAL_DAYS,
+              trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+              default_tax_rates: [process.env.STRIPE_TAX_RATE_VAT],
+              metadata: { companyId, planSlug, seatCount: String(requestedSeats) },
+            } }
+        : { subscription_data: {
+              trial_period_days: TRIAL_DAYS,
+              trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+              metadata: { companyId, planSlug, seatCount: String(requestedSeats) },
+            } }),
     });
 
     return NextResponse.json({ data: { url: session.url } });
