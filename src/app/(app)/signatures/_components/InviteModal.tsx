@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createBulkSignatureRequests } from "@/lib/signatures";
-import { materializeDocTemplate } from "@/lib/documents";
-import { isHrType } from "@/components/templates-tab";
+import { materializeContractTemplate } from "@/lib/documents";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -17,21 +16,22 @@ export function InviteModal({
   companyId,
   userId,
   documents,
-  docTemplates = [],
+  contractTemplates = [],
   onClose,
   onCreated,
 }: {
   companyId: string;
   userId: string;
   documents: any[];
-  docTemplates?: any[];
+  docTemplates?: any[];          // 레거시(호환용) — 발송 양식 소스는 contractTemplates 로 일원화(2026-07-23)
+  contractTemplates?: any[];
   onClose: () => void;
   onCreated: () => void;
 }) {
   const { toast } = useToast();
   const [docId, setDocId] = useState<string>("");
-  // 양식 관리(doc_templates)에 등록된 것도 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
-  const bizTemplates = useMemo(() => docTemplates.filter((t: any) => !isHrType(t.type)), [docTemplates]);
+  // 계약 양식(contract_templates)을 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
+  const bizTemplates = useMemo(() => contractTemplates, [contractTemplates]);
   const [title, setTitle] = useState("");
   const [signers, setSigners] = useState<Signer[]>([{ name: "", email: "", phone: "" }]);
   const [sendNow, setSendNow] = useState(true);
@@ -62,7 +62,7 @@ export function InviteModal({
       if (!doc && docId.startsWith(TPL_PREFIX)) {
         const tpl = bizTemplates.find((t: any) => `${TPL_PREFIX}${t.id}` === docId);
         if (!tpl) throw new Error("선택한 양식을 찾을 수 없습니다");
-        doc = await materializeDocTemplate(companyId, tpl);
+        doc = await materializeContractTemplate(companyId, tpl);
         realDocId = doc.id;
       }
       const r = await createBulkSignatureRequests({

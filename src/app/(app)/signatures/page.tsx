@@ -16,9 +16,9 @@ import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 // 단체일괄 행에서 계약서 상세/PDF 진입용 router (2026-05-21 PR-B)
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getCurrentUser, getDocuments, getDocTemplates } from "@/lib/queries";
-import { TemplatesTab } from "@/components/templates-tab";
+import { getCurrentUser, getDocuments } from "@/lib/queries";
 import ContractTemplatesManager from "@/components/contract-templates-manager";
+import { listContractTemplates } from "@/lib/contract-templates";
 import {
   getSignatureRequests,
   getSignatureProof,
@@ -110,10 +110,10 @@ export default function SignaturesDashboardPage() {
     enabled: !!companyId,
   });
 
-  // 양식 관리 탭 — 전자계약(비즈니스) 양식 doc_templates
-  const { data: docTemplates = [] } = useQuery({
-    queryKey: ["doc-templates", companyId],
-    queryFn: () => getDocTemplates(companyId!),
+  // 계약 양식(contract_templates) — 전자계약 양식 통합(2026-07-23). 발송 목록의 양식 소스는 이걸로 일원화.
+  const { data: contractTemplates = [] } = useQuery({
+    queryKey: ["contract-templates", companyId],
+    queryFn: () => listContractTemplates(companyId!),
     enabled: !!companyId,
   });
 
@@ -366,14 +366,7 @@ export default function SignaturesDashboardPage() {
             documents={documents as any[]}
             onSaved={() => qc.invalidateQueries({ queryKey: ["documents-for-sign", companyId] })}
           />
-          <TemplatesTab
-            scope="business"
-            companyId={companyId}
-            userId={userId}
-            templates={docTemplates as any[]}
-            onInvalidate={() => qc.invalidateQueries({ queryKey: ["doc-templates", companyId] })}
-          />
-          {/* 계약서 본문 양식(변수 치환형) — 회사설정에서 이관 (2026-07-01) */}
+          {/* 계약 양식 단일 시스템 — 전자계약 양식 통합(2026-07-23). 구 TemplatesTab(business/doc_templates) 제거, contract_templates로 일원화 */}
           <ContractTemplatesManager companyId={companyId} />
         </div>
       )}
@@ -607,7 +600,7 @@ export default function SignaturesDashboardPage() {
           companyId={companyId}
           userId={userId}
           documents={documents as any[]}
-          docTemplates={docTemplates as any[]}
+          contractTemplates={contractTemplates as any[]}
           onClose={() => setShowInviteModal(false)}
           onCreated={() => {
             setShowInviteModal(false);
@@ -622,7 +615,7 @@ export default function SignaturesDashboardPage() {
           companyId={companyId}
           userId={userId}
           documents={documents as any[]}
-          docTemplates={docTemplates as any[]}
+          contractTemplates={contractTemplates as any[]}
           onClose={() => setShowOrgBulkWizard(false)}
           onCreated={() => {
             setShowOrgBulkWizard(false);

@@ -237,6 +237,36 @@ export async function materializeDocTemplate(companyId: string, tpl: { name: str
   return data;
 }
 
+// contract_templates(계약 양식) → documents 행 실체화 (2026-07-23 전자계약 양식 통합 Phase 2).
+//   materializeDocTemplate 의 contract_templates 판. body_html 을 그대로 documents.content_json.body 에.
+export async function materializeContractTemplate(
+  companyId: string,
+  tpl: { name: string; body_html?: string | null; body_markdown?: string | null },
+) {
+  const existing = logRead('lib/documents:existing-ct', await supabase
+    .from("documents")
+    .select("*")
+    .eq("company_id", companyId)
+    .eq("name", tpl.name)
+    .maybeSingle());
+  if (existing) return existing;
+
+  const body = tpl.body_html || tpl.body_markdown || "";
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      company_id: companyId,
+      name: tpl.name,
+      content_json: { body } as unknown as Json,
+      auto_classified_type: "contract",
+      status: "draft",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 // ── Save document revision ──
 export async function saveRevision(params: {
   documentId: string;

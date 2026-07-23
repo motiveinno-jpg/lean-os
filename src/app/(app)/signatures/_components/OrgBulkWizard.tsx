@@ -5,8 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import Link from "next/link";
 import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, buildOrgContractSnapshotHtml, type PartnerVarColumn } from "@/lib/signatures";
-import { materializeDocTemplate } from "@/lib/documents";
-import { isHrType } from "@/components/templates-tab";
+import { materializeContractTemplate } from "@/lib/documents";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -81,14 +80,15 @@ export function OrgBulkWizard({
   companyId,
   userId,
   documents,
-  docTemplates = [],
+  contractTemplates = [],
   onClose,
   onCreated,
 }: {
   companyId: string;
   userId: string;
   documents: any[];
-  docTemplates?: any[];
+  docTemplates?: any[];          // 레거시(호환용) — 발송 양식 소스는 contractTemplates 로 일원화(2026-07-23)
+  contractTemplates?: any[];
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -98,8 +98,8 @@ export function OrgBulkWizard({
   // 100개+ 대량 발송 진행률 (chunk 완료마다 갱신)
   const [progress, setProgress] = useState<{ done: number; total: number; sent: number; failed: number } | null>(null);
 
-  // 양식 관리(doc_templates)에 등록된 것도 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
-  const bizTemplates = useMemo(() => docTemplates.filter((t: any) => !isHrType(t.type)), [docTemplates]);
+  // 계약 양식(contract_templates)을 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
+  const bizTemplates = useMemo(() => contractTemplates, [contractTemplates]);
   const [materializedDocs, setMaterializedDocs] = useState<any[]>([]);
   const [materializing, setMaterializing] = useState(false);
   const allDocuments = useMemo(() => [...documents, ...materializedDocs], [documents, materializedDocs]);
@@ -115,7 +115,7 @@ export function OrgBulkWizard({
     if (already) { setDocId(already.id); return; }
     setMaterializing(true);
     try {
-      const doc = await materializeDocTemplate(companyId, tpl);
+      const doc = await materializeContractTemplate(companyId, tpl);
       setMaterializedDocs((prev) => [...prev, doc]);
       setDocId(doc.id);
     } catch (e: any) {
