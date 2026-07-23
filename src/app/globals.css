@@ -3226,6 +3226,18 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
 .rich-editor { @apply border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--bg)]; }
 .rich-editor-toolbar { @apply flex flex-wrap gap-0.5 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]; }
+/* 에디터 본문 요소 스타일 — @tailwindcss/typography(prose) 미설치라 제목·목록·인용을 직접 지정(2026-07-23) */
+.rich-editor-body h1 { @apply text-2xl font-extrabold mt-3 mb-2; }
+.rich-editor-body h2 { @apply text-xl font-bold mt-3 mb-2; }
+.rich-editor-body h3 { @apply text-base font-semibold mt-2.5 mb-1.5; }
+.rich-editor-body p { @apply my-1.5; }
+.rich-editor-body ul { @apply list-disc pl-6 my-2; }
+.rich-editor-body ol { @apply list-decimal pl-6 my-2; }
+.rich-editor-body li { @apply my-0.5; }
+.rich-editor-body li > p { @apply my-0; }
+.rich-editor-body blockquote { @apply border-l-4 border-[var(--primary)] pl-4 my-2 italic text-[var(--text-muted)]; }
+.rich-editor-body hr { @apply my-4 border-t border-[var(--border)]; }
+.rich-editor-body a { @apply text-[var(--primary)] underline; }
 .rich-editor-color-palette { @apply flex items-center gap-0.5 px-1; }
 
 .upcoming-transfers-card { @apply mb-3 p-5; }

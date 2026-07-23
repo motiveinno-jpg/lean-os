@@ -477,7 +477,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                       <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-5">
                         {previewTemplate.content_json?.body ? (
                           // 리치(HTML) 서식 미리보기 — 회사 관리자 자작 콘텐츠
-                          <div className="text-sm text-[var(--text)] leading-relaxed [&_h2]:text-base [&_h2]:font-bold [&_h3]:font-semibold [&_table]:border-collapse [&_td]:border [&_td]:border-[var(--border)] [&_td]:px-2 [&_td]:py-1"
+                          <div className="text-sm text-[var(--text)] leading-relaxed [&_h2]:text-base [&_h2]:font-bold [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--primary)] [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-[var(--text-muted)] [&_table]:border-collapse [&_td]:border [&_td]:border-[var(--border)] [&_td]:px-2 [&_td]:py-1"
                             dangerouslySetInnerHTML={{ __html: previewTemplate.content_json.body }} />
                         ) : (
                           <>
