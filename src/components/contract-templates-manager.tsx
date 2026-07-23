@@ -63,9 +63,9 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     <div className="contract-templates-manager glass-card">
       <div className="panel-header-compact">
         <div>
-          <h3 className="text-sm font-bold text-[var(--text)]">계약서 양식 관리</h3>
+          <h3 className="text-sm font-bold text-[var(--text)]">계약 양식</h3>
           <p className="text-xs text-[var(--text-dim)] mt-1">
-            견적 승인 후 "계약서 발송"에서 사용할 양식. 시스템 양식 3종 제공 + 회사 자체 양식 자유 추가.
+            우리 회사 계약서 양식입니다. 서명 요청·견적 발송 시 사용됩니다. 새로 만들 때 오너뷰 표준 계약서에서 시작할 수 있어요.
           </p>
         </div>
         <button
@@ -76,70 +76,41 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </button>
       </div>
 
-      {/* 시스템 양식 */}
-      <section>
-        <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">
-          기본 제공 양식 ({systemTemplates.length})
+      {/* 우리 회사가 만든 계약 양식만 노출 (시스템 양식은 '양식 추가 › 직접 작성'의 시작점으로만 사용) */}
+      {companyTemplates.length === 0 ? (
+        <div className="templates-empty">
+          아직 만든 계약 양식이 없습니다. <b>+ 양식 추가</b>로 만들어 보세요. (표준 계약서에서 시작할 수 있어요)
         </div>
+      ) : (
         <div className="grid gap-1.5">
-          {systemTemplates.map((t) => (
+          {companyTemplates.map((t) => (
             <div key={t.id} className="template-row">
-              <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold flex-shrink-0">🔒 시스템</span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-[var(--text)] truncate">{t.name}</div>
-                <div className="caption">변수 {t.variables.length}개 · {t.file_type}</div>
+                <div className="caption">변수 {t.variables.length}개 · {t.file_type === "pdf" ? "PDF" : "직접 작성"}</div>
               </div>
               <button
                 onClick={() => setEditing(t)}
                 className="text-[10px] px-2 py-1 rounded bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
               >
-                미리보기
+                수정
+              </button>
+              <button
+                onClick={async () => { if (await appConfirm(`'${t.name}' 양식을 삭제하시겠습니까?`, { danger: true })) deleteMut.mutate(t.id); }}
+                className="text-[10px] px-2 py-1 rounded text-red-400 hover:bg-red-500/10 transition"
+              >
+                삭제
               </button>
             </div>
           ))}
         </div>
-      </section>
-
-      {/* 회사 자체 양식 */}
-      <section>
-        <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">
-          회사 자체 양식 ({companyTemplates.length})
-        </div>
-        {companyTemplates.length === 0 ? (
-          <div className="templates-empty">
-            회사 자체 양식이 없습니다. "+ 양식 추가" 로 등록하세요.
-          </div>
-        ) : (
-          <div className="grid gap-1.5">
-            {companyTemplates.map((t) => (
-              <div key={t.id} className="template-row">
-                <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold flex-shrink-0">자체</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-[var(--text)] truncate">{t.name}</div>
-                  <div className="caption">변수 {t.variables.length}개 · {t.file_type}</div>
-                </div>
-                <button
-                  onClick={() => setEditing(t)}
-                  className="text-[10px] px-2 py-1 rounded bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
-                >
-                  수정
-                </button>
-                <button
-                  onClick={async () => { if (await appConfirm(`'${t.name}' 양식을 삭제하시겠습니까?`, { danger: true })) deleteMut.mutate(t.id); }}
-                  className="text-[10px] px-2 py-1 rounded text-red-400 hover:bg-red-500/10 transition"
-                >
-                  삭제
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      )}
 
       {(showAdd || editing) && (
         <TemplateEditorModal
           companyId={companyId}
           editing={editing}
+          systemTemplates={systemTemplates}
           onClose={() => { setShowAdd(false); setEditing(null); }}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["contract-templates", companyId] });
@@ -158,11 +129,13 @@ export default function ContractTemplatesManager({ companyId }: Props) {
 function TemplateEditorModal({
   companyId,
   editing,
+  systemTemplates,
   onClose,
   onSaved,
 }: {
   companyId: string;
   editing: ContractTemplate | null;
+  systemTemplates: ContractTemplate[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -175,6 +148,18 @@ function TemplateEditorModal({
   const [fileUrl, setFileUrl] = useState<string | null>(editing?.file_url || null);
   const [fileType, setFileType] = useState<"html" | "markdown" | "pdf">(editing?.file_type || "html");
   const [uploading, setUploading] = useState(false);
+  const [starterId, setStarterId] = useState("");
+
+  // 표준 계약서에서 시작 — 시스템 양식을 골라 본문을 채워넣고 직접 편집(신규 작성 시에만).
+  const applyStarter = (id: string) => {
+    setStarterId(id);
+    const sys = systemTemplates.find((s) => s.id === id);
+    if (!sys) return;
+    setFileType("html");
+    setBodyHtml(sys.body_html || "");
+    setBodyMarkdown(sys.body_markdown || "");
+    if (!name.trim()) setName(sys.name);
+  };
 
   const detectedVars = useMemo(() => {
     if (fileType === "pdf") return [];
@@ -262,6 +247,24 @@ function TemplateEditorModal({
         </div>
 
         <div className="space-y-4">
+          {/* 표준 계약서에서 시작 (신규 작성 시) */}
+          {!editing && !readonly && systemTemplates.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">표준 계약서에서 시작 <span className="text-[var(--text-dim)] font-normal">(선택 — 불러와서 편집)</span></label>
+              <select
+                value={starterId}
+                onChange={(e) => applyStarter(e.target.value)}
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded text-sm focus:outline-none focus:border-[var(--primary)]"
+              >
+                <option value="">빈 문서로 시작</option>
+                {systemTemplates.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-[10px] text-[var(--text-dim)]">오너뷰 표준 계약서를 불러와 우리 회사에 맞게 고칠 수 있어요.</p>
+            </div>
+          )}
+
           {/* 이름 */}
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">양식 이름 *</label>
@@ -281,8 +284,8 @@ function TemplateEditorModal({
               <label className="field-label">본문 입력 방식</label>
               <div className="body-mode-toggle-group">
                 {[
-                  { v: "html" as const, label: "HTML 직접 입력" },
-                  { v: "markdown" as const, label: "Markdown 입력" },
+                  { v: "html" as const, label: "직접 작성" },
+                  { v: "markdown" as const, label: "Markdown" },
                   { v: "pdf" as const, label: "PDF 업로드" },
                 ].map((opt) => (
                   <button

@@ -40,7 +40,6 @@ import { uniquePdfName, downloadBlob } from "./_components/pdf-utils";
 import { FailurePanel } from "./_components/FailurePanel";
 import { InviteModal } from "./_components/InviteModal";
 import { OrgBulkWizard } from "./_components/OrgBulkWizard";
-import { DocumentTemplatesPanel } from "@/components/document-templates-panel";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export default function SignaturesDashboardPage() {
@@ -360,13 +359,7 @@ export default function SignaturesDashboardPage() {
           {/* 온라인홍보사업 계약서·포기신청서 등 — "단체 일괄 발송"/"새 서명 요청"에서 실제 사용되는
               문서(documents 테이블) 원본을 여기서 바로 보고 수정. OrgBulkWizard/InviteModal 이 같은
               데이터(getDocuments)를 그대로 읽으므로 여기서 수정하면 발송 시 바로 반영됨. */}
-          <DocumentTemplatesPanel
-            companyId={companyId}
-            userId={userId}
-            documents={documents as any[]}
-            onSaved={() => qc.invalidateQueries({ queryKey: ["documents-for-sign", companyId] })}
-          />
-          {/* 계약 양식 단일 시스템 — 전자계약 양식 통합(2026-07-23). 구 TemplatesTab(business/doc_templates) 제거, contract_templates로 일원화 */}
+          {/* 계약 양식 단일 시스템 — 우리 회사가 만든 계약 양식만 노출(2026-07-23). 표준 계약서는 '양식 추가 › 직접 작성'에서 시작점으로 선택. */}
           <ContractTemplatesManager companyId={companyId} />
         </div>
       )}
