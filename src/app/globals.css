@@ -2160,22 +2160,23 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .billing-trial-start-banner { @apply flex items-center justify-between gap-4 flex-wrap mb-4 p-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--primary)]/5; }
 
 /* ═══ AI 참모(copilot) 전면 재설계 (2026-07-23) ═══ */
-.copilot2-page { @apply max-w-6xl mx-auto px-4 py-6; }
-/* Hero */
-.copilot2-hero { @apply relative overflow-hidden rounded-3xl p-7 mb-6; background: linear-gradient(135deg,#1e1b4b,#312e81 55%,#1e3a8a); }
+/* 폭·정렬을 오너뷰 콘텐츠(app-shell max-w-1400, 좌측정렬)에 맞춤 — 탑바와 가로 일치 (2026-07-23) */
+.copilot2-page { @apply w-full; }
+/* Hero — 오너뷰 라이트 글래스 + 인디고 브랜드로 정렬(구 다크 그라데이션 대체) */
+.copilot2-hero { @apply relative overflow-hidden rounded-3xl p-7 mb-6 border border-[var(--border)] shadow-sm; background: linear-gradient(135deg, var(--primary-light), var(--bg-card) 62%); }
 .copilot2-hero-content { @apply relative z-10; animation: copilot2-fadeup .5s ease both; }
-.copilot2-hero-orb { @apply absolute rounded-full blur-3xl opacity-40 pointer-events-none; }
-.copilot2-hero-orb-a { width:260px;height:260px; background:#7c3aed; top:-90px; right:-40px; animation: copilot2-float 9s ease-in-out infinite; }
-.copilot2-hero-orb-b { width:220px;height:220px; background:#2563eb; bottom:-100px; left:10%; animation: copilot2-float 11s ease-in-out infinite reverse; }
-.copilot2-hero-badge { @apply inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full text-white; background:rgba(255,255,255,.15); }
+.copilot2-hero-orb { @apply absolute rounded-full blur-3xl opacity-20 pointer-events-none; }
+.copilot2-hero-orb-a { width:260px;height:260px; background:var(--primary); top:-90px; right:-40px; animation: copilot2-float 9s ease-in-out infinite; }
+.copilot2-hero-orb-b { width:220px;height:220px; background:var(--info); bottom:-100px; left:10%; animation: copilot2-float 11s ease-in-out infinite reverse; }
+.copilot2-hero-badge { @apply inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full text-[var(--primary)]; background: color-mix(in srgb, var(--primary) 12%, transparent); }
 .copilot2-hero-spark { animation: copilot2-pulse 2.4s ease-in-out infinite; }
-.copilot2-hero-title { @apply text-xl md:text-2xl font-extrabold text-white mt-3 leading-snug; }
+.copilot2-hero-title { @apply text-xl md:text-2xl font-extrabold text-[var(--text)] mt-3 leading-snug; }
 .copilot2-hero-meta { @apply flex items-center gap-3 flex-wrap mt-3 text-xs; }
 .copilot2-conn { @apply inline-flex items-center gap-1.5 font-semibold px-2 py-0.5 rounded-full; }
-.copilot2-conn-ok { color:#bbf7d0; background:rgba(34,197,94,.15); }
-.copilot2-conn-err { color:#fecaca; background:rgba(239,68,68,.15); }
+.copilot2-conn-ok { @apply text-[var(--success)]; background: var(--success-dim); }
+.copilot2-conn-err { @apply text-[var(--danger)]; background: var(--danger-dim); }
 .copilot2-conn-dot { @apply w-2 h-2 rounded-full; background:currentColor; animation: copilot2-pulse 1.8s ease-in-out infinite; }
-.copilot2-hero-asof { color:rgba(255,255,255,.6); }
+.copilot2-hero-asof { @apply text-[var(--text-dim)]; }
 /* Layout */
 .copilot2-grid { @apply grid gap-5; grid-template-columns: 1fr; }
 @media (min-width:900px){ .copilot2-grid { grid-template-columns: 1fr 320px; } }
