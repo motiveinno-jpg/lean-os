@@ -2159,6 +2159,129 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .billing-cancel-scheduled-badge { @apply mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400; }
 .billing-trial-start-banner { @apply flex items-center justify-between gap-4 flex-wrap mb-4 p-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--primary)]/5; }
 
+/* ═══ AI 참모(copilot) 전면 재설계 (2026-07-23) ═══ */
+.copilot2-page { @apply max-w-6xl mx-auto px-4 py-6; }
+/* Hero */
+.copilot2-hero { @apply relative overflow-hidden rounded-3xl p-7 mb-6; background: linear-gradient(135deg,#1e1b4b,#312e81 55%,#1e3a8a); }
+.copilot2-hero-content { @apply relative z-10; animation: copilot2-fadeup .5s ease both; }
+.copilot2-hero-orb { @apply absolute rounded-full blur-3xl opacity-40 pointer-events-none; }
+.copilot2-hero-orb-a { width:260px;height:260px; background:#7c3aed; top:-90px; right:-40px; animation: copilot2-float 9s ease-in-out infinite; }
+.copilot2-hero-orb-b { width:220px;height:220px; background:#2563eb; bottom:-100px; left:10%; animation: copilot2-float 11s ease-in-out infinite reverse; }
+.copilot2-hero-badge { @apply inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full text-white; background:rgba(255,255,255,.15); }
+.copilot2-hero-spark { animation: copilot2-pulse 2.4s ease-in-out infinite; }
+.copilot2-hero-title { @apply text-xl md:text-2xl font-extrabold text-white mt-3 leading-snug; }
+.copilot2-hero-meta { @apply flex items-center gap-3 flex-wrap mt-3 text-xs; }
+.copilot2-conn { @apply inline-flex items-center gap-1.5 font-semibold px-2 py-0.5 rounded-full; }
+.copilot2-conn-ok { color:#bbf7d0; background:rgba(34,197,94,.15); }
+.copilot2-conn-err { color:#fecaca; background:rgba(239,68,68,.15); }
+.copilot2-conn-dot { @apply w-2 h-2 rounded-full; background:currentColor; animation: copilot2-pulse 1.8s ease-in-out infinite; }
+.copilot2-hero-asof { color:rgba(255,255,255,.6); }
+/* Layout */
+.copilot2-grid { @apply grid gap-5; grid-template-columns: 1fr; }
+@media (min-width:900px){ .copilot2-grid { grid-template-columns: 1fr 320px; } }
+.copilot2-main { @apply flex flex-col gap-4 min-w-0; }
+.copilot2-side { @apply min-w-0; }
+.copilot2-conv { @apply flex flex-col gap-4 max-h-[52vh] overflow-y-auto pr-1; }
+/* Empty */
+.copilot2-empty { @apply text-center py-10 text-[var(--text-muted)]; animation: copilot2-fadeup .4s ease both; }
+.copilot2-empty-icon { @apply text-3xl mb-2 text-[var(--primary)]; }
+.copilot2-empty-title { @apply text-base font-bold text-[var(--text)]; }
+.copilot2-empty-desc { @apply text-sm mt-1; }
+/* Messages */
+.copilot2-msg-user { @apply flex justify-end; animation: copilot2-fadeup .3s ease both; }
+.copilot2-bubble-user { @apply max-w-[85%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm text-white bg-[var(--primary)]; }
+.copilot2-answer { @apply rounded-2xl rounded-tl-sm border border-[var(--border)] bg-[var(--bg-card)] p-4 space-y-3; animation: copilot2-fadeup .35s ease both; }
+.copilot2-answer-head { @apply flex items-center gap-2 flex-wrap; }
+.copilot2-answer-spark { @apply text-[var(--primary)]; }
+.copilot2-answer-title { @apply text-sm font-bold text-[var(--text)]; }
+.copilot2-answer-model { @apply text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]; }
+.copilot2-answer-time { @apply text-[11px] text-[var(--text-dim)] ml-auto; }
+.copilot2-sec-headline { @apply text-[15px] font-extrabold text-[var(--text)] leading-snug; }
+.copilot2-sec-summary { @apply text-sm text-[var(--text-muted)] leading-relaxed; }
+.copilot2-sec { @apply pt-2 border-t border-[var(--border)] space-y-2; }
+.copilot2-sec-label { @apply text-[11px] font-bold tracking-wide text-[var(--text-dim)] uppercase; }
+.copilot2-action { @apply flex items-start gap-2; }
+.copilot2-pri { @apply shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded; }
+.copilot2-action-title { @apply text-sm font-semibold text-[var(--text)]; }
+.copilot2-action-link { @apply text-xs font-semibold text-[var(--primary)] ml-2 whitespace-nowrap; }
+.copilot2-action-detail { @apply text-xs text-[var(--text-muted)] leading-relaxed; }
+.copilot2-risk { @apply flex items-start gap-2; }
+.copilot2-risk-title { @apply text-sm font-semibold text-[var(--text)]; }
+.copilot2-badge { @apply shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded; }
+.copilot2-sev-high { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
+.copilot2-sev-mid { @apply bg-amber-500/15 text-amber-600 dark:text-amber-400; }
+.copilot2-sev-low { @apply bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.copilot2-opp { @apply flex items-start gap-2; }
+.copilot2-evidence-grid { @apply grid grid-cols-2 gap-2; }
+.copilot2-evidence { @apply rounded-lg bg-[var(--bg-surface)] px-3 py-2; }
+.copilot2-evidence-label { @apply text-[10px] text-[var(--text-dim)]; }
+.copilot2-evidence-value { @apply text-sm font-bold text-[var(--text)] mono-number; }
+.copilot2-answer-foot { @apply text-[11px] text-[var(--text-dim)] pt-2 border-t border-[var(--border)]; }
+/* Loading */
+.copilot2-answer-loading { @apply opacity-90; }
+.copilot2-thinking { @apply inline-flex gap-1 ml-auto; }
+.copilot2-thinking i { @apply w-1.5 h-1.5 rounded-full bg-[var(--primary)] inline-block; animation: copilot2-blink 1.2s infinite ease-in-out; }
+.copilot2-thinking i:nth-child(2){ animation-delay:.2s; } .copilot2-thinking i:nth-child(3){ animation-delay:.4s; }
+.copilot2-load-stage { @apply text-sm text-[var(--text-muted)]; }
+.copilot2-skel { @apply h-3 rounded bg-[var(--bg-surface)] relative overflow-hidden; }
+.copilot2-skel::after { content:""; @apply absolute inset-0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent); animation: copilot2-shimmer 1.4s infinite; }
+.copilot2-skel-lg { @apply h-4 w-3/4; } .copilot2-skel-sm { @apply w-1/2; }
+/* Quick cards */
+.copilot2-quick-grid { @apply grid grid-cols-2 gap-2; }
+.copilot2-quick-card { @apply flex items-center gap-2.5 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-left transition disabled:opacity-50; }
+.copilot2-quick-card:hover { @apply -translate-y-0.5 border-[var(--primary)]/40 shadow-sm; }
+.copilot2-quick-icon { @apply text-lg shrink-0; }
+.copilot2-quick-card:hover .copilot2-quick-icon { animation: copilot2-pulse 1.4s ease-in-out infinite; }
+.copilot2-quick-label { @apply text-sm font-semibold text-[var(--text)]; }
+/* Input */
+.copilot2-input-row { @apply flex items-end gap-2 p-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] focus-within:border-[var(--primary)] transition; }
+.copilot2-input-spark { @apply text-[var(--primary)] pb-2.5 pl-1; }
+.copilot2-input { @apply flex-1 bg-transparent resize-none outline-none text-sm text-[var(--text)] py-2 max-h-32; }
+.copilot2-send { @apply shrink-0 w-10 h-10 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center disabled:opacity-40 transition hover:brightness-110; }
+.copilot2-spinner { @apply w-4 h-4 rounded-full border-2 border-white/40 border-t-white; animation: copilot2-spin .7s linear infinite; }
+/* Limit / lock */
+.copilot2-limit-card { @apply p-5 rounded-2xl border border-[var(--danger)]/30 bg-[var(--danger-dim)]; }
+.copilot2-lock-card { @apply text-center p-10 rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] max-w-lg mx-auto; }
+.copilot2-lock-title { @apply text-lg font-bold text-[var(--text)]; }
+.copilot2-lock-desc { @apply text-sm text-[var(--text-muted)] my-3; }
+/* Token card */
+.copilot2-token-card { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 sticky top-4; }
+.copilot2-token-head { @apply flex items-center justify-between mb-1; }
+.copilot2-token-title { @apply text-sm font-bold text-[var(--text)]; }
+.copilot2-live { @apply inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--success)]; }
+.copilot2-live-dot { @apply w-1.5 h-1.5 rounded-full bg-[var(--success)]; animation: copilot2-pulse 1.6s ease-in-out infinite; }
+.copilot2-token-plan { @apply text-xs font-semibold text-[var(--primary)] mb-3; }
+.copilot2-gauge-wrap { @apply relative w-40 h-40 mx-auto; }
+.copilot2-gauge { @apply w-full h-full; }
+.copilot2-gauge-track { fill:none; stroke:var(--bg-surface); stroke-width:10; }
+.copilot2-gauge-fill { fill:none; stroke-width:10; stroke-linecap:round; transition: stroke-dashoffset .8s cubic-bezier(.4,0,.2,1), stroke .3s; }
+.copilot2-gauge-ok { stroke:var(--primary); } .copilot2-gauge-warn { stroke:#f59e0b; } .copilot2-gauge-danger { stroke:var(--danger); }
+.copilot2-gauge-center { @apply absolute inset-0 flex flex-col items-center justify-center; }
+.copilot2-gauge-pct { @apply text-2xl font-extrabold text-[var(--text)] mono-number; }
+.copilot2-gauge-sub { @apply text-[10px] text-[var(--text-dim)]; }
+.copilot2-token-nums { @apply text-center mt-2; }
+.copilot2-token-used { @apply text-lg font-bold text-[var(--text)] mono-number; }
+.copilot2-token-slash { @apply text-xs text-[var(--text-dim)]; }
+.copilot2-token-remain { @apply text-xs font-semibold text-[var(--success)] mt-0.5; }
+.copilot2-token-rows { @apply mt-4 pt-3 border-t border-[var(--border)] space-y-2; }
+.copilot2-token-row { @apply flex items-center justify-between text-xs text-[var(--text-muted)]; }
+.copilot2-token-row b { @apply text-[var(--text)] font-semibold; }
+.copilot2-token-warn { @apply mt-3 text-[11px] font-semibold text-[var(--danger)] bg-[var(--danger-dim)] rounded-lg px-2.5 py-2; }
+/* Keyframes */
+@keyframes copilot2-fadeup { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+@keyframes copilot2-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-18px)} }
+@keyframes copilot2-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.55;transform:scale(1.12)} }
+@keyframes copilot2-blink { 0%,80%,100%{opacity:.3} 40%{opacity:1} }
+@keyframes copilot2-spin { to{transform:rotate(360deg)} }
+@keyframes copilot2-shimmer { 100%{transform:translateX(100%)} }
+@media (prefers-reduced-motion: reduce) {
+  .copilot2-hero-content,.copilot2-msg-user,.copilot2-answer,.copilot2-empty { animation:none !important; }
+  .copilot2-hero-orb,.copilot2-hero-spark,.copilot2-conn-dot,.copilot2-live-dot,.copilot2-thinking i,.copilot2-quick-card:hover .copilot2-quick-icon { animation:none !important; }
+  .copilot2-skel::after { animation:none !important; }
+  .copilot2-gauge-fill { transition:none !important; }
+  .copilot2-quick-card:hover { transform:none !important; }
+}
+
 /* AI 대표 참모(copilot) 페이지 */
 .copilot-page { @apply max-w-3xl mx-auto px-4 py-6 space-y-5; }
 .copilot-header { @apply space-y-1; }

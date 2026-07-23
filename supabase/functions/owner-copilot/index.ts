@@ -1,6 +1,6 @@
 import { withSentry } from "../_shared/sentry.ts";
 /**
- * OwnerView — AI 대표 참모(owner-copilot)
+ * OwnerView — AI 참모(owner-copilot)
  *   읽기전용 경영 참모. 서버가 회사 스코프 스냅샷(copilot_company_snapshot)을 만들어 Claude 에 전달,
  *   Claude 는 그 스냅샷 + 사용자 질문만으로 답한다. DB 쓰기·외부 발송·임의 쿼리 없음.
  *
@@ -28,15 +28,55 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-const SYSTEM_PROMPT = `당신은 대한민국 중소기업 대표를 돕는 "대표 참모"입니다. 오너뷰(OwnerView) ERP의 실시간 회사 스냅샷을 근거로 답합니다.
+const SYSTEM_PROMPT = `당신은 대한민국 중소기업 대표를 돕는 "AI 참모"입니다. OwnerView ERP의 실시간 회사 스냅샷을 근거로, 대표가 지금 해야 할 일을 구조화해 제시합니다.
 
 원칙:
-- 반드시 제공된 snapshot 수치만 근거로 삼습니다. snapshot 에 없는 값은 추정하지 말고 "데이터에 없음"이라고 말합니다.
-- 한국어로, 대표가 바로 이해할 실무 관점으로 간결하게 답합니다. 금액은 원 단위(억/만원)로 읽기 쉽게.
-- 질문이 없거나 "브리핑" 요청이면: 현금·이번달 수지·미수금·처리 대기(결재/지급/서명)·영업 파이프라인을 훑고 "오늘 챙길 것 3가지"를 우선순위로 제시합니다.
-- 조언은 하되 실행(송금·발행·승인 등)은 직접 못 하며, 화면 어디에서 처리하는지 안내합니다.
-- 숫자를 나열만 하지 말고 의미(위험/기회)를 해석합니다. 과장·허위 금지.
-- 출력은 평문으로: 마크다운 표(|)·헤더(#) 금지. 짧은 문단과 "- " 불릿, "1." 번호목록만 사용. 이모지는 최소화.`;
+- 반드시 제공된 snapshot 수치만 근거로 삼습니다. snapshot 에 없는 값은 절대 만들지 마세요(추정 금지). 데이터가 없으면 해당 배열을 비웁니다.
+- 한국어. 금액은 억/만원으로 읽기 쉽게.
+- headline: 한 줄 결론(핵심 한 문장). summary: 2~3문장 요약.
+- actions(지금 해야 할 일): priority(high|medium|low), title(간결), detail(실무 지침), href(처리 화면 경로 — 예: /bank /partners /approvals /payments /signatures /tax-invoices, 모르면 생략).
+- risks(위험 신호): title, detail, severity(high|medium|low).
+- opportunities(기회): title, detail.
+- evidence(근거 데이터): snapshot 필드 기반 label/value/source.
+- 실행(송금·발행·승인)은 직접 못 하며 화면 위치만 안내합니다. 과장·허위 금지.`;
+
+// 구조화 응답 스키마 (claude.ts output_config json_schema). 실패 시 텍스트 fallback.
+const ANSWER_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    headline: { type: "string" },
+    summary: { type: "string" },
+    actions: {
+      type: "array",
+      items: {
+        type: "object", additionalProperties: false,
+        properties: {
+          priority: { type: "string", enum: ["high", "medium", "low"] },
+          title: { type: "string" }, detail: { type: "string" }, href: { type: "string" },
+        },
+        required: ["priority", "title", "detail"],
+      },
+    },
+    risks: {
+      type: "array",
+      items: {
+        type: "object", additionalProperties: false,
+        properties: { title: { type: "string" }, detail: { type: "string" }, severity: { type: "string", enum: ["high", "medium", "low"] } },
+        required: ["title", "detail", "severity"],
+      },
+    },
+    opportunities: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, properties: { title: { type: "string" }, detail: { type: "string" } }, required: ["title", "detail"] },
+    },
+    evidence: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, properties: { label: { type: "string" }, value: { type: "string" }, source: { type: "string" } }, required: ["label", "value"] },
+    },
+  },
+  required: ["headline", "summary", "actions", "risks", "opportunities", "evidence"],
+};
 
 serve(withSentry("owner-copilot", async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -79,7 +119,7 @@ serve(withSentry("owner-copilot", async (req) => {
       .maybeSingle();
     const tokenLimit: number | null = planRow?.monthly_ai_token_limit ?? null;
     if (tokenLimit === null) {
-      return json({ error: "대표 참모는 울트라·엔터프라이즈 플랜에서 이용할 수 있습니다.", code: "PLAN_REQUIRED" }, 403);
+      return json({ error: "AI 참모는 유료 플랜(프로 이상)에서 이용할 수 있습니다.", code: "PLAN_REQUIRED" }, 403);
     }
 
     // 당월 토큰 사용량 상한 체크
@@ -104,28 +144,42 @@ serve(withSentry("owner-copilot", async (req) => {
       "```",
     ].join("\n");
 
-    const result = await callClaude<unknown>({
-      task: "analysis", // 기본 Sonnet (사장님 결정: 복잡 질의만 Opus)
-      feature: "owner_copilot",
+    type Answer = {
+      headline: string; summary: string;
+      actions: { priority: string; title: string; detail: string; href?: string }[];
+      risks: { title: string; detail: string; severity: string }[];
+      opportunities: { title: string; detail: string }[];
+      evidence: { label: string; value: string; source?: string }[];
+    };
+    const result = await callClaude<Answer>({
+      task: "analysis", // 기본 Sonnet (복잡 질의만 Opus)
+      feature: "owner_copilot", // 로그 호환 위해 feature 명 유지
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userContent }],
-      maxTokens: 1200,
+      maxTokens: 1500,
+      schema: ANSWER_SCHEMA,
       companyId,
       userId: profile.id,
       admin,
-      promptVersion: "copilot-v1",
+      promptVersion: "copilot-v2",
     });
 
     if (!result.ok) {
       return json({ error: result.error || "AI 응답에 실패했습니다.", code: result.errorCode }, 502);
     }
 
+    // 구조화 파싱 성공 시 그대로, 실패 시 텍스트를 summary 로 감싸는 fallback.
+    const answer: Answer = result.data ?? {
+      headline: "", summary: result.text ?? "", actions: [], risks: [], opportunities: [], evidence: [],
+    };
     const remaining = Math.max(0, tokenLimit - used - (result.usage ? result.usage.input + result.usage.output : 0));
     return json({
-      answer: result.text ?? "",
+      answer,
       usage: result.usage ?? null,
       remaining_tokens: remaining,
       as_of: (snapshot as { as_of_kst?: string })?.as_of_kst ?? null,
+      model: result.model,
+      request_id: result.requestId,
     });
   } catch (_err) {
     // 상세(프롬프트/데이터) 비노출
