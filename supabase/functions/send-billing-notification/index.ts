@@ -19,8 +19,8 @@ const kst = (iso?: string | null) => {
   try { return new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
   catch { return "-"; }
 };
-const TYPE_LABEL: Record<string, string> = { new: "신규 구독 첫 결제 완료", renewal: "구독 갱신 완료", change: "플랜 변경 결제 완료" };
-const TYPE_SUBJECT: Record<string, string> = { new: "신규 구독 첫 결제 완료", renewal: "구독 갱신 완료", change: "플랜 변경 결제 완료" };
+const TYPE_LABEL: Record<string, string> = { new: "신규 구독 첫 결제 완료", renewal: "구독 갱신 완료", change: "플랜 변경 결제 완료", failed: "구독 결제 실패 — 결제수단 확인 필요" };
+const TYPE_SUBJECT: Record<string, string> = { new: "신규 구독 첫 결제 완료", renewal: "구독 갱신 완료", change: "플랜 변경 결제 완료", failed: "⚠️ 구독 결제 실패" };
 
 serve(withSentry("send-billing-notification", async (req) => {
   const j = (b: Record<string, unknown>, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
@@ -39,8 +39,9 @@ serve(withSentry("send-billing-notification", async (req) => {
     const p = await req.json().catch(() => ({}));
     const stripeEventId = String(p.stripe_event_id || "");
     const stripeInvoiceId = String(p.stripe_invoice_id || "");
-    const notificationType = ["new", "renewal", "change"].includes(p.notification_type) ? p.notification_type : "renewal";
-    if (!stripeInvoiceId) return j({ error: "stripe_invoice_id required" }, 400);
+    const notificationType = ["new", "renewal", "change", "failed"].includes(p.notification_type) ? p.notification_type : "renewal";
+    // 성공(new/renewal/change)은 invoice_id 로, 실패(failed)는 event_id 로 멱등 — 둘 중 하나는 필수.
+    if (!stripeInvoiceId && !stripeEventId) return j({ error: "stripe_invoice_id or stripe_event_id required" }, 400);
 
     // 수신자는 서버 env 고정 (클라 지정 불가)
     const recipient = Deno.env.get("BILLING_NOTIFICATION_EMAIL") || "creative@mo-tive.com";
@@ -48,7 +49,7 @@ serve(withSentry("send-billing-notification", async (req) => {
     // ── 중복방지: insert(pending) → 충돌 시 기존 행 확인 ──
     const { data: ins, error: insErr } = await admin.from("billing_email_deliveries").insert({
       stripe_event_id: stripeEventId || null,
-      stripe_invoice_id: stripeInvoiceId,
+      stripe_invoice_id: stripeInvoiceId || null,   // "" 금지 — 실패 메일은 invoice_id 없이 event_id 로만 멱등
       company_id: p.company_id || null,
       subscription_id: p.stripe_subscription_id || null,
       notification_type: notificationType,
@@ -60,9 +61,12 @@ serve(withSentry("send-billing-notification", async (req) => {
     let rowId: string;
     if (insErr) {
       if (insErr.code === "23505") {
+        const orParts: string[] = [];
+        if (stripeInvoiceId) orParts.push(`stripe_invoice_id.eq.${stripeInvoiceId}`);
+        if (stripeEventId) orParts.push(`stripe_event_id.eq.${stripeEventId}`);
         const { data: ex } = await admin.from("billing_email_deliveries")
           .select("id, status, attempts")
-          .or(`stripe_invoice_id.eq.${stripeInvoiceId}` + (stripeEventId ? `,stripe_event_id.eq.${stripeEventId}` : ""))
+          .or(orParts.join(","))
           .limit(1).maybeSingle();
         if (!ex) return j({ error: "conflict_no_row" }, 500);
         if (ex.status === "sent") return j({ ok: true, skipped: true, reason: "already_sent" }); // 재발송 금지
@@ -85,8 +89,9 @@ serve(withSentry("send-billing-notification", async (req) => {
       ["대표자/결제 계정", String(p.payer || "-")],
       ["플랜", String(p.plan_name || "-")],
       ["좌석 수", `${p.seat_count ?? "-"}명`],
-      ["결제 금액", won(Number(p.amount_krw || 0)) + " (VAT 포함 청구액)"],
-      ["결제 시각(KST)", kst(p.paid_at || now)],
+      [notificationType === "failed" ? "청구 실패 금액" : "결제 금액", won(Number(p.amount_krw || 0)) + " (VAT 포함 청구액)"],
+      [notificationType === "failed" ? "실패 시각(KST)" : "결제 시각(KST)", kst(p.paid_at || now)],
+      ...(notificationType === "failed" && p.attempt_count != null ? [["결제 시도 횟수", `${p.attempt_count}회`] as [string, string]] : []),
       ["다음 결제 예정", kst(p.next_billing_at)],
       ...(p.trial_end ? [["트라이얼 종료(첫 결제)", kst(p.trial_end)] as [string, string]] : []),
       ["Stripe invoice", String(p.stripe_invoice_id || "-")],

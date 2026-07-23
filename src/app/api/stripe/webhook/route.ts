@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         await handleInvoicePaid(event.data.object as Stripe.Invoice, event.id);
         break;
       case 'invoice.payment_failed':
-        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice, event.id);
         break;
       default:
         break;
@@ -392,32 +392,109 @@ async function notifyBillingPaid(invoice: Stripe.Invoice, sub: any, amountWon: n
   }
 }
 
-// 결제 실패(dunning) — 재시도·독촉은 Stripe 가 진행, 앱은 past_due 반영 + 기록
-async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+// 결제 실패(dunning) — 재시도·독촉은 Stripe 가 진행. 앱은 past_due 반영 + 대표/관리자 알림 + 운영자 메일 + 기록.
+async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId?: string) {
   const db = getSupabaseAdmin() as any;
   const stripeSubscriptionId = invoice.subscription as string | null;
   if (!stripeSubscriptionId) return;
 
   const sub = logRead('webhook/route:sub', await db
     .from('subscriptions')
-    .select('company_id, id')
+    .select('company_id, id, seat_count, current_period_end, subscription_plans(name)')
     .eq('stripe_subscription_id', stripeSubscriptionId)
     .limit(1)
     .maybeSingle());
   if (!sub) return;
 
+  // 멱등 — 같은 payment_failed 이벤트 재전송 시 중복 알림/메일 방지(같은 이벤트 id 기록 여부로 판정).
+  if (eventId) {
+    const seen = logRead('webhook/route:failSeen', await db
+      .from('billing_events')
+      .select('id')
+      .eq('company_id', sub.company_id)
+      .eq('event_type', 'payment_failed')
+      .contains('metadata', { stripeEventId: eventId })
+      .limit(1)
+      .maybeSingle());
+    if (seen) return;
+  }
+
+  const now = new Date().toISOString();
+  // KRW zero-decimal 정확 환산(과거 /100 버그 수정).
+  const amountDue = stripeAmountToWon(invoice.amount_due || 0, invoice.currency);
+
   await db.from('subscriptions')
-    .update({ status: 'past_due', updated_at: new Date().toISOString() })
+    .update({ status: 'past_due', updated_at: now })
     .eq('id', sub.id);
+
+  // 대표/관리자 in-app 알림 — 결제수단 확인 유도(type 은 CHECK 허용값 payment_due 사용).
+  const admins = logRead('webhook/route:failAdmins', await db
+    .from('users').select('id').eq('company_id', sub.company_id).in('role', ['owner', 'admin']));
+  if (admins?.length) {
+    await db.from('notifications').insert(admins.map((a: any) => ({
+      company_id: sub.company_id, user_id: a.id, type: 'payment_due',
+      title: '구독 결제가 실패했습니다 — 결제수단 확인이 필요합니다',
+      message: `구독 자동 결제(${amountDue.toLocaleString('ko-KR')}원)가 실패했습니다. 결제수단을 업데이트하지 않으면 서비스 이용이 중단될 수 있습니다. 결제 관리에서 카드를 확인해 주세요.`,
+      entity_type: 'billing', is_read: false,
+    })));
+  }
+
+  // 운영자(creative@mo-tive.com) 내부 실패 알림 메일 — 실패는 event_id 로 멱등(성공 메일 invoice_id 키와 분리).
+  await notifyBillingFailed(invoice, sub, amountDue, eventId);
 
   await db.from('billing_events').insert({
     company_id: sub.company_id,
     event_type: 'payment_failed',
     metadata: {
       stripeInvoiceId: invoice.id,
+      stripeEventId: eventId ?? null,
       attemptCount: (invoice as any).attempt_count ?? null,
-      amountDue: (invoice.amount_due || 0) / 100,
+      amountDue,
     },
-    created_at: new Date().toISOString(),
+    created_at: now,
   });
+}
+
+// 운영자 결제 실패 알림 메일(엣지 위임). 성공 메일과 동일 채널, notification_type='failed'.
+//   invoice_id 는 성공 메일 멱등키와 충돌하므로 보내지 않고 event_id 로만 멱등.
+async function notifyBillingFailed(invoice: Stripe.Invoice, sub: any, amountWon: number, eventId?: string) {
+  try {
+    const db = getSupabaseAdmin() as any;
+    const company = logRead('webhook/route:failCompany', await db
+      .from('companies').select('name, representative').eq('id', sub.company_id).maybeSingle());
+    const owner = logRead('webhook/route:failOwner', await db
+      .from('users').select('email').eq('company_id', sub.company_id).eq('role', 'owner').limit(1).maybeSingle());
+
+    const hookSecret = process.env.BILLING_HOOK_SECRET;
+    const fnUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-billing-notification`;
+    if (!hookSecret) { console.warn('[billing-notify] BILLING_HOOK_SECRET missing'); return; }
+
+    const payload = {
+      stripe_event_id: eventId || null,
+      stripe_invoice_id: null,
+      stripe_subscription_id: invoice.subscription,
+      company_id: sub.company_id,
+      notification_type: 'failed',
+      company_name: company?.name || '회사',
+      payer: company?.representative || owner?.email || '-',
+      plan_name: sub.subscription_plans?.name || '-',
+      seat_count: sub.seat_count ?? '-',
+      amount_krw: amountWon,
+      paid_at: new Date().toISOString(),
+      next_billing_at: sub.current_period_end || null,
+      attempt_count: (invoice as any).attempt_count ?? null,
+    };
+
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const res = await fetch(fnUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': hookSecret, apikey: anon, Authorization: `Bearer ${anon}` },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      Sentry.captureException(new Error(`billing failure notify failed HTTP ${res.status}`), { tags: { scope: 'billing-notify' }, extra: { invoiceId: invoice.id } });
+    }
+  } catch (e) {
+    Sentry.captureException(e instanceof Error ? e : new Error('billing failure notify error'), { tags: { scope: 'billing-notify' } });
+  }
 }
