@@ -13,16 +13,19 @@ const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => 
   loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
 });
 
-// content_json(구 섹션형) → HTML 변환(레거시 HR 서식을 리치 에디터로 편집 가능하게)
-function cjToHtml(cj: any): string {
-  if (!cj) return "";
-  let h = cj.title ? `<h2>${cj.title}</h2>` : "";
-  for (const s of cj.sections || []) {
-    if (s?.title) h += `<h3>${s.title}</h3>`;
-    if (s?.content) h += `<p>${String(s.content).replace(/\n/g, "<br>")}</p>`;
+// 미리보기용 문서 HTML — body가 HTML이면 그대로, 평문(개행)이면 문단으로, 없으면 섹션형을 변환.
+//   일부 HR 서식의 content_json.body 가 <p> 없는 평문(\n)이라 HTML 렌더 시 한 덩어리가 되던 문제 대응.
+function toDocHtml(tpl: any): string {
+  const cj = tpl?.content_json || {};
+  const body: string = cj.body || "";
+  if (body) {
+    if (/<(p|div|br|h[1-6]|ul|ol|li|table|hr)[\s/>]/i.test(body)) return body; // 이미 HTML
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return body.split(/\n/).map((line) => (line.trim() ? `<p>${esc(line)}</p>` : "<p>&nbsp;</p>")).join("");
   }
-  return h;
+  return docTemplateToHtml({ name: tpl?.name, content_json: cj });
 }
+
 import { DOC_TYPES, docTemplateToHtml } from "@/lib/documents";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { DEFAULT_DOC_TEMPLATES } from "@/lib/default-doc-templates";
@@ -136,8 +139,8 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
     setShowForm(true);
     setPreviewId(null);
     if (isRich) {
-      // content_json.body(리치) 우선, 없으면 레거시 섹션형을 HTML 로 변환해 편집
-      const body = tpl.content_json?.body ?? cjToHtml(tpl.content_json);
+      // 평문 body는 문단으로, HTML body는 그대로, 섹션형은 변환 — 편집기에서 구조 있게 로드
+      const body = toDocHtml(tpl);
       setHtml(body);
       setTimeout(() => editorRef.current?.setContent(body), 50);
     }
@@ -423,10 +426,8 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
         ) : (
           <div className="divide-y divide-[var(--border)]/50">
             {scopedTemplates.map((tpl: any) => {
-              const typeLabel = DOC_TYPES.find(t => t.value === tpl.type)?.label || tpl.type;
               const vars = Array.isArray(tpl.variables) ? tpl.variables : [];
               const isPreview = previewId === tpl.id;
-              const sectionCount = Array.isArray(tpl.content_json?.sections) ? tpl.content_json.sections.length : 0;
 
               return (
                 <div key={tpl.id} className="template-row">
@@ -435,23 +436,8 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                       <div className="flex-1">
                         <div className="template-row-badges">
                           <span className="text-sm font-medium">{tpl.name}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{typeLabel}</span>
-                          {sectionCount > 0 && (
-                            <span className="caption">{sectionCount}개 섹션</span>
-                          )}
+                          {vars.length > 0 && <span className="caption">변수 {vars.length}개</span>}
                         </div>
-                        {vars.length > 0 && (
-                          <div className="template-row-vars">
-                            {vars.slice(0, 6).map((v: string) => (
-                              <span key={v} className="text-[10px] px-1.5 py-0.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text-dim)] font-mono">
-                                {`{{${v}}}`}
-                              </span>
-                            ))}
-                            {vars.length > 6 && (
-                              <span className="caption">+{vars.length - 6}개</span>
-                            )}
-                          </div>
-                        )}
                       </div>
                       <div className="template-row-actions">
                         <button onClick={() => setPreviewId(isPreview ? null : tpl.id)}
@@ -478,10 +464,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                       {/* 실제 문서처럼 — 문서 뷰어와 동일하게 docTemplateToHtml 변환 + sanitize 후 흰 종이에 렌더 */}
                       <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-4 flex justify-center overflow-x-auto">
                         <div className="doc-preview-page" dangerouslySetInnerHTML={{
-                          __html: sanitizeDocumentHtml(
-                            previewTemplate.content_json?.body
-                            || docTemplateToHtml({ name: previewTemplate.name, content_json: previewTemplate.content_json })
-                          ),
+                          __html: sanitizeDocumentHtml(toDocHtml(previewTemplate)),
                         }} />
                       </div>
                       {vars.length > 0 && (
