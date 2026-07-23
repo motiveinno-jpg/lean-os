@@ -315,7 +315,7 @@ export default function SignaturesDashboardPage() {
             onClick={() => setSubTab("requests")}
             className={`seg-item ${subTab === "requests" ? "seg-item-active" : ""}`}
           >
-            서명 요청
+            계약 요청
           </button>
           <button
             onClick={() => setSubTab("templates")}
@@ -330,7 +330,7 @@ export default function SignaturesDashboardPage() {
               <span
                 className="contract-usage-chip"
                 data-reached={contractLimitReached ? "1" : undefined}
-                title={`${contractStatus.planName || "현재 요금제"} — 전자계약(서명 요청)은 월 ${contractStatus.limit}건까지 발송 가능합니다`}
+                title={`${contractStatus.planName || "현재 요금제"} — 전자계약(계약 요청)은 월 ${contractStatus.limit}건까지 발송 가능합니다`}
               >
                 이번 달 발송 {contractStatus.used}/{contractStatus.limit}건
               </span>
@@ -349,7 +349,7 @@ export default function SignaturesDashboardPage() {
               className="btn-primary"
               title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 울트라로 업그레이드하면 무제한 발송할 수 있습니다.` : undefined}
             >
-              {contractLimitReached ? "이번 달 발송 한도 소진" : "+ 새 서명 요청"}
+              {contractLimitReached ? "이번 달 발송 한도 소진" : "+ 새 계약 요청"}
             </button>
           </div>
         )}
@@ -488,7 +488,7 @@ export default function SignaturesDashboardPage() {
             <div className="text-5xl mb-4">✍️</div>
             <div className="text-base font-bold text-[var(--text)]">문서에 서명을 요청해보세요</div>
             <div className="text-xs text-[var(--text-muted)] mt-1.5">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
-            <button onClick={() => setShowInviteModal(true)} className="btn-primary mt-5">+ 서명 요청</button>
+            <button onClick={() => setShowInviteModal(true)} className="btn-primary mt-5">+ 새 계약 요청</button>
           </div>
         ) : (
           filtered.slice((page - 1) * pageSize, page * pageSize).map((r: any) => {
@@ -530,10 +530,10 @@ export default function SignaturesDashboardPage() {
                         <button onClick={async () => { const proof = await getSignatureProof(r.id); setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: proof.signature_data, title: r.title, signer_inputs: proof.signer_inputs }); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명본 보기" title="서명본 보기">✅</button>
                       )}
                       {canRemind && (
-                        <button onClick={async () => { if (await appConfirm("이 서명 요청을 취소하시겠습니까?", { danger: true, confirmLabel: "취소 처리" })) cancelMut.mutate(r.id); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition" aria-label="서명 요청 취소" title="취소(만료 처리)">✕</button>
+                        <button onClick={async () => { if (await appConfirm("이 계약 요청을 취소하시겠습니까?", { danger: true, confirmLabel: "취소 처리" })) cancelMut.mutate(r.id); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition" aria-label="계약 요청 취소" title="취소(만료 처리)">✕</button>
                       )}
                       {isManager && (
-                        <button onClick={async () => { if (await appConfirm("이 서명 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.", { danger: true })) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제">🗑</button>
+                        <button onClick={async () => { if (await appConfirm("이 계약 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.", { danger: true })) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제">🗑</button>
                       )}
                     </div>
                   </div>
