@@ -2,6 +2,7 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import * as Sentry from "@sentry/nextjs";
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
         await handleTrialWillEnd(event.data.object as Stripe.Subscription);
         break;
       case 'invoice.paid':
-        await handleInvoicePaid(event.data.object as Stripe.Invoice);
+        await handleInvoicePaid(event.data.object as Stripe.Invoice, event.id);
         break;
       case 'invoice.payment_failed':
         await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
@@ -253,19 +254,27 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   }
 }
 
-async function handleInvoicePaid(invoice: Stripe.Invoice) {
+// KRW·JPY 등 zero-decimal 통화는 최소단위=원 자체(×100 아님). 그 외는 /100.
+const ZERO_DECIMAL = new Set(['krw', 'jpy', 'vnd', 'clp', 'bif', 'djf', 'gnf', 'kmf', 'mga', 'pyg', 'rwf', 'ugx', 'vuv', 'xaf', 'xof', 'xpf']);
+function stripeAmountToWon(amount: number, currency: string): number {
+  return ZERO_DECIMAL.has((currency || 'krw').toLowerCase()) ? (amount || 0) : (amount || 0) / 100;
+}
+
+async function handleInvoicePaid(invoice: Stripe.Invoice, eventId?: string) {
   const db = getSupabaseAdmin() as any;
   const stripeSubscriptionId = invoice.subscription as string | null;
   if (!stripeSubscriptionId) return;
 
   const sub = logRead('webhook/route:sub', await db
     .from('subscriptions')
-    .select('company_id, id')
+    .select('company_id, id, seat_count, current_period_end, trial_ends_at, subscription_plans(name)')
     .eq('stripe_subscription_id', stripeSubscriptionId)
     .limit(1)
     .maybeSingle());
 
   if (!sub) return;
+
+  const amountWon = stripeAmountToWon(invoice.amount_paid || 0, invoice.currency);
 
   // 멱등성 — Stripe 재시도 시 같은 인보이스 중복 insert 방지
   const dup = logRead('webhook/route:dup', await db
@@ -274,7 +283,11 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     .eq('stripe_invoice_id', invoice.id)
     .limit(1)
     .maybeSingle());
-  if (dup) return;
+  if (dup) {
+    // 인보이스는 이미 기록됨. 결제 알림 메일은 자체 멱등(billing_email_deliveries)이라 재시도 안전.
+    await notifyBillingPaid(invoice, sub, amountWon, eventId);
+    return;
+  }
 
   const now = new Date();
   const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -298,8 +311,8 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     company_id: sub.company_id,
     subscription_id: sub.id,
     invoice_number: invoiceNumber,
-    amount: (invoice.amount_paid || 0) / 100,
-    total_amount: (invoice.amount_paid || 0) / 100,
+    amount: amountWon,
+    total_amount: amountWon,
     status: 'paid',
     description: invoice.lines?.data?.[0]?.description || '구독 결제',
     stripe_invoice_id: invoice.id,
@@ -312,10 +325,71 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     metadata: {
       invoiceNumber,
       stripeInvoiceId: invoice.id,
-      amount: (invoice.amount_paid || 0) / 100,
+      amount: amountWon,
     },
     created_at: now.toISOString(),
   });
+
+  // 결제 성공 내부 알림 메일 (실결제만). 인보이스 기록 후 트리거 — 메일 실패는 웹훅에 영향 없음.
+  await notifyBillingPaid(invoice, sub, amountWon, eventId);
+}
+
+// creative@mo-tive.com 결제 알림 발송(엣지 위임). amount>0(실결제)만, 0원 트라이얼 invoice 제외.
+//   중복방지는 엣지의 billing_email_deliveries 가 담당. Resend 실패해도 여기서 삼켜 웹훅은 200 유지.
+async function notifyBillingPaid(invoice: Stripe.Invoice, sub: any, amountWon: number, eventId?: string) {
+  try {
+    if (!(amountWon > 0)) return; // 0원 트라이얼 등 미발송
+    const db = getSupabaseAdmin() as any;
+
+    // 알림 유형: 이전 성공 invoice 없으면 신규, 있으면 갱신. billing_reason 이 update/manual 이면 플랜변경/수동.
+    const reason = (invoice as any).billing_reason as string | undefined;
+    let notificationType: 'new' | 'renewal' | 'change';
+    if (reason === 'subscription_update' || reason === 'manual') notificationType = 'change';
+    else {
+      const priorCount = logRead('webhook/route:priorInv', await db
+        .from('invoices').select('id', { count: 'exact', head: true })
+        .eq('subscription_id', sub.id).eq('status', 'paid'));
+      notificationType = (priorCount ?? 0) > 1 ? 'renewal' : 'new'; // 방금 넣은 1건 포함이면 첫 결제
+    }
+
+    const company = logRead('webhook/route:company', await db
+      .from('companies').select('name, representative').eq('id', sub.company_id).maybeSingle());
+    const owner = logRead('webhook/route:owner', await db
+      .from('users').select('email').eq('company_id', sub.company_id).eq('role', 'owner').limit(1).maybeSingle());
+
+    const hookSecret = process.env.BILLING_HOOK_SECRET;
+    const fnUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-billing-notification`;
+    if (!hookSecret) { console.warn('[billing-notify] BILLING_HOOK_SECRET missing'); return; }
+
+    const payload = {
+      stripe_event_id: eventId || null,
+      stripe_invoice_id: invoice.id,
+      stripe_subscription_id: invoice.subscription,
+      company_id: sub.company_id,
+      notification_type: notificationType,
+      company_name: company?.name || '회사',
+      payer: company?.representative || owner?.email || '-',
+      plan_name: sub.subscription_plans?.name || '-',
+      seat_count: sub.seat_count ?? '-',
+      amount_krw: amountWon,
+      paid_at: new Date().toISOString(),
+      next_billing_at: sub.current_period_end || null,
+      trial_end: notificationType === 'new' ? (sub.trial_ends_at || null) : null,
+    };
+
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const res = await fetch(fnUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': hookSecret, apikey: anon, Authorization: `Bearer ${anon}` },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      // 결제 알림 실패는 결제 자체엔 영향 없음. Sentry 로만 추적.
+      Sentry.captureException(new Error(`billing notify failed HTTP ${res.status}`), { tags: { scope: 'billing-notify' }, extra: { invoiceId: invoice.id } });
+    }
+  } catch (e) {
+    Sentry.captureException(e instanceof Error ? e : new Error('billing notify error'), { tags: { scope: 'billing-notify' } });
+  }
 }
 
 // 결제 실패(dunning) — 재시도·독촉은 Stripe 가 진행, 앱은 past_due 반영 + 기록

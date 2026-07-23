@@ -150,7 +150,8 @@ describe("checkout.session.completed", () => {
 });
 
 describe("invoice.paid — 멱등성·인보이스 번호", () => {
-  const invoice = { id: "in_1", subscription: "sub_1", amount_paid: 5_500_000, lines: { data: [] } };
+  // KRW 는 zero-decimal — amount_paid 가 이미 원 단위(×100 아님). 55,000원 = amount_paid 55000.
+  const invoice = { id: "in_1", subscription: "sub_1", amount_paid: 55000, currency: "krw", billing_reason: "subscription_cycle", lines: { data: [] } };
 
   it("같은 stripe_invoice_id 재수신(Stripe 재시도) 시 중복 insert 없음", async () => {
     st.subByStripeId = { id: "sub-row-1", company_id: "co-1" };
