@@ -23,7 +23,8 @@ function cjToHtml(cj: any): string {
   }
   return h;
 }
-import { DOC_TYPES } from "@/lib/documents";
+import { DOC_TYPES, docTemplateToHtml } from "@/lib/documents";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { DEFAULT_DOC_TEMPLATES } from "@/lib/default-doc-templates";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -474,21 +475,14 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                   {/* Preview Panel */}
                   {isPreview && previewTemplate && (
                     <div className="template-preview-panel">
-                      {/* 실제 문서처럼 — 흰 종이 위에 문서 폭으로, 가운데 정렬. 넓은 표는 페이지 안에서만 스크롤 */}
+                      {/* 실제 문서처럼 — 문서 뷰어와 동일하게 docTemplateToHtml 변환 + sanitize 후 흰 종이에 렌더 */}
                       <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-4 flex justify-center overflow-x-auto">
-                        {previewTemplate.content_json?.body ? (
-                          <div className="doc-preview-page" dangerouslySetInnerHTML={{ __html: previewTemplate.content_json.body }} />
-                        ) : (
-                          <div className="doc-preview-page">
-                            <h1>{previewTemplate.content_json?.title || previewTemplate.name}</h1>
-                            {(previewTemplate.content_json?.sections || []).map((sec: any, idx: number) => (
-                              <div key={idx} className="mt-3">
-                                {sec.title && <p><strong>{sec.title}</strong></p>}
-                                <p className="whitespace-pre-wrap">{sec.content}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <div className="doc-preview-page" dangerouslySetInnerHTML={{
+                          __html: sanitizeDocumentHtml(
+                            previewTemplate.content_json?.body
+                            || docTemplateToHtml({ name: previewTemplate.name, content_json: previewTemplate.content_json })
+                          ),
+                        }} />
                       </div>
                       {vars.length > 0 && (
                         <div className="mt-3 px-1">
