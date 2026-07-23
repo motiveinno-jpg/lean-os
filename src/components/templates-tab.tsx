@@ -427,7 +427,6 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
           <div className="divide-y divide-[var(--border)]/50">
             {scopedTemplates.map((tpl: any) => {
               const vars = Array.isArray(tpl.variables) ? tpl.variables : [];
-              const isPreview = previewId === tpl.id;
 
               return (
                 <div key={tpl.id} className="template-row">
@@ -440,9 +439,9 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                         </div>
                       </div>
                       <div className="template-row-actions">
-                        <button onClick={() => setPreviewId(isPreview ? null : tpl.id)}
+                        <button onClick={() => setPreviewId(tpl.id)}
                           className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">
-                          {isPreview ? "접기" : "미리보기"}
+                          미리보기
                         </button>
                         <button onClick={() => startEdit(tpl)}
                           className="text-xs text-[var(--primary)] hover:underline font-medium transition">
@@ -457,36 +456,40 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                       </div>
                     </div>
                   </div>
-
-                  {/* Preview Panel */}
-                  {isPreview && previewTemplate && (
-                    <div className="template-preview-panel">
-                      {/* 실제 문서처럼 — 문서 뷰어와 동일하게 docTemplateToHtml 변환 + sanitize 후 흰 종이에 렌더 */}
-                      <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-4 flex justify-center overflow-x-auto">
-                        <div className="doc-preview-page" dangerouslySetInnerHTML={{
-                          __html: sanitizeDocumentHtml(toDocHtml(previewTemplate)),
-                        }} />
-                      </div>
-                      {vars.length > 0 && (
-                        <div className="mt-3 px-1">
-                          <span className="text-[10px] text-[var(--text-dim)] uppercase">입력 필요 변수</span>
-                          <div className="flex flex-wrap gap-1.5 mt-1.5">
-                            {vars.map((v: string) => (
-                              <span key={v} className="text-[10px] px-2 py-0.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full font-mono">
-                                {v}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* 미리보기 — 팝업(모달). 인라인 확장 대신 모달로 열어 긴 스크롤 없이 닫기 쉽게(2026-07-23) */}
+      {previewTemplate && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-3 md:p-6 no-print"
+          onClick={() => setPreviewId(null)}>
+          <div className="glass-card w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] shrink-0">
+              <h3 className="text-sm font-bold text-[var(--text)] truncate">{previewTemplate.name} <span className="font-normal text-[var(--text-dim)]">미리보기</span></h3>
+              <button onClick={() => setPreviewId(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-2xl leading-none px-1" aria-label="닫기">×</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 bg-[var(--bg-surface)]">
+              <div className="flex justify-center overflow-x-auto">
+                <div className="doc-preview-page" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(toDocHtml(previewTemplate)) }} />
+              </div>
+              {Array.isArray(previewTemplate.variables) && previewTemplate.variables.length > 0 && (
+                <div className="mt-3 mx-auto max-w-[760px]">
+                  <span className="text-[10px] text-[var(--text-dim)] uppercase">입력 필요 변수</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {previewTemplate.variables.map((v: string) => (
+                      <span key={v} className="text-[10px] px-2 py-0.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full font-mono">{v}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
