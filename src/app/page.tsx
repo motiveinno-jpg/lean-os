@@ -19,10 +19,10 @@ const COMPETITORS = [
 ];
 
 const PLANS = [
-  { name: "무료체험", regularPrice: null, betaPrice: "0", unit: "원", period: "카드 등록 없이 14일", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
-  { name: "프로", regularPrice: null, betaPrice: "55,000", unit: "원/월", period: "VAT 별도 · 인원 무제한", desc: "성장하는 팀의 표준", perSeat: null, hl: true, discount: null, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약(서명) 월 20건", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "세금계산서 국세청 발행 월 10건 · 현금영수증 발행(베타)"] },
-  { name: "울트라", regularPrice: null, betaPrice: "88,000", unit: "원/월", period: "VAT 별도 · 발행량 많은 팀", desc: "국세청 발행 무제한 + AI 브리핑", perSeat: null, hl: false, discount: null, features: ["프로의 모든 기능 그대로", "세금계산서 국세청 발행 무제한 · 현금영수증 발행(베타)", "AI 브리핑 — 매일 우선순위 액션 플랜", "신기능 얼리 액세스", "우선 지원"] },
-  { name: "엔터프라이즈", regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 협의"] },
+  { name: "무료체험", slug: null, regularPrice: null, betaPrice: "0", unit: "원", period: "14일 무료 · 가입 시 카드 등록", desc: "전 기능 체험", perSeat: null, hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "가입 시 카드 등록 · 14일 후 선택 플랜 자동 결제", "14일 내 해지 시 첫 결제 없음", "은행·카드 실계좌 연동", "경영 대시보드·리포트"] },
+  { name: "프로", slug: "basic", regularPrice: "158,900", betaPrice: "79,500", unit: "원/월", period: "VAT 별도 · 기본 5명 포함 · 추가 1명 ₩10,000/월", desc: "성장하는 팀의 표준", perSeat: null, hl: true, discount: "50%", features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약(서명) 월 20건", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "세금계산서 국세청 발행 월 10건 · 현금영수증 발행(베타)"] },
+  { name: "울트라", slug: "ultra", regularPrice: "220,000", betaPrice: "110,000", unit: "원/월", period: "VAT 별도 · 기본 5명 포함 · 추가 1명 ₩10,000/월", desc: "국세청 발행 무제한 + AI 브리핑", perSeat: null, hl: false, discount: "50%", features: ["프로의 모든 기능 그대로", "세금계산서 국세청 발행 무제한 · 현금영수증 발행(베타)", "AI 브리핑 — 매일 우선순위 액션 플랜", "신기능 얼리 액세스", "우선 지원"] },
+  { name: "엔터프라이즈", slug: null, regularPrice: null, betaPrice: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", perSeat: null, hl: false, discount: null, features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 협의"] },
 ];
 
 const FAQS = [
@@ -927,8 +927,10 @@ export default function LandingPage() {
 
   // 2026-07 가격 재확인: 플렉스는 10인까지 70,000원 정액 — per-person 계산에서 제외.
   const competitorTotal = teamSize * (16000 + 4900 + 4000) + 70000 + 39900 + 120000 + 33000;
-  const reflectTotal = teamSize <= 50 ? 55000 : null;
-  const savings = competitorTotal - (reflectTotal ?? 55000);
+  // 오너뷰 월 요금: 기본 79,500(프로·5명 포함) + 5명 초과분 1명당 10,000 (VAT 별도)
+  const ownerViewMonthly = 79500 + Math.max(0, teamSize - 5) * 10000;
+  const reflectTotal = teamSize <= 50 ? ownerViewMonthly : null;
+  const savings = competitorTotal - (reflectTotal ?? ownerViewMonthly);
   const savingsPercent = Math.round((savings / competitorTotal) * 100);
   const reflectPlan = teamSize <= 50 ? "프로" : "엔터프라이즈";
 
@@ -1044,7 +1046,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="lp2-hero-checks">
-              {["카드 등록 없이 무료", "가입 즉시 세팅 완료", "24시간 자동 운영", "RLS 기반 데이터 보안"].map((t) => (
+              {["14일 무료 (가입 시 카드 등록)", "가입 즉시 세팅 완료", "24시간 자동 운영", "RLS 기반 데이터 보안"].map((t) => (
                 <span key={t} className="lp2-hero-check">
                   <svg className="w-3.5 h-3.5" style={{ color: "var(--lp-emerald)" }} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                   {t}
@@ -1198,8 +1200,8 @@ export default function LandingPage() {
               <div className="lp2-engine-savings-divider" />
               <div className="text-center">
                 <div className="text-sm mb-2" style={{ color: "var(--lp-text-3)" }}>OwnerView 프로 요금제</div>
-                <div className="text-2xl font-bold" style={{ color: "var(--lp-text)" }}>월 <span style={{ color: "var(--lp-indigo)" }}>55,000원</span> 정액</div>
-                <div className="text-sm font-semibold mt-1" style={{ color: "var(--lp-emerald)" }}>인원 무제한 · VAT 별도</div>
+                <div className="text-2xl font-bold" style={{ color: "var(--lp-text)" }}>월 <span style={{ color: "var(--lp-indigo)" }}>79,500원</span>부터</div>
+                <div className="text-sm font-semibold mt-1" style={{ color: "var(--lp-emerald)" }}>기본 5명 포함 · 추가 1명 ₩10,000 · VAT 별도</div>
               </div>
             </div>
           </Reveal>
@@ -1324,7 +1326,7 @@ export default function LandingPage() {
               <div className="lp2-calc-head">
                 <div>
                   <h3 className="text-xl font-bold mb-1" style={{ color: "var(--lp-text)" }}>비용 비교 계산기</h3>
-                  <p className="text-sm" style={{ color: "var(--lp-text-2)" }}>경쟁사는 인원마다 늘지만, 오너뷰는 월 55,000원 정액</p>
+                  <p className="text-sm" style={{ color: "var(--lp-text-2)" }}>경쟁사는 인원마다 크게 늘지만, 오너뷰는 월 79,500원부터 (기본 5명 · 추가 1명 ₩10,000)</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-3xl font-extrabold" style={{ color: "var(--lp-text)" }}>{teamSize}<span className="text-lg" style={{ color: "var(--lp-text-3)" }}>명</span></span>
@@ -1381,7 +1383,7 @@ export default function LandingPage() {
             <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl" style={{ background: "color-mix(in srgb, var(--lp-emerald) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--lp-emerald) 25%, transparent)" }}>
               <span className="text-sm font-semibold" style={{ color: "var(--lp-emerald)" }}>도입 비용</span>
               <span className="text-2xl font-extrabold" style={{ color: "var(--lp-emerald)" }}>0원</span>
-              <span className="text-xs" style={{ color: "var(--lp-text-3)" }}>카드 등록 없이 무료로 시작</span>
+              <span className="text-xs" style={{ color: "var(--lp-text-3)" }}>가입 시 카드 등록 · 14일 무료</span>
             </div>
           </Reveal>
         </div>
@@ -1391,9 +1393,9 @@ export default function LandingPage() {
       <section className="lp2-section" id="pricing">
         <div className="lp2-container">
           <Reveal className="lp2-section-head">
-            <div className="lp2-eyebrow">14일 무료체험 · 카드 등록 없이 시작</div>
+            <div className="lp2-eyebrow">가입 시 카드 등록 · 14일 무료 · 14일 후 자동 결제</div>
             <h2 className="lp2-h2">심플한 4단계 요금제</h2>
-            <p className="lp2-sub">14일 무료로 전 기능을 써보고, 필요할 때 정액 요금제로 전환하세요</p>
+            <p className="lp2-sub">14일 무료로 전 기능을 써보고, 기간이 끝나면 선택한 플랜으로 자동 전환됩니다. 14일 내 해지하면 첫 결제가 발생하지 않습니다.</p>
           </Reveal>
           <Reveal stagger className="lp2-plans">
             {PLANS.map((plan) => (
@@ -1401,6 +1403,12 @@ export default function LandingPage() {
                 {plan.hl && <div className="lp2-plan-best-badge">BEST</div>}
                 <h4 className="text-lg font-bold mb-0.5" style={{ color: "var(--lp-text)" }}>{plan.name}</h4>
                 <p className="text-xs mb-4" style={{ color: "var(--lp-text-3)" }}>{plan.desc}</p>
+                {plan.regularPrice && (
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-sm line-through" style={{ color: "var(--lp-text-3)" }}>₩{plan.regularPrice}</span>
+                    {plan.discount && <span className="text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ color: "var(--lp-rose)", background: "color-mix(in srgb, var(--lp-rose) 14%, transparent)" }}>{plan.discount} 할인</span>}
+                  </div>
+                )}
                 <div className="mb-0.5">
                   <span className="text-3xl font-extrabold" style={{ color: "var(--lp-text)" }}>{plan.betaPrice}</span>
                   <span className="text-sm ml-0.5" style={{ color: "var(--lp-text-3)" }}>{plan.unit}</span>
@@ -1414,8 +1422,8 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href={plan.betaPrice === "별도 협의" ? "#partner" : "/auth"} className={`lp2-plan-cta ${plan.hl ? "lp2-plan-cta-primary" : "lp2-plan-cta-ghost"}`}>
-                  {plan.betaPrice === "별도 협의" ? "가격 문의하기" : "무료로 시작하기"}
+                <Link href={plan.betaPrice === "별도 협의" ? "#partner" : plan.slug ? `/auth?plan=${plan.slug}` : "/auth"} className={`lp2-plan-cta ${plan.hl ? "lp2-plan-cta-primary" : "lp2-plan-cta-ghost"}`}>
+                  {plan.betaPrice === "별도 협의" ? "가격 문의하기" : "14일 무료로 시작"}
                 </Link>
               </div>
             ))}
@@ -1430,8 +1438,8 @@ export default function LandingPage() {
               <thead>
                 <tr>
                   <th>항목</th>
-                  <th>프로 · 55,000원</th>
-                  <th className="lp2-diff-ultra-col">울트라 · 88,000원</th>
+                  <th>프로 · 79,500원</th>
+                  <th className="lp2-diff-ultra-col">울트라 · 110,000원</th>
                 </tr>
               </thead>
               <tbody>
@@ -1533,7 +1541,7 @@ export default function LandingPage() {
                 <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4" style={{ color: "var(--lp-text)" }}>
                   회사 현황, 한눈에 보고 싶다면<br /><span className="lp2-grad-text">OwnerView를 시작하세요</span>
                 </h2>
-                <p className="text-base md:text-lg mb-9" style={{ color: "var(--lp-text-2)" }}>거래처 목록·거래내역은 엑셀만 올리면 바로 등록. 카드 등록 없이 무료로 시작.</p>
+                <p className="text-base md:text-lg mb-9" style={{ color: "var(--lp-text-2)" }}>거래처 목록·거래내역은 엑셀만 올리면 바로 등록. 가입 시 카드 등록 · 14일 무료.</p>
                 <Link href="/auth" className="lp2-btn-primary text-base !px-10 !py-4">무료로 시작하기</Link>
                 <p className="text-sm mt-6" style={{ color: "var(--lp-text-3)" }}>
                   이미 계정이 있으신가요? <Link href="/auth" className="font-semibold hover:underline" style={{ color: "var(--lp-indigo)" }}>로그인</Link>

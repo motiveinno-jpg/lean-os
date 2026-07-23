@@ -761,7 +761,7 @@ export default function DemoPage() {
               className="text-sm mb-6"
               style={{ color: "var(--text-muted)" }}
             >
-              기존 엑셀만 올리면 70% 즉시 완성. 카드 등록 없이 무료로 시작.
+              기존 엑셀만 올리면 70% 즉시 완성. 가입 시 카드 등록 · 14일 무료.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link

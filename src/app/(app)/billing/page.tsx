@@ -388,9 +388,9 @@ export default function BillingPage() {
         <div className="stat-tile">
           <div className="stat-tile-label">월 결제 금액</div>
           <div className="stat-tile-value text-[var(--primary)]">
-            {fmtW((currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * (subscription?.seat_count || 1))}
+            {fmtW((currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * Math.max(0, (subscription?.seat_count || 1) - (currentPlan?.included_seats || 0)))}
           </div>
-          <div className="text-xs text-[var(--text-dim)]">VAT 별도</div>
+          <div className="text-xs text-[var(--text-dim)]">기본 {currentPlan?.included_seats || 5}명 포함 · VAT 별도</div>
         </div>
         <div className="stat-tile">
           <div className="stat-tile-label">다음 결제</div>
