@@ -3362,6 +3362,22 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .rich-editor-body blockquote { @apply border-l-4 border-[var(--primary)] pl-4 my-2 italic text-[var(--text-muted)]; }
 .rich-editor-body hr { @apply my-4 border-t border-[var(--border)]; }
 .rich-editor-body a { @apply text-[var(--primary)] underline; }
+
+/* 문서 미리보기 — 실제 종이(A4풍) 페이지. 흰 배경·문서 폭 제한·문서 타이포로 '어떻게 보이는지' 그대로 (2026-07-23) */
+.doc-preview-page { @apply bg-white text-gray-900 w-full max-w-[760px] mx-auto px-8 md:px-12 py-10 rounded-lg shadow-sm text-[13px] leading-relaxed; }
+.doc-preview-page h1 { @apply text-xl font-bold text-center my-3; }
+.doc-preview-page h2 { @apply text-lg font-bold my-3; }
+.doc-preview-page h3 { @apply text-base font-semibold my-2; }
+.doc-preview-page p { @apply my-1.5; }
+.doc-preview-page ul { @apply list-disc pl-6 my-2; }
+.doc-preview-page ol { @apply list-decimal pl-6 my-2; }
+.doc-preview-page li { @apply my-0.5; }
+.doc-preview-page blockquote { @apply border-l-4 border-gray-300 pl-4 my-2 italic text-gray-600; }
+.doc-preview-page table { @apply border-collapse w-full my-2; }
+.doc-preview-page td, .doc-preview-page th { @apply border border-gray-300 px-2 py-1; }
+.doc-preview-page th { @apply bg-gray-50 font-bold; }
+.doc-preview-page img { @apply max-w-full; }
+.doc-preview-page strong { @apply font-bold; }
 .rich-editor-color-palette { @apply flex items-center gap-0.5 px-1; }
 
 .upcoming-transfers-card { @apply mb-3 p-5; }

@@ -474,37 +474,34 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                   {/* Preview Panel */}
                   {isPreview && previewTemplate && (
                     <div className="template-preview-panel">
-                      <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-5">
+                      {/* 실제 문서처럼 — 흰 종이 위에 문서 폭으로, 가운데 정렬. 넓은 표는 페이지 안에서만 스크롤 */}
+                      <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-4 flex justify-center overflow-x-auto">
                         {previewTemplate.content_json?.body ? (
-                          // 리치(HTML) 서식 미리보기 — 회사 관리자 자작 콘텐츠
-                          <div className="text-sm text-[var(--text)] leading-relaxed [&_h2]:text-base [&_h2]:font-bold [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--primary)] [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-[var(--text-muted)] [&_table]:border-collapse [&_td]:border [&_td]:border-[var(--border)] [&_td]:px-2 [&_td]:py-1"
-                            dangerouslySetInnerHTML={{ __html: previewTemplate.content_json.body }} />
+                          <div className="doc-preview-page" dangerouslySetInnerHTML={{ __html: previewTemplate.content_json.body }} />
                         ) : (
-                          <>
-                            <h4 className="text-sm font-bold mb-3">{previewTemplate.content_json?.title || previewTemplate.name}</h4>
-                            <div className="space-y-3">
-                              {(previewTemplate.content_json?.sections || []).map((sec: any, idx: number) => (
-                                <div key={idx}>
-                                  {sec.title && <div className="text-xs font-semibold text-[var(--text)] mb-1">{sec.title}</div>}
-                                  <pre className="text-xs text-[var(--text-muted)] whitespace-pre-wrap font-mono leading-relaxed">{sec.content}</pre>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                        {vars.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-[var(--border)]">
-                            <span className="text-[10px] text-[var(--text-dim)] uppercase">입력 필요 변수</span>
-                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                              {vars.map((v: string) => (
-                                <span key={v} className="text-[10px] px-2 py-0.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full font-mono">
-                                  {v}
-                                </span>
-                              ))}
-                            </div>
+                          <div className="doc-preview-page">
+                            <h1>{previewTemplate.content_json?.title || previewTemplate.name}</h1>
+                            {(previewTemplate.content_json?.sections || []).map((sec: any, idx: number) => (
+                              <div key={idx} className="mt-3">
+                                {sec.title && <p><strong>{sec.title}</strong></p>}
+                                <p className="whitespace-pre-wrap">{sec.content}</p>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
+                      {vars.length > 0 && (
+                        <div className="mt-3 px-1">
+                          <span className="text-[10px] text-[var(--text-dim)] uppercase">입력 필요 변수</span>
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {vars.map((v: string) => (
+                              <span key={v} className="text-[10px] px-2 py-0.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full font-mono">
+                                {v}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
