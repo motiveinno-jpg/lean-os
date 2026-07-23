@@ -371,6 +371,19 @@ export default function BillingPage() {
         </div>
       </div>
 
+      {/* 무료체험 시작 배너 — 유료 권한 없는 회사(신규·미등록·만료)는 카드 등록 후 14일 무료체험 시작 */}
+      {entitlement && !entitlement.entitled && subscription?.status !== "trialing" && (
+        <div className="billing-trial-start-banner">
+          <div>
+            <div className="font-bold text-sm text-[var(--text)]">무료체험을 시작하려면 카드를 등록하세요</div>
+            <div className="text-xs text-[var(--text-muted)] mt-0.5">
+              카드 등록 후 <b>14일간 무료</b>로 전 기능을 사용하고, 기간이 끝나면 선택한 플랜으로 자동 결제됩니다. 14일 내 해지 시 첫 결제가 없습니다.
+            </div>
+          </div>
+          <button onClick={() => setTab("plan")} className="btn-primary btn-sm whitespace-nowrap">플랜 선택하고 시작</button>
+        </div>
+      )}
+
       {/* KPI 행 — 현재 플랜 · 월 결제 금액 · 다음 결제 · 사용량 */}
       <div className="billing-kpi-row">
         <div className="stat-tile">
@@ -394,11 +407,22 @@ export default function BillingPage() {
           <div className="text-xs text-[var(--text-dim)]">기본 {currentPlan?.included_seats || 5}명 포함 · VAT 별도</div>
         </div>
         <div className="stat-tile">
-          <div className="stat-tile-label">다음 결제</div>
-          <div className="stat-tile-value">
-            {subscription?.current_period_end ? kstDateStr(new Date(subscription.current_period_end)) : "—"}
-          </div>
-          <div className="text-xs text-[var(--text-dim)]">{hasStripeSubscription ? "자동 결제 예정" : "결제 수단 미등록"}</div>
+          <div className="stat-tile-label">{subscription?.status === "trialing" ? "첫 결제 예정일" : "다음 결제"}</div>
+          {subscription?.status === "trialing" ? (
+            <>
+              <div className="stat-tile-value">
+                {subscription?.trial_ends_at ? kstDateStr(new Date(subscription.trial_ends_at)) : "—"}
+              </div>
+              <div className="text-xs text-[var(--warning)]">무료체험 종료 · 이날 선택 플랜 자동 결제</div>
+            </>
+          ) : (
+            <>
+              <div className="stat-tile-value">
+                {subscription?.current_period_end ? kstDateStr(new Date(subscription.current_period_end)) : "—"}
+              </div>
+              <div className="text-xs text-[var(--text-dim)]">{hasStripeSubscription ? "자동 결제 예정" : "결제 수단 미등록"}</div>
+            </>
+          )}
         </div>
         <div className="stat-tile">
           <div className="stat-tile-label">활성 직원</div>
@@ -463,18 +487,16 @@ export default function BillingPage() {
             );
           })()}
 
-          <div className="billing-cycle-toggle">
-            <button type="button" onClick={() => setCycle("monthly")} className={`billing-cycle-btn ${cycle === "monthly" ? "billing-cycle-btn-active" : ""}`}>월간 결제</button>
-            <button type="button" onClick={() => setCycle("annual")} className={`billing-cycle-btn ${cycle === "annual" ? "billing-cycle-btn-active" : ""}`}>연간 결제<span className="billing-cycle-save">10% 할인</span></button>
-          </div>
+          {/* 연간 결제 토글은 비활성(정상가·할인 확정 전까지) — 월간만 노출 */}
 
           <div className="billing-plan-grid">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
               const meta = PLAN_FEATURES[slug] || { icon: "📦", features: [] };
               const isCurrent = currentSlug === slug;
-              const monthlyPrice = cycle === "annual" ? Math.round(plan.base_price * 0.9) : plan.base_price; // 연간 10% 할인 (2026-07-22 20%→10%)
-              const monthlySeat = cycle === "annual" ? Math.round(plan.per_seat_price * 0.9) : plan.per_seat_price;
+              const monthlyPrice = plan.base_price;
+              const monthlySeat = plan.per_seat_price;
+              const includedSeats = plan.included_seats || 5;
 
               return (
                 <div
@@ -510,12 +532,17 @@ export default function BillingPage() {
                         </>
                       ) : (
                         <>
+                          {plan.list_price && Number(plan.list_price) > monthlyPrice && (
+                            <div className="text-sm line-through text-[var(--text-dim)]">₩{Number(plan.list_price).toLocaleString()}</div>
+                          )}
                           <div className="text-3xl font-extrabold text-[var(--text)]">
                             ₩{monthlyPrice.toLocaleString()}
                           </div>
                           <div className="text-xs text-[var(--text-muted)] mt-1">
-                            /월 (VAT 별도){monthlySeat > 0 ? ` + ₩${monthlySeat.toLocaleString()}/인` : ""}
-                            {cycle === "annual" && <div className="mt-0.5 font-semibold text-[var(--success)]">연 ₩{(monthlyPrice * 12).toLocaleString()} 일괄 청구</div>}
+                            /월 (VAT 별도)
+                            {monthlySeat > 0 && (
+                              <div className="mt-0.5">기본 {includedSeats}명 포함 · 추가 1명 ₩{monthlySeat.toLocaleString()}/월</div>
+                            )}
                           </div>
                         </>
                       )}
@@ -852,10 +879,10 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 {showUpgradeModal === "free" ? "무료" : (() => {
                   const p = (plans || []).find((pl: any) => pl.slug === showUpgradeModal);
                   if (!p) return "-";
-                  const base = cycle === "annual" ? Math.round(p.base_price * 0.9) : p.base_price; // 연간 10% 할인
-                  const seat = cycle === "annual" ? Math.round(p.per_seat_price * 0.9) : p.per_seat_price;
-                  const total = base + seat * (subscription?.seat_count || 1);
-                  return cycle === "annual" ? `₩${(total * 12).toLocaleString()}/년 (월 ₩${total.toLocaleString()} 상당)` : `₩${total.toLocaleString()}/월`;
+                  // 기본 좌석 초과분만 좌석당 과금(월간, VAT 별도)
+                  const extra = Math.max(0, (subscription?.seat_count || 1) - ((p as any).included_seats || 0));
+                  const total = p.base_price + p.per_seat_price * extra;
+                  return `₩${total.toLocaleString()}/월 (VAT 별도)`;
                 })()}
               </div>
             </div>
