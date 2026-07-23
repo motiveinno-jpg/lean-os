@@ -33,13 +33,15 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     // 2026-07-23 파이낸스 4탭 통합 — 8개 항목을 목적 단위 4개 허브로. 상세는 각 화면 상단 하위 탭(FinanceTabs)으로 전환.
-    //   거래처(관리·원장) / 세금·증빙(세금계산서·현금영수증) / 거래 장부(자동분류·입금매칭·전표) / 분석.
+    //   거래처(관리·원장) / 세금·증빙(세금계산서·현금영수증) / 거래 장부(자동분류·입금매칭) / 전표입력(별도) / 분석.
     //   라우트·페이지는 그대로. match 로 허브 활성 범위를 지정(예: 거래 장부는 /partners/reconciliation 포함).
     label: "파이낸스",
     items: [
       { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
       { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts"] },
       { href: "/transactions", label: "거래 장부", icon: "book", roles: ["owner", "admin"], match: ["/transactions", "/partners/reconciliation"] },
+      // 전표입력은 별도 유지(2026-07-23 Q2). 경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 단독 활성.
+      { href: "/partners/reconciliation/voucher-entry", label: "전표입력", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"] },
       { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
     ],
   },

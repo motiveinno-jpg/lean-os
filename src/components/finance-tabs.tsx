@@ -30,16 +30,21 @@ const HUBS: Hub[] = [
     subs: [
       { href: "/transactions", label: "자동 분류", desc: "은행 거래를 계정과목으로 자동 분류합니다." },
       { href: "/partners/reconciliation", label: "입금 매칭", desc: "입금과 세금계산서를 매칭해 수금을 확정합니다." },
-      { href: "/partners/reconciliation/voucher-entry", label: "전표 입력", desc: "분개 전표를 직접 입력·수정합니다." },
     ],
   },
 ];
+
+// 전표입력은 별도 메뉴로 유지(2026-07-23 Q2) — 허브 탭에 넣지 않고 독립 화면. FinanceTabs를 그리지 않는다.
+//   (경로가 /partners/reconciliation 하위라 입금 매칭에 잘못 매치되지 않도록 명시적으로 제외)
+const STANDALONE = ["/partners/reconciliation/voucher-entry"];
 
 const matchLen = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(href + "/") ? href.length : -1;
 
 export function FinanceTabs() {
   const pathname = usePathname() || "";
+
+  if (STANDALONE.some((p) => pathname === p || pathname.startsWith(p + "/"))) return null;
 
   // 전 허브의 모든 하위 중 가장 구체적으로(긴 href) 매치되는 하나를 찾는다.
   let best: { hub: Hub; sub: Sub; len: number } | null = null;
