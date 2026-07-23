@@ -337,7 +337,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         <div className="seg-bar flex-wrap mb-3">
           {[
             { key: "info", label: "정보" },
-            { key: "contracts", label: "계약서" },
+            { key: "contracts", label: "근로계약" },
             { key: "certificates", label: "증명서" },
             { key: "leave", label: "휴가" },
             { key: "docs", label: "입사서류" },

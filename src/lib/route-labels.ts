@@ -34,7 +34,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/approvals": { group: "워크스페이스", title: "결재관리", desc: "결재 요청을 승인·관리합니다." },
   "/board": { group: "워크스페이스", title: "게시판", desc: "사내 게시판입니다." },
   "/chat": { group: "워크스페이스", title: "메신저" },
-  "/signatures": { group: "워크스페이스", title: "전자계약", desc: "전자계약을 발송하고 서명을 관리합니다." },
+  "/signatures": { group: "워크스페이스", title: "전자계약", desc: "거래처·고객 등 외부 대상 전자계약을 발송하고 서명을 관리합니다." },
   "/contracts/signed": { group: "워크스페이스", title: "서명 완료 계약서" },
   "/my-contracts": { group: "워크스페이스", title: "내 서명 요청", desc: "나에게 온 서명 요청을 봅니다." },
 
