@@ -1,7 +1,7 @@
 "use client";
 
 import { appConfirm } from "@/components/global-confirm";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { DOC_TYPES } from "@/lib/documents";
@@ -27,12 +27,14 @@ export const isHrType = (type?: string) => HR_TYPES.includes(type || "");
 
 // ── Templates Tab (공용) ──
 //   scope="business" → 전자계약 양식(계약서·견적서 등), scope="hr" → 인사 양식(근로계약서 등).
-export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate }: {
+export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate, hideCreateButton, openCreateSignal }: {
   scope: TemplatesScope;
   companyId: string;
   userId: string;
   templates: any[];
   onInvalidate: () => void;
+  hideCreateButton?: boolean;   // 서식 탭 통합 '새 양식' 버튼을 쓸 때 자체 버튼/헤더 숨김(2026-07-23)
+  openCreateSignal?: number;    // 외부(통합 버튼)에서 생성 폼 열기 신호. 증가할 때마다 폼 오픈.
 }) {
   void userId; // doc_templates 에 created_by 없음 — 시그니처 호환용
   const { toast } = useToast();
@@ -86,6 +88,12 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
     setEditingId(null);
     setShowForm(false);
   };
+
+  // 외부 통합 '새 양식' 버튼에서 '직접 작성' 선택 시 생성 폼 오픈
+  useEffect(() => {
+    if (openCreateSignal) { resetForm(); setShowForm(true); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCreateSignal]);
 
   const startEdit = (tpl: any) => {
     const cj = tpl.content_json || { title: "", sections: [] };
@@ -189,18 +197,20 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="templates-tab-header">
-        <p className="text-sm text-[var(--text-muted)]">
-          {scope === "hr" ? "인사 양식을 관리하고, 커스텀 양식을 등록하세요" : "문서 양식을 관리하고, 커스텀 양식을 등록하세요"}
-        </p>
-        <button
-          onClick={() => { resetForm(); setShowForm(true); }}
-          className="btn-primary"
-        >
-          + 새 양식 등록
-        </button>
-      </div>
+      {/* Header — 통합 '새 양식' 버튼을 쓰는 문맥(hideCreateButton)에선 자체 헤더/버튼 숨김 */}
+      {!hideCreateButton && (
+        <div className="templates-tab-header">
+          <p className="text-sm text-[var(--text-muted)]">
+            {scope === "hr" ? "인사 양식을 관리하고, 커스텀 양식을 등록하세요" : "문서 양식을 관리하고, 커스텀 양식을 등록하세요"}
+          </p>
+          <button
+            onClick={() => { resetForm(); setShowForm(true); }}
+            className="btn-primary"
+          >
+            + 새 양식 등록
+          </button>
+        </div>
+      )}
 
       {/* Template Form (Create / Edit) */}
       {showForm && (

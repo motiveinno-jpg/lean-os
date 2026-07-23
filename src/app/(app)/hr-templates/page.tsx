@@ -25,6 +25,10 @@ export default function HrTemplatesPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<"library" | "contracts">("library");
+  // 통합 '새 양식' — 선택 팝오버 + 각 생성 흐름 신호(증가 시 해당 폼 오픈)
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [pdfSignal, setPdfSignal] = useState(0);
+  const [textSignal, setTextSignal] = useState(0);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -64,16 +68,43 @@ export default function HrTemplatesPage() {
 
           {tab === "library" ? (
             <div className="space-y-6">
-              {/* 텍스트 서식 — 표준근로계약서 등 */}
+              {/* 통합 '새 양식' 버튼 — [PDF 업로드(권장) | 직접 작성] 선택 팝오버 */}
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-[var(--text-muted)]">근로·연봉계약 등 인사 서식을 만들어 두는 곳입니다.</p>
+                <div className="relative">
+                  <button onClick={() => setChooserOpen((o) => !o)} className="btn-primary">+ 새 양식 ▾</button>
+                  {chooserOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setChooserOpen(false)} />
+                      <div className="absolute right-0 mt-1.5 z-20 w-72 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1.5">
+                        <button onClick={() => { setPdfSignal((n) => n + 1); setChooserOpen(false); }}
+                          className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
+                          <div className="text-sm font-semibold text-[var(--text)]">📄 PDF 업로드 <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/12 text-[var(--primary)]">권장</span></div>
+                          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">쓰던 회사 양식 PDF를 올려 바로 사용</div>
+                        </button>
+                        <button onClick={() => { setTextSignal((n) => n + 1); setChooserOpen(false); }}
+                          className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
+                          <div className="text-sm font-semibold text-[var(--text)]">✍️ 직접 작성</div>
+                          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">변수로 자동 채우는 서식을 새로 만들기</div>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* PDF 양식 — 위·권장(신규 사용자 온보딩). 업로드 폼은 접힘, '새 양식›PDF'로 펼침 */}
+              <HrFormManager companyId={companyId} collapseUpload openUploadSignal={pdfSignal} />
+              {/* 텍스트 서식 — 자체 버튼 숨김, '새 양식›직접 작성'으로 폼 오픈 */}
               <TemplatesTab
                 scope="hr"
                 companyId={companyId}
                 userId={userId}
                 templates={docTemplates as any[]}
                 onInvalidate={() => qc.invalidateQueries({ queryKey: ["doc-templates", companyId] })}
+                hideCreateButton
+                openCreateSignal={textSignal}
               />
-              {/* PDF 양식 — 회사 PDF를 올려 채울 필드를 지정해 재사용 양식으로 저장 */}
-              <HrFormManager companyId={companyId} />
             </div>
           ) : (
             <div className="space-y-4">

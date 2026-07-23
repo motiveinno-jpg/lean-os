@@ -7,7 +7,7 @@
 //   활용: 저장한 양식에 값을 직접 입력해 채워 출력하거나, 빈 양식을 내려받아 손으로 작성.
 
 import { appConfirm } from "@/components/global-confirm";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
@@ -47,11 +47,18 @@ function downloadPdf(bytes: Uint8Array | ArrayBuffer, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function HrFormManager({ companyId }: { companyId: string | null }) {
+export function HrFormManager({ companyId, collapseUpload, openUploadSignal }: {
+  companyId: string | null;
+  collapseUpload?: boolean;   // 통합 '새 양식' 버튼을 쓸 때 업로드 폼을 기본 접고 목록만 노출(2026-07-23)
+  openUploadSignal?: number;  // 외부(통합 버튼)에서 'PDF 업로드' 선택 시 업로드 폼 펼치기 신호.
+}) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(!collapseUpload);
+  // 통합 '새 양식' 버튼에서 'PDF 업로드' 선택 시 업로드 폼 펼치기
+  useEffect(() => { if (openUploadSignal) setUploadOpen(true); }, [openUploadSignal]);
   const [editing, setEditing] = useState<null | {
     pageImages: string[]; pageSizes: { w: number; h: number }[]; filePath: string; pageCount: number;
     initialFields?: OverlayField[]; editId?: string;
@@ -217,7 +224,8 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
         저장한 양식에 값을 입력해 채워 출력하거나, 빈 양식을 내려받아 손으로 작성할 수 있습니다.
       </p>
 
-      {/* 업로드 폼 */}
+      {/* 업로드 폼 — 통합 버튼 문맥에선 접힘(uploadOpen) */}
+      {uploadOpen && (
       <div className="hr-form-upload">
         <div className="hr-form-name-field">
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">양식 이름</label>
@@ -236,6 +244,7 @@ export function HrFormManager({ companyId }: { companyId: string | null }) {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
         </label>
       </div>
+      )}
 
       {/* 양식 목록 */}
       {list.length === 0 ? (
