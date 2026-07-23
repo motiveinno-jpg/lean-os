@@ -463,7 +463,9 @@ export default function ApprovalsPage() {
         </div>
       </div>
 
-      {/* Summary stats — 클릭 시 전체 현황 탭으로 이동 + 해당 상태 필터 적용 */}
+      {/* Summary stats — '요청 현황' 지표라 요청 탭(내 요청·전체 현황)에만 노출.
+          내 결재함(내가 결재할 것)엔 성격이 안 맞아 숨김(2026-07-23 — 대기중 stat vs 결재목록 혼동 제거). */}
+      {(tab === "my-requests" || tab === "all") && (
       <div className="approval-summary-stats">
         {[
           { label: "대기 중", value: stats?.pending ?? 0, tone: "warning", valueCls: "text-[var(--warning)]", status: "pending", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" /></svg> },
@@ -473,8 +475,8 @@ export default function ApprovalsPage() {
         ].map((k) => (
           <div
             key={k.label}
-            // 2026-07-21 QA: 관리자는 전체 현황으로, 일반 사용자는 (관리 탭이 없으므로) 내 요청 탭으로 이동
-            onClick={() => { if (isAdmin) goToAllWithStatus(k.status); else setTab("my-requests"); }}
+            // 클릭 이동처를 통계 범위와 일치: 회사(전체 현황) → 전체 현황 필터, 개인(내 요청) → 개인 탭 유지(전체로 안 튐).
+            onClick={() => { if (statsCompanyScope) goToAllWithStatus(k.status); else setTab("my-requests"); }}
             className="approval-stat-card glass-card card-hover"
           >
             <div className="flex items-center justify-between">
@@ -488,6 +490,7 @@ export default function ApprovalsPage() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Tab content */}
       {tab === "my-approvals" && companyId && userId && (
