@@ -63,7 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin"] },
       { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
-      { href: "/hr-templates", label: "양식 관리", icon: "file-text", roles: ["owner", "admin"] },
+      { href: "/hr-templates", label: "근로계약·서식", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/documents", label: "파일보관함", icon: "folder" },
     ],
   },
