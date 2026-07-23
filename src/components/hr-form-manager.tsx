@@ -47,10 +47,11 @@ function downloadPdf(bytes: Uint8Array | ArrayBuffer, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function HrFormManager({ companyId, collapseUpload, openUploadSignal }: {
+export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hideHeader }: {
   companyId: string | null;
   collapseUpload?: boolean;   // 통합 '새 양식' 버튼을 쓸 때 업로드 폼을 기본 접고 목록만 노출(2026-07-23)
   openUploadSignal?: number;  // 외부(통합 버튼)에서 'PDF 업로드' 선택 시 업로드 폼 펼치기 신호.
+  hideHeader?: boolean;       // 통합 서식 탭: '인사 양식(PDF)' 헤더·설명 숨김(새 양식 버튼과 중복). 목록만.
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -215,14 +216,22 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal }: {
 
   if (!companyId) return null;
   const list = templates as PdfFormTemplate[];
+  // 통합 서식 탭(hideHeader): 저장된 PDF 양식도 없고 업로드도 안 열렸으면 아예 렌더 안 함(중복 섹션 제거)
+  if (hideHeader && list.length === 0 && !uploadOpen) return null;
 
   return (
     <div className="glass-card p-5">
-      <h2 className="text-base font-bold text-[var(--text)] mb-1">인사 양식 (PDF)</h2>
-      <p className="text-xs text-[var(--text-muted)] mb-4">
-        회사에서 쓰는 근로계약서·각종 신청서 등 PDF를 올리면, 채울 위치(필드)를 지정해 재사용 양식으로 저장합니다.
-        저장한 양식에 값을 입력해 채워 출력하거나, 빈 양식을 내려받아 손으로 작성할 수 있습니다.
-      </p>
+      {!hideHeader ? (
+        <>
+          <h2 className="text-base font-bold text-[var(--text)] mb-1">인사 양식 (PDF)</h2>
+          <p className="text-xs text-[var(--text-muted)] mb-4">
+            회사에서 쓰는 근로계약서·각종 신청서 등 PDF를 올리면, 채울 위치(필드)를 지정해 재사용 양식으로 저장합니다.
+            저장한 양식에 값을 입력해 채워 출력하거나, 빈 양식을 내려받아 손으로 작성할 수 있습니다.
+          </p>
+        </>
+      ) : (
+        list.length > 0 && <h3 className="text-xs font-bold text-[var(--text-muted)] mb-3">PDF 양식</h3>
+      )}
 
       {/* 업로드 폼 — 통합 버튼 문맥에선 접힘(uploadOpen) */}
       {uploadOpen && (
@@ -248,7 +257,7 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal }: {
 
       {/* 양식 목록 */}
       {list.length === 0 ? (
-        <div className="hr-form-list-empty">등록된 인사 양식이 없습니다.</div>
+        hideHeader ? null : <div className="hr-form-list-empty">등록된 인사 양식이 없습니다.</div>
       ) : (
         <div className="hr-form-list">
           {list.map((t) => (

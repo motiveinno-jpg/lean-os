@@ -93,8 +93,8 @@ export default function HrTemplatesPage() {
                 </div>
               </div>
 
-              {/* PDF 양식 — 위·권장(신규 사용자 온보딩). 업로드 폼은 접힘, '새 양식›PDF'로 펼침 */}
-              <HrFormManager companyId={companyId} collapseUpload openUploadSignal={pdfSignal} />
+              {/* PDF 양식 — 헤더·업로드 입구는 '새 양식' 버튼과 중복이라 숨김. 저장된 PDF 목록만 노출(없으면 미표시) */}
+              <HrFormManager companyId={companyId} collapseUpload hideHeader openUploadSignal={pdfSignal} />
               {/* 텍스트 서식 — 자체 버튼 숨김, '새 양식›직접 작성'으로 폼 오픈 */}
               <TemplatesTab
                 scope="hr"
