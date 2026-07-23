@@ -2179,6 +2179,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .biz-no-check-row { @apply flex gap-2 items-stretch; }
 .biz-no-check-input { @apply flex-1; }
 .biz-no-check-btn { @apply shrink-0 px-4 rounded-xl text-sm font-semibold border border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)]/10 transition disabled:opacity-50 whitespace-nowrap; }
+
+/* 4대보험 EDI 정식 XLSX 준비 중 안내 (P0 — 가짜 TXT 제출 차단) */
+.edi-prep-notice { @apply text-[10px] leading-relaxed text-[var(--warning)] bg-[var(--warning-dim)] border border-[var(--warning)]/30 rounded-lg px-2.5 py-2; }
 .billing-payment-method-card { @apply p-6; }
 .billing-payment-info-card { @apply p-6; }
 .billing-invoices-card { @apply overflow-hidden; }

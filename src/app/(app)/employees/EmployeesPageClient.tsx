@@ -40,7 +40,6 @@ import {
 import { getSignedUrl } from "@/lib/file-storage";
 import { previewPayroll } from "@/lib/payroll";
 import { PayrollBatchTab } from "@/components/payroll-batch"; // 급여 일괄 지급 — 정기지출에서 이관(2026-07-08)
-import { generateInsuranceEDI, downloadEDIFile } from "@/lib/insurance-edi";
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
@@ -498,9 +497,9 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <div>
               <div className="text-sm font-bold text-[var(--info)] flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                4대보험 취득신고 EDI 생성
+                4대보험 취득신고 · Web EDI 업로드 파일 (준비 중)
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">신규 직원 <span className="font-semibold text-[var(--text)]">{acqEdiData.name}</span>의 4대보험 취득신고 EDI 파일을 생성합니다.</p>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">신규 직원 <span className="font-semibold text-[var(--text)]">{acqEdiData.name}</span>의 국민건강보험 Web EDI 업로드용 정식 파일을 준비 중입니다.</p>
             </div>
             <button onClick={() => { setShowAcqEdi(false); setAcqEdiData(null); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
           </div>
@@ -510,39 +509,12 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">고용보험</span></div>
             <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">산재보험</span></div>
           </div>
-          {acqEdiGenerated ? (
-            <div className="text-xs text-[var(--success)] font-medium text-center py-2">EDI 파일 4건 다운로드 완료</div>
-          ) : (
-            <button
-              onClick={() => {
-                if (!companyData) return;
-                const today = todayKst().replace(/-/g, "");
-                const results = generateInsuranceEDI({
-                  company: {
-                    companyName: companyData.name || "",
-                    businessNumber: companyData.business_number || "",
-                    representativeName: companyData.representative || "",
-                    address: companyData.address || "",
-                  },
-                  employees: [{
-                    name: acqEdiData.name,
-                    residentNumber: "000000-0000000",
-                    joinDate: today,
-                    monthlySalary: Math.round((Number(acqEdiData.salary) || 0) / 12),
-                    department: acqEdiData.department || "",
-                    position: acqEdiData.position || "",
-                  }],
-                  reportType: "acquisition",
-                  reportDate: today,
-                });
-                results.forEach((r) => downloadEDIFile(r));
-                setAcqEdiGenerated(true);
-              }}
-              className="w-full py-2.5 bg-[var(--info)] hover:brightness-110 text-white rounded-xl text-xs font-semibold transition"
-            >
-              EDI 파일 생성 (4건 다운로드)
-            </button>
-          )}
+          {/* P0(2026-07-23): 기존 생성기는 공식 규격이 아닌 자체 TXT라 Web EDI 에서 거부됨.
+              정식 XLSX 규격 적용 전까지 제출용 다운로드 비활성 — 잘못된 파일을 제출용으로 내보내지 않는다. */}
+          <div className="edi-prep-notice">
+            국민건강보험 Web EDI 업로드용 <b>정식 파일(XLSX)</b>을 준비 중입니다. 준비 완료 전까지 이 화면에서 제출용 파일을 내려받을 수 없습니다.
+            취득 신고가 급하시면 <b>공단 Web EDI</b>에서 직접 진행해주세요.
+          </div>
         </div>
       )}
 

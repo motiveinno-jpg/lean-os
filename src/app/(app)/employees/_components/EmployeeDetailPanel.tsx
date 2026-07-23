@@ -14,7 +14,7 @@ import { updateEmployee, LEAVE_TYPES, calculateAnnualLeave } from "@/lib/hr";
 import { listLeaveGrants, addLeaveGrant, deleteLeaveGrant, setBaseLeaveGrant, GRANT_TYPE_LABELS, type LeaveGrant, type LeaveGrantType } from "@/lib/leave-grants";
 import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
-import { generateInsuranceEDI, downloadEDIFile, LOSS_REASONS } from "@/lib/insurance-edi";
+import { LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
 import { GRANTABLE_TABS, getUserTabAccess, setTabAccess, effectiveTabAccess } from "@/lib/tab-access";
@@ -1029,44 +1029,24 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   </div>
                 </div>
 
-                {/* 4대보험 상실신고 EDI 생성 */}
+                {/* 4대보험 상실신고 · Web EDI (준비 중) */}
                 <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3">
                   <div className="flex items-center justify-between mb-1.5">
-                    <div className="text-xs font-semibold text-[var(--text-muted)]">4대보험 상실신고 EDI</div>
-                    {ediGenerated && <span className="text-[10px] text-[var(--success)] font-medium">생성 완료</span>}
+                    <div className="text-xs font-semibold text-[var(--text-muted)]">4대보험 상실신고 · Web EDI (준비 중)</div>
+                    {ediGenerated && <span className="text-[10px] text-[var(--success)] font-medium">신고 완료 표시됨</span>}
                   </div>
-                  <p className="text-[10px] text-[var(--text-dim)] mb-2">국민연금, 건강보험, 고용보험, 산재보험 상실신고 EDI 파일 4건을 일괄 생성합니다.</p>
+                  {/* P0(2026-07-23): 기존 생성기는 공식 규격이 아닌 자체 TXT라 Web EDI 에서 거부됨.
+                      정식 상실신고 XLSX 규격 적용 전까지 제출용 다운로드 비활성 — 잘못된 파일을 제출용으로 내보내지 않는다. */}
+                  <div className="edi-prep-notice mb-2">
+                    국민건강보험 Web EDI 업로드용 <b>정식 상실신고 파일(XLSX)</b>을 준비 중입니다. 준비 완료 전까지 제출용 파일을 내려받을 수 없습니다.
+                    상실 신고는 <b>공단 Web EDI</b>에서 직접 진행해주세요.
+                  </div>
                   <button
-                    onClick={() => {
-                      if (!emp || !companyInfo) return;
-                      const reportDate = termDate.replace(/-/g, "");
-                      const results = generateInsuranceEDI({
-                        company: {
-                          companyName: companyInfo.name || "",
-                          businessNumber: companyInfo.business_number || "",
-                          representativeName: companyInfo.representative || "",
-                          address: companyInfo.address || "",
-                        },
-                        employees: [{
-                          name: emp.name || "",
-                          residentNumber: "000000-0000000", // employees 에 resident_number 컬럼 없음(주민번호 미저장) — 항상 placeholder
-                          leaveDate: reportDate,
-                          monthlySalary: Number(emp.salary) || 0,
-                          department: emp.department || "",
-                          position: emp.position || "",
-                          leaveReason: termLossReason,
-                        }],
-                        reportType: "loss",
-                        reportDate,
-                      });
-                      results.forEach((r) => downloadEDIFile(r));
-                      setEdiGenerated(true);
-                      setTermChecklist((prev) => ({ ...prev, insurance: true }));
-                    }}
-                    disabled={!termDate || ediGenerated}
-                    className="w-full py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition"
+                    onClick={() => { setEdiGenerated(true); setTermChecklist((prev) => ({ ...prev, insurance: true })); }}
+                    disabled={ediGenerated}
+                    className="w-full py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--text)] rounded-lg text-xs font-semibold transition"
                   >
-                    {ediGenerated ? "EDI 파일 다운로드 완료" : "EDI 파일 생성 (4건 다운로드)"}
+                    {ediGenerated ? "신고 완료로 표시됨" : "공단에서 직접 신고함 · 완료로 표시"}
                   </button>
                 </div>
 

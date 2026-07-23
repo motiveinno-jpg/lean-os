@@ -1,6 +1,13 @@
 /**
  * 4대보험 EDI 파일 생성기
- * 취득신고서/상실신고서를 EDI 파일로 자동 생성
+ *
+ * ⚠️ 폐기 예정 / 제출용 아님 (2026-07-23 P0).
+ *   아래 generateInsuranceEDI 는 공식 규격이 아닌 자체 INI 텍스트([HEAD]/[RECORD]/[FOOT])를
+ *   보험별 .txt 4개로 만든다. 국민건강보험 Web EDI 는 "4대보험 전체신청용 XLSX 1개"(정해진 열
+ *   순서·코드값)만 받으므로 이 파일은 "허용되지 않은 확장자입니다"로 거부된다. 주민번호도 placeholder.
+ *   → 어떤 화면에서도 이 함수 결과를 "제출용"으로 다운로드시키지 말 것. 취득/상실 패널은 이미 비활성화됨.
+ *   정식 XLSX 규격(공식 예제 XLS 기준)으로 교체 예정 — 그 전까지 신규 배선 금지.
+ *   공식 규격: https://edi.nhis.or.kr/webedi/file_sy/all_chuiduk.html (취득) / all_sangsil.html (상실)
  */
 
 export type InsuranceType = 'national_pension' | 'health' | 'employment' | 'industrial_accident';
