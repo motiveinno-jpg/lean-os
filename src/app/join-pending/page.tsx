@@ -15,6 +15,7 @@ export default function JoinPendingPage() {
   const [status, setStatus] = useState<JoinStatus>("loading");
   const [companyMasked, setCompanyMasked] = useState("");
   const [createdAt, setCreatedAt] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -27,6 +28,7 @@ export default function JoinPendingPage() {
       setStatus((j.status as JoinStatus) || "none");
       setCompanyMasked(j.companyNameMasked || "");
       setCreatedAt(j.createdAt ? String(j.createdAt).slice(0, 10) : "");
+      setRejectionReason(j.rejectionReason || "");
       if (j.status === "approved") setTimeout(() => router.push("/dashboard"), 1500);
     } catch {
       setStatus("error");
@@ -62,7 +64,10 @@ export default function JoinPendingPage() {
           {status === "approved" && box("🎉", "합류가 승인되었습니다!", "잠시 후 대시보드로 이동합니다.", "text-[var(--success)]")}
 
           {status === "rejected" && box("🚫", "합류 요청이 거절되었습니다", (
-            <>회사 대표/관리자에게 문의하거나, 초대 링크를 받아 다시 시도해주세요.</>
+            <>
+              {rejectionReason ? <><span className="text-[var(--text)]">사유: {rejectionReason}</span><br /></> : null}
+              회사 대표/관리자에게 문의하거나, 초대 링크를 받아 다시 시도해주세요.
+            </>
           ), "text-[var(--danger)]")}
 
           {status === "expired" && box("⌛", "요청이 만료되었습니다", "14일 내 처리되지 않아 만료됐습니다. 대표/관리자에게 초대를 요청하거나, 로그인 후 다시 요청해주세요.", "text-[var(--text)]")}

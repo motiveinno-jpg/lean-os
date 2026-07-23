@@ -25,7 +25,7 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   document_share: (id) => `/documents?id=${id}`,
   signature_request: () => `/signatures`,
   signature: (id) => `/contracts/signed/${id}`,
-  company_join_request: () => `/settings?tab=team`,
+  company_join_request: (id) => `/settings?tab=team&request=${id}`,
   hr_contract_package: () => `/my-contracts`,
   leave_request: () => `/approvals`,
   overtime_request: () => `/attendance?section=overtime`,

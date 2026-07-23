@@ -4,6 +4,7 @@ import { logRead } from "@/lib/log-read";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitations, getPartnerInvitations, getInviteUrl, cancelEmployeeInvitation, cancelPartnerInvitation, sendInviteEmail } from "@/lib/invitations";
@@ -13,6 +14,8 @@ import { useToast } from "@/components/toast";
 export function TeamManagement({ companyId }: { companyId: string | null }) {
   const { toast } = useToast();
   const { user } = useUser();
+  // 알림 클릭(/settings?tab=team&request=<id>) 시 해당 합류 요청 카드 강조
+  const highlightRequestId = useSearchParams().get("request");
   const [tab, setTab] = useState<"members" | "employees" | "partners">("members");
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -71,22 +74,55 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     enabled: !!companyId,
   });
   const [joinRole, setJoinRole] = useState<Record<string, "employee" | "admin">>({});
+  const [joinReason, setJoinReason] = useState<Record<string, string>>({});
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  // 처리 후 결과메일 상태 — 발송 실패 건은 재전송 배너로 노출(승인은 이미 확정, 롤백 안 함).
+  const [emailResults, setEmailResults] = useState<{ id: string; name: string; kind: "approved" | "rejected"; status: "sent" | "failed" }[]>([]);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  // 결과메일 발송 — 수신자·URL·회사명은 서버(edge)가 DB 에서 결정. 클라는 requestId 만 전달.
+  const sendResultEmail = async (id: string, name: string, kind: "approved" | "rejected"): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-join-result-email", { body: { requestId: id } });
+      const ok = !error && (data as any)?.ok;
+      setEmailResults((prev) => [{ id, name, kind, status: ok ? "sent" : "failed" }, ...prev.filter((e) => e.id !== id)]);
+      return !!ok;
+    } catch {
+      setEmailResults((prev) => [{ id, name, kind, status: "failed" }, ...prev.filter((e) => e.id !== id)]);
+      return false;
+    }
+  };
+
+  const resendResultEmail = async (id: string) => {
+    if (resendingId) return;
+    setResendingId(id);
+    const ok = await sendResultEmail(id, emailResults.find((e) => e.id === id)?.name || "", emailResults.find((e) => e.id === id)?.kind || "approved");
+    toast(ok ? "안내 메일을 재전송했습니다" : "메일 재전송에 실패했습니다", ok ? "success" : "error");
+    setResendingId(null);
+  };
+
   const resolveJoin = async (id: string, action: "approve" | "reject") => {
-    if (resolvingId) return;
+    if (resolvingId) return; // 중복 클릭/동시 처리 방지
+    const name = (joinRequests as any[]).find((r) => r.id === id)?.requester_name || (joinRequests as any[]).find((r) => r.id === id)?.requester_email || "요청자";
     if (action === "reject" && !(await appConfirm("이 합류 요청을 거절할까요?", { danger: true, confirmLabel: "거절" }))) return;
     setResolvingId(id);
     try {
       const res = await fetch("/api/join-request/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId: id, action, role: joinRole[id] || "employee" }),
+        body: JSON.stringify({ requestId: id, action, role: joinRole[id] || "employee", reason: action === "reject" ? (joinReason[id] || null) : null }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || "처리 실패");
-      toast(action === "approve" ? "합류를 승인했습니다 — 멤버로 추가됨" : "합류 요청을 거절했습니다", action === "approve" ? "success" : "info");
       queryClient.invalidateQueries({ queryKey: ["company-join-requests"] });
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      // 결과 메일 발송 — 실패해도 승인/거절은 유지, 재전송 배너로 처리.
+      const mailed = await sendResultEmail(id, name, action === "approve" ? "approved" : "rejected");
+      if (action === "approve") {
+        toast(mailed ? "가입 승인 완료 · 안내 메일 발송" : "가입은 승인됐지만 메일 발송 실패 · 재전송하세요", mailed ? "success" : "error");
+      } else {
+        toast(mailed ? "요청을 거절하고 안내 메일을 보냈습니다" : "요청을 거절했지만 메일 발송 실패 · 재전송하세요", mailed ? "info" : "error");
+      }
     } catch (e: any) {
       toast(e?.message || "처리 실패", "error");
     } finally { setResolvingId(null); }
@@ -238,30 +274,59 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
         <span><strong>멤버</strong>: 오너뷰 계정이 있는 사용자 (로그인 가능) · <strong>직원</strong>: HR 관리 대상 (계정 없이도 급여·근태 관리 가능, 인력관리 페이지에서 등록)</span>
       </div>
 
+      {/* 결과 메일 실패 재전송 배너 — 승인/거절은 확정됐으나 메일만 실패한 건 */}
+      {emailResults.some((e) => e.status === "failed") && (
+        <div className="team-join-email-fail-banner">
+          {emailResults.filter((e) => e.status === "failed").map((e) => (
+            <div key={e.id} className="team-join-email-fail-row">
+              <span className="text-xs text-[var(--danger)]">
+                {e.kind === "approved" ? "가입 승인" : "거절"} 처리됨 · <b>{e.name}</b> 안내 메일 발송 실패
+              </span>
+              <button onClick={() => resendResultEmail(e.id)} disabled={resendingId === e.id} className="btn-sm btn-secondary">
+                {resendingId === e.id ? "재전송 중..." : "메일 재전송"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* 합류 요청 — 가입 시 우리 회사 사업자번호를 입력한 사용자의 승인 대기 (승인 시 멤버로 연결) */}
       {joinRequests.length > 0 && (
         <div className="team-join-requests-panel">
           <div className="text-xs font-bold text-amber-600 mb-2">📨 합류 요청 {joinRequests.length}건 — 승인하면 우리 회사 멤버로 연결됩니다</div>
           <div className="space-y-2">
             {joinRequests.map((r: any) => (
-              <div key={r.id} className="team-join-request-row">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-[var(--text)] truncate">{r.requester_name || r.requester_email}</div>
-                  <div className="text-[11px] text-[var(--text-dim)] truncate">{r.requester_email} · 요청 {String(r.created_at).slice(0, 10)}{r.message ? ` · "${r.message}"` : ""}</div>
+              <div key={r.id} className={`team-join-request-card${highlightRequestId === r.id ? " team-join-request-highlight" : ""}`}>
+                <div className="team-join-request-row">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-[var(--text)] truncate">{r.requester_name || r.requester_email}</div>
+                    <div className="text-[11px] text-[var(--text-dim)] truncate">
+                      {r.requester_email} · 요청 {String(r.created_at).slice(0, 10)}
+                      {r.expires_at ? ` · 만료 ${String(r.expires_at).slice(0, 10)}` : ""}
+                      {r.message ? ` · "${r.message}"` : ""}
+                    </div>
+                  </div>
+                  <select value={joinRole[r.id] || "employee"} onChange={(e) => setJoinRole((m) => ({ ...m, [r.id]: e.target.value as "employee" | "admin" }))}
+                    className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">
+                    <option value="employee">직원</option>
+                    <option value="admin">관리자</option>
+                  </select>
+                  <button onClick={() => resolveJoin(r.id, "approve")} disabled={resolvingId === r.id}
+                    className="btn-primary btn-sm">
+                    {resolvingId === r.id ? "처리 중..." : "승인"}
+                  </button>
+                  <button onClick={() => resolveJoin(r.id, "reject")} disabled={resolvingId === r.id}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50">
+                    거절
+                  </button>
                 </div>
-                <select value={joinRole[r.id] || "employee"} onChange={(e) => setJoinRole((m) => ({ ...m, [r.id]: e.target.value as "employee" | "admin" }))}
-                  className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">
-                  <option value="employee">직원</option>
-                  <option value="admin">관리자</option>
-                </select>
-                <button onClick={() => resolveJoin(r.id, "approve")} disabled={resolvingId === r.id}
-                  className="btn-primary btn-sm">
-                  {resolvingId === r.id ? "처리 중..." : "승인"}
-                </button>
-                <button onClick={() => resolveJoin(r.id, "reject")} disabled={resolvingId === r.id}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50">
-                  거절
-                </button>
+                <input
+                  value={joinReason[r.id] || ""}
+                  onChange={(e) => setJoinReason((m) => ({ ...m, [r.id]: e.target.value }))}
+                  placeholder="거절 사유(선택) — 거절 시 안내 메일에 포함됩니다"
+                  maxLength={200}
+                  className="team-join-reason-input"
+                />
               </div>
             ))}
           </div>

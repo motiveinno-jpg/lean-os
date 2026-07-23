@@ -2174,6 +2174,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .copilot-upsell { @apply p-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-center space-y-3; }
 .copilot-upsell-title { @apply text-lg font-bold text-[var(--text)]; }
 .copilot-upsell-desc { @apply text-sm text-[var(--text-muted)]; }
+
+/* 사업자번호 중복 확인 — 입력 + 버튼 한 줄 */
+.biz-no-check-row { @apply flex gap-2 items-stretch; }
+.biz-no-check-input { @apply flex-1; }
+.biz-no-check-btn { @apply shrink-0 px-4 rounded-xl text-sm font-semibold border border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)]/10 transition disabled:opacity-50 whitespace-nowrap; }
 .billing-payment-method-card { @apply p-6; }
 .billing-payment-info-card { @apply p-6; }
 .billing-invoices-card { @apply overflow-hidden; }
@@ -2347,7 +2352,12 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .team-tabs-bar { @apply flex w-full mb-4; }
 .team-role-info-banner { @apply p-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-dim)] mb-4 flex items-start gap-2; }
 .team-join-requests-panel { @apply p-4 rounded-xl bg-amber-500/5 border border-amber-500/30 mb-4 shadow-sm; }
-.team-join-request-row { @apply flex items-center gap-2 flex-wrap p-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]; }
+.team-join-request-card { @apply p-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]; }
+.team-join-request-highlight { @apply ring-2 ring-amber-500; }
+.team-join-request-row { @apply flex items-center gap-2 flex-wrap; }
+.team-join-reason-input { @apply w-full mt-2 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]; }
+.team-join-email-fail-banner { @apply mb-4 p-3 rounded-xl bg-[var(--danger-dim)] border border-[var(--danger)]/30 space-y-2; }
+.team-join-email-fail-row { @apply flex items-center justify-between gap-2 flex-wrap; }
 .team-invite-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3; }
 .team-invite-role-picker { @apply flex gap-2; }
 .team-members-list { @apply space-y-2; }

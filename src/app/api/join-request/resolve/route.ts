@@ -24,38 +24,45 @@ export async function POST(req: NextRequest) {
     const requestId = String(body.requestId || '');
     const action = body.action === 'approve' ? 'approve' : body.action === 'reject' ? 'reject' : null;
     if (!requestId || !action) return NextResponse.json({ error: 'requestId, action(approve|reject)이 필요합니다.' }, { status: 400 });
+    const role = body.role === 'admin' ? 'admin' : 'employee'; // owner 조작 금지 — RPC 도 재차 강제
+    const reason = String(body.reason || '').slice(0, 500) || null;
 
-    const reqRow = logRead('resolve/route:reqRow', await admin.from('company_join_requests').select('*').eq('id', requestId).maybeSingle());
-    if (!reqRow) return NextResponse.json({ error: '요청을 찾을 수 없습니다.' }, { status: 404 });
-    if (reqRow.company_id !== callerRow.company_id) return NextResponse.json({ error: '다른 회사의 요청입니다.' }, { status: 403 });
-    if (reqRow.status !== 'pending') return NextResponse.json({ error: '이미 처리된 요청입니다.' }, { status: 409 });
+    // 원자적 처리 — 권한·상태·만료·타회사소속 재검증 + users 연결 + 요청 상태 + 알림을 단일 트랜잭션 RPC 로.
+    //   멱등: 이미 원하는 상태면 그대로 성공 반환. 중간 실패 시 함수 예외로 전체 롤백.
+    const { data: rpcData, error: rpcErr } = await admin.rpc('resolve_company_join_request', {
+      p_request_id: requestId,
+      p_action: action,
+      p_role: role,
+      p_reason: reason,
+      p_resolver_user_id: callerRow.id,
+    });
+    if (rpcErr) return NextResponse.json({ error: `처리 실패: ${rpcErr.message}` }, { status: 500 });
 
-    if (action === 'reject') {
-      await admin.from('company_join_requests').update({
-        status: 'rejected', resolved_by: callerRow.id, resolved_at: new Date().toISOString(),
-      }).eq('id', requestId);
-      return NextResponse.json({ ok: true, status: 'rejected' });
+    const result = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+    if (result?.error) {
+      const map: Record<string, number> = {
+        bad_action: 400, resolver_no_company: 403, forbidden_not_admin: 403,
+        not_found: 404, forbidden_other_company: 403, already_resolved: 409,
+        expired: 409, requester_in_other_company: 409,
+      };
+      const msg: Record<string, string> = {
+        forbidden_other_company: '다른 회사의 요청입니다.',
+        already_resolved: '이미 처리된 요청입니다.',
+        expired: '만료된 요청입니다.',
+        requester_in_other_company: '요청자가 이미 다른 회사에 소속되어 있습니다.',
+        forbidden_not_admin: '합류 요청 처리는 대표/관리자만 가능합니다.',
+      };
+      return NextResponse.json({ error: msg[result.error] || '요청을 처리할 수 없습니다.' }, { status: map[result.error] || 400 });
     }
 
-    // approve — 요청자가 그 사이 다른 회사에 소속됐으면 중단 (소속 강제 이동 금지)
-    const targetRow = logRead('resolve/route:targetRow', await admin.from('users').select('id, company_id').eq('auth_id', reqRow.requester_auth_id).maybeSingle());
-    if (targetRow?.company_id && targetRow.company_id !== callerRow.company_id) {
-      return NextResponse.json({ error: '요청자가 이미 다른 회사에 소속되어 있습니다.' }, { status: 409 });
-    }
-
-    const role = body.role === 'admin' ? 'admin' : 'employee';
-    const name = reqRow.requester_name || reqRow.requester_email.split('@')[0];
-    const { error: uErr } = await admin.from('users').upsert({
-      id: reqRow.requester_auth_id, auth_id: reqRow.requester_auth_id,
-      email: reqRow.requester_email, name, company_id: callerRow.company_id, role,
-    }, { onConflict: 'id' });
-    if (uErr) return NextResponse.json({ error: `회원 연결 실패: ${uErr.message}` }, { status: 500 });
-
-    await admin.from('company_join_requests').update({
-      status: 'approved', resolved_by: callerRow.id, resolved_at: new Date().toISOString(),
-    }).eq('id', requestId);
-
-    return NextResponse.json({ ok: true, status: 'approved', userId: reqRow.requester_auth_id, role });
+    // 결과 메일은 클라이언트가 send-join-result-email 로 트리거(수신자·URL 은 서버가 DB 에서 결정).
+    return NextResponse.json({
+      ok: true,
+      status: result?.status,
+      role: result?.granted_role,
+      requestId,
+      already: !!result?.already,
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || '서버 오류' }, { status: 500 });
   }

@@ -44,6 +44,9 @@ export default function AuthPage() {
   const [openDate, setOpenDate] = useState(""); // YYYY-MM-DD (input date)
   // 사업자번호가 이미 등록된 회사와 일치할 때 — 합류 요청 전환 안내 (마스킹된 회사명)
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
+  // 명시적 중복 확인 상태 — 확인 완료(available) 전에는 회사 개설 제출 불가.
+  const [bizCheck, setBizCheck] = useState<"unchecked" | "checking" | "available" | "registered" | "error">("unchecked");
+  const [bizCheckedDigits, setBizCheckedDigits] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -99,6 +102,28 @@ export default function AuthPage() {
     router.push(getRedirectPath());
   }
 
+  // 명시적 중복 확인 — 사업자번호 오른쪽 '중복 확인' 버튼. 입력이 바뀌면 이전 결과는 무효화됨.
+  async function runBizCheck() {
+    setError("");
+    setJoinPrompt(null);
+    const digits = bizNoDigits(bizNo);
+    if (digits.length !== 10) { setBizCheck("unchecked"); return setError("사업자번호 10자리를 입력해주세요."); }
+    setBizCheck("checking");
+    try {
+      const dup = await checkBusinessNumberRegistered(bizNo);
+      setBizCheckedDigits(digits);
+      if (dup.registered) {
+        setBizCheck("registered");
+        setJoinPrompt(dup.companyNameMasked || "등록된 회사");
+      } else {
+        setBizCheck("available");
+      }
+    } catch (err: any) {
+      setBizCheck("error");
+      setError(err?.message || "사업자번호 확인 중 오류가 발생했습니다.");
+    }
+  }
+
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     if (!agreed) return setError("이용약관 및 개인정보처리방침에 동의해주세요.");
@@ -107,22 +132,25 @@ export default function AuthPage() {
     if (!/[a-zA-Z]/.test(password)) return setError("비밀번호에 영문자를 포함해주세요.");
     if (!/[0-9]/.test(password)) return setError("비밀번호에 숫자를 포함해주세요.");
     if (!/[^A-Za-z0-9]/.test(password)) return setError("비밀번호에 특수기호를 포함해주세요.");
-    if (!companyName.trim()) return setError("회사명을 입력해주세요.");
     if (!isValidBizNo(bizNo)) return setError("사업자번호 10자리를 입력해주세요.");
+    // 중복 확인을 완료(available)하고, 그 이후 번호가 바뀌지 않았어야 제출 가능.
+    if (bizCheck !== "available" || bizCheckedDigits !== bizNoDigits(bizNo)) {
+      return setError("사업자번호 '중복 확인'을 먼저 진행해주세요.");
+    }
+    if (!companyName.trim()) return setError("회사명을 입력해주세요.");
     setError("");
-    setJoinPrompt(null);
     setLoading(true);
 
     try {
-      // ① 기등록 회사 확인 — 1 사업자번호 = 1 회사. 이미 있으면 합류 요청으로 전환 안내.
+      // 제출 시점 재확인 — 확인 후 다른 사용자가 같은 번호로 회사를 만들었을 수 있음(레이스).
       const dup = await checkBusinessNumberRegistered(bizNo);
       if (dup.registered) {
         setLoading(false);
+        setBizCheck("registered");
         setJoinPrompt(dup.companyNameMasked || "등록된 회사");
         return;
       }
-      // ② 국세청 진위확인 + 상태 — 대표자성명·개업일자까지 일치해야 개설(선점 방지),
-      //    미등록·폐업·휴업 차단. 진위 API 장애 시 상태 조회 폴백(fail-open).
+      // 국세청 진위확인 + 상태 — 대표자성명·개업일자 일치해야 개설(선점 방지). 진위 API 장애 시 상태조회 폴백.
       const gate = await assertBizNoOwnerValid(bizNo, ownerName, openDate);
       if (!gate.ok) {
         setLoading(false);
@@ -434,37 +462,52 @@ export default function AuthPage() {
           <form onSubmit={mode === "login" ? handleLogin : handleSignup} className="auth-form">
             {mode === "signup" && (
               <>
-              <div className="company-name-field">
-                <label htmlFor="company-name" className="field-label">회사명</label>
-                <input
-                  id="company-name"
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="(주)모티브이노베이션"
-                  maxLength={50}
-                  autoComplete="organization"
-                  className="field-input"
-                  required
-                />
-              </div>
+              {/* 사업자번호 + 명시적 중복 확인 — 확인(available) 전에는 회사 개설 진행 불가 */}
               <div className="biz-no-field">
                 <label htmlFor="biz-no" className="field-label">사업자등록번호</label>
-                <input
-                  id="biz-no"
-                  type="text"
-                  inputMode="numeric"
-                  value={bizNo}
-                  onChange={(e) => { setBizNo(formatBizNo(bizNoDigits(e.target.value))); setJoinPrompt(null); }}
-                  placeholder="123-45-67890"
-                  maxLength={12}
-                  className="field-input mono-number"
-                  required
-                />
-                <p className="text-[11px] text-[var(--text-dim)] mt-1">회사마다 하나의 오너뷰 공간이 만들어집니다. 이미 등록된 회사라면 합류 요청으로 이어집니다.</p>
+                <div className="biz-no-check-row">
+                  <input
+                    id="biz-no"
+                    type="text"
+                    inputMode="numeric"
+                    value={bizNo}
+                    onChange={(e) => { setBizNo(formatBizNo(bizNoDigits(e.target.value))); setBizCheck("unchecked"); setJoinPrompt(null); }}
+                    placeholder="123-45-67890"
+                    maxLength={12}
+                    className="field-input mono-number biz-no-check-input"
+                    required
+                  />
+                  <button type="button" onClick={runBizCheck} disabled={bizCheck === "checking" || !isValidBizNo(bizNo)} className="biz-no-check-btn">
+                    {bizCheck === "checking" ? "확인 중..." : "중복 확인"}
+                  </button>
+                </div>
+                {bizCheck === "unchecked" && (
+                  <p className="text-[11px] text-[var(--text-dim)] mt-1">회사마다 하나의 오너뷰 공간이 만들어집니다. 먼저 사업자번호 중복 확인을 진행해주세요.</p>
+                )}
+                {bizCheck === "available" && (
+                  <p className="text-[11px] text-[var(--success)] mt-1">사용 가능한 사업자번호입니다. 아래 정보를 입력해 새 회사를 개설하세요.</p>
+                )}
+                {bizCheck === "error" && (
+                  <p className="text-[11px] text-[var(--danger)] mt-1">확인 중 오류가 발생했습니다. 다시 시도해주세요.</p>
+                )}
               </div>
-              {/* 대표자 인증 (2026-07-06) — 국세청 진위확인으로 사업자번호 선점 방지. 합류 요청 경로에선 불필요 */}
-              {!joinPrompt && (
+              {/* 사용 가능 확인 후에만 회사 개설 정보 노출 (대표자 인증 = 국세청 진위확인으로 선점 방지) */}
+              {bizCheck === "available" && (
+                <>
+                <div className="company-name-field">
+                  <label htmlFor="company-name" className="field-label">회사명</label>
+                  <input
+                    id="company-name"
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="(주)모티브이노베이션"
+                    maxLength={50}
+                    autoComplete="organization"
+                    className="field-input"
+                    required
+                  />
+                </div>
                 <div className="owner-verify-fields">
                   <div>
                     <label htmlFor="owner-name" className="field-label">대표자 성명</label>
@@ -493,8 +536,9 @@ export default function AuthPage() {
                     <p className="text-[11px] text-[var(--text-dim)] mt-1">사업자등록증의 개업연월일 — 국세청 대표자 인증에 사용됩니다.</p>
                   </div>
                 </div>
+                </>
               )}
-              {joinPrompt && (
+              {bizCheck === "registered" && joinPrompt && (
                 <div className="join-prompt-card">
                   <p className="text-sm font-semibold text-[var(--info)] mb-1">이미 오너뷰에 등록된 회사입니다 — <b>{joinPrompt}</b></p>
                   <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
@@ -506,7 +550,7 @@ export default function AuthPage() {
                       className="flex-1 py-2.5 bg-[var(--info)] hover:opacity-90 text-white rounded-lg font-semibold text-xs transition disabled:opacity-50">
                       {loading ? "처리 중..." : "가입하고 합류 요청 보내기"}
                     </button>
-                    <button type="button" onClick={() => { setJoinPrompt(null); setBizNo(""); }}
+                    <button type="button" onClick={() => { setJoinPrompt(null); setBizNo(""); setBizCheck("unchecked"); setBizCheckedDigits(""); }}
                       className="px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--info)]/30 text-[var(--info)] rounded-lg font-semibold text-xs transition hover:bg-[var(--info-dim)]">
                       번호 다시 입력
                     </button>
