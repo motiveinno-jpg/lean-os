@@ -52,7 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
       //   '워크플로우'(전사 칸반 /projects)는 실행형 프로젝트 상세 마지막 탭으로 이동 (2026-06-30).
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
       { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"] },
-      { href: "/approvals", label: "결재관리", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
+      { href: "/approvals", label: "결재 허브", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
@@ -114,7 +114,7 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
       { href: "/attendance", label: "근태", icon: "clock" },
       { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3" },
       { href: "/signatures", label: "전자계약", icon: "edit-3" },
-      { href: "/approvals", label: "결재관리", icon: "clipboard-check", badgeKey: "approvals" },
+      { href: "/approvals", label: "결재 허브", icon: "clipboard-check", badgeKey: "approvals" },
       { href: "/documents", label: "파일보관함", icon: "folder" },
     ],
   },

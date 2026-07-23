@@ -267,7 +267,7 @@ export const MENU_GUIDES: MenuGuide[] = [
     ],
   },
   {
-    match: "/approvals", title: "결재관리", icon: "✅",
+    match: "/approvals", title: "결재 허브", icon: "✅",
     tagline: "지출·휴가·계약을 올리고 승인",
     overview:
       "돈을 쓰거나(지출결의), 휴가를 가거나, 계약을 맺기 전에 담당자·대표의 승인을 받는 전자결재 화면입니다. 요청하고, 승인하고, 진행 상태를 확인합니다.",
@@ -468,7 +468,7 @@ export const MENU_GUIDES: MenuGuide[] = [
       "감지 안 되는 고정비는 직접 등록합니다.",
       "'결제 내역'에서 실행된 지출을 확인합니다.",
     ],
-    tips: ["지출결의·품의는 결재관리에서, 급여 지급은 인사에서 처리합니다."],
+    tips: ["지출결의·품의는 결재 허브에서, 급여 지급은 인사에서 처리합니다."],
   },
   {
     match: "/subscriptions", title: "구독 관리", icon: "✨",
