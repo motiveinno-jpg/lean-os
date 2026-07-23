@@ -241,9 +241,13 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
         </div>
       )}
 
-      {/* Template Form (Create / Edit) */}
+      {/* Template Form (Create / Edit) — 인사(리치)는 넓은 팝업, 외부는 인라인 유지 */}
       {showForm && (
-        <div className="templates-form glass-card">
+        <div
+          className={isRich ? "fixed inset-0 z-[100] flex items-start justify-center bg-black/55 p-3 md:p-6 overflow-y-auto no-print" : ""}
+          onClick={isRich ? (e) => { if (e.target === e.currentTarget) resetForm(); } : undefined}
+        >
+        <div className={`templates-form glass-card ${isRich ? "w-full max-w-4xl my-auto" : ""}`}>
           <h3 className="text-sm font-bold mb-4 text-[var(--text)]">
             {editingId ? "양식 수정" : "새 양식 등록"}
           </h3>
@@ -270,7 +274,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
               <label className="block text-xs text-[var(--text-muted)] mb-1.5">본문 <span className="text-[var(--text-dim)] font-normal">표·굵기·정렬·색·이미지 지원 · {"{{변수}}"}는 아래 버튼으로 삽입</span></label>
               <RichEditor ref={editorRef} content={html} onChange={setHtml}
                 placeholder="근로계약서 내용을 입력하세요… 아래에서 {{직원명}}·{{연봉}} 등 변수를 커서 위치에 삽입할 수 있습니다."
-                maxHeight="calc(100vh - 380px)" />
+                maxHeight="calc(88vh - 300px)" />
             </div>
           ) : (
             <>
@@ -348,6 +352,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
             </button>
             <button onClick={resetForm} className="btn-ghost">취소</button>
           </div>
+        </div>
         </div>
       )}
 
