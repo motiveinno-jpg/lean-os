@@ -63,8 +63,8 @@
 .lp4-btn-outline-light { border: 1px solid rgba(255,255,255,.35); color: #fff; padding: 14px 24px; font-size: 15px; }
 .lp4-btn-outline-light:hover { background: rgba(255,255,255,.1); }
 
-/* HERO — 다크 웜 밴드(대비), 그라디언트/오브 없음 */
-.lp4-hero { background: var(--ink); color: #fff; position: relative; }
+/* HERO — 오너뷰 브랜드 인디고 밴드(단색, 그라디언트/오브 없음) */
+.lp4-hero { background: #4F46E5; color: #fff; position: relative; }
 .lp4-hero-dots { position:absolute; inset:0; opacity:.5; background-image: radial-gradient(rgba(255,255,255,.09) 1px, transparent 1px); background-size: 22px 22px; }
 .lp4-hero-inner { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr; gap: 44px; align-items: center; padding: 88px 0 92px; }
 @media (min-width: 960px){ .lp4-hero-inner { grid-template-columns: 1.05fr .95fr; gap: 60px; } }
@@ -161,7 +161,8 @@
 .lp4-cmp-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
 @media (min-width: 860px){ .lp4-cmp-grid { grid-template-columns: 1fr 1fr; } }
 .lp4-cmp { border: 1px solid var(--line); border-radius: 16px; padding: 28px; background: #fff; }
-.lp4-cmp-hl { border: none; background: var(--ink); color: #fff; }
+/* 오너뷰 브랜드 인디고 · 옆 카드와 동일한 1px 보더·패딩(box-sizing border-box)로 크기 일치 */
+.lp4-cmp-hl { border: 1px solid #4F46E5; background: #4F46E5; color: #fff; }
 .lp4-cmp-title { font-size: 16px; font-weight: 800; }
 .lp4-cmp-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .lp4-cmp-hl .lp4-cmp-row { border-color: rgba(255,255,255,.14); }

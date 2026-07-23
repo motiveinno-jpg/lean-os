@@ -54,7 +54,7 @@ export const COMPETITORS = [
 
 export const PLANS = [
   { name: "무료체험", slug: null, regularPrice: null, price: "0", unit: "원", period: "14일 무료 · 가입 시 카드 등록", desc: "전 기능 체험", hl: false, discount: null, features: ["14일간 전 기능 무료 체험", "가입 시 카드 등록 · 14일 후 선택 플랜 자동 결제", "14일 내 해지 시 첫 결제 없음", "은행·카드 실계좌 연동", "경영 대시보드·리포트"] },
-  { name: "프로", slug: "basic", regularPrice: "158,900", price: "79,500", unit: "원/월", period: "VAT 별도 · 기본 5명 포함 · 추가 1명 ₩10,000/월", desc: "성장하는 팀의 표준", hl: true, discount: "50%", features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약(서명) 월 20건", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏", "세금계산서 국세청 발행 월 10건 · 현금영수증 발행(베타)"] },
+  { name: "프로", slug: "basic", regularPrice: "158,900", price: "79,500", unit: "원/월", period: "VAT 별도 · 기본 5명 포함 · 추가 1명 ₩10,000/월", desc: "성장하는 팀의 표준", hl: true, discount: "50%", features: ["기본 5명 포함 · 추가 1명당 ₩10,000/월", "프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약(서명) 월 20건", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "세금계산서 국세청 발행 월 10건 · 현금영수증 발행(베타)"] },
   { name: "울트라", slug: "ultra", regularPrice: "220,000", price: "110,000", unit: "원/월", period: "VAT 별도 · 기본 5명 포함 · 추가 1명 ₩10,000/월", desc: "국세청 발행 무제한 + AI 브리핑", hl: false, discount: "50%", features: ["프로의 모든 기능 그대로", "세금계산서 국세청 발행 무제한 · 현금영수증 발행(베타)", "AI 브리핑 — 매일 우선순위 액션 플랜", "신기능 얼리 액세스", "우선 지원"] },
   { name: "엔터프라이즈", slug: null, regularPrice: null, price: "별도 협의", unit: "", period: "맞춤 도입 · 50인+", desc: "대규모 · 커스텀", hl: false, discount: null, features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 협의"] },
 ];

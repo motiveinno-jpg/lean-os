@@ -1,7 +1,7 @@
 // 공통 Claude(Anthropic Messages API) 클라이언트 — 2026-07-22 AI 중심화 STEP 2.
 //   - task 별 모델 라우팅(extract/classify=Haiku, analysis=Sonnet, deep_analysis=Opus)
 //   - tfetch 기반 timeout + 제한적 retry(429/5xx, 지수백오프 최대 2회)
-//   - structured output(output_config json_schema) 지원
+//   - structured output(강제 tool use) 지원 — schema 주면 tool_use.input 으로 구조화 객체 반환
 //   - request_id · latency · input/output token 반환 + ai_usage_log 기록(민감정보/원문 프롬프트 저장 금지)
 //   - 오류 응답에 프롬프트/운영 데이터 노출 금지 (호출측엔 안전 메시지만)
 import { tfetch } from "./http.ts";
@@ -84,9 +84,16 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
   };
   if (opts.system) body.system = opts.system;
   if (typeof opts.temperature === "number") body.temperature = opts.temperature;
-  if (opts.schema) body.output_config = { format: { type: "json_schema", schema: opts.schema } };
-  if (opts.tools) body.tools = opts.tools;
-  if (opts.toolChoice) body.tool_choice = opts.toolChoice;
+  // 구조화 출력: Anthropic 표준인 "강제 tool use" 사용(모델이 input_schema 에 맞는 JSON 을 tool_use.input 으로 반환).
+  //   과거 output_config(json_schema) 는 Messages API 가 무시 → 모델이 JSON 을 '텍스트'로 뱉고 truncation 시 파싱 실패했음(2026-07-23 수정).
+  const useSchemaTool = !!opts.schema;
+  if (useSchemaTool) {
+    body.tools = [{ name: "respond", description: "요청에 대한 구조화된 응답을 지정된 스키마로 반환합니다.", input_schema: opts.schema }];
+    body.tool_choice = { type: "tool", name: "respond" };
+  } else {
+    if (opts.tools) body.tools = opts.tools;
+    if (opts.toolChoice) body.tool_choice = opts.toolChoice;
+  }
 
   const base: ClaudeResult<T> = { ok: false, model, requestId, latencyMs: 0 };
   if (!apiKey) {
@@ -120,12 +127,17 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
       }
       const inTok = json?.usage?.input_tokens ?? 0;
       const outTok = json?.usage?.output_tokens ?? 0;
-      const textPart = Array.isArray(json?.content)
-        ? json.content.filter((c: any) => c.type === "text").map((c: any) => c.text).join("")
-        : "";
+      const content: any[] = Array.isArray(json?.content) ? json.content : [];
+      const textPart = content.filter((c) => c.type === "text").map((c) => c.text).join("");
       let data: T | undefined;
-      if (opts.schema && textPart) {
-        try { data = JSON.parse(textPart) as T; } catch { /* 구조화 실패 — text 반환 */ }
+      if (useSchemaTool) {
+        // 강제 tool use → tool_use.input 이 스키마에 맞는 구조화 객체.
+        const toolBlock = content.find((c) => c.type === "tool_use" && c.name === "respond");
+        if (toolBlock?.input && typeof toolBlock.input === "object") data = toolBlock.input as T;
+        // 방어: (있을 리 없지만) tool_use 없이 텍스트로 왔으면 코드펜스 제거 후 JSON 파싱 시도.
+        if (data === undefined && textPart) {
+          try { data = JSON.parse(stripJsonFence(textPart)) as T; } catch { /* 구조화 실패 — text 반환 */ }
+        }
       }
       const latencyMs = Date.now() - t0;
       const cost = estimateCost(model, inTok, outTok);
@@ -167,4 +179,11 @@ async function logUsage(opts: ClaudeCallOpts, r: {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+// 모델이 JSON 을 ```json … ``` 펜스나 앞뒤 산문과 함께 뱉는 경우 대비 — 최외곽 { … } 만 추출.
+function stripJsonFence(s: string): string {
+  const t = s.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const first = t.indexOf("{"), last = t.lastIndexOf("}");
+  return first >= 0 && last > first ? t.slice(first, last + 1) : t;
 }

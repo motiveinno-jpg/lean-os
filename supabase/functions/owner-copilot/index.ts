@@ -41,7 +41,7 @@ const SYSTEM_PROMPT = `당신은 대한민국 중소기업 대표를 돕는 "AI 
 - 모든 텍스트에 마크다운·별표(**)·백틱(\`)·변수 토큰({{ }}, { }, \${ })·영문 필드명을 절대 쓰지 마세요. 순수 한국어 문장으로만 씁니다.
 - 실행(송금·발행·승인)은 직접 못 하며 화면 위치만 안내합니다. 과장·허위 금지.`;
 
-// 구조화 응답 스키마 (claude.ts output_config json_schema). 실패 시 텍스트 fallback.
+// 구조화 응답 스키마 (claude.ts 가 강제 tool use 로 이 스키마에 맞춰 반환). 실패 시 안내 문구 fallback.
 const ANSWER_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -157,7 +157,7 @@ serve(withSentry("owner-copilot", async (req) => {
       feature: "owner_copilot", // 로그 호환 위해 feature 명 유지
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userContent }],
-      maxTokens: 1500,
+      maxTokens: 4000,
       schema: ANSWER_SCHEMA,
       companyId,
       userId: profile.id,
@@ -169,9 +169,11 @@ serve(withSentry("owner-copilot", async (req) => {
       return json({ error: result.error || "AI 응답에 실패했습니다.", code: result.errorCode }, 502);
     }
 
-    // 구조화 파싱 성공 시 그대로, 실패 시 텍스트를 summary 로 감싸는 fallback.
+    // 구조화(tool use) 파싱 성공 시 그대로. 실패(극히 드뭄) 시 원본 JSON 노출 금지 — 안내 문구만.
     const answer: Answer = result.data ?? {
-      headline: "", summary: result.text ?? "", actions: [], risks: [], opportunities: [], evidence: [],
+      headline: "분석 결과를 정리하지 못했습니다",
+      summary: "일시적으로 응답을 구조화하지 못했습니다. 잠시 후 다시 질문해 주세요.",
+      actions: [], risks: [], opportunities: [], evidence: [],
     };
     const remaining = Math.max(0, tokenLimit - used - (result.usage ? result.usage.input + result.usage.output : 0));
     return json({
