@@ -26,7 +26,8 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchSending, setBatchSending] = useState(false);
   const [sealApplying, setSealApplying] = useState<string | null>(null);
-  const [contractSubTab, setContractSubTab] = useState<"contracts" | "company_docs">("contracts");
+  // 회사 문서 서브탭 제거(2026-07-23) — 발송/현황만 남아 항상 contracts.
+  const [contractSubTab] = useState<"contracts">("contracts");
   // 서식 편집은 [서식] 탭으로 이관(2026-07-23). 여는 진입점(헤더 버튼·편집 클릭)을 제거해 항상 false → 아래 에디터 블록 미렌더.
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
@@ -441,51 +442,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
         </div>
       )}
 
-      {/* 서브탭: 계약 관리 / 회사 문서 */}
-      <div className="contract-subtab-bar flex gap-1 mb-5 bg-[var(--bg-surface)] rounded-lg p-0.5 w-fit">
-        <button onClick={() => setContractSubTab("contracts")} className={`px-4 py-2 rounded-md text-xs font-semibold transition ${contractSubTab === "contracts" ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>발송 현황</button>
-        <button onClick={() => setContractSubTab("company_docs")} className={`px-4 py-2 rounded-md text-xs font-semibold transition ${contractSubTab === "company_docs" ? "bg-[var(--bg-card)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]"}`}>회사 문서</button>
-      </div>
-
-      {/* 회사 문서 관리 */}
-      {contractSubTab === "company_docs" && (
-        <div className="contract-company-docs-panel">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {[
-              { key: "business_reg", label: "사업자등록증", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", desc: "사업자등록증 사본" },
-              { key: "employment_rules", label: "취업규칙", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253", desc: "회사 취업규칙/사규" },
-              { key: "corporate_reg", label: "법인등기부등본", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", desc: "법인 등기부등본" },
-              { key: "seal_cert", label: "인감증명서", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", desc: "법인 인감증명서" },
-              { key: "bank_cert", label: "통장사본", icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z", desc: "법인 통장 사본" },
-              { key: "etc_docs", label: "기타 문서", icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z", desc: "기타 회사 필수 문서" },
-            ].map(doc => (
-              <div key={doc.key} className="contract-doc-upload-card glass-card p-5 hover:border-[var(--primary)]/30 transition group">
-                <div className="flex items-start justify-between mb-3">
-                  <svg className="w-6 h-6 text-[var(--text-dim)] group-hover:text-[var(--primary)] transition" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={doc.icon} /></svg>
-                  <label className="px-2.5 py-1 bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] font-semibold rounded-lg cursor-pointer hover:bg-[var(--primary)]/20 transition">
-                    업로드
-                    <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={async (ev) => {
-                      const file = ev.target.files?.[0];
-                      if (!file || !companyId) return;
-                      try {
-                        const path = `company-docs/${companyId}/${doc.key}_${Date.now()}.${file.name.split('.').pop()}`;
-                        await supabase.storage.from("documents").upload(path, file, { upsert: true });
-                        toast(`${doc.label} 업로드 완료`, "success");
-                      } catch (err: any) { toast("업로드 실패: " + (err.message || ""), "error"); }
-                    }} />
-                  </label>
-                </div>
-                <div className="text-sm font-semibold mb-0.5">{doc.label}</div>
-                <div className="caption">{doc.desc}</div>
-              </div>
-            ))}
-          </div>
-          <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-xs text-[var(--text-muted)]">
-            <p>회사 필수 문서를 관리합니다. 업로드된 문서는 계약서 발송, 증명서 발급 등에 활용됩니다.</p>
-          </div>
-        </div>
-      )}
-
+      {/* 회사 문서(법인 서류)는 회사 설정 › 회사정보 › 회사 문서로 이관(2026-07-23). 여기선 발송/현황만. */}
       {contractSubTab === "contracts" && <>
       {/* 상태 필터 탭 + 일괄 발송 */}
       <div className="contract-status-filter-bar flex items-center justify-between gap-3 mb-4">

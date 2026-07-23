@@ -548,6 +548,42 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           </div>
         </div>
       </div>
+
+      {/* ── 회사 문서 (법인 서류) — 계약 발송·현황에서 이관(2026-07-23). storage: company-docs/{companyId}/{key} ── */}
+      <div>
+        <h2 className="section-title">회사 문서</h2>
+        <p className="caption mb-4">사업자등록증·법인등기부등본 등 법인 서류입니다. 업로드된 문서는 계약서 발송·증명서 발급에 활용됩니다.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            { key: "business_reg", label: "사업자등록증", desc: "사업자등록증 사본" },
+            { key: "employment_rules", label: "취업규칙", desc: "회사 취업규칙/사규" },
+            { key: "corporate_reg", label: "법인등기부등본", desc: "법인 등기부등본" },
+            { key: "seal_cert", label: "인감증명서", desc: "법인 인감증명서" },
+            { key: "bank_cert", label: "통장사본", desc: "법인 통장 사본" },
+            { key: "etc_docs", label: "기타 문서", desc: "기타 회사 필수 문서" },
+          ].map((doc) => (
+            <div key={doc.key} className="glass-card p-4 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-[var(--text)] truncate">{doc.label}</div>
+                <div className="caption">{doc.desc}</div>
+              </div>
+              <label className="px-2.5 py-1 bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] font-semibold rounded-lg cursor-pointer hover:bg-[var(--primary)]/20 transition shrink-0">
+                업로드
+                <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={async (ev) => {
+                  const file = ev.target.files?.[0];
+                  if (!file || !companyId) return;
+                  try {
+                    const path = `company-docs/${companyId}/${doc.key}_${Date.now()}.${file.name.split(".").pop()}`;
+                    await supabase.storage.from("documents").upload(path, file, { upsert: true });
+                    toast(`${doc.label} 업로드 완료`, "success");
+                  } catch (err: any) { toast("업로드 실패: " + (err?.message || ""), "error"); }
+                  ev.target.value = "";
+                }} />
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
