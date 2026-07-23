@@ -338,7 +338,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
             <>
               {crumb.group && (
                 <div className="hidden md:block text-[11px] leading-4 text-[var(--text-dim)] truncate">
-                  {crumb.group} <span className="mx-0.5">›</span> {crumb.title}
+                  {crumb.group} <span className="mx-0.5">›</span>
                 </div>
               )}
               <div className="text-[15px] md:text-base font-bold text-[var(--text)] leading-5 truncate">{crumb.title}</div>

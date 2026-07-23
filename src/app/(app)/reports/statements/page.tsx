@@ -22,10 +22,6 @@ export default function StatementsHub() {
   return (
     <div>
       <ReportsTabs />
-      <div className="mb-4">
-        <div className="text-sm font-bold text-[var(--text)]">정식 회계 자료</div>
-        <p className="text-xs text-[var(--text-muted)] mt-0.5">세무사 제출·정밀 확인용 정식 재무제표입니다. 회사 상태를 빠르게 보려면 <Link href="/reports/summary" className="text-[var(--primary)] font-semibold hover:underline">경영 요약</Link>을 이용하세요.</p>
-      </div>
       <div className="statements-hub-grid">
         {DOCS.map((d) => (
           <Link key={d.href} href={d.href}

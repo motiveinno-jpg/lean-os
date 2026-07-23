@@ -8,23 +8,21 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   // desc 가 있으면 리포트형 표준 헤더(제목+설명)가 화면 상단에 자동 표시됨(app-shell 주입).
   //   self-헤더 있는 화면(/dashboard·/reports/*·/projecthub·/settings·/chat)은 desc 생략 → 중복 방지.
   "/dashboard": { group: "홈", title: "대시보드", desc: "오늘 챙길 것을 한눈에 — 내 업무·자금·일정·전자결재 현황을 봅니다." },
+  "/copilot": { group: "홈", title: "AI 참모" },
   "/notifications": { group: "홈", title: "알림", desc: "받은 알림을 모아 봅니다." },
 
-  "/reports/flow": { group: "파이낸스", title: "경영 흐름" },
-  "/reports/pnl": { group: "파이낸스", title: "손익계산서" },
-  "/reports/bs": { group: "파이낸스", title: "재무상태표" },
-  "/reports/costs": { group: "파이낸스", title: "비용 분석" },
-  "/reports/by-person": { group: "파이낸스", title: "인원별 분석" },
-  "/reports/three-way-match": { group: "파이낸스", title: "3면 대사" },
+  // 브레드크럼 title = 좌측 사이드바 허브 라벨과 일치(거래처 / 세금·증빙 / 거래 장부 / 전표입력 / 분석).
+  //   세부 화면(거래처 관리·원장, 손익계산서 등)은 FinanceTabs·ReportsTabs 하위 탭이 표시 → 헤더 중복 방지.
+  //   /reports/* 는 별도 항목 없이 이 "/reports" 를 상속해 모두 "분석" 으로 표기.
   "/reports": { group: "파이낸스", title: "분석" },
-  "/partners/ledger": { group: "파이낸스", title: "거래처 원장", desc: "거래처별 매출·매입 원장과 잔액을 봅니다." },
+  "/partners/ledger": { group: "파이낸스", title: "거래처", desc: "거래처별 매출·매입 원장과 잔액을 봅니다." },
   "/partners/reconciliation/voucher-entry": { group: "파이낸스", title: "전표입력", desc: "거래를 전표로 직접 입력합니다." },
-  "/partners/reconciliation": { group: "파이낸스", title: "거래 매칭", desc: "통장·카드 거래를 전표·계산서와 맞춰 봅니다." },
-  "/partners": { group: "파이낸스", title: "거래처 관리", desc: "거래처 정보와 잔액을 관리합니다." },
-  "/tax-invoices": { group: "파이낸스", title: "세금계산서", desc: "발행·수취한 세금계산서를 관리합니다." },
-  "/cash-receipts": { group: "파이낸스", title: "현금영수증", desc: "현금영수증 발행·수취 내역을 관리합니다." },
+  "/partners/reconciliation": { group: "파이낸스", title: "거래 장부", desc: "통장·카드 거래를 전표·계산서와 맞춰 봅니다." },
+  "/partners": { group: "파이낸스", title: "거래처", desc: "거래처 정보와 잔액을 관리합니다." },
+  "/tax-invoices": { group: "파이낸스", title: "세금·증빙", desc: "발행·수취한 세금계산서를 관리합니다." },
+  "/cash-receipts": { group: "파이낸스", title: "세금·증빙", desc: "현금영수증 발행·수취 내역을 관리합니다." },
   "/matching": { group: "파이낸스", title: "거래 매칭", desc: "통장·카드 거래를 자동 매칭합니다." },
-  "/transactions": { group: "파이낸스", title: "거래 자동화", desc: "미분류 지출을 계정과목으로 정리·자동화합니다. (입금 정산은 거래 매칭)" },
+  "/transactions": { group: "파이낸스", title: "거래 장부", desc: "미분류 지출을 계정과목으로 정리·자동화합니다. (입금 정산은 거래 매칭)" },
 
   "/schedule": { group: "워크스페이스", title: "일정 / 할 일", desc: "일정과 할 일을 관리합니다." },
   "/projecthub/quotes": { group: "워크스페이스", title: "견적 수취함", desc: "협력사에서 받은 견적을 모아 봅니다." },
