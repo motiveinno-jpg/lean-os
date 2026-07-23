@@ -1010,10 +1010,32 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
                     </svg>
                     <div className="text-[11px] text-[var(--warning)] leading-relaxed">
                       <p className="font-semibold mb-1">CodefCert 프로그램이 설치되어 있지 않습니다</p>
-                      <p>PC에 저장된 공동인증서를 자동으로 불러오려면 CodefCert 프로그램을 설치해주세요.</p>
+                      <p>PC에 저장된 공동인증서를 자동으로 불러오려면 아래에서 CodefCert 프로그램을 설치해주세요.</p>
                       <p className="mt-1">또는 &quot;PFX 파일 직접 업로드&quot; 탭을 사용하세요.</p>
                     </div>
                   </div>
+                  {(() => {
+                    const isWin = typeof navigator !== "undefined" && /win/i.test(navigator.userAgent || (navigator as { platform?: string }).platform || "");
+                    const primaryHref = isWin ? "/downloads/CodefCertInstaller.exe" : "/downloads/CodefCertInstaller.pkg";
+                    const otherHref = isWin ? "/downloads/CodefCertInstaller.pkg" : "/downloads/CodefCertInstaller.exe";
+                    const otherLabel = isWin ? "macOS용 받기" : "Windows용 받기";
+                    return (
+                      <div className="space-y-1.5">
+                        <a
+                          href={primaryHref}
+                          download
+                          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[var(--primary)] hover:brightness-95 transition"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                          CodefCert 프로그램 다운로드 (최신 2.1.0)
+                        </a>
+                        <p className="text-[11px] text-center text-[var(--text-muted)]">
+                          설치 후 이 화면을 새로고침하면 인증서를 자동으로 불러옵니다 ·{" "}
+                          <a href={otherHref} download className="underline hover:text-[var(--text)]">{otherLabel}</a>
+                        </p>
+                      </div>
+                    );
+                  })()}
                   <button
                     onClick={() => setMode("manual")}
                     className="w-full py-2.5 rounded-xl text-sm font-semibold text-[var(--text)] bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-elevated)] transition"
