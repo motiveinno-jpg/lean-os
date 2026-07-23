@@ -15,6 +15,17 @@ type Risk = { title: string; detail: string; severity: "high" | "medium" | "low"
 type Opp = { title: string; detail: string };
 type Evidence = { label: string; value: string; source?: string };
 type Answer = { headline: string; summary: string; actions: Action[]; risks: Risk[]; opportunities: Opp[]; evidence: Evidence[] };
+
+// AI 답변 텍스트 정제 — 변수 토큰({{x}}·{x}·${x})·마크다운(**·`)이 그대로 노출돼 가독성이 떨어지던 문제 대응(2026-07-23).
+function clean(s?: string): string {
+  return (s || "")
+    .replace(/\{\{\s*([^{}]+?)\s*\}\}/g, "$1")   // {{변수}} → 변수
+    .replace(/\$\{\s*([^{}]+?)\s*\}/g, "$1")       // ${변수} → 변수
+    .replace(/\{\s*([\w가-힣.\-]+)\s*\}/g, "$1")   // {변수} → 변수 (단순 토큰만)
+    .replace(/\*\*([^*]+)\*\*/g, "$1")             // **강조** → 강조
+    .replace(/`([^`]+)`/g, "$1")                   // `코드` → 코드
+    .trim();
+}
 type AiMsg = { role: "user"; text: string } | { role: "ai"; answer: Answer; model?: string; at: string; asOf?: string | null };
 
 type Usage = {
@@ -239,8 +250,8 @@ function AnswerCard({ msg }: { msg: Extract<AiMsg, { role: "ai" }> }) {
         {msg.model && <span className="copilot2-answer-model">{msg.model.includes("opus") ? "Opus" : msg.model.includes("haiku") ? "Haiku" : "Sonnet"}</span>}
         <span className="copilot2-answer-time">{kstDate(msg.at)}</span>
       </div>
-      {a.headline && <div className="copilot2-sec-headline">{a.headline}</div>}
-      {a.summary && <div className="copilot2-sec-summary">{a.summary}</div>}
+      {a.headline && <div className="copilot2-sec-headline">{clean(a.headline)}</div>}
+      {a.summary && <div className="copilot2-sec-summary">{clean(a.summary)}</div>}
 
       {a.actions?.length > 0 && (
         <div className="copilot2-sec">
@@ -249,8 +260,8 @@ function AnswerCard({ msg }: { msg: Extract<AiMsg, { role: "ai" }> }) {
             <div key={i} className="copilot2-action">
               <span className={`copilot2-pri ${sevCls(x.priority)}`}>{x.priority === "high" ? "높음" : x.priority === "medium" ? "보통" : "낮음"}</span>
               <div className="min-w-0 flex-1">
-                <div className="copilot2-action-title">{x.title}{x.href && <a href={x.href} className="copilot2-action-link">바로가기 →</a>}</div>
-                <div className="copilot2-action-detail">{x.detail}</div>
+                <div className="copilot2-action-title">{clean(x.title)}{x.href && <a href={x.href} className="copilot2-action-link">바로가기 →</a>}</div>
+                <div className="copilot2-action-detail">{clean(x.detail)}</div>
               </div>
             </div>
           ))}
@@ -263,7 +274,7 @@ function AnswerCard({ msg }: { msg: Extract<AiMsg, { role: "ai" }> }) {
           {a.risks.map((x, i) => (
             <div key={i} className="copilot2-risk">
               <span className={`copilot2-badge ${sevCls(x.severity)}`}>{x.severity === "high" ? "위험" : x.severity === "medium" ? "주의" : "참고"}</span>
-              <div className="min-w-0 flex-1"><div className="copilot2-risk-title">{x.title}</div><div className="copilot2-action-detail">{x.detail}</div></div>
+              <div className="min-w-0 flex-1"><div className="copilot2-risk-title">{clean(x.title)}</div><div className="copilot2-action-detail">{clean(x.detail)}</div></div>
             </div>
           ))}
         </div>
@@ -273,7 +284,7 @@ function AnswerCard({ msg }: { msg: Extract<AiMsg, { role: "ai" }> }) {
         <div className="copilot2-sec">
           <div className="copilot2-sec-label">기회</div>
           {a.opportunities.map((x, i) => (
-            <div key={i} className="copilot2-opp"><span aria-hidden>💡</span><div><div className="copilot2-risk-title">{x.title}</div><div className="copilot2-action-detail">{x.detail}</div></div></div>
+            <div key={i} className="copilot2-opp"><span aria-hidden>💡</span><div><div className="copilot2-risk-title">{clean(x.title)}</div><div className="copilot2-action-detail">{clean(x.detail)}</div></div></div>
           ))}
         </div>
       )}
@@ -283,7 +294,7 @@ function AnswerCard({ msg }: { msg: Extract<AiMsg, { role: "ai" }> }) {
           <div className="copilot2-sec-label">근거 데이터</div>
           <div className="copilot2-evidence-grid">
             {a.evidence.map((x, i) => (
-              <div key={i} className="copilot2-evidence"><div className="copilot2-evidence-label">{x.label}</div><div className="copilot2-evidence-value">{x.value}</div></div>
+              <div key={i} className="copilot2-evidence"><div className="copilot2-evidence-label">{clean(x.label)}</div><div className="copilot2-evidence-value">{clean(x.value)}</div></div>
             ))}
           </div>
         </div>

@@ -37,7 +37,8 @@ const SYSTEM_PROMPT = `당신은 대한민국 중소기업 대표를 돕는 "AI 
 - actions(지금 해야 할 일): priority(high|medium|low), title(간결), detail(실무 지침), href(처리 화면 경로 — 예: /bank /partners /approvals /payments /signatures /tax-invoices, 모르면 생략).
 - risks(위험 신호): title, detail, severity(high|medium|low).
 - opportunities(기회): title, detail.
-- evidence(근거 데이터): snapshot 필드 기반 label/value/source.
+- evidence(근거 데이터): snapshot 필드 기반 label/value/source. label 은 반드시 사람이 읽는 한국어 이름(예: "현금 잔액", "이번 달 매출")만 쓰고, 원시 필드명(cash_balance, total_revenue 등)은 절대 노출하지 마세요. value 는 억/만원 등 읽기 쉬운 표기.
+- 모든 텍스트에 마크다운·별표(**)·백틱(\`)·변수 토큰({{ }}, { }, \${ })·영문 필드명을 절대 쓰지 마세요. 순수 한국어 문장으로만 씁니다.
 - 실행(송금·발행·승인)은 직접 못 하며 화면 위치만 안내합니다. 과장·허위 금지.`;
 
 // 구조화 응답 스키마 (claude.ts output_config json_schema). 실패 시 텍스트 fallback.

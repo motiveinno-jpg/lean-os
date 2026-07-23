@@ -426,8 +426,6 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
         ) : (
           <div className="divide-y divide-[var(--border)]/50">
             {scopedTemplates.map((tpl: any) => {
-              const vars = Array.isArray(tpl.variables) ? tpl.variables : [];
-
               return (
                 <div key={tpl.id} className="template-row">
                   <div className="template-row-header">
@@ -435,7 +433,6 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                       <div className="flex-1">
                         <div className="template-row-badges">
                           <span className="text-sm font-medium">{tpl.name}</span>
-                          {vars.length > 0 && <span className="caption">변수 {vars.length}개</span>}
                         </div>
                       </div>
                       <div className="template-row-actions">
