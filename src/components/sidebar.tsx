@@ -15,7 +15,7 @@ import { useUser, type UserRole } from "@/components/user-context";
 import { matchGrantableRoute, effectiveTabAccess, useMyTabOverrides } from "@/lib/tab-access";
 import { usePopups } from "@/components/popup-windows";
 
-type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; children?: NavItem[] };
+type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; match?: string[]; children?: NavItem[] };
 type NavGroup = { label: string; items: NavItem[] };
 
 // ── 사이드바 구조 (2026-06-04 갱신) — 홈 → 파이낸스 → 워크스페이스 → 인사관리 → 자산관리 → 설정.
@@ -32,19 +32,14 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // 2026-07-23 파이낸스 4탭 통합 — 8개 항목을 목적 단위 4개 허브로. 상세는 각 화면 상단 하위 탭(FinanceTabs)으로 전환.
+    //   거래처(관리·원장) / 세금·증빙(세금계산서·현금영수증) / 거래 장부(자동분류·입금매칭·전표) / 분석.
+    //   라우트·페이지는 그대로. match 로 허브 활성 범위를 지정(예: 거래 장부는 /partners/reconciliation 포함).
     label: "파이낸스",
     items: [
-      // 2026-07-08 분석 IA 개선: "경영 흐름"을 분석(/reports) 서브탭으로 통합 — 사이드바에선 "분석" 하나로.
-      //   분석 진입 시 경영 흐름이 기본 화면. (이전엔 경영흐름·분석이 사이드바에 분리돼 있었음)
-      { href: "/partners", label: "거래처 관리", icon: "users", roles: ["owner", "admin"] },
-      { href: "/tax-invoices", label: "세금계산서", icon: "file-text", roles: ["owner", "admin"] },
-      { href: "/cash-receipts", label: "현금영수증", icon: "receipt", roles: ["owner", "admin"] },
-      // 2026-06-12 메뉴 분리: 원장(조회 — 매출처·매입처 잔액) / 거래 대사(작업 — 입금·계산서 매칭)
-      { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"] },
-      // 2026-07-15 파이낸스로 이동: 거래 자동화(지출 분류) → 거래 매칭(입금 정산) → 전표입력 → 원장 흐름. 분류=회계처리라 파이낸스가 적합.
-      { href: "/transactions", label: "거래 자동화", icon: "sparkles", roles: ["owner", "admin"] },
-      { href: "/partners/reconciliation", label: "거래 매칭", icon: "clipboard-check", roles: ["owner", "admin"] },
-      { href: "/partners/reconciliation/voucher-entry", label: "전표입력", icon: "edit-3", roles: ["owner", "admin"] },
+      { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
+      { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts"] },
+      { href: "/transactions", label: "거래 장부", icon: "book", roles: ["owner", "admin"], match: ["/transactions", "/partners/reconciliation"] },
       { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
     ],
   },
@@ -133,12 +128,14 @@ const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// 활성 판정 — 기본은 prefix 매치지만, 더 구체적인 형제 메뉴(예: /partners/ledger)가 매치되면
-//   상위(/partners)는 비활성. (2026-06-12: 원장/매칭허브 진입 시 거래처 관리가 같이 켜지던 버그 수정)
-function isActivePath(href: string, pathname: string, allHrefs: string[]): boolean {
-  if (pathname === href) return true;
-  if (!pathname.startsWith(href + "/")) return false;
-  return !allHrefs.some((h) => h !== href && h.startsWith(href + "/") && (pathname === h || pathname.startsWith(h + "/")));
+// 활성 판정 헬퍼 — 아이템의 match(없으면 [href]) 중 현재 경로에 매치되는 가장 긴 경로 길이.
+//   여러 아이템 중 이 길이가 최댓값인 아이템만 활성 → 접두어가 겹쳐도(예: /partners vs /partners/reconciliation)
+//   가장 구체적인 허브가 이긴다. (2026-06-12 원장/매칭 오점등 버그 대응 + 2026-07-23 파이낸스 허브 match 지원)
+function itemMatchLen(item: NavItem, pathname: string): number {
+  const paths = item.match || [item.href];
+  let m = -1;
+  for (const p of paths) if (pathname === p || pathname.startsWith(p + "/")) m = Math.max(m, p.length);
+  return m;
 }
 
 function filterNavForRole(role: UserRole, overrides: Map<string, boolean>, companyName?: string, isOperator?: boolean): NavGroup[] {
@@ -290,10 +287,13 @@ export function Sidebar() {
 
   // Build flat lookup for pinned pages
   const allNavItems = filteredNav.flatMap(g => g.items.flatMap(i => i.children ? [i, ...i.children] : [i]));
-  const allHrefs = allNavItems.map((i) => i.href);
   const pinnedItems = pinnedPages
     .map(href => allNavItems.find(item => item.href === href))
     .filter(Boolean) as NavItem[];
+
+  // 현재 경로에 대해 가장 구체적으로 매치되는 아이템만 활성(최장 매치 우선).
+  const bestMatchLen = Math.max(-1, ...allNavItems.map((i) => itemMatchLen(i, pathname)));
+  const isItemActive = (item: NavItem) => { const l = itemMatchLen(item, pathname); return l >= 0 && l === bestMatchLen; };
 
   // 2026-07-20 QA: 스크롤 경계에서 메뉴 글자가 반쯤 잘려("거래 자동화"→"거래 자동하") 깨져 보이던 문제 —
   //   아래 내용이 더 있을 때만 하단 페이드 마스크를 걸어 잘림을 자연스럽게 처리. 맨 아래 도달 시 페이드 해제.
@@ -312,7 +312,7 @@ export function Sidebar() {
 
   // 데스크톱 단일 아이템 렌더 (하위 토글 지원 — 부모는 chevron, 일반은 핀)
   const renderDesktopItem = (item: NavItem, isChild: boolean, hasChildren = false, open = false) => {
-    const active = isActivePath(item.href, pathname, allHrefs);
+    const active = isItemActive(item);
     const bk = (item as any).badgeKey;
     const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
     const pinned = isPinned(item.href);
@@ -367,7 +367,7 @@ export function Sidebar() {
 
   // 모바일 단일 아이템 렌더 (하위는 indent, 토글 없이 항상 펼침)
   const renderMobileItem = (item: NavItem, isChild: boolean) => {
-    const active = isActivePath(item.href, pathname, allHrefs);
+    const active = isItemActive(item);
     const bk = (item as any).badgeKey;
     const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
     const pinned = isPinned(item.href);
@@ -541,7 +541,7 @@ export function Sidebar() {
             {collapsed && <div className="my-1 border-t border-amber-500/30" />}
             <div className="space-y-0.5">
               {pinnedItems.map((item) => {
-                const active = isActivePath(item.href, pathname, allHrefs);
+                const active = isItemActive(item);
                 return (
                   <Tooltip key={`pin-${item.href}`} label={item.label} show={collapsed}>
                     <Link
@@ -759,7 +759,7 @@ export function Sidebar() {
                 </div>
                 <div className="space-y-0.5">
                   {pinnedItems.map((item) => {
-                    const active = isActivePath(item.href, pathname, allHrefs);
+                    const active = isItemActive(item);
                     return (
                       <Link key={`mpin-${item.href}`} href={item.href}
                         className={`sidebar-mobile-pinned-link ${

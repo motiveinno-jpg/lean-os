@@ -7,6 +7,7 @@ import Link from "next/link";
 import { GlobalModalGuard } from "@/components/global-modal-guard";
 import { supabase } from "@/lib/supabase";
 import { Sidebar } from "@/components/sidebar";
+import { FinanceTabs } from "@/components/finance-tabs";
 import { GlobalSearch, openGlobalSearch } from "@/components/global-search";
 import { getRouteCrumb } from "@/lib/route-labels";
 import { FloatingMessenger } from "@/components/floating-messenger";
@@ -394,6 +395,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
             폼·문서 등 자체 --content-max 페이지는 그 안에서 추가 제한되므로 영향 없음. */}
         <div className="app-content-scale w-full max-w-[1400px]">
           {/* 페이지 제목·설명은 상단 크롬 헤더바(브레드크럼)에서 표시 — 본문 중복 제목 없음. */}
+          {/* 파이낸스 허브(거래처/세금·증빙/거래 장부) 하위 탭 — 해당 라우트에서만 렌더(그 외 null) */}
+          <FinanceTabs />
           {/* 유료 출시 게이트(2026-06-11): trial D-N 배너 + 만료/해지 페이월. 운영자·레거시(구독행 없음) 비차단. */}
           <RouteGuard>
             <SubscriptionGate>{children}</SubscriptionGate>
