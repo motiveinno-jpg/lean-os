@@ -241,13 +241,75 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
         </div>
       )}
 
-      {/* Template Form (Create / Edit) — 인사(리치)는 넓은 팝업, 외부는 인라인 유지 */}
-      {showForm && (
-        <div
-          className={isRich ? "fixed inset-0 z-[100] flex items-start justify-center bg-black/55 p-3 md:p-6 overflow-y-auto no-print" : ""}
-          onClick={isRich ? (e) => { if (e.target === e.currentTarget) resetForm(); } : undefined}
-        >
-        <div className={`templates-form glass-card ${isRich ? "w-full max-w-4xl my-auto" : ""}`}>
+      {/* Template Form (Create / Edit) */}
+      {showForm && (isRich ? (
+        // ── 인사 서식: 세로로 긴 2단 팝업 (좌: 양식명·유형·변수 / 우: 문서 편집기) ──
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-3 md:p-5 no-print"
+          onClick={(e) => { if (e.target === e.currentTarget) resetForm(); }}>
+          <div className="glass-card w-full max-w-5xl h-[92vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] shrink-0">
+              <h3 className="text-sm font-bold text-[var(--text)]">{editingId ? "양식 수정" : "새 양식 만들기"}</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={resetForm} className="btn-ghost">취소</button>
+                <button onClick={() => form.name && saveMut.mutate()} disabled={!form.name || saveMut.isPending} className="btn-primary">
+                  {saveMut.isPending ? "저장 중..." : editingId ? "수정 저장" : "저장"}
+                </button>
+              </div>
+            </div>
+            {/* Body: 좌 설정 / 우 편집기 */}
+            <div className="flex-1 flex min-h-0">
+              {/* 좌 — 양식명·유형·변수 */}
+              <aside className="w-72 shrink-0 overflow-y-auto p-4 space-y-4 border-r border-[var(--border)]">
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">양식명 *</label>
+                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="표준근로계약서"
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">문서 유형</label>
+                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                    {typeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-2">변수 <span className="text-[var(--text-dim)] font-normal">클릭 시 본문에 삽입</span></label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {form.variables.map((v: string) => (
+                      <span key={v} className="templates-variable-chip">
+                        <button type="button" onClick={() => editorRef.current?.insertText(`{{${v}}}`)} title="본문 커서 위치에 삽입" className="hover:text-[var(--primary)] transition">{`{{${v}}}`}</button>
+                        <button onClick={() => removeVariable(v)} className="text-[var(--primary)] hover:text-red-400">&times;</button>
+                      </span>
+                    ))}
+                    {form.variables.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">아직 변수가 없습니다.</span>}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input value={newVar} onChange={(e) => setNewVar(e.target.value)}
+                      placeholder="예: employee_name"
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addVariable())}
+                      className="flex-1 min-w-0 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
+                    <button onClick={addVariable}
+                      className="px-3 py-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg text-xs font-semibold hover:bg-[var(--primary)]/20 transition shrink-0">추가</button>
+                  </div>
+                </div>
+              </aside>
+              {/* 우 — 문서 편집기 */}
+              <main className="flex-1 min-w-0 flex flex-col p-4">
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">표·굵기·정렬·색·이미지 지원</span></label>
+                <div className="flex-1 min-h-0">
+                  <RichEditor ref={editorRef} content={html} onChange={setHtml}
+                    placeholder="근로계약서 내용을 입력하세요… 왼쪽 변수 버튼으로 {{직원명}}·{{연봉}} 등을 삽입할 수 있습니다."
+                    maxHeight="calc(92vh - 150px)" />
+                </div>
+              </main>
+            </div>
+          </div>
+        </div>
+      ) : (
+        // ── 외부(business): 기존 인라인 폼 ──
+        <div className="templates-form glass-card">
           <h3 className="text-sm font-bold mb-4 text-[var(--text)]">
             {editingId ? "양식 수정" : "새 양식 등록"}
           </h3>
@@ -256,7 +318,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">양식명 *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder={scope === "hr" ? "표준근로계약서" : "마케팅대행 계약서"}
+                placeholder="마케팅대행 계약서"
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
             </div>
             <div>
@@ -268,55 +330,43 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
             </div>
           </div>
 
-          {/* 본문 — 인사(리치 에디터) vs 외부(섹션형 유지) */}
-          {isRich ? (
-            <div className="mb-4">
-              <label className="block text-xs text-[var(--text-muted)] mb-1.5">본문 <span className="text-[var(--text-dim)] font-normal">표·굵기·정렬·색·이미지 지원 · {"{{변수}}"}는 아래 버튼으로 삽입</span></label>
-              <RichEditor ref={editorRef} content={html} onChange={setHtml}
-                placeholder="근로계약서 내용을 입력하세요… 아래에서 {{직원명}}·{{연봉}} 등 변수를 커서 위치에 삽입할 수 있습니다."
-                maxHeight="calc(88vh - 300px)" />
-            </div>
-          ) : (
-            <>
-              {/* Title */}
-              <div className="mb-4">
-                <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
-                <input value={form.content_json.title}
-                  onChange={(e) => setForm({ ...form, content_json: { ...form.content_json, title: e.target.value } })}
-                  placeholder="문서 제목"
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-              </div>
+          {/* Title */}
+          <div className="mb-4">
+            <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
+            <input value={form.content_json.title}
+              onChange={(e) => setForm({ ...form, content_json: { ...form.content_json, title: e.target.value } })}
+              placeholder="문서 제목"
+              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+          </div>
 
-              {/* Sections */}
-              <div className="templates-sections">
-                <div className="templates-section-header">
-                  <label className="text-xs text-[var(--text-muted)]">섹션</label>
-                  <button onClick={addSection} className="text-xs text-[var(--primary)] hover:underline font-medium">
-                    + 섹션 추가
-                  </button>
+          {/* Sections */}
+          <div className="templates-sections">
+            <div className="templates-section-header">
+              <label className="text-xs text-[var(--text-muted)]">섹션</label>
+              <button onClick={addSection} className="text-xs text-[var(--primary)] hover:underline font-medium">
+                + 섹션 추가
+              </button>
+            </div>
+            <div className="space-y-3">
+              {form.content_json.sections.map((sec: any, idx: number) => (
+                <div key={idx} className="templates-section-item">
+                  <div className="templates-section-item-header">
+                    <span className="text-[10px] text-[var(--text-dim)] font-medium">섹션 {idx + 1}</span>
+                    {form.content_json.sections.length > 1 && (
+                      <button onClick={() => removeSection(idx)} className="text-[10px] text-red-400 hover:text-red-500">삭제</button>
+                    )}
+                  </div>
+                  <input value={sec.title} onChange={(e) => updateSection(idx, "title", e.target.value)}
+                    placeholder="섹션 제목 (예: 제1조 목적)"
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-2 focus:outline-none focus:border-[var(--primary)]" />
+                  <textarea value={sec.content} onChange={(e) => updateSection(idx, "content", e.target.value)}
+                    placeholder="섹션 내용... {{변수명}} 형식으로 변수를 삽입할 수 있습니다"
+                    rows={4}
+                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)] resize-y font-mono" />
                 </div>
-                <div className="space-y-3">
-                  {form.content_json.sections.map((sec: any, idx: number) => (
-                    <div key={idx} className="templates-section-item">
-                      <div className="templates-section-item-header">
-                        <span className="text-[10px] text-[var(--text-dim)] font-medium">섹션 {idx + 1}</span>
-                        {form.content_json.sections.length > 1 && (
-                          <button onClick={() => removeSection(idx)} className="text-[10px] text-red-400 hover:text-red-500">삭제</button>
-                        )}
-                      </div>
-                      <input value={sec.title} onChange={(e) => updateSection(idx, "title", e.target.value)}
-                        placeholder="섹션 제목 (예: 제1조 목적)"
-                        className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-2 focus:outline-none focus:border-[var(--primary)]" />
-                      <textarea value={sec.content} onChange={(e) => updateSection(idx, "content", e.target.value)}
-                        placeholder="섹션 내용... {{변수명}} 형식으로 변수를 삽입할 수 있습니다"
-                        rows={4}
-                        className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)] resize-y font-mono" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+              ))}
+            </div>
+          </div>
 
           {/* Variables */}
           <div className="templates-variables">
@@ -324,11 +374,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
             <div className="flex flex-wrap gap-2 mb-2">
               {form.variables.map((v: string) => (
                 <span key={v} className="templates-variable-chip">
-                  {isRich ? (
-                    <button type="button" onClick={() => editorRef.current?.insertText(`{{${v}}}`)} title="본문 커서 위치에 삽입" className="hover:text-[var(--primary)] transition">{`{{${v}}}`}</button>
-                  ) : (
-                    `{{${v}}}`
-                  )}
+                  {`{{${v}}}`}
                   <button onClick={() => removeVariable(v)} className="text-[var(--primary)] hover:text-red-400">&times;</button>
                 </span>
               ))}
@@ -353,8 +399,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
             <button onClick={resetForm} className="btn-ghost">취소</button>
           </div>
         </div>
-        </div>
-      )}
+      ))}
 
       {/* Templates List */}
       <div className="templates-list glass-card">
