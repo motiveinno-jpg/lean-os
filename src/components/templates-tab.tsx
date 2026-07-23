@@ -299,9 +299,8 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
               <main className="flex-1 min-w-0 flex flex-col p-4">
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">표·굵기·정렬·색·이미지 지원</span></label>
                 <div className="flex-1 min-h-0">
-                  <RichEditor ref={editorRef} content={html} onChange={setHtml}
-                    placeholder="근로계약서 내용을 입력하세요… 왼쪽 변수 버튼으로 {{직원명}}·{{연봉}} 등을 삽입할 수 있습니다."
-                    maxHeight="calc(92vh - 150px)" />
+                  <RichEditor ref={editorRef} content={html} onChange={setHtml} fillHeight
+                    placeholder="근로계약서 내용을 입력하세요… 왼쪽 변수 버튼으로 {{직원명}}·{{연봉}} 등을 삽입할 수 있습니다." />
                 </div>
               </main>
             </div>

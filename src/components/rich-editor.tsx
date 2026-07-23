@@ -29,6 +29,8 @@ interface RichEditorProps {
   //   스크롤 시 툴바(표·서식 버튼)가 같이 밀려 올라가 안 보이는 문제(사장님 리포트).
   //   지정 시 본문 영역만 내부 스크롤하고 툴바는 항상 상단 고정.
   maxHeight?: string;
+  // 2026-07-23 지정 시 부모 높이를 꽉 채움(flex-col h-full). 큰 팝업 편집기에서 본문 영역을 넓게.
+  fillHeight?: boolean;
 }
 
 function escapeHtml(s: string): string {
@@ -55,7 +57,7 @@ const FONT_FAMILIES = [
 ];
 
 export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function RichEditor(
-  { content = "", onChange, placeholder = "내용을 입력하세요...", editable = true, onUploadImage, maxHeight },
+  { content = "", onChange, placeholder = "내용을 입력하세요...", editable = true, onUploadImage, maxHeight, fillHeight },
   ref
 ) {
   const { toast } = useToast();
@@ -228,9 +230,9 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
   };
 
   return (
-    <div className="rich-editor">
+    <div className={`rich-editor ${fillHeight ? "flex flex-col h-full min-h-0" : ""}`}>
       {editable && (
-        <div className="rich-editor-toolbar">
+        <div className={`rich-editor-toolbar ${fillHeight ? "shrink-0" : ""}`}>
           {/* 서식 */}
           <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btnCls(editor.isActive("bold"))} title="굵게"><strong>B</strong></button>
           <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={btnCls(editor.isActive("italic"))} title="기울임"><em>I</em></button>
@@ -308,10 +310,11 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           {pdfProgress && <span className="text-[11px] text-[var(--primary)] self-center ml-2 animate-pulse">{pdfProgress}</span>}
         </div>
       )}
-      <div className="rich-editor-body" style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
+      <div className={`rich-editor-body ${fillHeight ? "flex-1 min-h-0" : ""}`}
+        style={fillHeight ? { overflowY: "auto" } : maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
         <EditorContent
           editor={editor}
-          className="prose prose-sm max-w-none px-4 py-3 min-h-[200px] focus:outline-none [&_.tiptap]:outline-none [&_.tiptap]:min-h-[180px] [&_.tiptap_img]:max-w-full [&_.tiptap_img]:rounded-lg [&_.tiptap_img]:my-2 [&_.tiptap_table]:border-collapse [&_.tiptap_table]:w-full [&_.tiptap_table]:my-2 [&_.tiptap_td]:border [&_.tiptap_td]:border-[var(--border)] [&_.tiptap_td]:p-2 [&_.tiptap_th]:border [&_.tiptap_th]:border-[var(--border)] [&_.tiptap_th]:p-2 [&_.tiptap_th]:bg-[var(--bg-surface)] [&_.tiptap_th]:font-bold [&_.is-editor-empty:first-child::before]:text-[var(--text-dim)] [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:pointer-events-none"
+          className={`prose prose-sm max-w-none px-4 py-3 focus:outline-none [&_.tiptap]:outline-none [&_.tiptap_img]:max-w-full ${fillHeight ? "h-full [&_.tiptap]:min-h-full" : "min-h-[200px] [&_.tiptap]:min-h-[180px]"} [&_.tiptap_img]:rounded-lg [&_.tiptap_img]:my-2 [&_.tiptap_table]:border-collapse [&_.tiptap_table]:w-full [&_.tiptap_table]:my-2 [&_.tiptap_td]:border [&_.tiptap_td]:border-[var(--border)] [&_.tiptap_td]:p-2 [&_.tiptap_th]:border [&_.tiptap_th]:border-[var(--border)] [&_.tiptap_th]:p-2 [&_.tiptap_th]:bg-[var(--bg-surface)] [&_.tiptap_th]:font-bold [&_.is-editor-empty:first-child::before]:text-[var(--text-dim)] [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:pointer-events-none`}
         />
       </div>
     </div>
