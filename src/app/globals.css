@@ -2215,7 +2215,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .copilot2-evidence-grid { @apply grid grid-cols-2 gap-2; }
 .copilot2-evidence { @apply rounded-lg bg-[var(--bg-surface)] px-3 py-2; }
 .copilot2-evidence-label { @apply text-[10px] text-[var(--text-dim)]; }
-.copilot2-evidence-value { @apply text-sm font-bold text-[var(--text)] mono-number; }
+.copilot2-evidence-value { @apply text-sm font-bold text-[var(--text)] tabular-nums; }
 .copilot2-answer-foot { @apply text-[11px] text-[var(--text-dim)] pt-2 border-t border-[var(--border)]; }
 /* Loading */
 .copilot2-answer-loading { @apply opacity-90; }
@@ -2257,10 +2257,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .copilot2-gauge-fill { fill:none; stroke-width:10; stroke-linecap:round; transition: stroke-dashoffset .8s cubic-bezier(.4,0,.2,1), stroke .3s; }
 .copilot2-gauge-ok { stroke:var(--primary); } .copilot2-gauge-warn { stroke:#f59e0b; } .copilot2-gauge-danger { stroke:var(--danger); }
 .copilot2-gauge-center { @apply absolute inset-0 flex flex-col items-center justify-center; }
-.copilot2-gauge-pct { @apply text-2xl font-extrabold text-[var(--text)] mono-number; }
+.copilot2-gauge-pct { @apply text-2xl font-extrabold text-[var(--text)] tabular-nums; }
 .copilot2-gauge-sub { @apply text-[10px] text-[var(--text-dim)]; }
 .copilot2-token-nums { @apply text-center mt-2; }
-.copilot2-token-used { @apply text-lg font-bold text-[var(--text)] mono-number; }
+.copilot2-token-used { @apply text-lg font-bold text-[var(--text)] tabular-nums; }
 .copilot2-token-slash { @apply text-xs text-[var(--text-dim)]; }
 .copilot2-token-remain { @apply text-xs font-semibold text-[var(--success)] mt-0.5; }
 .copilot2-token-rows { @apply mt-4 pt-3 border-t border-[var(--border)] space-y-2; }
