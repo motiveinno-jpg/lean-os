@@ -420,11 +420,13 @@ export default function ApprovalsPage() {
 
   // 연장근무 결재는 근태관리로 이관 — approvals 에서 제거(2026-07-01)
 
+  // 탭 순서(2026-07-23 재편) — 개인 업무 3종(받고·보내고·올리고) → 회사 전체 → 설정.
+  //   개인(내 결재함·내 요청·새 요청)을 왼쪽에 연속 배치, 관리자 조회(전체 현황) 뒤, 설정(양식·정책) 맨 끝.
   const TABS: { key: Tab; label: string; icon: string; count?: number }[] = [
     { key: "my-approvals", label: "내 결재함", icon: "inbox", count: myPendingCount },
     { key: "my-requests", label: "내 요청", icon: "send" },
-    ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황", icon: "chart" }] : []),
     { key: "new-request", label: "새 요청", icon: "plus" },
+    ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황", icon: "chart" }] : []),
     ...(isAdmin ? [{ key: "forms" as Tab, label: "양식 관리", icon: "layout" }] : []),
     ...(isAdmin ? [{ key: "policies" as Tab, label: "정책 관리", icon: "route" }] : []),
   ];
