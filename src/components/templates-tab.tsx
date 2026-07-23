@@ -1,9 +1,28 @@
 "use client";
 
 import { appConfirm } from "@/components/global-confirm";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+import type { RichEditorRef } from "@/components/rich-editor";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+
+// 인사(HR) '직접 작성'용 리치 에디터 — 표·서식·이미지·{{변수}}. 발송 경로(ContractAdminPanel/구성원)와 동일한 content_html.
+const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => ({ default: m.RichEditor })), {
+  ssr: false,
+  loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
+});
+
+// content_json(구 섹션형) → HTML 변환(레거시 HR 서식을 리치 에디터로 편집 가능하게)
+function cjToHtml(cj: any): string {
+  if (!cj) return "";
+  let h = cj.title ? `<h2>${cj.title}</h2>` : "";
+  for (const s of cj.sections || []) {
+    if (s?.title) h += `<h3>${s.title}</h3>`;
+    if (s?.content) h += `<p>${String(s.content).replace(/\n/g, "<br>")}</p>`;
+  }
+  return h;
+}
 import { DOC_TYPES } from "@/lib/documents";
 import { DEFAULT_DOC_TEMPLATES } from "@/lib/default-doc-templates";
 import { useToast } from "@/components/toast";
@@ -41,6 +60,10 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  // 인사 서식은 리치 에디터(content_html)로 강화. 외부(business)는 기존 섹션 폼 유지(무영향).
+  const isRich = scope === "hr";
+  const [html, setHtml] = useState("");
+  const editorRef = useRef<RichEditorRef>(null);
 
   // 목록 필터 — scope 에 맞는 양식만 노출
   const scopedTemplates = templates.filter((t: any) =>
@@ -87,6 +110,8 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
     setNewVar("");
     setEditingId(null);
     setShowForm(false);
+    setHtml("");
+    if (isRich) setTimeout(() => editorRef.current?.setContent(""), 50);
   };
 
   // 외부 통합 '새 양식' 버튼에서 '직접 작성' 선택 시 생성 폼 오픈
@@ -109,17 +134,21 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
     setEditingId(tpl.id);
     setShowForm(true);
     setPreviewId(null);
+    if (isRich) {
+      // content_json.body(리치) 우선, 없으면 레거시 섹션형을 HTML 로 변환해 편집
+      const body = tpl.content_json?.body ?? cjToHtml(tpl.content_json);
+      setHtml(body);
+      setTimeout(() => editorRef.current?.setContent(body), 50);
+    }
   };
 
   const saveMut = useMutation({
     mutationFn: async () => {
       // QA 2026-07-13: doc_templates 에 updated_at 컬럼이 없음 — 포함 시 PGRST204 400 (등록/수정 항상 실패).
-      const payload = {
-        name: form.name,
-        type: form.type,
-        content_json: form.content_json,
-        variables: form.variables,
-      };
+      //   인사(리치)는 HTML을 content_json.body 에 저장 — ContractAdminPanel/구성원 발송 경로와 동일 규약.
+      const payload = isRich
+        ? { name: form.name, type: form.type, content_json: { body: html }, variables: form.variables }
+        : { name: form.name, type: form.type, content_json: form.content_json, variables: form.variables };
       if (editingId) {
         const { error } = await supabase.from("doc_templates").update(payload).eq("id", editingId);
         if (error) throw error;
@@ -235,43 +264,55 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
             </div>
           </div>
 
-          {/* Title */}
-          <div className="mb-4">
-            <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
-            <input value={form.content_json.title}
-              onChange={(e) => setForm({ ...form, content_json: { ...form.content_json, title: e.target.value } })}
-              placeholder="문서 제목"
-              className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-          </div>
+          {/* 본문 — 인사(리치 에디터) vs 외부(섹션형 유지) */}
+          {isRich ? (
+            <div className="mb-4">
+              <label className="block text-xs text-[var(--text-muted)] mb-1.5">본문 <span className="text-[var(--text-dim)] font-normal">표·굵기·정렬·색·이미지 지원 · {"{{변수}}"}는 아래 버튼으로 삽입</span></label>
+              <RichEditor ref={editorRef} content={html} onChange={setHtml}
+                placeholder="근로계약서 내용을 입력하세요… 아래에서 {{직원명}}·{{연봉}} 등 변수를 커서 위치에 삽입할 수 있습니다."
+                maxHeight="calc(100vh - 380px)" />
+            </div>
+          ) : (
+            <>
+              {/* Title */}
+              <div className="mb-4">
+                <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
+                <input value={form.content_json.title}
+                  onChange={(e) => setForm({ ...form, content_json: { ...form.content_json, title: e.target.value } })}
+                  placeholder="문서 제목"
+                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+              </div>
 
-          {/* Sections */}
-          <div className="templates-sections">
-            <div className="templates-section-header">
-              <label className="text-xs text-[var(--text-muted)]">섹션</label>
-              <button onClick={addSection} className="text-xs text-[var(--primary)] hover:underline font-medium">
-                + 섹션 추가
-              </button>
-            </div>
-            <div className="space-y-3">
-              {form.content_json.sections.map((sec: any, idx: number) => (
-                <div key={idx} className="templates-section-item">
-                  <div className="templates-section-item-header">
-                    <span className="text-[10px] text-[var(--text-dim)] font-medium">섹션 {idx + 1}</span>
-                    {form.content_json.sections.length > 1 && (
-                      <button onClick={() => removeSection(idx)} className="text-[10px] text-red-400 hover:text-red-500">삭제</button>
-                    )}
-                  </div>
-                  <input value={sec.title} onChange={(e) => updateSection(idx, "title", e.target.value)}
-                    placeholder="섹션 제목 (예: 제1조 목적)"
-                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-2 focus:outline-none focus:border-[var(--primary)]" />
-                  <textarea value={sec.content} onChange={(e) => updateSection(idx, "content", e.target.value)}
-                    placeholder="섹션 내용... {{변수명}} 형식으로 변수를 삽입할 수 있습니다"
-                    rows={4}
-                    className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)] resize-y font-mono" />
+              {/* Sections */}
+              <div className="templates-sections">
+                <div className="templates-section-header">
+                  <label className="text-xs text-[var(--text-muted)]">섹션</label>
+                  <button onClick={addSection} className="text-xs text-[var(--primary)] hover:underline font-medium">
+                    + 섹션 추가
+                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="space-y-3">
+                  {form.content_json.sections.map((sec: any, idx: number) => (
+                    <div key={idx} className="templates-section-item">
+                      <div className="templates-section-item-header">
+                        <span className="text-[10px] text-[var(--text-dim)] font-medium">섹션 {idx + 1}</span>
+                        {form.content_json.sections.length > 1 && (
+                          <button onClick={() => removeSection(idx)} className="text-[10px] text-red-400 hover:text-red-500">삭제</button>
+                        )}
+                      </div>
+                      <input value={sec.title} onChange={(e) => updateSection(idx, "title", e.target.value)}
+                        placeholder="섹션 제목 (예: 제1조 목적)"
+                        className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-2 focus:outline-none focus:border-[var(--primary)]" />
+                      <textarea value={sec.content} onChange={(e) => updateSection(idx, "content", e.target.value)}
+                        placeholder="섹션 내용... {{변수명}} 형식으로 변수를 삽입할 수 있습니다"
+                        rows={4}
+                        className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)] resize-y font-mono" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Variables */}
           <div className="templates-variables">
@@ -279,7 +320,11 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
             <div className="flex flex-wrap gap-2 mb-2">
               {form.variables.map((v: string) => (
                 <span key={v} className="templates-variable-chip">
-                  {`{{${v}}}`}
+                  {isRich ? (
+                    <button type="button" onClick={() => editorRef.current?.insertText(`{{${v}}}`)} title="본문 커서 위치에 삽입" className="hover:text-[var(--primary)] transition">{`{{${v}}}`}</button>
+                  ) : (
+                    `{{${v}}}`
+                  )}
                   <button onClick={() => removeVariable(v)} className="text-[var(--primary)] hover:text-red-400">&times;</button>
                 </span>
               ))}
@@ -381,15 +426,23 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                   {isPreview && previewTemplate && (
                     <div className="template-preview-panel">
                       <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-5">
-                        <h4 className="text-sm font-bold mb-3">{previewTemplate.content_json?.title || previewTemplate.name}</h4>
-                        <div className="space-y-3">
-                          {(previewTemplate.content_json?.sections || []).map((sec: any, idx: number) => (
-                            <div key={idx}>
-                              {sec.title && <div className="text-xs font-semibold text-[var(--text)] mb-1">{sec.title}</div>}
-                              <pre className="text-xs text-[var(--text-muted)] whitespace-pre-wrap font-mono leading-relaxed">{sec.content}</pre>
+                        {previewTemplate.content_json?.body ? (
+                          // 리치(HTML) 서식 미리보기 — 회사 관리자 자작 콘텐츠
+                          <div className="text-sm text-[var(--text)] leading-relaxed [&_h2]:text-base [&_h2]:font-bold [&_h3]:font-semibold [&_table]:border-collapse [&_td]:border [&_td]:border-[var(--border)] [&_td]:px-2 [&_td]:py-1"
+                            dangerouslySetInnerHTML={{ __html: previewTemplate.content_json.body }} />
+                        ) : (
+                          <>
+                            <h4 className="text-sm font-bold mb-3">{previewTemplate.content_json?.title || previewTemplate.name}</h4>
+                            <div className="space-y-3">
+                              {(previewTemplate.content_json?.sections || []).map((sec: any, idx: number) => (
+                                <div key={idx}>
+                                  {sec.title && <div className="text-xs font-semibold text-[var(--text)] mb-1">{sec.title}</div>}
+                                  <pre className="text-xs text-[var(--text-muted)] whitespace-pre-wrap font-mono leading-relaxed">{sec.content}</pre>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </>
+                        )}
                         {vars.length > 0 && (
                           <div className="mt-4 pt-3 border-t border-[var(--border)]">
                             <span className="text-[10px] text-[var(--text-dim)] uppercase">입력 필요 변수</span>

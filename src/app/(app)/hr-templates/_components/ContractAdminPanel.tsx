@@ -27,6 +27,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
   const [batchSending, setBatchSending] = useState(false);
   const [sealApplying, setSealApplying] = useState<string | null>(null);
   const [contractSubTab, setContractSubTab] = useState<"contracts" | "company_docs">("contracts");
+  // 서식 편집은 [서식] 탭으로 이관(2026-07-23). 여는 진입점(헤더 버튼·편집 클릭)을 제거해 항상 false → 아래 에디터 블록 미렌더.
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateBody, setNewTemplateBody] = useState("");
@@ -44,7 +45,6 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
       ? (t.content_json.body || JSON.stringify(t.content_json))
       : (t.body || '');
     setNewTemplateBody(String(body));
-    setShowTemplateEditor(true);
     setTimeout(() => editorRef.current?.setContent(String(body)), 50);
   }
 
@@ -208,16 +208,12 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
       {/* 상단 헤더 */}
       <div className="contract-admin-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <h3 className="text-base font-bold text-[var(--text)]">전자계약 서식 · 발송 현황</h3>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">계약서/서약서 서식을 관리하고, 발송된 계약의 서명 현황을 확인합니다. 개별 직원에게 새 계약서를 보내려면 구성원 &gt; 인력관리 &gt; 디렉토리에서 해당 직원의 계약서 탭을 이용하세요.</p>
+          <h3 className="text-base font-bold text-[var(--text)]">계약 발송 현황</h3>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">발송된 계약의 서명 현황을 확인하고 일괄 발송합니다. <b className="text-[var(--text)]">서식 만들기·편집은 위 [서식] 탭</b>에서, 개별 직원 발송은 구성원 상세 › 근로계약에서 하세요.</p>
         </div>
-        <button onClick={() => setShowTemplateEditor(!showTemplateEditor)} className="btn-secondary flex items-center gap-1.5">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-          + 계약서식 추가
-        </button>
       </div>
 
-      {/* 서식 에디터 (WYSIWYG) */}
+      {/* 서식 에디터는 [서식] 탭으로 이관(2026-07-23) — 중복 제거. showTemplateEditor 는 항상 false(진입점 제거). */}
       {showTemplateEditor && (
         <div className="contract-template-editor glass-card mb-6 flex flex-col h-[80vh]">
           <div className="p-6 pb-3 shrink-0">
