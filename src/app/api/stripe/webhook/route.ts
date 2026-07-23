@@ -51,6 +51,9 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.deleted':
         await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
         break;
+      case 'customer.subscription.trial_will_end':
+        await handleTrialWillEnd(event.data.object as Stripe.Subscription);
+        break;
       case 'invoice.paid':
         await handleInvoicePaid(event.data.object as Stripe.Invoice);
         break;
@@ -72,11 +75,18 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ received: true });
 }
 
+// Stripe 구독 상태 → 앱 상태 매핑(단일 진실원천은 Stripe).
+const STATUS_MAP: Record<string, string> = {
+  trialing: 'trialing', active: 'active', past_due: 'past_due', unpaid: 'past_due',
+  canceled: 'canceled', paused: 'paused', incomplete: 'past_due', incomplete_expired: 'canceled',
+};
+const toISO = (unix?: number | null) => (unix ? new Date(unix * 1000).toISOString() : null);
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const db = getSupabaseAdmin() as any;
   const companyId = session.metadata?.companyId;
   const planSlug = session.metadata?.planSlug;
-  const billingCycle = session.metadata?.billingCycle || 'monthly';
+  const seatCount = Math.max(1, parseInt(session.metadata?.seatCount || '1', 10) || 1);
 
   if (!companyId || !planSlug) {
     console.warn('checkout.session.completed missing metadata', session.id);
@@ -84,19 +94,35 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   const plan = logRead('webhook/route:plan', await db
-    .from('subscription_plans')
-    .select('id')
-    .eq('slug', planSlug)
-    .eq('is_active', true)
-    .single());
-
-  if (!plan) {
-    console.error('Plan not found for slug:', planSlug);
-    return;
-  }
+    .from('subscription_plans').select('id').eq('slug', planSlug).eq('is_active', true).single());
+  if (!plan) { console.error('Plan not found for slug:', planSlug); return; }
 
   const stripeSubscriptionId = session.subscription as string;
   const stripeCustomerId = session.customer as string;
+  if (!stripeSubscriptionId) { console.warn('checkout.session.completed without subscription', session.id); return; }
+
+  // ⚠️ 즉시 active 로 만들지 않는다 — Stripe 구독을 조회해 실제 상태(trialing)·trial_end·기간을 그대로 저장.
+  const stripe = getStripe();
+  const sub = await stripe.subscriptions.retrieve(stripeSubscriptionId) as any;
+  const status = STATUS_MAP[sub.status] || 'trialing';
+  const now = new Date().toISOString();
+
+  const patch: Record<string, unknown> = {
+    plan_id: plan.id,
+    status,
+    billing_cycle: 'monthly',
+    seat_count: seatCount,
+    stripe_subscription_id: stripeSubscriptionId,
+    stripe_customer_id: stripeCustomerId,
+    trial_ends_at: toISO(sub.trial_end),
+    current_period_start: toISO(sub.current_period_start) || now,
+    current_period_end: toISO(sub.current_period_end),
+    cancel_at_period_end: !!sub.cancel_at_period_end,
+    cancel_requested_at: null,
+    cancel_reason: null,
+    canceled_at: null,
+    updated_at: now,
+  };
 
   const existing = logRead('webhook/route:existing', await db
     .from('subscriptions')
@@ -106,48 +132,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     .limit(1)
     .maybeSingle());
 
-  const now = new Date().toISOString();
-  const periodEnd = new Date();
-  if (billingCycle === 'annual') {
-    periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+  if (existing) {
+    await db.from('subscriptions').update(patch).eq('id', existing.id);
   } else {
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    await db.from('subscriptions').insert({ company_id: companyId, ...patch });
   }
 
-  if (existing) {
-    await db.from('subscriptions').update({
-      plan_id: plan.id,
-      status: 'active',
-      billing_cycle: billingCycle,
-      stripe_subscription_id: stripeSubscriptionId,
-      stripe_customer_id: stripeCustomerId,
-      current_period_start: now,
-      current_period_end: periodEnd.toISOString(),
-      updated_at: now,
-    }).eq('id', existing.id);
-  } else {
-    await db.from('subscriptions').insert({
-      company_id: companyId,
-      plan_id: plan.id,
-      status: 'active',
-      billing_cycle: billingCycle,
-      seat_count: 1,
-      stripe_subscription_id: stripeSubscriptionId,
-      stripe_customer_id: stripeCustomerId,
-      current_period_start: now,
-      current_period_end: periodEnd.toISOString(),
-    });
-  }
+  // 회사 캐시 플랜 — trialing 도 해당 플랜 권한 유지.
+  await db.from('companies').update({ current_plan: planSlug }).eq('id', companyId);
 
   await db.from('billing_events').insert({
     company_id: companyId,
     event_type: 'checkout_completed',
-    metadata: {
-      planSlug,
-      billingCycle,
-      stripeSessionId: session.id,
-      stripeSubscriptionId,
-    },
+    metadata: { planSlug, seatCount, stripeSessionId: session.id, stripeSubscriptionId, status },
     created_at: now,
   });
 }
@@ -173,6 +170,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const patch: Record<string, unknown> = {
     status: mappedStatus,
     cancel_at_period_end: cancelAtPeriodEnd,
+    trial_ends_at: toISO((subscription as any).trial_end),
     current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
     current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
     updated_at: new Date().toISOString(),
@@ -193,6 +191,34 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       cancelAtPeriodEnd,
     },
     created_at: new Date().toISOString(),
+  });
+}
+
+// 트라이얼 종료 3일 전(Stripe 발송) — 회사 owner/admin 에게 결제 예정 알림.
+async function handleTrialWillEnd(subscription: Stripe.Subscription) {
+  const db = getSupabaseAdmin() as any;
+  const row = logRead('webhook/route:trialSub', await db
+    .from('subscriptions').select('company_id, trial_ends_at').eq('stripe_subscription_id', subscription.id).maybeSingle());
+  const companyId = subscription.metadata?.companyId || row?.company_id;
+  if (!companyId) return;
+
+  const trialEnd = toISO((subscription as any).trial_end) || row?.trial_ends_at;
+  const dateStr = trialEnd ? new Date(trialEnd).toISOString().slice(0, 10) : '곧';
+
+  const admins = logRead('webhook/route:trialAdmins', await db
+    .from('users').select('id').eq('company_id', companyId).in('role', ['owner', 'admin']));
+  if (admins?.length) {
+    await db.from('notifications').insert(admins.map((a: any) => ({
+      company_id: companyId, user_id: a.id, type: 'payment_due',
+      title: '무료체험 종료 3일 전 — 곧 첫 결제가 진행됩니다',
+      message: `${dateStr}에 등록하신 결제수단으로 첫 결제가 자동 청구됩니다. 계속 이용하시려면 별도 조치가 필요 없습니다.`,
+      entity_type: 'billing', is_read: false,
+    })));
+  }
+
+  await db.from('billing_events').insert({
+    company_id: companyId, event_type: 'trial_will_end',
+    metadata: { stripeSubscriptionId: subscription.id, trialEnd }, created_at: new Date().toISOString(),
   });
 }
 

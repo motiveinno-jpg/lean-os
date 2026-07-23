@@ -9,28 +9,20 @@ function getStripe() {
   });
 }
 
-/** Stripe price ID lookup by plan slug and billing cycle */
-const PRICE_MAP: Record<string, Record<string, string | undefined>> = {
+const TRIAL_DAYS = 14;
+
+// 플랜별 월 price + 추가좌석 price (2026-07-23 좌석 구조). 연간은 비활성(정상가·할인 확정 전까지).
+//   기본 좌석(5명) 초과분만 추가좌석 price 로 별도 line item. VAT 10% 별도.
+const SEAT_PRICE_MAP: Record<string, { base?: string; extraSeat?: string; includedSeats: number }> = {
   basic: {
-    monthly: process.env.STRIPE_PRICE_BASIC_MONTHLY,
-    annual: process.env.STRIPE_PRICE_BASIC_ANNUAL,
+    base: process.env.STRIPE_PRICE_BASIC_MONTHLY,
+    extraSeat: process.env.STRIPE_PRICE_BASIC_EXTRA_SEAT_MONTHLY,
+    includedSeats: 5,
   },
-  // 울트라 88,000 (2026-07-06) — Stripe 대시보드에서 price 생성 후 Vercel env 에 등록해야 활성
   ultra: {
-    monthly: process.env.STRIPE_PRICE_ULTRA_MONTHLY,
-    annual: process.env.STRIPE_PRICE_ULTRA_ANNUAL,
-  },
-  starter: {
-    monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,
-    annual: process.env.STRIPE_PRICE_STARTER_ANNUAL,
-  },
-  business: {
-    monthly: process.env.STRIPE_PRICE_BUSINESS_MONTHLY,
-    annual: process.env.STRIPE_PRICE_BUSINESS_ANNUAL,
-  },
-  enterprise: {
-    monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY,
-    annual: process.env.STRIPE_PRICE_ENTERPRISE_ANNUAL,
+    base: process.env.STRIPE_PRICE_ULTRA_MONTHLY,
+    extraSeat: process.env.STRIPE_PRICE_ULTRA_EXTRA_SEAT_MONTHLY,
+    includedSeats: 5,
   },
 };
 
@@ -47,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { planSlug, companyId, billingCycle, successUrl, cancelUrl } = body;
+    const { planSlug, companyId, seatCount, successUrl, cancelUrl } = body;
 
     if (!planSlug || !companyId) {
       return NextResponse.json(
@@ -70,14 +62,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cycle = billingCycle || 'monthly';
-    const priceId = PRICE_MAP[planSlug]?.[cycle];
-
-    if (!priceId) {
+    const plan = SEAT_PRICE_MAP[planSlug];
+    if (!plan?.base) {
       return NextResponse.json(
-        { error: { code: 'INVALID_PLAN', message: `유효하지 않은 플랜입니다: ${planSlug} (${cycle})` } },
+        { error: { code: 'INVALID_PLAN', message: `유효하지 않은 플랜입니다: ${planSlug}` } },
         { status: 400 },
       );
+    }
+
+    // 좌석 수는 서버에서 재계산 — 클라 값 그대로 신뢰하지 않음. 추가좌석 = max(0, 좌석 - 기본좌석).
+    const requestedSeats = Math.max(1, Math.min(Number(seatCount) || 1, 500));
+    const extraSeats = Math.max(0, requestedSeats - plan.includedSeats);
+
+    const lineItems: { price: string; quantity: number }[] = [{ price: plan.base, quantity: 1 }];
+    if (extraSeats > 0 && plan.extraSeat) {
+      lineItems.push({ price: plan.extraSeat, quantity: extraSeats });
     }
 
     const origin = request.headers.get('origin') || 'https://www.owner-view.com';
@@ -85,25 +84,20 @@ export async function POST(request: NextRequest) {
     const resolvedCancelUrl = cancelUrl || `${origin}/billing?payment=cancel`;
 
     const stripe = getStripe();
+    // 카드 등록 즉시(0원 인증) + 14일 트라이얼 + 종료 후 자동 청구. 결제수단 없으면 트라이얼 종료 시 취소.
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
+      payment_method_collection: 'always',
+      line_items: lineItems,
       success_url: resolvedSuccessUrl,
       cancel_url: resolvedCancelUrl,
       customer_email: user.email,
-      metadata: {
-        companyId,
-        planSlug,
-        billingCycle: cycle,
-        userId: user.id,
-      },
+      metadata: { companyId, planSlug, seatCount: String(requestedSeats), userId: user.id },
       subscription_data: {
-        metadata: {
-          companyId,
-          planSlug,
-          billingCycle: cycle,
-        },
+        trial_period_days: TRIAL_DAYS,
+        trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+        metadata: { companyId, planSlug, seatCount: String(requestedSeats) },
       },
     });
 

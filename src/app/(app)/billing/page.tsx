@@ -232,7 +232,8 @@ export default function BillingPage() {
         body: JSON.stringify({
           planSlug,
           companyId,
-          billingCycle: cycle,
+          // 좌석 수 = 현재 활성 직원 수(서버가 다시 검증). 기본 5명 포함, 초과분만 추가 과금.
+          seatCount: usage?.employees || 1,
           successUrl: `${window.location.origin}/billing?payment=success`,
           cancelUrl: `${window.location.origin}/billing?payment=cancel`,
         }),

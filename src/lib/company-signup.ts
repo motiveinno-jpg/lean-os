@@ -6,7 +6,6 @@ import { logRead } from "@/lib/log-read";
 //   auth/page.tsx(즉시 세션)·auth/verify(이메일 인증·OAuth) 양쪽에서 재사용 — 중복 구현 금지.
 
 import { supabase } from "./supabase";
-import { createTrialingSubscription } from "./billing";
 import { verifyBusinessNumber, validateBusinessOwnership } from "./business-verification";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,9 +117,9 @@ export async function createCompanyWithOwner(
   });
 
   await db.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });
-  // 트라이얼은 활성 'free'(이름 "14일 무료체험") 플랜으로 — 'starter' 는 비활성이라
-  //   billing 요금제 탭에서 현재플랜 뱃지·사용량 한도가 매칭 안 됐음 (2026-07-06 QA)
-  await createTrialingSubscription(companyId, "free", 14);
+  // 2026-07-23 가격정책: 가입 즉시 트라이얼 DB행을 만들지 않는다. 카드 등록(Stripe Checkout)
+  //   완료 → webhook(checkout.session.completed) 확인 시에만 trialing 구독을 생성한다.
+  //   그 전까지 회사는 무료 티어(유료 권한 없음) — billing 화면에서 '무료체험 시작(카드 등록)' 유도.
   return { ok: true };
 }
 

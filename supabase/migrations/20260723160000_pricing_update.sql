@@ -18,3 +18,15 @@ update public.subscription_plans
   set name = '울트라', list_price = 220000, base_price = 110000,
       per_seat_price = 10000, included_seats = 5, is_active = true
   where slug = 'ultra';
+
+-- billing_events CHECK 에 트라이얼 종료예정 이벤트 추가(webhook trial_will_end 기록용).
+alter table public.billing_events drop constraint if exists billing_events_event_type_check;
+alter table public.billing_events add constraint billing_events_event_type_check
+  check (event_type = any (array[
+    'payment_success','payment_failed','plan_changed','subscription_created',
+    'subscription_canceled','subscription_paused','subscription_resumed','refund',
+    'trial_started','trial_ended','seat_changed',
+    'checkout_completed','feedback_received','invoice_paid','payment_confirm_failed',
+    'payment_confirmed','subscription_cancel_requested','subscription_deleted','subscription_ended',
+    'subscription_updated','internal_plan_restored','trial_will_end'
+  ]));

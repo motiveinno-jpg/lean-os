@@ -13,6 +13,12 @@ const h = vi.hoisted(() => {
     inserted: [] as { table: string; row: Row }[],
     updated: [] as { table: string; row: Row; filters: { col: string; val: any }[] }[],
     constructEvent: vi.fn(),
+    // checkout.session.completed 가 조회하는 Stripe 구독(진실원천). 기본 trialing.
+    stripeSub: {
+      status: "trialing", trial_end: 1900000000,
+      current_period_start: 1800000000, current_period_end: 1900000000,
+      cancel_at_period_end: false,
+    } as Row,
   };
   function chain(table: string) {
     const s: any = { op: "select", filters: [] as { col: string; val: any; op: string }[], row: null };
@@ -51,6 +57,7 @@ const h = vi.hoisted(() => {
 vi.mock("stripe", () => ({
   default: class MockStripe {
     webhooks = { constructEvent: h.state.constructEvent };
+    subscriptions = { retrieve: async () => h.state.stripeSub };
   },
 }));
 vi.mock("@supabase/supabase-js", () => ({
@@ -102,29 +109,35 @@ describe("서명 게이트", () => {
 describe("checkout.session.completed", () => {
   const session = {
     id: "cs_1", subscription: "sub_1", customer: "cus_1",
-    metadata: { companyId: "co-1", planSlug: "basic", billingCycle: "monthly" },
+    metadata: { companyId: "co-1", planSlug: "basic", seatCount: "7" },
   };
 
-  it("기존 구독 있으면 update 경로 + billing_events 기록", async () => {
+  it("기존 구독 있으면 update 경로(trialing) + billing_events 기록", async () => {
     st.plan = { id: "plan-1" };
     st.existingSub = { id: "sub-row-1" };
     arm("checkout.session.completed", session);
     const res = await POST(makeRequest());
     expect(res.status).toBe(200);
     const up = st.updated.find((u) => u.table === "subscriptions");
-    expect(up?.row.status).toBe("active");
+    // ⚠️ 즉시 active 금지 — Stripe 구독 상태(trialing)를 그대로 저장.
+    expect(up?.row.status).toBe("trialing");
+    expect(up?.row.trial_ends_at).toBeTruthy();
+    expect(up?.row.seat_count).toBe(7);
     expect(up?.row.stripe_subscription_id).toBe("sub_1");
     expect(st.inserted.filter((i) => i.table === "subscriptions")).toHaveLength(0);
+    // companies.current_plan 도 갱신
+    expect(st.updated.find((u) => u.table === "companies")?.row.current_plan).toBe("basic");
     expect(st.inserted.find((i) => i.table === "billing_events")?.row.event_type).toBe("checkout_completed");
   });
 
-  it("기존 구독 없으면 insert 경로", async () => {
+  it("기존 구독 없으면 insert 경로(trialing)", async () => {
     st.plan = { id: "plan-1" };
     arm("checkout.session.completed", session);
     await POST(makeRequest());
     const ins = st.inserted.find((i) => i.table === "subscriptions");
     expect(ins?.row.company_id).toBe("co-1");
-    expect(ins?.row.status).toBe("active");
+    expect(ins?.row.status).toBe("trialing");
+    expect(ins?.row.seat_count).toBe(7);
   });
 
   it("metadata 누락이면 아무것도 안 쓴다", async () => {
