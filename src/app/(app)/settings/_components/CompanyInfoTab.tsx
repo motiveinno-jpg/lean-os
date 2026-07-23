@@ -7,6 +7,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
+import { appConfirm } from "@/components/global-confirm";
 
 export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   const db = supabase;
@@ -549,40 +550,135 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         </div>
       </div>
 
-      {/* ── 회사 문서 (법인 서류) — 계약 발송·현황에서 이관(2026-07-23). storage: company-docs/{companyId}/{key} ── */}
-      <div>
-        <h2 className="section-title">회사 문서</h2>
-        <p className="caption mb-4">사업자등록증·법인등기부등본 등 법인 서류입니다. 업로드된 문서는 계약서 발송·증명서 발급에 활용됩니다.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[
-            { key: "business_reg", label: "사업자등록증", desc: "사업자등록증 사본" },
-            { key: "employment_rules", label: "취업규칙", desc: "회사 취업규칙/사규" },
-            { key: "corporate_reg", label: "법인등기부등본", desc: "법인 등기부등본" },
-            { key: "seal_cert", label: "인감증명서", desc: "법인 인감증명서" },
-            { key: "bank_cert", label: "통장사본", desc: "법인 통장 사본" },
-            { key: "etc_docs", label: "기타 문서", desc: "기타 회사 필수 문서" },
-          ].map((doc) => (
-            <div key={doc.key} className="glass-card p-4 flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-[var(--text)] truncate">{doc.label}</div>
-                <div className="caption">{doc.desc}</div>
+      {/* 회사 문서 (법인 서류) — 계약 발송·현황에서 이관(2026-07-23). 업로드 상태·보기·교체·삭제 지원 */}
+      <CompanyDocsSection companyId={companyId} />
+    </div>
+  );
+}
+
+/* ── 회사 문서 섹션 — storage: documents/company-docs/{companyId}/{key}_{ts}.{ext} ──
+   업로드 여부 표시 + 보기(서명 URL)·교체(기존 삭제 후 업로드)·삭제. 계약 발송·증명서 발급이 같은 경로 참조. */
+const COMPANY_DOCS = [
+  { key: "business_reg", label: "사업자등록증", desc: "사업자등록증 사본" },
+  { key: "employment_rules", label: "취업규칙", desc: "회사 취업규칙/사규" },
+  { key: "corporate_reg", label: "법인등기부등본", desc: "법인 등기부등본" },
+  { key: "seal_cert", label: "인감증명서", desc: "법인 인감증명서" },
+  { key: "bank_cert", label: "통장사본", desc: "법인 통장 사본" },
+  { key: "etc_docs", label: "기타 문서", desc: "기타 회사 필수 문서" },
+];
+
+function CompanyDocsSection({ companyId }: { companyId: string | null }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  const { data: files = [] } = useQuery({
+    queryKey: ["company-docs", companyId],
+    queryFn: async () => {
+      if (!companyId) return [] as { name: string }[];
+      const { data } = await supabase.storage.from("documents").list(`company-docs/${companyId}`, {
+        limit: 100, sortBy: { column: "created_at", order: "desc" },
+      });
+      return (data || []) as { name: string }[];
+    },
+    enabled: !!companyId,
+  });
+
+  const pathOf = (name: string) => `company-docs/${companyId}/${name}`;
+  const filesFor = (key: string) => files.filter((f) => f.name.startsWith(key + "_"));
+  // 정렬이 최신순이라 첫 매치가 현재 파일
+  const latestFor = (key: string) => filesFor(key)[0];
+
+  const doUpload = async (key: string, file: File) => {
+    if (!companyId) return;
+    setBusyKey(key);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `company-docs/${companyId}/${key}_${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("documents").upload(path, file, { upsert: true });
+      if (error) throw error;
+      // 업로드 성공 후 기존(같은 key) 파일 정리 → 교체
+      const old = filesFor(key).map((f) => pathOf(f.name));
+      if (old.length) await supabase.storage.from("documents").remove(old);
+      toast("업로드 완료", "success");
+      qc.invalidateQueries({ queryKey: ["company-docs", companyId] });
+    } catch (err: any) {
+      toast("업로드 실패: " + (err?.message || ""), "error");
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const doRemove = async (key: string, label: string) => {
+    if (!companyId) return;
+    if (!(await appConfirm(`"${label}"을(를) 삭제하시겠습니까?`, { danger: true }))) return;
+    setBusyKey(key);
+    try {
+      const paths = filesFor(key).map((f) => pathOf(f.name));
+      if (paths.length) {
+        const { error } = await supabase.storage.from("documents").remove(paths);
+        if (error) throw error;
+      }
+      toast("삭제되었습니다", "success");
+      qc.invalidateQueries({ queryKey: ["company-docs", companyId] });
+    } catch (err: any) {
+      toast("삭제 실패: " + (err?.message || ""), "error");
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const doView = async (name: string) => {
+    const { data, error } = await supabase.storage.from("documents").createSignedUrl(pathOf(name), 3600);
+    if (error || !data?.signedUrl) { toast("파일을 열 수 없습니다", "error"); return; }
+    window.open(data.signedUrl, "_blank", "noopener");
+  };
+
+  return (
+    <div>
+      <h2 className="section-title">회사 문서</h2>
+      <p className="caption mb-4">사업자등록증·법인등기부등본 등 법인 서류입니다. 업로드된 문서는 계약서 발송·증명서 발급에 활용됩니다.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {COMPANY_DOCS.map((doc) => {
+          const cur = latestFor(doc.key);
+          const busy = busyKey === doc.key;
+          return (
+            <div key={doc.key} className="glass-card p-4">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-[var(--text)] truncate">{doc.label}</div>
+                  <div className="caption">{cur ? "업로드됨" : doc.desc}</div>
+                </div>
+                {cur && (
+                  <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--success)] bg-[var(--success)]/10 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />완료
+                  </span>
+                )}
               </div>
-              <label className="px-2.5 py-1 bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] font-semibold rounded-lg cursor-pointer hover:bg-[var(--primary)]/20 transition shrink-0">
-                업로드
-                <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={async (ev) => {
-                  const file = ev.target.files?.[0];
-                  if (!file || !companyId) return;
-                  try {
-                    const path = `company-docs/${companyId}/${doc.key}_${Date.now()}.${file.name.split(".").pop()}`;
-                    await supabase.storage.from("documents").upload(path, file, { upsert: true });
-                    toast(`${doc.label} 업로드 완료`, "success");
-                  } catch (err: any) { toast("업로드 실패: " + (err?.message || ""), "error"); }
-                  ev.target.value = "";
-                }} />
-              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {cur ? (
+                  <>
+                    <button onClick={() => doView(cur.name)} disabled={busy}
+                      className="text-xs px-2.5 py-1 rounded-lg text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 transition disabled:opacity-50">보기</button>
+                    <label className={`text-xs px-2.5 py-1 rounded-lg text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer hover:text-[var(--text)] transition ${busy ? "opacity-50 pointer-events-none" : ""}`}>
+                      교체
+                      <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" disabled={busy}
+                        onChange={(ev) => { const f = ev.target.files?.[0]; if (f) doUpload(doc.key, f); ev.target.value = ""; }} />
+                    </label>
+                    <button onClick={() => doRemove(doc.key, doc.label)} disabled={busy}
+                      className="text-xs px-2.5 py-1 rounded-lg text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50">삭제</button>
+                  </>
+                ) : (
+                  <label className={`text-xs px-2.5 py-1 rounded-lg text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 cursor-pointer transition font-semibold ${busy ? "opacity-50 pointer-events-none" : ""}`}>
+                    {busy ? "업로드 중…" : "업로드"}
+                    <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" disabled={busy}
+                      onChange={(ev) => { const f = ev.target.files?.[0]; if (f) doUpload(doc.key, f); ev.target.value = ""; }} />
+                  </label>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
