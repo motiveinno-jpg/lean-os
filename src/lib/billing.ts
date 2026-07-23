@@ -17,10 +17,12 @@ export interface PlanInfo {
   id: string;
   name: string;
   slug: PlanSlug;
-  basePrice: number;
-  perSeatPrice: number;
+  basePrice: number;      // 할인 적용가(기본 좌석 포함, VAT 별도)
+  perSeatPrice: number;   // 추가 좌석 1명당(기본 좌석 초과분)
   maxSeats: number | null;
   features: string[];
+  listPrice: number | null; // 정상가(취소선 표시용)
+  includedSeats: number;    // 기본 포함 좌석 수(이 수 초과분만 per_seat 과금)
 }
 
 export interface SubscriptionInfo {
@@ -106,7 +108,16 @@ export async function getPlans(): Promise<PlanInfo[]> {
     perSeatPrice: Number(row.per_seat_price),
     maxSeats: row.max_seats ? Number(row.max_seats) : null,
     features: (row.features as string[]) || [],
+    listPrice: row.list_price != null ? Number(row.list_price) : null,
+    includedSeats: row.included_seats != null ? Number(row.included_seats) : 1,
   }));
+}
+
+// 월 청구액(공용 단일 공식) — 기본가 + 기본좌석 초과분만 좌석당 과금. VAT 별도.
+//   base_price + max(0, seatCount - includedSeats) * perSeatPrice
+export function computeMonthlyCharge(plan: Pick<PlanInfo, 'basePrice' | 'perSeatPrice' | 'includedSeats'>, seatCount: number): number {
+  const extraSeats = Math.max(0, (seatCount || 1) - (plan.includedSeats || 0));
+  return Math.round(plan.basePrice + extraSeats * plan.perSeatPrice);
 }
 
 // ── 1.5 출시 게이트: 구독 상태 요약 (app-shell 배너/페이월용, 2026-06-11) ──
@@ -211,6 +222,8 @@ export async function getCurrentSubscription(
           perSeatPrice: Number(plan.per_seat_price),
           maxSeats: plan.max_seats ? Number(plan.max_seats) : null,
           features: (plan.features as string[]) || [],
+          listPrice: (plan as any).list_price != null ? Number((plan as any).list_price) : null,
+          includedSeats: (plan as any).included_seats != null ? Number((plan as any).included_seats) : 1,
         }
       : null,
     seatCount: data.seat_count,
@@ -653,10 +666,10 @@ export function calculateMonthlyTotal(
   const plan = plans.find((p) => p.slug === planSlug);
   if (!plan) return 0;
 
-  // 기본 요금 + (좌석 수 × 좌석당 가격)
-  const monthlyBase = plan.basePrice + plan.perSeatPrice * seatCount;
+  // 단일 공식: 기본가 + 기본좌석 초과분만 좌석당 과금 (VAT 별도)
+  const monthlyBase = computeMonthlyCharge(plan, seatCount);
 
-  // 연간 결제 시 20% 할인
+  // 연간 결제(현재 UI 비활성 — 정상가·할인가 확정 전까지). 코드는 유지.
   if (billingCycle === 'yearly') {
     return Math.round(monthlyBase * (1 - ANNUAL_DISCOUNT_RATE));
   }
