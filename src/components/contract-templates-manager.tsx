@@ -46,6 +46,10 @@ export default function ContractTemplatesManager({ companyId }: Props) {
 
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<ContractTemplate | null>(null);
+  // '양식 추가' → 먼저 방식 선택(근로계약과 동일): PDF 업로드 / 직접 작성 → 그 모드로 편집기 오픈.
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [initialMode, setInitialMode] = useState<"html" | "pdf">("html");
+  const startAdd = (mode: "html" | "pdf") => { setInitialMode(mode); setEditing(null); setShowAdd(true); setChooserOpen(false); };
 
   const systemTemplates = useMemo(() => templates.filter((t) => t.is_system), [templates]);
   const companyTemplates = useMemo(() => templates.filter((t) => !t.is_system), [templates]);
@@ -76,12 +80,26 @@ export default function ContractTemplatesManager({ companyId }: Props) {
             우리 회사 계약서 양식입니다. 서명 요청·견적 발송 시 사용됩니다. 새로 만들 때 오너뷰 표준 계약서에서 시작할 수 있어요.
           </p>
         </div>
-        <button
-          onClick={() => { setEditing(null); setShowAdd(true); }}
-          className="btn-primary"
-        >
-          + 양식 추가
-        </button>
+        <div className="relative">
+          <button onClick={() => setChooserOpen((o) => !o)} className="btn-primary">+ 양식 추가 ▾</button>
+          {chooserOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setChooserOpen(false)} />
+              <div className="absolute right-0 mt-1.5 z-20 w-72 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1.5">
+                <button onClick={() => startAdd("html")}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
+                  <div className="text-sm font-semibold text-[var(--text)]">✍️ 직접 작성</div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">편집기에서 계약서를 작성 (표준 계약서에서 시작 가능)</div>
+                </button>
+                <button onClick={() => startAdd("pdf")}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
+                  <div className="text-sm font-semibold text-[var(--text)]">📄 PDF 업로드</div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">완성된 PDF 계약서를 올려 그대로 사용</div>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* 우리 회사가 만든 계약 양식만 노출 (시스템 양식은 '양식 추가 › 직접 작성'의 시작점으로만 사용) */}
@@ -119,6 +137,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
           companyId={companyId}
           editing={editing}
           systemTemplates={systemTemplates}
+          initialMode={initialMode}
           onClose={() => { setShowAdd(false); setEditing(null); }}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["contract-templates", companyId] });
@@ -138,12 +157,14 @@ function TemplateEditorModal({
   companyId,
   editing,
   systemTemplates,
+  initialMode,
   onClose,
   onSaved,
 }: {
   companyId: string;
   editing: ContractTemplate | null;
   systemTemplates: ContractTemplate[];
+  initialMode: "html" | "pdf";
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -154,7 +175,7 @@ function TemplateEditorModal({
   const [bodyHtml, setBodyHtml] = useState(editing?.body_html || "");
   const [bodyMarkdown, setBodyMarkdown] = useState(editing?.body_markdown || "");
   const [fileUrl, setFileUrl] = useState<string | null>(editing?.file_url || null);
-  const [fileType, setFileType] = useState<"html" | "markdown" | "pdf">(editing?.file_type || "html");
+  const [fileType, setFileType] = useState<"html" | "markdown" | "pdf">(editing?.file_type || initialMode);
   const [uploading, setUploading] = useState(false);
   const [starterId, setStarterId] = useState("");
   const [newVar, setNewVar] = useState("");
@@ -282,24 +303,6 @@ function TemplateEditorModal({
                 placeholder="예: 우리회사 표준 서비스 계약서"
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded text-sm focus:outline-none focus:border-[var(--primary)] disabled:opacity-60" />
             </div>
-
-            {!readonly && (
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">본문 방식</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { v: "html" as const, label: "직접 작성" },
-                    { v: "markdown" as const, label: "Markdown" },
-                    { v: "pdf" as const, label: "PDF 업로드" },
-                  ].map((opt) => (
-                    <button key={opt.v} type="button" onClick={() => setFileType(opt.v)}
-                      className={`px-3 py-1.5 rounded text-xs font-semibold transition ${fileType === opt.v ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* 변수 (html/markdown) — 클릭 시 본문 삽입 */}
             {fileType !== "pdf" && (
