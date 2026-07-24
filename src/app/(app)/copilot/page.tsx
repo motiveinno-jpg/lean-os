@@ -156,7 +156,7 @@ export default function CopilotPage() {
       const now = new Date().toISOString();
       setMessages((m) => [...m, { role: "ai", answer: d.answer, model: d.model, at: now, asOf: d.as_of }]);
       setConnErr(false);
-      // DB에 대화 기록 저장 (실패해도 UX 방해 안 함)
+      // DB에 대화 기록 저장
       supabase.from("ai_copilot_history").insert({
         company_id: companyId!,
         query: q,
@@ -164,7 +164,7 @@ export default function CopilotPage() {
         as_of: d.as_of ?? null,
         model: d.model ?? null,
       }).then(({ error: dbErr }) => {
-        if (dbErr) console.warn("[copilot] DB 저장 실패:", dbErr.message);
+        if (dbErr) toast(`[DB저장실패] ${dbErr.message}`, "error");
       });
       refetchUsage();
     } catch {
