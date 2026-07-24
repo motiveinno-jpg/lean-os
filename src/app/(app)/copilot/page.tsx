@@ -34,6 +34,8 @@ type Usage = {
   reset_at: string; as_of: string;
 };
 
+const MAX_HISTORY = 50; // DB에서 로드할 최대 대화 수
+
 const QUICK = [
   { icon: "🎯", label: "오늘의 우선순위", q: "오늘 챙겨야 할 것 3가지를 우선순위로 정리해줘" },
   { icon: "💧", label: "현금흐름 진단", q: "지금 현금흐름 상태를 진단해줘" },
@@ -64,6 +66,7 @@ export default function CopilotPage() {
   const companyId = user?.company_id as string | undefined;
 
   const [messages, setMessages] = useState<AiMsg[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState(0);
@@ -71,6 +74,30 @@ export default function CopilotPage() {
   const [limitExceeded, setLimitExceeded] = useState(false);
   const [connErr, setConnErr] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 페이지 진입 시 DB에서 대화 기록 로드 (최근 MAX_HISTORY건)
+  useEffect(() => {
+    if (!companyId || historyLoaded) return;
+    (async () => {
+      const { data } = await supabase
+        .from("ai_interactions")
+        .select("query, tool_calls, model, created_at")
+        .order("created_at", { ascending: true })
+        .limit(MAX_HISTORY);
+      if (data && data.length > 0) {
+        const loaded: AiMsg[] = [];
+        for (const row of data) {
+          loaded.push({ role: "user", text: row.query });
+          const tc = row.tool_calls as { answer?: Answer; as_of?: string | null } | null;
+          if (tc?.answer) {
+            loaded.push({ role: "ai", answer: tc.answer, model: row.model ?? undefined, at: row.created_at ?? new Date().toISOString(), asOf: tc.as_of ?? null });
+          }
+        }
+        setMessages(loaded);
+      }
+      setHistoryLoaded(true);
+    })();
+  }, [companyId, historyLoaded]);
 
   // 토큰 사용량 요약 (서버가 company 결정 — IDOR 불가)
   const { data: usage, refetch: refetchUsage } = useQuery<Usage | null>({
@@ -126,8 +153,18 @@ export default function CopilotPage() {
         return;
       }
       const d = data as { answer: Answer; model?: string; as_of?: string | null };
-      setMessages((m) => [...m, { role: "ai", answer: d.answer, model: d.model, at: new Date().toISOString(), asOf: d.as_of }]);
+      const now = new Date().toISOString();
+      setMessages((m) => [...m, { role: "ai", answer: d.answer, model: d.model, at: now, asOf: d.as_of }]);
       setConnErr(false);
+      // DB에 대화 기록 저장 (실패해도 UX 방해 안 함)
+      supabase.from("ai_interactions").insert({
+        company_id: companyId!,
+        query: q,
+        tool_calls: { answer: d.answer, as_of: d.as_of ?? null },
+        model: d.model ?? null,
+      }).then(({ error: dbErr }) => {
+        if (dbErr) console.warn("[copilot] DB 저장 실패:", dbErr.message);
+      });
       refetchUsage();
     } catch {
       toast("AI 참모 호출에 실패했습니다.", "error");
@@ -158,6 +195,16 @@ export default function CopilotPage() {
               <span className="copilot2-conn-dot" aria-hidden />{connErr ? "연결 오류" : "AI 연결됨"}
             </span>
             <span className="copilot2-hero-asof">기준 {kstDate(usage?.as_of)}</span>
+            {messages.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setMessages([])}
+                className="copilot2-clear-btn"
+                aria-label="대화 초기화"
+              >
+                대화 초기화
+              </button>
+            )}
           </div>
         </div>
       </div>

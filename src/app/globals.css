@@ -2177,6 +2177,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .copilot2-conn-err { @apply text-[var(--danger)]; background: var(--danger-dim); }
 .copilot2-conn-dot { @apply w-2 h-2 rounded-full; background:currentColor; animation: copilot2-pulse 1.8s ease-in-out infinite; }
 .copilot2-hero-asof { @apply text-[var(--text-dim)]; }
+.copilot2-clear-btn { @apply text-xs text-[var(--text-muted)] hover:text-[var(--danger)] underline underline-offset-2 cursor-pointer bg-transparent border-0 p-0; }
 /* Layout */
 .copilot2-grid { @apply grid gap-5; grid-template-columns: 1fr; }
 @media (min-width:900px){ .copilot2-grid { grid-template-columns: 1fr 320px; } }
