@@ -59,6 +59,8 @@ export function DashboardGrid({
   const catMap = useMemo(() => Object.fromEntries(catalog.map((c) => [c.id, c])), [catalog]);
   const catalogIds = catalog.map((c) => c.id).join(",");
 
+  const isMobileRef = useRef(false); // 모바일 여부 ref — onLayoutChange 클로저에서 최신값 참조용
+
   useEffect(() => {
     try { const raw = JSON.parse(localStorage.getItem(storageKey) || "null"); if (Array.isArray(raw)) setLayout(raw); } catch { /* noop */ }
     try {
@@ -112,6 +114,10 @@ export function DashboardGrid({
 
   const onLayoutChange = (l: Layout[]) => {
     if (!mounted) return;
+    // 모바일(cols=1) 상태에서 발생한 레이아웃 변경은 저장하지 않음.
+    // cols=1일 때 RGL이 모든 위젯을 w=1로 압축하는데, 이 값을 저장하면
+    // 데스크톱 복귀 후에도 w=1짜리 레이아웃이 적용되어 위젯이 좁게 고정됨.
+    if (isMobileRef.current) return;
     setLayout((prev) => {
       const map: Record<string, Layout> = Object.fromEntries(prev.map((x) => [x.i, x]));
       for (const it of l) map[it.i] = { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH };
@@ -136,18 +142,51 @@ export function DashboardGrid({
 
   // 2026-07-24 모바일 반응형: 뷰포트에 따라 cols 동적 조정
   const [isMobile, setIsMobile] = useState(false);
-  const rglRef = useRef<any>(null);
+  // 모바일↔데스크톱 전환 시 RGL 재마운트를 위한 key.
+  // cols가 1↔12로 바뀌면 WidthProvider 내부 너비 계산이 틀어지기 때문에
+  // key를 바꿔서 완전 재마운트하는 것이 유일하게 신뢰할 수 있는 방법.
+  const [rglKey, setRglKey] = useState("desktop");
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      isMobileRef.current = mobile; // ref 항상 최신값 동기화
+      setIsMobile((prev) => {
+        if (prev !== mobile) {
+          // 모바일↔데스크톱 경계를 실제로 넘었을 때만 key 변경 → 재마운트
+          setRglKey(mobile ? "mobile" : "desktop");
+        }
+        return mobile;
+      });
+    };
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // 2026-07-24 창 복원 버그 수정:
-  // WidthProvider 는 window.resize 에는 반응하지만 창 최소화→복원(visibilitychange/focus) 에는 반응 안 함.
-  // → visibilitychange(visible) + window focus 시 resize 이벤트를 직접 디스패치해 WidthProvider 재측정 트리거.
+  // 2026-07-24 창 복원 + 화면 확대/축소 버그 수정:
+  // WidthProvider 는 window.resize 에는 반응하지만 창 최소화→복원(visibilitychange/focus),
+  // 사이드바 토글 등 CSS 변화에는 반응 안 함.
+  // → ResizeObserver로 컨테이너 너비 변화를 직접 감지 → resize 이벤트 디스패치.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastWidthRef = useRef(0); // 직전 너비 — 불필요한 resize 이벤트 억제용
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width;
+        if (Math.abs(w - lastWidthRef.current) > 5) {
+          lastWidthRef.current = w;
+          window.dispatchEvent(new Event("resize"));
+        }
+      }
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // visibilitychange + focus 이벤트 시 resize 디스패치 (창 복원 대응)
   useEffect(() => {
     const dispatch = () => window.dispatchEvent(new Event("resize"));
     const onVisible = () => { if (document.visibilityState === "visible") dispatch(); };
@@ -159,7 +198,7 @@ export function DashboardGrid({
     };
   }, []);
 
-  // 사이드바 토글 시 RGL 너비 재계산 강제
+  // 사이드바 토글 시 RGL 너비 재계산 강제 (CSS transition 완료까지 다중 호출)
   useEffect(() => {
     if (!mounted) return;
     for (let i = 0; i < 5; i++) {
@@ -239,37 +278,38 @@ export function DashboardGrid({
           ))}
         </div>
       )}
-      <RGL
-        key={`${isMobile ? "mobile" : "desktop"}-${sidebarCollapsed ? "collapsed" : "expanded"}`}
-        ref={rglRef}
-        className="layout"
-        layout={effective}
-        cols={isMobile ? 1 : 12}
-        rowHeight={44}
-        margin={[12, 12]}
-        containerPadding={[0, 0]}
-        isDraggable={edit && !isMobile}
-        isResizable={edit && !isMobile}
-        compactType="vertical"
-        onLayoutChange={onLayoutChange}
-        draggableCancel=".no-drag"
-        // 하단·우측 핸들만 사용(s/e/se). 상단·좌측(n/w/nw/ne/sw) 핸들은 리사이즈 시 x/y까지
-        // 이동시켜 vertical 압축과 충돌 → "다른 위치 위젯이 리사이즈/축소"되는 RGL 고질 버그를 유발.
-        resizeHandles={["s", "e", "se"]}
-      >
-        {active.map((w) => (
-          <div key={w.id} className={`dashboard-widget-tile ${edit ? "relative rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}`}>
-            {edit && (
-              <button onClick={() => removeWidget(w.id)}
-                className="no-drag absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-[var(--danger)] text-white text-[13px] font-bold flex items-center justify-center shadow-md hover:scale-110 transition"
-                style={{ pointerEvents: "auto" }} aria-label={`${w.name} 위젯 삭제`} title="위젯 삭제">
-                ×
-              </button>
-            )}
-            <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.render()}</div>
-          </div>
-        ))}
-      </RGL>
+      <div ref={containerRef}>
+        <RGL
+          key={rglKey}
+          className="layout"
+          layout={effective}
+          cols={isMobile ? 1 : 12}
+          rowHeight={44}
+          margin={[12, 12]}
+          containerPadding={[0, 0]}
+          isDraggable={edit && !isMobile}
+          isResizable={edit && !isMobile}
+          compactType="vertical"
+          onLayoutChange={onLayoutChange}
+          draggableCancel=".no-drag"
+          // 하단·우측 핸들만 사용(s/e/se). 상단·좌측(n/w/nw/ne/sw) 핸들은 리사이즈 시 x/y까지
+          // 이동시켜 vertical 압축과 충돌 → "다른 위치 위젯이 리사이즈/축소"되는 RGL 고질 버그를 유발.
+          resizeHandles={["s", "e", "se"]}
+        >
+          {active.map((w) => (
+            <div key={w.id} className={`dashboard-widget-tile ${edit ? "relative rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}`}>
+              {edit && (
+                <button onClick={() => removeWidget(w.id)}
+                  className="no-drag absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-[var(--danger)] text-white text-[13px] font-bold flex items-center justify-center shadow-md hover:scale-110 transition"
+                  style={{ pointerEvents: "auto" }} aria-label={`${w.name} 위젯 삭제`} title="위젯 삭제">
+                  ×
+                </button>
+              )}
+              <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.render()}</div>
+            </div>
+          ))}
+        </RGL>
+      </div>
     </div>
   );
 }
