@@ -10,11 +10,47 @@
 //   모바일에서도 편집모드는 유지됨(드래그/리사이즈 불가, 추가/삭제만 가능).
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
+import GridLayout, { type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
-const RGL = WidthProvider(GridLayout);
+// WidthProvider 대신 ResizeObserver로 실제 컨테이너 너비를 직접 측정.
+// WidthProvider 는 마운트 시 1회 offsetWidth 측정 → 창 최소화·복원 후 resize 이벤트를
+// 받아도 width 를 재측정하지 않아 위젯이 원래 크기로 복원되지 않는 버그 발생.
+function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number {
+  const [width, setWidth] = useState<number>(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const measure = () => {
+      const w = el.offsetWidth;
+      if (w > 0) setWidth(w);
+    };
+
+    measure();
+
+    // ResizeObserver: 컨테이너 크기 변화(사이드바 토글, 창 크기 조절) 즉시 감지
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+
+    // visibilitychange: 창 최소화 → 복원 시 document 가시성 변화 감지
+    const onVisible = () => { if (document.visibilityState === "visible") measure(); };
+    document.addEventListener("visibilitychange", onVisible);
+
+    // focus: 창이 다시 포커스를 받을 때(최소화 복원 포함) 재측정
+    window.addEventListener("focus", measure);
+
+    return () => {
+      ro.disconnect();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", measure);
+    };
+  }, [ref]);
+
+  return width;
+}
 
 // 카탈로그 위젯 정의 — 페이지에서 render 클로저로 페이지 데이터(companyId 등)를 캡처해 전달.
 export type CatalogWidget = {
@@ -135,8 +171,7 @@ export function DashboardGrid({
 
   // 2026-07-24 모바일 반응형: 뷰포트에 따라 cols 동적 조정
   const [isMobile, setIsMobile] = useState(false);
-  const rglRef = useRef<any>(null);
-  
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -144,50 +179,10 @@ export function DashboardGrid({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // 2026-07-24 사이드바 토글 시 RGL 너비 재계산 강제 — ResizeObserver 직접 사용
-  // WidthProvider는 ResizeObserver로 자동 감지하지만, 부모 컨테이너의 margin 변경(collapsed 상태)은
-  // DOM 너비 변경이 아니라서 감지 안 됨. 
-  // → 부모 컨테이너에 ResizeObserver 직접 설치 + RGL 너비 강제 재계산
-  useEffect(() => {
-    if (!mounted) return;
-    
-    const rglContainer = document.querySelector(".layout") as HTMLElement;
-    if (!rglContainer) return;
-
-    // ResizeObserver로 부모 너비 변화 감지
-    const resizeObserver = new ResizeObserver(() => {
-      // 강제 너비 재계산 + 레이아웃 업데이트
-      window.dispatchEvent(new Event("resize"));
-      
-      // RGL 내부 state 강제 업데이트 (throttled 방지를 위해 약간의 딜레이)
-      setTimeout(() => {
-        window.dispatchEvent(new Event("resize"));
-      }, 100);
-    });
-
-    resizeObserver.observe(rglContainer);
-    
-    // 처음 마운트 시 강제 resize 이벤트
-    setTimeout(() => {
-      window.dispatchEvent(new Event("resize"));
-    }, 50);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [mounted]);
-
-  // 추가: sidebarCollapsed 변경 시에도 직접 resize 강제
-  useEffect(() => {
-    if (!mounted) return;
-    
-    // 사이드바 상태 변경 감지 시 즉시 + 연속 resize 이벤트
-    for (let i = 0; i < 5; i++) {
-      setTimeout(() => {
-        window.dispatchEvent(new Event("resize"));
-      }, i * 100); // 0ms, 100ms, 200ms, 300ms, 400ms
-    }
-  }, [sidebarCollapsed, mounted]);
+  // 컨테이너 너비 직접 측정 — WidthProvider 대신 사용.
+  // ResizeObserver + visibilitychange + focus 이벤트로 창 복원/사이드바 토글 모두 감지.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(containerRef);
 
   const Header = (
     <div className="dash-section-head">
@@ -261,37 +256,42 @@ export function DashboardGrid({
           ))}
         </div>
       )}
-      <RGL
-        key={`${isMobile ? "mobile" : "desktop"}-${sidebarCollapsed ? "collapsed" : "expanded"}`}
-        ref={rglRef}
-        className="layout"
-        layout={effective}
-        cols={isMobile ? 1 : 12}
-        rowHeight={44}
-        margin={[12, 12]}
-        containerPadding={[0, 0]}
-        isDraggable={edit && !isMobile}
-        isResizable={edit && !isMobile}
-        compactType="vertical"
-        onLayoutChange={onLayoutChange}
-        draggableCancel=".no-drag"
-        // 하단·우측 핸들만 사용(s/e/se). 상단·좌측(n/w/nw/ne/sw) 핸들은 리사이즈 시 x/y까지
-        // 이동시켜 vertical 압축과 충돌 → "다른 위치 위젯이 리사이즈/축소"되는 RGL 고질 버그를 유발.
-        resizeHandles={["s", "e", "se"]}
-      >
-        {active.map((w) => (
-          <div key={w.id} className={`dashboard-widget-tile ${edit ? "relative rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}`}>
-            {edit && (
-              <button onClick={() => removeWidget(w.id)}
-                className="no-drag absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-[var(--danger)] text-white text-[13px] font-bold flex items-center justify-center shadow-md hover:scale-110 transition"
-                style={{ pointerEvents: "auto" }} aria-label={`${w.name} 위젯 삭제`} title="위젯 삭제">
-                ×
-              </button>
-            )}
-            <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.render()}</div>
-          </div>
-        ))}
-      </RGL>
+      {/* containerRef 로 실제 너비 측정 — WidthProvider 없이 GridLayout 에 직접 전달 */}
+      <div ref={containerRef} style={{ width: "100%" }}>
+        {containerWidth > 0 && (
+          <GridLayout
+            key={`${isMobile ? "mobile" : "desktop"}-${sidebarCollapsed ? "collapsed" : "expanded"}`}
+            className="layout"
+            layout={effective}
+            cols={isMobile ? 1 : 12}
+            width={containerWidth}
+            rowHeight={44}
+            margin={[12, 12]}
+            containerPadding={[0, 0]}
+            isDraggable={edit && !isMobile}
+            isResizable={edit && !isMobile}
+            compactType="vertical"
+            onLayoutChange={onLayoutChange}
+            draggableCancel=".no-drag"
+            // 하단·우측 핸들만 사용(s/e/se). 상단·좌측(n/w/nw/ne/sw) 핸들은 리사이즈 시 x/y까지
+            // 이동시켜 vertical 압축과 충돌 → "다른 위치 위젯이 리사이즈/축소"되는 RGL 고질 버그를 유발.
+            resizeHandles={["s", "e", "se"]}
+          >
+            {active.map((w) => (
+              <div key={w.id} className={`dashboard-widget-tile ${edit ? "relative rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}`}>
+                {edit && (
+                  <button onClick={() => removeWidget(w.id)}
+                    className="no-drag absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-[var(--danger)] text-white text-[13px] font-bold flex items-center justify-center shadow-md hover:scale-110 transition"
+                    style={{ pointerEvents: "auto" }} aria-label={`${w.name} 위젯 삭제`} title="위젯 삭제">
+                    ×
+                  </button>
+                )}
+                <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.render()}</div>
+              </div>
+            ))}
+          </GridLayout>
+        )}
+      </div>
     </div>
   );
 }
