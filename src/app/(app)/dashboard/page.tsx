@@ -36,6 +36,7 @@ import { getTodos, toggleTodoDone, PRIORITY_LABEL, getMonthEvents, type Schedule
 import Link from "next/link";
 import { useUser } from "@/components/user-context";
 import { useBoard } from "@/components/board-context";
+import { useSidebar } from "@/components/sidebar-context"; // 2026-07-24 sidebar collapsed 감지
 import { PRESET_VIEWS, WIDGET_REGISTRY, ROLE_PRESETS } from "@/lib/widget-registry";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
@@ -93,6 +94,7 @@ const DEFAULT_WIDGET_POS: Record<string, { x: number; y: number; w: number; h: n
 // ═══════════════════════════════════════════
 export default function DashboardPage() {
   const { role } = useUser();
+  const { collapsed: sidebarCollapsed } = useSidebar(); // 2026-07-24 sidebar collapsed 상태
   const { activeViewId, setActiveView, isWidgetVisible, editing, toggleEditing, toggleWidget, widgets, rolePreset, setRolePreset } = useBoard();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -558,7 +560,7 @@ export default function DashboardPage() {
             const recommended: string[] = [];
             if ((dashboard.sixPack.arOver30 ?? 0) > 0) recommended.push("receivables");
             if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
-            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={catalog} defaultActiveIds={defaultActiveIds} recommended={recommended} />;
+            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={catalog} defaultActiveIds={defaultActiveIds} recommended={recommended} sidebarCollapsed={sidebarCollapsed} />;
           })()}
         </div>
       )}

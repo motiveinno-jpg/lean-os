@@ -38,13 +38,14 @@ function buildDefault(cat: CatalogWidget[]): Layout[] {
 }
 
 export function DashboardGrid({
-  storageKey, catalog, defaultActiveIds, title = "", recommended = [],
+  storageKey, catalog, defaultActiveIds, title = "", recommended = [], sidebarCollapsed = false,
 }: {
   storageKey: string;
   catalog: CatalogWidget[];
   defaultActiveIds: string[];
   title?: string;
   recommended?: string[]; // 지금 신호가 있어 추천하는 위젯 id(비활성일 때만 편집모드 칩·picker 상단 노출)
+  sidebarCollapsed?: boolean; // 2026-07-24 사이드바 collapsed 상태 (이 값 변경 시 resize 이벤트 발동)
 }) {
   const [edit, setEdit] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -145,13 +146,15 @@ export function DashboardGrid({
   // WidthProvider는 ResizeObserver로 자동 감지하지만, 부모 컨테이너의 margin 변경(collapsed 상태)은
   // DOM 너비 변경이 아니라서 감지 안 됨. → resize 이벤트 디스패치로 강제 재계산.
   useEffect(() => {
-    // mounted일 때 100ms 후 resize 이벤트 디스패치 (RGL이 responsive 값 재계산하도록)
+    // mounted일 때 resize 이벤트 디스패치 (RGL이 responsive 값 재계산하도록)
     if (!mounted) return;
-    const timer = setTimeout(() => {
-      window.dispatchEvent(new Event("resize"));
-    }, 50); // margin transition 200ms 중간쯤에 발동하도록
-    return () => clearTimeout(timer);
-  }, [storageKey, mounted]); // storageKey 변경(대시보드 전환) 시에도 재계산
+    // 여러 번 발동해 RGL이 확실히 감지하도록 함
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        window.dispatchEvent(new Event("resize"));
+      }, 50 + i * 50); // 50ms, 100ms, 150ms에 각각 발동
+    }
+  }, [storageKey, mounted, sidebarCollapsed]); // sidebarCollapsed 변경 감지
 
   const Header = (
     <div className="dash-section-head">
