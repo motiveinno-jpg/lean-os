@@ -141,6 +141,18 @@ export function DashboardGrid({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // 2026-07-24 사이드바 토글 시 RGL 너비 재계산 강제
+  // WidthProvider는 ResizeObserver로 자동 감지하지만, 부모 컨테이너의 margin 변경(collapsed 상태)은
+  // DOM 너비 변경이 아니라서 감지 안 됨. → resize 이벤트 디스패치로 강제 재계산.
+  useEffect(() => {
+    // mounted일 때 100ms 후 resize 이벤트 디스패치 (RGL이 responsive 값 재계산하도록)
+    if (!mounted) return;
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 50); // margin transition 200ms 중간쯤에 발동하도록
+    return () => clearTimeout(timer);
+  }, [storageKey, mounted]); // storageKey 변경(대시보드 전환) 시에도 재계산
+
   const Header = (
     <div className="dash-section-head">
       <div>
@@ -214,6 +226,7 @@ export function DashboardGrid({
         </div>
       )}
       <RGL
+        key={isMobile ? "mobile" : "desktop"} // 2026-07-24 모바일/데스크톱 전환 시 리마운트
         className="layout"
         layout={effective}
         cols={isMobile ? 1 : 12}
