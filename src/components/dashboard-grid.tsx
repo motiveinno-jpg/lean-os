@@ -6,25 +6,23 @@
 //     · 활성 목록: localStorage `${storageKey}::active` (없으면 defaultActiveIds)
 //     · 배치(layout): localStorage `${storageKey}` (현재 없는 위젯 항목도 보존)
 //   활성 위젯만 render() 호출 → 비활성 위젯의 쿼리/컴포넌트는 마운트되지 않음(비용 0).
-//   2026-07-24 모바일 반응형 수정: cols={12}를 모바일에서는 cols={1}로 조정 → 세로 단일열 레이아웃으로 변경.
-//   모바일에서도 편집모드는 유지됨(드래그/리사이즈 불가, 추가/삭제만 가능).
-//   2026-07-24 창 복원 버그 수정: visibilitychange + focus 이벤트 → resize 디스패치로 WidthProvider 재측정 트리거.
+//   2026-07-24 반응형 완전 수정: WidthProvider 제거 → ResizeObserver로 직접 width 측정 후 prop 주입.
+//     WidthProvider는 마운트 시점에 너비를 1회 측정하는 클래스 컴포넌트라,
+//     창 축소→확대 시 잘못된 너비가 고정되는 버그가 있었음. 직접 측정으로 완전 해결.
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
+import GridLayout, { type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
-const RGL = WidthProvider(GridLayout);
-
-// 카탈로그 위젯 정의 — 페이지에서 render 클로저로 페이지 데이터(companyId 등)를 캡처해 전달.
+// 카탈로그 위젯 정의
 export type CatalogWidget = {
   id: string;
-  name: string;               // picker 표시 이름
-  icon?: string;              // 이모지
-  desc?: string;              // picker 설명
-  category?: string;          // picker 그룹
-  x?: number; y?: number; w?: number; h?: number; // 기본 배치(기본 활성 위젯용)
+  name: string;
+  icon?: string;
+  desc?: string;
+  category?: string;
+  x?: number; y?: number; w?: number; h?: number;
   render: () => React.ReactNode;
 };
 
@@ -32,10 +30,28 @@ function buildDefault(cat: CatalogWidget[]): Layout[] {
   return cat.map((w, i) => ({
     i: w.id,
     x: w.x ?? (i % 3) * 4,
-    // 기본 배치(y) 없는 위젯(=사용자가 나중에 추가)은 맨 아래로 — vertical 압축이 빈자리로 끌어올림.
     y: w.y ?? 1000,
     w: w.w || 4, h: w.h || 4, minW: 3, minH: 2,
   }));
+}
+
+// 컨테이너 너비를 ResizeObserver로 직접 측정하는 훅
+function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number {
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    setWidth(ref.current.offsetWidth);
+
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      if (w > 0) setWidth(w);
+    });
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, [ref]);
+
+  return width;
 }
 
 export function DashboardGrid({
@@ -45,66 +61,45 @@ export function DashboardGrid({
   catalog: CatalogWidget[];
   defaultActiveIds: string[];
   title?: string;
-  recommended?: string[]; // 지금 신호가 있어 추천하는 위젯 id(비활성일 때만 편집모드 칩·picker 상단 노출)
-  sidebarCollapsed?: boolean; // 2026-07-24 사이드바 collapsed 상태 (이 값 변경 시 resize 이벤트 발동)
+  recommended?: string[];
+  sidebarCollapsed?: boolean;
 }) {
   const [edit, setEdit] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [layout, setLayout] = useState<Layout[]>([]);      // 저장된 배치(현재 없는 위젯 항목도 보존)
+  const [layout, setLayout] = useState<Layout[]>([]);
   const [activeIds, setActiveIds] = useState<string[]>(defaultActiveIds);
   const [copied, setCopied] = useState(false);
-  const [picking, setPicking] = useState(false);           // 위젯 추가 패널 열림
+  const [picking, setPicking] = useState(false);
 
   const activeKey = `${storageKey}::active`;
   const catMap = useMemo(() => Object.fromEntries(catalog.map((c) => [c.id, c])), [catalog]);
   const catalogIds = catalog.map((c) => c.id).join(",");
 
-  const isMobileRef = useRef(false); // 모바일 여부 ref — onLayoutChange 클로저에서 최신값 참조용
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(containerRef);
+  const isMobile = containerWidth > 0 && containerWidth < 768;
+  const cols = isMobile ? 1 : 12;
+
+  const isMobileRef = useRef(false);
+  useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
 
   useEffect(() => {
     try { const raw = JSON.parse(localStorage.getItem(storageKey) || "null"); if (Array.isArray(raw)) setLayout(raw); } catch { /* noop */ }
-    try {
-      const rawA = JSON.parse(localStorage.getItem(activeKey) || "null");
-      if (Array.isArray(rawA)) setActiveIds(rawA);
-    } catch { /* noop */ }
+    try { const rawA = JSON.parse(localStorage.getItem(activeKey) || "null"); if (Array.isArray(rawA)) setActiveIds(rawA); } catch { /* noop */ }
     setMounted(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
-  // 활성 위젯(카탈로그에 존재하는 것만) — 순서 보존.
-  const active = useMemo(
-    () => activeIds.map((id) => catMap[id]).filter(Boolean) as CatalogWidget[],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeIds, catalogIds],
-  );
-
-  // 추가 가능한 위젯(현재 비활성) — picker 목록.
-  const addable = useMemo(
-    () => catalog.filter((c) => !activeIds.includes(c.id)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeIds, catalogIds],
-  );
-
-  // 추천(신호 있음 + 현재 비활성) — 편집모드 칩 + picker 상단.
+  const active = useMemo(() => activeIds.map((id) => catMap[id]).filter(Boolean) as CatalogWidget[], [activeIds, catalogIds]);
+  const addable = useMemo(() => catalog.filter((c) => !activeIds.includes(c.id)), [activeIds, catalogIds]);
   const recSet = recommended.join(",");
-  const recAddable = useMemo(
-    () => addable.filter((c) => recommended.includes(c.id)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [addable, recSet],
-  );
-  // picker 정렬 — 추천을 위로.
-  const pickerList = useMemo(
-    () => [...addable].sort((a, b) => (recommended.includes(b.id) ? 1 : 0) - (recommended.includes(a.id) ? 1 : 0)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [addable, recSet],
-  );
+  const recAddable = useMemo(() => addable.filter((c) => recommended.includes(c.id)), [addable, recSet]);
+  const pickerList = useMemo(() => [...addable].sort((a, b) => (recommended.includes(b.id) ? 1 : 0) - (recommended.includes(a.id) ? 1 : 0)), [addable, recSet]);
 
-  // 렌더용 배치 — 활성 위젯마다 항상 항목 보장(저장분 우선, 없으면 기본값).
   const effective = useMemo(() => {
     const saved = Object.fromEntries(layout.map((l) => [l.i, l]));
     const def = Object.fromEntries(buildDefault(active).map((l) => [l.i, l]));
     return active.map((w) => saved[w.id] || def[w.id]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, activeIds, catalogIds]);
 
   const persistActive = (ids: string[]) => {
@@ -113,11 +108,7 @@ export function DashboardGrid({
   };
 
   const onLayoutChange = (l: Layout[]) => {
-    if (!mounted) return;
-    // 모바일(cols=1) 상태에서 발생한 레이아웃 변경은 저장하지 않음.
-    // cols=1일 때 RGL이 모든 위젯을 w=1로 압축하는데, 이 값을 저장하면
-    // 데스크톱 복귀 후에도 w=1짜리 레이아웃이 적용되어 위젯이 좁게 고정됨.
-    if (isMobileRef.current) return;
+    if (!mounted || isMobileRef.current) return;
     setLayout((prev) => {
       const map: Record<string, Layout> = Object.fromEntries(prev.map((x) => [x.i, x]));
       for (const it of l) map[it.i] = { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH };
@@ -129,82 +120,12 @@ export function DashboardGrid({
 
   const addWidget = (id: string) => { if (!activeIds.includes(id)) persistActive([...activeIds, id]); setPicking(false); };
   const removeWidget = (id: string) => persistActive(activeIds.filter((x) => x !== id));
-
-  const reset = () => {
-    setLayout([]); persistActive(defaultActiveIds);
-    try { localStorage.removeItem(storageKey); } catch { /* noop */ }
-  };
+  const reset = () => { setLayout([]); persistActive(defaultActiveIds); try { localStorage.removeItem(storageKey); } catch { /* noop */ } };
   const copyLayout = async () => {
     const json = JSON.stringify(effective.map((l) => ({ i: l.i, x: l.x, y: l.y, w: l.w, h: l.h })));
     try { await navigator.clipboard.writeText(json); setCopied(true); setTimeout(() => setCopied(false), 1500); }
     catch { window.prompt("아래 값을 복사하세요", json); }
   };
-
-  // 2026-07-24 모바일 반응형: 뷰포트에 따라 cols 동적 조정
-  const [isMobile, setIsMobile] = useState(false);
-  // 모바일↔데스크톱 전환 시 RGL 재마운트를 위한 key.
-  // cols가 1↔12로 바뀌면 WidthProvider 내부 너비 계산이 틀어지기 때문에
-  // key를 바꿔서 완전 재마운트하는 것이 유일하게 신뢰할 수 있는 방법.
-  const [rglKey, setRglKey] = useState("desktop");
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      isMobileRef.current = mobile; // ref 항상 최신값 동기화
-      setIsMobile((prev) => {
-        if (prev !== mobile) {
-          // 모바일↔데스크톱 경계를 실제로 넘었을 때만 key 변경 → 재마운트
-          setRglKey(mobile ? "mobile" : "desktop");
-        }
-        return mobile;
-      });
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  // 2026-07-24 창 복원 + 화면 확대/축소 버그 수정:
-  // WidthProvider 는 window.resize 에는 반응하지만 창 최소화→복원(visibilitychange/focus),
-  // 사이드바 토글 등 CSS 변화에는 반응 안 함.
-  // → ResizeObserver로 컨테이너 너비 변화를 직접 감지 → resize 이벤트 디스패치.
-  const containerRef = useRef<HTMLDivElement>(null);
-  const lastWidthRef = useRef(0); // 직전 너비 — 불필요한 resize 이벤트 억제용
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const w = entry.contentRect.width;
-        if (Math.abs(w - lastWidthRef.current) > 5) {
-          lastWidthRef.current = w;
-          window.dispatchEvent(new Event("resize"));
-        }
-      }
-    });
-    ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  // visibilitychange + focus 이벤트 시 resize 디스패치 (창 복원 대응)
-  useEffect(() => {
-    const dispatch = () => window.dispatchEvent(new Event("resize"));
-    const onVisible = () => { if (document.visibilityState === "visible") dispatch(); };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", dispatch);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", dispatch);
-    };
-  }, []);
-
-  // 사이드바 토글 시 RGL 너비 재계산 강제 (CSS transition 완료까지 다중 호출)
-  useEffect(() => {
-    if (!mounted) return;
-    for (let i = 0; i < 5; i++) {
-      setTimeout(() => window.dispatchEvent(new Event("resize")), i * 100);
-    }
-  }, [sidebarCollapsed, mounted]);
 
   const Header = (
     <div className="dash-section-head">
@@ -214,49 +135,36 @@ export function DashboardGrid({
         {edit && isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">모바일에서는 위젯 추가/삭제만 가능합니다. 배치 편집은 데스크톱에서 하세요.</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0 relative">
-        {edit && (
-          <button onClick={() => setPicking((v) => !v)} className="btn-secondary btn-sm no-drag">
-            {picking ? "닫기" : `＋ 위젯 추가${addable.length ? ` (${addable.length})` : ""}`}
-          </button>
-        )}
+        {edit && <button onClick={() => setPicking((v) => !v)} className="btn-secondary btn-sm no-drag">{picking ? "닫기" : `＋ 위젯 추가${addable.length ? ` (${addable.length})` : ""}`}</button>}
         {edit && <button onClick={copyLayout} className="btn-secondary btn-sm no-drag">{copied ? "복사됨!" : "📋 배치 복사"}</button>}
         {edit && <button onClick={reset} className="btn-secondary btn-sm no-drag">기본값</button>}
-        <button onClick={() => { setEdit((v) => !v); setPicking(false); }} className={`btn-sm no-drag ${edit ? "btn-primary" : "btn-secondary"}`}>
-          {edit ? "✓ 편집 완료" : "⠿ 위젯 편집"}
-        </button>
-
-        {/* 위젯 추가 패널 */}
+        <button onClick={() => { setEdit((v) => !v); setPicking(false); }} className={`btn-sm no-drag ${edit ? "btn-primary" : "btn-secondary"}`}>{edit ? "✓ 편집 완료" : "⠿ 위젯 편집"}</button>
         {edit && picking && (
           <div className="widget-picker">
-            {addable.length === 0 ? (
-              <div className="text-[12px] text-[var(--text-dim)] text-center py-6">추가할 수 있는 위젯이 없습니다.<br />모든 위젯이 이미 표시 중입니다.</div>
-            ) : (
-              pickerList.map((c) => (
-                <button key={c.id} onClick={() => addWidget(c.id)}
-                  className="w-full flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[var(--bg-surface)] transition">
-                  <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[14px] shrink-0">{c.icon || "🧩"}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-[12px] font-bold text-[var(--text)] truncate">{c.name}</span>
-                      {recommended.includes(c.id) && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)]">추천</span>}
-                    </span>
-                    {c.desc && <span className="block text-[11px] text-[var(--text-dim)] truncate">{c.desc}</span>}
+            {addable.length === 0 ? <div className="text-[12px] text-[var(--text-dim)] text-center py-6">추가할 수 있는 위젯이 없습니다.<br />모든 위젯이 이미 표시 중입니다.</div> : pickerList.map((c) => (
+              <button key={c.id} onClick={() => addWidget(c.id)} className="w-full flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[var(--bg-surface)] transition">
+                <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[14px] shrink-0">{c.icon || "🧩"}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-[12px] font-bold text-[var(--text)] truncate">{c.name}</span>
+                    {recommended.includes(c.id) && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)]">추천</span>}
                   </span>
-                  <span className="text-[16px] text-[var(--primary)] font-bold shrink-0 leading-none mt-1">＋</span>
-                </button>
-              ))
-            )}
+                  {c.desc && <span className="block text-[11px] text-[var(--text-dim)] truncate">{c.desc}</span>}
+                </span>
+                <span className="text-[16px] text-[var(--primary)] font-bold shrink-0 leading-none mt-1">＋</span>
+              </button>
+            ))}
           </div>
         )}
       </div>
     </div>
   );
 
-  if (!mounted) {
+  if (!mounted || containerWidth === 0) {
     return (
       <div className="dashboard-grid">
         {Header}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div ref={containerRef} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {active.map((w) => <div key={w.id}>{w.render()}</div>)}
         </div>
       </div>
@@ -266,24 +174,22 @@ export function DashboardGrid({
   return (
     <div className={`dashboard-grid ${edit ? "rgl-editing" : ""}`}>
       {Header}
-      {/* 상황 기반 추천 — 신호가 있는데 꺼진 위젯을 편집모드에서 원클릭 추가 칩으로 안내 */}
       {edit && recAddable.length > 0 && (
         <div className="recommended-widgets-row">
           <span className="text-[var(--text-dim)]">💡 지금 유용한 위젯:</span>
           {recAddable.map((c) => (
-            <button key={c.id} onClick={() => addWidget(c.id)}
-              className="no-drag inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition">
+            <button key={c.id} onClick={() => addWidget(c.id)} className="no-drag inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition">
               {c.icon} {c.name} 추가 ＋
             </button>
           ))}
         </div>
       )}
       <div ref={containerRef}>
-        <RGL
-          key={rglKey}
+        <GridLayout
+          width={containerWidth}
           className="layout"
           layout={effective}
-          cols={isMobile ? 1 : 12}
+          cols={cols}
           rowHeight={44}
           margin={[12, 12]}
           containerPadding={[0, 0]}
@@ -292,23 +198,17 @@ export function DashboardGrid({
           compactType="vertical"
           onLayoutChange={onLayoutChange}
           draggableCancel=".no-drag"
-          // 하단·우측 핸들만 사용(s/e/se). 상단·좌측(n/w/nw/ne/sw) 핸들은 리사이즈 시 x/y까지
-          // 이동시켜 vertical 압축과 충돌 → "다른 위치 위젯이 리사이즈/축소"되는 RGL 고질 버그를 유발.
           resizeHandles={["s", "e", "se"]}
         >
           {active.map((w) => (
             <div key={w.id} className={`dashboard-widget-tile ${edit ? "relative rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}`}>
               {edit && (
-                <button onClick={() => removeWidget(w.id)}
-                  className="no-drag absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-[var(--danger)] text-white text-[13px] font-bold flex items-center justify-center shadow-md hover:scale-110 transition"
-                  style={{ pointerEvents: "auto" }} aria-label={`${w.name} 위젯 삭제`} title="위젯 삭제">
-                  ×
-                </button>
+                <button onClick={() => removeWidget(w.id)} className="no-drag absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-[var(--danger)] text-white text-[13px] font-bold flex items-center justify-center shadow-md hover:scale-110 transition" style={{ pointerEvents: "auto" }} aria-label={`${w.name} 위젯 삭제`} title="위젯 삭제">×</button>
               )}
               <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.render()}</div>
             </div>
           ))}
-        </RGL>
+        </GridLayout>
       </div>
     </div>
   );
