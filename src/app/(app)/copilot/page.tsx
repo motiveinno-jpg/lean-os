@@ -78,13 +78,20 @@ export default function CopilotPage() {
   // 페이지 진입 시 DB에서 대화 기록 로드 (최근 MAX_HISTORY건)
   useEffect(() => {
     if (!companyId || historyLoaded) return;
+    console.log("[copilot] 대화 기록 로드 시작:", companyId);
     (async () => {
-      const { data } = await supabase
+      const { data, error: loadErr } = await supabase
         .from("ai_copilot_history")
         .select("query, answer, as_of, model, created_at")
         .order("created_at", { ascending: true })
         .limit(MAX_HISTORY);
-      if (data && data.length > 0) {
+      
+      if (loadErr) {
+        console.error("[copilot] 로드 실패:", loadErr);
+        toast(`[로드실패] ${loadErr.message}`, "error");
+      } else if (data && data.length > 0) {
+        console.log("[copilot] 로드 성공:", data.length, "건");
+        toast(`[디버그] ${data.length}건 로드됨`, "success");
         const loaded: AiMsg[] = [];
         for (const row of data) {
           loaded.push({ role: "user", text: row.query });
@@ -94,10 +101,13 @@ export default function CopilotPage() {
           }
         }
         setMessages(loaded);
+      } else {
+        console.log("[copilot] 로드 결과: 데이터 없음");
+        toast("[디버그] 저장된 대화 없음", "info");
       }
       setHistoryLoaded(true);
     })();
-  }, [companyId, historyLoaded]);
+  }, [companyId, historyLoaded, toast]);
 
   // 토큰 사용량 요약 (서버가 company 결정 — IDOR 불가)
   const { data: usage, refetch: refetchUsage } = useQuery<Usage | null>({
@@ -157,14 +167,22 @@ export default function CopilotPage() {
       setMessages((m) => [...m, { role: "ai", answer: d.answer, model: d.model, at: now, asOf: d.as_of }]);
       setConnErr(false);
       // DB에 대화 기록 저장
-      supabase.from("ai_copilot_history").insert({
+      const insertPayload = {
         company_id: companyId!,
         query: q,
         answer: d.answer,
         as_of: d.as_of ?? null,
         model: d.model ?? null,
-      }).then(({ error: dbErr }) => {
-        if (dbErr) toast(`[DB저장실패] ${dbErr.message}`, "error");
+      };
+      console.log("[copilot] DB INSERT 시작:", { companyId, queryLength: q.length });
+      supabase.from("ai_copilot_history").insert(insertPayload).then(({ data: insertData, error: dbErr }) => {
+        if (dbErr) {
+          console.error("[copilot] DB 저장 실패:", dbErr);
+          toast(`[DB저장실패] ${dbErr.message}`, "error");
+        } else {
+          console.log("[copilot] DB 저장 성공:", insertData);
+          toast("[디버그] DB 저장 성공", "success");
+        }
       });
       refetchUsage();
     } catch {
