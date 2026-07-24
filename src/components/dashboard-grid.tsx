@@ -21,6 +21,8 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number 
   const [width, setWidth] = useState<number>(0);
 
   useEffect(() => {
+    // ref.current 는 effect 실행 시점에 읽어야 DOM 마운트 후 값을 얻을 수 있음.
+    // dependency 에 ref 객체를 넣으면 항등성 유지로 재실행 안 됨 → 내부에서 직접 접근.
     const el = ref.current;
     if (!el) return;
 
@@ -47,7 +49,8 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number 
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", measure);
     };
-  }, [ref]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 마운트 1회. ref.current 는 effect 내부에서 직접 읽음.
 
   return width;
 }
@@ -256,9 +259,11 @@ export function DashboardGrid({
           ))}
         </div>
       )}
-      {/* containerRef 로 실제 너비 측정 — WidthProvider 없이 GridLayout 에 직접 전달 */}
+      {/* containerRef 로 실제 너비 측정 — WidthProvider 없이 GridLayout 에 직접 전달.
+          containerWidth 측정 전(0)엔 CSS grid 폴백으로 위젯을 먼저 보여주고,
+          측정 완료 후 GridLayout 으로 교체 → 위젯이 잠깐이라도 사라지는 현상 없음. */}
       <div ref={containerRef} style={{ width: "100%" }}>
-        {containerWidth > 0 && (
+        {containerWidth > 0 ? (
           <GridLayout
             key={`${isMobile ? "mobile" : "desktop"}-${sidebarCollapsed ? "collapsed" : "expanded"}`}
             className="layout"
@@ -273,8 +278,6 @@ export function DashboardGrid({
             compactType="vertical"
             onLayoutChange={onLayoutChange}
             draggableCancel=".no-drag"
-            // 하단·우측 핸들만 사용(s/e/se). 상단·좌측(n/w/nw/ne/sw) 핸들은 리사이즈 시 x/y까지
-            // 이동시켜 vertical 압축과 충돌 → "다른 위치 위젯이 리사이즈/축소"되는 RGL 고질 버그를 유발.
             resizeHandles={["s", "e", "se"]}
           >
             {active.map((w) => (
@@ -290,6 +293,13 @@ export function DashboardGrid({
               </div>
             ))}
           </GridLayout>
+        ) : (
+          /* 너비 측정 전 폴백 — CSS grid로 즉시 렌더. 깜빡임 없이 GridLayout으로 전환됨. */
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {active.map((w) => (
+              <div key={w.id} className="dashboard-widget-tile">{w.render()}</div>
+            ))}
+          </div>
         )}
       </div>
     </div>
