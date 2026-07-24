@@ -80,17 +80,17 @@ export default function CopilotPage() {
     if (!companyId || historyLoaded) return;
     (async () => {
       const { data } = await supabase
-        .from("ai_interactions")
-        .select("query, tool_calls, model, created_at")
+        .from("ai_copilot_history")
+        .select("query, answer, as_of, model, created_at")
         .order("created_at", { ascending: true })
         .limit(MAX_HISTORY);
       if (data && data.length > 0) {
         const loaded: AiMsg[] = [];
         for (const row of data) {
           loaded.push({ role: "user", text: row.query });
-          const tc = row.tool_calls as { answer?: Answer; as_of?: string | null } | null;
-          if (tc?.answer) {
-            loaded.push({ role: "ai", answer: tc.answer, model: row.model ?? undefined, at: row.created_at ?? new Date().toISOString(), asOf: tc.as_of ?? null });
+          const ans = row.answer as Answer | null;
+          if (ans) {
+            loaded.push({ role: "ai", answer: ans, model: row.model ?? undefined, at: row.created_at ?? new Date().toISOString(), asOf: row.as_of ?? null });
           }
         }
         setMessages(loaded);
@@ -157,10 +157,11 @@ export default function CopilotPage() {
       setMessages((m) => [...m, { role: "ai", answer: d.answer, model: d.model, at: now, asOf: d.as_of }]);
       setConnErr(false);
       // DB에 대화 기록 저장 (실패해도 UX 방해 안 함)
-      supabase.from("ai_interactions").insert({
+      supabase.from("ai_copilot_history").insert({
         company_id: companyId!,
         query: q,
-        tool_calls: { answer: d.answer, as_of: d.as_of ?? null },
+        answer: d.answer,
+        as_of: d.as_of ?? null,
         model: d.model ?? null,
       }).then(({ error: dbErr }) => {
         if (dbErr) console.warn("[copilot] DB 저장 실패:", dbErr.message);
