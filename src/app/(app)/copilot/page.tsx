@@ -167,6 +167,14 @@ export default function CopilotPage() {
       setMessages((m) => [...m, { role: "ai", answer: d.answer, model: d.model, at: now, asOf: d.as_of }]);
       setConnErr(false);
       // DB에 대화 기록 저장
+      // RLS 정책 디버깅: get_my_company_id() 값을 먼저 확인
+      const { data: checkData } = await supabase.rpc("get_my_company_id");
+      console.log("[copilot] RLS 체크:", { 
+        localCompanyId: companyId, 
+        rpcCompanyId: checkData,
+        match: companyId === checkData 
+      });
+      
       const insertPayload = {
         company_id: companyId!,
         query: q,
