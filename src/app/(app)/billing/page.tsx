@@ -498,6 +498,11 @@ export default function BillingPage() {
               const monthlySeat = plan.per_seat_price;
               const includedSeats = plan.included_seats || 5;
 
+              // Free 플랜은 유료 구독 중일 때만 표시 (다운그레이드 옵션용)
+              if (slug === "free" && !entitlement?.entitled) {
+                return null;
+              }
+
               return (
                 <div
                   key={plan.id}
