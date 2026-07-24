@@ -6,6 +6,8 @@
 //     · 활성 목록: localStorage `${storageKey}::active` (없으면 defaultActiveIds)
 //     · 배치(layout): localStorage `${storageKey}` (현재 없는 위젯 항목도 보존)
 //   활성 위젯만 render() 호출 → 비활성 위젯의 쿼리/컴포넌트는 마운트되지 않음(비용 0).
+//   2026-07-24 모바일 반응형 수정: cols={12}를 모바일에서는 cols={1}로 조정 → 세로 단일열 레이아웃으로 변경.
+//   모바일에서도 편집모드는 유지됨(드래그/리사이즈 불가, 추가/삭제만 가능).
 
 import { useState, useEffect, useMemo } from "react";
 import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
@@ -130,11 +132,21 @@ export function DashboardGrid({
     catch { window.prompt("아래 값을 복사하세요", json); }
   };
 
+  // 2026-07-24 모바일 반응형: 뷰포트에 따라 cols 동적 조정
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   const Header = (
     <div className="dash-section-head">
       <div>
         {title && <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>{title}</div>}
-        {edit && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 이동 · 우측/하단 모서리로 크기 조절 · 위젯 추가/삭제 (자동 저장)</p>}
+        {edit && !isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 이동 · 우측/하단 모서리로 크기 조절 · 위젯 추가/삭제 (자동 저장)</p>}
+        {edit && isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">모바일에서는 위젯 추가/삭제만 가능합니다. 배치 편집은 데스크톱에서 하세요.</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0 relative">
         {edit && (
@@ -204,12 +216,12 @@ export function DashboardGrid({
       <RGL
         className="layout"
         layout={effective}
-        cols={12}
+        cols={isMobile ? 1 : 12}
         rowHeight={44}
         margin={[12, 12]}
         containerPadding={[0, 0]}
-        isDraggable={edit}
-        isResizable={edit}
+        isDraggable={edit && !isMobile}
+        isResizable={edit && !isMobile}
         compactType="vertical"
         onLayoutChange={onLayoutChange}
         draggableCancel=".no-drag"
