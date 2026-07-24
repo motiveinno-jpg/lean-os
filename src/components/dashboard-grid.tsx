@@ -9,7 +9,7 @@
 //   2026-07-24 모바일 반응형 수정: cols={12}를 모바일에서는 cols={1}로 조정 → 세로 단일열 레이아웃으로 변경.
 //   모바일에서도 편집모드는 유지됨(드래그/리사이즈 불가, 추가/삭제만 가능).
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -135,6 +135,8 @@ export function DashboardGrid({
 
   // 2026-07-24 모바일 반응형: 뷰포트에 따라 cols 동적 조정
   const [isMobile, setIsMobile] = useState(false);
+  const rglRef = useRef<any>(null);
+  
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -142,19 +144,50 @@ export function DashboardGrid({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // 2026-07-24 사이드바 토글 시 RGL 너비 재계산 강제
+  // 2026-07-24 사이드바 토글 시 RGL 너비 재계산 강제 — ResizeObserver 직접 사용
   // WidthProvider는 ResizeObserver로 자동 감지하지만, 부모 컨테이너의 margin 변경(collapsed 상태)은
-  // DOM 너비 변경이 아니라서 감지 안 됨. → resize 이벤트 디스패치로 강제 재계산.
+  // DOM 너비 변경이 아니라서 감지 안 됨. 
+  // → 부모 컨테이너에 ResizeObserver 직접 설치 + RGL 너비 강제 재계산
   useEffect(() => {
-    // mounted일 때 resize 이벤트 디스패치 (RGL이 responsive 값 재계산하도록)
     if (!mounted) return;
-    // 여러 번 발동해 RGL이 확실히 감지하도록 함
-    for (let i = 0; i < 3; i++) {
+    
+    const rglContainer = document.querySelector(".layout") as HTMLElement;
+    if (!rglContainer) return;
+
+    // ResizeObserver로 부모 너비 변화 감지
+    const resizeObserver = new ResizeObserver(() => {
+      // 강제 너비 재계산 + 레이아웃 업데이트
+      window.dispatchEvent(new Event("resize"));
+      
+      // RGL 내부 state 강제 업데이트 (throttled 방지를 위해 약간의 딜레이)
       setTimeout(() => {
         window.dispatchEvent(new Event("resize"));
-      }, 50 + i * 50); // 50ms, 100ms, 150ms에 각각 발동
+      }, 100);
+    });
+
+    resizeObserver.observe(rglContainer);
+    
+    // 처음 마운트 시 강제 resize 이벤트
+    setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 50);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [mounted]);
+
+  // 추가: sidebarCollapsed 변경 시에도 직접 resize 강제
+  useEffect(() => {
+    if (!mounted) return;
+    
+    // 사이드바 상태 변경 감지 시 즉시 + 연속 resize 이벤트
+    for (let i = 0; i < 5; i++) {
+      setTimeout(() => {
+        window.dispatchEvent(new Event("resize"));
+      }, i * 100); // 0ms, 100ms, 200ms, 300ms, 400ms
     }
-  }, [storageKey, mounted, sidebarCollapsed]); // sidebarCollapsed 변경 감지
+  }, [sidebarCollapsed, mounted]);
 
   const Header = (
     <div className="dash-section-head">
@@ -229,7 +262,8 @@ export function DashboardGrid({
         </div>
       )}
       <RGL
-        key={isMobile ? "mobile" : "desktop"} // 2026-07-24 모바일/데스크톱 전환 시 리마운트
+        key={`${isMobile ? "mobile" : "desktop"}-${sidebarCollapsed ? "collapsed" : "expanded"}`}
+        ref={rglRef}
         className="layout"
         layout={effective}
         cols={isMobile ? 1 : 12}
