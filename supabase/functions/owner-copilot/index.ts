@@ -242,11 +242,19 @@ serve(withSentry("owner-copilot", async (req) => {
     const { data: { user }, error: userErr } = await admin.auth.getUser(token);
     if (!user || userErr) return json({ error: "Unauthorized" }, 401);
 
-    // company_id 는 서버가 결정 (클라 입력 신뢰 안 함)
+    // company_id·role 은 서버가 결정 (클라 입력 신뢰 안 함)
     const { data: profile } = await admin
-      .from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle();
+      .from("users").select("id, company_id, role").eq("auth_id", user.id).maybeSingle();
     if (!profile?.company_id) return json({ error: "회사 정보를 찾을 수 없습니다" }, 403);
     const companyId: string = profile.company_id;
+
+    // 역할 게이트 — AI 참모는 대표·관리자 전용(sidebar.tsx 의 roles:["owner","admin"] 과 동일 기준).
+    //   지금까지 사이드바가 링크만 가렸을 뿐 이 EF 는 무방비였다. employee 가 직접 호출하면
+    //   copilot_company_snapshot(현금·미수·결재·리스크)을 그대로 받아갈 수 있었음.
+    //   2026-07-27 기준 실사용은 owner·admin 뿐이라 차단되는 기존 사용자는 없음.
+    if (!["owner", "admin"].includes(String(profile.role ?? ""))) {
+      return json({ error: "AI 참모는 대표·관리자만 이용할 수 있습니다.", code: "ROLE_REQUIRED" }, 403);
+    }
 
     const body = await req.json().catch(() => ({}));
     const question: string = (typeof body?.question === "string" ? body.question : "").slice(0, 2000);
