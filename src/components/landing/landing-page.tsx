@@ -12,7 +12,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, PILLARS, DAY, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, PILLARS, DAY, MOBILE, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 
 function Logo({ size = 26 }: { size?: number }) {
@@ -113,83 +113,106 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
 
 
 
-// 3대 축 한 덩어리 — 토스 홈 패턴.
-//   좌측 카피 블록이 화면 중앙을 지날 때마다 우측 제품 화면이 그 블록에 맞게 바뀐다.
-//   자동 재생이 아니라 "스크롤한 만큼만" 바뀌므로 의도가 분명하다.
+// 3대 축 한 덩어리 — 화면을 고정하고 순서대로 전환한 뒤 다음 섹션으로 넘어간다.
+//   바깥(track)이 블록 수 × 100vh 높이를 갖고, 안쪽(pin)이 sticky 로 화면에 붙는다.
+//   스크롤 진행률로 활성 블록을 계산하므로 우측 화면이 잘리지 않는다.
 function PillarBlock({ pillar }: { pillar: (typeof PILLARS)[number] }) {
   const [idx, setIdx] = useState(0);
-  const refs = useRef<(HTMLDivElement | null)[]>([]);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const n = pillar.blocks.length;
 
   useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          const i = Number((e.target as HTMLElement).dataset.i);
-          if (!Number.isNaN(i)) setIdx(i);
-        }
-      },
-      { rootMargin: "-45% 0px -45% 0px", threshold: 0 },
-    );
-    refs.current.forEach((el) => el && io.observe(el));
-    return () => io.disconnect();
-  }, []);
+    const el = trackRef.current; if (!el) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const r = el.getBoundingClientRect();
+        const total = r.height - window.innerHeight;
+        if (total <= 0) return;
+        const p = Math.min(1, Math.max(0, -r.top / total));
+        setIdx(Math.min(n - 1, Math.floor(p * n)));
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [n]);
 
   return (
-    <div className="lp4-pillar">
-      <div className="lp4-container">
-        <div className="lp4-pillar-grid">
-          <div className="lp4-pillar-copy">
-            <div className="lp4-pillar-kicker">{pillar.kicker}</div>
-            <h3 className="lp4-pillar-h">
-              {pillar.headline.split("\n").map((line, k) => <span key={k}>{line}<br /></span>)}
-            </h3>
-            <p className="lp4-pillar-lead">{pillar.lead}</p>
+    <div className="lp4-pillar" ref={trackRef} style={{ ["--pn" as string]: n }}>
+      <div className="lp4-pillar-pin">
+        <div className="lp4-container">
+          <div className="lp4-pillar-grid">
+            <div className="lp4-pillar-copy">
+              <div className="lp4-pillar-kicker">{pillar.kicker}</div>
+              <h3 className="lp4-pillar-h">
+                {pillar.headline.split("\n").map((line, k) => <span key={k}>{line}<br /></span>)}
+              </h3>
+              <p className="lp4-pillar-lead">{pillar.lead}</p>
 
-            <div className="lp4-pblocks">
-              {pillar.blocks.map((b, i) => (
-                <div
-                  key={b.title}
-                  data-i={i}
-                  ref={(el) => { refs.current[i] = el; }}
-                  className={`lp4-pblock ${i === idx ? "lp4-pblock-on" : ""}`}
-                >
-                  <div className="lp4-pblock-t">{b.title}</div>
-                  <p className="lp4-pblock-d">{b.desc}</p>
-                </div>
-              ))}
+              <div className="lp4-pblocks">
+                {pillar.blocks.map((bl, i) => (
+                  <div key={bl.title} className={`lp4-pblock ${i === idx ? "lp4-pblock-on" : ""}`}>
+                    <span className="lp4-pblock-no">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="lp4-pblock-body">
+                      <span className="lp4-pblock-t">{bl.title}</span>
+                      <span className="lp4-pblock-d">{bl.desc}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="lp4-pillar-menus">
+                {pillar.menus.map((m) => <span key={m} className="lp4-pillar-menu">{m}</span>)}
+              </div>
             </div>
 
-            <div className="lp4-pillar-menus">
-              {pillar.menus.map((m) => <span key={m} className="lp4-pillar-menu">{m}</span>)}
-            </div>
-          </div>
-
-          <div className="lp4-pillar-stage">
-            <div className="lp4-pillar-screen">
-              {pillar.blocks.map((b, i) => (
-                <Image
-                  key={b.src}
-                  src={b.src}
-                  alt={b.alt}
-                  width={1200}
-                  height={760}
-                  sizes="(max-width: 1000px) 100vw, 660px"
-                  className={i === idx ? "lp4-pshot lp4-pshot-on" : "lp4-pshot"}
-                />
-              ))}
-            </div>
-            <div className="lp4-pdots">
-              {pillar.blocks.map((b, i) => (
-                <span key={b.src} className={`lp4-pdot ${i === idx ? "lp4-pdot-on" : ""}`} />
-              ))}
+            <div className="lp4-pillar-stage">
+              <div className="lp4-pillar-screen">
+                {pillar.blocks.map((bl, i) => (
+                  <Image
+                    key={bl.src}
+                    src={bl.src}
+                    alt={bl.alt}
+                    width={1200}
+                    height={760}
+                    sizes="(max-width: 1000px) 100vw, 620px"
+                    className={i === idx ? "lp4-pshot lp4-pshot-on" : "lp4-pshot"}
+                  />
+                ))}
+              </div>
+              <div className="lp4-pdots">
+                {pillar.blocks.map((bl, i) => (
+                  <span key={bl.src} className={`lp4-pdot ${i === idx ? "lp4-pdot-on" : ""}`} />
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+// 기능 카드 아이콘
+function FeatGlyph({ n }: { n: string }) {
+  const q = { width: 40, height: 40, fill: "none", stroke: "currentColor", strokeWidth: 1.5, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (n) {
+    case "approve": return <svg {...q}><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>;
+    case "pipeline": return <svg {...q}><rect x="2" y="4" width="7" height="6" rx="1.5" /><rect x="15" y="14" width="7" height="6" rx="1.5" /><path d="M9 7h4a2 2 0 012 2v6" /></svg>;
+    case "sign": return <svg {...q}><path d="M3 18h18" /><path d="M6 14c2-6 4 4 6-1s3 2 5-3" /><path d="M7 3h10l4 4v6" /></svg>;
+    case "hr": return <svg {...q}><circle cx="9" cy="8" r="3.4" /><path d="M3 20v-1.6A4.4 4.4 0 017.4 14h3.2" /><path d="M14 17.5l2 2 4.5-4.5" /></svg>;
+    case "chat": return <svg {...q}><path d="M21 11.5a8.4 8.4 0 01-12.8 7.5L3 21l1.9-5.2A8.4 8.4 0 1121 11.5z" /></svg>;
+    case "crm": return <svg {...q}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M8 4v16" /></svg>;
+    default: return <svg {...q}><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" /><path d="M13 2v7h7" /><path d="M8 15h8" /></svg>;
+  }
 }
 
 export default function LandingPage() {
@@ -333,38 +356,48 @@ export default function LandingPage() {
         ))}
       </section>
 
-      {/* ══ FEATURES ══ */}
-      <section className="lp4-section lp4-bg-tint" id="features">
+      {/* ══ FEATURES — 카드 나열 ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="features">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">Product</div>
             <h2 className="lp4-h2">흩어진 7개 도구, 하나로 합쳐보세요</h2>
             <p className="lp4-sub">따로 결제하던 도구들이 하나의 데이터 위에서 같이 움직여요.</p>
           </Reveal>
-          {/* 큰 타이포 리스트 — 카드 나열보다 훑기 쉽고, 고른 항목만 펼쳐 읽는다 */}
-          <div className="lp4-feat-list">
-            {FEATURES.map((f, i) => (
-              <button
-                key={f.tab}
-                className={`lp4-feat-row ${i === feat ? "lp4-feat-row-on" : ""}`}
-                onClick={() => setFeat(i === feat ? -1 : i)}
-                aria-expanded={i === feat}
-              >
-                <span className="lp4-feat-idx">{String(i + 1).padStart(2, "0")}</span>
-                <span className="lp4-feat-body">
-                  <span className="lp4-feat-name">{f.tab}</span>
-                  <span className="lp4-feat-sum">{f.title}</span>
-                  {i === feat && (
-                    <span className="lp4-feat-more">
-                      <span className="lp4-feat-desc">{f.desc}</span>
-                      <span className="lp4-feat-rep">이 기능이 대신해요 · <b>{f.replaces}</b></span>
-                    </span>
-                  )}
-                </span>
-                <span className="lp4-feat-plus">{i === feat ? "−" : "+"}</span>
-              </button>
+          <div className="lp4-fcards">
+            {FEATURES.map((f) => (
+              <Reveal key={f.tab}>
+                <div className={`lp4-fcard lp4-fcard-${f.tone}`}>
+                  <div className="lp4-fcard-art"><FeatGlyph n={f.icon} /></div>
+                  <div className="lp4-fcard-name">{f.tab}</div>
+                  <div className="lp4-fcard-title">{f.title}</div>
+                  <p className="lp4-fcard-desc">{f.desc}</p>
+                  <div className="lp4-fcard-rep">대체 {f.replaces}</div>
+                </div>
+              </Reveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ══ 모바일 — 언제 어디서든 같은 화면 ══ */}
+      <section className="lp4-mobile" id="mobile">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <h2 className="lp4-h2">{MOBILE.title.split("\n").map((l, i) => <span key={i}>{l}<br /></span>)}</h2>
+            <p className="lp4-sub">{MOBILE.sub}</p>
+          </Reveal>
+          <Reveal>
+            <div className="lp4-phone-wrap">
+              <div className="lp4-phone">
+                <Image src={MOBILE.src} alt={MOBILE.alt} width={390} height={844} sizes="330px" />
+              </div>
+              <div className="lp4-phone-points">
+                {MOBILE.points.map((t) => (
+                  <span key={t} className="lp4-phone-point"><Check /> {t}</span>
+                ))}
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -376,6 +409,21 @@ export default function LandingPage() {
             <div className="lp4-eyebrow">4 AI Engines</div>
             <h2 className="lp4-h2">4개의 AI 엔진이 <span className="lp4-underline">반복 업무를 대신 해요</span></h2>
             <p className="lp4-sub">사람을 대체하는 게 아니라, 매번 되풀이되는 일을 자동으로 처리해요.</p>
+          </Reveal>
+
+          {/* 어느 기기에서 열어도 같은 엔진이 돌아간다 — 디바이스 목업 */}
+          <Reveal>
+            <div className="lp4-devices">
+              <div className="lp4-dev lp4-dev-tablet">
+                <Image src="/product/device-tablet-v1.png" alt="태블릿에서 본 오너뷰" width={1024} height={768} sizes="520px" />
+              </div>
+              <div className="lp4-dev lp4-dev-phone">
+                <Image src="/product/device-mobile-v1.png" alt="휴대폰에서 본 오너뷰" width={390} height={844} sizes="220px" />
+              </div>
+              <div className="lp4-dev lp4-dev-desk">
+                <Image src="/product/dashboard-v3.png" alt="PC 에서 본 오너뷰 대시보드" width={1440} height={900} sizes="620px" />
+              </div>
+            </div>
           </Reveal>
           <div className="lp4-eng-grid">
             {ENGINES.map((e) => (

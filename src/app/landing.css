@@ -41,7 +41,8 @@
   background: var(--canvas); color: var(--ink); min-height: 100vh;
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  /* clip 이어야 한다 — hidden 은 스크롤 컨테이너를 만들어 하위 position:sticky 를 깨뜨린다 */
+  overflow-x: clip;
   word-break: keep-all;
   overflow-wrap: break-word;
 }
@@ -214,31 +215,40 @@
 .lp4-day-arrow { display:none; align-items:center; justify-content:center; color: var(--brand); }
 @media (min-width: 960px){ .lp4-day-arrow { display:flex; } }
 
-/* ── 3대 축 — 토스 홈 패턴 (좌: 카피 블록 / 우: 스크롤 연동 화면) ── */
+/* ── 3대 축 — 화면을 고정하고 순서대로 전환 ──
+   track 은 (블록 수 × 100vh) 높이, pin 은 sticky 로 화면에 붙는다.
+   그래서 우측 화면이 잘리지 않고, 블록을 다 본 뒤에야 다음 섹션으로 내려간다. */
 .lp4-pillars { background: var(--canvas); }
-.lp4-pillar { padding: 120px 0; border-top: 1px solid var(--line); }
-.lp4-pillar:first-child { border-top: none; }
-.lp4-pillar-grid { display:grid; grid-template-columns:1fr; gap:44px; }
-@media (min-width: 1000px){ .lp4-pillar-grid { grid-template-columns: 1fr 1fr; gap:72px; align-items:start; } }
+.lp4-pillar { position:relative; border-top:1px solid var(--line); }
+.lp4-pillar:first-child { border-top:none; }
+.lp4-pillar-pin { padding:96px 0; }
+@media (min-width: 1000px){
+  .lp4-pillar { height: calc(var(--pn) * 100vh); }
+  .lp4-pillar-pin { position:sticky; top:0; height:100vh; display:flex; align-items:center; padding:0; }
+}
+.lp4-pillar-grid { display:grid; grid-template-columns:1fr; gap:40px; width:100%; }
+@media (min-width: 1000px){ .lp4-pillar-grid { grid-template-columns: 1fr 1fr; gap:64px; align-items:center; } }
 .lp4-pillar-kicker { display:inline-block; font-size:17px; font-weight:800; color: var(--brand); letter-spacing:-.02em; }
-.lp4-pillar-h { font-size: clamp(32px,4.2vw,50px); font-weight:800; letter-spacing:-.045em; line-height:1.28; margin-top:18px; color: var(--ink); }
-.lp4-pillar-lead { font-size:18px; color: var(--ink2); margin-top:22px; line-height:1.7; max-width:520px; }
-.lp4-pblocks { margin-top:44px; display:flex; flex-direction:column; gap:12px; }
-.lp4-pblock { padding:22px 24px; border-radius:18px; border:1px solid transparent;
-  transition: background .3s ease, border-color .3s ease, opacity .3s ease; opacity:.48; }
+.lp4-pillar-h { font-size: clamp(30px,3.8vw,46px); font-weight:800; letter-spacing:-.045em; line-height:1.28; margin-top:16px; color: var(--ink); }
+.lp4-pillar-lead { font-size:17px; color: var(--ink2); margin-top:18px; line-height:1.7; max-width:500px; }
+.lp4-pblocks { margin-top:32px; display:flex; flex-direction:column; gap:8px; }
+.lp4-pblock { display:flex; gap:14px; padding:16px 18px; border-radius:16px; border:1px solid transparent;
+  transition: background .35s ease, border-color .35s ease, opacity .35s ease; opacity:.42; }
 .lp4-pblock-on { background: var(--pastel-lav); border-color: var(--line); opacity:1; }
-.lp4-pblock-t { font-size:18px; font-weight:800; letter-spacing:-.025em; color: var(--ink); line-height:1.45; }
-.lp4-pblock-d { font-size:15px; color: var(--ink2); margin-top:9px; line-height:1.72; }
-.lp4-pillar-menus { display:flex; flex-wrap:wrap; gap:8px; margin-top:32px; }
+.lp4-pblock-no { flex:none; font-size:12px; font-weight:800; color: var(--ink3); padding-top:3px; font-variant-numeric: tabular-nums; }
+.lp4-pblock-on .lp4-pblock-no { color: var(--brand); }
+.lp4-pblock-body { display:flex; flex-direction:column; min-width:0; }
+.lp4-pblock-t { font-size:17px; font-weight:800; letter-spacing:-.025em; color: var(--ink); line-height:1.45; }
+.lp4-pblock-d { font-size:14.5px; color: var(--ink2); margin-top:6px; line-height:1.7; }
+.lp4-pillar-menus { display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; }
 .lp4-pillar-menu { font-size:13px; font-weight:600; color: var(--ink2); background: var(--canvas2);
-  border:1px solid var(--line); padding:8px 15px; border-radius:999px; }
+  border:1px solid var(--line); padding:7px 14px; border-radius:999px; }
 .lp4-pillar-stage { position:relative; }
-@media (min-width: 1000px){ .lp4-pillar-stage { position:sticky; top:110px; } }
-.lp4-pillar-screen { position:relative; border-radius:20px; overflow:hidden; border:1px solid var(--line);
+.lp4-pillar-screen { position:relative; border-radius:18px; overflow:hidden; border:1px solid var(--line);
   background:#fff; box-shadow: 0 26px 60px -30px rgba(27,26,46,.28); }
 .lp4-pshot { display:block; width:100%; height:auto; opacity:0; position:absolute; inset:0; transition: opacity .4s ease; }
 .lp4-pshot-on { opacity:1; position:relative; }
-.lp4-pdots { display:flex; justify-content:center; gap:7px; margin-top:16px; }
+.lp4-pdots { display:flex; justify-content:center; gap:7px; margin-top:14px; }
 .lp4-pdot { width:7px; height:7px; border-radius:999px; background: var(--line2); transition: all .3s; }
 .lp4-pdot-on { width:22px; background: var(--brand); }
 
@@ -272,26 +282,62 @@
 .lp4-case-metric-value { font-size:25px; font-weight:800; letter-spacing:-.03em; color: var(--brand); font-variant-numeric: tabular-nums; }
 .lp4-case-metric-label { font-size:11.5px; color: var(--ink2); margin-top:4px; line-height:1.4; }
 
-/* ── Features — 큰 타이포 리스트 (카드 그리드에서 전환) ── */
-.lp4-feat-list { max-width:900px; margin:0 auto; border-top:1px solid var(--line); }
-.lp4-feat-row { display:flex; align-items:flex-start; gap:20px; width:100%; text-align:left;
-  padding:26px 4px; border-bottom:1px solid var(--line); transition: background .2s; }
-.lp4-feat-row:hover { background: var(--canvas2); }
-.lp4-feat-idx { flex:none; font-size:13px; font-weight:800; letter-spacing:.08em; color: var(--line2);
-  font-variant-numeric: tabular-nums; padding-top:8px; transition: color .2s; }
-.lp4-feat-row-on .lp4-feat-idx, .lp4-feat-row:hover .lp4-feat-idx { color: var(--brand); }
-.lp4-feat-body { flex:1; min-width:0; display:flex; flex-direction:column; }
-.lp4-feat-name { font-size: clamp(21px,2.6vw,29px); font-weight:800; letter-spacing:-.035em; color: var(--ink); line-height:1.25; }
-.lp4-feat-sum { font-size:15px; color: var(--ink2); margin-top:7px; line-height:1.55; }
-.lp4-feat-more { display:block; animation: lp4-rise .3s ease; }
-.lp4-feat-desc { display:block; font-size:14.5px; color: var(--ink2); margin-top:14px; line-height:1.75; max-width:640px; }
-.lp4-feat-rep { display:inline-block; margin-top:14px; font-size:12.5px; color: var(--ink3);
-  background: var(--canvas); border:1px solid var(--line); padding:7px 13px; border-radius:999px; }
-.lp4-feat-rep b { color: var(--warn); }
-.lp4-feat-plus { flex:none; width:34px; height:34px; border-radius:999px; display:flex; align-items:center;
-  justify-content:center; font-size:19px; font-weight:400; color: var(--ink2);
-  border:1px solid var(--line2); transition: all .2s; }
-.lp4-feat-row-on .lp4-feat-plus { color:#fff; border-color:transparent; background: var(--brand); }
+/* ── Features — 카드 나열 (토스인베스트 레퍼런스) ── */
+.lp4-fcards { display:grid; grid-template-columns: repeat(1,1fr); gap:16px; }
+@media (min-width: 640px){ .lp4-fcards { grid-template-columns: repeat(2,1fr); } }
+@media (min-width: 1040px){ .lp4-fcards { grid-template-columns: repeat(4,1fr); } }
+.lp4-fcards > .lp4-reveal { display:flex; }
+.lp4-fcards > .lp4-reveal > * { flex:1; min-width:0; }
+.lp4-fcard { display:flex; flex-direction:column; padding:28px 24px 26px; border-radius:22px;
+  background: var(--canvas2); border:1px solid var(--line); transition: transform .22s ease, box-shadow .22s ease; }
+.lp4-fcard:hover { transform: translateY(-4px); box-shadow: 0 22px 46px -26px rgba(27,26,46,.28); }
+.lp4-fcard-art { width:88px; height:88px; border-radius:24px; display:flex; align-items:center; justify-content:center;
+  background: rgba(255,255,255,.72); color: var(--brand); margin-bottom:34px; }
+.lp4-fcard-name { font-size:19px; font-weight:800; letter-spacing:-.03em; color: var(--ink); }
+.lp4-fcard-title { font-size:14.5px; font-weight:600; color: var(--ink); margin-top:12px; line-height:1.55; }
+.lp4-fcard-desc { font-size:13.5px; color: var(--ink2); margin-top:8px; line-height:1.65; flex:1; }
+.lp4-fcard-rep { font-size:12px; color: var(--ink3); margin-top:18px; padding-top:14px; border-top:1px solid var(--line); }
+/* 카드 톤 — 한 장은 진하게, 한 장은 브랜드로 리듬을 준다 */
+.lp4-fcard-ink { background:#1b1a2e; border-color:#1b1a2e; }
+.lp4-fcard-ink .lp4-fcard-name, .lp4-fcard-ink .lp4-fcard-title { color:#fff; }
+.lp4-fcard-ink .lp4-fcard-desc { color: rgba(255,255,255,.68); }
+.lp4-fcard-ink .lp4-fcard-rep { color: rgba(255,255,255,.45); border-top-color: rgba(255,255,255,.14); }
+.lp4-fcard-ink .lp4-fcard-art { background: rgba(255,255,255,.10); color:#c3bffb; }
+.lp4-fcard-brand { background: var(--brand); border-color: var(--brand); }
+.lp4-fcard-brand .lp4-fcard-name, .lp4-fcard-brand .lp4-fcard-title { color:#fff; }
+.lp4-fcard-brand .lp4-fcard-desc { color: rgba(255,255,255,.82); }
+.lp4-fcard-brand .lp4-fcard-rep { color: rgba(255,255,255,.6); border-top-color: rgba(255,255,255,.2); }
+.lp4-fcard-brand .lp4-fcard-art { background: rgba(255,255,255,.16); color:#fff; }
+.lp4-fcard-mint { background: var(--pastel-mint); }
+.lp4-fcard-sky { background: var(--pastel-sky); }
+
+/* ── 모바일 — 언제 어디서든 같은 화면 ── */
+.lp4-mobile { padding:104px 0 120px; position:relative; overflow:hidden;
+  background: linear-gradient(180deg, var(--canvas) 0%, var(--pastel-sky) 55%, var(--canvas) 100%); }
+.lp4-phone-wrap { display:flex; flex-direction:column; align-items:center; gap:34px; }
+.lp4-phone { width:300px; max-width:78vw; border-radius:38px; overflow:hidden; background:#fff;
+  border:9px solid #1b1a2e; box-shadow: 0 40px 80px -30px rgba(27,26,46,.42); }
+.lp4-phone img { display:block; width:100%; height:auto; }
+.lp4-phone-points { display:flex; flex-wrap:wrap; gap:10px 18px; justify-content:center; }
+.lp4-phone-point { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:600;
+  color: var(--ink2); background: rgba(255,255,255,.8); border:1px solid var(--line);
+  padding:10px 18px; border-radius:999px; }
+.lp4-phone-point svg { color: var(--ok); }
+
+/* ── AI 엔진 — 디바이스 목업 콜라주 ── */
+.lp4-devices { position:relative; margin:0 auto 64px; max-width:960px; height:300px; }
+@media (min-width: 760px){ .lp4-devices { height:420px; } }
+.lp4-dev { position:absolute; border-radius:16px; overflow:hidden; background:#fff;
+  border:1px solid var(--line); box-shadow: 0 30px 64px -30px rgba(27,26,46,.4); }
+.lp4-dev img { display:block; width:100%; height:auto; }
+.lp4-dev-desk { width:62%; left:0; top:6%; z-index:1; }
+.lp4-dev-tablet { width:40%; right:0; top:0; z-index:2; }
+.lp4-dev-phone { width:15%; left:46%; bottom:0; z-index:3; border-radius:20px; border:5px solid #1b1a2e; }
+@media (max-width: 759px){
+  .lp4-dev-desk { width:78%; top:10%; }
+  .lp4-dev-tablet { width:46%; }
+  .lp4-dev-phone { width:20%; left:52%; }
+}
 
 /* ── Engines — 촌스럽던 4카드 그리드 폐기, 초대형 넘버 + 미니멀 다크 ──
    테두리·태그칩·배지를 걷어내고 번호·이름·한 줄·3스텝만 남긴다. */
