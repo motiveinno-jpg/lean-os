@@ -48,6 +48,11 @@ export interface ClaudeResult<T = unknown> {
   ok: boolean;
   data?: T;                     // schema 주면 파싱된 객체
   text?: string;                // 원 텍스트
+  // 에이전트 루프용(2026-07-27) — 호출측이 stop_reason='tool_use' 를 보고 툴 실행 후
+  //   content 를 assistant 턴으로 그대로 되먹여야 하므로 원본 블록을 노출한다.
+  //   schema 방식(강제 tool use) 호출자는 안 봐도 되는 선택 필드 — 기존 호출부 영향 없음.
+  content?: unknown[];
+  stopReason?: string;
   usage?: { input: number; output: number };
   model: string;
   requestId: string;
@@ -142,7 +147,11 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
       const latencyMs = Date.now() - t0;
       const cost = estimateCost(model, inTok, outTok);
       await logUsage(opts, { model, requestId, inTok, outTok, latencyMs, status: "ok", cost });
-      return { ok: true, data, text: textPart, usage: { input: inTok, output: outTok }, model, requestId, latencyMs, costUsdEstimate: cost };
+      return {
+        ok: true, data, text: textPart,
+        content, stopReason: json?.stop_reason ?? undefined,
+        usage: { input: inTok, output: outTok }, model, requestId, latencyMs, costUsdEstimate: cost,
+      };
     } catch (_e) {
       // 네트워크/timeout(AbortSignal) — 상세 비노출
       lastErr = "AI 응답 지연/실패"; lastCode = "NETWORK";
