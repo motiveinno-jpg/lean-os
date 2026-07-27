@@ -7,7 +7,6 @@ import { logRead } from "@/lib/log-read";
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
 import { supabase } from '@/lib/supabase';
 import { logAudit } from './audit';
 import { loadKoreanFont, setKoreanFont } from './pdf-korean-font';
@@ -811,85 +810,325 @@ async function loadImageForPdf(src: string): Promise<{ dataUrl: string; w: numbe
   }
 }
 
+// ── 결재 본문(RichEditor HTML) → PDF (텍스트 유지) ─────────────────────────
+//   본문을 이미지로 떠 넣으면 화면과 100% 같지만 PDF 안에서 검색·복사가 안 된다.
+//   사장님 선택(2026-07-27): 검색 가능한 텍스트 유지. 대신 서식을 최대한 재현한다.
+//     재현: 정렬(좌·중·우) · 굵게 · 밑줄 · 취소선 · 글자색 · 글자크기 · 형광펜 · 표 · 이미지
+//     미재현: 기울임(나눔고딕에 이탤릭 페이스 없음), 글꼴 명조/고딕(등록 폰트가 나눔고딕뿐)
+type Align = 'left' | 'center' | 'right';
+
+interface InlineStyle {
+  bold: boolean;
+  underline: boolean;
+  strike: boolean;
+  color: [number, number, number];
+  sizePt: number;
+  highlight: [number, number, number] | null;
+}
+
+interface Token { text: string; st: InlineStyle; ws: boolean; br: boolean }
+
+type DocBlock =
+  | { kind: 'para'; align: Align; tokens: Token[]; indent: number; gapBefore: number; gapAfter: number }
+  | { kind: 'table'; rows: { text: string; align: Align; bold: boolean }[][]; hasHead: boolean }
+  | { kind: 'image'; src: string };
+
+const BASE_STYLE: InlineStyle = {
+  bold: false, underline: false, strike: false,
+  color: [17, 17, 17], sizePt: 9.5, highlight: null,
+};
+
+function parseCssColor(v: string | undefined): [number, number, number] | null {
+  if (!v) return null;
+  const t = v.trim();
+  let m = /^#([0-9a-f]{3})$/i.exec(t);
+  if (m) {
+    const h = m[1];
+    return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)];
+  }
+  m = /^#([0-9a-f]{6})$/i.exec(t);
+  if (m) {
+    const h = m[1];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  m = /^rgba?\(([^)]+)\)$/i.exec(t);
+  if (m) {
+    const p = m[1].split(',').map((x) => parseFloat(x.trim()));
+    if (p.length >= 3 && p.every((n) => Number.isFinite(n))) return [p[0], p[1], p[2]];
+  }
+  return null;
+}
+
+/** style="key: value" 한 항목 추출 */
+function cssProp(el: Element, key: string): string | undefined {
+  const raw = el.getAttribute('style');
+  if (!raw) return undefined;
+  const re = new RegExp(`(?:^|;)\\s*${key}\\s*:\\s*([^;]+)`, 'i');
+  return re.exec(raw)?.[1]?.trim();
+}
+
+function alignOf(el: Element): Align | null {
+  const v = (cssProp(el, 'text-align') || el.getAttribute('align') || '').toLowerCase();
+  if (v === 'center') return 'center';
+  if (v === 'right') return 'right';
+  if (v === 'left' || v === 'justify' || v === 'start') return 'left';
+  return null;
+}
+
+/** 상위 스타일 + 이 요소의 태그·인라인 style 을 합쳐 새 스타일 반환 */
+function mergeStyle(parent: InlineStyle, el: Element): InlineStyle {
+  const tag = el.tagName.toLowerCase();
+  const next: InlineStyle = { ...parent };
+  if (tag === 'b' || tag === 'strong') next.bold = true;
+  if (tag === 'u') next.underline = true;
+  if (tag === 's' || tag === 'strike' || tag === 'del') next.strike = true;
+  if (/^h[1-6]$/.test(tag)) {
+    next.bold = true;
+    next.sizePt = tag === 'h1' ? 15 : tag === 'h2' ? 13 : tag === 'h3' ? 11.5 : 10.5;
+  }
+  const c = parseCssColor(cssProp(el, 'color'));
+  if (c) next.color = c;
+  const fs = cssProp(el, 'font-size');
+  if (fs) {
+    const px = parseFloat(fs);
+    if (Number.isFinite(px)) next.sizePt = px * 0.75; // CSS px → pt
+  }
+  const fw = cssProp(el, 'font-weight');
+  if (fw && (fw === 'bold' || parseInt(fw, 10) >= 600)) next.bold = true;
+  const td = cssProp(el, 'text-decoration') || '';
+  if (/underline/i.test(td)) next.underline = true;
+  if (/line-through/i.test(td)) next.strike = true;
+  // 형광펜: <mark> 또는 background-color
+  const bg = parseCssColor(cssProp(el, 'background-color'));
+  if (tag === 'mark') next.highlight = bg || [253, 230, 138];
+  else if (bg) next.highlight = bg;
+  return next;
+}
+
+// 한글·한자·가나는 글자 단위로, 그 외는 단어 단위로 줄바꿈한다.
+const TOKEN_RE = /(\s+)|([가-힣ㄱ-ㆎ一-鿿぀-ヿ])|([^\s가-힣ㄱ-ㆎ一-鿿぀-ヿ]+)/g;
+
+function pushText(text: string, st: InlineStyle, out: Token[]) {
+  const norm = text.replace(/ /g, ' ');
+  let m: RegExpExecArray | null;
+  TOKEN_RE.lastIndex = 0;
+  while ((m = TOKEN_RE.exec(norm)) !== null) {
+    out.push({ text: m[0], st, ws: !!m[1], br: false });
+  }
+}
+
+function walkInline(node: Node, st: InlineStyle, out: Token[]) {
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType === 3) {
+      pushText(child.textContent || '', st, out);
+      continue;
+    }
+    if (child.nodeType !== 1) continue;
+    const el = child as Element;
+    if (el.tagName.toLowerCase() === 'br') {
+      out.push({ text: '', st, ws: false, br: true });
+      continue;
+    }
+    walkInline(el, mergeStyle(st, el), out);
+  }
+}
+
+function tableBlockOf(el: Element): DocBlock {
+  const rows: { text: string; align: Align; bold: boolean }[][] = [];
+  let hasHead = false;
+  Array.from(el.querySelectorAll('tr')).forEach((tr, i) => {
+    const cells = Array.from(tr.children).map((td) => ({
+      text: (td.textContent || '').replace(/ /g, ' ').trim(),
+      align: alignOf(td) || (td.tagName.toLowerCase() === 'th' ? 'center' : 'left'),
+      bold: td.tagName.toLowerCase() === 'th',
+    }));
+    if (cells.length === 0) return;
+    if (i === 0 && Array.from(tr.children).every((c) => c.tagName.toLowerCase() === 'th')) hasHead = true;
+    rows.push(cells);
+  });
+  return { kind: 'table', rows, hasHead };
+}
+
+/** RichEditor HTML → 렌더 블록(문서 순서 유지) */
+function parseDocBlocks(html: string): DocBlock[] {
+  if (typeof window === 'undefined') return [];
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  const blocks: DocBlock[] = [];
+
+  const emitPara = (el: Element, st: InlineStyle, align: Align, indent: number, prefix?: string) => {
+    const tokens: Token[] = [];
+    if (prefix) tokens.push({ text: prefix, st, ws: false, br: false });
+    walkInline(el, st, tokens);
+    const hasText = tokens.some((t) => !t.ws && !t.br && t.text !== '');
+    const isHeading = /^h[1-6]$/.test(el.tagName.toLowerCase());
+    if (!hasText) {
+      // 빈 문단은 한 줄 띄움으로만 반영(에디터의 빈 줄 보존)
+      blocks.push({ kind: 'para', align, tokens: [], indent, gapBefore: 0, gapAfter: 2.6 });
+      return;
+    }
+    blocks.push({ kind: 'para', align, tokens, indent, gapBefore: isHeading ? 2 : 0, gapAfter: isHeading ? 1.6 : 1 });
+  };
+
+  const walk = (parent: Element, st: InlineStyle, align: Align, indent: number) => {
+    for (const child of Array.from(parent.children)) {
+      const tag = child.tagName.toLowerCase();
+      const st2 = mergeStyle(st, child);
+      const align2 = alignOf(child) || align;
+
+      if (tag === 'table') { blocks.push(tableBlockOf(child)); continue; }
+      if (tag === 'img') {
+        const src = child.getAttribute('src') || '';
+        if (src) blocks.push({ kind: 'image', src });
+        continue;
+      }
+      if (tag === 'ul' || tag === 'ol') {
+        Array.from(child.children).forEach((li, i) => {
+          if (li.tagName.toLowerCase() !== 'li') return;
+          const marker = tag === 'ol' ? `${i + 1}. ` : '· ';
+          emitPara(li, mergeStyle(st2, li), alignOf(li) || align2, indent + 5, marker);
+        });
+        continue;
+      }
+      // 표·이미지를 품은 컨테이너는 내려간다
+      if (child.querySelector('table, img')) {
+        const onlyWrapper = !Array.from(child.childNodes).some(
+          (n) => n.nodeType === 3 && (n.textContent || '').trim() !== '',
+        );
+        if (onlyWrapper) { walk(child, st2, align2, indent); continue; }
+      }
+      if (tag === 'blockquote') { emitPara(child, st2, align2, indent + 4); continue; }
+      emitPara(child, st2, align2, indent);
+    }
+  };
+
+  walk(parsed.body, BASE_STYLE, 'left', 0);
+  return blocks;
+}
+
+const PT_TO_MM = 25.4 / 72;
+
 /**
- * 결재 본문 HTML 을 화면과 동일한 모습으로 PDF 에 얹는다.
- *   1) 오프스크린에 화면과 같은 클래스(.approval-desc-html)로 렌더 — 정렬·서식·표 CSS 를 그대로 사용
- *   2) 원격 이미지는 dataURL 로 미리 치환(캔버스 CORS 오염 방지)
- *   3) 캔버스로 떠서 페이지 높이만큼 잘라 여러 장에 나눠 삽입
- * @returns 삽입 후의 y (mm)
+ * 본문 블록을 PDF 에 그린다. 텍스트는 그대로 텍스트로 들어가 검색·복사가 된다.
+ * @returns 그린 뒤의 y (mm)
  */
 async function renderHtmlBodyToPdf(
   doc: jsPDF,
   html: string,
   o: { x: number; y: number; contentW: number; bottomLimit: number },
 ): Promise<number> {
-  if (typeof window === 'undefined') return o.y;
+  const blocks = parseDocBlocks(html);
   let y = o.y;
 
-  const host = document.createElement('div');
-  host.setAttribute('aria-hidden', 'true');
-  host.style.cssText = 'position:fixed;left:-10000px;top:0;z-index:-1;pointer-events:none;background:#ffffff;';
-  const page = document.createElement('div');
-  page.className = 'approval-desc-html';
-  // 96dpi 기준 본문 폭 px. 문서(흰 종이) 기준 색 고정 — 다크모드에서도 PDF 는 흰 바탕 검정 글씨.
-  const renderW = Math.round((o.contentW / 25.4) * 96);
-  page.style.cssText = `width:${renderW}px;background:#ffffff;color:#111111;`;
-  page.innerHTML = html;
-  host.appendChild(page);
-  document.body.appendChild(host);
+  const applyFont = (st: InlineStyle) => {
+    doc.setFontSize(st.sizePt);
+    setKoreanFont(doc, st.bold ? 'bold' : 'normal');
+  };
+  const widthOf = (t: Token) => {
+    applyFont(t.st);
+    return doc.getTextWidth(t.text);
+  };
+  const newPage = () => { doc.addPage(); y = 16; };
 
-  try {
-    await Promise.all(
-      Array.from(page.querySelectorAll('img')).map(async (img) => {
-        const src = img.getAttribute('src') || '';
-        if (!src || src.startsWith('data:')) return;
-        const loaded = await loadImageForPdf(src);
-        if (loaded) img.setAttribute('src', loaded.dataUrl);
-        else img.remove(); // 못 불러온 이미지는 빈 칸 대신 제거
-      }),
-    );
-
-    const canvas = await html2canvas(page, {
-      scale: 2, // 인쇄 시 글자가 뭉개지지 않게
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      logging: false,
-    });
-    if (!canvas.width || !canvas.height) return y;
-
-    const pxPerMm = canvas.width / o.contentW;
-    let offset = 0;
-    while (offset < canvas.height) {
-      const availMm = o.bottomLimit - y;
-      if (availMm < 12) {
-        doc.addPage();
-        y = 16;
-        continue;
-      }
-      const slicePx = Math.min(canvas.height - offset, Math.floor(availMm * pxPerMm));
-      const slice = document.createElement('canvas');
-      slice.width = canvas.width;
-      slice.height = slicePx;
-      const ctx = slice.getContext('2d');
-      if (!ctx) break;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, slice.width, slice.height);
-      ctx.drawImage(canvas, 0, offset, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
-      const hMm = slicePx / pxPerMm;
-      doc.addImage(slice.toDataURL('image/png'), 'PNG', o.x, y, o.contentW, hMm);
-      y += hMm;
-      offset += slicePx;
-      if (offset < canvas.height) {
-        doc.addPage();
-        y = 16;
-      }
+  for (const block of blocks) {
+    if (block.kind === 'image') {
+      const img = await loadImageForPdf(block.src);
+      if (!img || !img.w || !img.h) continue;
+      let w = o.contentW;
+      let h = (img.h / img.w) * w;
+      const maxH = o.bottomLimit - 16;
+      if (h > maxH) { h = maxH; w = (img.w / img.h) * h; }
+      if (y + h > o.bottomLimit) newPage();
+      try {
+        doc.addImage(img.dataUrl, img.fmt, o.x, y, w, h);
+        y += h + 4;
+      } catch { /* 렌더 불가 이미지는 건너뜀 */ }
+      continue;
     }
-    return y + 4;
-  } catch {
-    return y; // 렌더 실패해도 나머지(결재선 등)는 정상 생성
-  } finally {
-    host.remove();
+
+    if (block.kind === 'table') {
+      if (block.rows.length === 0) continue;
+      if (y + 14 > o.bottomLimit) newPage();
+      const body = block.rows.slice(block.hasHead ? 1 : 0).map((r) =>
+        r.map((c) => ({ content: c.text, styles: { halign: c.align, fontStyle: (c.bold ? 'bold' : 'normal') as 'bold' | 'normal' } })),
+      );
+      const head = block.hasHead
+        ? [block.rows[0].map((c) => ({ content: c.text, styles: { halign: c.align } }))]
+        : undefined;
+      autoTable(doc, {
+        startY: y,
+        head: head as never,
+        body: body as never,
+        theme: 'grid',
+        styles: {
+          font: 'NanumGothic', fontSize: 9, cellPadding: { top: 1.4, bottom: 1.4, left: 1.8, right: 1.8 },
+          lineColor: [0, 0, 0], lineWidth: 0.12, textColor: [0, 0, 0], fillColor: [255, 255, 255],
+          overflow: 'linebreak', valign: 'middle',
+        },
+        headStyles: { fillColor: [242, 242, 242], textColor: [0, 0, 0], fontStyle: 'bold' },
+        margin: { left: o.x, right: o.x },
+      });
+      y = (doc as any).lastAutoTable.finalY + 4;
+      continue;
+    }
+
+    // ── 문단 ──
+    y += block.gapBefore;
+    const avail = o.contentW - block.indent;
+    // 줄 단위로 쌓기(강제 개행 <br> 반영, 한글은 글자 단위 줄바꿈)
+    const lines: Token[][] = [];
+    let cur: Token[] = [];
+    let curW = 0;
+    for (const t of block.tokens) {
+      if (t.br) { lines.push(cur); cur = []; curW = 0; continue; }
+      const w = widthOf(t);
+      if (curW + w > avail && cur.length > 0) {
+        lines.push(cur);
+        cur = [];
+        curW = 0;
+        if (t.ws) continue; // 줄 첫머리 공백은 버림
+      }
+      cur.push(t);
+      curW += w;
+    }
+    if (cur.length > 0) lines.push(cur);
+    if (lines.length === 0) { y += block.gapAfter; continue; }
+
+    for (const line of lines) {
+      // 줄 끝 공백은 정렬 계산에서 제외
+      const drawn = [...line];
+      while (drawn.length && drawn[drawn.length - 1].ws) drawn.pop();
+      const maxPt = drawn.reduce((mx, t) => Math.max(mx, t.st.sizePt), block.tokens[0]?.st.sizePt ?? 9.5);
+      const lineH = maxPt * PT_TO_MM * 1.55;
+      if (y + lineH > o.bottomLimit) newPage();
+      const lineW = drawn.reduce((sum, t) => sum + widthOf(t), 0);
+      let x = o.x + block.indent;
+      if (block.align === 'center') x += (avail - lineW) / 2;
+      else if (block.align === 'right') x += avail - lineW;
+
+      const baseline = y + maxPt * PT_TO_MM * 1.05;
+      for (const t of drawn) {
+        const w = widthOf(t); // applyFont 도 함께 수행됨
+        if (t.st.highlight) {
+          doc.setFillColor(t.st.highlight[0], t.st.highlight[1], t.st.highlight[2]);
+          doc.rect(x, baseline - t.st.sizePt * PT_TO_MM * 0.92, w, t.st.sizePt * PT_TO_MM * 1.2, 'F');
+        }
+        doc.setTextColor(t.st.color[0], t.st.color[1], t.st.color[2]);
+        if (t.text.trim() !== '') doc.text(t.text, x, baseline);
+        if (t.st.underline || t.st.strike) {
+          doc.setDrawColor(t.st.color[0], t.st.color[1], t.st.color[2]);
+          doc.setLineWidth(0.2);
+          if (t.st.underline) doc.line(x, baseline + 0.8, x + w, baseline + 0.8);
+          if (t.st.strike) doc.line(x, baseline - t.st.sizePt * PT_TO_MM * 0.3, x + w, baseline - t.st.sizePt * PT_TO_MM * 0.3);
+        }
+        x += w;
+      }
+      y += lineH;
+    }
+    y += block.gapAfter;
   }
+
+  doc.setTextColor(40, 40, 40);
+  return y + 2;
 }
 
 export interface ApprovalPdfParams {
