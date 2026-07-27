@@ -154,11 +154,13 @@
 /* 카드 높이 정렬 — 실제 그리드 아이템은 카드가 아니라 Reveal 래퍼라서
    기본 stretch 가 카드까지 전달되지 않아 한 줄 안에서 높이가 제각각이었다. */
 .lp4-pain-grid > .lp4-reveal,
+.lp4-case-grid > .lp4-reveal,
 .lp4-feat-grid > .lp4-reveal,
 .lp4-eng-grid > .lp4-reveal,
 .lp4-cmp-grid > .lp4-reveal,
 .lp4-price-grid > .lp4-reveal { display:flex; }
 .lp4-pain-grid > .lp4-reveal > *,
+.lp4-case-grid > .lp4-reveal > *,
 .lp4-feat-grid > .lp4-reveal > *,
 .lp4-eng-grid > .lp4-reveal > *,
 .lp4-cmp-grid > .lp4-reveal > *,
@@ -195,6 +197,30 @@
 .lp4-tour-shot { border-radius:14px; overflow:hidden; border:1px solid var(--line);
   box-shadow: 0 30px 60px -28px rgba(31,38,75,.45); background:#fff; animation: lp4-fade .35s ease; }
 .lp4-tour-shot img { display:block; width:100%; height:auto; }
+
+/* ── 도입 사례 (회사명 마스킹) ─────────────────────── */
+.lp4-case-grid { display:grid; grid-template-columns:1fr; gap:18px; max-width:900px; margin:0 auto; }
+@media (min-width: 900px){ .lp4-case-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); } }
+.lp4-case { padding:28px; }
+.lp4-case-head { display:flex; align-items:center; gap:13px; }
+.lp4-case-mark { width:46px; height:46px; border-radius:14px; flex-shrink:0; color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:800;
+  background: linear-gradient(135deg, var(--brand), var(--brand-soft));
+  box-shadow: 0 6px 16px -6px rgba(79,70,229,.6); }
+.lp4-case-id { flex:1; min-width:0; }
+.lp4-case-name { font-size:20px; font-weight:800; letter-spacing:.06em; }
+.lp4-case-meta { font-size:12.5px; color: var(--ink3); margin-top:2px; }
+.lp4-case-private { flex-shrink:0; align-self:flex-start; font-size:11px; font-weight:700;
+  color: var(--ink2); background: rgba(20,18,31,.05); border:1px solid var(--line);
+  padding:4px 10px; border-radius:999px; }
+.lp4-case-note { font-size:15px; font-weight:600; color: var(--ink); margin-top:18px; line-height:1.6; }
+.lp4-case-metrics { display:grid; grid-template-columns: repeat(2,1fr); gap:1px; margin-top:20px;
+  background: var(--line); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+@media (min-width: 620px){ .lp4-case-metrics { grid-template-columns: repeat(4,1fr); } }
+.lp4-case-metric { background: var(--paper); padding:16px 12px; text-align:center; }
+.lp4-case-metric-value { font-size:25px; font-weight:800; letter-spacing:-.03em;
+  color: var(--brand); font-variant-numeric: tabular-nums; }
+.lp4-case-metric-label { font-size:11.5px; color: var(--ink2); margin-top:4px; line-height:1.4; }
 
 /* ── Features (7종 그리드) ─────────────────────────── */
 .lp4-feat-grid { display:grid; grid-template-columns:1fr; gap:16px; }

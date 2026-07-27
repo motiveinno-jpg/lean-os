@@ -12,7 +12,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, PROBLEMS, SCREENS, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, PROBLEMS, SCREENS, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 
 function Logo({ size = 26 }: { size?: number }) {
@@ -245,8 +245,42 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ══ 도입 사례 — 실제 운영 계정 수치만. 회사명은 마스킹 ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="cases">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <div className="lp4-eyebrow">In Production</div>
+            <h2 className="lp4-h2">만든 회사가, <span className="lp4-underline">매일 씁니다</span></h2>
+            <p className="lp4-sub">{CASES_NOTE}</p>
+          </Reveal>
+          <div className="lp4-case-grid">
+            {CASES.map((c) => (
+              <Reveal key={c.masked}><div className="lp4-case lp4-card">
+                <div className="lp4-case-head">
+                  <span className="lp4-case-mark">{c.masked.slice(0, 1)}</span>
+                  <div className="lp4-case-id">
+                    <div className="lp4-case-name">{c.masked}</div>
+                    <div className="lp4-case-meta">{c.industry} · {c.size} · {c.plan}</div>
+                  </div>
+                  <span className="lp4-case-private">회사명 비공개</span>
+                </div>
+                <p className="lp4-case-note">{c.note}</p>
+                <div className="lp4-case-metrics">
+                  {c.metrics.map((m) => (
+                    <div key={m.label} className="lp4-case-metric">
+                      <div className="lp4-case-metric-value">{m.value}</div>
+                      <div className="lp4-case-metric-label">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div></Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ══ FEATURES ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="features">
+      <section className="lp4-section lp4-bg-tint" id="features">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Product</div>
@@ -268,7 +302,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ AI ENGINES ══ */}
-      <section className="lp4-section lp4-bg-tint" id="engines">
+      <section className="lp4-section lp4-bg-canvas" id="engines">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">4 AI Engines</div>
@@ -301,7 +335,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ COMPARE ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="compare">
+      <section className="lp4-section lp4-bg-tint" id="compare">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Compare</div>
@@ -346,7 +380,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ PRICING ══ */}
-      <section className="lp4-section lp4-bg-tint" id="pricing">
+      <section className="lp4-section lp4-bg-canvas" id="pricing">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Pricing</div>
@@ -375,7 +409,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ FAQ ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="faq">
+      <section className="lp4-section lp4-bg-tint" id="faq">
         <div className="lp4-narrow">
           <Reveal className="lp4-sec-head"><div className="lp4-eyebrow">FAQ</div><h2 className="lp4-h2">자주 묻는 질문</h2></Reveal>
           <div>
