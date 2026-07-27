@@ -102,7 +102,8 @@ export type Database = {
         Insert: {
           answer?: Json | null
           as_of?: string | null
-          company_id: string
+          // DEFAULT get_my_company_id() + BEFORE INSERT 트리거가 강제 덮어씀 → 클라이언트가 보내지 않는다
+          company_id?: string
           created_at?: string | null
           id?: string
           model?: string | null
