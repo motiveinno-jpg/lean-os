@@ -12,7 +12,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, PILLARS, DAY, MOBILE, FEATURES, ENGINES, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, PILLARS, DAY, MOBILE, FEATURES, ENGINES, CATALOG, AI_AUTOMATION, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 import { LIVE } from "@/components/landing/live-panels";
 
@@ -223,6 +223,7 @@ export default function LandingPage() {
   const [day, setDay] = useState(0);   // 하루 타임라인 — 스크롤 진행률로 바뀐다
   const dayRef = useRef<HTMLElement>(null);
   const [eng, setEng] = useState(0);   // AI 엔진 탭
+  const [cat, setCat] = useState(0);   // 전체 기능 — 선택된 메뉴 그룹
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
@@ -346,20 +347,6 @@ export default function LandingPage() {
             <p className="lp4-sub">사람을 대체하는 게 아니라, 매번 되풀이되는 일을 자동으로 처리해요.</p>
           </Reveal>
 
-          {/* 어느 기기에서 열어도 같은 엔진이 돌아간다 — 디바이스 목업 */}
-          <Reveal>
-            <div className="lp4-devices">
-              <div className="lp4-dev lp4-dev-tablet">
-                <Image src="/product/device-tablet-v1.png" alt="태블릿에서 본 오너뷰" width={1024} height={768} sizes="520px" />
-              </div>
-              <div className="lp4-dev lp4-dev-phone">
-                <Image src="/product/device-mobile-v1.png" alt="휴대폰에서 본 오너뷰" width={390} height={844} sizes="220px" />
-              </div>
-              <div className="lp4-dev lp4-dev-desk">
-                <Image src="/product/dashboard-v3.png" alt="PC 에서 본 오너뷰 대시보드" width={1440} height={900} sizes="620px" />
-              </div>
-            </div>
-          </Reveal>
           {/* 탭으로 묶고, 고르면 우측 화면이 바뀐다 (먼데이 레퍼런스) */}
           <div className="lp4-etabs">
             {ENGINES.map((e, i) => (
@@ -456,6 +443,69 @@ export default function LandingPage() {
         {PILLARS.map((p, i) => (
           <PillarBlock key={p.key} pillar={p} flip={i % 2 === 1} />
         ))}
+      </section>
+
+      {/* ══ 전체 기능 — 메뉴별로 무엇을 할 수 있는지 (그룹 탭) ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="catalog">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <div className="lp4-eyebrow">All features</div>
+            <h2 className="lp4-h2">필요한 기능은 <span className="lp4-underline">메뉴마다 다 있어요</span></h2>
+            <p className="lp4-sub">어느 메뉴에서 무엇을 할 수 있는지 한 장에 정리했어요.</p>
+          </Reveal>
+
+          <div className="lp4-cat-tabs">
+            {CATALOG.map((g, i) => (
+              <button
+                key={g.key}
+                className={`lp4-cat-tab ${i === cat ? "lp4-cat-tab-on" : ""}`}
+                onClick={() => setCat(i)}
+                aria-pressed={i === cat}
+              >
+                <span className="lp4-cat-tab-n">{g.group}</span>
+                <span className="lp4-cat-tab-c">{g.menus.length}개 메뉴</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="lp4-cat-panel" key={CATALOG[cat].key}>
+            <p className="lp4-cat-lead">{CATALOG[cat].lead}</p>
+            <div className="lp4-cat-grid">
+              {CATALOG[cat].menus.map((m) => (
+                <div key={m.name} className="lp4-cat-card">
+                  <div className="lp4-cat-name">{m.name}</div>
+                  <p className="lp4-cat-desc">{m.desc}</p>
+                  <ul className="lp4-cat-items">
+                    {m.items.map((it) => (
+                      <li key={it} className="lp4-cat-item"><Check />{it}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ AI 자동화 — 사람이 하던 반복 작업을 무엇이 대신하는지 ══ */}
+      <section className="lp4-section lp4-bg-tint" id="ai">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <div className="lp4-eyebrow">AI Automation</div>
+            <h2 className="lp4-h2">이건 <span className="lp4-underline">AI가 알아서 해요</span></h2>
+            <p className="lp4-sub">매번 손으로 하던 일 8가지를 오너뷰가 대신 처리해요.</p>
+          </Reveal>
+          <div className="lp4-ai-grid">
+            {AI_AUTOMATION.map((a) => (
+              <Reveal key={a.name} className="lp4-ai-card">
+                <span className="lp4-ai-tag">{a.tag}</span>
+                <div className="lp4-ai-name">{a.name}</div>
+                <p className="lp4-ai-desc">{a.desc}</p>
+                <div className="lp4-ai-where">{a.where}</div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ══ FEATURES — 카드 나열 ══ */}
