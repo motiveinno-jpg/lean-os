@@ -74,8 +74,9 @@
 .lp4-nav-on { border-bottom-color: var(--line); background: rgba(255,255,255,.95); }
 .lp4-nav-inner { max-width:1200px; margin:0 auto; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .lp4-logo { display:flex; align-items:center; gap:9px; font-weight:800; font-size:17px; letter-spacing:-.02em; }
-.lp4-menu { display:none; gap:30px; }
-.lp4-menu a { font-size:14.5px; font-weight:500; color: var(--ink2); }
+.lp4-menu { display:none; align-items:center; gap:30px; }
+.lp4-menu a { display:inline-flex; align-items:center; line-height:1;
+  font-size:14.5px; font-weight:500; color: var(--ink2); }
 .lp4-menu a:hover { color: var(--ink); }
 .lp4-nav-right { display:flex; align-items:center; gap:12px; }
 .lp4-login { display:none; font-size:14.5px; font-weight:600; color: var(--ink2); }
@@ -102,7 +103,7 @@
 /* ── 오너뷰 둘러보기 — 네비 메가메뉴 ──
    패널을 .lp4-navdrop 기준으로 두고 위쪽 padding 으로 링크와 이어 둔다 —
    사이가 띄면 마우스가 내려오는 도중 hover 가 끊겨 메뉴가 닫힌다. */
-.lp4-navdrop { position: relative; }
+.lp4-navdrop { position: relative; display:flex; align-items:center; }
 .lp4-navdrop-t { display:inline-flex; align-items:center; gap:4px; }
 .lp4-navdrop-caret { transition: transform .2s; opacity:.6; }
 .lp4-navdrop:hover .lp4-navdrop-caret { transform: rotate(180deg); }
@@ -309,6 +310,14 @@
 
 .lp4-pillar-menu { font-size:13px; font-weight:600; color: var(--ink2); background: var(--canvas2);
   border:1px solid var(--line); border-radius:999px; padding:8px 15px; }
+
+
+/* ── /features — 토글 바. 스크롤해도 상단에 남아 영역을 바꿀 수 있게 한다 ── */
+.lp4-catbar { position:sticky; top:63px; z-index:40; padding:14px 0 16px; margin-bottom:26px;
+  background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.lp4-catbar .lp4-cat-tabs { margin-bottom:0; }
+@media (max-width: 919px){ .lp4-catbar { top:0; } }
 
 /* ── 전체 기능 카탈로그 — 메뉴별로 무엇을 할 수 있는지 ── */
 .lp4-cat-tabs { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-bottom:34px; }

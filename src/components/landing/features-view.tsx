@@ -53,13 +53,24 @@ function MenuGlyph({ n }: { n: string }) {
   }
 }
 
+const AI_TAB = 99;   // 토글 줄에서 AI 자동화를 가리키는 값
+
 export default function FeaturesView() {
-  const [cat, setCat] = useState(0);
+  const [cat, setCat] = useState(0);   // 0~3 = 메뉴 그룹, AI_TAB = AI 자동화
   const [menu, setMenu] = useState(0);
+
+  // 토글을 고르면 그 영역만 보여주고 주소도 같이 바꾼다 — 메뉴마다 하나의 화면이 되게
+  const go = (c: number, m: number) => {
+    if (c === cat && m === menu) return;
+    setCat(c); setMenu(m);
+    const q = c === AI_TAB ? "?g=ai" : `?g=${CATALOG[c].key}${m ? `&m=${m}` : ""}`;
+    window.history.replaceState(null, "", q);
+  };
 
   // 메인 메가메뉴에서 ?g=워크스페이스&m=2 로 넘어오면 그 그룹·메뉴를 열어 둔다
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
+    if (q.get("g") === "ai") { setCat(AI_TAB); return; }
     const g = CATALOG.findIndex((c) => c.key === q.get("g"));
     if (g >= 0) {
       setCat(g);
@@ -93,101 +104,91 @@ export default function FeaturesView() {
           <div className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">All features</div>
             <h1 className="lp4-h2">오너뷰 안에 뭐가 있는지 <span className="lp4-underline">다 보여드릴게요</span></h1>
-            <p className="lp4-sub">메뉴 {total}개, 전부 지금 쓸 수 있어요. 메뉴를 고르면 실제 화면을 그대로 보여드려요.</p>
+            <p className="lp4-sub">메뉴 {total}개, 전부 지금 쓸 수 있어요. 보고 싶은 영역을 골라보세요.</p>
           </div>
+        </div>
 
-          <div className="lp4-cat-tabs">
+        {/* 토글 — 스크롤해도 상단에 남는다. 하나를 고르면 그 영역만 보여준다 */}
+        <div className="lp4-catbar">
+          <div className="lp4-container lp4-cat-tabs">
             {CATALOG.map((g, i) => (
               <button
                 key={g.key}
-                className={`lp4-cat-tab ${i === cat ? "lp4-cat-tab-on" : ""}`}
-                onClick={() => { setCat(i); setMenu(0); }}
-                aria-pressed={i === cat}
+                className={`lp4-cat-tab ${cat === i ? "lp4-cat-tab-on" : ""}`}
+                onClick={() => go(i, 0)}
+                aria-pressed={cat === i}
               >
                 <span className="lp4-cat-tab-n">{g.group}</span>
                 <span className="lp4-cat-tab-c">{g.menus.length}개 메뉴</span>
               </button>
             ))}
+            <button
+              className={`lp4-cat-tab ${cat === AI_TAB ? "lp4-cat-tab-on" : ""}`}
+              onClick={() => go(AI_TAB, 0)}
+              aria-pressed={cat === AI_TAB}
+            >
+              <span className="lp4-cat-tab-n">AI 자동화</span>
+              <span className="lp4-cat-tab-c">{AI_AUTOMATION.length}가지</span>
+            </button>
           </div>
+        </div>
 
-          <p className="lp4-cat-lead">{CATALOG[cat].lead}</p>
-
-          <div className="lp4-cat-body">
-            <div className="lp4-cat-list">
-              {CATALOG[cat].menus.map((m, i) => (
-                <button
-                  key={m.name}
-                  className={`lp4-cat-item ${i === menu ? "lp4-cat-item-on" : ""}`}
-                  onClick={() => setMenu(i)}
-                  onMouseEnter={() => setMenu(i)}
-                  aria-pressed={i === menu}
-                >
-                  <span className="lp4-cat-ico"><MenuGlyph n={m.icon} /></span>
-                  <span className="lp4-cat-item-txt">
-                    <span className="lp4-cat-item-n">{m.name}</span>
-                    <span className="lp4-cat-item-d">{m.desc}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            <div className="lp4-cat-view" key={`${CATALOG[cat].key}-${menu}`}>
-              <div className="lp4-cat-shot">
-                <Image
-                  src={CATALOG[cat].menus[menu].src}
-                  alt={CATALOG[cat].menus[menu].alt}
-                  width={1280}
-                  height={800}
-                  sizes="(max-width: 1000px) 100vw, 760px"
-                />
-              </div>
-              <div className="lp4-cat-feats">
-                {CATALOG[cat].menus[menu].items.map((it) => (
-                  <span key={it} className="lp4-cat-feat"><Check />{it}</span>
+        <div className="lp4-container">
+          {cat === AI_TAB ? (
+            <div className="lp4-cat-panel">
+              <p className="lp4-cat-lead">사람이 매번 손으로 하던 일을 오너뷰가 대신 처리해요.</p>
+              <div className="lp4-ai-grid">
+                {AI_AUTOMATION.map((a) => (
+                  <div key={a.name} className="lp4-ai-card">
+                    <span className="lp4-ai-tag">{a.tag}</span>
+                    <div className="lp4-ai-name">{a.name}</div>
+                    <p className="lp4-ai-desc">{a.desc}</p>
+                    <div className="lp4-ai-where">{a.where}</div>
+                  </div>
                 ))}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
+          ) : (
+            <div className="lp4-cat-panel" key={CATALOG[cat].key}>
+              <p className="lp4-cat-lead">{CATALOG[cat].lead}</p>
+              <div className="lp4-cat-body">
+                <div className="lp4-cat-list">
+                  {CATALOG[cat].menus.map((m, i) => (
+                    <button
+                      key={m.name}
+                      className={`lp4-cat-item ${i === menu ? "lp4-cat-item-on" : ""}`}
+                      onClick={() => go(cat, i)}
+                      onMouseEnter={() => go(cat, i)}
+                      aria-pressed={i === menu}
+                    >
+                      <span className="lp4-cat-ico"><MenuGlyph n={m.icon} /></span>
+                      <span className="lp4-cat-item-txt">
+                        <span className="lp4-cat-item-n">{m.name}</span>
+                        <span className="lp4-cat-item-d">{m.desc}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
 
-      {/* AI 자동화 */}
-      <section className="lp4-section lp4-bg-tint" id="ai">
-        <div className="lp4-container">
-          <div className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">AI Automation</div>
-            <h2 className="lp4-h2">이건 <span className="lp4-underline">AI가 알아서 해요</span></h2>
-            <p className="lp4-sub">매번 손으로 하던 일 {AI_AUTOMATION.length}가지를 오너뷰가 대신 처리해요.</p>
-          </div>
-          <div className="lp4-ai-grid">
-            {AI_AUTOMATION.map((a) => (
-              <div key={a.name} className="lp4-ai-card">
-                <span className="lp4-ai-tag">{a.tag}</span>
-                <div className="lp4-ai-name">{a.name}</div>
-                <p className="lp4-ai-desc">{a.desc}</p>
-                <div className="lp4-ai-where">{a.where}</div>
+                <div className="lp4-cat-view" key={`${CATALOG[cat].key}-${menu}`}>
+                  <div className="lp4-cat-shot">
+                    <Image
+                      src={CATALOG[cat].menus[menu].src}
+                      alt={CATALOG[cat].menus[menu].alt}
+                      width={1968}
+                      height={1320}
+                      sizes="(max-width: 1000px) 100vw, 760px"
+                    />
+                  </div>
+                  <div className="lp4-cat-feats">
+                    {CATALOG[cat].menus[menu].items.map((it) => (
+                      <span key={it} className="lp4-cat-feat"><Check />{it}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 따로 쓰던 도구들 */}
-      <section className="lp4-section lp4-bg-canvas" id="tools">
-        <div className="lp4-container">
-          <div className="lp4-sec-head lp4-sec-head-c">
-            <h2 className="lp4-h2">따로 쓰던 {FEATURES.length}개 도구가 하나로</h2>
-            <p className="lp4-sub">따로 결제하던 도구들이 하나의 데이터 위에서 같이 움직여요.</p>
-          </div>
-          <div className="lp4-tool-grid">
-            {FEATURES.map((f) => (
-              <div key={f.tab} className="lp4-tool">
-                <div className="lp4-tool-n">{f.tab}</div>
-                <div className="lp4-tool-t">{f.title}</div>
-                <p className="lp4-tool-d">{f.desc}</p>
-              </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -195,7 +196,10 @@ export default function FeaturesView() {
       <section className="lp4-section lp4-bg-tint">
         <div className="lp4-narrow lp4-sec-head-c">
           <h2 className="lp4-h2">14일 써보고 결정하세요</h2>
-          <p className="lp4-sub">가입할 때 카드만 등록해요. 14일 안에 해지하면 첫 결제는 없어요.</p>
+          <p className="lp4-sub">따로 결제하던 {FEATURES.length}개 도구가 하나의 데이터 위에서 같이 움직여요.</p>
+          <div className="lp4-mx-tools-list">
+            {FEATURES.map((f) => <span key={f.tab} className="lp4-pillar-menu">{f.tab}</span>)}
+          </div>
           <div className="lp4-feat-cta">
             <Link href="/auth" className="lp4-btn lp4-btn-brand">무료로 시작하기 <Arrow /></Link>
             <Link href="/pricing" className="lp4-btn lp4-btn-line">요금제 보기</Link>
