@@ -101,35 +101,51 @@
 }
 
 
-/* ── 오너뷰 둘러보기 — 네비 메가메뉴 ──
-   패널을 .lp4-navdrop 기준으로 두고 위쪽 padding 으로 링크와 이어 둔다 —
-   사이가 띄면 마우스가 내려오는 도중 hover 가 끊겨 메뉴가 닫힌다. */
+/* ── 오너뷰 둘러보기 — 드롭다운 ──
+   클릭해도 페이지가 바뀌지 않고 패널만 열린다. 좌에서 영역을 고르면 그 영역의 메뉴만 나온다.
+   패널을 링크 바로 아래가 아니라 위쪽 padding 으로 이어 둔다 — 사이가 뜼면 hover 가 끊긴다. */
 .lp4-navdrop { position: relative; display:flex; align-items:center; }
-.lp4-navdrop-t { display:inline-flex; align-items:center; gap:4px; }
+.lp4-navdrop-t { display:inline-flex; align-items:center; gap:4px; line-height:1;
+  font-size:14.5px; font-weight:500; color: var(--ink2); background:none; border:none;
+  padding:0; cursor:pointer; }
+.lp4-navdrop-t:hover, .lp4-navdrop-open .lp4-navdrop-t { color: var(--ink); }
 .lp4-navdrop-caret { transition: transform .2s; opacity:.6; }
-.lp4-navdrop:hover .lp4-navdrop-caret { transform: rotate(180deg); }
+.lp4-navdrop-open .lp4-navdrop-caret { transform: rotate(180deg); }
 .lp4-mega { position:absolute; top:100%; left:50%; transform: translateX(-50%) translateY(6px);
-  width: 1000px; max-width: calc(100vw - 32px); padding-top:14px;
+  width: 880px; max-width: calc(100vw - 32px); padding-top:14px;
   opacity:0; visibility:hidden; pointer-events:none; transition: opacity .18s ease, transform .18s ease; }
-.lp4-navdrop:hover .lp4-mega, .lp4-navdrop:focus-within .lp4-mega {
+.lp4-navdrop-open .lp4-mega, .lp4-navdrop:focus-within .lp4-mega {
   opacity:1; visibility:visible; pointer-events:auto; transform: translateX(-50%) translateY(0); }
-.lp4-mega-inner { display:grid; grid-template-columns: repeat(5,1fr); gap:8px;
-  background:#fff; border:1px solid var(--line); border-radius:20px; padding:22px;
-  box-shadow: 0 30px 70px -30px rgba(27,26,46,.34); }
-.lp4-mega-col { display:flex; flex-direction:column; padding:0 12px; }
-.lp4-mega-col + .lp4-mega-col { border-left:1px solid var(--line); }
-.lp4-mega-col-ai { background: var(--pastel-lav); border-radius:14px; padding:14px 14px 16px; margin:-6px -6px -6px 0; border-left:none; }
-.lp4-mega-g { align-self:flex-start; font-size:15px; font-weight:800; letter-spacing:-.02em;
-  color: var(--ink); cursor:pointer; background:none; border:none; padding:0; text-align:left; }
-.lp4-mega-g:hover { color: var(--brand); }
-.lp4-mega-lead { font-size:11.5px; color: var(--ink3); line-height:1.55; margin-top:6px; }
-.lp4-mega-items { display:flex; flex-direction:column; align-items:flex-start; gap:2px; margin-top:12px; }
-.lp4-mega-m { font-size:13.5px; font-weight:600; color: var(--ink2); cursor:pointer;
-  background:none; border:none; padding:6px 8px; margin-left:-8px; border-radius:8px;
-  text-align:left; width:calc(100% + 8px); transition: background .15s, color .15s; }
-.lp4-mega-m:hover { background: var(--canvas2); color: var(--brand); }
-.lp4-mega-col-ai .lp4-mega-m:hover { background: rgba(255,255,255,.7); }
-.lp4-mega-more { color: var(--brand); font-weight:700; }
+.lp4-mega-inner { display:grid; grid-template-columns: 210px 1fr; gap:20px;
+  background:#fff; border:1px solid var(--line); border-radius:22px; padding:18px;
+  box-shadow: 0 34px 76px -32px rgba(27,26,46,.36); }
+
+.lp4-mega-side { display:flex; flex-direction:column; gap:2px;
+  background: var(--canvas2); border-radius:16px; padding:8px; }
+.lp4-mega-side-b { display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:12px 14px; border-radius:12px; background:none; border:none; cursor:pointer;
+  font-size:15px; font-weight:700; letter-spacing:-.02em; color: var(--ink2);
+  text-align:left; transition: all .15s; }
+.lp4-mega-side-b:hover { color: var(--ink); }
+.lp4-mega-side-on { background:#fff; color: var(--ink);
+  box-shadow: 0 8px 18px -12px rgba(27,26,46,.4); }
+.lp4-mega-side-c { font-size:11.5px; font-weight:700; color: var(--ink3); }
+.lp4-mega-side-on .lp4-mega-side-c { color: var(--brand); }
+
+.lp4-mega-main { display:flex; flex-direction:column; padding:6px 6px 4px; text-align:left;
+  animation: lp4-rise .2s ease; }
+.lp4-mega-lead { font-size:13px; color: var(--ink3); line-height:1.6; margin-bottom:12px; }
+.lp4-mega-items { display:grid; grid-template-columns: repeat(2, 1fr); gap:2px; }
+.lp4-mega-m { display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+  padding:9px 12px; border-radius:11px; text-align:left;
+  transition: background .15s; }
+.lp4-mega-m:hover { background: var(--canvas2); }
+.lp4-mega-m-n { font-size:14.5px; font-weight:700; color: var(--ink); }
+.lp4-mega-m-d { font-size:11.5px; color: var(--ink3); line-height:1.5;
+  overflow:hidden; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; }
+.lp4-mega-all { display:inline-flex; align-items:center; gap:6px; align-self:flex-start;
+  margin-top:14px; padding:8px 12px; font-size:13.5px; font-weight:700; color: var(--brand); }
+.lp4-mega-all:hover { color: var(--brand-ink); }
 
 /* 모바일 드로우어 — 호버가 없으므로 그룹을 펼쳐 둔다 */
 .lp4-mob-group { border-bottom:1px solid var(--line); }
@@ -264,8 +280,8 @@
 .lp4-ax-t:hover { color: var(--ink); border-color: var(--line2); }
 .lp4-ax-on { background: var(--ink); border-color: var(--ink); color:#fff; }
 
-.lp4-mf { display:grid; grid-template-columns:1fr; gap:34px; align-items:center; }
-@media (min-width: 1000px){ .lp4-mf { grid-template-columns: 0.78fr 1.22fr; gap:56px; } }
+.lp4-mf { display:grid; grid-template-columns:1fr; gap:44px; align-items:center; }
+@media (min-width: 1000px){ .lp4-mf { grid-template-columns: 0.78fr 1.22fr; gap:80px; } }
 .lp4-mf-kicker { font-size:15px; font-weight:800; letter-spacing:.02em; color: var(--brand); }
 .lp4-mf-h { font-size: clamp(30px,3.7vw,48px); font-weight:800; letter-spacing:-.035em; line-height:1.2;
   color: var(--ink); margin-top:12px; }
@@ -290,7 +306,7 @@
 
 /* 우측 — 원형 배경 위에 화면이 떠 있고, 바뀔 때 칩이 따라 뜨며 들어온다 */
 .lp4-mf-stage { position:relative; display:flex; align-items:center; justify-content:center;
-  padding:24px 78px; }
+  padding:24px 74px 24px 34px; }
 .lp4-mf-orb { position:absolute; width:74%; aspect-ratio:1; border-radius:999px;
   background: linear-gradient(150deg, var(--pastel-lav), var(--pastel-sky) 55%, var(--pastel-mint));
   filter: blur(.4px); }
@@ -304,7 +320,7 @@
   background:#fff; border:1px solid var(--line); border-radius:999px; padding:9px 16px;
   box-shadow: 0 16px 32px -16px rgba(27,26,46,.4); white-space:nowrap;
   animation: lp4-mf-pop .55s .18s backwards cubic-bezier(.2,.9,.3,1.2); }
-.lp4-mf-chip-1 { left:0; top:12%; }
+.lp4-mf-chip-1 { left:-14px; top:12%; }
 .lp4-mf-chip-2 { right:0; bottom:13%; animation-delay:.34s; }
 @keyframes lp4-mf-pop { from { opacity:0; transform: scale(.8) translateY(8px) } to { opacity:1; transform:none } }
 @media (max-width: 860px){ .lp4-mf-stage { padding:16px 0; } .lp4-mf-chip { display:none; } }
@@ -314,7 +330,7 @@
 
 
 /* ── /features — 토글 바. 스크롤해도 상단에 남아 영역을 바꿀 수 있게 한다 ── */
-.lp4-catbar { position:sticky; top:63px; z-index:40; padding:14px 0 16px; margin-bottom:26px;
+.lp4-catbar { position:sticky; top:63px; z-index:40; padding:18px 0 20px; margin-bottom:34px;
   background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
 .lp4-catbar .lp4-cat-tabs { margin-bottom:0; }
@@ -322,8 +338,8 @@
 
 /* ── 전체 기능 카탈로그 — 메뉴별로 무엇을 할 수 있는지 ── */
 .lp4-cat-tabs { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-bottom:34px; }
-.lp4-cat-tab { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
-  padding:13px 22px; border-radius:16px; border:1px solid var(--line); background:#fff;
+.lp4-cat-tab { display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  padding:15px 28px; border-radius:16px; border:1px solid var(--line); background:#fff;
   cursor:pointer; transition: all .2s; text-align:left; }
 .lp4-cat-tab:hover { border-color: var(--line2); transform: translateY(-2px); }
 .lp4-cat-tab-n { font-size:17.5px; font-weight:800; letter-spacing:-.02em; color: var(--ink2); }
@@ -336,13 +352,13 @@
 
 /* 좌: 메뉴 목록 / 우: 그 메뉴의 실제 화면 */
 .lp4-cat-body { display:grid; grid-template-columns:1fr; gap:20px; align-items:start; }
-@media (min-width: 1000px){ .lp4-cat-body { grid-template-columns: 360px 1fr; gap:36px; } }
+@media (min-width: 1000px){ .lp4-cat-body { grid-template-columns: 360px 1fr; gap:52px; } }
 .lp4-cat-list { display:flex; flex-direction:column; gap:6px; }
-.lp4-cat-item { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:16px;
+.lp4-cat-item { display:flex; align-items:flex-start; gap:14px; padding:17px 19px; border-radius:18px;
   border:1px solid transparent; background:transparent; cursor:pointer; text-align:left; transition: all .18s; }
 .lp4-cat-item:hover { background: var(--canvas2); }
 .lp4-cat-item-on { background:#fff; border-color: var(--line); box-shadow: 0 16px 34px -24px rgba(27,26,46,.3); }
-.lp4-cat-ico { flex:none; display:grid; place-items:center; width:34px; height:34px; border-radius:11px;
+.lp4-cat-ico { flex:none; display:grid; place-items:center; width:38px; height:38px; border-radius:12px;
   background: var(--canvas2); color: var(--ink3); transition: all .18s; }
 .lp4-cat-item-on .lp4-cat-ico { background: var(--brand); color:#fff; }
 .lp4-cat-item-txt { display:flex; flex-direction:column; gap:3px; min-width:0; }
@@ -356,9 +372,9 @@
 .lp4-cat-shot { border-radius:20px; overflow:hidden; border:1px solid var(--line); background:#fff;
   box-shadow: 0 34px 72px -34px rgba(27,26,46,.36); }
 .lp4-cat-shot img { display:block; width:100%; height:auto; }
-.lp4-cat-feats { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
-.lp4-cat-feat { display:inline-flex; align-items:center; gap:7px; font-size:14.5px; font-weight:600;
-  color: var(--ink2); background:#fff; border:1px solid var(--line); border-radius:999px; padding:8px 15px; }
+.lp4-cat-feats { display:flex; flex-wrap:wrap; gap:9px; margin-top:20px; }
+.lp4-cat-feat { display:inline-flex; align-items:center; gap:8px; font-size:15.5px; font-weight:600;
+  color: var(--ink2); background:#fff; border:1px solid var(--line); border-radius:999px; padding:10px 18px; }
 .lp4-cat-feat svg { color: var(--brand); }
 
 /* ── AI 자동화 — 사람이 하던 반복 작업을 무엇이 대신하는지 ── */
@@ -523,11 +539,12 @@
 .lp4-mob { position:relative; background: linear-gradient(180deg, var(--canvas2), var(--canvas)); }
 .lp4-mob-pin { padding:80px 0; }
 @media (min-width: 1000px){
-  .lp4-mob { height: calc(var(--mn) * 78vh); }
+  /* 모바일도 같은 기준 — 단계당 약 12vh */
+  .lp4-mob { height: calc(var(--mn) * 45vh); }
   .lp4-mob-pin { position:sticky; top:0; height:100vh; display:flex; align-items:center; padding:0; }
 }
-.lp4-mob-grid { display:grid; grid-template-columns:1fr; gap:40px; align-items:center; }
-@media (min-width: 1000px){ .lp4-mob-grid { grid-template-columns: 1.08fr 0.92fr; gap:40px; } }
+.lp4-mob-grid { display:grid; grid-template-columns:1fr; gap:48px; align-items:center; }
+@media (min-width: 1000px){ .lp4-mob-grid { grid-template-columns: 1.02fr 0.98fr; gap:90px; } }
 .lp4-mob-eyebrow { font-size:15px; font-weight:800; color: var(--brand); }
 .lp4-mob-title { font-size: clamp(33px,4.6vw,58px); font-weight:800; letter-spacing:-.04em;
   line-height:1.16; color: var(--ink); margin-top:12px; }
@@ -642,8 +659,8 @@
 .lp4-daysec { position:relative; background: var(--canvas); }
 .lp4-daypin { padding:96px 0; }
 @media (min-width: 1000px){
-  /* 시간 하나당 52vh — 다섯 시간을 부담 없이 훑는 길이 */
-  .lp4-daysec { height: calc(var(--dn) * 42vh); }
+  /* 핀 구간(=dn*30vh - 100vh)을 시간 수로 균등 분할 → 한 시간당 10vh, 휠 한 번에 하나씩 */
+  .lp4-daysec { height: calc(var(--dn) * 30vh); }
   .lp4-daypin { position:sticky; top:0; height:100vh; display:flex; align-items:center; padding:0; }
 }
 .lp4-day-head { margin-bottom:34px; }
@@ -663,8 +680,8 @@
 .lp4-tl-on .lp4-tl-time { color: var(--ink); }
 .lp4-tl-scene { font-size:13.5px; color: var(--ink3); }
 .lp4-tl-on .lp4-tl-scene { color: var(--brand); font-weight:600; }
-.lp4-tl-panel { display:grid; grid-template-columns:1fr; gap:26px; align-items:center; }
-@media (min-width: 1000px){ .lp4-tl-panel { grid-template-columns: 0.78fr 1.22fr; gap:48px; } }
+.lp4-tl-panel { display:grid; grid-template-columns:1fr; gap:34px; align-items:center; }
+@media (min-width: 1000px){ .lp4-tl-panel { grid-template-columns: 0.78fr 1.22fr; gap:76px; } }
 .lp4-tl-copy { display:flex; flex-direction:column; gap:12px; animation: lp4-rise .3s ease; }
 .lp4-tl-before, .lp4-tl-after { padding:16px 18px; border-radius:16px; }
 .lp4-tl-before { background: var(--canvas2); }
@@ -701,8 +718,8 @@
 .lp4-etab svg { width:20px; height:20px; }
 .lp4-etab:hover { border-color: var(--brand); color: var(--brand); }
 .lp4-etab-on { background: var(--brand); border-color: var(--brand); color:#fff; }
-.lp4-epanel { display:grid; grid-template-columns:1fr; gap:32px; align-items:center; animation: lp4-rise .35s ease; }
-@media (min-width: 1000px){ .lp4-epanel { grid-template-columns: 0.86fr 1.14fr; gap:56px; } }
+.lp4-epanel { display:grid; grid-template-columns:1fr; gap:40px; align-items:center; animation: lp4-rise .35s ease; }
+@media (min-width: 1000px){ .lp4-epanel { grid-template-columns: 0.86fr 1.14fr; gap:78px; } }
 .lp4-eno { font-size:12.5px; font-weight:800; letter-spacing:.08em; color: var(--ink3); }
 .lp4-eline { font-size: clamp(25px,3vw,36px); font-weight:800; letter-spacing:-.035em; line-height:1.36; margin-top:12px; color: var(--ink); }
 .lp4-eshort { font-size:17.5px; color: var(--ink2); margin-top:16px; line-height:1.75; }

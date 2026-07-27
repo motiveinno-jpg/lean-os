@@ -294,6 +294,8 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
 
 
 
+const NAV_AI = 99;   // 드롭다운에서 AI 자동화를 가리키는 값
+
 export default function LandingPage() {
   const [on, setOn] = useState(false);
   const [day, setDay] = useState(0);   // 하루 타임라인 — 스크롤 진행률로 바뀐다
@@ -301,8 +303,25 @@ export default function LandingPage() {
   const [eng, setEng] = useState(0);   // AI 엔진 탭
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [drop, setDrop] = useState(false);   // 오너뷰 둘러보기 드롭다운
+  const [navG, setNavG] = useState(0);       // 드롭다운에서 보고 있는 영역
   const [showSticky, setShowSticky] = useState(false);
   const footRef = useRef<HTMLElement>(null);
+  // 드롭다운 — 바깥을 누르거나 ESC 를 누르면 닫는다
+  useEffect(() => {
+    if (!drop) return;
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.(".lp4-navdrop")) setDrop(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrop(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [drop]);
+
   // 하루 섹션: 스크롤한 만큼 09:00 → 23:00 이 순서대로 넘어간다
   useEffect(() => {
     const el = dayRef.current; if (!el) return;
@@ -353,34 +372,84 @@ export default function LandingPage() {
             {NAV_LINKS.map((l) =>
               /* 오너뷰 둘러보기 — 마우스를 올리면 메뉴 그룹이 펼쳐지고, 고르면 해당 탭으로 이동한다 */
               l.href === "/features" ? (
-                <div key={l.href} className="lp4-navdrop">
-                  <Link href="/features" className="lp4-navdrop-t">
+                <div
+                  key={l.href}
+                  className={`lp4-navdrop ${drop ? "lp4-navdrop-open" : ""}`}
+                  onMouseEnter={() => setDrop(true)}
+                  onMouseLeave={() => setDrop(false)}
+                >
+                  {/* 클릭해도 페이지가 바뀌지 않는다 — 아래 메뉴만 펼친다 */}
+                  <button
+                    type="button"
+                    className="lp4-navdrop-t"
+                    aria-expanded={drop}
+                    onClick={() => setDrop((v) => !v)}
+                  >
                     {l.label}
                     <svg className="lp4-navdrop-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" /></svg>
-                  </Link>
+                  </button>
                   <div className="lp4-mega">
                     <div className="lp4-mega-inner">
-                      {CATALOG.map((g, i) => (
-                        <div key={g.key} className="lp4-mega-col">
-                          <Link className="lp4-mega-g" href={`/features?g=${g.key}`}>{g.group}</Link>
-                          <p className="lp4-mega-lead">{g.lead}</p>
+                      {/* 좌: 영역 고르기 / 우: 고른 영역의 메뉴만 */}
+                      <div className="lp4-mega-side">
+                        {CATALOG.map((g, i) => (
+                          <button
+                            key={g.key}
+                            type="button"
+                            className={`lp4-mega-side-b ${navG === i ? "lp4-mega-side-on" : ""}`}
+                            onMouseEnter={() => setNavG(i)}
+                            onFocus={() => setNavG(i)}
+                            onClick={() => setNavG(i)}
+                          >
+                            {g.group}<span className="lp4-mega-side-c">{g.menus.length}</span>
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          className={`lp4-mega-side-b ${navG === NAV_AI ? "lp4-mega-side-on" : ""}`}
+                          onMouseEnter={() => setNavG(NAV_AI)}
+                          onFocus={() => setNavG(NAV_AI)}
+                          onClick={() => setNavG(NAV_AI)}
+                        >
+                          AI 자동화<span className="lp4-mega-side-c">{AI_AUTOMATION.length}</span>
+                        </button>
+                      </div>
+
+                      {navG === NAV_AI ? (
+                        <div className="lp4-mega-main" key="ai">
+                          <p className="lp4-mega-lead">사람이 매번 하던 일을 AI가 대신 해요.</p>
                           <div className="lp4-mega-items">
-                            {g.menus.map((m, j) => (
-                              <Link key={m.name} className="lp4-mega-m" href={`/features?g=${g.key}&m=${j}`}>{m.name}</Link>
+                            {AI_AUTOMATION.map((a) => (
+                              <Link key={a.name} className="lp4-mega-m" href="/features?g=ai" onClick={() => setDrop(false)}>{a.name}</Link>
                             ))}
                           </div>
+                          <Link className="lp4-mega-all" href="/features?g=ai" onClick={() => setDrop(false)}>AI 자동화 전체 보기 <Arrow /></Link>
                         </div>
-                      ))}
-                      <div className="lp4-mega-col lp4-mega-col-ai">
-                        <Link className="lp4-mega-g" href="/features#ai">AI 자동화</Link>
-                        <p className="lp4-mega-lead">사람이 매번 하던 일을 AI가 대신 해요.</p>
-                        <div className="lp4-mega-items">
-                          {AI_AUTOMATION.slice(0, 5).map((a) => (
-                            <Link key={a.name} className="lp4-mega-m" href="/features#ai">{a.name}</Link>
-                          ))}
-                          <Link className="lp4-mega-m lp4-mega-more" href="/features">전체 보기 →</Link>
+                      ) : (
+                        <div className="lp4-mega-main" key={CATALOG[navG].key}>
+                          <p className="lp4-mega-lead">{CATALOG[navG].lead}</p>
+                          <div className="lp4-mega-items">
+                            {CATALOG[navG].menus.map((m, j) => (
+                              <Link
+                                key={m.name}
+                                className="lp4-mega-m"
+                                href={`/features?g=${CATALOG[navG].key}&m=${j}`}
+                                onClick={() => setDrop(false)}
+                              >
+                                <span className="lp4-mega-m-n">{m.name}</span>
+                                <span className="lp4-mega-m-d">{m.desc}</span>
+                              </Link>
+                            ))}
+                          </div>
+                          <Link
+                            className="lp4-mega-all"
+                            href={`/features?g=${CATALOG[navG].key}`}
+                            onClick={() => setDrop(false)}
+                          >
+                            {CATALOG[navG].group} 전체 보기 <Arrow />
+                          </Link>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
