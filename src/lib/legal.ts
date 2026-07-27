@@ -75,3 +75,34 @@ export function clearConsentPending(): void {
     sessionStorage.removeItem(PENDING_KEY);
   } catch { /* noop */ }
 }
+
+/**
+ * 현재 로그인 사용자가 최신 약관 버전에 동의했는지 확인.
+ *   - 기록이 없으면(기존 회원) 재동의 필요
+ *   - 기록이 있어도 동의한 버전이 현재와 다르면(약관 개정) 재동의 필요
+ * 조회 실패 시에는 false 를 반환한다 — 일시적 오류로 사용자를 막지 않기 위함.
+ */
+export async function needsSignupConsent(): Promise<boolean> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { data, error } = await db
+      .from("user_consents")
+      .select("document_versions")
+      .eq("auth_id", user.id)
+      .eq("consent_type", "signup")
+      .order("agreed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) return false;
+    if (!data) return true; // 기록 없음 = 기존 회원
+    const v = (data.document_versions || {}) as Record<string, string>;
+    return (
+      v.terms !== LEGAL_DOC_VERSIONS.terms ||
+      v.privacy !== LEGAL_DOC_VERSIONS.privacy ||
+      v.refund !== LEGAL_DOC_VERSIONS.refund
+    );
+  } catch {
+    return false;
+  }
+}

@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { GlobalModalGuard } from "@/components/global-modal-guard";
 import { supabase } from "@/lib/supabase";
+import { ConsentGate } from "@/components/consent-gate";
 import { Sidebar } from "@/components/sidebar";
 import { FinanceTabs } from "@/components/finance-tabs";
 import { GlobalSearch, openGlobalSearch } from "@/components/global-search";
@@ -447,6 +448,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <UserProvider>
+      <ConsentGate>
       <SidebarProvider>
         <BoardProvider>
           <PopupProvider>
@@ -458,6 +460,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <HometaxBackgroundChain />
         </BoardProvider>
       </SidebarProvider>
+      </ConsentGate>
     </UserProvider>
   );
 }
