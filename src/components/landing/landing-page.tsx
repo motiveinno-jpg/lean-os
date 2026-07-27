@@ -12,7 +12,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, SCREENS, PILLARS, DAY, HERO_ROTATE, FLOW, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, PILLARS, DAY, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 
 function Logo({ size = 26 }: { size?: number }) {
@@ -112,85 +112,93 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
 }
 
 
-// 스크롤 섹션 전환 — 뷰포트에 들어온 섹션만 또렷해지고, 벗어나면 가라앉는다.
-// (토스모바일처럼 "내릴 때마다 화면이 바뀌는" 느낌. 옵저버 1개를 모든 섹션이 공유)
-function useStageTransitions() {
+
+// 3대 축 한 덩어리 — 토스 홈 패턴.
+//   좌측 카피 블록이 화면 중앙을 지날 때마다 우측 제품 화면이 그 블록에 맞게 바뀐다.
+//   자동 재생이 아니라 "스크롤한 만큼만" 바뀌므로 의도가 분명하다.
+function PillarBlock({ pillar }: { pillar: (typeof PILLARS)[number] }) {
+  const [idx, setIdx] = useState(0);
+  const refs = useRef<(HTMLDivElement | null)[]>([]);
+
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return;
-    const els = Array.from(document.querySelectorAll<HTMLElement>(".lp4-stage"));
-    if (!els.length) return;
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          e.target.classList.toggle("lp4-stage-in", e.isIntersecting);
-          e.target.classList.toggle("lp4-stage-out", !e.isIntersecting);
+          if (!e.isIntersecting) continue;
+          const i = Number((e.target as HTMLElement).dataset.i);
+          if (!Number.isNaN(i)) setIdx(i);
         }
       },
-      { threshold: 0.18, rootMargin: "-8% 0px -8% 0px" },
+      { rootMargin: "-45% 0px -45% 0px", threshold: 0 },
     );
-    els.forEach((el) => { el.classList.add("lp4-stage-out"); io.observe(el); });
+    refs.current.forEach((el) => el && io.observe(el));
     return () => io.disconnect();
   }, []);
+
+  return (
+    <div className="lp4-pillar">
+      <div className="lp4-container">
+        <div className="lp4-pillar-grid">
+          <div className="lp4-pillar-copy">
+            <div className="lp4-pillar-kicker">{pillar.kicker}</div>
+            <h3 className="lp4-pillar-h">
+              {pillar.headline.split("\n").map((line, k) => <span key={k}>{line}<br /></span>)}
+            </h3>
+            <p className="lp4-pillar-lead">{pillar.lead}</p>
+
+            <div className="lp4-pblocks">
+              {pillar.blocks.map((b, i) => (
+                <div
+                  key={b.title}
+                  data-i={i}
+                  ref={(el) => { refs.current[i] = el; }}
+                  className={`lp4-pblock ${i === idx ? "lp4-pblock-on" : ""}`}
+                >
+                  <div className="lp4-pblock-t">{b.title}</div>
+                  <p className="lp4-pblock-d">{b.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="lp4-pillar-menus">
+              {pillar.menus.map((m) => <span key={m} className="lp4-pillar-menu">{m}</span>)}
+            </div>
+          </div>
+
+          <div className="lp4-pillar-stage">
+            <div className="lp4-pillar-screen">
+              {pillar.blocks.map((b, i) => (
+                <Image
+                  key={b.src}
+                  src={b.src}
+                  alt={b.alt}
+                  width={1200}
+                  height={760}
+                  sizes="(max-width: 1000px) 100vw, 660px"
+                  className={i === idx ? "lp4-pshot lp4-pshot-on" : "lp4-pshot"}
+                />
+              ))}
+            </div>
+            <div className="lp4-pdots">
+              {pillar.blocks.map((b, i) => (
+                <span key={b.src} className={`lp4-pdot ${i === idx ? "lp4-pdot-on" : ""}`} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function LandingPage() {
   const [on, setOn] = useState(false);
-  const [tour, setTour] = useState(0);
   const [feat, setFeat] = useState(0); // 기능 리스트 — 열린 항목
-  const [word, setWord] = useState(0); // 히어로 회전 단어
-  useStageTransitions();
-  const [tourAuto, setTourAuto] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [team, setTeam] = useState(8);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
-  // 견적→정산 흐름: 화면에 들어오면 자동으로 단계가 넘어가고, 사용자가 누르면 자동 진행을 멈춘다
-  const [flow, setFlow] = useState(0);
-  const [flowAuto, setFlowAuto] = useState(false);
-  const flowRef = useRef<HTMLDivElement>(null);
-  const flowPinned = useRef(false); // 사용자가 단계를 직접 고르면 자동 진행을 재개하지 않는다
-
-  useEffect(() => {
-    const el = flowRef.current; if (!el) return;
-    if (typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      (es) => setFlowAuto(es[0].isIntersecting && !flowPinned.current),
-      { threshold: 0.35 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!flowAuto) return;
-    const t = setTimeout(() => setFlow((i) => (i + 1) % FLOW.length), 4200);
-    return () => clearTimeout(t);
-  }, [flow, flowAuto]);
-
-  // 제품 화면 투어도 같은 방식으로 자동 순환 — 정적 탭이라 "심플하다"는 지적을 받았다
-  const tourRef = useRef<HTMLDivElement>(null);
-  const tourPinned = useRef(false);
-  useEffect(() => {
-    const el = tourRef.current; if (!el) return;
-    if (typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      (es) => setTourAuto(es[0].isIntersecting && !tourPinned.current),
-      { threshold: 0.35 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  useEffect(() => {
-    if (!tourAuto) return;
-    const t = setTimeout(() => setTour((i) => (i + 1) % SCREENS.length), 5000);
-    return () => clearTimeout(t);
-  }, [tour, tourAuto]);
-
-  useEffect(() => {
-    const t = setInterval(() => setWord((i) => (i + 1) % HERO_ROTATE.length), 2000);
-    return () => clearInterval(t);
-  }, []);
-
   useEffect(() => {
     const h = () => {
       const y = window.scrollY;
@@ -207,7 +215,6 @@ export default function LandingPage() {
   const owvTotal = 79500 + Math.max(0, team - 5) * 10000;
   const savePct = Math.round(((compTotal - owvTotal) / compTotal) * 100);
   const won = (n: number) => "₩" + n.toLocaleString("ko-KR");
-  const scr = SCREENS[tour];
 
   return (
     <div className="lp4-root">
@@ -251,14 +258,7 @@ export default function LandingPage() {
         <div className="lp4-container">
           <div className="lp4-hero-inner">
             <span className="lp4-hero-badge"><span className="lp4-hero-badge-dot" />{HERO.badge}</span>
-            {/* 회전 단어 — 3대 축을 첫 화면에서 즉시 인지시킨다 */}
-            <h1 className="lp4-hero-title">
-              <span className="lp4-rotate">
-                <span className="lp4-rotate-word" key={HERO_ROTATE[word]}>{HERO_ROTATE[word]}</span>
-              </span>
-              <span className="lp4-hero-fixed">까지,</span>
-              <br /><em>오너뷰 하나로</em>
-            </h1>
+            <h1 className="lp4-hero-title">회사 운영의 모든 것<br /><em>오너뷰</em>에서 쉽고 간편하게</h1>
             <p className="lp4-hero-sub">{HERO.sub}</p>
             <p className="lp4-hero-desc">{HERO.desc}</p>
             <div className="lp4-hero-cta">
@@ -270,7 +270,7 @@ export default function LandingPage() {
         </div>
         {/* 실제 오너뷰 대시보드 — 히어로 아래로 걸쳐 다음 섹션까지 이어진다 */}
         <div className="lp4-hero-shot">
-          <ShotFrame src={SCREENS[0].src} alt={SCREENS[0].alt} priority />
+          <ShotFrame src="/product/dashboard-v3.png" alt="오너뷰 위젯 대시보드 — 근태·일정·프로젝트·매출·미수금 위젯" priority />
         </div>
       </header>
       <div className="lp4-hero-spacer" />
@@ -289,23 +289,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ 기능 티커 — 정적인 화면에 흐름을 주고, 한눈에 커버 범위를 훑게 한다 ══ */}
-      <div className="lp4-ticker" aria-hidden="true">
-        <div className="lp4-ticker-track">
-          {[0, 1].map((dup) => (
-            <div key={dup} className="lp4-ticker-run">
-              {["AI 모닝 브리핑", "현금 90일 예측", "위젯 대시보드", "견적 → 계약 자동화", "전자서명 · 직인", "3-Way 입금 매칭",
-                "4대보험 자동 계산", "급여명세서 자동 발송", "근태 · 연차", "전자결재", "세금계산서 국세청 발행", "거래처 원장",
-                "은행 · 카드 실계좌 연동", "AI 거래 분류", "파트너 포털", "전표 자동 기장"].map((t) => (
-                <span key={t} className="lp4-ticker-item">{t}</span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* ══ 대표님의 하루 — 지금 방식 vs 오너뷰 ══ */}
-      <section className="lp4-section lp4-bg-canvas lp4-snap lp4-stage" id="day">
+      <section className="lp4-section lp4-bg-canvas" id="day">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">A Day of the Owner</div>
@@ -341,159 +326,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ 3대 축 — 프로젝트 · 인사 · 회계. 오너뷰의 핵심 소구점 ══ */}
+      {/* ══ 3대 축 — 좌: 카피 블록 / 우: 스크롤에 따라 바뀌는 실제 화면 ══ */}
       <section className="lp4-pillars" id="pillars">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">One ERP, Three Pillars</div>
-            <h2 className="lp4-h2">회사 운영은 <span className="lp4-underline">세 가지</span>로 나뉘어요</h2>
-            <p className="lp4-sub">프로젝트를 굴리고, 사람을 챙기고, 돈을 정리해요. 오너뷰는 이 셋을 각각 제대로 해요.</p>
-          </Reveal>
-        </div>
-
-        {PILLARS.map((p, i) => (
-          <div key={p.key} className={`lp4-pillar lp4-snap ${i % 2 === 1 ? "lp4-pillar-alt" : ""}`}>
-            <div className="lp4-container">
-              <div className="lp4-pillar-grid">
-                <Reveal className="lp4-pillar-copy">
-                  <div className="lp4-pillar-no">{p.no}</div>
-                  <div className="lp4-pillar-kicker">{p.kicker}</div>
-                  <h3 className="lp4-pillar-h">{p.headline.split("\n").map((line, k) => <span key={k}>{line}<br /></span>)}</h3>
-                  <p className="lp4-pillar-lead">{p.lead}</p>
-
-                  <div className="lp4-pillar-stats">
-                    {p.stats.map((s) => (
-                      <div key={s.l} className="lp4-pillar-stat"><b>{s.v}</b><span>{s.l}</span></div>
-                    ))}
-                  </div>
-
-                  {/* 고민 → 해소. 방문자가 자기 상황을 바로 대입할 수 있게 질문형으로 */}
-                  <div className="lp4-pains">
-                    {p.pains.map((x) => (
-                      <div key={x.q} className="lp4-pain-qa">
-                        <div className="lp4-pain-q"><span className="lp4-pain-mark">?</span>{x.q}</div>
-                        <div className="lp4-pain-a"><span className="lp4-pain-arrow">→</span>{x.a}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="lp4-pillar-menus">
-                    {p.menus.map((m) => <span key={m} className="lp4-pillar-menu">{m}</span>)}
-                  </div>
-                </Reveal>
-
-                <Reveal className="lp4-pillar-shot">
-                  <Image src={p.src} alt={p.alt} width={1200} height={760} sizes="(max-width: 1000px) 100vw, 700px" />
-                </Reveal>
-              </div>
-            </div>
-          </div>
+        {PILLARS.map((p) => (
+          <PillarBlock key={p.key} pillar={p} />
         ))}
       </section>
 
-      {/* ══ 제품 실물 화면 투어 ══ */}
-      <section className="lp4-section lp4-bg-tint lp4-snap lp4-stage" id="tour">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">Real Product</div>
-            <h2 className="lp4-h2">렌더링이 아닌 <span className="lp4-underline">실제 서비스 화면</span>이에요</h2>
-            <p className="lp4-sub">아래 이미지는 전부 실제 오너뷰 화면을 그대로 캡처한 거예요. 가입하면 똑같은 화면을 쓰실 수 있어요.</p>
-          </Reveal>
-
-          <div className="lp4-tour-tabs">
-            {SCREENS.map((s, i) => (
-              <button
-                key={s.key}
-                className={`lp4-tour-tab ${i === tour ? "lp4-tour-tab-on" : ""}`}
-                onClick={() => { tourPinned.current = true; setTourAuto(false); setTour(i); }}
-              >
-                {s.tab}
-                {i === tour && tourAuto && <span className="lp4-tour-tab-bar" key={`tb${tour}`} />}
-              </button>
-            ))}
-          </div>
-
-          <div className="lp4-tour-panel" ref={tourRef}>
-            <div className="lp4-tour-copy" key={`c${scr.key}`}>
-              <div className="lp4-tour-step">SCREEN {String(tour + 1).padStart(2, "0")} / {String(SCREENS.length).padStart(2, "0")}</div>
-              <div className="lp4-tour-title">{scr.title}</div>
-              <p className="lp4-tour-desc">{scr.desc}</p>
-              <span className="lp4-tour-note"><Check /> 실제 서비스 화면이에요</span>
-            </div>
-            {/* 화면 위에 기능 위치를 짚어주는 주석 — 처음 보는 방문자가 어디를 봐야 할지 알 수 있게 */}
-            <div className="lp4-tour-stage">
-              <div className="lp4-tour-shot" key={scr.key}>
-                <Image src={scr.src} alt={scr.alt} width={1440} height={900} sizes="(max-width: 1000px) 100vw, 760px" />
-                {scr.callouts?.map((c, i) => (
-                  <span
-                    key={c.text}
-                    className="lp4-callout"
-                    style={{ left: `${c.x}%`, top: `${c.y}%`, animationDelay: `${0.35 + i * 0.22}s` }}
-                  >
-                    <span className="lp4-callout-pulse" />
-                    <span className="lp4-callout-label">{c.text}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ 견적 → 정산 흐름 (자동 진행 + 클릭) ══ */}
-      <section className="lp4-section lp4-bg-canvas lp4-snap lp4-stage" id="flow">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">End to End</div>
-            <h2 className="lp4-h2">견적부터 정산까지, <span className="lp4-underline">끊기지 않고</span> 이어져요</h2>
-            <p className="lp4-sub">앞 단계에서 만든 정보가 다음 단계로 그대로 넘어가요. 아래는 실제 서비스 화면이에요.</p>
-          </Reveal>
-
-          <div className="lp4-flow" ref={flowRef}>
-            {/* 좌: 단계 목록 — 진행 중인 단계에 진행 바가 채워진다 */}
-            <div className="lp4-flow-steps">
-              {FLOW.map((f, i) => (
-                <button
-                  key={f.key}
-                  className={`lp4-flow-step ${i === flow ? "lp4-flow-step-on" : ""} ${i < flow ? "lp4-flow-step-done" : ""}`}
-                  onClick={() => { flowPinned.current = true; setFlowAuto(false); setFlow(i); }}
-                  aria-current={i === flow}
-                >
-                  <span className="lp4-flow-num">{i < flow ? <Check /> : f.step}</span>
-                  <span className="lp4-flow-text">
-                    <span className="lp4-flow-tab">{f.tab}</span>
-                    <span className="lp4-flow-title">{f.title}</span>
-                    {i === flow && <span className="lp4-flow-desc">{f.desc}</span>}
-                  </span>
-                  {i === flow && flowAuto && <span className="lp4-flow-progress" key={`p${flow}`} />}
-                </button>
-              ))}
-            </div>
-
-            {/* 우: 단계에 대응하는 실제 화면 */}
-            <div className="lp4-flow-stage">
-              {FLOW.map((f, i) => (
-                <div key={f.key} className={`lp4-flow-shot ${i === flow ? "lp4-flow-shot-on" : ""}`} aria-hidden={i !== flow}>
-                  <Image src={f.src} alt={f.alt} width={1180} height={860} sizes="(max-width: 1000px) 100vw, 660px" />
-                </div>
-              ))}
-              <div className="lp4-flow-dots">
-                {FLOW.map((f, i) => (
-                  <button
-                    key={f.key}
-                    className={`lp4-flow-dot ${i === flow ? "lp4-flow-dot-on" : ""}`}
-                    onClick={() => { flowPinned.current = true; setFlowAuto(false); setFlow(i); }}
-                    aria-label={f.tab}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ══ FEATURES ══ */}
-      <section className="lp4-section lp4-bg-tint lp4-snap lp4-stage" id="features">
+      <section className="lp4-section lp4-bg-tint" id="features">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Product</div>
@@ -528,7 +369,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ AI ENGINES ══ */}
-      <section className="lp4-section lp4-bg-dark lp4-snap lp4-stage" id="engines">
+      <section className="lp4-section lp4-bg-dark" id="engines">
         <div className="lp4-dark-orbs" />
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
@@ -564,7 +405,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ COMPARE ══ */}
-      <section className="lp4-section lp4-bg-tint lp4-snap lp4-stage" id="compare">
+      <section className="lp4-section lp4-bg-tint" id="compare">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Compare</div>
@@ -609,7 +450,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ PRICING ══ */}
-      <section className="lp4-section lp4-bg-canvas lp4-snap lp4-stage" id="pricing">
+      <section className="lp4-section lp4-bg-canvas" id="pricing">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Pricing</div>
@@ -638,7 +479,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ 도입 사례 — 실제 운영 계정 수치만. 회사명은 마스킹 ══ */}
-      <section className="lp4-section lp4-bg-canvas lp4-snap lp4-stage" id="cases">
+      <section className="lp4-section lp4-bg-canvas" id="cases">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">In Production</div>
@@ -672,7 +513,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ FAQ ══ */}
-      <section className="lp4-section lp4-bg-tint lp4-snap lp4-stage" id="faq">
+      <section className="lp4-section lp4-bg-tint" id="faq">
         <div className="lp4-narrow">
           <Reveal className="lp4-sec-head"><div className="lp4-eyebrow">FAQ</div><h2 className="lp4-h2">자주 묻는 질문이에요</h2></Reveal>
           <div>
