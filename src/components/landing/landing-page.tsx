@@ -114,6 +114,7 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
 export default function LandingPage() {
   const [on, setOn] = useState(false);
   const [tour, setTour] = useState(0);
+  const [feat, setFeat] = useState(0); // 기능 리스트 — 열린 항목
   const [word, setWord] = useState(0); // 히어로 회전 단어
   const [tourAuto, setTourAuto] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -285,8 +286,8 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">A Day of the Owner</div>
-            <h2 className="lp4-h2">대표님의 하루가 <span className="lp4-underline">이렇게 바뀝니다</span></h2>
-            <p className="lp4-sub">기능 목록이 아니라, 실제로 하루 동안 무엇이 사라지는지로 보여드립니다.</p>
+            <h2 className="lp4-h2">대표님의 하루가 <span className="lp4-underline">이렇게 바뀌어요</span></h2>
+            <p className="lp4-sub">기능 목록 말고, 하루 동안 무엇이 사라지는지로 보여드릴게요.</p>
           </Reveal>
 
           <div className="lp4-day">
@@ -322,8 +323,8 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">One ERP, Three Pillars</div>
-            <h2 className="lp4-h2">회사 운영은 <span className="lp4-underline">세 가지</span>로 나뉩니다</h2>
-            <p className="lp4-sub">프로젝트를 굴리고, 사람을 관리하고, 돈을 정리합니다. 오너뷰는 이 셋을 각각 제대로 합니다.</p>
+            <h2 className="lp4-h2">회사 운영은 <span className="lp4-underline">세 가지</span>로 나뉘어요</h2>
+            <p className="lp4-sub">프로젝트를 굴리고, 사람을 챙기고, 돈을 정리해요. 오너뷰는 이 셋을 각각 제대로 해요.</p>
           </Reveal>
         </div>
 
@@ -372,8 +373,8 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Real Product</div>
-            <h2 className="lp4-h2">렌더링이 아닌 <span className="lp4-underline">실제 서비스 화면</span>입니다</h2>
-            <p className="lp4-sub">아래 이미지는 모두 실제 오너뷰 화면을 그대로 캡처한 것으로, 가입 즉시 동일한 화면을 사용하실 수 있습니다.</p>
+            <h2 className="lp4-h2">렌더링이 아닌 <span className="lp4-underline">실제 서비스 화면</span>이에요</h2>
+            <p className="lp4-sub">아래 이미지는 전부 실제 오너뷰 화면을 그대로 캡처한 거예요. 가입하면 똑같은 화면을 쓰실 수 있어요.</p>
           </Reveal>
 
           <div className="lp4-tour-tabs">
@@ -394,7 +395,7 @@ export default function LandingPage() {
               <div className="lp4-tour-step">SCREEN {String(tour + 1).padStart(2, "0")} / {String(SCREENS.length).padStart(2, "0")}</div>
               <div className="lp4-tour-title">{scr.title}</div>
               <p className="lp4-tour-desc">{scr.desc}</p>
-              <span className="lp4-tour-note"><Check /> 실제 서비스 화면 캡처</span>
+              <span className="lp4-tour-note"><Check /> 실제 서비스 화면이에요</span>
             </div>
             {/* 화면 위에 기능 위치를 짚어주는 주석 — 처음 보는 방문자가 어디를 봐야 할지 알 수 있게 */}
             <div className="lp4-tour-stage">
@@ -421,8 +422,8 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">End to End</div>
-            <h2 className="lp4-h2">견적부터 정산까지, <span className="lp4-underline">끊기지 않고</span> 이어집니다</h2>
-            <p className="lp4-sub">각 단계에서 만든 정보가 다음 단계로 그대로 넘어갑니다. 아래 화면은 실제 서비스 화면입니다.</p>
+            <h2 className="lp4-h2">견적부터 정산까지, <span className="lp4-underline">끊기지 않고</span> 이어져요</h2>
+            <p className="lp4-sub">앞 단계에서 만든 정보가 다음 단계로 그대로 넘어가요. 아래는 실제 서비스 화면이에요.</p>
           </Reveal>
 
           <div className="lp4-flow" ref={flowRef}>
@@ -473,18 +474,31 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Product</div>
-            <h2 className="lp4-h2">흩어진 7개 도구를, 하나의 흐름으로</h2>
-            <p className="lp4-sub">개별 구독하던 도구들이 하나의 데이터 위에서 연결되어 동작합니다.</p>
+            <h2 className="lp4-h2">흩어진 7개 도구, 하나로 합쳐보세요</h2>
+            <p className="lp4-sub">따로 결제하던 도구들이 하나의 데이터 위에서 같이 움직여요.</p>
           </Reveal>
-          <div className="lp4-feat-grid">
+          {/* 큰 타이포 리스트 — 카드 나열보다 훑기 쉽고, 고른 항목만 펼쳐 읽는다 */}
+          <div className="lp4-feat-list">
             {FEATURES.map((f, i) => (
-              <Reveal key={f.tab}><div className="lp4-feat lp4-card">
-                <span className="lp4-feat-num">{String(i + 1).padStart(2, "0")}</span>
-                <div className="lp4-feat-tab">{f.tab}</div>
-                <div className="lp4-feat-title">{f.title}</div>
-                <p className="lp4-feat-desc">{f.desc}</p>
-                <div className="lp4-feat-replaces">대체 <b>{f.replaces}</b></div>
-              </div></Reveal>
+              <button
+                key={f.tab}
+                className={`lp4-feat-row ${i === feat ? "lp4-feat-row-on" : ""}`}
+                onClick={() => setFeat(i === feat ? -1 : i)}
+                aria-expanded={i === feat}
+              >
+                <span className="lp4-feat-idx">{String(i + 1).padStart(2, "0")}</span>
+                <span className="lp4-feat-body">
+                  <span className="lp4-feat-name">{f.tab}</span>
+                  <span className="lp4-feat-sum">{f.title}</span>
+                  {i === feat && (
+                    <span className="lp4-feat-more">
+                      <span className="lp4-feat-desc">{f.desc}</span>
+                      <span className="lp4-feat-rep">이 기능이 대신해요 · <b>{f.replaces}</b></span>
+                    </span>
+                  )}
+                </span>
+                <span className="lp4-feat-plus">{i === feat ? "−" : "+"}</span>
+              </button>
             ))}
           </div>
         </div>
@@ -496,8 +510,8 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">4 AI Engines</div>
-            <h2 className="lp4-h2">4개의 AI 엔진이 <span className="lp4-underline">반복 업무를 대신 처리</span>합니다</h2>
-            <p className="lp4-sub">인력을 대체하는 것이 아니라, 매번 되풀이되는 운영 업무를 자동화합니다.</p>
+            <h2 className="lp4-h2">4개의 AI 엔진이 <span className="lp4-underline">반복 업무를 대신 해요</span></h2>
+            <p className="lp4-sub">사람을 대체하는 게 아니라, 매번 되풀이되는 일을 자동으로 처리해요.</p>
           </Reveal>
           <div className="lp4-eng-grid">
             {ENGINES.map((e) => (
@@ -532,8 +546,8 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Compare</div>
-            <h2 className="lp4-h2">따로 쓰면 인원마다 늘어납니다</h2>
-            <p className="lp4-sub">7개 도구를 개별 구독하는 경우와 오너뷰 정액제를 동일 조건으로 비교했습니다.</p>
+            <h2 className="lp4-h2">따로 쓰면 인원마다 늘어나요</h2>
+            <p className="lp4-sub">7개 도구를 따로 구독할 때와 오너뷰 정액제를 같은 조건으로 비교해봤어요.</p>
           </Reveal>
           <div className="lp4-cmp-grid">
             <Reveal><div className="lp4-cmp lp4-card">
@@ -577,8 +591,8 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Pricing</div>
-            <h2 className="lp4-h2">가입 시 카드 등록 · 14일 무료 · 이후 자동 결제</h2>
-            <p className="lp4-sub">14일 내 해지하면 첫 결제가 발생하지 않습니다. 기본 5명 포함 · 추가 1명당 ₩10,000/월.</p>
+            <h2 className="lp4-h2">14일 써보고 결정하세요</h2>
+            <p className="lp4-sub">가입할 때 카드만 등록해요. 14일 안에 해지하면 첫 결제는 없어요.</p>
           </Reveal>
           <div className="lp4-price-grid">
             {PLANS.map((p) => (
@@ -589,11 +603,11 @@ export default function LandingPage() {
                 {p.regularPrice
                   ? <div className="lp4-price-reg">₩{p.regularPrice}{p.discount && <span className="lp4-price-off">{p.discount} 할인</span>}</div>
                   : <div className="lp4-price-reg-empty" />}
-                <div className="lp4-price-amt">{p.price === "별도 협의" ? "별도 협의" : `₩${p.price}`}<span className="lp4-price-unit">{p.unit && ` ${p.unit}`}</span></div>
+                <div className={`lp4-price-amt ${p.price === "별도 협의" ? "lp4-price-amt-text" : ""}`}>{p.price === "별도 협의" ? "별도 협의" : `₩${p.price}`}<span className="lp4-price-unit">{p.unit && ` ${p.unit}`}</span></div>
                 <div className="lp4-price-period">{p.period}</div>
                 <ul className="lp4-price-feats">{p.features.map((ft, i) => <li key={i} className="lp4-price-feat"><Check />{ft}</li>)}</ul>
                 <Link href={p.name === "엔터프라이즈" ? "#partner" : p.slug ? `/auth?plan=${p.slug}` : "/auth"} className={`lp4-price-cta ${p.hl ? "lp4-price-cta-brand" : "lp4-price-cta-line"}`}>
-                  {p.name === "엔터프라이즈" ? "도입 문의" : "14일 무료로 시작"}
+                  {p.name === "엔터프라이즈" ? "도입 문의하기" : "14일 무료로 시작하기"}
                 </Link>
               </div></Reveal>
             ))}
@@ -606,7 +620,7 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">In Production</div>
-            <h2 className="lp4-h2">개발사가 <span className="lp4-underline">자사 운영에 직접</span> 사용합니다</h2>
+            <h2 className="lp4-h2">만든 회사가 <span className="lp4-underline">직접 쓰고</span> 있어요</h2>
             <p className="lp4-sub">{CASES_NOTE}</p>
           </Reveal>
           <div className="lp4-case-grid">
@@ -638,7 +652,7 @@ export default function LandingPage() {
       {/* ══ FAQ ══ */}
       <section className="lp4-section lp4-bg-tint" id="faq">
         <div className="lp4-narrow">
-          <Reveal className="lp4-sec-head"><div className="lp4-eyebrow">FAQ</div><h2 className="lp4-h2">자주 묻는 질문</h2></Reveal>
+          <Reveal className="lp4-sec-head"><div className="lp4-eyebrow">FAQ</div><h2 className="lp4-h2">자주 묻는 질문이에요</h2></Reveal>
           <div>
             {FAQS.map((faq, i) => (
               <div key={i} className={`lp4-faq ${openFaq === i ? "lp4-faq-open" : ""}`}>
@@ -660,10 +674,10 @@ export default function LandingPage() {
             <div className="lp4-final">
               <div className="lp4-final-orbs" />
               <div className="lp4-final-inner">
-                <h2 className="lp4-final-h">회사 현황, 한눈에 보고 싶다면<br /><em>OwnerView를 시작하세요</em></h2>
-                <p className="lp4-final-p">거래처 목록과 거래내역은 엑셀 업로드만으로 등록됩니다. 가입 시 카드 등록 · 14일 무료.</p>
+                <h2 className="lp4-final-h">회사 현황, 한눈에 보고 싶다면<br /><em>오너뷰로 시작해보세요</em></h2>
+                <p className="lp4-final-p">거래처 목록과 거래내역은 엑셀만 올리면 바로 등록돼요. 가입 시 카드 등록 · 14일 무료.</p>
                 <Link href="/auth" className="lp4-btn lp4-btn-onink">무료로 시작하기 <Arrow /></Link>
-                <p className="lp4-final-note">이미 계정이 있으신가요? <Link href="/auth">로그인</Link></p>
+                <p className="lp4-final-note">이미 계정이 있으신가요? <Link href="/auth">로그인하기</Link></p>
               </div>
             </div>
           </Reveal>
@@ -675,8 +689,8 @@ export default function LandingPage() {
         <div className="lp4-narrow">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Contact</div>
-            <h2 className="lp4-h2">제휴 &amp; 도입 문의</h2>
-            <p className="lp4-sub">Enterprise 도입, API 연동, 리셀러 제휴를 상담해 드립니다.</p>
+            <h2 className="lp4-h2">제휴·도입이 궁금하세요?</h2>
+            <p className="lp4-sub">엔터프라이즈 도입, API 연동, 리셀러 제휴를 상담해 드릴게요.</p>
           </Reveal>
           <Reveal><PartnershipForm /></Reveal>
         </div>
