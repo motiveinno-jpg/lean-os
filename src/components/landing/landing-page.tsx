@@ -264,6 +264,7 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
+  const footRef = useRef<HTMLElement>(null);
   // 하루 섹션: 스크롤한 만큼 09:00 → 23:00 이 순서대로 넘어간다
   useEffect(() => {
     const el = dayRef.current; if (!el) return;
@@ -293,8 +294,10 @@ export default function LandingPage() {
     const h = () => {
       const y = window.scrollY;
       setOn(y > 8);
-      // 히어로를 지나면 모바일 하단 CTA 노출 — 스크롤 어디에서든 가입 경로가 살아있게
-      setShowSticky(y > 700);
+      // 히어로를 지나면 하단 고정 CTA 노출 — 스크롤 어디에서든 가입 경로가 살아있게
+      const foot = footRef.current;
+      const footTop = foot ? foot.getBoundingClientRect().top : Infinity;
+      setShowSticky(y > 700 && footTop > window.innerHeight);
     };
     h();
     window.addEventListener("scroll", h, { passive: true });
@@ -687,23 +690,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ FINAL CTA ══ */}
-      <section className="lp4-section lp4-bg-canvas">
-        <div className="lp4-container">
-          <Reveal>
-            <div className="lp4-final">
-              <div className="lp4-final-orbs" />
-              <div className="lp4-final-inner">
-                <h2 className="lp4-final-h">회사 현황, 한눈에 보고 싶다면<br /><em>오너뷰로 시작해보세요</em></h2>
-                <p className="lp4-final-p">거래처 목록과 거래내역은 엑셀만 올리면 바로 등록돼요. 가입 시 카드 등록 · 14일 무료.</p>
-                <Link href="/auth" className="lp4-btn lp4-btn-onink">무료로 시작하기 <Arrow /></Link>
-                <p className="lp4-final-note">이미 계정이 있으신가요? <Link href="/auth">로그인하기</Link></p>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
       {/* ══ PARTNER — 대다수 방문자와 무관한 엔터프라이즈 폼은 최종 CTA 뒤로 ══ */}
       <section className="lp4-section lp4-bg-tint" id="partner">
         <div className="lp4-narrow">
@@ -717,11 +703,11 @@ export default function LandingPage() {
       </section>
 
       {/* ══ FOOTER ══ */}
-      <footer className="lp4-footer">
+      <footer className="lp4-footer" ref={footRef}>
         <div className="lp4-container">
           <div className="lp4-footer-top">
             <div className="lp4-logo"><Logo size={25} /> OwnerView <span className="lp4-footer-sub">Company Operating System</span></div>
-            <div className="lp4-flinks"><a href="#tour">제품 화면</a><a href="#features">기능</a><a href="#pricing">가격</a><a href="#partner">제휴문의</a><a href="#faq">FAQ</a></div>
+            <div className="lp4-flinks"><a href="#catalog">오너뷰 둘러보기</a><a href="#engines">AI 엔진</a><Link href="/pricing">가격</Link><a href="#partner">제휴문의</a><a href="#faq">FAQ</a></div>
           </div>
           <div className="lp4-footer-bottom">
             <div className="lp4-finfo"><div>{FOOTER.company}</div><div>{FOOTER.reg}</div><div>{FOOTER.addr}</div></div>
@@ -730,10 +716,13 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* ══ 모바일 하단 고정 CTA ══ */}
+      {/* ══ 스크롤하면 따라오는 시작 버튼 ══
+           최종 CTA 섹션을 없앤 대신, 히어로를 지나면 어디서든 가입 경로가 살아있게 한다.
+           데스크톱은 하단 가운데 떠 있는 알약, 모바일은 하단 전체 폭 바. */}
       <div className={`lp4-sticky-cta ${showSticky ? "lp4-sticky-cta-on" : ""}`}>
+        <span className="lp4-sticky-copy">14일 무료 · 가입하면 오늘 바로 써요</span>
         <Link href="/demo" className="lp4-btn lp4-btn-line">화면 보기</Link>
-        <Link href="/auth" className="lp4-btn lp4-btn-brand">무료로 시작하기</Link>
+        <Link href="/auth" className="lp4-btn lp4-btn-brand">무료로 시작하기 <Arrow /></Link>
       </div>
     </div>
   );
