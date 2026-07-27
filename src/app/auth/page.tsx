@@ -417,13 +417,20 @@ export default function AuthPage() {
               type="button"
               onClick={async () => {
                 setError("");
+                // 소셜 가입도 약관 동의 필수 — 기존엔 이 경로가 동의를 건너뛰어
+                //   약관 미동의 상태로 계정이 만들어질 수 있었다(2026-07-27 사장님 지적).
+                if (mode === "signup" && !agreed) {
+                  return setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
+                }
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "kakao",
                   options: { redirectTo: "https://www.owner-view.com/api/auth/callback?next=/auth/verify" },
                 });
                 if (error) setError(translateAuthError(error.message));
               }}
-              className="oauth-kakao-btn"
+              disabled={mode === "signup" && !agreed}
+              title={mode === "signup" && !agreed ? "약관에 동의해야 가입할 수 있습니다" : undefined}
+              className={`oauth-kakao-btn ${mode === "signup" && !agreed ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M9 1C4.58 1 1 3.79 1 7.21c0 2.17 1.45 4.08 3.63 5.17l-.93 3.42c-.08.29.25.52.5.35l4.09-2.72c.24.02.47.03.71.03 4.42 0 8-2.79 8-6.25S13.42 1 9 1z" fill="#191919"/>
@@ -434,13 +441,18 @@ export default function AuthPage() {
               type="button"
               onClick={async () => {
                 setError("");
+                if (mode === "signup" && !agreed) {
+                  return setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
+                }
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "google",
                   options: { redirectTo: "https://www.owner-view.com/api/auth/callback?next=/auth/verify" },
                 });
                 if (error) setError(translateAuthError(error.message));
               }}
-              className="oauth-google-btn"
+              disabled={mode === "signup" && !agreed}
+              title={mode === "signup" && !agreed ? "약관에 동의해야 가입할 수 있습니다" : undefined}
+              className={`oauth-google-btn ${mode === "signup" && !agreed ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -620,6 +632,7 @@ export default function AuthPage() {
                     <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">이용약관</Link>,{" "}
                     <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">개인정보처리방침</Link>,{" "}
                     <Link href="/refund" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">환불규정</Link>에 동의합니다.
+                    <b className="text-[var(--danger)] ml-1">(필수)</b>
                   </span>
                 </label>
               </div>

@@ -32,6 +32,10 @@ function fmtW(n: number): string {
   return `₩${n.toLocaleString()}`;
 }
 
+// 연간 결제 노출 여부. Stripe 라이브 연간 price(STRIPE_PRICE_*_ANNUAL) 등록 전까지는
+//   고르면 서버가 400 으로 막으므로 화면에서도 감춘다. 등록 후 true 로 바꾸면 열린다.
+const ANNUAL_BILLING_AVAILABLE = false;
+
 export default function BillingPage() {
   const { role } = useUser();
   if (role === "employee" || role === "partner") {
@@ -47,6 +51,9 @@ export default function BillingPage() {
   // 영업사원 영업코드 — 입력 시 무료체험 14일 + 보너스(기본 30일) = 44일 (2026-07-27 가격정책).
   //   유효성은 서버(/api/stripe/checkout)가 판정한다 — 클라에서 코드 목록을 조회할 수 없다.
   const [salesCode, setSalesCode] = useState("");
+  // 연간 결제 "중도해지 시 환불 불가" 동의 — 약관규제법상 고객에게 불리한 중요 조항은
+  //   약관 게시만으로 부족하고 결제 시점에 명확히 고지·확인받아야 한다(2026-07-27 사장님 요청).
+  const [annualRefundAck, setAnnualRefundAck] = useState(false);
   const qc = useQueryClient();
 
   const { data: user, isLoading: isUserLoading, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
@@ -193,6 +200,11 @@ export default function BillingPage() {
   /** Stripe Checkout */
   async function handleStripeCheckout(planSlug: string) {
     if (!companyId) return;
+    // 연간은 환불 불가 고지에 동의해야만 진행 — 동의 없이는 결제 세션을 만들지 않는다.
+    if (cycle === "annual" && !annualRefundAck) {
+      toast("연간 결제는 환불 불가 안내에 동의해야 진행할 수 있습니다.", "error");
+      return;
+    }
     setIsPaymentLoading(true);
     try {
       const response = await fetch('/api/stripe/checkout', {
@@ -474,7 +486,45 @@ export default function BillingPage() {
             );
           })()}
 
-          {/* 연간 결제 토글은 비활성(정상가·할인 확정 전까지) — 월간만 노출 */}
+          {/* 결제 주기 — 연간은 Stripe 라이브 연간 price 등록 후 열린다.
+              ANNUAL_BILLING_AVAILABLE 만 true 로 바꾸면 노출된다(서버 분기는 이미 구현됨). */}
+          {ANNUAL_BILLING_AVAILABLE && (
+            <div className="mb-5">
+              <div className="seg-bar w-fit">
+                {([["monthly", "월간"], ["annual", "연간 (10% 할인)"]] as const).map(([k, l]) => (
+                  <button
+                    key={k}
+                    onClick={() => { setCycle(k); if (k === "monthly") setAnnualRefundAck(false); }}
+                    className={`seg-item ${cycle === k ? "seg-item-active" : ""}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+
+              {cycle === "annual" && (
+                <label className="billing-annual-ack">
+                  <input
+                    type="checkbox"
+                    checked={annualRefundAck}
+                    onChange={(e) => setAnnualRefundAck(e.target.checked)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span className="text-xs leading-6 text-[var(--text-muted)]">
+                    <b className="text-[var(--text)]">
+                      연간 결제는 1년치 요금이 한 번에 청구되며, 중도 해지하더라도 환불되지 않습니다.
+                    </b>{" "}
+                    해지 시 결제한 1년의 잔여기간 동안 추가 비용 없이 계속 이용하실 수 있고, 기간이
+                    끝나면 자동 갱신 없이 종료됩니다. 위 내용을 확인했으며 이에 동의합니다.{" "}
+                    <a href="/refund" target="_blank" rel="noreferrer" className="underline underline-offset-2 text-[var(--primary)]">
+                      환불규정 보기
+                    </a>
+                  </span>
+                </label>
+              )}
+            </div>
+          )}
+
 
           <div className="billing-plan-grid">
             {(plans || []).map((plan: any) => {

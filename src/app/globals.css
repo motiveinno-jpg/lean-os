@@ -2502,6 +2502,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .billing-cancel-section { @apply mt-8 p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger-dim)]; }
 .billing-cancel-scheduled-badge { @apply mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400; }
 .billing-trial-start-banner { @apply flex items-center justify-between gap-4 flex-wrap mb-4 p-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--primary)]/5; }
+/* 연간 결제 환불불가 동의 (2026-07-27) — 결제 시점 고지가 필요한 항목이라 눈에 띄게. */
+.billing-annual-ack { @apply flex items-start gap-2.5 mt-3 p-3 rounded-xl border border-[var(--warning)]/30 bg-[var(--warning)]/5 cursor-pointer; }
 
 /* ═══ AI 참모(copilot) 전면 재설계 (2026-07-23) ═══ */
 /* 폭·정렬을 오너뷰 콘텐츠(app-shell max-w-1400, 좌측정렬)에 맞춤 — 탑바와 가로 일치 (2026-07-23) */
