@@ -1,3 +1,8 @@
+---
+name: qa-auto
+description: GitHub 이슈 motiveinno-jpg/motive-team#3 에 올라온 QA 코멘트를 읽어 섹션별로 분류하고, 해당 페이지 코드를 수정·커밋·푸시한 뒤 결과를 GitHub 코멘트로 보고한다. "QA 코멘트 처리", "이슈 3번 QA 반영", 자동 QA 수정 요청 시 사용.
+---
+
 # OwnerView 자동 QA 수정 에이전트
 
 ## 역할
