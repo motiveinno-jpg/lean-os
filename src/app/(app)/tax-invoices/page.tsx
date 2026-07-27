@@ -232,6 +232,13 @@ const EXPENSE_CATEGORIES = [
   { value: "other", label: "기타" },
 ];
 
+// ── 수정세금계산서 준비 상태 ──
+//   CODEF 수정발행은 정발행과 상품이 분리돼 있어 별도 신청이 필요하다
+//   (regist-revise-invoicer-trustee). 2026-07-27 현재 미신청 상태라 화면에서 막아둔다.
+//   서버(hometax-issue)에는 수정발행 분기가 이미 구현돼 있으므로, 승인되면
+//   이 상수만 true 로 바꾸면 열린다.
+const MODIFY_ISSUE_AVAILABLE = false;
+
 // ── 수정세금계산서 사유 ──
 const MODIFICATION_REASONS = [
   { value: "error_correction", label: "기재사항 착오정정", desc: "필요적 기재사항(공급가액, 세액 등)의 착오 정정" },
@@ -3241,9 +3248,15 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
               </button>
               <button
                 onClick={() => onModify(inv)}
-                className="px-4 py-2 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg text-sm font-semibold transition"
+                disabled={!MODIFY_ISSUE_AVAILABLE}
+                title={MODIFY_ISSUE_AVAILABLE ? "수정세금계산서 발행" : "국세청 연동 기관 승인 대기 중입니다. 곧 지원 예정입니다."}
+                className={
+                  MODIFY_ISSUE_AVAILABLE
+                    ? "px-4 py-2 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg text-sm font-semibold transition"
+                    : "px-4 py-2 bg-[var(--bg-surface)] text-[var(--text-dim)] rounded-lg text-sm font-semibold border border-[var(--border)] cursor-not-allowed"
+                }
               >
-                수정세금계산서
+                수정세금계산서{MODIFY_ISSUE_AVAILABLE ? "" : " (업데이트 예정)"}
               </button>
               <button
                 onClick={() => { ensurePrintStyles(); window.print(); }}
@@ -3290,6 +3303,33 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
   invoice: any; reason: string; setReason: (r: string) => void; modifyAmount: string; setModifyAmount: (v: string) => void; onClose: () => void; onSubmit: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
+
+  // 버튼 외 경로(딥링크·기존 상태 등)로 열려도 발행되지 않도록 모달에서도 막는다.
+  if (!MODIFY_ISSUE_AVAILABLE) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+        <div className="tax-invoice-modification-modal glass-card" onClick={(e) => e.stopPropagation()}>
+          <div className="px-6 py-4 border-b border-[var(--border)]">
+            <h3 className="text-sm font-bold">수정세금계산서 — 업데이트 예정</h3>
+          </div>
+          <div className="px-6 py-6 space-y-3">
+            <p className="text-sm text-[var(--text)]">
+              수정세금계산서 발행은 <b>현재 준비 중</b>입니다. 국세청 전자세금계산서 <b>수정발행 연동 승인</b>이
+              완료되는 대로 열립니다.
+            </p>
+            <p className="text-xs text-[var(--text-muted)] leading-6">
+              그때까지는 홈택스에서 직접 수정발행해 주세요. 이미 국세청에 전송된 세금계산서는
+              삭제·정정이 불가능하며, 세법상 적합한 수정사유를 선택해 수정세금계산서를 발행해야 합니다.
+            </p>
+          </div>
+          <div className="px-6 py-4 border-t border-[var(--border)] flex justify-end">
+            <button onClick={onClose} className="btn-primary btn-sm">확인</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="tax-invoice-modification-modal glass-card" onClick={(e) => e.stopPropagation()}>
