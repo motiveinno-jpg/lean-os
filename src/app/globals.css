@@ -1190,32 +1190,75 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .not-found-actions { @apply flex flex-col sm:flex-row items-center gap-3; }
 .maintenance-page { @apply min-h-screen flex items-center justify-center p-6; }
 .maintenance-anvil-scene { @apply relative mx-auto select-none w-[120px] h-[96px]; }
-.demo-banner { @apply sticky top-0 z-50 px-4 py-2.5 text-center text-sm font-semibold; }
-.app-sidebar { @apply hidden md:flex flex-col w-[220px] min-h-screen border-r p-4 flex-shrink-0; }
-.sidebar-nav-list { @apply space-y-1 flex-1; }
-.sidebar-nav-item { @apply px-3 py-2 rounded-lg text-xs font-semibold cursor-default; }
-.sidebar-company-info { @apply mt-auto pt-4 border-t text-[11px]; }
-.morning-brief-card { @apply mb-6 rounded-2xl border p-6 md:p-8; }
-.cash-pulse-bar { @apply rounded-2xl p-1 mb-4; }
+/* ── /demo — 앱 실물 셸 재현 (2026-07-27) ────────────────────────────
+   기존 데모는 불투명 --bg 래퍼 + 평면 흰 사이드바라 앱 본체(리퀴드글래스)와
+   완전히 다른 화면으로 보였다. 랜딩에 실제 제품 화면으로 싣기 위해
+   앰비언트 캔버스 노출 + 인셋 플로팅 유리 사이드바/헤더로 맞춘다.
+   (배경을 칠하지 않아야 body::before 오브가 유리를 투과한다) */
+.demo-root { @apply min-h-screen; }
+.demo-banner { @apply sticky top-0 z-50 px-4 py-2.5 text-center text-sm font-semibold text-white; }
+.demo-banner { background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.demo-shell { @apply flex gap-0 p-3 md:p-4; }
+/* .sidebar-panel 을 겸용하지 않고 그 속성을 여기서 직접 정의한다 —
+   .sidebar-panel 이 globals.css 뒤쪽에 정의돼 있어 display:flex 가 이 규칙의 hidden 을
+   덮어써 모바일에서 사이드바가 그대로 노출됐다.
+   sticky 오프셋은 상단 데모 배너(약 42px) 아래로 — 배너가 브랜드 블록을 덮던 문제. */
+.demo-sidebar {
+  @apply hidden md:flex flex-col w-[248px] flex-shrink-0 p-3 sticky top-[54px] h-[calc(100vh-70px)]
+         rounded-[20px] border border-[var(--border)]/60 overflow-hidden shadow-[var(--shadow-lg)];
+}
+.demo-sidebar-brand { @apply flex items-center gap-2.5 px-1 pb-3 mb-1 border-b border-[var(--border)]/70; }
+.demo-sidebar-mark { @apply w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.demo-sidebar-brand-text { @apply flex flex-col min-w-0; }
+.demo-sidebar-brand-name { @apply text-sm font-extrabold text-[var(--text)] leading-4; }
+.demo-sidebar-brand-sub { @apply text-[10px] text-[var(--text-dim)] truncate; }
+.demo-sidebar-nav { @apply flex-1 overflow-hidden space-y-3 pt-2; }
+.demo-sidebar-group { @apply px-2 pb-1 text-[10px] font-bold tracking-wider uppercase text-[var(--text-dim)]; }
+.demo-nav-item { @apply flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium text-[var(--text-muted)] cursor-default; }
+.demo-nav-glyph { @apply w-4 h-4 shrink-0; }
+.demo-nav-badge { @apply ml-auto px-1.5 py-0.5 rounded-full bg-[var(--danger)] text-white text-[10px] font-bold leading-none; }
+.demo-nav-item.nav-active .demo-nav-badge { @apply bg-white/25; }
+.demo-sidebar-foot { @apply flex items-center gap-2.5 pt-3 mt-1 border-t border-[var(--border)]/70; }
+.demo-sidebar-avatar { @apply w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.demo-sidebar-user { @apply min-w-0; }
+.demo-sidebar-user-name { @apply text-xs font-bold text-[var(--text)] leading-4; }
+.demo-sidebar-user-role { @apply text-[10px] text-[var(--text-dim)]; }
+.demo-main-col { @apply flex-1 min-w-0 md:pl-4; }
+.demo-header { @apply h-16 flex items-center gap-3 px-4 md:px-6 rounded-[20px] border border-[var(--border)]/60 shadow-[var(--shadow-lg)] mb-4; }
+.demo-header-titles { @apply flex-1 min-w-0; }
+.demo-header-crumb { @apply text-[11px] leading-4 text-[var(--text-dim)]; }
+.demo-header-title { @apply text-base font-bold text-[var(--text)] leading-5; }
+.demo-header-glyph { @apply w-4 h-4; }
+.demo-header-search { @apply hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)]/80 bg-[var(--bg)]/70 text-xs text-[var(--text-dim)] w-[200px]; }
+.demo-header-kbd { @apply ml-auto px-1.5 py-0.5 rounded-md border border-[var(--border)] text-[10px] font-semibold; }
+.demo-header-chip { @apply relative w-9 h-9 rounded-xl border border-[var(--border)]/80 flex items-center justify-center text-[var(--text-muted)]; }
+.demo-header-dot { @apply absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--danger)]; }
+.demo-header-avatar { @apply w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.demo-main { @apply min-w-0 max-w-[1180px] pb-10; }
+.risk-item-card-hot { border-color: rgba(239,68,68,0.28); }
+.today-action-critical { background: color-mix(in srgb, var(--danger) 4%, var(--glass-bg)); }
+.today-action-high { background: color-mix(in srgb, var(--warning) 4%, var(--glass-bg)); }
+.morning-brief-card { @apply mb-6 p-6 md:p-8; }
+.cash-pulse-bar { @apply p-1 mb-4; }
 .pulse-balance-stat { @apply px-4 py-3; }
 .pulse-forecast-stat { @apply px-4 py-3; }
 .pulse-score-stat { @apply px-4 py-3; }
 .pulse-risk-stat { @apply px-4 py-3; }
-.six-pack-metrics-card { @apply rounded-2xl border mb-5 overflow-hidden; }
+.six-pack-metrics-card { @apply mb-5 overflow-hidden; }
 .six-pack-metric-item { @apply px-4 py-4; }
-.cash-pulse-forecast-card { @apply mb-5 rounded-xl border p-4; }
+.cash-pulse-forecast-card { @apply mb-5 p-4; }
 .forecast-bar-item { @apply text-center; }
 .today-actions-list { @apply mb-5; }
-.today-action-item { @apply flex items-center gap-3 px-4 py-3 rounded-lg border border-l-2; }
-.yesterday-tx-card { @apply mb-5 rounded-xl border p-4; }
+.today-action-item { @apply flex items-center gap-3 px-4 py-3 border-l-2; }
+.yesterday-tx-card { @apply mb-5 p-4; }
 .yesterday-tx-row { @apply flex items-center justify-between px-3 py-2 rounded-lg; }
 .risk-zone-section { @apply mb-5; }
-.risk-item-card { @apply rounded-xl border p-3; }
-.deal-pipeline-card { @apply mb-5 rounded-xl border p-4; }
+.risk-item-card { @apply p-3; }
+.deal-pipeline-card { @apply mb-5 p-4; }
 .deal-pipeline-row { @apply flex items-center gap-3 px-3 py-2.5 rounded-lg; }
 .quick-links-section { @apply mb-5; }
-.quick-link-card { @apply rounded-xl border p-4 opacity-60 cursor-default; }
-.cta-card { @apply rounded-2xl border p-8 text-center mb-10 border-2; }
+.quick-link-card { @apply p-4 opacity-60 cursor-default; }
+.cta-card { @apply p-8 text-center mb-10; border-color: var(--primary); }
 .portal-page { @apply min-h-screen bg-[var(--bg)] py-8 px-4; }
 .portal-header-card { @apply rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-6 mb-4; }
 .portal-doc-list-card { @apply rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden; }

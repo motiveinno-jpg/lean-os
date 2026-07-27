@@ -63,6 +63,75 @@ const YESTERDAY_TX = [
   { type: "입금", desc: "E사 유지보수 월정액", amount: "+₩600만" },
 ];
 
+// 사이드바 — 실제 앱(components/sidebar.tsx)의 그룹·라벨을 그대로 옮긴 정적 사본.
+//   데모는 라우팅/권한이 없으므로 링크 없이 모양만 재현한다.
+const NAV_GROUPS: { label: string; items: { label: string; icon: string; active?: boolean; badge?: string }[] }[] = [
+  { label: "홈", items: [
+    { label: "대시보드", icon: "grid", active: true },
+    { label: "AI 참모", icon: "sparkles" },
+    { label: "알림", icon: "bell", badge: "3" },
+  ] },
+  { label: "파이낸스", items: [
+    { label: "거래처", icon: "users" },
+    { label: "세금·증빙", icon: "receipt" },
+    { label: "거래 장부", icon: "book" },
+    { label: "분석", icon: "chart" },
+  ] },
+  { label: "워크스페이스", items: [
+    { label: "프로젝트", icon: "briefcase" },
+    { label: "결재 허브", icon: "check", badge: "5" },
+    { label: "전자계약", icon: "pen" },
+    { label: "메신저", icon: "chat" },
+  ] },
+  { label: "인사관리", items: [
+    { label: "구성원", icon: "user" },
+    { label: "근태 관리", icon: "calendar" },
+  ] },
+  { label: "자산관리", items: [
+    { label: "통장", icon: "swap" },
+    { label: "카드", icon: "wallet" },
+  ] },
+];
+
+// ── Glyphs ──
+
+const gp = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+function NavGlyph({ type }: { type: string }) {
+  const p = { ...gp, className: "demo-nav-glyph" };
+  switch (type) {
+    case "grid": return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>;
+    case "sparkles": return <svg {...p}><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M18 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9L18 15z"/></svg>;
+    case "bell": return <svg {...p}><path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>;
+    case "users": return <svg {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/></svg>;
+    case "receipt": return <svg {...p}><path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5 4 2z"/><path d="M8 8h8M8 12h8"/></svg>;
+    case "book": return <svg {...p}><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
+    case "chart": return <svg {...p}><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-9"/></svg>;
+    case "briefcase": return <svg {...p}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>;
+    case "check": return <svg {...p}><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>;
+    case "pen": return <svg {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
+    case "chat": return <svg {...p}><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 013 11.5a8.4 8.4 0 019-8.4 8.4 8.4 0 019 8.4z"/></svg>;
+    case "user": return <svg {...p}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+    case "calendar": return <svg {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>;
+    case "swap": return <svg {...p}><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg>;
+    case "wallet": return <svg {...p}><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4h-4z"/></svg>;
+    default: return null;
+  }
+}
+
+const OwnerViewMark = () => (
+  <div className="demo-sidebar-mark">
+    <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
+      <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.6" fill="none" />
+      <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" />
+      <polyline points="12,20 15,18 18,19 22,14" stroke="#fdba74" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  </div>
+);
+
+const SearchGlyph = () => (<svg {...gp} className="demo-header-glyph"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>);
+const BellGlyph = () => (<svg {...gp} className="demo-header-glyph"><path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>);
+
 // ── Helpers ──
 
 function formatBrief(): string[] {
@@ -98,15 +167,9 @@ export default function DemoPage() {
   const maxForecast = Math.max(...PULSE_FORECAST.map((p) => p.balance));
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <div className="demo-root">
       {/* ═══ Demo Banner ═══ */}
-      <div
-        className="demo-banner"
-        style={{
-          background: "linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)",
-          color: "#fff",
-        }}
-      >
+      <div className="demo-banner">
         데모 모드입니다. 실제 데이터로 사용하려면{" "}
         <Link
           href="/auth"
@@ -117,81 +180,68 @@ export default function DemoPage() {
         를 눌러주세요.
       </div>
 
-      {/* ═══ App Shell ═══ */}
-      <div className="flex">
-        {/* Sidebar (desktop) */}
-        <aside
-          className="app-sidebar"
-          style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-6">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-              style={{ background: "var(--primary)" }}
-            >
-              O
+      {/* ═══ App Shell — 실제 앱과 동일한 인셋 플로팅 유리 셸 ═══ */}
+      <div className="demo-shell">
+        {/* Sidebar — sidebar-panel/chrome-glass: 앱 본체 사이드바와 같은 재질·폭 */}
+        <aside className="demo-sidebar chrome-glass">
+          <div className="demo-sidebar-brand">
+            <OwnerViewMark />
+            <div className="demo-sidebar-brand-text">
+              <span className="demo-sidebar-brand-name">OwnerView</span>
+              <span className="demo-sidebar-brand-sub">{DEMO_COMPANY}</span>
             </div>
-            <span
-              className="text-sm font-bold"
-              style={{ color: "var(--text)" }}
-            >
-              OwnerView
-            </span>
           </div>
 
-          <div className="sidebar-nav-list">
-            {[
-              { label: "대시보드", active: true },
-              { label: "프로젝트" },
-              { label: "결제/승인" },
-              { label: "재무분석" },
-              { label: "인사/급여" },
-              { label: "전자계약" },
-              { label: "고객 DB" },
-              { label: "서류관리" },
-              { label: "채팅" },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="sidebar-nav-item"
-                style={{
-                  background: item.active
-                    ? "var(--primary)"
-                    : "transparent",
-                  color: item.active ? "#fff" : "var(--text-muted)",
-                }}
-              >
-                {item.label}
+          <nav className="demo-sidebar-nav">
+            {NAV_GROUPS.map((g) => (
+              <div key={g.label}>
+                <div className="demo-sidebar-group">{g.label}</div>
+                {g.items.map((item) => (
+                  <div
+                    key={item.label}
+                    className={`demo-nav-item ${item.active ? "nav-active" : ""}`}
+                  >
+                    <NavGlyph type={item.icon} />
+                    <span>{item.label}</span>
+                    {item.badge ? <span className="demo-nav-badge">{item.badge}</span> : null}
+                  </div>
+                ))}
               </div>
             ))}
-          </div>
+          </nav>
 
-          <div
-            className="sidebar-company-info"
-            style={{
-              borderColor: "var(--border)",
-              color: "var(--text-dim)",
-            }}
-          >
-            <div className="font-semibold" style={{ color: "var(--text)" }}>
-              {DEMO_COMPANY}
+          <div className="demo-sidebar-foot">
+            <div className="demo-sidebar-avatar">김</div>
+            <div className="demo-sidebar-user">
+              <div className="demo-sidebar-user-name">{DEMO_USER}</div>
+              <div className="demo-sidebar-user-role">대표 · owner</div>
             </div>
-            <div>{DEMO_USER} (대표)</div>
           </div>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 min-w-0 px-4 md:px-8 py-6 max-w-[1100px]">
+        {/* Main column — 앱과 동일하게 플로팅 헤더 + 본문 */}
+        <div className="demo-main-col">
+          <header className="demo-header chrome-glass">
+            <div className="demo-header-titles">
+              <div className="demo-header-crumb">홈 ›</div>
+              <div className="demo-header-title">대시보드</div>
+            </div>
+            <div className="demo-header-search">
+              <SearchGlyph />
+              <span>검색</span>
+              <kbd className="demo-header-kbd">⌘K</kbd>
+            </div>
+            <div className="demo-header-chip">
+              <BellGlyph />
+              <span className="demo-header-dot" />
+            </div>
+            <div className="demo-header-avatar">김</div>
+          </header>
+
+          <main className="demo-main">
           {/* ═══ Morning Brief ═══ */}
           <section
-            className="morning-brief-card"
-            style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border)",
-            }}
+            className="morning-brief-card glass-card"
           >
             <div className="flex items-center gap-2 mb-4">
               <div
@@ -223,11 +273,7 @@ export default function DemoPage() {
 
           {/* ═══ Cash Pulse Bar ═══ */}
           <div
-            className="cash-pulse-bar"
-            style={{
-              background: "var(--bg-card)",
-              border: "1px solid rgba(34,197,94,0.15)",
-            }}
+            className="cash-pulse-bar glass-card"
           >
             <div
               className="grid grid-cols-2 md:grid-cols-4 divide-x"
@@ -317,11 +363,7 @@ export default function DemoPage() {
 
           {/* ═══ 6-Pack Metrics ═══ */}
           <div
-            className="six-pack-metrics-card"
-            style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border)",
-            }}
+            className="six-pack-metrics-card glass-card"
           >
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-y md:divide-y-0"
               style={{ borderColor: "var(--border)" }}
@@ -344,11 +386,7 @@ export default function DemoPage() {
 
           {/* ═══ Cash Pulse Forecast Chart ═══ */}
           <div
-            className="cash-pulse-forecast-card"
-            style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border)",
-            }}
+            className="cash-pulse-forecast-card glass-card"
           >
             <div className="flex items-center gap-2 mb-3">
               <div
@@ -447,17 +485,8 @@ export default function DemoPage() {
                 return (
                   <div
                     key={i}
-                    className="today-action-item"
-                    style={{
-                      borderColor: "var(--border)",
-                      borderLeftColor: borderColor,
-                      background:
-                        a.priority === "critical"
-                          ? "rgba(239,68,68,0.03)"
-                          : a.priority === "high"
-                            ? "rgba(245,158,11,0.02)"
-                            : "var(--bg-card)",
-                    }}
+                    className={`today-action-item glass-card today-action-${a.priority}`}
+                    style={{ borderLeftColor: borderColor }}
                   >
                     <div
                       className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`}
@@ -476,11 +505,7 @@ export default function DemoPage() {
 
           {/* ═══ Yesterday Transactions ═══ */}
           <div
-            className="yesterday-tx-card"
-            style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border)",
-            }}
+            className="yesterday-tx-card glass-card"
           >
             <div className="flex items-center gap-2 mb-3">
               <div
@@ -559,14 +584,7 @@ export default function DemoPage() {
               {RISK_ITEMS.map((risk) => (
                 <div
                   key={risk.label}
-                  className="risk-item-card"
-                  style={{
-                    background: "var(--bg-card)",
-                    borderColor:
-                      risk.count > 0
-                        ? "rgba(239,68,68,0.2)"
-                        : "var(--border)",
-                  }}
+                  className={`risk-item-card glass-card ${risk.count > 0 ? "risk-item-card-hot" : ""}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm">{risk.icon}</span>
@@ -601,11 +619,7 @@ export default function DemoPage() {
 
           {/* ═══ Deal Pipeline (collapsible) ═══ */}
           <div
-            className="deal-pipeline-card"
-            style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border)",
-            }}
+            className="deal-pipeline-card glass-card"
           >
             <button
               onClick={() => setShowDeals(!showDeals)}
@@ -719,11 +733,7 @@ export default function DemoPage() {
               {QUICK_LINKS.map((link) => (
                 <div
                   key={link.label}
-                  className="quick-link-card"
-                  style={{
-                    background: "var(--bg-card)",
-                    borderColor: "var(--border)",
-                  }}
+                  className="quick-link-card glass-card"
                 >
                   <div className="text-xl mb-1.5">{link.icon}</div>
                   <div
@@ -745,11 +755,7 @@ export default function DemoPage() {
 
           {/* ═══ CTA ═══ */}
           <div
-            className="cta-card"
-            style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--primary)",
-            }}
+            className="cta-card glass-card"
           >
             <h3
               className="text-lg font-bold mb-2"
@@ -784,7 +790,8 @@ export default function DemoPage() {
               </Link>
             </div>
           </div>
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   );
