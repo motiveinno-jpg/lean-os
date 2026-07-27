@@ -16,6 +16,11 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   deal: (id) => `/projects/${id}`,
   partner: (id) => `/partners?id=${id}`,
   approval: () => `/approvals`,
+  // 2026-07-27 QA: 결재 알림은 entity_type 이 'approval_request' 인데 여기에 없어
+  //   전부 /dashboard 로 떨어졌다(알림을 눌러도 결재 내용이 안 나옴).
+  approval_request: () => `/approvals`,
+  // 참조자는 결재함·내 요청이 모두 비어 있으므로 '참조' 탭으로 바로 보낸다.
+  approval_reference: () => `/approvals?tab=references`,
   invoice: () => `/tax-invoices`,
   payment: () => `/payments`,
   chat: () => `/chat`,
@@ -44,6 +49,9 @@ export const TYPE_HREF: Record<string, (id: string | null) => string> = {
   expense_request: () => `/approvals`,
   contract_expiry: (id) => id ? `/documents?id=${id}` : `/documents`,
   approval: () => `/approvals`,
+  approval_request: () => `/approvals`,
+  approval_approved: () => `/approvals`,
+  approval_rejected: () => `/approvals`,
   chat: () => `/chat`,
   company_join_request: () => `/settings?tab=team`,
 };

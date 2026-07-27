@@ -23,6 +23,7 @@ import {
   getApprovalTimeline,
   getApprovalRequests,
   getMyRequests,
+  getReferencedRequests,
   resubmitRequest,
   getApprovalStats,
   deleteApprovalRequest,
@@ -49,7 +50,7 @@ import { openStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 
 const db = supabase;
 
-type Tab = "my-approvals" | "my-requests" | "all" | "new-request" | "policies" | "forms";
+type Tab = "my-approvals" | "my-requests" | "references" | "all" | "new-request" | "policies" | "forms";
 
 // ── 2026-07-03 결재관리 리디자인 — 유형·상태·진행 프리미티브 ──
 
@@ -347,10 +348,12 @@ function formatDateTime(dateStr: string | null) {
 export default function ApprovalsPage() {
   const sp = useSearchParams();
   const newType = sp?.get('new'); // expense / payment / general — 대시보드 quick action 에서 전달
+  // 참조 알림(entity_type=approval_reference)에서 ?tab=references 로 진입 (notification-routes.ts)
+  const tabParam = sp?.get('tab');
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>(newType ? "new-request" : "my-approvals");
+  const [tab, setTab] = useState<Tab>(newType ? "new-request" : tabParam === "references" ? "references" : "my-approvals");
   const [presetType, setPresetType] = useState<string | null>(newType);
   const [allTabStatusFilter, setAllTabStatusFilter] = useState<string>("");
   const queryClient = useQueryClient();
@@ -369,6 +372,11 @@ export default function ApprovalsPage() {
     }
   }, [newType]);
 
+  // URL ?tab=references (참조 알림 클릭) → 참조 탭 동기화
+  useEffect(() => {
+    if (!newType && tabParam === "references") setTab("references");
+  }, [tabParam, newType]);
+
   useEffect(() => {
     getCurrentUser().then((u) => {
       if (u) {
@@ -376,7 +384,8 @@ export default function ApprovalsPage() {
         setUserId(u.id);
         setUserRole(u.role);
         // 직원 계정은 결재 권한이 거의 없어 '내 결재함'이 비어있음 → 기본 탭을 '새 요청'으로.
-        if (!newType && u.role === "employee") setTab("new-request");
+        //   단, 알림에서 ?tab=... 로 명시 진입한 경우는 그 탭을 유지.
+        if (!newType && !tabParam && u.role === "employee") setTab("new-request");
       }
     });
   }, []);
@@ -393,6 +402,7 @@ export default function ApprovalsPage() {
     queryClient.invalidateQueries({ queryKey: ["my-pending-approvals"] });
     queryClient.invalidateQueries({ queryKey: ["my-pending-count"] });
     queryClient.invalidateQueries({ queryKey: ["my-requests"] });
+    queryClient.invalidateQueries({ queryKey: ["referenced-requests"] });
     queryClient.invalidateQueries({ queryKey: ["all-requests"] });
     queryClient.invalidateQueries({ queryKey: ["approval-stats"] });
     queryClient.invalidateQueries({ queryKey: ["approval-policies"] });
@@ -425,6 +435,8 @@ export default function ApprovalsPage() {
   const TABS: { key: Tab; label: string; icon: string; count?: number }[] = [
     { key: "my-approvals", label: "내 결재함", icon: "inbox", count: myPendingCount },
     { key: "my-requests", label: "내 요청", icon: "send" },
+    // 참조로 걸린 문서 열람 — 결재선에 없는 참조자는 여기서만 내용을 볼 수 있다(2026-07-27)
+    { key: "references", label: "참조", icon: "eye" },
     { key: "new-request", label: "새 요청", icon: "plus" },
     ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황", icon: "chart" }] : []),
     ...(isAdmin ? [{ key: "forms" as Tab, label: "양식 관리", icon: "layout" }] : []),
@@ -438,6 +450,7 @@ export default function ApprovalsPage() {
       case "chart": return <svg {...p}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>;
       case "plus": return <svg {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
       case "layout": return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>;
+      case "eye": return <svg {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
       default: return <svg {...p}><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>;
     }
   };
@@ -498,6 +511,9 @@ export default function ApprovalsPage() {
       )}
       {tab === "my-requests" && companyId && userId && (
         <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} />
+      )}
+      {tab === "references" && companyId && userId && (
+        <ReferencedRequestsTab companyId={companyId} userId={userId} />
       )}
       {tab === "all" && companyId && (
         <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} />
@@ -1201,9 +1217,11 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                     <textarea value={editForm.description} onChange={(e) => setEditForm((s) => ({ ...s, description: e.target.value }))} rows={6}
                       className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none" />
                   ) : (
-                    <RichEditor key={editReq.id} content={editForm.description}
-                      onChange={(html) => setEditForm((s) => ({ ...s, description: html }))}
-                      placeholder="결재 요청에 대한 상세 설명을 입력하세요..." maxHeight="280px" />
+                    <div className="approval-desc-editor">
+                      <RichEditor key={editReq.id} content={editForm.description}
+                        onChange={(html) => setEditForm((s) => ({ ...s, description: html }))}
+                        placeholder="결재 요청에 대한 상세 설명을 입력하세요..." maxHeight="280px" />
+                    </div>
                   )}
                 </div>
                 <div>
@@ -1281,7 +1299,120 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
 }
 
 // ══════════════════════════════════════════════
-// Tab 3: 전체 현황 (Admin)
+// Tab 3: 참조 (나를 참조로 지정한 결재건)
+// ══════════════════════════════════════════════
+// 2026-07-27 QA(사장님): 참조자는 결재선에도 요청자에도 없어 '내 결재함'·'내 요청'에 안 잡히고
+//   '전체 현황'은 관리자 전용 → 참조로 걸린 결재의 내용을 볼 수 있는 화면이 아예 없었다.
+//   여기서 문서 본문·양식 필드·첨부·결재 진행을 읽기 전용으로 제공한다(승인/반려 액션 없음).
+
+function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userId: string }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data: requests = [], isLoading } = useQuery({
+    queryKey: ["referenced-requests", userId, companyId],
+    queryFn: () => getReferencedRequests(userId, companyId),
+    enabled: !!userId && !!companyId,
+  });
+
+  // 양식 필드 정의 — custom_fields 값과 짝지어 구조화 항목으로 표시 (다른 탭과 동일 규칙)
+  const { data: customForms = [] } = useQuery({
+    queryKey: ["approval-forms", companyId],
+    queryFn: () => listApprovalForms(),
+    enabled: !!companyId,
+  });
+  const formsById = useMemo(() => {
+    const map = new Map<string, ApprovalForm>();
+    (customForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
+    return map;
+  }, [customForms]);
+
+  if (isLoading) {
+    return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
+  }
+
+  if (requests.length === 0) {
+    return (
+      <div className="text-center py-20 px-6 glass-card">
+        <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <div className="text-base font-bold mb-1.5">참조로 지정된 결재가 없습니다</div>
+        <div className="text-sm text-[var(--text-muted)]">다른 구성원이 결재를 올리며 나를 참조로 지정하면 이곳에 표시됩니다</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="approval-my-requests-list">
+      {requests.map((req: any) => {
+        const m = typeMeta(req.request_type);
+        const open = expandedId === req.id;
+        const formFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
+        const contentText = contentWithoutFieldLines(req.description || "", formFields);
+        const requesterName = req.users?.name || req.users?.email || "알 수 없음";
+        return (
+          <div key={req.id} className="approval-request-card glass-card card-hover animate-slide-in">
+            <div className="p-5 cursor-pointer" onClick={() => setExpandedId(open ? null : req.id)}>
+              <div className="flex items-start gap-4">
+                <span className={`hidden sm:flex w-10 h-10 rounded-xl items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                  <TypeIcon name={m.icon} className="w-5 h-5" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                    <StatusBadge status={req.status} />
+                    <TypeChip type={req.request_type} label={REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} />
+                    <span className="text-[11px] text-[var(--text-dim)]">{requesterName} · {formatDate(req.created_at)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[15px] leading-6 truncate">{req.title}</span>
+                    <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <div className="mt-3">
+                    <StageProgress current={req.current_stage} total={req.total_stages} status={req.status} />
+                  </div>
+                </div>
+                {req.amount > 0 && (
+                  <div className="text-right shrink-0">
+                    <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">금액</div>
+                    <div className="text-lg font-extrabold mono-number leading-6">{formatAmount(req.amount)}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {open && (
+              <div className="approval-timeline-panel">
+                {formFields.length > 0 && (
+                  <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
+                    <FormFieldRows fields={formFields} />
+                  </div>
+                )}
+                {contentText && (
+                  <DescriptionContent text={contentText} className="mb-3 text-sm text-[var(--text)] leading-8" />
+                )}
+                <AttachmentList attachments={req.attachments} />
+                <div className="mt-5 pt-4 border-t border-[var(--border)]">
+                  <ApprovalTimelineView
+                    requestId={req.id}
+                    currentStage={req.current_stage}
+                    totalStages={req.total_stages}
+                    requestStatus={req.status}
+                    currentUserId={userId}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// Tab 4: 전체 현황 (Admin)
 // ══════════════════════════════════════════════
 
 function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { companyId: string; initialStatusFilter?: string; userId?: string | null; userRole?: string | null }) {
@@ -1656,7 +1787,7 @@ const LEAVE_UNIT_OPTIONS = [
 ];
 
 // ══════════════════════════════════════════════
-// Tab 4: 새 요청
+// Tab 5: 새 요청
 // ══════════════════════════════════════════════
 
 function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }: {
@@ -2289,13 +2420,16 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 {/* Description with template — 2026-07-16: 표·서식 지원 리치에디터 (사장님 요청) */}
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
-                  <RichEditor
-                    ref={descEditorRef}
-                    content={form.description}
-                    onChange={(html) => setForm((prev) => ({ ...prev, description: html }))}
-                    placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
-                    maxHeight="320px"
-                  />
+                  {/* 표는 한글(HWP) 문서 서식 그대로 — .approval-desc-editor 스코프에서 globals.css 가 적용 (2026-07-27) */}
+                  <div className="approval-desc-editor">
+                    <RichEditor
+                      ref={descEditorRef}
+                      content={form.description}
+                      onChange={(html) => setForm((prev) => ({ ...prev, description: html }))}
+                      placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
+                      maxHeight="320px"
+                    />
+                  </div>
                 </div>
                 {activeFields.length > 0 && (
                   <div className="space-y-2">
@@ -2661,7 +2795,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 }
 
 // ══════════════════════════════════════════════
-// Tab 5: 정책 관리 (Admin)
+// Tab 6: 정책 관리 (Admin)
 // ══════════════════════════════════════════════
 
 function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {

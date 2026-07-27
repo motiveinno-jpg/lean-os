@@ -418,6 +418,8 @@ export async function createApprovalRequest(params: {
 
     // 2026-07-16 QA: 참조자(reference_user_ids)는 결재 요청 생성 시 저장만 되고 알림이
     //   전혀 안 가던 버그 — 결재 여부와 무관하게 통보만 받는 인원이므로 승인자와 별개로 발송.
+    //   2026-07-27: entity_type 을 'approval_reference' 로 분리 — 참조자는 결재함이 비어 있으므로
+    //   알림을 눌렀을 때 '참조' 탭(내용 열람)으로 바로 가야 한다(notification-routes.ts).
     const referenceIds = [...new Set(params.referenceUserIds || [])].filter((id) => !approverIds.includes(id));
     for (const refId of referenceIds) {
       await createNotification({
@@ -426,7 +428,7 @@ export async function createApprovalRequest(params: {
         type: 'approval_request',
         title: `참조: ${params.title}`,
         message: amount > 0 ? `금액: ${amount.toLocaleString()}원` : undefined,
-        entityType: 'approval_request',
+        entityType: 'approval_reference',
         entityId: request.id,
       });
     }
@@ -536,6 +538,8 @@ export async function approveStep(
     .eq('stage', step.stage));
 
   const allApproved = (stageSteps || []).every((s: any) => s.status === 'approved');
+  // 마지막 단계까지 끝나 요청 자체가 승인 확정됐는지 — 참조자 결과 통보 판단용(2026-07-27)
+  let finallyApproved = false;
 
   if (allApproved) {
     // Check if there's a next stage
@@ -562,6 +566,8 @@ export async function approveStep(
           updated_at: now,
         })
         .eq('id', step.request_id);
+
+      finallyApproved = true;
 
       // 휴가 결재 최종 승인 → 연차 차감(전자결재 일원화, 2026-07-15)
       const reqType = request.request_type;
@@ -614,6 +620,41 @@ export async function approveStep(
     });
   } catch {
     // Notification failure should not break the workflow
+  }
+
+  // 참조자 결과 통보 — 최종 승인 확정 시에만(중간 단계마다 알리면 소음)
+  if (finallyApproved) {
+    await notifyReferences(request, 'approval_approved', `참조 · 결재 승인: ${request.title}`, '최종 승인되었습니다.');
+  }
+}
+
+/**
+ * 참조자(CC)에게 결과를 통보한다.
+ * 참조는 "결재선과 별개로 결과를 통보만 받는 인원"인데 그동안 생성 알림만 가고
+ * 승인·반려 결과 알림은 전혀 안 갔다(2026-07-27 QA). 요청자 본인은 별도 알림을 받으므로 제외.
+ */
+async function notifyReferences(
+  request: any,
+  type: string,
+  title: string,
+  message?: string
+): Promise<void> {
+  const refIds = [...new Set(((request?.reference_user_ids as string[]) || []))]
+    .filter((id) => id && id !== request.requester_id);
+  for (const refId of refIds) {
+    try {
+      await createNotification({
+        companyId: request.company_id,
+        userId: refId,
+        type,
+        title,
+        message,
+        entityType: 'approval_reference',
+        entityId: request.id,
+      });
+    } catch {
+      // 알림 실패가 결재 흐름을 막지 않는다
+    }
   }
 }
 
@@ -694,6 +735,9 @@ export async function rejectStep(
     } catch {
       // Notification failure should not break the workflow
     }
+
+    // 참조자 결과 통보 — 반려는 그 자리에서 요청 전체가 종료되므로 즉시 발송
+    await notifyReferences(request, 'approval_rejected', `참조 · 결재 반려: ${request.title}`, comment || '반려되었습니다.');
   }
 }
 
@@ -824,6 +868,26 @@ export async function getApprovalRequests(
   if (filters?.dateTo) query = query.lte('created_at', filters.dateTo);
 
   const { data, error } = await query.limit(200);
+  if (error) throw error;
+  return (data || []) as ApprovalRequest[];
+}
+
+/**
+ * 참조(CC)로 지정된 요청 목록.
+ * 참조자는 결재선에도 요청자에도 없어 '내 결재함'·'내 요청' 어디에도 안 잡히고,
+ * '전체 현황'은 관리자 전용이라 그동안 참조로 걸린 문서 내용을 볼 수 있는 화면이 전혀 없었다(2026-07-27 QA).
+ */
+export async function getReferencedRequests(
+  userId: string,
+  companyId: string
+): Promise<ApprovalRequest[]> {
+  const { data, error } = await db
+    .from('approval_requests')
+    .select('*, users:requester_id(name, email)')
+    .eq('company_id', companyId)
+    .contains('reference_user_ids', [userId])
+    .order('created_at', { ascending: false })
+    .limit(100);
   if (error) throw error;
   return (data || []) as ApprovalRequest[];
 }

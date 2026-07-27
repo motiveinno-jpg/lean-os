@@ -1680,13 +1680,66 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 결재 상세 내용 서식(HTML) 렌더 — RichEditor 로 작성된 표·목록·이미지 (2026-07-16) */
 .approval-desc-html { @apply text-sm leading-relaxed; }
 .approval-desc-html p { margin: 0.25rem 0; }
-.approval-desc-html table { @apply w-full my-2 border-collapse; }
-.approval-desc-html td, .approval-desc-html th { @apply border border-[var(--border)] p-2 text-xs align-top; }
-.approval-desc-html th { @apply bg-[var(--bg-surface)] font-bold; }
 .approval-desc-html img { @apply max-w-full rounded-lg my-2; }
 .approval-desc-html ul { @apply list-disc pl-5 my-1; }
 .approval-desc-html ol { @apply list-decimal pl-5 my-1; }
 .approval-desc-html blockquote { @apply border-l-2 border-[var(--border)] pl-3 text-[var(--text-muted)] my-1; }
+
+/* ── 결재 상세 내용의 표 = 한글(HWP) 표 서식 그대로 (2026-07-27 사장님 요청) ──
+   한글 기본 표 규격을 그대로 옮긴다:
+     · 테두리 0.12mm 검정 실선을 모든 셀에 동일하게(바깥/안쪽 굵기 차이 없음)
+     · 셀 안 여백 좌우 1.8mm(≈7px) · 상하 0.5mm(≈2px)
+     · 함초롬바탕 10pt(13.3px) · 줄간격 160%
+     · 셀 세로 정렬 가운데, 제목 줄은 진하게 + 가로 가운데 + 옅은 회색 배경
+     · 열 너비 고정(표 폭 = 본문 폭 100%)
+   흰 종이에 검정 글씨인 문서 서식이라 다크모드에서도 색을 반전하지 않는다
+   (`.doc-preview-page` 문서 미리보기와 같은 원칙).
+   작성(에디터)과 열람(뷰어) 양쪽에 동일 적용 — 쓴 대로 보이게. */
+.approval-desc-html table,
+.approval-desc-editor .rich-editor-body table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 8px 0;
+  background: #ffffff;
+  color: #000000;
+  font-family: "함초롬바탕", "HCR Batang", "Batang", "바탕", "Nanum Myeongjo", serif;
+  font-size: 13.3px;
+  line-height: 1.6;
+}
+.approval-desc-html table td, .approval-desc-html table th,
+.approval-desc-editor .rich-editor-body table td, .approval-desc-editor .rich-editor-body table th {
+  border: 1px solid #000000;
+  padding: 2px 7px;
+  vertical-align: middle;
+  text-align: left;
+  background: #ffffff;
+  color: #000000;
+  font-size: 13.3px;
+  line-height: 1.6;
+}
+.approval-desc-html table th,
+.approval-desc-editor .rich-editor-body table th {
+  background: #ededed;
+  font-weight: 700;
+  text-align: center;
+}
+/* 셀 안 문단은 한글처럼 여백 0 (에디터·뷰어 기본 문단 여백이 셀 높이를 늘리던 것 제거) */
+.approval-desc-html table p,
+.approval-desc-editor .rich-editor-body table p {
+  margin: 0;
+}
+/* 표 안에서 선택된 셀 하이라이트 — 한글의 셀 선택 음영과 동일한 역할 */
+.approval-desc-editor .rich-editor-body table .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(59, 130, 246, 0.16);
+  pointer-events: none;
+}
+.approval-desc-editor .rich-editor-body table td, .approval-desc-editor .rich-editor-body table th {
+  position: relative;
+}
 .approval-new-request-form { @apply lg:col-span-2; }
 .approval-type-picker { @apply flex flex-wrap gap-2; }
 .approval-leave-balance-card { @apply flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20 shadow-sm; }
