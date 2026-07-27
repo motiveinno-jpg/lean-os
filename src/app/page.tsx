@@ -6,6 +6,7 @@ import "./landing.css";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { HERO, STATS, PROBLEMS, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { PartnershipForm } from "@/components/landing/partnership-form";
 
 function Logo({ size = 26 }: { size?: number }) {
   return (
@@ -55,7 +56,6 @@ export default function LandingPage() {
   const [tab, setTab] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [team, setTeam] = useState(8);
-  const [sent, setSent] = useState(false);
 
   useEffect(() => {
     const h = () => setOn(window.scrollY > 8);
@@ -307,27 +307,7 @@ export default function LandingPage() {
       <section className="lp4-section lp4-bg-cream" id="partner">
         <div className="lp4-narrow">
           <Reveal className="lp4-sec-head lp4-sec-head-c"><div className="lp4-eyebrow" style={{ justifyContent: "center" }}>Contact</div><h2 className="lp4-h2">제휴 &amp; 도입 문의</h2><p className="lp4-sub">Enterprise 도입, API 연동, 리셀러 제휴를 상담해 드립니다.</p></Reveal>
-          <Reveal>
-            {sent ? (
-              <div className="lp4-form" style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 30, marginBottom: 8 }}>✓</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#047857" }}>문의가 접수되었습니다</div>
-                <p style={{ fontSize: 14, color: "#57534e", marginTop: 6 }}>영업일 기준 1일 이내에 회신드리겠습니다.</p>
-              </div>
-            ) : (
-              <div className="lp4-form">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-                  <div><label className="lp4-flabel">회사명 *</label><input className="lp4-input" placeholder="(주)회사명" /></div>
-                  <div><label className="lp4-flabel">담당자명 *</label><input className="lp4-input" placeholder="홍길동" /></div>
-                  <div><label className="lp4-flabel">이메일 *</label><input className="lp4-input" placeholder="email@company.com" /></div>
-                  <div><label className="lp4-flabel">연락처</label><input className="lp4-input" placeholder="010-0000-0000" /></div>
-                </div>
-                <div style={{ marginBottom: 16 }}><label className="lp4-flabel">문의 내용 *</label><textarea className="lp4-input" rows={4} placeholder="도입 규모, 필요 기능, 연동 요구사항 등을 알려주세요" style={{ resize: "none" }} /></div>
-                <button onClick={() => setSent(true)} className="lp4-btn lp4-btn-dark" style={{ width: "100%", justifyContent: "center" }}>문의 보내기</button>
-                <p style={{ fontSize: 11, textAlign: "center", color: "#a8a29e", marginTop: 12 }}>제출된 정보는 상담 목적으로만 사용되며, 개인정보처리방침에 따라 관리됩니다.</p>
-              </div>
-            )}
-          </Reveal>
+          <Reveal><PartnershipForm /></Reveal>
         </div>
       </section>
 

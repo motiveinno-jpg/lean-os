@@ -12698,6 +12698,19 @@ export type Database = {
           target_type: string
         }[]
       }
+      operator_list_partnership_inquiries: {
+        Args: { p_limit?: number; p_status?: string }
+        Returns: {
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          message: string
+          phone: string
+          status: string
+        }[]
+      }
       operator_log_action: {
         Args: {
           p_action: string
@@ -12706,6 +12719,10 @@ export type Database = {
           p_target_type?: string
         }
         Returns: string
+      }
+      operator_set_partnership_inquiry_status: {
+        Args: { p_id: string; p_status: string }
+        Returns: boolean
       }
       operator_recent_errors: {
         Args: { p_hours?: number; p_limit?: number }

@@ -2346,6 +2346,13 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-feedback-row { @apply p-5 hover:bg-[var(--bg-surface)]/60 transition; }
 .platform-feedback-actions { @apply flex flex-wrap gap-1 shrink-0 justify-end; }
 
+/* 도입·제휴 문의함 (2026-07-27) */
+.platform-partnership-header { @apply flex flex-wrap items-end justify-between gap-4; }
+.platform-partnership-filters { @apply flex flex-wrap gap-2; }
+.platform-partnership-list { @apply overflow-hidden; }
+.platform-partnership-row { @apply p-5 hover:bg-[var(--bg-surface)]/60 transition; }
+.platform-partnership-actions { @apply flex flex-wrap gap-1 shrink-0 justify-end; }
+
 /* Left as-is (no change needed, do not add to globals.css):
    - platform-audit-footnote kpi-callout (audit/page.tsx line ~120) — marker + existing custom class only, no raw utils
    - kpi-callout warning (averages/page.tsx line ~95) — existing BEM modifier (.kpi-callout.warning already in globals.css)
