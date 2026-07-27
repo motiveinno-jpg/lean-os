@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ProjectFlow } from "./_components/project-flow";
 
 // ── Constants ──
 
@@ -714,6 +715,9 @@ export default function DemoPage() {
               </div>
             )}
           </div>
+
+          {/* ═══ 프로젝트 흐름 (견적서→계약서→진척→완료→정산) ═══ */}
+          <ProjectFlow />
 
           {/* ═══ Quick Links ═══ */}
           <div className="quick-links-section">

@@ -12,7 +12,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, PROBLEMS, SCREENS, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, PROBLEMS, SCREENS, FLOW, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 
 function Logo({ size = 26 }: { size?: number }) {
@@ -81,6 +81,21 @@ function CountUp({ to, suffix = "", dur = 1400 }: { to: number; suffix?: string;
   return <span ref={ref}>{n.toLocaleString("ko-KR")}{suffix}</span>;
 }
 
+// AI 엔진 아이콘 — 텍스트만으로 나열되던 카드에 시각적 식별자를 준다.
+function EngineGlyph({ n }: { n: string }) {
+  const p = { width: 24, height: 24, fill: "none", stroke: "currentColor", strokeWidth: 1.9, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (n) {
+    case "01": // 생존 레이더 — 레이더 스윕
+      return <svg {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4.5" /><path d="M12 12L18.4 5.6" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /></svg>;
+    case "02": // 원클릭 파이프라인 — 문서에서 문서로
+      return <svg {...p}><path d="M4 4h7l3 3v4" /><path d="M4 4v13h6" /><rect x="12" y="12" width="8" height="8" rx="1.6" /><path d="M14.5 16.2l1.5 1.5 3-3" /></svg>;
+    case "03": // AI 인사/총무팀 — 사람 + 자동 체크
+      return <svg {...p}><circle cx="9" cy="8" r="3.4" /><path d="M3.5 20v-1.4A4.6 4.6 0 018.1 14h1.8" /><path d="M14 17.5l2 2 4.5-4.5" /></svg>;
+    default: // 거래처 자산화 — 연결된 노드
+      return <svg {...p}><circle cx="6" cy="7" r="2.4" /><circle cx="18" cy="7" r="2.4" /><circle cx="12" cy="18" r="2.4" /><path d="M7.9 8.6l2.6 7.2M16.1 8.6l-2.6 7.2M8.4 7h7.2" /></svg>;
+  }
+}
+
 // 제품 화면 프레임 — 브라우저 크롬을 씌워 "실제 화면"임을 시각적으로 못 박는다.
 function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
   return (
@@ -103,6 +118,28 @@ export default function LandingPage() {
   const [team, setTeam] = useState(8);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
+  // 견적→정산 흐름: 화면에 들어오면 자동으로 단계가 넘어가고, 사용자가 누르면 자동 진행을 멈춘다
+  const [flow, setFlow] = useState(0);
+  const [flowAuto, setFlowAuto] = useState(false);
+  const flowRef = useRef<HTMLDivElement>(null);
+  const flowPinned = useRef(false); // 사용자가 단계를 직접 고르면 자동 진행을 재개하지 않는다
+
+  useEffect(() => {
+    const el = flowRef.current; if (!el) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (es) => setFlowAuto(es[0].isIntersecting && !flowPinned.current),
+      { threshold: 0.35 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!flowAuto) return;
+    const t = setTimeout(() => setFlow((i) => (i + 1) % FLOW.length), 4200);
+    return () => clearTimeout(t);
+  }, [flow, flowAuto]);
 
   useEffect(() => {
     const h = () => {
@@ -200,8 +237,8 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Pain → Solution</div>
-            <h2 className="lp4-h2">대표님, 이거 다 <span className="lp4-underline">혼자</span> 하고 계시죠?</h2>
-            <p className="lp4-sub">회계사 부르고, 세무사 연락하고, 엑셀 정리하고, 계약서 찾고… 오너뷰가 각각을 어떻게 없애는지 아래에서 확인하세요.</p>
+            <h2 className="lp4-h2">이 업무들, 아직 <span className="lp4-underline">대표가 직접</span> 챙기고 계십니까?</h2>
+            <p className="lp4-sub">회계·세무·문서·정산으로 흩어져 있던 업무가 각각 어떻게 자동화되는지 아래에서 확인하실 수 있습니다.</p>
           </Reveal>
           <div className="lp4-pain-grid">
             {PROBLEMS.map((p) => (
@@ -220,8 +257,8 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Real Product</div>
-            <h2 className="lp4-h2">렌더링이 아니라, <span className="lp4-underline">진짜 화면</span>입니다</h2>
-            <p className="lp4-sub">아래 이미지는 전부 실제 오너뷰에서 그대로 캡처한 화면입니다. 지금 가입하면 보이는 그 화면입니다.</p>
+            <h2 className="lp4-h2">렌더링이 아닌 <span className="lp4-underline">실제 서비스 화면</span>입니다</h2>
+            <p className="lp4-sub">아래 이미지는 모두 실제 오너뷰 화면을 그대로 캡처한 것으로, 가입 즉시 동일한 화면을 사용하실 수 있습니다.</p>
           </Reveal>
 
           <div className="lp4-tour-tabs">
@@ -245,36 +282,54 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ 도입 사례 — 실제 운영 계정 수치만. 회사명은 마스킹 ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="cases">
+      {/* ══ 견적 → 정산 흐름 (자동 진행 + 클릭) ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="flow">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">In Production</div>
-            <h2 className="lp4-h2">만든 회사가, <span className="lp4-underline">매일 씁니다</span></h2>
-            <p className="lp4-sub">{CASES_NOTE}</p>
+            <div className="lp4-eyebrow">End to End</div>
+            <h2 className="lp4-h2">견적부터 정산까지, <span className="lp4-underline">끊기지 않고</span> 이어집니다</h2>
+            <p className="lp4-sub">각 단계에서 만든 정보가 다음 단계로 그대로 넘어갑니다. 아래 화면은 실제 서비스 화면입니다.</p>
           </Reveal>
-          <div className="lp4-case-grid">
-            {CASES.map((c) => (
-              <Reveal key={c.masked}><div className="lp4-case lp4-card">
-                <div className="lp4-case-head">
-                  <span className="lp4-case-mark">{c.masked.slice(0, 1)}</span>
-                  <div className="lp4-case-id">
-                    <div className="lp4-case-name">{c.masked}</div>
-                    <div className="lp4-case-meta">{c.industry} · {c.size} · {c.plan}</div>
-                  </div>
-                  <span className="lp4-case-private">회사명 비공개</span>
+
+          <div className="lp4-flow" ref={flowRef}>
+            {/* 좌: 단계 목록 — 진행 중인 단계에 진행 바가 채워진다 */}
+            <div className="lp4-flow-steps">
+              {FLOW.map((f, i) => (
+                <button
+                  key={f.key}
+                  className={`lp4-flow-step ${i === flow ? "lp4-flow-step-on" : ""} ${i < flow ? "lp4-flow-step-done" : ""}`}
+                  onClick={() => { flowPinned.current = true; setFlowAuto(false); setFlow(i); }}
+                  aria-current={i === flow}
+                >
+                  <span className="lp4-flow-num">{i < flow ? <Check /> : f.step}</span>
+                  <span className="lp4-flow-text">
+                    <span className="lp4-flow-tab">{f.tab}</span>
+                    <span className="lp4-flow-title">{f.title}</span>
+                    {i === flow && <span className="lp4-flow-desc">{f.desc}</span>}
+                  </span>
+                  {i === flow && flowAuto && <span className="lp4-flow-progress" key={`p${flow}`} />}
+                </button>
+              ))}
+            </div>
+
+            {/* 우: 단계에 대응하는 실제 화면 */}
+            <div className="lp4-flow-stage">
+              {FLOW.map((f, i) => (
+                <div key={f.key} className={`lp4-flow-shot ${i === flow ? "lp4-flow-shot-on" : ""}`} aria-hidden={i !== flow}>
+                  <Image src={f.src} alt={f.alt} width={1180} height={860} sizes="(max-width: 1000px) 100vw, 660px" />
                 </div>
-                <p className="lp4-case-note">{c.note}</p>
-                <div className="lp4-case-metrics">
-                  {c.metrics.map((m) => (
-                    <div key={m.label} className="lp4-case-metric">
-                      <div className="lp4-case-metric-value">{m.value}</div>
-                      <div className="lp4-case-metric-label">{m.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div></Reveal>
-            ))}
+              ))}
+              <div className="lp4-flow-dots">
+                {FLOW.map((f, i) => (
+                  <button
+                    key={f.key}
+                    className={`lp4-flow-dot ${i === flow ? "lp4-flow-dot-on" : ""}`}
+                    onClick={() => { flowPinned.current = true; setFlowAuto(false); setFlow(i); }}
+                    aria-label={f.tab}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -285,7 +340,7 @@ export default function LandingPage() {
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Product</div>
             <h2 className="lp4-h2">흩어진 7개 도구를, 하나의 흐름으로</h2>
-            <p className="lp4-sub">따로 결제하던 도구들이 하나의 데이터 위에서 연결됩니다.</p>
+            <p className="lp4-sub">개별 구독하던 도구들이 하나의 데이터 위에서 연결되어 동작합니다.</p>
           </Reveal>
           <div className="lp4-feat-grid">
             {FEATURES.map((f, i) => (
@@ -306,28 +361,31 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">4 AI Engines</div>
-            <h2 className="lp4-h2">4개의 AI 엔진이 회사를 대신 돌립니다</h2>
-            <p className="lp4-sub">사람을 대체하는 게 아니라, 대표가 하던 반복 업무를 엔진이 맡습니다.</p>
+            <h2 className="lp4-h2">4개의 AI 엔진이 <span className="lp4-underline">반복 업무를 대신 처리</span>합니다</h2>
+            <p className="lp4-sub">인력을 대체하는 것이 아니라, 매번 되풀이되는 운영 업무를 자동화합니다.</p>
           </Reveal>
           <div className="lp4-eng-grid">
             {ENGINES.map((e) => (
               <Reveal key={e.num}><div className="lp4-eng lp4-card">
                 <div className="lp4-eng-head">
-                  <span className="lp4-eng-chip">{e.num}</span>
-                  <div>
+                  <span className="lp4-eng-chip"><EngineGlyph n={e.num} /></span>
+                  <div className="lp4-eng-id">
                     <div className="lp4-eng-name">{e.name}</div>
-                    <div className="lp4-eng-eng">{e.eng}</div>
+                    <div className="lp4-eng-eng">ENGINE {e.num} · {e.eng}</div>
                   </div>
                 </div>
                 <div className="lp4-eng-line">{e.headline}</div>
-                <p className="lp4-eng-desc">{e.desc}</p>
+                {/* 3단계 처리 흐름 — 설명 문단 대신 시각적 파이프라인으로 (텍스트 과다 해소) */}
                 <div className="lp4-eng-steps">
                   {e.steps.map((st, j) => <div key={j} className="lp4-eng-step"><span className="lp4-eng-dot">{j + 1}</span><span>{st}</span></div>)}
                 </div>
                 <div className="lp4-eng-tags">
                   {e.features.map((ft) => <span key={ft} className="lp4-eng-tag">{ft}</span>)}
                 </div>
-                <div className="lp4-eng-rep">대체: {e.replaces} · <b>{e.replacesCost}</b> 절감</div>
+                <div className="lp4-eng-rep">
+                  <span className="lp4-eng-rep-cap">대체 인력 · {e.replaces}</span>
+                  <span className="lp4-eng-rep-cost">{e.replacesCost} 절감</span>
+                </div>
               </div></Reveal>
             ))}
           </div>
@@ -340,7 +398,7 @@ export default function LandingPage() {
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Compare</div>
             <h2 className="lp4-h2">따로 쓰면 인원마다 늘어납니다</h2>
-            <p className="lp4-sub">7개 도구를 각각 구독하는 방식과, 오너뷰 정액을 나란히 비교해 보세요.</p>
+            <p className="lp4-sub">7개 도구를 개별 구독하는 경우와 오너뷰 정액제를 동일 조건으로 비교했습니다.</p>
           </Reveal>
           <div className="lp4-cmp-grid">
             <Reveal><div className="lp4-cmp lp4-card">
@@ -408,6 +466,40 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ══ 도입 사례 — 실제 운영 계정 수치만. 회사명은 마스킹 ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="cases">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <div className="lp4-eyebrow">In Production</div>
+            <h2 className="lp4-h2">개발사가 <span className="lp4-underline">자사 운영에 직접</span> 사용합니다</h2>
+            <p className="lp4-sub">{CASES_NOTE}</p>
+          </Reveal>
+          <div className="lp4-case-grid">
+            {CASES.map((c) => (
+              <Reveal key={c.masked}><div className="lp4-case lp4-card">
+                <div className="lp4-case-head">
+                  <span className="lp4-case-mark">{c.masked.slice(0, 1)}</span>
+                  <div className="lp4-case-id">
+                    <div className="lp4-case-name">{c.masked}</div>
+                    <div className="lp4-case-meta">{c.industry} · {c.size} · {c.plan}</div>
+                  </div>
+                  <span className="lp4-case-private">회사명 비공개</span>
+                </div>
+                <p className="lp4-case-note">{c.note}</p>
+                <div className="lp4-case-metrics">
+                  {c.metrics.map((m) => (
+                    <div key={m.label} className="lp4-case-metric">
+                      <div className="lp4-case-metric-value">{m.value}</div>
+                      <div className="lp4-case-metric-label">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div></Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ══ FAQ ══ */}
       <section className="lp4-section lp4-bg-tint" id="faq">
         <div className="lp4-narrow">
@@ -434,7 +526,7 @@ export default function LandingPage() {
               <div className="lp4-final-orbs" />
               <div className="lp4-final-inner">
                 <h2 className="lp4-final-h">회사 현황, 한눈에 보고 싶다면<br /><em>OwnerView를 시작하세요</em></h2>
-                <p className="lp4-final-p">거래처 목록·거래내역은 엑셀만 올리면 바로 등록. 가입 시 카드 등록 · 14일 무료.</p>
+                <p className="lp4-final-p">거래처 목록과 거래내역은 엑셀 업로드만으로 등록됩니다. 가입 시 카드 등록 · 14일 무료.</p>
                 <Link href="/auth" className="lp4-btn lp4-btn-onink">무료로 시작하기 <Arrow /></Link>
                 <p className="lp4-final-note">이미 계정이 있으신가요? <Link href="/auth">로그인</Link></p>
               </div>
