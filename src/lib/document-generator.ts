@@ -933,14 +933,35 @@ function walkInline(node: Node, st: InlineStyle, out: Token[]) {
   }
 }
 
+/** 셀 안 문단(<p>)에 붙은 정렬을 찾는다 — 에디터는 정렬을 td 가 아니라 그 안 문단에 저장한다. */
+function innerAlign(td: Element): Align | null {
+  for (const child of Array.from(td.children)) {
+    const a = alignOf(child);
+    if (a) return a;
+  }
+  return null;
+}
+
+/** 셀 내용이 통째로 굵게면 굵게로 본다(머리행을 th 없이 굵게만 준 표 대응). */
+function innerBold(td: Element): boolean {
+  const text = (td.textContent || '').trim();
+  if (!text) return false;
+  const strongText = Array.from(td.querySelectorAll('strong, b'))
+    .map((e) => (e.textContent || '').trim())
+    .join('');
+  return strongText.length >= text.length;
+}
+
 function tableBlockOf(el: Element): DocBlock {
   const rows: { text: string; align: Align; bold: boolean }[][] = [];
   let hasHead = false;
   Array.from(el.querySelectorAll('tr')).forEach((tr, i) => {
     const cells = Array.from(tr.children).map((td) => ({
-      text: (td.textContent || '').replace(/ /g, ' ').trim(),
-      align: alignOf(td) || (td.tagName.toLowerCase() === 'th' ? 'center' : 'left'),
-      bold: td.tagName.toLowerCase() === 'th',
+      text: (td.textContent || '').replace(/\u00a0/g, ' ').trim(),
+      // 정렬·굵기는 셀(td)이 아니라 셀 안 문단에 붙는다 — td 만 보면 가운데 정렬이
+      //   항상 무시됐다(2026-07-27 사장님 제보).
+      align: alignOf(td) || innerAlign(td) || (td.tagName.toLowerCase() === 'th' ? 'center' : 'left'),
+      bold: td.tagName.toLowerCase() === 'th' || innerBold(td),
     }));
     if (cells.length === 0) return;
     if (i === 0 && Array.from(tr.children).every((c) => c.tagName.toLowerCase() === 'th')) hasHead = true;
@@ -1217,20 +1238,19 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
   };
 
   if (params.descriptionHtml || params.description) {
-    doc.setFontSize(9);
-    setKoreanFont(doc, 'bold');
-    doc.setTextColor(60, 60, 60);
-    ensureSpace(12);
-    doc.text('내용', marginX, y);
-    y += 6;
+    // '내용' 라벨은 찍지 않는다 — 기안 화면에 없는 문구라 PDF 에만 생겨 보기 어색했다
+    //   (2026-07-27 사장님 요청). 위 필드 표와의 간격만 둔다.
+    ensureSpace(10);
+    y += 1;
     const lineHeight = 6; // mm — 기본보다 넓은 줄간격
 
     if (params.descriptionHtml) {
-      // 서식 본문 — 화면과 동일한 CSS 로 렌더한 결과를 그대로 얹는다(정렬·서식·표·이미지 보존).
+      // 서식 본문 — 정렬·굵기·색·크기·밑줄·형광펜·표·이미지를 재현해 텍스트로 그린다.
       y = await renderHtmlBodyToPdf(doc, params.descriptionHtml, {
         x: marginX, y, contentW, bottomLimit,
       });
     } else {
+      doc.setFontSize(9); // '내용' 라벨 제거로 여기서 크기를 다시 잡아준다
       setKoreanFont(doc, 'normal');
       doc.setTextColor(40, 40, 40);
       const lines: string[] = doc.splitTextToSize(params.description!, contentW);

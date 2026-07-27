@@ -243,9 +243,10 @@ function resolveFormFields(
     ? formsById.get(formId)?.fields
     : (policies || []).find((p) => p.document_type === requestType)?.fields;
   if (!defs || defs.length === 0) return [];
-  return defs
-    .map((fd) => ({ label: fd.label, type: fd.type, value: String(customFields?.[fd.key] ?? "") }))
-    .filter((f) => f.value);
+  // 값이 빈 필드도 포함한다 — 양식에 있는 항목이면 빈칸으로라도 표에 있어야 하고,
+  // 빼버리면 본문에 병합돼 있던 "라벨: " 줄이 제거되지 않아 표 밖으로 새어 나온다
+  // (2026-07-27 사장님 제보: 관련프로젝트가 표 밖에 찍힘).
+  return defs.map((fd) => ({ label: fd.label, type: fd.type, value: String(customFields?.[fd.key] ?? "") }));
 }
 
 // ── 상세 내용 서식(HTML) 지원 (2026-07-16) — RichEditor 로 작성한 결재 내용(표·서식 포함) ──
@@ -281,17 +282,33 @@ function DescriptionContent({ text, className = "" }: { text: string; className?
 // 양식 필드 값이 description 앞부분에 중복 병합돼 있으면(기존 저장 방식) 잘라내 중복 표시 방지
 function contentWithoutFieldLines(description: string, formFields: { label: string; value: string }[]): string {
   if (formFields.length === 0) return description;
-  // HTML 저장분(2026-07-16~)은 <p>label: value</p> 프리픽스로 병합됨
+  // 본문 앞에 병합된 "라벨: 값" 줄을 앞에서부터 하나씩 제거한다.
+  //   전체 프리픽스 일치를 요구하던 기존 방식은 값이 비었거나 순서·개수가 조금만
+  //   어긋나도 통째로 실패해 필드 줄이 본문에 그대로 남았다(표 밖 노출의 원인).
+  const startsWithField = (text: string) =>
+    formFields.some((f) => text === `${f.label}:` || text.startsWith(`${f.label}:`));
+
   if (isHtmlDesc(description)) {
-    const fieldHtml = formFields.map((f) => `<p>${escapeHtmlText(`${f.label}: ${f.value}`)}</p>`).join("");
-    if (description.startsWith(fieldHtml)) return description.slice(fieldHtml.length);
-    return description;
+    const P_RE = /^\s*<p[^>]*>([\s\S]*?)<\/p>/i;
+    let rest = description;
+    for (;;) {
+      const m = P_RE.exec(rest);
+      if (!m) break;
+      const text = m[1]
+        .replace(/<[^>]+>/g, "")
+        .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+        .trim();
+      if (!startsWithField(text)) break;
+      rest = rest.slice(m[0].length);
+    }
+    return rest;
   }
-  const fieldLines = formFields.map((f) => `${f.label}: ${f.value}`).join("\n");
-  if (description.startsWith(fieldLines)) {
-    return description.slice(fieldLines.length).replace(/^\n+/, "");
-  }
-  return description;
+
+  const lines = description.split("\n");
+  let i = 0;
+  while (i < lines.length && startsWithField(lines[i].trim())) i++;
+  return lines.slice(i).join("\n").replace(/^\n+/, "");
 }
 
 function formatDate(dateStr: string | null) {
