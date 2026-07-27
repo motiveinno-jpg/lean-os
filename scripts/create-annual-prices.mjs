@@ -28,6 +28,18 @@ if (!KEY) {
   process.exit(1);
 }
 
+// 키 형식 검증 — 자리표시자를 그대로 붙여넣는 실수가 잦다(한글이 섞이면 HTTP 헤더
+// 인코딩이 깨져 "connection error" 라는 엉뚱한 메시지가 뜬다).
+if (!/^sk_(live|test)_[A-Za-z0-9]+$/.test(KEY)) {
+  console.error('❌ 키 형식이 올바르지 않습니다.');
+  if (/[^\x20-\x7E]/.test(KEY)) {
+    console.error('   → 키에 한글 등 ASCII 가 아닌 문자가 들어 있습니다. 안내문의 자리표시자를');
+    console.error('     실제 키로 바꾸지 않으신 것 같습니다(예: sk_live_여기에키 → sk_live_51Ab...).');
+  }
+  console.error('   Stripe 대시보드 → (테스트 모드 끄기) → 개발자 → API 키 → 비밀 키 를 그대로 붙여넣으세요.');
+  process.exit(1);
+}
+
 const MODE = KEY.startsWith('sk_live') ? 'LIVE(실결제)' : 'TEST';
 const stripe = new Stripe(KEY, { apiVersion: '2025-02-24.acacia' });
 
