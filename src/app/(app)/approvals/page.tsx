@@ -20,6 +20,7 @@ import {
   approveStep,
   rejectStep,
   getMyPendingApprovals,
+  getMyProcessedApprovals,
   getApprovalTimeline,
   getApprovalRequests,
   getMyRequests,
@@ -737,10 +738,20 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   const [comment, setComment] = useState("");
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
+  // 대기중 / 처리완료 전환 — 승인하고 나면 목록에서 사라져 다시 볼 수 없던 문제
+  //   (2026-07-27 사장님 제보). 결재선에 올랐던 건은 처리 후에도 확인 가능해야 한다.
+  const [view, setView] = useState<"pending" | "processed">("pending");
+
   const { data: pendingApprovals = [], isLoading } = useQuery({
     queryKey: ["my-pending-approvals", userId, companyId],
     queryFn: () => getMyPendingApprovals(userId, companyId),
     enabled: !!userId && !!companyId,
+  });
+
+  const { data: processedApprovals = [], isLoading: processedLoading } = useQuery({
+    queryKey: ["my-processed-approvals", userId, companyId],
+    queryFn: () => getMyProcessedApprovals(userId, companyId),
+    enabled: !!userId && !!companyId && view === "processed",
   });
 
   // 커스텀 결재 양식 필드 정의 (label·type) — custom_fields 값과 짝지어 구조화된 항목으로 표시
@@ -807,18 +818,51 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
       : undefined,
   );
 
+  // 대기중 ↔ 처리완료 전환 바 (두 화면 공통으로 항상 보인다)
+  const viewToggle = (
+    <div className="seg-bar w-fit mb-4">
+      {([
+        ["pending", `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}`],
+        ["processed", "처리완료"],
+      ] as const).map(([k, l]) => (
+        <button key={k} onClick={() => setView(k)} className={`seg-item ${view === k ? "seg-item-active" : ""}`}>
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (view === "processed") {
+    return (
+      <div>
+        {viewToggle}
+        <ProcessedApprovalsList
+          items={processedApprovals as any[]}
+          isLoading={processedLoading}
+          formsById={formsById}
+          policies={fieldPolicies as ApprovalPolicy[]}
+        />
+      </div>
+    );
+  }
+
   if (isLoading) {
-    return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
+    return <div>{viewToggle}<div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div></div>;
   }
 
   if (pendingApprovals.length === 0) {
     return (
-      <div className="text-center py-20 px-6 glass-card">
-        <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--success-dim)] text-[var(--success)] flex items-center justify-center">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <div>
+        {viewToggle}
+        <div className="text-center py-20 px-6 glass-card">
+          <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--success-dim)] text-[var(--success)] flex items-center justify-center">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="text-base font-bold mb-1.5">모두 처리했어요</div>
+          <div className="text-sm text-[var(--text-muted)]">
+            새 결재 요청이 배정되면 이곳에 표시됩니다. 이미 처리한 건은 <b>처리완료</b> 탭에서 볼 수 있습니다.
+          </div>
         </div>
-        <div className="text-base font-bold mb-1.5">모두 처리했어요</div>
-        <div className="text-sm text-[var(--text-muted)]">새 결재 요청이 배정되면 이곳에 표시됩니다</div>
       </div>
     );
   }
@@ -839,6 +883,8 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   };
 
   return (
+    <div>
+    {viewToggle}
     <div className="flex flex-col lg:flex-row gap-4 items-start">
       {/* LEFT — 결재 대기 목록 (분할 패널: 목록 컬럼) */}
       <div className="approval-queue-list">
@@ -931,6 +977,90 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
           </div>
         </div>
       )}
+    </div>
+    </div>
+  );
+}
+
+/**
+ * 내가 이미 처리(승인·반려)한 결재 목록 — 읽기 전용.
+ *   내 결정(승인/반려)·처리일시·의견과, 문서의 최종 상태를 함께 보여준다.
+ *   내가 승인했어도 다음 단계에서 반려될 수 있어 둘을 구분해 표시한다.
+ */
+function ProcessedApprovalsList({ items, isLoading, formsById, policies }: {
+  items: any[];
+  isLoading: boolean;
+  formsById: Map<string, ApprovalForm>;
+  policies: ApprovalPolicy[];
+}) {
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  if (isLoading) {
+    return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
+  }
+  if (items.length === 0) {
+    return (
+      <div className="text-center py-20 px-6 glass-card">
+        <div className="text-base font-bold mb-1.5">아직 처리한 결재가 없습니다</div>
+        <div className="text-sm text-[var(--text-muted)]">승인하거나 반려한 결재건이 여기에 쌓입니다</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="approval-my-requests-list">
+      {items.map((item) => {
+        const open = openId === item.stepId;
+        const fields = resolveFormFields(item.formId, item.customFields, formsById, policies, item.requestType);
+        const content = contentWithoutFieldLines(item.description || "", fields);
+        return (
+          <div key={item.stepId} className="approval-request-card glass-card card-hover">
+            <div className="p-5 cursor-pointer" onClick={() => setOpenId(open ? null : item.stepId)}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[10px] font-semibold text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType}</span>
+                    {/* 내 결정 */}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                      item.myDecision === "approved"
+                        ? "bg-[var(--success-dim)] text-[var(--success)]"
+                        : "bg-[var(--danger)]/10 text-[var(--danger)]"
+                    }`}>
+                      내 결재: {item.myDecision === "approved" ? "승인" : "반려"}
+                    </span>
+                    {/* 문서 최종 상태 — 내 결정과 다를 수 있음 */}
+                    <StatusBadge status={item.requestStatus} />
+                  </div>
+                  <div className="text-sm font-bold truncate">{item.title}</div>
+                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                    기안 {item.requesterName || "알 수 없음"} · {formatDate(item.createdAt)}
+                    {item.decidedAt ? ` · 내 처리 ${formatDateTime(item.decidedAt)}` : ""}
+                    {` · ${item.stage}단계 ${item.stageName || ""}`}
+                  </div>
+                </div>
+                {item.amount ? (
+                  <div className="text-sm font-bold shrink-0 mono-number">{Number(item.amount).toLocaleString("ko-KR")}원</div>
+                ) : null}
+              </div>
+              {item.myComment && (
+                <div className="text-[11px] text-[var(--text-muted)] mt-2">내 의견: {item.myComment}</div>
+              )}
+            </div>
+            {open && (
+              <div className="px-5 pb-5 border-t border-[var(--border)] pt-4 space-y-4">
+                {fields.length > 0 && <FormFieldRows fields={fields} />}
+                {!isEmptyHtml(content) && <DescriptionContent text={content} className="text-sm" />}
+                <ApprovalTimelineView
+                  requestId={item.requestId}
+                  currentStage={item.currentStage}
+                  totalStages={item.totalStages}
+                  requestStatus={item.requestStatus}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

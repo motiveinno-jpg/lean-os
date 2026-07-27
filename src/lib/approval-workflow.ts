@@ -804,6 +804,64 @@ export async function getMyPendingApprovals(
 }
 
 /**
+ * 내가 이미 처리(승인·반려)한 결재 — 2026-07-27 사장님 요청.
+ *   기존엔 getMyPendingApprovals(대기중)만 있어, 승인하고 나면 그 건이 '내 결재함'에서
+ *   사라지고 다시 볼 화면이 없었다('내 요청'은 내가 올린 것만, '전체 현황'은 admin 전용).
+ *   결재선에 이름이 올랐던 건은 처리 후에도 본인이 다시 확인할 수 있어야 한다.
+ */
+export async function getMyProcessedApprovals(
+  userId: string,
+  companyId: string,
+  limit = 100
+): Promise<any[]> {
+  const { data: steps, error } = await db
+    .from('approval_steps')
+    .select('*, approval_requests!inner(id, company_id, title, amount, description, request_type, requester_id, status, current_stage, total_stages, created_at, attachments, form_id, custom_fields, reference_user_ids)')
+    .eq('approver_id', userId)
+    .neq('status', 'pending')
+    .eq('approval_requests.company_id', companyId)
+    .order('decided_at', { ascending: false, nullsFirst: false })
+    .limit(limit);
+  if (error) throw error;
+
+  const rows = steps || [];
+  const requesterIds = [...new Set(rows.map((s: any) => s.approval_requests?.requester_id).filter(Boolean))];
+  const userMap = new Map<string, string>();
+  if (requesterIds.length > 0) {
+    const users = logRead('lib/approval-workflow:processedUsers', await db
+      .from('users')
+      .select('id, name, email')
+      .in('id', requesterIds));
+    (users || []).forEach((u: any) => userMap.set(u.id, u.name || u.email || ''));
+  }
+
+  return rows.map((s: any) => ({
+    stepId: s.id,
+    stage: s.stage,
+    stageName: s.stage_name,
+    // 내가 이 단계에서 내린 결정 + 시각·의견
+    myDecision: s.status,
+    decidedAt: s.decided_at,
+    myComment: s.comment || '',
+    requestId: s.approval_requests?.id,
+    title: s.approval_requests?.title,
+    amount: s.approval_requests?.amount,
+    description: s.approval_requests?.description || '',
+    requestType: s.approval_requests?.request_type,
+    requesterId: s.approval_requests?.requester_id,
+    requesterName: userMap.get(s.approval_requests?.requester_id) || '',
+    // 문서 전체의 최종 상태(내 결정과 다를 수 있음 — 이후 단계에서 반려될 수 있으므로)
+    requestStatus: s.approval_requests?.status,
+    currentStage: s.approval_requests?.current_stage,
+    totalStages: s.approval_requests?.total_stages,
+    createdAt: s.approval_requests?.created_at,
+    attachments: s.approval_requests?.attachments || [],
+    formId: s.approval_requests?.form_id || null,
+    customFields: s.approval_requests?.custom_fields || {},
+  }));
+}
+
+/**
  * Get approval timeline for a request (all steps ordered by stage + created_at).
  */
 export async function getApprovalTimeline(requestId: string): Promise<ApprovalStep[]> {
