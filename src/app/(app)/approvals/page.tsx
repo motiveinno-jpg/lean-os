@@ -1135,6 +1135,53 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
     (editForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
     return map;
   }, [editForms]);
+
+  // 상세 팝업에서 결재 문서 PDF 저장 — '전체 현황' 탭과 동일한 생성 경로를 쓴다
+  //   (2026-07-27 사장님 요청: 직원이 본인이 올린 결재를 PDF 로 보관할 수 있게).
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const handleDownloadApprovalPdf = async (req: any) => {
+    setPdfLoadingId(req.id);
+    try {
+      const timeline = await getApprovalTimeline(req.id);
+      const rawAttachments: string[] = req.attachments || [];
+      const attachments = (await Promise.all(
+        rawAttachments.map(async (url) => {
+          const name = attachmentFileName(url);
+          const signed = await resolveSignedUrl(url, name);
+          return signed ? { name, url: signed } : null;
+        })
+      )).filter((a): a is { name: string; url: string } => !!a);
+      // 화면(팝업)과 완전히 동일한 순서·내용으로
+      const formFields = resolveFormFields(req.form_id, req.custom_fields, detailFormsById, editPolicies as ApprovalPolicy[], req.request_type);
+      const contentText = contentWithoutFieldLines(req.description || "", formFields);
+      const blob = await generateApprovalPdf({
+        title: req.title,
+        requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
+        statusLabel: STATUS_CONFIG[req.status]?.label || req.status,
+        // 이 탭은 '내가 올린 요청'이므로 기안자는 항상 본인이다.
+        requesterName: userName(req.requester_id),
+        amount: req.amount || 0,
+        descriptionHtml: contentText && isHtmlDesc(contentText) ? sanitizeDocumentHtml(contentText) : undefined,
+        description: contentText && !isHtmlDesc(contentText) ? contentText : undefined,
+        formFields: formFields.length > 0 ? formFields : undefined,
+        createdAt: formatDate(req.created_at),
+        attachments: attachments.length > 0 ? attachments : undefined,
+        steps: timeline.map((st) => ({
+          stage: st.stage,
+          stageName: st.stage_name,
+          approverName: st.approver_name || "담당자",
+          statusLabel: STATUS_CONFIG[st.status]?.label || st.status,
+          comment: st.comment || undefined,
+          decidedAt: st.decided_at ? formatDateTime(st.decided_at) : null,
+        })),
+      });
+      const saved = await saveBlobToUserChosenPath(blob, `결재문서_${req.title}_${formatDate(req.created_at)}.pdf`);
+      if (saved) toast("PDF 다운로드 완료", "success");
+    } catch (err: any) {
+      toast(`PDF 생성 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
+    }
+    setPdfLoadingId(null);
+  };
   const [editReq, setEditReq] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ title: "", amount: "", description: "" });
   const [editFieldValues, setEditFieldValues] = useState<Record<string, string>>({});
@@ -1363,7 +1410,20 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                   </span>
                   <StatusBadge status={req.status} />
                 </div>
-                <button onClick={() => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadApprovalPdf(req)}
+                    disabled={pdfLoadingId === req.id}
+                    title="결재 문서 PDF 저장"
+                    className="approval-modal-pdf-btn"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                    </svg>
+                    {pdfLoadingId === req.id ? "생성 중..." : "PDF 저장"}
+                  </button>
+                  <button onClick={() => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+                </div>
               </div>
               <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{req.title}</h3>
               <div className="text-xs text-[var(--text-dim)] mb-1.5">
