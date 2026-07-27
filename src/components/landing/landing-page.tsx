@@ -100,6 +100,106 @@ function EngineGlyph({ n }: { n: string }) {
 }
 
 
+// 주요 기능 둘러보기 — 축 탭(프로젝트·인사·회계) → 기능 탭 → 우측 화면이 바뀐다.
+//   핀 스크롤을 걷어낸 자리. 스크롤을 522vh 잡아먹던 걸 한 화면으로 줄이고,
+//   대신 4초마다 다음 기능으로 저절로 넘어가 "계속 바뀌는" 느낌을 준다(직접 누르면 자동 진행 중단).
+function PillarTabs() {
+  const [ax, setAx] = useState(0);   // 축
+  const [bl, setBl] = useState(0);   // 그 축의 기능
+  const [auto, setAuto] = useState(true);
+  const ref = useRef<HTMLDivElement>(null);
+  const [live, setLive] = useState(false);
+
+  // 화면에 들어와 있을 때만 돌린다
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const io = new IntersectionObserver((es) => setLive(es[0].isIntersecting), { threshold: 0.25 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!auto || !live) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => {
+      setBl((v) => {
+        const n = PILLARS[ax].blocks.length;
+        if (v + 1 < n) return v + 1;
+        setAx((k) => (k + 1) % PILLARS.length);   // 마지막 기능이면 다음 축으로
+        return 0;
+      });
+    }, 4200);
+    return () => clearInterval(t);
+  }, [auto, live, ax]);
+
+  const pick = (a: number, b: number) => { setAuto(false); setAx(a); setBl(b); };
+  const P = PILLARS[ax];
+  const B = P.blocks[bl];
+
+  return (
+    <section className="lp4-section lp4-bg-canvas" id="pillars" ref={ref}>
+      <div className="lp4-container">
+        <Reveal className="lp4-sec-head lp4-sec-head-c">
+          <div className="lp4-eyebrow">Core</div>
+          <h2 className="lp4-h2">주요 기능, <span className="lp4-underline">여기서 둘러보세요</span></h2>
+          <p className="lp4-sub">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
+        </Reveal>
+
+        {/* 축 탭 */}
+        <div className="lp4-ax">
+          {PILLARS.map((q, i) => (
+            <button key={q.key} className={`lp4-ax-t ${i === ax ? "lp4-ax-on" : ""}`} onClick={() => pick(i, 0)}>
+              {q.kicker}
+            </button>
+          ))}
+        </div>
+
+        <div className="lp4-mf">
+          <div className="lp4-mf-copy">
+            <div className="lp4-mf-kicker">{P.kicker}</div>
+            <h3 className="lp4-mf-h">
+              {P.headline.split("\n").map((line, k) => <span key={k}>{line}<br /></span>)}
+            </h3>
+            <p className="lp4-mf-lead">{P.lead}</p>
+
+            {/* 기능 탭 — 참고 레퍼런스의 알약 버튼 */}
+            <div className="lp4-mf-tabs">
+              {P.blocks.map((q, i) => (
+                <button key={q.tab} className={`lp4-mf-tab ${i === bl ? "lp4-mf-tab-on" : ""}`} onClick={() => pick(ax, i)}>
+                  {q.tab}
+                  {i === bl && auto && <span className="lp4-mf-tick" key={`${ax}-${bl}`} />}
+                </button>
+              ))}
+            </div>
+
+            <div className="lp4-mf-body" key={`${P.key}-${bl}`}>
+              <div className="lp4-mf-t">{B.title}</div>
+              <p className="lp4-mf-d">{B.desc}</p>
+            </div>
+
+            <div className="lp4-mf-menus">
+              <span className="lp4-pillar-mcap">주요 기능</span>
+              {P.menus.map((m) => <span key={m} className="lp4-pillar-menu">{m}</span>)}
+              <Link href={`/features?g=${P.grp}`} className="lp4-pillar-more">전체 보기 <Arrow /></Link>
+            </div>
+          </div>
+
+          {/* 원형 배경 위에 뜬 화면 — 바뀔 때 슬라이드 인, 주변 칩이 따라 뜬다 */}
+          <div className="lp4-mf-stage">
+            <span className="lp4-mf-orb" />
+            <div className="lp4-mf-screen" key={B.src}>
+              <Image src={B.src} alt={B.alt} width={1968} height={1320} sizes="(max-width: 1000px) 100vw, 700px" />
+            </div>
+            {B.chips.map((ch, i) => (
+              <span key={`${B.src}-${ch}`} className={`lp4-mf-chip lp4-mf-chip-${i + 1}`}>{ch}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // 제품 화면 프레임 — 브라우저 크롬을 씌워 "실제 화면"임을 시각적으로 못 박는다.
 function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
   return (
@@ -116,97 +216,6 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
 }
 
 
-
-// 3대 축 한 덩어리 — 화면을 고정하고 순서대로 전환한 뒤 다음 섹션으로 넘어간다.
-//   바깥(track)이 블록 수 × 100vh 높이를 갖고, 안쪽(pin)이 sticky 로 화면에 붙는다.
-//   스크롤 진행률로 활성 블록을 계산하므로 우측 화면이 잘리지 않는다.
-function PillarBlock({ pillar, flip }: { pillar: (typeof PILLARS)[number]; flip: boolean }) {
-  const [idx, setIdx] = useState(0);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const n = pillar.blocks.length;
-
-  useEffect(() => {
-    const el = trackRef.current; if (!el) return;
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const r = el.getBoundingClientRect();
-        const total = r.height - window.innerHeight;
-        if (total <= 0) return;
-        const p = Math.min(1, Math.max(0, -r.top / total));
-        setIdx(Math.min(n - 1, Math.floor(p * n)));
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [n]);
-
-  return (
-    <div className={`lp4-pillar ${flip ? "lp4-pillar-flip" : ""}`} ref={trackRef} style={{ ["--pn" as string]: n }}>
-      <div className="lp4-pillar-pin">
-        <div className="lp4-container">
-          <div className="lp4-pillar-grid">
-            <div className="lp4-pillar-copy">
-              <div className="lp4-pillar-kicker">{pillar.kicker}</div>
-              <h3 className="lp4-pillar-h">
-                {pillar.headline.split("\n").map((line, k) => <span key={k}>{line}<br /></span>)}
-              </h3>
-              <p className="lp4-pillar-lead">{pillar.lead}</p>
-
-              <div className="lp4-pblocks">
-                {pillar.blocks.map((bl, i) => (
-                  <div key={bl.title} className={`lp4-pblock ${i === idx ? "lp4-pblock-on" : ""}`}>
-                    <span className="lp4-pblock-no">{String(i + 1).padStart(2, "0")}</span>
-                    <span className="lp4-pblock-body">
-                      <span className="lp4-pblock-t">{bl.title}</span>
-                      <span className="lp4-pblock-d">{bl.desc}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* 이 축이 실제로 어떤 메뉴로 이뤄지는지 — 주요 기능을 눈에 띄게 */}
-              <div className="lp4-pillar-menus">
-                <span className="lp4-pillar-mcap">주요 기능</span>
-                {pillar.menus.map((m) => <span key={m} className="lp4-pillar-menu">{m}</span>)}
-                <Link href={`/features?g=${pillar.grp}`} className="lp4-pillar-more">전체 보기 <Arrow /></Link>
-              </div>
-            </div>
-
-            <div className="lp4-pillar-stage">
-              <div className="lp4-pillar-screen">
-                {pillar.blocks.map((bl, i) => (
-                  <Image
-                    key={bl.src}
-                    src={bl.src}
-                    alt={bl.alt}
-                    width={1200}
-                    height={760}
-                    sizes="(max-width: 1000px) 100vw, 620px"
-                    className={i === idx ? "lp4-pshot lp4-pshot-on" : "lp4-pshot"}
-                  />
-                ))}
-              </div>
-              <div className="lp4-pdots">
-                {pillar.blocks.map((bl, i) => (
-                  <span key={bl.src} className={`lp4-pdot ${i === idx ? "lp4-pdot-on" : ""}`} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function LandingPage() {
   const [on, setOn] = useState(false);
@@ -439,12 +448,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ 3대 축 — 좌: 카피 블록 / 우: 스크롤에 따라 바뀌는 실제 화면 ══ */}
-      <section className="lp4-pillars" id="pillars">
-        {PILLARS.map((p, i) => (
-          <PillarBlock key={p.key} pillar={p} flip={i % 2 === 1} />
-        ))}
-      </section>
+      {/* ══ 주요 기능 둘러보기 — 축 탭 → 기능 탭 → 화면 전환 ══ */}
+      <PillarTabs />
 
       {/* ══ AI ENGINES ══ */}
       <section className="lp4-section lp4-bg-dark" id="engines">

@@ -9,6 +9,9 @@ import {
   PartnersPanel, VoucherPanel, SchedulePanel, ApprovalsPanel, BoardPanel, ChatPanel,
   TemplatesPanel, DocumentsPanel, BankPanel, CardsPanel, PaymentsPanel, LoansPanel, VaultPanel,
 } from "./_components/menu-panels";
+import {
+  ProjectsPanel, EstimatePanel, ContractPanel, SettlementPanel, MembersPanel, LeavePanel, TaxPanel,
+} from "./_components/pillar-frames";
 
 // ── Constants ──
 
@@ -747,6 +750,15 @@ export default function DemoPage() {
           <PaymentsPanel />
           <LoansPanel />
           <VaultPanel />
+
+          {/* ═══ 주요 기능 둘러보기(3대 축) 탭 화면 — 균일 비율 캡처 소스 ═══ */}
+          <ProjectsPanel />
+          <EstimatePanel />
+          <ContractPanel />
+          <SettlementPanel />
+          <MembersPanel />
+          <LeavePanel />
+          <TaxPanel />
 
           {/* ═══ Quick Links ═══ */}
           <div className="quick-links-section">
