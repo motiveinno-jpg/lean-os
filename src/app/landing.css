@@ -226,6 +226,41 @@
 @keyframes lp4-rise { from { opacity:0; transform: translateY(14px); } to { opacity:1; transform:none; } }
 @media (max-width: 700px){ .lp4-callout-label { font-size:10.5px; padding:4px 9px; } .lp4-tour-shot { transform:none; } }
 
+/* ── 3대 축 (프로젝트 · 인사 · 회계) ───────────────────
+   토스 계열 랜딩처럼 "한 화면 = 한 메시지". 큰 타이포 + 큰 제품 화면 + 좌우 교대. */
+.lp4-pillars { padding: 104px 0 0; background: var(--canvas); }
+.lp4-pillar { padding: 76px 0; }
+.lp4-pillar-alt { background: var(--paper); }
+.lp4-pillar-grid { display:grid; grid-template-columns:1fr; gap:40px; align-items:center; }
+@media (min-width: 1000px){
+  .lp4-pillar-grid { grid-template-columns: 1fr 1.15fr; gap:64px; }
+  .lp4-pillar-alt .lp4-pillar-grid { grid-template-columns: 1.15fr 1fr; }
+  .lp4-pillar-alt .lp4-pillar-copy { order:2; }
+  .lp4-pillar-alt .lp4-pillar-shot { order:1; }
+}
+.lp4-pillar-no { font-size:13px; font-weight:800; letter-spacing:.14em; color: var(--line2); font-variant-numeric: tabular-nums; }
+.lp4-pillar-kicker { display:inline-block; margin-top:10px; font-size:13px; font-weight:800; letter-spacing:.02em;
+  color: var(--brand); background: var(--brand-dim); padding:6px 14px; border-radius:999px; }
+.lp4-pillar-h { font-size: clamp(28px,3.6vw,42px); font-weight:800; letter-spacing:-.04em; line-height:1.22; margin-top:18px; }
+.lp4-pillar-lead { font-size:17px; color: var(--ink2); margin-top:16px; line-height:1.7; max-width:520px; }
+.lp4-pillar-stats { display:flex; flex-wrap:wrap; gap:12px; margin-top:26px; }
+.lp4-pillar-stat { flex:1; min-width:150px; padding:16px 18px; border-radius:16px; background: var(--canvas2); }
+.lp4-pillar-alt .lp4-pillar-stat { background: var(--canvas); }
+.lp4-pillar-stat b { display:block; font-size:22px; font-weight:800; letter-spacing:-.03em; color: var(--brand); }
+.lp4-pillar-stat span { display:block; font-size:12.5px; color: var(--ink2); margin-top:3px; }
+.lp4-pains { margin-top:28px; display:flex; flex-direction:column; gap:16px; }
+.lp4-pain-qa { padding-left:16px; border-left:2px solid var(--line2); }
+.lp4-pain-q { display:flex; gap:9px; font-size:15px; font-weight:700; color: var(--ink); line-height:1.5; }
+.lp4-pain-mark { flex:none; width:19px; height:19px; border-radius:999px; background: var(--ink3); color:#fff;
+  font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-top:2px; }
+.lp4-pain-a { display:flex; gap:9px; font-size:14.5px; color: var(--ink2); margin-top:7px; line-height:1.65; }
+.lp4-pain-arrow { flex:none; color: var(--brand); font-weight:800; }
+.lp4-pillar-menus { display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; }
+.lp4-pillar-menu { font-size:12.5px; font-weight:600; color: var(--ink2); border:1px solid var(--line2);
+  padding:7px 14px; border-radius:999px; }
+.lp4-pillar-shot img { display:block; width:100%; height:auto; border-radius:18px; border:1px solid var(--line);
+  box-shadow: 0 40px 76px -32px rgba(31,38,75,.5); }
+
 /* ── 기능 티커 ─────────────────────────────────────── */
 .lp4-ticker { background: var(--paper); border-bottom:1px solid var(--line); overflow:hidden; padding:14px 0;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);

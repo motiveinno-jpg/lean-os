@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ProjectFlow } from "./_components/project-flow";
 import { WidgetBoard } from "./_components/widget-board";
+import { FlowPanel, HrPanel, AccountPanel } from "./_components/pillar-panels";
 
 // ── Constants ──
 
@@ -722,6 +723,11 @@ export default function DemoPage() {
 
           {/* ═══ 프로젝트 흐름 (견적서→계약서→진척→완료→정산) ═══ */}
           <ProjectFlow />
+
+          {/* ═══ 3대 축 — 경영흐름 · 인사관리 · 회계관리 ═══ */}
+          <FlowPanel />
+          <HrPanel />
+          <AccountPanel />
 
           {/* ═══ Quick Links ═══ */}
           <div className="quick-links-section">

@@ -1328,6 +1328,75 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .wg-dot-w { background: var(--warning); }
 .wg-dot-o { background: var(--success); }
 
+/* ── /demo 3대 축 패널 (2026-07-27) — 경영흐름 · 인사관리 · 회계관리 캡처 소스 ── */
+.pp { @apply mb-5 p-6; }
+.pp-head { @apply flex items-start justify-between gap-4 flex-wrap pb-4 mb-4 border-b border-[var(--border)]; }
+.pp-menu { @apply text-[10px] font-bold tracking-wider uppercase text-[var(--primary)]; }
+.pp-title { @apply text-lg font-extrabold text-[var(--text)] mt-1; }
+.pp-sub { @apply text-xs text-[var(--text-muted)] mt-1; }
+.pp-badge { @apply px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0; }
+.pp-badge-p { @apply bg-[var(--primary-light)] text-[var(--primary)]; }
+.pp-badge-s { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.pp-section-t { @apply text-xs font-bold text-[var(--text-muted)] mt-5 mb-2.5; }
+.pp-alert { @apply mt-3 px-3.5 py-2.5 rounded-xl text-[11.5px] font-semibold bg-[var(--warning-dim)] text-[var(--warning)]; }
+.pp-mt { @apply mt-4; }
+
+/* 경영 흐름 */
+.pp-forecast { @apply grid grid-cols-4 gap-3 items-end; }
+.pp-fc { @apply text-center; }
+.pp-fc-bar-wrap { @apply h-24 flex items-end justify-center; }
+.pp-fc-bar { @apply w-10 rounded-t-lg; }
+.pp-fc-ok { background: linear-gradient(180deg, var(--primary-soft), var(--primary)); }
+.pp-fc-warn { background: linear-gradient(180deg, #fbbf24, var(--warning)); }
+.pp-fc-v { @apply text-[11.5px] font-extrabold text-[var(--text)] mt-1.5; font-variant-numeric: tabular-nums; }
+.pp-fc-l { @apply text-[10px] text-[var(--text-dim)]; }
+.pp-steps { @apply flex items-stretch gap-1 overflow-hidden; }
+.pp-step-wrap { @apply flex items-center gap-1 flex-1 min-w-0; }
+.pp-step { @apply flex-1 min-w-0 p-2.5 rounded-xl border border-[var(--border)] border-t-2; }
+.pp-step-no { @apply text-[9px] font-bold text-[var(--text-dim)]; }
+.pp-step-n { @apply text-[11.5px] font-bold text-[var(--text)] truncate; }
+.pp-step-v { @apply text-[12.5px] font-extrabold text-[var(--text)] mt-1; font-variant-numeric: tabular-nums; }
+.pp-step-d { @apply text-[9.5px] text-[var(--text-dim)] truncate; }
+.pp-step-arrow { @apply text-[var(--text-dim)] text-sm shrink-0; }
+.pp-step-p { border-top-color: var(--primary); }
+.pp-step-i { border-top-color: var(--info); }
+.pp-step-s { border-top-color: var(--success); }
+.pp-step-w { border-top-color: var(--warning); }
+.pp-step-vi { border-top-color: var(--primary-soft); }
+
+/* 공통 서브카드 · 표 */
+.pp-grid2 { @apply grid grid-cols-1 md:grid-cols-2 gap-3; }
+.pp-grid3 { @apply grid grid-cols-3 gap-3; }
+.pp-sub-card { @apply p-4 rounded-xl border border-[var(--border)] bg-[var(--bg)]/40; }
+.pp-sub-t { @apply text-[11px] font-bold text-[var(--text-muted)] mb-2.5; }
+.pp-stats { @apply grid grid-cols-2 gap-x-3 gap-y-2.5; }
+.pp-stat { @apply flex flex-col; }
+.pp-stat b { @apply text-[15px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.pp-stat span { @apply text-[10px] text-[var(--text-dim)]; }
+.pp-payroll { @apply flex flex-col; }
+.pp-pay-row { @apply flex items-center justify-between gap-2 py-1.5 text-[11.5px] text-[var(--text-muted)] border-b border-[var(--border)] last:border-0; }
+.pp-pay-row b { @apply text-[var(--text)] font-bold; font-variant-numeric: tabular-nums; }
+.pp-pay-cta { @apply flex items-center justify-between gap-2 mt-3 flex-wrap; }
+.pp-chip-ok { @apply text-[10.5px] font-bold px-2 py-1 rounded-full bg-[var(--success-dim)] text-[var(--success)]; }
+.pp-btn { @apply px-3 py-1.5 rounded-lg text-[11px] font-bold text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.pp-mini { @apply p-3.5 rounded-xl border border-[var(--border)] flex flex-col; }
+.pp-mini span { @apply text-[10px] text-[var(--text-dim)]; }
+.pp-mini b { @apply text-[16px] font-extrabold text-[var(--text)] mt-0.5; font-variant-numeric: tabular-nums; }
+.pp-mini-ok b { color: var(--success); }
+.pp-table { @apply w-full text-[11.5px] border-collapse; }
+.pp-table th { @apply text-left font-semibold text-[var(--text-dim)] py-2 border-b border-[var(--border)] text-[10.5px]; }
+.pp-table td { @apply py-2.5 border-b border-[var(--border)] text-[var(--text-muted)]; }
+.pp-table th:last-child, .pp-table td:last-child { @apply text-right; }
+.pp-strong { @apply font-semibold text-[var(--text)]; }
+.pp-num { @apply font-bold; font-variant-numeric: tabular-nums; }
+.pp-in { color: var(--success); }
+.pp-out { color: var(--text); }
+.pp-tag { @apply text-[9.5px] font-bold px-1.5 py-0.5 rounded-md; }
+.pp-tag-n { @apply bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pp-tag-s { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.pp-tag-w { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.pp-ai { @apply ml-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+
 /* ── /demo 프로젝트 흐름 패널 (2026-07-27) — 랜딩 "견적부터 정산까지" 모션 섹션의 캡처 소스 ── */
 .flow-panel { @apply mb-5 p-6; }
 .flow-head { @apply flex items-start justify-between gap-4 flex-wrap; }

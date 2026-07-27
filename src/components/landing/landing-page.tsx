@@ -12,7 +12,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, PROBLEMS, SCREENS, FLOW, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, PROBLEMS, SCREENS, PILLARS, FLOW, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 
 function Logo({ size = 26 }: { size?: number }) {
@@ -285,6 +285,56 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ══ 3대 축 — 프로젝트 · 인사 · 회계. 오너뷰의 핵심 소구점 ══ */}
+      <section className="lp4-pillars" id="pillars">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <div className="lp4-eyebrow">One ERP, Three Pillars</div>
+            <h2 className="lp4-h2">회사 운영은 <span className="lp4-underline">세 가지</span>로 나뉩니다</h2>
+            <p className="lp4-sub">프로젝트를 굴리고, 사람을 관리하고, 돈을 정리합니다. 오너뷰는 이 셋을 각각 제대로 합니다.</p>
+          </Reveal>
+        </div>
+
+        {PILLARS.map((p, i) => (
+          <div key={p.key} className={`lp4-pillar ${i % 2 === 1 ? "lp4-pillar-alt" : ""}`}>
+            <div className="lp4-container">
+              <div className="lp4-pillar-grid">
+                <Reveal className="lp4-pillar-copy">
+                  <div className="lp4-pillar-no">{p.no}</div>
+                  <div className="lp4-pillar-kicker">{p.kicker}</div>
+                  <h3 className="lp4-pillar-h">{p.headline.split("\n").map((line, k) => <span key={k}>{line}<br /></span>)}</h3>
+                  <p className="lp4-pillar-lead">{p.lead}</p>
+
+                  <div className="lp4-pillar-stats">
+                    {p.stats.map((s) => (
+                      <div key={s.l} className="lp4-pillar-stat"><b>{s.v}</b><span>{s.l}</span></div>
+                    ))}
+                  </div>
+
+                  {/* 고민 → 해소. 방문자가 자기 상황을 바로 대입할 수 있게 질문형으로 */}
+                  <div className="lp4-pains">
+                    {p.pains.map((x) => (
+                      <div key={x.q} className="lp4-pain-qa">
+                        <div className="lp4-pain-q"><span className="lp4-pain-mark">?</span>{x.q}</div>
+                        <div className="lp4-pain-a"><span className="lp4-pain-arrow">→</span>{x.a}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="lp4-pillar-menus">
+                    {p.menus.map((m) => <span key={m} className="lp4-pillar-menu">{m}</span>)}
+                  </div>
+                </Reveal>
+
+                <Reveal className="lp4-pillar-shot">
+                  <Image src={p.src} alt={p.alt} width={1200} height={760} sizes="(max-width: 1000px) 100vw, 700px" />
+                </Reveal>
+              </div>
+            </div>
+          </div>
+        ))}
       </section>
 
       {/* ══ 제품 실물 화면 투어 ══ */}
