@@ -7,6 +7,7 @@ import { logRead } from "@/lib/log-read";
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 import { supabase } from '@/lib/supabase';
 import { logAudit } from './audit';
 import { loadKoreanFont, setKoreanFont } from './pdf-korean-font';
@@ -770,71 +771,16 @@ export async function generateTaxInvoicePdf(params: TaxInvoicePdfParams): Promis
 // 4.5 결재 문서 PDF (승인 완료 결재 요청)
 // ────────────────────────────────────────────
 
-// ── 결재 본문(RichEditor HTML) → PDF 블록 ──────────────────────────────────
-//   본문을 평문화하면 표는 공백으로 뭉개지고 이미지는 사라진다. 화면과 같은 문서를
-//   내려면 문단·표·이미지를 순서대로 재현해야 한다(2026-07-27 사장님 요청).
-type PdfBlock =
-  | { kind: 'text'; text: string; bold: boolean; size: number }
-  | { kind: 'table'; head?: string[]; rows: string[][] }
-  | { kind: 'image'; src: string };
+// ── 결재 본문(RichEditor HTML) → PDF ───────────────────────────────────────
+//   본문을 평문화하거나 블록 단위로 재조립하면 정렬·굵기·색·글꼴·형광펜·한글(HWP) 표
+//   서식이 재현되지 않는다. 에디터가 만들 수 있는 서식 폭(정렬/굵게/기울임/밑줄/취소선/
+//   형광펜/글자색/글자크기/글꼴/제목/표/이미지)이 넓고, 글꼴(명조·고딕)은 jsPDF 에
+//   나눔고딕뿐이라 원리적으로 못 맞춘다.
+//   → 화면과 "같은 CSS(.approval-desc-html)"로 오프스크린 렌더 후 캔버스로 떠서 넣는다.
+//     구조상 화면 == PDF 가 보장된다(2026-07-27 사장님 요청: "아예 똑같이").
+//     트레이드오프: 본문은 이미지라 PDF 내 텍스트 검색·복사 불가.
+//     (머리말 기본정보표·필드표·결재라인은 기존대로 선택 가능한 텍스트로 유지)
 
-const cellText = (el: Element) => (el.textContent || '').replace(/ /g, ' ').trim();
-
-function parseTableEl(el: Element): PdfBlock {
-  const rows: string[][] = [];
-  let head: string[] | undefined;
-  Array.from(el.querySelectorAll('tr')).forEach((tr, i) => {
-    const cells = Array.from(tr.children).map(cellText);
-    if (cells.length === 0) return;
-    const allTh = Array.from(tr.children).every((c) => c.tagName.toLowerCase() === 'th');
-    if (i === 0 && allTh) head = cells;
-    else rows.push(cells);
-  });
-  return { kind: 'table', head, rows };
-}
-
-/** RichEditor HTML → 렌더 블록 목록(문서 순서 유지). */
-function htmlToPdfBlocks(html: string): PdfBlock[] {
-  if (typeof window === 'undefined') return [];
-  const parsed = new DOMParser().parseFromString(html, 'text/html');
-  const blocks: PdfBlock[] = [];
-
-  const walk = (node: Element) => {
-    for (const child of Array.from(node.children)) {
-      const tag = child.tagName.toLowerCase();
-      if (tag === 'table') { blocks.push(parseTableEl(child)); continue; }
-      if (tag === 'img') {
-        const src = child.getAttribute('src') || '';
-        if (src) blocks.push({ kind: 'image', src });
-        continue;
-      }
-      // 표·이미지를 품고 있으면 내려가되, 그 요소가 직접 가진 텍스트는 먼저 뽑는다.
-      if (child.querySelector('table, img')) {
-        const direct = Array.from(child.childNodes)
-          .filter((n) => n.nodeType === 3)
-          .map((n) => n.textContent || '')
-          .join('')
-          .replace(/ /g, ' ')
-          .trim();
-        if (direct) blocks.push({ kind: 'text', text: direct, bold: false, size: 9 });
-        walk(child);
-        continue;
-      }
-      const isHeading = /^h[1-6]$/.test(tag);
-      const text = cellText(child);
-      if (tag === 'ul' || tag === 'ol') {
-        Array.from(child.children).forEach((li) => {
-          const t = cellText(li);
-          if (t) blocks.push({ kind: 'text', text: `· ${t}`, bold: false, size: 9 });
-        });
-        continue;
-      }
-      if (text) blocks.push({ kind: 'text', text, bold: isHeading, size: isHeading ? 11 : 9 });
-    }
-  };
-  walk(parsed.body);
-  return blocks;
-}
 
 /** 이미지 → dataURL + 원본 픽셀 크기. 실패(CORS·404 등) 시 null 이면 해당 이미지는 건너뛴다. */
 async function loadImageForPdf(src: string): Promise<{ dataUrl: string; w: number; h: number; fmt: string } | null> {
@@ -862,6 +808,87 @@ async function loadImageForPdf(src: string): Promise<{ dataUrl: string; w: numbe
     return { dataUrl, ...dim, fmt };
   } catch {
     return null;
+  }
+}
+
+/**
+ * 결재 본문 HTML 을 화면과 동일한 모습으로 PDF 에 얹는다.
+ *   1) 오프스크린에 화면과 같은 클래스(.approval-desc-html)로 렌더 — 정렬·서식·표 CSS 를 그대로 사용
+ *   2) 원격 이미지는 dataURL 로 미리 치환(캔버스 CORS 오염 방지)
+ *   3) 캔버스로 떠서 페이지 높이만큼 잘라 여러 장에 나눠 삽입
+ * @returns 삽입 후의 y (mm)
+ */
+async function renderHtmlBodyToPdf(
+  doc: jsPDF,
+  html: string,
+  o: { x: number; y: number; contentW: number; bottomLimit: number },
+): Promise<number> {
+  if (typeof window === 'undefined') return o.y;
+  let y = o.y;
+
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;z-index:-1;pointer-events:none;background:#ffffff;';
+  const page = document.createElement('div');
+  page.className = 'approval-desc-html';
+  // 96dpi 기준 본문 폭 px. 문서(흰 종이) 기준 색 고정 — 다크모드에서도 PDF 는 흰 바탕 검정 글씨.
+  const renderW = Math.round((o.contentW / 25.4) * 96);
+  page.style.cssText = `width:${renderW}px;background:#ffffff;color:#111111;`;
+  page.innerHTML = html;
+  host.appendChild(page);
+  document.body.appendChild(host);
+
+  try {
+    await Promise.all(
+      Array.from(page.querySelectorAll('img')).map(async (img) => {
+        const src = img.getAttribute('src') || '';
+        if (!src || src.startsWith('data:')) return;
+        const loaded = await loadImageForPdf(src);
+        if (loaded) img.setAttribute('src', loaded.dataUrl);
+        else img.remove(); // 못 불러온 이미지는 빈 칸 대신 제거
+      }),
+    );
+
+    const canvas = await html2canvas(page, {
+      scale: 2, // 인쇄 시 글자가 뭉개지지 않게
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false,
+    });
+    if (!canvas.width || !canvas.height) return y;
+
+    const pxPerMm = canvas.width / o.contentW;
+    let offset = 0;
+    while (offset < canvas.height) {
+      const availMm = o.bottomLimit - y;
+      if (availMm < 12) {
+        doc.addPage();
+        y = 16;
+        continue;
+      }
+      const slicePx = Math.min(canvas.height - offset, Math.floor(availMm * pxPerMm));
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width;
+      slice.height = slicePx;
+      const ctx = slice.getContext('2d');
+      if (!ctx) break;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, offset, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+      const hMm = slicePx / pxPerMm;
+      doc.addImage(slice.toDataURL('image/png'), 'PNG', o.x, y, o.contentW, hMm);
+      y += hMm;
+      offset += slicePx;
+      if (offset < canvas.height) {
+        doc.addPage();
+        y = 16;
+      }
+    }
+    return y + 4;
+  } catch {
+    return y; // 렌더 실패해도 나머지(결재선 등)는 정상 생성
+  } finally {
+    host.remove();
   }
 }
 
@@ -960,50 +987,10 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
     const lineHeight = 6; // mm — 기본보다 넓은 줄간격
 
     if (params.descriptionHtml) {
-      // 서식 본문 — 문단·표·이미지를 작성 순서대로 재현
-      const blocks = htmlToPdfBlocks(params.descriptionHtml);
-      for (const block of blocks) {
-        if (block.kind === 'text') {
-          doc.setFontSize(block.size);
-          setKoreanFont(doc, block.bold ? 'bold' : 'normal');
-          doc.setTextColor(40, 40, 40);
-          const lines: string[] = doc.splitTextToSize(block.text, contentW);
-          for (const line of lines) {
-            ensureSpace(lineHeight);
-            doc.text(line, marginX, y);
-            y += lineHeight;
-          }
-          y += 1;
-        } else if (block.kind === 'table') {
-          ensureSpace(16);
-          autoTable(doc, {
-            startY: y,
-            head: block.head ? [block.head] : undefined,
-            body: block.rows,
-            theme: 'grid',
-            styles: { fontSize: 8.5, cellPadding: 2.5, font: 'NanumGothic', overflow: 'linebreak' },
-            headStyles: { fillColor: [245, 247, 250], textColor: [40, 40, 40], fontStyle: 'bold' },
-            margin: { left: marginX, right: marginX },
-          });
-          y = (doc as any).lastAutoTable.finalY + 5;
-        } else {
-          const img = await loadImageForPdf(block.src);
-          if (!img || !img.w || !img.h) continue; // 불러오지 못한 이미지는 건너뜀
-          let w = contentW;
-          let h = (img.h / img.w) * w;
-          const maxH = bottomLimit - 16; // 한 페이지에 담기도록 축소
-          if (h > maxH) { h = maxH; w = (img.w / img.h) * h; }
-          ensureSpace(h + 2);
-          // 포맷 미지원(WEBP 등) 이미지 한 장 때문에 문서 전체 생성이 실패하지 않도록 방어.
-          try {
-            doc.addImage(img.dataUrl, img.fmt, marginX, y, w, h);
-            y += h + 5;
-          } catch {
-            /* 렌더 불가 이미지는 건너뜀 */
-          }
-        }
-      }
-      y += 2;
+      // 서식 본문 — 화면과 동일한 CSS 로 렌더한 결과를 그대로 얹는다(정렬·서식·표·이미지 보존).
+      y = await renderHtmlBodyToPdf(doc, params.descriptionHtml, {
+        x: marginX, y, contentW, bottomLimit,
+      });
     } else {
       setKoreanFont(doc, 'normal');
       doc.setTextColor(40, 40, 40);

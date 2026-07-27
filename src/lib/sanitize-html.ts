@@ -6,7 +6,9 @@ import DOMPurify from "isomorphic-dompurify";
 
 // 계약/문서 본문에 필요한 서식 태그만 허용. on* 이벤트·script·iframe·object·form 등은 전부 차단.
 const ALLOWED_TAGS = [
-  "p", "br", "hr", "span", "div", "b", "strong", "i", "em", "u", "s", "strike", "sub", "sup",
+  // mark: RichEditor 형광펜(Highlight) 출력. 허용 목록에 없어 화면·PDF 양쪽에서 지워지고
+  //   있었다(2026-07-27). 이벤트 핸들러가 없는 순수 서식 태그라 허용해도 안전.
+  "p", "br", "hr", "span", "div", "b", "strong", "i", "em", "u", "s", "strike", "sub", "sup", "mark",
   "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "code",
   "ul", "ol", "li", "a", "img",
   "table", "thead", "tbody", "tfoot", "tr", "th", "td", "colgroup", "col", "caption",

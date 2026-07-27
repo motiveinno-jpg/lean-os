@@ -41,6 +41,7 @@
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "html-react-parser": "^6.1.2",
+    "html2canvas": "^1.4.1",
     "isomorphic-dompurify": "^3.19.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
