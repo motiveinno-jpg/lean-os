@@ -1569,7 +1569,20 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                   </span>
                   <StatusBadge status={req.status} />
                 </div>
-                <button onClick={() => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadApprovalPdf(req)}
+                    disabled={pdfLoadingId === req.id}
+                    title="결재 문서 PDF 저장"
+                    className="approval-modal-pdf-btn"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                    </svg>
+                    {pdfLoadingId === req.id ? "생성 중..." : "PDF 저장"}
+                  </button>
+                  <button onClick={() => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+                </div>
               </div>
               <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{req.title}</h3>
               <div className="text-xs text-[var(--text-dim)] mb-1.5">

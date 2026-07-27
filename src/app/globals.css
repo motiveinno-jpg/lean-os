@@ -1675,6 +1675,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .approval-table { @apply w-full text-left min-w-[720px]; }
 .approval-table-row { @apply border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition; }
 .approval-detail-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
+/* 전체 현황 상세 팝업 헤더의 PDF 저장 버튼 (2026-07-27) — 테이블 행 PDF 버튼과 동일 스타일 */
+.approval-modal-pdf-btn { @apply inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)] border border-[var(--border)] transition disabled:opacity-50; }
 /* 결재 상세 내용 서식(HTML) 렌더 — RichEditor 로 작성된 표·목록·이미지 (2026-07-16) */
 .approval-desc-html { @apply text-sm leading-relaxed; }
 .approval-desc-html p { margin: 0.25rem 0; }
