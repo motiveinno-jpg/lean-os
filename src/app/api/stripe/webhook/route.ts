@@ -108,10 +108,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const status = STATUS_MAP[sub.status] || 'trialing';
   const now = new Date().toISOString();
 
+  // 결제주기는 체크아웃이 metadata 로 넘긴 값을 따른다(연간 도입 전엔 항상 monthly 였음).
+  const billingCycle = session.metadata?.billingCycle === 'annual' ? 'annual' : 'monthly';
+
   const patch: Record<string, unknown> = {
     plan_id: plan.id,
     status,
-    billing_cycle: 'monthly',
+    billing_cycle: billingCycle,
     seat_count: seatCount,
     stripe_subscription_id: stripeSubscriptionId,
     stripe_customer_id: stripeCustomerId,
@@ -142,10 +145,36 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // 회사 캐시 플랜 — trialing 도 해당 플랜 권한 유지.
   await db.from('companies').update({ current_plan: planSlug }).eq('id', companyId);
 
+  // 영업코드 사용이력 — 어느 영업사원 코드로 어떤 회사가 들어왔는지(운영자 화면 소스).
+  //   회사당 1건(unique) — 재결제·플랜변경 시 최초 유입 기록을 덮어쓰지 않는다.
+  const salesCode = session.metadata?.salesCode;
+  if (salesCode) {
+    try {
+      const codeRow = logRead('webhook/route:salesCode', await db
+        .from('sales_codes').select('id').eq('code', salesCode).maybeSingle());
+      if (codeRow) {
+        const appliedTrialDays = parseInt(session.metadata?.trialDays || '0', 10) || null;
+        const existingRedemption = logRead('webhook/route:redemption', await db
+          .from('sales_code_redemptions').select('id').eq('company_id', companyId).maybeSingle());
+        if (!existingRedemption) {
+          await db.from('sales_code_redemptions').insert({
+            sales_code_id: codeRow.id,
+            company_id: companyId,
+            applied_trial_days: appliedTrialDays,
+            stripe_subscription_id: stripeSubscriptionId,
+          });
+        }
+      }
+    } catch (e) {
+      // 유입 기록 실패가 구독 처리를 막지 않게 — 결제 흐름이 우선.
+      console.error('sales code redemption record failed:', e);
+    }
+  }
+
   await db.from('billing_events').insert({
     company_id: companyId,
     event_type: 'checkout_completed',
-    metadata: { planSlug, seatCount, stripeSessionId: session.id, stripeSubscriptionId, status },
+    metadata: { planSlug, seatCount, billingCycle, stripeSessionId: session.id, stripeSubscriptionId, status, salesCode: salesCode || null },
     created_at: now,
   });
 }
@@ -275,6 +304,19 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId?: string) {
   if (!sub) return;
 
   const amountWon = stripeAmountToWon(invoice.amount_paid || 0, invoice.currency);
+
+  // 영업코드 유입 회사의 "유료 전환" 시점 — 첫 실결제(0원 인증 제외)에만 기록.
+  //   운영자 화면에서 코드별 전환율을 보기 위한 것. 실패해도 결제 처리엔 영향 없음.
+  if (amountWon > 0) {
+    try {
+      await db.from('sales_code_redemptions')
+        .update({ converted_at: new Date().toISOString() })
+        .eq('company_id', sub.company_id)
+        .is('converted_at', null);
+    } catch (e) {
+      console.error('sales code conversion mark failed:', e);
+    }
+  }
 
   // 멱등성 — Stripe 재시도 시 같은 인보이스 중복 insert 방지
   const dup = logRead('webhook/route:dup', await db

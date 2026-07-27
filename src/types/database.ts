@@ -12405,6 +12405,25 @@ export type Database = {
         Returns: number
       }
       ai_usage_summary: { Args: never; Returns: Json }
+      // 2026-07-27 영업코드 — 코드 유효성(보너스 체험일) 확인. 코드를 아는 경우만 조회됨.
+      sales_code_bonus_days: { Args: { p_code: string }; Returns: number }
+      // 2026-07-27 영업코드 — 운영자 전용: 코드별 유입 회사 목록
+      operator_sales_code_signups: {
+        Args: never
+        Returns: {
+          code: string
+          owner_name: string
+          code_active: boolean
+          company_id: string
+          company_name: string
+          business_number: string | null
+          applied_trial_days: number | null
+          redeemed_at: string
+          converted_at: string | null
+          subscription_status: string | null
+          plan_slug: string | null
+        }[]
+      }
       approve_overtime: { Args: { p_request_id: string }; Returns: undefined }
       auto_clock_out_at_work_end: { Args: never; Returns: number }
       check_can_clock_in_after_hours: {

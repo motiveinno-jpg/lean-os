@@ -21,6 +21,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/platform/customers", label: "고객사", icon: "building" },
       { href: "/platform/members", label: "사용자", icon: "users" },
       { href: "/platform/revenue", label: "수익", icon: "dollar" },
+      { href: "/platform/sales-codes", label: "영업코드", icon: "link" },
       { href: "/platform/feedback", label: "피드백", icon: "message" },
       { href: "/platform/support", label: "고객센터", icon: "headset" },
       { href: "/platform/partnership", label: "도입문의", icon: "inbox" },

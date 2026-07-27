@@ -9,19 +9,35 @@ function getStripe() {
   });
 }
 
-const TRIAL_DAYS = 14;
+// 기본 무료체험 14일. 영업코드를 입력하면 코드에 설정된 보너스일(기본 30일)이 더해져 44일.
+export const BASE_TRIAL_DAYS = 14;
 
-// 플랜별 월 price + 추가좌석 price (2026-07-23 좌석 구조). 연간은 비활성(정상가·할인 확정 전까지).
+type BillingCycle = 'monthly' | 'annual';
+
+// 플랜별 price (2026-07-23 좌석 구조 + 2026-07-27 연간 추가).
 //   기본 좌석(5명) 초과분만 추가좌석 price 로 별도 line item. VAT 10% 별도.
-const SEAT_PRICE_MAP: Record<string, { base?: string; extraSeat?: string; includedSeats: number }> = {
+//   연간 env 가 없으면 연간 선택은 400 으로 막는다(가격 미생성 상태에서 잘못 결제되는 것 방지).
+const SEAT_PRICE_MAP: Record<string, Record<BillingCycle, { base?: string; extraSeat?: string }> & { includedSeats: number }> = {
   basic: {
-    base: process.env.STRIPE_PRICE_BASIC_MONTHLY,
-    extraSeat: process.env.STRIPE_PRICE_BASIC_EXTRA_SEAT_MONTHLY,
+    monthly: {
+      base: process.env.STRIPE_PRICE_BASIC_MONTHLY,
+      extraSeat: process.env.STRIPE_PRICE_BASIC_EXTRA_SEAT_MONTHLY,
+    },
+    annual: {
+      base: process.env.STRIPE_PRICE_BASIC_ANNUAL,
+      extraSeat: process.env.STRIPE_PRICE_BASIC_EXTRA_SEAT_ANNUAL,
+    },
     includedSeats: 5,
   },
   ultra: {
-    base: process.env.STRIPE_PRICE_ULTRA_MONTHLY,
-    extraSeat: process.env.STRIPE_PRICE_ULTRA_EXTRA_SEAT_MONTHLY,
+    monthly: {
+      base: process.env.STRIPE_PRICE_ULTRA_MONTHLY,
+      extraSeat: process.env.STRIPE_PRICE_ULTRA_EXTRA_SEAT_MONTHLY,
+    },
+    annual: {
+      base: process.env.STRIPE_PRICE_ULTRA_ANNUAL,
+      extraSeat: process.env.STRIPE_PRICE_ULTRA_EXTRA_SEAT_ANNUAL,
+    },
     includedSeats: 5,
   },
 };
@@ -39,7 +55,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { planSlug, companyId, seatCount, successUrl, cancelUrl } = body;
+    const { planSlug, companyId, seatCount, successUrl, cancelUrl, salesCode, billingCycle } = body;
+    const cycle: BillingCycle = billingCycle === 'annual' ? 'annual' : 'monthly';
 
     if (!planSlug || !companyId) {
       return NextResponse.json(
@@ -63,20 +80,54 @@ export async function POST(request: NextRequest) {
     }
 
     const plan = SEAT_PRICE_MAP[planSlug];
-    if (!plan?.base) {
+    if (!plan) {
       return NextResponse.json(
         { error: { code: 'INVALID_PLAN', message: `유효하지 않은 플랜입니다: ${planSlug}` } },
         { status: 400 },
       );
     }
+    const priceSet = plan[cycle];
+    if (!priceSet?.base) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'CYCLE_UNAVAILABLE',
+            message: cycle === 'annual'
+              ? '연간 결제는 아직 준비 중입니다. 월간으로 진행해 주세요.'
+              : `유효하지 않은 플랜입니다: ${planSlug}`,
+          },
+        },
+        { status: 400 },
+      );
+    }
+
+    // 영업코드: 서버에서 검증(클라 값 신뢰 안 함). 유효하면 보너스 체험일을 더한다.
+    //   sales_code_bonus_days 는 코드를 아는 경우에만 확인되는 SECURITY DEFINER RPC —
+    //   목록 열람은 불가하므로 코드 수집에 쓰일 수 없다.
+    let normalizedSalesCode: string | null = null;
+    let bonusTrialDays = 0;
+    if (typeof salesCode === 'string' && salesCode.trim()) {
+      normalizedSalesCode = salesCode.trim().toUpperCase();
+      const { data: bonus, error: codeErr } = await supabase.rpc('sales_code_bonus_days', {
+        p_code: normalizedSalesCode,
+      });
+      if (codeErr || bonus === null || bonus === undefined) {
+        return NextResponse.json(
+          { error: { code: 'INVALID_SALES_CODE', message: '유효하지 않은 영업코드입니다. 코드를 다시 확인해 주세요.' } },
+          { status: 400 },
+        );
+      }
+      bonusTrialDays = Math.max(0, Number(bonus) || 0);
+    }
+    const trialDays = BASE_TRIAL_DAYS + bonusTrialDays;
 
     // 좌석 수는 서버에서 재계산 — 클라 값 그대로 신뢰하지 않음. 추가좌석 = max(0, 좌석 - 기본좌석).
     const requestedSeats = Math.max(1, Math.min(Number(seatCount) || 1, 500));
     const extraSeats = Math.max(0, requestedSeats - plan.includedSeats);
 
-    const lineItems: { price: string; quantity: number }[] = [{ price: plan.base, quantity: 1 }];
-    if (extraSeats > 0 && plan.extraSeat) {
-      lineItems.push({ price: plan.extraSeat, quantity: extraSeats });
+    const lineItems: { price: string; quantity: number }[] = [{ price: priceSet.base, quantity: 1 }];
+    if (extraSeats > 0 && priceSet.extraSeat) {
+      lineItems.push({ price: priceSet.extraSeat, quantity: extraSeats });
     }
 
     const origin = request.headers.get('origin') || 'https://www.owner-view.com';
@@ -84,7 +135,27 @@ export async function POST(request: NextRequest) {
     const resolvedCancelUrl = cancelUrl || `${origin}/billing?payment=cancel`;
 
     const stripe = getStripe();
-    // 카드 등록 즉시(0원 인증) + 14일 트라이얼 + 종료 후 자동 청구. 결제수단 없으면 트라이얼 종료 시 취소.
+    // 공통 메타데이터 — 웹훅이 구독행·영업코드 사용이력을 기록할 때 그대로 읽는다.
+    const sharedMetadata: Record<string, string> = {
+      companyId,
+      planSlug,
+      seatCount: String(requestedSeats),
+      billingCycle: cycle,
+      trialDays: String(trialDays),
+      ...(normalizedSalesCode ? { salesCode: normalizedSalesCode } : {}),
+    };
+
+    // 카드 등록 즉시(0원 인증) + 트라이얼(기본 14일, 영업코드 시 44일) + 종료 후 자동 청구.
+    //   연간도 동일하게 트라이얼을 주고, 종료 시 1년치를 한 번에 청구한다(사장님 결정 2026-07-27).
+    //   결제수단 없으면 트라이얼 종료 시 구독 취소.
+    const subscriptionData = {
+      trial_period_days: trialDays,
+      trial_settings: { end_behavior: { missing_payment_method: 'cancel' as const } },
+      metadata: sharedMetadata,
+      // 부가세 10% 별도 청구 — 구독 전체에 기본 세율 적용(설정 시). 미설정이면 세금 없이 진행.
+      ...(process.env.STRIPE_TAX_RATE_VAT ? { default_tax_rates: [process.env.STRIPE_TAX_RATE_VAT] } : {}),
+    };
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -93,20 +164,8 @@ export async function POST(request: NextRequest) {
       success_url: resolvedSuccessUrl,
       cancel_url: resolvedCancelUrl,
       customer_email: user.email,
-      metadata: { companyId, planSlug, seatCount: String(requestedSeats), userId: user.id },
-      // 부가세 10% 별도 청구 — 구독 전체에 기본 세율 적용(설정 시). 미설정이면 세금 없이 진행.
-      ...(process.env.STRIPE_TAX_RATE_VAT
-        ? { subscription_data: {
-              trial_period_days: TRIAL_DAYS,
-              trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
-              default_tax_rates: [process.env.STRIPE_TAX_RATE_VAT],
-              metadata: { companyId, planSlug, seatCount: String(requestedSeats) },
-            } }
-        : { subscription_data: {
-              trial_period_days: TRIAL_DAYS,
-              trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
-              metadata: { companyId, planSlug, seatCount: String(requestedSeats) },
-            } }),
+      metadata: { ...sharedMetadata, userId: user.id },
+      subscription_data: subscriptionData,
     });
 
     return NextResponse.json({ data: { url: session.url } });

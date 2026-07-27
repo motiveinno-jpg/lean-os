@@ -44,6 +44,9 @@ export default function BillingPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState<string | null>(null);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  // 영업사원 영업코드 — 입력 시 무료체험 14일 + 보너스(기본 30일) = 44일 (2026-07-27 가격정책).
+  //   유효성은 서버(/api/stripe/checkout)가 판정한다 — 클라에서 코드 목록을 조회할 수 없다.
+  const [salesCode, setSalesCode] = useState("");
   const qc = useQueryClient();
 
   const { data: user, isLoading: isUserLoading, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
@@ -200,6 +203,10 @@ export default function BillingPage() {
           companyId,
           // 좌석 수 = 현재 활성 직원 수(서버가 다시 검증). 기본 5명 포함, 초과분만 추가 과금.
           seatCount: usage?.employees || 1,
+          // 결제주기 — 화면 토글값. 연간은 1년치를 한 번에 청구(체험 종료 후).
+          billingCycle: cycle,
+          // 영업코드(선택) — 서버가 유효성 검증 후 무료체험을 늘린다. 잘못된 코드면 400.
+          salesCode: salesCode.trim() || undefined,
           successUrl: `${window.location.origin}/billing?payment=success`,
           cancelUrl: `${window.location.origin}/billing?payment=cancel`,
         }),
@@ -343,7 +350,21 @@ export default function BillingPage() {
           <div>
             <div className="font-bold text-sm text-[var(--text)]">무료체험을 시작하려면 카드를 등록하세요</div>
             <div className="text-xs text-[var(--text-muted)] mt-0.5">
-              카드 등록 후 <b>14일간 무료</b>로 전 기능을 사용하고, 기간이 끝나면 선택한 플랜으로 자동 결제됩니다. 14일 내 해지 시 첫 결제가 없습니다.
+              카드 등록 후 <b>14일간 무료</b>로 전 기능을 사용하고, 기간이 끝나면 선택한 플랜으로 자동 결제됩니다. 체험 기간 내 해지 시 첫 결제가 없습니다.
+            </div>
+            {/* 영업코드 — 입력하면 체험이 44일로 늘어난다. 코드가 없으면 비워두면 된다. */}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <input
+                value={salesCode}
+                onChange={(e) => setSalesCode(e.target.value.toUpperCase())}
+                placeholder="영업코드 (선택)"
+                className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs w-[180px] focus:outline-none focus:border-[var(--primary)]"
+              />
+              <span className="text-[11px] text-[var(--text-dim)]">
+                {salesCode.trim()
+                  ? "코드가 확인되면 무료체험이 44일로 늘어납니다"
+                  : "영업사원에게 받은 코드가 있다면 입력하세요 (체험 44일)"}
+              </span>
             </div>
           </div>
           <button onClick={() => setTab("plan")} className="btn-primary btn-sm whitespace-nowrap">플랜 선택하고 시작</button>
