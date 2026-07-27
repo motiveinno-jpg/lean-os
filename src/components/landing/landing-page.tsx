@@ -119,7 +119,7 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
 // 3대 축 한 덩어리 — 화면을 고정하고 순서대로 전환한 뒤 다음 섹션으로 넘어간다.
 //   바깥(track)이 블록 수 × 100vh 높이를 갖고, 안쪽(pin)이 sticky 로 화면에 붙는다.
 //   스크롤 진행률로 활성 블록을 계산하므로 우측 화면이 잘리지 않는다.
-function PillarBlock({ pillar }: { pillar: (typeof PILLARS)[number] }) {
+function PillarBlock({ pillar, flip }: { pillar: (typeof PILLARS)[number]; flip: boolean }) {
   const [idx, setIdx] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
   const n = pillar.blocks.length;
@@ -149,7 +149,7 @@ function PillarBlock({ pillar }: { pillar: (typeof PILLARS)[number] }) {
   }, [n]);
 
   return (
-    <div className="lp4-pillar" ref={trackRef} style={{ ["--pn" as string]: n }}>
+    <div className={`lp4-pillar ${flip ? "lp4-pillar-flip" : ""}`} ref={trackRef} style={{ ["--pn" as string]: n }}>
       <div className="lp4-pillar-pin">
         <div className="lp4-container">
           <div className="lp4-pillar-grid">
@@ -220,11 +220,37 @@ function FeatGlyph({ n }: { n: string }) {
 
 export default function LandingPage() {
   const [on, setOn] = useState(false);
-  const [day, setDay] = useState(0);   // 하루 타임라인 선택 시간
+  const [day, setDay] = useState(0);   // 하루 타임라인 — 스크롤 진행률로 바뀐다
+  const dayRef = useRef<HTMLElement>(null);
   const [eng, setEng] = useState(0);   // AI 엔진 탭
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
+  // 하루 섹션: 스크롤한 만큼 09:00 → 23:00 이 순서대로 넘어간다
+  useEffect(() => {
+    const el = dayRef.current; if (!el) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const r = el.getBoundingClientRect();
+        const total = r.height - window.innerHeight;
+        if (total <= 0) return;
+        const p = Math.min(1, Math.max(0, -r.top / total));
+        setDay(Math.min(DAY.length - 1, Math.floor(p * DAY.length)));
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   useEffect(() => {
     const h = () => {
       const y = window.scrollY;
@@ -279,7 +305,6 @@ export default function LandingPage() {
         <div className="lp4-hero-grid" />
         <div className="lp4-container">
           <div className="lp4-hero-inner">
-            <span className="lp4-hero-badge"><span className="lp4-hero-badge-dot" />{HERO.badge}</span>
             <h1 className="lp4-hero-title">회사 운영의 모든 것<br /><em>오너뷰</em>에서 쉽고 간편하게</h1>
             <p className="lp4-hero-sub">{HERO.sub}</p>
             <p className="lp4-hero-desc">{HERO.desc}</p>
@@ -308,105 +333,6 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ══ 하루 — 가로 타임라인. 시간에 마우스를 올리면 그 시간의 변화가 보인다 ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="day">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <h2 className="lp4-h2">회사의 하루가 <span className="lp4-underline">이렇게 달라져요</span></h2>
-            <p className="lp4-sub">시간을 눌러보세요. 그 시간에 하던 일이 어떻게 바뀌는지 보여드릴게요.</p>
-          </Reveal>
-
-          {/* 가로 시간표 */}
-          <div className="lp4-tl">
-            <div className="lp4-tl-line" />
-            {DAY.map((d, i) => (
-              <button
-                key={d.time}
-                className={`lp4-tl-item ${i === day ? "lp4-tl-on" : ""}`}
-                onMouseEnter={() => setDay(i)}
-                onFocus={() => setDay(i)}
-                onClick={() => setDay(i)}
-                aria-current={i === day}
-              >
-                <span className="lp4-tl-dot" />
-                <span className="lp4-tl-time">{d.time}</span>
-                <span className="lp4-tl-scene">{d.scene}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="lp4-tl-panel" key={DAY[day].time}>
-            <div className="lp4-tl-copy">
-              <div className="lp4-tl-before">
-                <span className="lp4-tl-tag">지금까지</span>
-                <p>{DAY[day].before}</p>
-              </div>
-              <div className="lp4-tl-after">
-                <span className="lp4-tl-tag lp4-tl-tag-on">오너뷰 · {DAY[day].menu}</span>
-                <p>{DAY[day].after}</p>
-              </div>
-            </div>
-            <div className="lp4-tl-live">{(() => { const C = LIVE[DAY_LIVE[day]]; return <C />; })()}</div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ 3대 축 — 좌: 카피 블록 / 우: 스크롤에 따라 바뀌는 실제 화면 ══ */}
-      <section className="lp4-pillars" id="pillars">
-        {PILLARS.map((p) => (
-          <PillarBlock key={p.key} pillar={p} />
-        ))}
-      </section>
-
-      {/* ══ FEATURES — 카드 나열 ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="features">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <h2 className="lp4-h2">흩어진 7개 도구, 하나로 합쳐보세요</h2>
-            <p className="lp4-sub">따로 결제하던 도구들이 하나의 데이터 위에서 같이 움직여요.</p>
-          </Reveal>
-          {/* 한 줄에 전부 두고 가로로 흐르게 — 마우스를 올리면 멈춘다 */}
-          <div className="lp4-roll">
-            <div className="lp4-roll-track">
-              {[0, 1].map((dup) => (
-                <div key={dup} className="lp4-roll-run" aria-hidden={dup === 1}>
-                  {FEATURES.map((f) => (
-                    <div key={f.tab} className={`lp4-fcard lp4-fcard-${f.tone}`}>
-                      <div className="lp4-fcard-art"><FeatGlyph n={f.icon} /></div>
-                      <div className="lp4-fcard-name">{f.tab}</div>
-                      <div className="lp4-fcard-title">{f.title}</div>
-                      <p className="lp4-fcard-desc">{f.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ 모바일 — 언제 어디서든 같은 화면 ══ */}
-      <section className="lp4-mobile" id="mobile">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <h2 className="lp4-h2">{MOBILE.title.split("\n").map((l, i) => <span key={i}>{l}<br /></span>)}</h2>
-            <p className="lp4-sub">{MOBILE.sub}</p>
-          </Reveal>
-          <Reveal>
-            <div className="lp4-phone-wrap">
-              <div className="lp4-phone">
-                <Image src={MOBILE.src} alt={MOBILE.alt} width={390} height={844} sizes="330px" />
-              </div>
-              <div className="lp4-phone-points">
-                {MOBILE.points.map((t) => (
-                  <span key={t} className="lp4-phone-point"><Check /> {t}</span>
-                ))}
-              </div>
-            </div>
-          </Reveal>
         </div>
       </section>
 
@@ -463,6 +389,121 @@ export default function LandingPage() {
               <Image src={ENGINES[eng].src} alt={ENGINES[eng].alt} width={1200} height={760} sizes="(max-width: 1000px) 100vw, 620px" />
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ══ 하루 — 스크롤에 따라 09:00 → 23:00 이 순서대로 넘어간다 ══ */}
+      <section className="lp4-daysec" id="day" ref={dayRef} style={{ ["--dn" as string]: DAY.length }}>
+        <div className="lp4-daypin">
+          <div className="lp4-container">
+            <div className="lp4-sec-head lp4-sec-head-c lp4-day-head">
+              <h2 className="lp4-h2">회사의 하루가 <span className="lp4-underline">이렇게 달라져요</span></h2>
+            </div>
+
+            <div className="lp4-tl">
+              <div className="lp4-tl-line" />
+              <div className="lp4-tl-fill" style={{ width: `${(day / (DAY.length - 1)) * 100}%` }} />
+              {DAY.map((d, i) => (
+                <button
+                  key={d.time}
+                  className={`lp4-tl-item ${i === day ? "lp4-tl-on" : ""} ${i < day ? "lp4-tl-done" : ""}`}
+                  onClick={() => setDay(i)}
+                  aria-current={i === day}
+                >
+                  <span className="lp4-tl-dot" />
+                  <span className="lp4-tl-time">{d.time}</span>
+                  <span className="lp4-tl-scene">{d.scene}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="lp4-tl-panel">
+              <div className="lp4-tl-copy" key={DAY[day].time}>
+                <div className="lp4-tl-before">
+                  <span className="lp4-tl-tag">지금까지</span>
+                  <p>{DAY[day].before}</p>
+                </div>
+                <div className="lp4-tl-after">
+                  <span className="lp4-tl-tag lp4-tl-tag-on">오너뷰 · {DAY[day].menu}</span>
+                  <p>{DAY[day].after}</p>
+                </div>
+              </div>
+
+              {/* 실제 오너뷰 화면 — 신뢰를 위해 캡처를 쓰고, 위에 라이브 카드를 겹쳐 움직임을 준다 */}
+              <div className="lp4-tl-stage">
+                {DAY.map((d, i) => (
+                  <Image
+                    key={d.src}
+                    src={d.src}
+                    alt={d.alt}
+                    width={1440}
+                    height={900}
+                    sizes="(max-width: 1000px) 100vw, 720px"
+                    className={i === day ? "lp4-tl-shot lp4-tl-shot-on" : "lp4-tl-shot"}
+                  />
+                ))}
+                <div className="lp4-tl-live" key={`lv-${DAY[day].time}`}>
+                  {(() => { const C = LIVE[DAY_LIVE[day]]; return <C />; })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ 3대 축 — 좌: 카피 블록 / 우: 스크롤에 따라 바뀌는 실제 화면 ══ */}
+      <section className="lp4-pillars" id="pillars">
+        {PILLARS.map((p, i) => (
+          <PillarBlock key={p.key} pillar={p} flip={i % 2 === 1} />
+        ))}
+      </section>
+
+      {/* ══ FEATURES — 카드 나열 ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="features">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <h2 className="lp4-h2">흩어진 7개 도구, 하나로 합쳐보세요</h2>
+            <p className="lp4-sub">따로 결제하던 도구들이 하나의 데이터 위에서 같이 움직여요.</p>
+          </Reveal>
+          {/* 한 줄에 전부 두고 가로로 흐르게 — 마우스를 올리면 멈춘다 */}
+          <div className="lp4-roll">
+            <div className="lp4-roll-track">
+              {[0, 1].map((dup) => (
+                <div key={dup} className="lp4-roll-run" aria-hidden={dup === 1}>
+                  {FEATURES.map((f) => (
+                    <div key={f.tab} className={`lp4-fcard lp4-fcard-${f.tone}`}>
+                      <div className="lp4-fcard-art"><FeatGlyph n={f.icon} /></div>
+                      <div className="lp4-fcard-name">{f.tab}</div>
+                      <div className="lp4-fcard-title">{f.title}</div>
+                      <p className="lp4-fcard-desc">{f.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ 모바일 — 언제 어디서든 같은 화면 ══ */}
+      <section className="lp4-mobile" id="mobile">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <h2 className="lp4-h2">{MOBILE.title.split("\n").map((l, i) => <span key={i}>{l}<br /></span>)}</h2>
+            <p className="lp4-sub">{MOBILE.sub}</p>
+          </Reveal>
+          <Reveal>
+            <div className="lp4-phone-wrap">
+              <div className="lp4-phone">
+                <Image src={MOBILE.src} alt={MOBILE.alt} width={390} height={844} sizes="330px" />
+              </div>
+              <div className="lp4-phone-points">
+                {MOBILE.points.map((t) => (
+                  <span key={t} className="lp4-phone-point"><Check /> {t}</span>
+                ))}
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
