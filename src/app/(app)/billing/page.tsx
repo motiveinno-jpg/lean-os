@@ -16,7 +16,7 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase;
 
-type Tab = "plan" | "payment" | "invoices" | "referral";
+type Tab = "plan" | "payment" | "invoices" | "feedback";
 type BillingCycle = "monthly" | "annual";
 
 // 2026-07-06 4티어 정합(랜딩과 동일) — 허위 항목(SSO/SAML·API·온프레미스) 제거
@@ -43,7 +43,6 @@ export default function BillingPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState<string | null>(null);
-  const [referralCopied, setReferralCopied] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const qc = useQueryClient();
 
@@ -133,39 +132,6 @@ export default function BillingPage() {
       return data || [];
     },
     enabled: !!companyId,
-  });
-
-  // 추천 코드
-  const { data: referral } = useQuery({
-    queryKey: ["referral", companyId],
-    queryFn: async () => {
-      if (!companyId) return null;
-      const data = logRead('billing/page:data', await db
-        .from("referral_codes")
-        .select("*")
-        .eq("company_id", companyId)
-        .eq("is_active", true)
-        .maybeSingle());
-      return data;
-    },
-    enabled: !!companyId,
-  });
-
-  // 추천 코드 생성
-  const createReferral = useMutation({
-    mutationFn: async () => {
-      if (!companyId) throw new Error("No company");
-      const code = Array.from({ length: 8 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
-      const { data, error } = await db
-        .from("referral_codes")
-        .insert({ company_id: companyId, code })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["referral"] }),
-    onError: (err: any) => toast("추천 코드 생성 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // 피드백 제출
@@ -277,7 +243,7 @@ export default function BillingPage() {
     { key: "plan", label: "요금제", icon: "💳" },
     { key: "payment", label: "결제 수단", icon: "🏦" },
     { key: "invoices", label: "청구서", icon: "🧾" },
-    { key: "referral", label: "추천/피드백", icon: "🎁" },
+    { key: "feedback", label: "피드백", icon: "💬" },
   ];
 
   /** 플랜 변경 모달 확인 */
@@ -757,55 +723,9 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
         </div>
       )}
 
-      {/* Referral & Feedback Tab */}
-      {tab === "referral" && (
+      {/* Feedback Tab */}
+      {tab === "feedback" && (
         <div className="space-y-6">
-          <div className="billing-referral-card glass-card">
-            <h3 className="text-sm font-bold text-[var(--text)] mb-1">추천인 프로그램</h3>
-            <p className="text-xs text-[var(--text-muted)] mb-4">친구가 가입하면 양쪽 모두 ₩10,000 크레딧!</p>
-
-            {referral ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-[var(--bg-surface)]">
-                  <div className="flex-1">
-                    <div className="text-xs text-[var(--text-muted)] mb-1">내 추천 코드</div>
-                    <div className="text-xl font-mono font-extrabold text-[var(--text)] tracking-wider">
-                      {referral.code}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(`https://www.owner-view.com/auth?ref=${referral.code}`);
-                      setReferralCopied(true);
-                      setTimeout(() => setReferralCopied(false), 2000);
-                    }}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition"
-                  >
-                    {referralCopied ? "복사됨!" : "링크 복사"}
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-5 rounded-xl bg-[var(--bg-surface)] text-center">
-                    <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">추천 가입</div>
-                    <div className="text-2xl font-black mono-number text-[var(--primary)]">{referral.referred_count || 0}</div>
-                  </div>
-                  <div className="p-5 rounded-xl bg-[var(--bg-surface)] text-center">
-                    <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">적립 크레딧</div>
-                    <div className="text-2xl font-black mono-number text-[var(--primary)]">₩{((referral.credit_earned || 0)).toLocaleString()}</div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => createReferral.mutate()}
-                disabled={createReferral.isPending}
-                className="btn-primary"
-              >
-                {createReferral.isPending ? "생성 중..." : "추천 코드 생성하기"}
-              </button>
-            )}
-          </div>
-
           <div className="billing-feedback-card glass-card">
             <h3 className="text-sm font-bold text-[var(--text)] mb-1">피드백</h3>
             <p className="text-xs text-[var(--text-muted)] mb-4">OwnerView를 더 좋게 만들어 주세요</p>

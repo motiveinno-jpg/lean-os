@@ -2634,7 +2634,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .billing-payment-method-card { @apply p-6; }
 .billing-payment-info-card { @apply p-6; }
 .billing-invoices-card { @apply overflow-hidden; }
-.billing-referral-card { @apply p-6; }
 .billing-feedback-card { @apply p-6; }
 .billing-upgrade-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
 .billing-cancel-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
@@ -2711,10 +2710,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-support-ticket-row { @apply p-5; }
 .platform-support-answer-block { @apply mt-3 rounded-xl bg-[var(--bg-surface)] p-3.5; }
 .platform-support-answer-form { @apply mt-3; }
-.platform-referral-kpi-grid { @apply grid grid-cols-1 md:grid-cols-3 gap-4; }
-.platform-referral-kpi-card { @apply p-5 flex flex-col gap-3; }
-.platform-referral-ranking { @apply overflow-hidden; }
-.platform-referral-row { @apply flex items-center justify-between p-4 hover:bg-[var(--bg-surface)]/60 transition; }
 .platform-incident-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .platform-incident-list { @apply space-y-4; }
 .platform-incident-card { @apply p-5; }
