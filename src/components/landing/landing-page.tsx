@@ -1,27 +1,33 @@
 "use client";
 
-// OwnerView 랜딩 뷰 — 따뜻한 에디토리얼 디자인 (2026-07-23 개편, preview2 승인 반영).
-//   콘텐츠는 content.ts, 스타일은 landing.css(lp4- 네임스페이스). 문구·가격·CTA 기존 유지.
-//   2026-07-27: src/app/page.tsx 에서 이곳으로 이동 —
-//     page.tsx 를 서버 컴포넌트로 되돌려 랜딩 전용 metadata / JSON-LD 를 붙이기 위함.
+// OwnerView 랜딩 뷰 — "AI ERP" 재디자인 (2026-07-27).
+//   원칙 3가지:
+//     1) 주인공은 제품 실물 화면이다. 히어로와 투어 섹션의 이미지는 전부 /demo 를 실제 뷰포트에서
+//        캡처한 진짜 오너뷰 화면(public/product/*.png). 일러스트·목업 금지.
+//     2) 강조색은 브랜드 인디고 하나. 오렌지는 위험/주의, 초록은 확인/절감 의미일 때만.
+//        (이전 버전은 인디고·블루·오렌지·초록·신호등이 한 화면에 섞여 브랜드가 읽히지 않았다.)
+//     3) 앱 본체(리퀴드글래스·인디고 그라데이션)와 같은 언어 — 가입 후 진입해도 같은 제품으로 보이게.
+//   문구·가격은 content.ts 단일 출처. 스타일은 landing.css(lp4- 네임스페이스).
 import "@/app/landing.css";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, PROBLEMS, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, PROBLEMS, SCREENS, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 
 function Logo({ size = 26 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-      <rect width="40" height="40" rx="10" fill="#1a1613" />
+      <rect width="40" height="40" rx="10" fill="#4F46E5" />
       <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none" />
       <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
-      <polyline points="12,20 15,18 18,19 22,14" stroke="#ea580c" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      <circle cx="22" cy="14" r="1.5" fill="#ea580c" />
+      <polyline points="12,20 15,18 18,19 22,14" stroke="#fdba74" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <circle cx="22" cy="14" r="1.5" fill="#fdba74" />
     </svg>
   );
 }
 const Check = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
+const Arrow = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" /></svg>);
 
 // 스크롤 등장 옵저버 — 인스턴스마다 IntersectionObserver 를 만들면 랜딩 한 장에 20개 이상이 생긴다.
 // 하나만 만들어 모든 Reveal 이 공유하고, 한 번 보이면 즉시 unobserve 한다.
@@ -75,15 +81,37 @@ function CountUp({ to, suffix = "", dur = 1400 }: { to: number; suffix?: string;
   return <span ref={ref}>{n.toLocaleString("ko-KR")}{suffix}</span>;
 }
 
+// 제품 화면 프레임 — 브라우저 크롬을 씌워 "실제 화면"임을 시각적으로 못 박는다.
+function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
+  return (
+    <div className="lp4-shot-frame">
+      <div className="lp4-shot-bar">
+        <span className="lp4-shot-dot lp4-shot-dot-r" />
+        <span className="lp4-shot-dot lp4-shot-dot-y" />
+        <span className="lp4-shot-dot lp4-shot-dot-g" />
+        <span className="lp4-shot-url">app.owner-view.com</span>
+      </div>
+      <Image className="lp4-shot-img" src={src} alt={alt} width={1440} height={900} priority={priority} sizes="(max-width: 1100px) 100vw, 1032px" />
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const [on, setOn] = useState(false);
-  const [tab, setTab] = useState(0);
+  const [tour, setTour] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [team, setTeam] = useState(8);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showSticky, setShowSticky] = useState(false);
 
   useEffect(() => {
-    const h = () => setOn(window.scrollY > 8);
+    const h = () => {
+      const y = window.scrollY;
+      setOn(y > 8);
+      // 히어로를 지나면 모바일 하단 CTA 노출 — 스크롤 어디에서든 가입 경로가 살아있게
+      setShowSticky(y > 700);
+    };
+    h();
     window.addEventListener("scroll", h, { passive: true });
     return () => window.removeEventListener("scroll", h);
   }, []);
@@ -92,11 +120,11 @@ export default function LandingPage() {
   const owvTotal = 79500 + Math.max(0, team - 5) * 10000;
   const savePct = Math.round(((compTotal - owvTotal) / compTotal) * 100);
   const won = (n: number) => "₩" + n.toLocaleString("ko-KR");
-  const f = FEATURES[tab];
+  const scr = SCREENS[tour];
 
   return (
     <div className="lp4-root">
-      {/* NAV */}
+      {/* ══ NAV ══ */}
       <nav className={`lp4-nav ${on ? "lp4-nav-on" : ""}`}>
         <div className="lp4-nav-inner">
           <div className="lp4-logo"><Logo size={25} /> OwnerView</div>
@@ -129,59 +157,37 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* HERO (dark warm) */}
+      {/* ══ HERO ══ */}
       <header className="lp4-hero">
-        <div className="lp4-hero-dots" />
+        <div className="lp4-hero-orbs" />
+        <div className="lp4-hero-grid" />
         <div className="lp4-container">
           <div className="lp4-hero-inner">
-            <Reveal>
-              <span className="lp4-hero-badge"><span className="lp4-hero-badge-dot" />{HERO.badge}</span>
-              <h1 className="lp4-hero-title">중소기업 대표를 위한<br /><em>올인원 운영 플랫폼</em></h1>
-              <p className="lp4-hero-sub">{HERO.sub}</p>
-              <p className="lp4-hero-desc">{HERO.desc}</p>
-              <div className="lp4-hero-cta">
-                <Link href="/auth" className="lp4-btn lp4-btn-onwhite">무료로 시작하기
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" /></svg>
-                </Link>
-                <Link href="/demo" className="lp4-btn lp4-btn-outline-light">데모 체험</Link>
-              </div>
-              <div className="lp4-hero-checks">{HERO.checks.map((c) => <span key={c} className="lp4-hero-check"><Check /> {c}</span>)}</div>
-            </Reveal>
-            <Reveal>
-              <div className="lp4-mock-float">
-                <div className="lp4-mock-window">
-                  <div className="lp4-mock-bar">
-                    <span className="lp4-mock-dot" style={{ background: "#f87171" }} />
-                    <span className="lp4-mock-dot" style={{ background: "#fbbf24" }} />
-                    <span className="lp4-mock-dot" style={{ background: "#34d399" }} />
-                    <span style={{ marginLeft: 10, fontSize: 12, color: "#a8a29e", fontWeight: 600 }}>경영 대시보드</span>
-                  </div>
-                  <div className="lp4-mock-body">
-                    <div className="lp4-kpi"><div className="lp4-kpi-label">현금 잔고</div><div className="lp4-kpi-value">₩8.2억</div><div className="lp4-kpi-sub" style={{ color: "#047857" }}>+12% ▲</div></div>
-                    <div className="lp4-kpi"><div className="lp4-kpi-label">이번 달 매출</div><div className="lp4-kpi-value">₩4.5억</div><div className="lp4-kpi-sub" style={{ color: "#047857" }}>+23% ▲</div></div>
-                    <div className="lp4-kpi"><div className="lp4-kpi-label">미수금</div><div className="lp4-kpi-value">₩1.2억</div><div className="lp4-kpi-sub" style={{ color: "#ea580c" }}>30일 초과 1건</div></div>
-                    <div className="lp4-kpi"><div className="lp4-kpi-label">결재 대기</div><div className="lp4-kpi-value">5건</div><div className="lp4-kpi-sub" style={{ color: "#2563eb" }}>승인 필요</div></div>
-                    <div className="lp4-mock-wide">
-                      <div className="lp4-brief-head"><span>◆</span> AI 브리핑 — 오늘 챙길 것</div>
-                      <div className="lp4-brief-line"><span style={{ color: "#ea580c" }}>●</span> <b>미수금 1.2억</b> 회수 우선 — A사 30일 초과</div>
-                      <div className="lp4-brief-line"><span style={{ color: "#2563eb" }}>●</span> <b>결재 5건</b> 지급 승인 대기</div>
-                      <div className="lp4-bars">{[40, 62, 48, 78, 90, 70].map((h, i) => <div key={i} className="lp4-bar-col" style={{ height: `${h}%` }} />)}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Reveal>
+            <span className="lp4-hero-badge"><span className="lp4-hero-badge-dot" />{HERO.badge}</span>
+            <h1 className="lp4-hero-title">중소기업 대표를 위한<br /><em>AI 올인원 운영 플랫폼</em></h1>
+            <p className="lp4-hero-sub">{HERO.sub}</p>
+            <p className="lp4-hero-desc">{HERO.desc}</p>
+            <div className="lp4-hero-cta">
+              <Link href="/auth" className="lp4-btn lp4-btn-onink">무료로 시작하기 <Arrow /></Link>
+              <Link href="/demo" className="lp4-btn lp4-btn-ghost-light">실제 화면 둘러보기</Link>
+            </div>
+            <div className="lp4-hero-checks">{HERO.checks.map((c) => <span key={c} className="lp4-hero-check"><Check /> {c}</span>)}</div>
           </div>
         </div>
+        {/* 실제 오너뷰 대시보드 — 히어로 아래로 걸쳐 다음 섹션까지 이어진다 */}
+        <div className="lp4-hero-shot">
+          <ShotFrame src={SCREENS[0].src} alt={SCREENS[0].alt} priority />
+        </div>
       </header>
+      <div className="lp4-hero-spacer" />
 
-      {/* STATS */}
+      {/* ══ STATS ══ */}
       <section className="lp4-stats">
         <div className="lp4-container">
           <div className="lp4-stats-grid">
             {STATS.map((s) => (
               <div key={s.label} className="lp4-stat">
-                <div className="lp4-stat-value">{s.value === 0 ? <>0<span style={{ color: "#a8a29e" }}>{s.suffix}</span></> : <CountUp to={s.value} suffix={s.suffix} />}</div>
+                <div className="lp4-stat-value">{s.value === 0 ? <>0<span className="lp4-stat-mute">{s.suffix}</span></> : <CountUp to={s.value} suffix={s.suffix} />}</div>
                 <div className="lp4-stat-label">{s.label}</div>
               </div>
             ))}
@@ -189,17 +195,17 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PROBLEM */}
-      <section className="lp4-section lp4-bg-cream">
+      {/* ══ PROBLEM ══ */}
+      <section className="lp4-section lp4-bg-canvas">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow" style={{ justifyContent: "center" }}>Pain → Solution</div>
+            <div className="lp4-eyebrow">Pain → Solution</div>
             <h2 className="lp4-h2">대표님, 이거 다 <span className="lp4-underline">혼자</span> 하고 계시죠?</h2>
             <p className="lp4-sub">회계사 부르고, 세무사 연락하고, 엑셀 정리하고, 계약서 찾고… 오너뷰가 각각을 어떻게 없애는지 아래에서 확인하세요.</p>
           </Reveal>
           <div className="lp4-pain-grid">
             {PROBLEMS.map((p) => (
-              <Reveal key={p.keyword}><div className="lp4-pain">
+              <Reveal key={p.keyword}><div className="lp4-pain lp4-card">
                 <span className="lp4-pain-badge">{p.keyword}</span>
                 <div className="lp4-pain-pain">{p.pain}</div>
                 <div className="lp4-pain-solve"><b>→</b><span>{p.solve}</span></div>
@@ -209,57 +215,83 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FEATURES */}
-      <section className="lp4-section lp4-bg-stone" id="features">
+      {/* ══ 제품 실물 화면 투어 ══ */}
+      <section className="lp4-section lp4-bg-tint" id="tour">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow" style={{ justifyContent: "center" }}>Product</div>
-            <h2 className="lp4-h2">흩어진 7개 도구를, 하나의 흐름으로</h2>
-            <p className="lp4-sub">탭을 눌러 각 기능이 실제로 어떻게 연결되는지 확인하세요.</p>
+            <div className="lp4-eyebrow">Real Product</div>
+            <h2 className="lp4-h2">렌더링이 아니라, <span className="lp4-underline">진짜 화면</span>입니다</h2>
+            <p className="lp4-sub">아래 이미지는 전부 실제 오너뷰에서 그대로 캡처한 화면입니다. 지금 가입하면 보이는 그 화면입니다.</p>
           </Reveal>
-          <div className="lp4-feat-grid">
-            <div className="lp4-feat-tabs">
-              {FEATURES.map((ft, i) => (
-                <button key={ft.tab} className={`lp4-feat-tab ${i === tab ? "lp4-feat-tab-on" : ""}`} onClick={() => setTab(i)}>
-                  <span className="lp4-feat-tab-num">{String(i + 1).padStart(2, "0")}</span>{ft.tab}
-                </button>
-              ))}
+
+          <div className="lp4-tour-tabs">
+            {SCREENS.map((s, i) => (
+              <button key={s.key} className={`lp4-tour-tab ${i === tour ? "lp4-tour-tab-on" : ""}`} onClick={() => setTour(i)}>
+                {s.tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="lp4-tour-panel">
+            <div>
+              <div className="lp4-tour-title">{scr.title}</div>
+              <p className="lp4-tour-desc">{scr.desc}</p>
+              <span className="lp4-tour-note"><Check /> 실제 서비스 화면 캡처</span>
             </div>
-            <div className="lp4-feat-panel" key={tab}>
-              <div className="lp4-feat-replaces">대체: {f.replaces}</div>
-              <div className="lp4-feat-title">{f.title}</div>
-              <div className="lp4-feat-desc">{f.desc}</div>
-              <div className="lp4-feat-flow">
-                {["요청·작성", "자동 처리·연결", "완료·기록"].map((c, i) => (
-                  <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                    <span className="lp4-feat-step"><b>{i + 1}</b> {c}</span>
-                    {i < 2 && <span className="lp4-feat-arrow">→</span>}
-                  </span>
-                ))}
-              </div>
+            <div className="lp4-tour-shot" key={scr.key}>
+              <Image src={scr.src} alt={scr.alt} width={1440} height={900} sizes="(max-width: 1000px) 100vw, 760px" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ENGINES */}
-      <section className="lp4-section lp4-bg-cream" id="engines">
+      {/* ══ FEATURES ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="features">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow" style={{ justifyContent: "center" }}>4 Engines</div>
-            <h2 className="lp4-h2">4개의 자동화 엔진이 회사를 대신 돌립니다</h2>
+            <div className="lp4-eyebrow">Product</div>
+            <h2 className="lp4-h2">흩어진 7개 도구를, 하나의 흐름으로</h2>
+            <p className="lp4-sub">따로 결제하던 도구들이 하나의 데이터 위에서 연결됩니다.</p>
+          </Reveal>
+          <div className="lp4-feat-grid">
+            {FEATURES.map((f, i) => (
+              <Reveal key={f.tab}><div className="lp4-feat lp4-card">
+                <span className="lp4-feat-num">{String(i + 1).padStart(2, "0")}</span>
+                <div className="lp4-feat-tab">{f.tab}</div>
+                <div className="lp4-feat-title">{f.title}</div>
+                <p className="lp4-feat-desc">{f.desc}</p>
+                <div className="lp4-feat-replaces">대체 <b>{f.replaces}</b></div>
+              </div></Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ AI ENGINES ══ */}
+      <section className="lp4-section lp4-bg-tint" id="engines">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <div className="lp4-eyebrow">4 AI Engines</div>
+            <h2 className="lp4-h2">4개의 AI 엔진이 회사를 대신 돌립니다</h2>
             <p className="lp4-sub">사람을 대체하는 게 아니라, 대표가 하던 반복 업무를 엔진이 맡습니다.</p>
           </Reveal>
-          <div className="lp4-eng-steps">
-            {ENGINES.map((e, i) => (
-              <Reveal key={e.num}><div className={`lp4-eng lp4-eng-${i}`}>
-                <div className="lp4-eng-num">ENGINE {e.num}</div>
-                <div className="lp4-eng-name">{e.name}</div>
-                <div className="lp4-eng-eng">{e.eng}</div>
-                <div className="lp4-eng-head">{e.headline}</div>
-                <div className="lp4-eng-desc">{e.desc}</div>
-                <div className="lp4-eng-list">
-                  {e.steps.map((st, j) => <div key={j} className="lp4-eng-step"><span className="lp4-eng-step-dot">{j + 1}</span><span>{st}</span></div>)}
+          <div className="lp4-eng-grid">
+            {ENGINES.map((e) => (
+              <Reveal key={e.num}><div className="lp4-eng lp4-card">
+                <div className="lp4-eng-head">
+                  <span className="lp4-eng-chip">{e.num}</span>
+                  <div>
+                    <div className="lp4-eng-name">{e.name}</div>
+                    <div className="lp4-eng-eng">{e.eng}</div>
+                  </div>
+                </div>
+                <div className="lp4-eng-line">{e.headline}</div>
+                <p className="lp4-eng-desc">{e.desc}</p>
+                <div className="lp4-eng-steps">
+                  {e.steps.map((st, j) => <div key={j} className="lp4-eng-step"><span className="lp4-eng-dot">{j + 1}</span><span>{st}</span></div>)}
+                </div>
+                <div className="lp4-eng-tags">
+                  {e.features.map((ft) => <span key={ft} className="lp4-eng-tag">{ft}</span>)}
                 </div>
                 <div className="lp4-eng-rep">대체: {e.replaces} · <b>{e.replacesCost}</b> 절감</div>
               </div></Reveal>
@@ -268,61 +300,72 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* COMPARE */}
-      <section className="lp4-section lp4-bg-stone" id="compare">
+      {/* ══ COMPARE ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="compare">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow" style={{ justifyContent: "center" }}>Compare</div>
+            <div className="lp4-eyebrow">Compare</div>
             <h2 className="lp4-h2">따로 쓰면 인원마다 늘어납니다</h2>
             <p className="lp4-sub">7개 도구를 각각 구독하는 방식과, 오너뷰 정액을 나란히 비교해 보세요.</p>
           </Reveal>
           <div className="lp4-cmp-grid">
-            <Reveal><div className="lp4-cmp">
+            <Reveal><div className="lp4-cmp lp4-card">
               <div className="lp4-cmp-title">개별 도구를 따로 쓰는 방식</div>
-              <div style={{ marginTop: 14 }}>
+              <div className="lp4-cmp-rows">
                 {COMPETITORS.map((c) => (
-                  <div key={c.full} className="lp4-cmp-row"><span className="lp4-cmp-name">{c.cat} · {c.full}{c.perSeat ? " (인원당)" : ""}</span><span className="lp4-cmp-price">{won(c.perSeat ? c.price * team : c.price)}</span></div>
+                  <div key={c.full} className="lp4-cmp-row">
+                    <span className="lp4-cmp-name">{c.cat} · {c.full}{c.perSeat ? " (인원당)" : ""}</span>
+                    <span className="lp4-cmp-price">{won(c.perSeat ? c.price * team : c.price)}</span>
+                  </div>
                 ))}
               </div>
-              <div className="lp4-cmp-total"><span style={{ color: "#57534e", fontSize: 14 }}>{team}명 기준 월</span><span className="lp4-cmp-total-val" style={{ color: "#ea580c" }}>{won(compTotal)}</span></div>
+              <div className="lp4-cmp-total">
+                <span className="lp4-cmp-total-cap">{team}명 기준 월</span>
+                <span className="lp4-cmp-total-val lp4-cmp-total-warn">{won(compTotal)}</span>
+              </div>
             </div></Reveal>
-            <Reveal><div className="lp4-cmp lp4-cmp-hl">
+            <Reveal><div className="lp4-cmp lp4-card lp4-cmp-hl">
               <div className="lp4-cmp-title">OwnerView 하나로</div>
-              <div style={{ marginTop: 14 }}>
+              <div className="lp4-cmp-rows">
                 <div className="lp4-cmp-row"><span className="lp4-cmp-name">프로 (기본 5명 포함)</span><span className="lp4-cmp-price">₩79,500</span></div>
                 <div className="lp4-cmp-row"><span className="lp4-cmp-name">추가 {Math.max(0, team - 5)}명 × ₩10,000</span><span className="lp4-cmp-price">{won(Math.max(0, team - 5) * 10000)}</span></div>
-                <div className="lp4-cmp-row"><span className="lp4-cmp-name">전 기능 포함 · VAT 별도</span><span className="lp4-cmp-price" style={{ color: "#34d399" }}>포함</span></div>
+                <div className="lp4-cmp-row"><span className="lp4-cmp-name">전 기능 포함 · VAT 별도</span><span className="lp4-cmp-price lp4-cmp-inc">포함</span></div>
               </div>
-              <div className="lp4-cmp-total"><span style={{ color: "rgba(255,255,255,.72)", fontSize: 14 }}>{team}명 기준 월</span><span className="lp4-cmp-total-val">{won(owvTotal)}</span></div>
-              <div style={{ marginTop: 14, fontSize: 14, fontWeight: 700, color: "#fdba74" }}>매월 약 {won(compTotal - owvTotal)} 절감 ({savePct}%)</div>
+              <div className="lp4-cmp-total">
+                <span className="lp4-cmp-total-cap">{team}명 기준 월</span>
+                <span className="lp4-cmp-total-val">{won(owvTotal)}</span>
+              </div>
+              <div className="lp4-cmp-save">매월 약 {won(compTotal - owvTotal)} 절감 ({savePct}%)</div>
             </div></Reveal>
           </div>
-          <div className="lp4-calc">
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 10 }}><span style={{ color: "#57534e" }}>팀 인원</span><b>{team}명</b></div>
-            <input type="range" min={1} max={50} value={team} onChange={(e) => setTeam(Number(e.target.value))} className="lp4-slider" />
+          <div className="lp4-calc lp4-card">
+            <div className="lp4-calc-head"><span>팀 인원</span><b>{team}명</b></div>
+            <input type="range" min={1} max={50} value={team} onChange={(e) => setTeam(Number(e.target.value))} className="lp4-slider" aria-label="팀 인원" />
           </div>
         </div>
       </section>
 
-      {/* PRICING */}
-      <section className="lp4-section lp4-bg-cream" id="pricing">
+      {/* ══ PRICING ══ */}
+      <section className="lp4-section lp4-bg-tint" id="pricing">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow" style={{ justifyContent: "center" }}>Pricing</div>
+            <div className="lp4-eyebrow">Pricing</div>
             <h2 className="lp4-h2">가입 시 카드 등록 · 14일 무료 · 이후 자동 결제</h2>
             <p className="lp4-sub">14일 내 해지하면 첫 결제가 발생하지 않습니다. 기본 5명 포함 · 추가 1명당 ₩10,000/월.</p>
           </Reveal>
           <div className="lp4-price-grid">
             {PLANS.map((p) => (
-              <Reveal key={p.name}><div className={`lp4-price ${p.hl ? "lp4-price-hl" : ""}`}>
+              <Reveal key={p.name}><div className={`lp4-price lp4-card ${p.hl ? "lp4-price-hl" : ""}`}>
                 {p.hl && <span className="lp4-price-best">BEST</span>}
                 <div className="lp4-price-name">{p.name}</div>
                 <div className="lp4-price-desc">{p.desc}</div>
-                {p.regularPrice ? <div className="lp4-price-reg">₩{p.regularPrice}{p.discount && <span className="lp4-price-off">{p.discount} 할인</span>}</div> : <div style={{ height: 14, marginTop: 16 }} />}
+                {p.regularPrice
+                  ? <div className="lp4-price-reg">₩{p.regularPrice}{p.discount && <span className="lp4-price-off">{p.discount} 할인</span>}</div>
+                  : <div className="lp4-price-reg-empty" />}
                 <div className="lp4-price-amt">{p.price === "별도 협의" ? "별도 협의" : `₩${p.price}`}<span className="lp4-price-unit">{p.unit && ` ${p.unit}`}</span></div>
                 <div className="lp4-price-period">{p.period}</div>
                 <ul className="lp4-price-feats">{p.features.map((ft, i) => <li key={i} className="lp4-price-feat"><Check />{ft}</li>)}</ul>
-                <Link href={p.name === "엔터프라이즈" ? "#partner" : p.slug ? `/auth?plan=${p.slug}` : "/auth"} className={`lp4-price-cta ${p.hl ? "lp4-price-cta-dark" : "lp4-price-cta-line"}`}>
+                <Link href={p.name === "엔터프라이즈" ? "#partner" : p.slug ? `/auth?plan=${p.slug}` : "/auth"} className={`lp4-price-cta ${p.hl ? "lp4-price-cta-brand" : "lp4-price-cta-line"}`}>
                   {p.name === "엔터프라이즈" ? "도입 문의" : "14일 무료로 시작"}
                 </Link>
               </div></Reveal>
@@ -331,14 +374,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="lp4-section lp4-bg-stone" id="faq">
+      {/* ══ FAQ ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="faq">
         <div className="lp4-narrow">
           <Reveal className="lp4-sec-head"><div className="lp4-eyebrow">FAQ</div><h2 className="lp4-h2">자주 묻는 질문</h2></Reveal>
           <div>
             {FAQS.map((faq, i) => (
               <div key={i} className={`lp4-faq ${openFaq === i ? "lp4-faq-open" : ""}`}>
-                <button className="lp4-faq-btn" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+                <button className="lp4-faq-btn" onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i}>
                   {faq.q}
                   <svg className="lp4-faq-chev" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                 </button>
@@ -349,42 +392,54 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PARTNER */}
-      <section className="lp4-section lp4-bg-cream" id="partner">
-        <div className="lp4-narrow">
-          <Reveal className="lp4-sec-head lp4-sec-head-c"><div className="lp4-eyebrow" style={{ justifyContent: "center" }}>Contact</div><h2 className="lp4-h2">제휴 &amp; 도입 문의</h2><p className="lp4-sub">Enterprise 도입, API 연동, 리셀러 제휴를 상담해 드립니다.</p></Reveal>
-          <Reveal><PartnershipForm /></Reveal>
-        </div>
-      </section>
-
-      {/* FINAL CTA (dark) */}
-      <section className="lp4-section lp4-bg-cream" style={{ paddingTop: 0 }}>
+      {/* ══ FINAL CTA ══ */}
+      <section className="lp4-section lp4-bg-canvas">
         <div className="lp4-container">
           <Reveal>
             <div className="lp4-final">
-              <div className="lp4-final-dots" />
-              <h2 className="lp4-final-h">회사 현황, 한눈에 보고 싶다면<br /><em>OwnerView를 시작하세요</em></h2>
-              <p style={{ fontSize: 17, color: "rgba(255,255,255,.72)", margin: "18px 0 30px", position: "relative", zIndex: 2 }}>거래처 목록·거래내역은 엑셀만 올리면 바로 등록. 가입 시 카드 등록 · 14일 무료.</p>
-              <div style={{ position: "relative", zIndex: 2 }}><Link href="/auth" className="lp4-btn lp4-btn-onwhite" style={{ padding: "15px 38px", fontSize: 16 }}>무료로 시작하기</Link></div>
-              <p style={{ fontSize: 14, color: "rgba(255,255,255,.55)", marginTop: 22, position: "relative", zIndex: 2 }}>이미 계정이 있으신가요? <Link href="/auth" style={{ color: "#fff", fontWeight: 600, textDecoration: "underline" }}>로그인</Link></p>
+              <div className="lp4-final-orbs" />
+              <div className="lp4-final-inner">
+                <h2 className="lp4-final-h">회사 현황, 한눈에 보고 싶다면<br /><em>OwnerView를 시작하세요</em></h2>
+                <p className="lp4-final-p">거래처 목록·거래내역은 엑셀만 올리면 바로 등록. 가입 시 카드 등록 · 14일 무료.</p>
+                <Link href="/auth" className="lp4-btn lp4-btn-onink">무료로 시작하기 <Arrow /></Link>
+                <p className="lp4-final-note">이미 계정이 있으신가요? <Link href="/auth">로그인</Link></p>
+              </div>
             </div>
           </Reveal>
         </div>
       </section>
 
-      {/* FOOTER */}
+      {/* ══ PARTNER — 대다수 방문자와 무관한 엔터프라이즈 폼은 최종 CTA 뒤로 ══ */}
+      <section className="lp4-section lp4-bg-tint" id="partner">
+        <div className="lp4-narrow">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <div className="lp4-eyebrow">Contact</div>
+            <h2 className="lp4-h2">제휴 &amp; 도입 문의</h2>
+            <p className="lp4-sub">Enterprise 도입, API 연동, 리셀러 제휴를 상담해 드립니다.</p>
+          </Reveal>
+          <Reveal><PartnershipForm /></Reveal>
+        </div>
+      </section>
+
+      {/* ══ FOOTER ══ */}
       <footer className="lp4-footer">
         <div className="lp4-container">
           <div className="lp4-footer-top">
-            <div className="lp4-logo"><Logo size={25} /> OwnerView <span style={{ fontSize: 12, color: "#a8a29e", fontWeight: 400, marginLeft: 6 }}>Company Operating System</span></div>
-            <div className="lp4-flinks"><a href="#features">기능</a><a href="#pricing">가격</a><a href="#partner">제휴문의</a><a href="#faq">FAQ</a></div>
+            <div className="lp4-logo"><Logo size={25} /> OwnerView <span className="lp4-footer-sub">Company Operating System</span></div>
+            <div className="lp4-flinks"><a href="#tour">제품 화면</a><a href="#features">기능</a><a href="#pricing">가격</a><a href="#partner">제휴문의</a><a href="#faq">FAQ</a></div>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 20, alignItems: "flex-end" }}>
+          <div className="lp4-footer-bottom">
             <div className="lp4-finfo"><div>{FOOTER.company}</div><div>{FOOTER.reg}</div><div>{FOOTER.addr}</div></div>
             <div className="lp4-flinks"><Link href="/terms">이용약관</Link><Link href="/privacy">개인정보처리방침</Link><Link href="/refund">환불규정</Link><a href={`mailto:${FOOTER.email}`}>{FOOTER.email}</a></div>
           </div>
         </div>
       </footer>
+
+      {/* ══ 모바일 하단 고정 CTA ══ */}
+      <div className={`lp4-sticky-cta ${showSticky ? "lp4-sticky-cta-on" : ""}`}>
+        <Link href="/demo" className="lp4-btn lp4-btn-line">화면 보기</Link>
+        <Link href="/auth" className="lp4-btn lp4-btn-brand">무료로 시작하기</Link>
+      </div>
     </div>
   );
 }

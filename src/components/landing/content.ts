@@ -24,6 +24,44 @@ export const PROBLEMS = [
   { keyword: "서류 3초 검색", pain: "계약서 어디 저장했더라? 작년 견적서 찾느라 30분", solve: "모든 서류 자동 분류·저장·백업. 글로벌 검색(⌘K) 한 번이면 끝" },
 ];
 
+// 실제 제품 화면 투어 (2026-07-27 신설).
+//   이미지는 /demo 를 실제 뷰포트에서 캡처한 것 — 목업 일러스트가 아니라 진짜 오너뷰 화면이다.
+//   캡처 스크립트가 바뀌면 public/product/*.png 도 함께 갱신할 것.
+export const SCREENS = [
+  {
+    key: "dashboard",
+    tab: "AI 브리핑",
+    src: "/product/dashboard.png",
+    alt: "오너뷰 대시보드 — AI 모닝 브리핑과 현금 지표",
+    title: "로그인하면, 오늘 챙길 것부터 말해줍니다",
+    desc: "잔고·런웨이·미수금·매출을 AI가 읽고 문장으로 먼저 브리핑합니다. 숫자를 찾아다닐 필요가 없습니다.",
+  },
+  {
+    key: "cash-forecast",
+    tab: "현금 예측",
+    src: "/product/cash-forecast.png",
+    alt: "오너뷰 현금 펄스 — D+90 잔고 예측 차트",
+    title: "지금 잔고가 아니라, 90일 뒤 잔고를 봅니다",
+    desc: "예정된 입출금을 반영해 D+7 / D+30 / D+90 잔고를 예측하고, 위험 구간에 들어가면 색으로 경고합니다.",
+  },
+  {
+    key: "actions-risk",
+    tab: "위험 감지",
+    src: "/product/actions-risk.png",
+    alt: "오너뷰 오늘의 액션과 위험 구역",
+    title: "묻기 전에 위험을 먼저 올려줍니다",
+    desc: "30일 넘은 미수금, 마진이 무너진 프로젝트, 임박한 마감을 자동으로 골라 우선순위대로 세워둡니다.",
+  },
+  {
+    key: "pipeline",
+    tab: "프로젝트",
+    src: "/product/pipeline.png",
+    alt: "오너뷰 프로젝트 파이프라인",
+    title: "견적부터 입금까지 한 줄로 이어집니다",
+    desc: "프로젝트별 단계·금액·진행률이 한 화면에. 견적이 승인되면 계약서 초안 생성까지 이어집니다.",
+  },
+];
+
 export const FEATURES = [
   { tab: "전자결재", replaces: "플*스 + 시*티", title: "요청 → 결재선 자동 배정 → 원클릭 승인", desc: "경비, 지출, 휴가 — 모든 요청이 하나의 결재함에서 관리됩니다. 다단계 결재선, 금액별 자동승인, 우리 회사만의 결재 양식 빌더까지." },
   { tab: "프로젝트 파이프라인", replaces: "먼*이", title: "견적 → 계약 → 전자서명까지 한 흐름으로", desc: "프로젝트의 전체 라이프사이클을 한 화면에서 관리합니다. 견적 승인 시 계약서 초안 원클릭 생성(설정 시), 협력사 견적 수취, 칸반/테이블 멀티뷰, 휴면 프로젝트 감지(수동 실행)." },
@@ -70,9 +108,9 @@ export const FAQS = [
 ];
 
 export const NAV_LINKS = [
+  { href: "#tour", label: "제품 화면" },
   { href: "#features", label: "기능" },
-  { href: "#engines", label: "제품" },
-  { href: "#compare", label: "비교" },
+  { href: "#engines", label: "AI 엔진" },
   { href: "#pricing", label: "가격" },
   { href: "#faq", label: "FAQ" },
 ];
