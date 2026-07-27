@@ -263,7 +263,7 @@
 .lp4-pillar-pin { padding:96px 0; }
 @media (min-width: 1000px){
   /* 한 블록당 100vh 는 스크롤이 너무 길다 — 58vh 로 줄여 3블록을 빠르게 훑게 한다 */
-  .lp4-pillar { height: calc(var(--pn) * 58vh); }
+  .lp4-pillar { height: calc(var(--pn) * 46vh); }
   .lp4-pillar-pin { position:sticky; top:0; height:100vh; display:flex; align-items:center; padding:0; }
 }
 .lp4-pillar-grid { display:grid; grid-template-columns:1fr; gap:40px; width:100%; }
@@ -536,6 +536,44 @@
 .lp4-faq-open .lp4-faq-panel { max-height:300px; }
 .lp4-faq-a { padding:0 4px 21px; font-size:14.5px; color: var(--ink2); line-height:1.75; max-width:660px; }
 
+
+/* ── 3대 축 — 주요 기능 강조 ── */
+.lp4-pillar-mcap { font-size:11px; font-weight:800; letter-spacing:.05em; color: var(--ink3);
+  text-transform:uppercase; margin-right:2px; }
+.lp4-pillar-more { display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:700;
+  color: var(--brand); padding:8px 4px; }
+.lp4-pillar-more:hover { color: var(--brand-ink); }
+
+/* ── AI 엔진 — 자동화 요약 칩 (별도 섹션을 여기로 합쳤다) ── */
+.lp4-eauto { margin-top:34px; padding-top:26px; border-top:1px solid var(--line);
+  display:flex; flex-direction:column; align-items:center; gap:12px; }
+.lp4-eauto-cap { font-size:12px; font-weight:800; letter-spacing:.04em; color: var(--ink3); }
+.lp4-eauto-chips { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.lp4-eauto-chip { font-size:13px; font-weight:700; color: var(--brand-ink);
+  background: var(--pastel-lav); border-radius:999px; padding:8px 15px; }
+
+/* ── 전체 기능으로 보내는 배너 ── */
+.lp4-more { display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;
+  padding:34px 38px; border-radius:24px; border:1px solid var(--line);
+  background: linear-gradient(140deg, var(--pastel-lav), #fbfaff 60%, var(--pastel-sky));
+  transition: transform .2s, box-shadow .2s; }
+.lp4-more:hover { transform: translateY(-3px); box-shadow: 0 28px 60px -30px rgba(27,26,46,.3); }
+.lp4-more-h { font-size: clamp(21px,2.4vw,28px); font-weight:800; letter-spacing:-.03em; color: var(--ink); }
+.lp4-more-p { font-size:15px; color: var(--ink2); line-height:1.7; margin-top:9px; max-width:620px; }
+.lp4-more-cta { display:inline-flex; align-items:center; gap:8px; flex:none; font-size:15px; font-weight:700;
+  color:#fff; background: var(--brand); border-radius:12px; padding:14px 24px;
+  box-shadow: 0 10px 24px -12px rgba(91,84,232,.6); }
+
+/* ── /features — 도구 목록 · 하단 전환 ── */
+.lp4-tool-grid { display:grid; grid-template-columns:1fr; gap:14px; }
+@media (min-width: 720px){ .lp4-tool-grid { grid-template-columns: repeat(2,1fr); } }
+@media (min-width: 1060px){ .lp4-tool-grid { grid-template-columns: repeat(4,1fr); } }
+.lp4-tool { background:#fff; border:1px solid var(--line); border-radius:18px; padding:20px 20px 18px; }
+.lp4-tool-n { font-size:11.5px; font-weight:800; letter-spacing:.03em; color: var(--brand); }
+.lp4-tool-t { font-size:16px; font-weight:800; letter-spacing:-.02em; color: var(--ink); margin-top:8px; }
+.lp4-tool-d { font-size:13.5px; color: var(--ink2); line-height:1.7; margin-top:7px; }
+.lp4-feat-cta { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:26px; }
+
 /* ── Partner form ──────────────────────────────────── */
 .lp4-form { padding:30px; }
 .lp4-flabel { display:block; font-size:13px; font-weight:600; color: var(--ink2); margin-bottom:6px; }
@@ -576,18 +614,16 @@
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top:1px solid var(--line);
   transform: translateY(110%); transition: transform .3s ease, opacity .3s ease; }
 .lp4-sticky-cta-on { transform:none; }
-.lp4-sticky-cta .lp4-btn { flex:1; padding:13px 16px; font-size:14.5px; }
-.lp4-sticky-copy { display:none; }
+.lp4-sticky-cta .lp4-btn { flex:none; padding:13px 20px; font-size:14.5px; }
+.lp4-sticky-copy { flex:1; align-self:center; font-size:13px; font-weight:700; color: var(--ink2); }
 @media (min-width: 720px){
   .lp4-sticky-cta { left:50%; right:auto; bottom:26px; width:auto; gap:12px; align-items:center;
     padding:11px 12px 11px 24px; border-radius:999px; border:1px solid var(--line);
     background: rgba(255,255,255,.9); box-shadow: 0 24px 54px -22px rgba(27,26,46,.4);
     transform: translateX(-50%) translateY(150%); opacity:0; }
   .lp4-sticky-cta-on { transform: translateX(-50%); opacity:1; }
-  .lp4-sticky-cta .lp4-btn { flex:none; }
-  .lp4-sticky-cta .lp4-btn-line { padding:11px 20px; font-size:14px; background:transparent; border-color: var(--line2); }
   .lp4-sticky-cta .lp4-btn-brand { padding:12px 22px; font-size:14.5px; }
-  .lp4-sticky-copy { display:inline; font-size:14px; font-weight:600; color: var(--ink2); white-space:nowrap; }
+  .lp4-sticky-copy { flex:none; font-size:14px; font-weight:600; color: var(--ink2); white-space:nowrap; }
 }
 
 
@@ -606,7 +642,7 @@
 .lp4-daypin { padding:96px 0; }
 @media (min-width: 1000px){
   /* 시간 하나당 52vh — 다섯 시간을 부담 없이 훑는 길이 */
-  .lp4-daysec { height: calc(var(--dn) * 52vh); }
+  .lp4-daysec { height: calc(var(--dn) * 42vh); }
   .lp4-daypin { position:sticky; top:0; height:100vh; display:flex; align-items:center; padding:0; }
 }
 .lp4-day-head { margin-bottom:34px; }

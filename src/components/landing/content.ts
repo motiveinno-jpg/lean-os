@@ -148,7 +148,7 @@ export const DAY = [
 //   ⚠️ 이미지는 /demo 의 해당 패널 캡처. 파일명 버전(-vN)을 반드시 올릴 것.
 export const PILLARS = [
   {
-    key: "project",
+    key: "project", grp: "workspace",
     kicker: "프로젝트",
     headline: "견적 한 장이\n정산까지 이어져요",
     lead: "엑셀·메신저·계약서로 흩어져 있던 일을 하나의 흐름으로 묶었어요.",
@@ -175,7 +175,7 @@ export const PILLARS = [
     ],
   },
   {
-    key: "hr",
+    key: "hr", grp: "hr",
     kicker: "인사",
     headline: "급여일 업무,\n승인 한 번이면 끝나요",
     lead: "입사부터 근태·연차·급여·계약서까지 사람에 대한 기록이 한곳에 쌓여요.",
@@ -202,7 +202,7 @@ export const PILLARS = [
     ],
   },
   {
-    key: "account",
+    key: "account", grp: "finance",
     kicker: "회계",
     headline: "통장과 카드가\n그대로 장부가 돼요",
     lead: "실계좌를 연결하면 거래가 알아서 들어오고, AI가 계정과목까지 나눠줘요.",
@@ -487,7 +487,7 @@ export const AI_AUTOMATION = [
 
 export const NAV_LINKS = [
   { href: "#pillars", label: "프로젝트·인사·회계" },
-  { href: "#catalog", label: "오너뷰 둘러보기" },
+  { href: "/features", label: "오너뷰 둘러보기" },
   { href: "#engines", label: "AI 엔진" },
   { href: "/pricing", label: "가격" },
   { href: "#faq", label: "FAQ" },

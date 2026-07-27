@@ -12,7 +12,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, PILLARS, DAY, MOBILE, FEATURES, ENGINES, CATALOG, AI_AUTOMATION, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, PILLARS, DAY, MOBILE, ENGINES, CATALOG, AI_AUTOMATION, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 import { LIVE } from "@/components/landing/live-panels";
 
@@ -100,34 +100,6 @@ function EngineGlyph({ n }: { n: string }) {
 }
 
 
-// 메뉴 아이콘 — 실제 사이드바(components/sidebar.tsx)가 쓰는 아이콘과 같은 모양.
-//   "어떤 기능인지"를 글자보다 먼저 알아보게 하는 용도.
-function MenuGlyph({ n }: { n: string }) {
-  const p = { width: 18, height: 18, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  switch (n) {
-    case "users": return <svg {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /></svg>;
-    case "receipt": return <svg {...p}><path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5 4 2z" /><path d="M8 8h8M8 12h8" /></svg>;
-    case "book": return <svg {...p}><path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" /></svg>;
-    case "pen": return <svg {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>;
-    case "chart": return <svg {...p}><path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 5-9" /></svg>;
-    case "calendar": return <svg {...p}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>;
-    case "briefcase": return <svg {...p}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>;
-    case "check": return <svg {...p}><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>;
-    case "board": return <svg {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 9h10M7 13h6" /></svg>;
-    case "chat": return <svg {...p}><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 013 11.5a8.4 8.4 0 019-8.4 8.4 8.4 0 019 8.4z" /></svg>;
-    case "sign": return <svg {...p}><path d="M3 17c3-6 5 3 8-2s4 1 7-3" /><path d="M4 21h16" /></svg>;
-    case "user": return <svg {...p}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
-    case "clock": return <svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
-    case "file": return <svg {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /><path d="M14 2v6h6M9 14h6M9 18h4" /></svg>;
-    case "folder": return <svg {...p}><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>;
-    case "swap": return <svg {...p}><path d="M8 3L4 7l4 4" /><path d="M4 7h16" /><path d="M16 21l4-4-4-4" /><path d="M20 17H4" /></svg>;
-    case "wallet": return <svg {...p}><path d="M21 12V7H5a2 2 0 010-4h14v4" /><path d="M3 5v14a2 2 0 002 2h16v-5" /><path d="M18 12a2 2 0 000 4h4v-4h-4z" /></svg>;
-    case "repeat": return <svg {...p}><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" /></svg>;
-    case "trend": return <svg {...p}><path d="M22 7l-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></svg>;
-    default: return <svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
-  }
-}
-
 // 제품 화면 프레임 — 브라우저 크롬을 씌워 "실제 화면"임을 시각적으로 못 박는다.
 function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
   return (
@@ -201,8 +173,11 @@ function PillarBlock({ pillar, flip }: { pillar: (typeof PILLARS)[number]; flip:
                 ))}
               </div>
 
+              {/* 이 축이 실제로 어떤 메뉴로 이뤄지는지 — 주요 기능을 눈에 띄게 */}
               <div className="lp4-pillar-menus">
+                <span className="lp4-pillar-mcap">주요 기능</span>
                 {pillar.menus.map((m) => <span key={m} className="lp4-pillar-menu">{m}</span>)}
+                <Link href={`/features?g=${pillar.grp}`} className="lp4-pillar-more">전체 보기 <Arrow /></Link>
               </div>
             </div>
 
@@ -233,34 +208,11 @@ function PillarBlock({ pillar, flip }: { pillar: (typeof PILLARS)[number]; flip:
   );
 }
 
-// 기능 카드 아이콘
-function FeatGlyph({ n }: { n: string }) {
-  const q = { width: 40, height: 40, fill: "none", stroke: "currentColor", strokeWidth: 1.5, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  switch (n) {
-    case "approve": return <svg {...q}><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>;
-    case "pipeline": return <svg {...q}><rect x="2" y="4" width="7" height="6" rx="1.5" /><rect x="15" y="14" width="7" height="6" rx="1.5" /><path d="M9 7h4a2 2 0 012 2v6" /></svg>;
-    case "sign": return <svg {...q}><path d="M3 18h18" /><path d="M6 14c2-6 4 4 6-1s3 2 5-3" /><path d="M7 3h10l4 4v6" /></svg>;
-    case "hr": return <svg {...q}><circle cx="9" cy="8" r="3.4" /><path d="M3 20v-1.6A4.4 4.4 0 017.4 14h3.2" /><path d="M14 17.5l2 2 4.5-4.5" /></svg>;
-    case "chat": return <svg {...q}><path d="M21 11.5a8.4 8.4 0 01-12.8 7.5L3 21l1.9-5.2A8.4 8.4 0 1121 11.5z" /></svg>;
-    case "crm": return <svg {...q}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M8 4v16" /></svg>;
-    default: return <svg {...q}><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" /><path d="M13 2v7h7" /><path d="M8 15h8" /></svg>;
-  }
-}
-
 export default function LandingPage() {
   const [on, setOn] = useState(false);
   const [day, setDay] = useState(0);   // 하루 타임라인 — 스크롤 진행률로 바뀐다
   const dayRef = useRef<HTMLElement>(null);
   const [eng, setEng] = useState(0);   // AI 엔진 탭
-  const [cat, setCat] = useState(0);   // 둘러보기 — 선택된 메뉴 그룹
-  const [menu, setMenu] = useState(0); // 둘러보기 — 그룹 안에서 선택된 메뉴
-
-  // 상단 "오너뷰 둘러보기" 에서 그룹을 고르면 그 탭을 열고 카탈로그로 이동한다
-  const goCatalog = (i: number, m = 0) => {
-    setCat(i);
-    setMenu(m);
-    document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
@@ -314,33 +266,33 @@ export default function LandingPage() {
           <div className="lp4-menu">
             {NAV_LINKS.map((l) =>
               /* 오너뷰 둘러보기 — 마우스를 올리면 메뉴 그룹이 펼쳐지고, 고르면 해당 탭으로 이동한다 */
-              l.href === "#catalog" ? (
+              l.href === "/features" ? (
                 <div key={l.href} className="lp4-navdrop">
-                  <a href={l.href} className="lp4-navdrop-t" onClick={() => setCat(0)}>
+                  <Link href="/features" className="lp4-navdrop-t">
                     {l.label}
                     <svg className="lp4-navdrop-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" /></svg>
-                  </a>
+                  </Link>
                   <div className="lp4-mega">
                     <div className="lp4-mega-inner">
                       {CATALOG.map((g, i) => (
                         <div key={g.key} className="lp4-mega-col">
-                          <button type="button" className="lp4-mega-g" onClick={() => goCatalog(i)}>{g.group}</button>
+                          <Link className="lp4-mega-g" href={`/features?g=${g.key}`}>{g.group}</Link>
                           <p className="lp4-mega-lead">{g.lead}</p>
                           <div className="lp4-mega-items">
                             {g.menus.map((m, j) => (
-                              <button key={m.name} type="button" className="lp4-mega-m" onClick={() => goCatalog(i, j)}>{m.name}</button>
+                              <Link key={m.name} className="lp4-mega-m" href={`/features?g=${g.key}&m=${j}`}>{m.name}</Link>
                             ))}
                           </div>
                         </div>
                       ))}
                       <div className="lp4-mega-col lp4-mega-col-ai">
-                        <a className="lp4-mega-g" href="#ai">AI 자동화</a>
+                        <Link className="lp4-mega-g" href="/features#ai">AI 자동화</Link>
                         <p className="lp4-mega-lead">사람이 매번 하던 일을 AI가 대신 해요.</p>
                         <div className="lp4-mega-items">
                           {AI_AUTOMATION.slice(0, 5).map((a) => (
-                            <a key={a.name} className="lp4-mega-m" href="#ai">{a.name}</a>
+                            <Link key={a.name} className="lp4-mega-m" href="/features#ai">{a.name}</Link>
                           ))}
-                          <a className="lp4-mega-m lp4-mega-more" href="#ai">전체 보기 →</a>
+                          <Link className="lp4-mega-m lp4-mega-more" href="/features">전체 보기 →</Link>
                         </div>
                       </div>
                     </div>
@@ -373,14 +325,14 @@ export default function LandingPage() {
         </div>
         <div id="lp4-mobile-menu" className={`lp4-mobile-menu ${menuOpen ? "lp4-mobile-menu-open" : ""}`}>
           {NAV_LINKS.map((l) =>
-            l.href === "#catalog" ? (
+            l.href === "/features" ? (
               <div key={l.href} className="lp4-mob-group">
-                <a href={l.href} onClick={() => { setCat(0); setMenuOpen(false); }}>{l.label}</a>
+                <Link href="/features" onClick={() => setMenuOpen(false)}>{l.label}</Link>
                 <div className="lp4-mob-subs">
-                  {CATALOG.map((g, i) => (
-                    <button key={g.key} type="button" className="lp4-mob-sub" onClick={() => { goCatalog(i); setMenuOpen(false); }}>{g.group}</button>
+                  {CATALOG.map((g) => (
+                    <Link key={g.key} className="lp4-mob-sub" href={`/features?g=${g.key}`} onClick={() => setMenuOpen(false)}>{g.group}</Link>
                   ))}
-                  <a className="lp4-mob-sub" href="#ai" onClick={() => setMenuOpen(false)}>AI 자동화</a>
+                  <Link className="lp4-mob-sub" href="/features#ai" onClick={() => setMenuOpen(false)}>AI 자동화</Link>
                 </div>
               </div>
             ) : (
@@ -424,48 +376,6 @@ export default function LandingPage() {
                 <div className="lp4-stat-label">{s.label}</div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ AI ENGINES ══ */}
-      <section className="lp4-section lp4-bg-dark" id="engines">
-        <div className="lp4-dark-orbs" />
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">4 AI Engines</div>
-            <h2 className="lp4-h2">4개의 AI 엔진이 <span className="lp4-underline">반복 업무를 대신 해요</span></h2>
-            <p className="lp4-sub">사람을 대체하는 게 아니라, 매번 되풀이되는 일을 자동으로 처리해요.</p>
-          </Reveal>
-
-          {/* 탭으로 묶고, 고르면 우측 화면이 바뀐다 (먼데이 레퍼런스) */}
-          <div className="lp4-etabs">
-            {ENGINES.map((e, i) => (
-              <button key={e.num} className={`lp4-etab ${i === eng ? "lp4-etab-on" : ""}`} onClick={() => setEng(i)}>
-                <EngineGlyph n={e.num} />
-                <span>{e.name}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="lp4-epanel" key={ENGINES[eng].num}>
-            <div className="lp4-ecopy">
-              <div className="lp4-eno">ENGINE {ENGINES[eng].num} · {ENGINES[eng].eng}</div>
-              <div className="lp4-eline">{ENGINES[eng].headline}</div>
-              <p className="lp4-eshort">{ENGINES[eng].short}</p>
-              <div className="lp4-esteps">
-                {ENGINES[eng].steps.map((st, j) => (
-                  <div key={j} className="lp4-estep"><span className="lp4-edot">{j + 1}</span><span>{st}</span></div>
-                ))}
-              </div>
-              <div className="lp4-erep">
-                <span className="lp4-erep-cap">대체 인력 · {ENGINES[eng].replaces}</span>
-                <span className="lp4-erep-cost">{ENGINES[eng].replacesCost} 절감</span>
-              </div>
-            </div>
-            <div className="lp4-eshot">
-              <Image src={ENGINES[eng].src} alt={ENGINES[eng].alt} width={1200} height={760} sizes="(max-width: 1000px) 100vw, 620px" />
-            </div>
           </div>
         </div>
       </section>
@@ -536,117 +446,68 @@ export default function LandingPage() {
         ))}
       </section>
 
-      {/* ══ 오너뷰 둘러보기 — 그룹 탭 → 메뉴 선택 → 그 메뉴의 실제 화면 ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="catalog">
+      {/* ══ AI ENGINES ══ */}
+      <section className="lp4-section lp4-bg-dark" id="engines">
+        <div className="lp4-dark-orbs" />
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">All features</div>
-            <h2 className="lp4-h2">필요한 기능은 <span className="lp4-underline">메뉴마다 다 있어요</span></h2>
-            <p className="lp4-sub">메뉴를 고르면 실제 오너뷰 화면을 그대로 보여드려요.</p>
+            <div className="lp4-eyebrow">4 AI Engines</div>
+            <h2 className="lp4-h2">4개의 AI 엔진이 <span className="lp4-underline">반복 업무를 대신 해요</span></h2>
+            <p className="lp4-sub">사람을 대체하는 게 아니라, 매번 되풀이되는 일을 자동으로 처리해요.</p>
           </Reveal>
 
-          <div className="lp4-cat-tabs">
-            {CATALOG.map((g, i) => (
-              <button
-                key={g.key}
-                className={`lp4-cat-tab ${i === cat ? "lp4-cat-tab-on" : ""}`}
-                onClick={() => { setCat(i); setMenu(0); }}
-                aria-pressed={i === cat}
-              >
-                <span className="lp4-cat-tab-n">{g.group}</span>
-                <span className="lp4-cat-tab-c">{g.menus.length}개 메뉴</span>
+          {/* 탭으로 묶고, 고르면 우측 화면이 바뀐다 (먼데이 레퍼런스) */}
+          <div className="lp4-etabs">
+            {ENGINES.map((e, i) => (
+              <button key={e.num} className={`lp4-etab ${i === eng ? "lp4-etab-on" : ""}`} onClick={() => setEng(i)}>
+                <EngineGlyph n={e.num} />
+                <span>{e.name}</span>
               </button>
             ))}
           </div>
 
-          <p className="lp4-cat-lead">{CATALOG[cat].lead}</p>
-
-          <div className="lp4-cat-body">
-            {/* 좌 — 그룹의 메뉴 목록. 고르면 우측 화면이 바뀐다 */}
-            <div className="lp4-cat-list">
-              {CATALOG[cat].menus.map((m, i) => (
-                <button
-                  key={m.name}
-                  className={`lp4-cat-item ${i === menu ? "lp4-cat-item-on" : ""}`}
-                  onClick={() => setMenu(i)}
-                  onMouseEnter={() => setMenu(i)}
-                  aria-pressed={i === menu}
-                >
-                  <span className="lp4-cat-ico"><MenuGlyph n={m.icon} /></span>
-                  <span className="lp4-cat-item-txt">
-                    <span className="lp4-cat-item-n">{m.name}</span>
-                    <span className="lp4-cat-item-d">{m.desc}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* 우 — 그 메뉴의 실제 화면 + 제공 기능 */}
-            <div className="lp4-cat-view" key={`${CATALOG[cat].key}-${menu}`}>
-              <div className="lp4-cat-shot">
-                <Image
-                  src={CATALOG[cat].menus[menu].src}
-                  alt={CATALOG[cat].menus[menu].alt}
-                  width={1280}
-                  height={800}
-                  sizes="(max-width: 1000px) 100vw, 760px"
-                />
-              </div>
-              <div className="lp4-cat-feats">
-                {CATALOG[cat].menus[menu].items.map((it) => (
-                  <span key={it} className="lp4-cat-feat"><Check />{it}</span>
+          <div className="lp4-epanel" key={ENGINES[eng].num}>
+            <div className="lp4-ecopy">
+              <div className="lp4-eno">ENGINE {ENGINES[eng].num} · {ENGINES[eng].eng}</div>
+              <div className="lp4-eline">{ENGINES[eng].headline}</div>
+              <p className="lp4-eshort">{ENGINES[eng].short}</p>
+              <div className="lp4-esteps">
+                {ENGINES[eng].steps.map((st, j) => (
+                  <div key={j} className="lp4-estep"><span className="lp4-edot">{j + 1}</span><span>{st}</span></div>
                 ))}
               </div>
+              <div className="lp4-erep">
+                <span className="lp4-erep-cap">대체 인력 · {ENGINES[eng].replaces}</span>
+                <span className="lp4-erep-cost">{ENGINES[eng].replacesCost} 절감</span>
+              </div>
+            </div>
+            <div className="lp4-eshot">
+              <Image src={ENGINES[eng].src} alt={ENGINES[eng].alt} width={1200} height={760} sizes="(max-width: 1000px) 100vw, 620px" />
+            </div>
+          </div>
+
+          {/* 엔진이 실제로 대신하는 일 — 별도 섹션으로 또 나열하던 걸 여기 한 줄로 합쳤다 */}
+          <div className="lp4-eauto">
+            <span className="lp4-eauto-cap">이런 일들을 알아서 해요</span>
+            <div className="lp4-eauto-chips">
+              {AI_AUTOMATION.map((a) => <span key={a.name} className="lp4-eauto-chip">{a.name}</span>)}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ══ AI 자동화 — 사람이 하던 반복 작업을 무엇이 대신하는지 ══ */}
-      <section className="lp4-section lp4-bg-tint" id="ai">
+      {/* ══ 전체 기능은 별도 페이지로 — 메인 스크롤을 짧게 유지한다 ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="more">
         <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">AI Automation</div>
-            <h2 className="lp4-h2">이건 <span className="lp4-underline">AI가 알아서 해요</span></h2>
-            <p className="lp4-sub">매번 손으로 하던 일 8가지를 오너뷰가 대신 처리해요.</p>
+          <Reveal>
+            <Link href="/features" className="lp4-more">
+              <div className="lp4-more-txt">
+                <div className="lp4-more-h">이 밖에도 메뉴 20개가 더 있어요</div>
+                <p className="lp4-more-p">거래처·세금·장부·결재·전자계약·통장·카드·대출까지. 어느 메뉴에서 무엇을 할 수 있는지 실제 화면으로 정리했어요.</p>
+              </div>
+              <span className="lp4-more-cta">기능 전체 보기 <Arrow /></span>
+            </Link>
           </Reveal>
-          <div className="lp4-ai-grid">
-            {AI_AUTOMATION.map((a) => (
-              <Reveal key={a.name} className="lp4-ai-card">
-                <span className="lp4-ai-tag">{a.tag}</span>
-                <div className="lp4-ai-name">{a.name}</div>
-                <p className="lp4-ai-desc">{a.desc}</p>
-                <div className="lp4-ai-where">{a.where}</div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ FEATURES — 카드 나열 ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="features">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <h2 className="lp4-h2">흩어진 7개 도구, 하나로 합쳐보세요</h2>
-            <p className="lp4-sub">따로 결제하던 도구들이 하나의 데이터 위에서 같이 움직여요.</p>
-          </Reveal>
-          {/* 한 줄에 전부 두고 가로로 흐르게 — 마우스를 올리면 멈춘다 */}
-          <div className="lp4-roll">
-            <div className="lp4-roll-track">
-              {[0, 1].map((dup) => (
-                <div key={dup} className="lp4-roll-run" aria-hidden={dup === 1}>
-                  {FEATURES.map((f) => (
-                    <div key={f.tab} className={`lp4-fcard lp4-fcard-${f.tone}`}>
-                      <div className="lp4-fcard-art"><FeatGlyph n={f.icon} /></div>
-                      <div className="lp4-fcard-name">{f.tab}</div>
-                      <div className="lp4-fcard-title">{f.title}</div>
-                      <p className="lp4-fcard-desc">{f.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
@@ -707,7 +568,7 @@ export default function LandingPage() {
         <div className="lp4-container">
           <div className="lp4-footer-top">
             <div className="lp4-logo"><Logo size={25} /> OwnerView <span className="lp4-footer-sub">Company Operating System</span></div>
-            <div className="lp4-flinks"><a href="#catalog">오너뷰 둘러보기</a><a href="#engines">AI 엔진</a><Link href="/pricing">가격</Link><a href="#partner">제휴문의</a><a href="#faq">FAQ</a></div>
+            <div className="lp4-flinks"><Link href="/features">오너뷰 둘러보기</Link><a href="#engines">AI 엔진</a><Link href="/pricing">가격</Link><a href="#partner">제휴문의</a><a href="#faq">FAQ</a></div>
           </div>
           <div className="lp4-footer-bottom">
             <div className="lp4-finfo"><div>{FOOTER.company}</div><div>{FOOTER.reg}</div><div>{FOOTER.addr}</div></div>
@@ -720,8 +581,7 @@ export default function LandingPage() {
            최종 CTA 섹션을 없앤 대신, 히어로를 지나면 어디서든 가입 경로가 살아있게 한다.
            데스크톱은 하단 가운데 떠 있는 알약, 모바일은 하단 전체 폭 바. */}
       <div className={`lp4-sticky-cta ${showSticky ? "lp4-sticky-cta-on" : ""}`}>
-        <span className="lp4-sticky-copy">14일 무료 · 가입하면 오늘 바로 써요</span>
-        <Link href="/demo" className="lp4-btn lp4-btn-line">화면 보기</Link>
+        <span className="lp4-sticky-copy">14일 무료 · 가입하면 지금 바로</span>
         <Link href="/auth" className="lp4-btn lp4-btn-brand">무료로 시작하기 <Arrow /></Link>
       </div>
     </div>
