@@ -12,7 +12,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, PROBLEMS, SCREENS, PILLARS, FLOW, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, SCREENS, PILLARS, DAY, HERO_ROTATE, FLOW, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 
 function Logo({ size = 26 }: { size?: number }) {
@@ -114,6 +114,7 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
 export default function LandingPage() {
   const [on, setOn] = useState(false);
   const [tour, setTour] = useState(0);
+  const [word, setWord] = useState(0); // 히어로 회전 단어
   const [tourAuto, setTourAuto] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [team, setTeam] = useState(8);
@@ -160,6 +161,11 @@ export default function LandingPage() {
     const t = setTimeout(() => setTour((i) => (i + 1) % SCREENS.length), 5000);
     return () => clearTimeout(t);
   }, [tour, tourAuto]);
+
+  useEffect(() => {
+    const t = setInterval(() => setWord((i) => (i + 1) % HERO_ROTATE.length), 2000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const h = () => {
@@ -221,7 +227,14 @@ export default function LandingPage() {
         <div className="lp4-container">
           <div className="lp4-hero-inner">
             <span className="lp4-hero-badge"><span className="lp4-hero-badge-dot" />{HERO.badge}</span>
-            <h1 className="lp4-hero-title">중소기업 대표를 위한<br /><em>AI 올인원 운영 플랫폼</em></h1>
+            {/* 회전 단어 — 3대 축을 첫 화면에서 즉시 인지시킨다 */}
+            <h1 className="lp4-hero-title">
+              <span className="lp4-rotate">
+                <span className="lp4-rotate-word" key={HERO_ROTATE[word]}>{HERO_ROTATE[word]}</span>
+              </span>
+              <span className="lp4-hero-fixed">까지,</span>
+              <br /><em>오너뷰 하나로</em>
+            </h1>
             <p className="lp4-hero-sub">{HERO.sub}</p>
             <p className="lp4-hero-desc">{HERO.desc}</p>
             <div className="lp4-hero-cta">
@@ -267,21 +280,38 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ══ PROBLEM ══ */}
-      <section className="lp4-section lp4-bg-canvas">
+      {/* ══ 대표님의 하루 — 지금 방식 vs 오너뷰 ══ */}
+      <section className="lp4-section lp4-bg-canvas" id="day">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">Pain → Solution</div>
-            <h2 className="lp4-h2">이 업무들, 아직 <span className="lp4-underline">대표가 직접</span> 챙기고 계십니까?</h2>
-            <p className="lp4-sub">회계·세무·문서·정산으로 흩어져 있던 업무가 각각 어떻게 자동화되는지 아래에서 확인하실 수 있습니다.</p>
+            <div className="lp4-eyebrow">A Day of the Owner</div>
+            <h2 className="lp4-h2">대표님의 하루가 <span className="lp4-underline">이렇게 바뀝니다</span></h2>
+            <p className="lp4-sub">기능 목록이 아니라, 실제로 하루 동안 무엇이 사라지는지로 보여드립니다.</p>
           </Reveal>
-          <div className="lp4-pain-grid">
-            {PROBLEMS.map((p) => (
-              <Reveal key={p.keyword}><div className="lp4-pain lp4-card">
-                <span className="lp4-pain-badge">{p.keyword}</span>
-                <div className="lp4-pain-pain">{p.pain}</div>
-                <div className="lp4-pain-solve"><b>→</b><span>{p.solve}</span></div>
-              </div></Reveal>
+
+          <div className="lp4-day">
+            <div className="lp4-day-legend">
+              <span className="lp4-day-leg lp4-day-leg-before">지금까지</span>
+              <span className="lp4-day-leg lp4-day-leg-after">오너뷰</span>
+            </div>
+            {DAY.map((d) => (
+              <Reveal key={d.time}>
+                <div className="lp4-day-row">
+                  <div className="lp4-day-time">
+                    <b>{d.time}</b>
+                    <span>{d.scene}</span>
+                  </div>
+                  <div className="lp4-day-before">
+                    <span className="lp4-day-tag">지금까지</span>
+                    <p>{d.before}</p>
+                  </div>
+                  <div className="lp4-day-arrow"><Arrow /></div>
+                  <div className="lp4-day-after">
+                    <span className="lp4-day-tag lp4-day-tag-on">오너뷰 · {d.menu}</span>
+                    <p>{d.after}</p>
+                  </div>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
