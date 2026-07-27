@@ -24,7 +24,8 @@ export const metadata: Metadata = {
     siteName: "오너뷰",
     locale: "ko_KR",
     type: "website",
-    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "오너뷰 로고" }],
+    // 1200x630 전용 카드 — 512 정사각 로고는 공유 시 잘리거나 썸네일로 축소됐다 (2026-07-27)
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "오너뷰 — 중소기업 대표를 위한 올인원 운영 플랫폼" }],
   },
   // 네이버 서치어드바이저 사이트 소유 확인 (2026-07-02) — <head>에 naver-site-verification 메타로 출력됨
   verification: {
