@@ -304,6 +304,33 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* ══ 1분 영상 — 실제 시연 녹화를 빠른 템포로 재편집 ══ */}
+      <section className="lp4-section lp4-bg-tint lp4-snap lp4-stage" id="video">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <div className="lp4-eyebrow">1 Minute</div>
+            <h2 className="lp4-h2">1분이면 <span className="lp4-underline">전부 보여요</span></h2>
+            <p className="lp4-sub">실제 오너뷰를 조작한 화면을 그대로 담았어요. 소리 없이 봐도 괜찮아요.</p>
+          </Reveal>
+          <Reveal>
+            <div className="lp4-video">
+              {/* preload=metadata — 영상 본체는 재생 전 안 받되, 길이는 보이게 (LCP 영향 없음) */}
+              <video
+                className="lp4-video-el"
+                controls
+                playsInline
+                preload="metadata"
+                poster="/video/promo-poster-v1.jpg"
+                aria-label="오너뷰 1분 소개 영상"
+              >
+                <source src="/video/promo-720-v1.webm" type="video/webm" />
+                <source src="/video/promo-720-v1.mp4" type="video/mp4" />
+              </video>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* ══ 대표님의 하루 — 지금 방식 vs 오너뷰 ══ */}
       <section className="lp4-section lp4-bg-canvas lp4-snap lp4-stage" id="day">
         <div className="lp4-container">

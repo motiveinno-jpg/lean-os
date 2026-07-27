@@ -315,6 +315,13 @@
 .lp4-pillar-shot img { display:block; width:100%; height:auto; border-radius:18px; border:1px solid var(--line);
   box-shadow: 0 40px 76px -32px rgba(31,38,75,.5); }
 
+
+/* ── 1분 소개 영상 ─────────────────────────────────── */
+.lp4-video { max-width:1080px; margin:0 auto; border-radius:22px; overflow:hidden;
+  border:1px solid var(--line); background:#0f0e1c;
+  box-shadow: 0 44px 84px -34px rgba(31,38,75,.55); }
+.lp4-video-el { display:block; width:100%; height:auto; aspect-ratio:16/9; background:#0f0e1c; }
+
 /* ── 기능 티커 ─────────────────────────────────────── */
 .lp4-ticker { background: var(--paper); border-bottom:1px solid var(--line); overflow:hidden; padding:14px 0;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);

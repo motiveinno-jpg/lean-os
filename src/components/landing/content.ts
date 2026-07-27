@@ -291,6 +291,7 @@ export const FAQS = [
 ];
 
 export const NAV_LINKS = [
+  { href: "#video", label: "1분 영상" },
   { href: "#pillars", label: "프로젝트·인사·회계" },
   { href: "#tour", label: "제품 화면" },
   { href: "#engines", label: "AI 엔진" },
