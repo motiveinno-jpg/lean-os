@@ -8,18 +8,9 @@
 import "@/app/landing.css";
 import Link from "next/link";
 import { useState } from "react";
-import { PLANS, COMPETITORS, FEATURES, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { LandingNav } from "@/components/landing/landing-nav";
+import { PLANS, COMPETITORS, FEATURES, FAQS, FOOTER } from "@/components/landing/content";
 
-function Logo({ size = 25 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-      <rect width="40" height="40" rx="10" fill="#5b54e8" />
-      <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none" />
-      <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
-      <polyline points="12,20 15,18 18,19 22,14" stroke="#fdba74" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
-}
 const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
 
 // 플랜별 포함 여부 — 하단 기능 목록(먼데이식 비교표)
@@ -68,20 +59,7 @@ export default function PricingView() {
 
   return (
     <div className="lp4-root">
-      <nav className="lp4-nav lp4-nav-on">
-        <div className="lp4-nav-inner">
-          <Link href="/" className="lp4-logo"><Logo /> OwnerView</Link>
-          <div className="lp4-menu">
-            {NAV_LINKS.map((l) => (
-              <Link key={l.href} href={l.href.startsWith("#") ? `/${l.href}` : l.href}>{l.label}</Link>
-            ))}
-          </div>
-          <div className="lp4-nav-right">
-            <Link href="/auth" className="lp4-login">로그인</Link>
-            <Link href="/auth" className="lp4-pill">무료로 시작하기</Link>
-          </div>
-        </div>
-      </nav>
+      <LandingNav solid />
 
       <section className="lp4-section lp4-bg-canvas" id="pricing">
         <div className="lp4-container">

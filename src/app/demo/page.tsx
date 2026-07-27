@@ -12,6 +12,7 @@ import {
 import {
   ProjectsPanel, EstimatePanel, ContractPanel, SettlementPanel, MembersPanel, LeavePanel, TaxPanel,
 } from "./_components/pillar-frames";
+import { CopilotPanel, BriefPanel, OcrPanel } from "./_components/ai-panels";
 
 // ── Constants ──
 
@@ -759,6 +760,11 @@ export default function DemoPage() {
           <MembersPanel />
           <LeavePanel />
           <TaxPanel />
+
+          {/* ═══ AI 자동화 화면 — 랜딩 /ai 캐프처 소스 ═══ */}
+          <CopilotPanel />
+          <BriefPanel />
+          <OcrPanel />
 
           {/* ═══ Quick Links ═══ */}
           <div className="quick-links-section">

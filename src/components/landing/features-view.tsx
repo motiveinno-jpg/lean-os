@@ -11,18 +11,9 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { CATALOG, AI_AUTOMATION, FEATURES, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { LandingNav } from "@/components/landing/landing-nav";
+import { CATALOG, FEATURES, FOOTER } from "@/components/landing/content";
 
-function Logo({ size = 25 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-      <rect width="40" height="40" rx="10" fill="#5b54e8" />
-      <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none" />
-      <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
-      <polyline points="12,20 15,18 18,19 22,14" stroke="#fdba74" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
-}
 const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
 const Arrow = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" /></svg>);
 
@@ -53,8 +44,6 @@ function MenuGlyph({ n }: { n: string }) {
   }
 }
 
-const AI_TAB = 99;   // 토글 줄에서 AI 자동화를 가리키는 값
-
 export default function FeaturesView() {
   const [cat, setCat] = useState(0);   // 0~3 = 메뉴 그룹, AI_TAB = AI 자동화
   const [menu, setMenu] = useState(0);
@@ -63,14 +52,13 @@ export default function FeaturesView() {
   const go = (c: number, m: number) => {
     if (c === cat && m === menu) return;
     setCat(c); setMenu(m);
-    const q = c === AI_TAB ? "?g=ai" : `?g=${CATALOG[c].key}${m ? `&m=${m}` : ""}`;
-    window.history.replaceState(null, "", q);
+    window.history.replaceState(null, "", `?g=${CATALOG[c].key}${m ? `&m=${m}` : ""}`);
   };
 
   // 메인 메가메뉴에서 ?g=워크스페이스&m=2 로 넘어오면 그 그룹·메뉴를 열어 둔다
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    if (q.get("g") === "ai") { setCat(AI_TAB); return; }
+    if (q.get("g") === "ai") { window.location.replace("/ai"); return; }
     const g = CATALOG.findIndex((c) => c.key === q.get("g"));
     if (g >= 0) {
       setCat(g);
@@ -79,76 +67,27 @@ export default function FeaturesView() {
     }
   }, []);
 
-  const total = CATALOG.reduce((s, g) => s + g.menus.length, 0);
-
   return (
     <div className="lp4-root">
-      <nav className="lp4-nav lp4-nav-on">
-        <div className="lp4-nav-inner">
-          <Link href="/" className="lp4-logo"><Logo /> OwnerView</Link>
-          <div className="lp4-menu">
-            {NAV_LINKS.map((l) => (
-              <Link key={l.href} href={l.href.startsWith("#") ? `/${l.href}` : l.href}>{l.label}</Link>
-            ))}
-          </div>
-          <div className="lp4-nav-right">
-            <Link href="/auth" className="lp4-login">로그인</Link>
-            <Link href="/auth" className="lp4-pill">무료로 시작하기</Link>
-          </div>
-        </div>
-      </nav>
+      <LandingNav solid />
 
       {/* 페이지 머리 */}
       <section className="lp4-section lp4-bg-canvas" id="catalog">
         <div className="lp4-container">
           <div className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">All features</div>
-            <h1 className="lp4-h2">오너뷰 안에 뭐가 있는지 <span className="lp4-underline">다 보여드릴게요</span></h1>
-            <p className="lp4-sub">메뉴 {total}개, 전부 지금 쓸 수 있어요. 보고 싶은 영역을 골라보세요.</p>
-          </div>
-        </div>
-
-        {/* 토글 — 스크롤해도 상단에 남는다. 하나를 고르면 그 영역만 보여준다 */}
-        <div className="lp4-catbar">
-          <div className="lp4-container lp4-cat-tabs">
-            {CATALOG.map((g, i) => (
-              <button
-                key={g.key}
-                className={`lp4-cat-tab ${cat === i ? "lp4-cat-tab-on" : ""}`}
-                onClick={() => go(i, 0)}
-                aria-pressed={cat === i}
-              >
-                <span className="lp4-cat-tab-n">{g.group}</span>
-                <span className="lp4-cat-tab-c">{g.menus.length}개 메뉴</span>
-              </button>
-            ))}
-            <button
-              className={`lp4-cat-tab ${cat === AI_TAB ? "lp4-cat-tab-on" : ""}`}
-              onClick={() => go(AI_TAB, 0)}
-              aria-pressed={cat === AI_TAB}
-            >
-              <span className="lp4-cat-tab-n">AI 자동화</span>
-              <span className="lp4-cat-tab-c">{AI_AUTOMATION.length}가지</span>
-            </button>
+            <div className="lp4-eyebrow">{CATALOG[cat]?.group ?? "AI 자동화"}</div>
+            <h1 className="lp4-h2">
+              {CATALOG[cat]?.group ?? "AI 자동화"}에서 <span className="lp4-underline">할 수 있는 일</span>
+            </h1>
+            <p className="lp4-sub">
+              메뉴를 고르면 실제 오너뷰 화면을 그대로 보여드려요. 다른 영역은 위 <b>오너뷰 둘러보기</b>에서 고를 수 있어요.
+            </p>
           </div>
         </div>
 
         <div className="lp4-container">
-          {cat === AI_TAB ? (
-            <div className="lp4-cat-panel">
-              <p className="lp4-cat-lead">사람이 매번 손으로 하던 일을 오너뷰가 대신 처리해요.</p>
-              <div className="lp4-ai-grid">
-                {AI_AUTOMATION.map((a) => (
-                  <div key={a.name} className="lp4-ai-card">
-                    <span className="lp4-ai-tag">{a.tag}</span>
-                    <div className="lp4-ai-name">{a.name}</div>
-                    <p className="lp4-ai-desc">{a.desc}</p>
-                    <div className="lp4-ai-where">{a.where}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
+          {(
+
             <div className="lp4-cat-panel" key={CATALOG[cat].key}>
               <p className="lp4-cat-lead">{CATALOG[cat].lead}</p>
               <div className="lp4-cat-body">

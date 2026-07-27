@@ -13,6 +13,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { HERO, STATS, PILLARS, DAY, MOBILE, ENGINES, CATALOG, AI_AUTOMATION, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 
 function Logo({ size = 26 }: { size?: number }) {
@@ -364,139 +365,7 @@ export default function LandingPage() {
 
   return (
     <div className="lp4-root">
-      {/* ══ NAV ══ */}
-      <nav className={`lp4-nav ${on ? "lp4-nav-on" : ""}`}>
-        <div className="lp4-nav-inner">
-          <div className="lp4-logo"><Logo size={25} /> OwnerView</div>
-          <div className="lp4-menu">
-            {NAV_LINKS.map((l) =>
-              /* 오너뷰 둘러보기 — 마우스를 올리면 메뉴 그룹이 펼쳐지고, 고르면 해당 탭으로 이동한다 */
-              l.href === "/features" ? (
-                <div
-                  key={l.href}
-                  className={`lp4-navdrop ${drop ? "lp4-navdrop-open" : ""}`}
-                  onMouseEnter={() => setDrop(true)}
-                  onMouseLeave={() => setDrop(false)}
-                >
-                  {/* 클릭해도 페이지가 바뀌지 않는다 — 아래 메뉴만 펼친다 */}
-                  <button
-                    type="button"
-                    className="lp4-navdrop-t"
-                    aria-expanded={drop}
-                    onClick={() => setDrop((v) => !v)}
-                  >
-                    {l.label}
-                    <svg className="lp4-navdrop-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" /></svg>
-                  </button>
-                  <div className="lp4-mega">
-                    <div className="lp4-mega-inner">
-                      {/* 좌: 영역 고르기 / 우: 고른 영역의 메뉴만 */}
-                      <div className="lp4-mega-side">
-                        {CATALOG.map((g, i) => (
-                          <button
-                            key={g.key}
-                            type="button"
-                            className={`lp4-mega-side-b ${navG === i ? "lp4-mega-side-on" : ""}`}
-                            onMouseEnter={() => setNavG(i)}
-                            onFocus={() => setNavG(i)}
-                            onClick={() => setNavG(i)}
-                          >
-                            {g.group}<span className="lp4-mega-side-c">{g.menus.length}</span>
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          className={`lp4-mega-side-b ${navG === NAV_AI ? "lp4-mega-side-on" : ""}`}
-                          onMouseEnter={() => setNavG(NAV_AI)}
-                          onFocus={() => setNavG(NAV_AI)}
-                          onClick={() => setNavG(NAV_AI)}
-                        >
-                          AI 자동화<span className="lp4-mega-side-c">{AI_AUTOMATION.length}</span>
-                        </button>
-                      </div>
-
-                      {navG === NAV_AI ? (
-                        <div className="lp4-mega-main" key="ai">
-                          <p className="lp4-mega-lead">사람이 매번 하던 일을 AI가 대신 해요.</p>
-                          <div className="lp4-mega-items">
-                            {AI_AUTOMATION.map((a) => (
-                              <Link key={a.name} className="lp4-mega-m" href="/features?g=ai" onClick={() => setDrop(false)}>{a.name}</Link>
-                            ))}
-                          </div>
-                          <Link className="lp4-mega-all" href="/features?g=ai" onClick={() => setDrop(false)}>AI 자동화 전체 보기 <Arrow /></Link>
-                        </div>
-                      ) : (
-                        <div className="lp4-mega-main" key={CATALOG[navG].key}>
-                          <p className="lp4-mega-lead">{CATALOG[navG].lead}</p>
-                          <div className="lp4-mega-items">
-                            {CATALOG[navG].menus.map((m, j) => (
-                              <Link
-                                key={m.name}
-                                className="lp4-mega-m"
-                                href={`/features?g=${CATALOG[navG].key}&m=${j}`}
-                                onClick={() => setDrop(false)}
-                              >
-                                <span className="lp4-mega-m-n">{m.name}</span>
-                                <span className="lp4-mega-m-d">{m.desc}</span>
-                              </Link>
-                            ))}
-                          </div>
-                          <Link
-                            className="lp4-mega-all"
-                            href={`/features?g=${CATALOG[navG].key}`}
-                            onClick={() => setDrop(false)}
-                          >
-                            {CATALOG[navG].group} 전체 보기 <Arrow />
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <a key={l.href} href={l.href}>{l.label}</a>
-              )
-            )}
-          </div>
-          <div className="lp4-nav-right">
-            <Link href="/auth" className="lp4-login">로그인</Link>
-            <Link href="/auth" className="lp4-pill">무료로 시작하기</Link>
-            {/* 모바일 전용 — 920px 미만에서 lp4-menu 가 숨겨져 섹션 이동 수단이 없었다 */}
-            <button
-              type="button"
-              className="lp4-burger"
-              aria-label={menuOpen ? "메뉴 닫기" : "메뉴 열기"}
-              aria-expanded={menuOpen}
-              aria-controls="lp4-mobile-menu"
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                {menuOpen
-                  ? <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
-                  : <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />}
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div id="lp4-mobile-menu" className={`lp4-mobile-menu ${menuOpen ? "lp4-mobile-menu-open" : ""}`}>
-          {NAV_LINKS.map((l) =>
-            l.href === "/features" ? (
-              <div key={l.href} className="lp4-mob-group">
-                <Link href="/features" onClick={() => setMenuOpen(false)}>{l.label}</Link>
-                <div className="lp4-mob-subs">
-                  {CATALOG.map((g) => (
-                    <Link key={g.key} className="lp4-mob-sub" href={`/features?g=${g.key}`} onClick={() => setMenuOpen(false)}>{g.group}</Link>
-                  ))}
-                  <Link className="lp4-mob-sub" href="/features#ai" onClick={() => setMenuOpen(false)}>AI 자동화</Link>
-                </div>
-              </div>
-            ) : (
-              <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)}>{l.label}</a>
-            )
-          )}
-          <Link href="/auth" onClick={() => setMenuOpen(false)}>로그인</Link>
-        </div>
-      </nav>
+      <LandingNav />
 
       {/* ══ HERO ══ */}
       <header className="lp4-hero">

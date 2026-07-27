@@ -592,6 +592,54 @@
 }
 @media (max-width: 999px){ .lp4-mf-screen { transform:none; } }
 
+
+/* ── /ai — 자동화 8가지. 좌 목록 / 우 실제 화면, 4.2초마다 저절로 넘어간다 ── */
+.lp4-aiw { display:grid; grid-template-columns:1fr; gap:28px; align-items:start; }
+@media (min-width: 1000px){ .lp4-aiw { grid-template-columns: 320px 1fr; gap:52px; } }
+.lp4-aiw-list { display:flex; flex-direction:column; gap:6px; }
+.lp4-aiw-item { position:relative; overflow:hidden; display:flex; flex-direction:column; gap:3px;
+  padding:15px 18px; border-radius:16px; border:1px solid transparent; background:transparent;
+  cursor:pointer; text-align:left; transition: all .18s; }
+.lp4-aiw-item:hover { background: var(--canvas2); }
+.lp4-aiw-item-on { background:#fff; border-color: var(--line); box-shadow: 0 16px 34px -24px rgba(27,26,46,.3); }
+.lp4-aiw-n { font-size:17px; font-weight:800; letter-spacing:-.02em; color: var(--ink2); }
+.lp4-aiw-item-on .lp4-aiw-n { color: var(--ink); }
+.lp4-aiw-t { font-size:13px; color: var(--ink3); }
+.lp4-aiw-item-on .lp4-aiw-t { color: var(--brand); font-weight:600; }
+.lp4-aiw-tick { position:absolute; left:0; bottom:0; height:3px; background: var(--brand);
+  animation: lp4-tick 4.2s linear forwards; }
+
+.lp4-aiw-view { animation: lp4-rise .3s ease; }
+.lp4-aiw-shot { position:relative; border-radius:20px; overflow:hidden; background:#fff;
+  border:1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 0 0 1px rgba(27,26,46,.06),
+    0 10px 22px -12px rgba(27,26,46,.3), 0 46px 92px -34px rgba(27,26,46,.46); }
+.lp4-aiw-shot::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:2;
+  background: linear-gradient(150deg, rgba(255,255,255,.4), rgba(255,255,255,0) 34%); }
+.lp4-aiw-shot img { display:block; width:100%; height:auto; }
+.lp4-aiw-meta { margin-top:22px; }
+.lp4-aiw-head { font-size:23px; font-weight:800; letter-spacing:-.03em; color: var(--ink); }
+.lp4-aiw-desc { font-size:17px; color: var(--ink2); line-height:1.8; margin-top:10px; max-width:720px; }
+.lp4-aiw-where { display:inline-flex; align-items:center; gap:7px; margin-top:16px; font-size:14px;
+  font-weight:700; color: var(--brand-ink); background: var(--pastel-lav);
+  border-radius:999px; padding:9px 16px; }
+
+/* 4개 엔진 카드 */
+.lp4-eng4 { display:grid; grid-template-columns:1fr; gap:16px; }
+@media (min-width: 760px){ .lp4-eng4 { grid-template-columns: repeat(2,1fr); } }
+@media (min-width: 1100px){ .lp4-eng4 { grid-template-columns: repeat(4,1fr); } }
+.lp4-eng4-card { display:flex; flex-direction:column; background:#fff; border:1px solid var(--line);
+  border-radius:22px; padding:26px 24px 22px; transition: transform .2s, box-shadow .2s; }
+.lp4-eng4-card:hover { transform: translateY(-3px); box-shadow: 0 24px 50px -30px rgba(27,26,46,.3); }
+.lp4-eng4-ico { display:grid; place-items:center; width:46px; height:46px; border-radius:14px;
+  background: var(--pastel-lav); color: var(--brand); }
+.lp4-eng4-no { font-size:11.5px; font-weight:800; letter-spacing:.08em; color: var(--ink3); margin-top:16px; }
+.lp4-eng4-n { font-size:19px; font-weight:800; letter-spacing:-.03em; color: var(--ink); margin-top:5px; }
+.lp4-eng4-d { flex:1; font-size:15px; color: var(--ink2); line-height:1.75; margin-top:9px; }
+.lp4-eng4-f { display:flex; flex-wrap:wrap; gap:6px; margin-top:18px; padding-top:16px;
+  border-top:1px solid var(--line); }
+.lp4-eng4-f .lp4-pillar-menu { font-size:12.5px; padding:6px 12px; }
+
 /* ── Partner form ──────────────────────────────────── */
 .lp4-form { padding:30px; }
 .lp4-flabel { display:block; font-size:13px; font-weight:600; color: var(--ink2); margin-bottom:6px; }
