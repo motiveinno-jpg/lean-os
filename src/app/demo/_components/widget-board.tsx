@@ -7,7 +7,7 @@
 //   그대로 옮겨 12칼럼 · rowHeight 44 · gap 12 격자를 CSS Grid 로 재현한다.
 //   ⚠️ 실제 배치가 바뀌면 여기와 랜딩 캡처(public/product/dashboard.png)도 같이 갱신할 것.
 
-type W = { id: string; name: string; icon: string; x: number; y: number; w: number; h: number; body: React.ReactNode };
+type W = { id: string; name: string; link?: string; x: number; y: number; w: number; h: number; body: React.ReactNode };
 
 const won = (n: number) => "₩" + n.toLocaleString("ko-KR");
 
@@ -49,7 +49,7 @@ function MiniCalendar() {
 
 const WIDGETS: W[] = [
   {
-    id: "attendance", name: "내 근태", icon: "🕘", x: 0, y: 0, w: 4, h: 2,
+    id: "attendance", name: "내 근태", x: 0, y: 0, w: 4, h: 2,
     body: (
       <div className="wg-att">
         <div>
@@ -60,9 +60,9 @@ const WIDGETS: W[] = [
       </div>
     ),
   },
-  { id: "calendar", name: "일정 · 캘린더", icon: "📅", x: 0, y: 2, w: 4, h: 9, body: <MiniCalendar /> },
+  { id: "calendar", link: "전체 보기", name: "일정 · 캘린더", x: 0, y: 2, w: 4, h: 9, body: <MiniCalendar /> },
   {
-    id: "work-tasks", name: "내 담당 업무", icon: "✅", x: 0, y: 11, w: 4, h: 4,
+    id: "work-tasks", link: "전체보기", name: "내 담당 업무", x: 0, y: 11, w: 4, h: 4,
     body: (
       <div className="wg-tasks">
         {[
@@ -81,7 +81,7 @@ const WIDGETS: W[] = [
     ),
   },
   {
-    id: "projects", name: "최근 프로젝트", icon: "💼", x: 4, y: 0, w: 4, h: 5,
+    id: "projects", link: "전체보기", name: "최근 프로젝트", x: 4, y: 0, w: 4, h: 5,
     body: (
       <div className="wg-list">
         {[
@@ -102,7 +102,7 @@ const WIDGETS: W[] = [
     ),
   },
   {
-    id: "revenue", name: "이번 달 매출", icon: "💰", x: 4, y: 5, w: 4, h: 5,
+    id: "revenue", link: "매출 현황", name: "이번 달 매출", x: 4, y: 5, w: 4, h: 5,
     body: (
       <>
         <div className="wg-big">{won(45_000_000)}<span className="wg-delta">+23%</span></div>
@@ -116,7 +116,7 @@ const WIDGETS: W[] = [
     ),
   },
   {
-    id: "tax", name: "세금 일정", icon: "🧾", x: 4, y: 10, w: 4, h: 5,
+    id: "tax", link: "이동", name: "세금 일정", x: 4, y: 10, w: 4, h: 5,
     body: (
       <div className="wg-list">
         {[
@@ -134,7 +134,7 @@ const WIDGETS: W[] = [
     ),
   },
   {
-    id: "biz", name: "경영 요약", icon: "📊", x: 8, y: 0, w: 4, h: 4,
+    id: "biz", link: "자세히", name: "경영 요약", x: 8, y: 0, w: 4, h: 4,
     body: (
       <div className="wg-kpis">
         <div className="wg-kpi"><span>통장 잔고</span><b>{won(230_000_000)}</b></div>
@@ -145,7 +145,7 @@ const WIDGETS: W[] = [
     ),
   },
   {
-    id: "receivables", name: "미수금", icon: "💸", x: 8, y: 4, w: 4, h: 5,
+    id: "receivables", link: "이동", name: "미수금", x: 8, y: 4, w: 4, h: 5,
     body: (
       <>
         <div className="wg-big wg-warn">{won(12_000_000)}</div>
@@ -159,7 +159,7 @@ const WIDGETS: W[] = [
     ),
   },
   {
-    id: "assets", name: "자산", icon: "🏦", x: 8, y: 9, w: 4, h: 3,
+    id: "assets", link: "8개 전체보기", name: "자산", x: 8, y: 9, w: 4, h: 3,
     body: (
       <div className="wg-list">
         <Row l="기업은행 주계좌" r={won(184_000_000)} />
@@ -169,7 +169,7 @@ const WIDGETS: W[] = [
     ),
   },
   {
-    id: "cards", name: "카드", icon: "💳", x: 8, y: 12, w: 4, h: 3,
+    id: "cards", link: "2개 전체보기", name: "카드", x: 8, y: 12, w: 4, h: 3,
     body: (
       <>
         <div className="wg-big">{won(7_420_000)}</div>
@@ -184,14 +184,8 @@ export function WidgetBoard() {
   return (
     <section className="wb" id="widget-board">
       <div className="wb-head">
-        <div>
-          <div className="wb-eyebrow">내 대시보드</div>
-          <div className="wb-title">위젯을 원하는 위치·크기로 배치할 수 있습니다</div>
-        </div>
-        <div className="wb-actions">
-          <span className="wb-btn">＋ 위젯 추가</span>
-          <span className="wb-btn wb-btn-on">⠿ 위젯 편집</span>
-        </div>
+        <div />
+        <div className="wb-actions"><span className="wb-btn">⠿ 위젯 편집</span></div>
       </div>
 
       {/* 실제 앱과 동일한 12칼럼 · 44px 행 · 12px 간격 격자 */}
@@ -203,9 +197,8 @@ export function WidgetBoard() {
             style={{ gridColumn: `${w.x + 1} / span ${w.w}`, gridRow: `${w.y + 1} / span ${w.h}` }}
           >
             <div className="wb-tile-head">
-              <span className="wb-tile-icon">{w.icon}</span>
               <span className="wb-tile-name">{w.name}</span>
-              <span className="wb-grip">⠿</span>
+              {w.link && <span className="wb-tile-link">{w.link} →</span>}
             </div>
             <div className="wb-tile-body">{w.body}</div>
           </div>
@@ -217,9 +210,8 @@ export function WidgetBoard() {
         {WIDGETS.map((w) => (
           <div key={w.id} className="wb-tile glass-card">
             <div className="wb-tile-head">
-              <span className="wb-tile-icon">{w.icon}</span>
               <span className="wb-tile-name">{w.name}</span>
-              <span className="wb-grip">⠿</span>
+              {w.link && <span className="wb-tile-link">{w.link} →</span>}
             </div>
             <div className="wb-tile-body">{w.body}</div>
           </div>

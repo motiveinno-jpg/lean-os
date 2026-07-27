@@ -111,11 +111,34 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
   );
 }
 
+
+// 스크롤 섹션 전환 — 뷰포트에 들어온 섹션만 또렷해지고, 벗어나면 가라앉는다.
+// (토스모바일처럼 "내릴 때마다 화면이 바뀌는" 느낌. 옵저버 1개를 모든 섹션이 공유)
+function useStageTransitions() {
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const els = Array.from(document.querySelectorAll<HTMLElement>(".lp4-stage"));
+    if (!els.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          e.target.classList.toggle("lp4-stage-in", e.isIntersecting);
+          e.target.classList.toggle("lp4-stage-out", !e.isIntersecting);
+        }
+      },
+      { threshold: 0.18, rootMargin: "-8% 0px -8% 0px" },
+    );
+    els.forEach((el) => { el.classList.add("lp4-stage-out"); io.observe(el); });
+    return () => io.disconnect();
+  }, []);
+}
+
 export default function LandingPage() {
   const [on, setOn] = useState(false);
   const [tour, setTour] = useState(0);
   const [feat, setFeat] = useState(0); // 기능 리스트 — 열린 항목
   const [word, setWord] = useState(0); // 히어로 회전 단어
+  useStageTransitions();
   const [tourAuto, setTourAuto] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [team, setTeam] = useState(8);
@@ -282,7 +305,7 @@ export default function LandingPage() {
       </div>
 
       {/* ══ 대표님의 하루 — 지금 방식 vs 오너뷰 ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="day">
+      <section className="lp4-section lp4-bg-canvas lp4-snap lp4-stage" id="day">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">A Day of the Owner</div>
@@ -329,7 +352,7 @@ export default function LandingPage() {
         </div>
 
         {PILLARS.map((p, i) => (
-          <div key={p.key} className={`lp4-pillar ${i % 2 === 1 ? "lp4-pillar-alt" : ""}`}>
+          <div key={p.key} className={`lp4-pillar lp4-snap ${i % 2 === 1 ? "lp4-pillar-alt" : ""}`}>
             <div className="lp4-container">
               <div className="lp4-pillar-grid">
                 <Reveal className="lp4-pillar-copy">
@@ -369,7 +392,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ 제품 실물 화면 투어 ══ */}
-      <section className="lp4-section lp4-bg-tint" id="tour">
+      <section className="lp4-section lp4-bg-tint lp4-snap lp4-stage" id="tour">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Real Product</div>
@@ -418,7 +441,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ 견적 → 정산 흐름 (자동 진행 + 클릭) ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="flow">
+      <section className="lp4-section lp4-bg-canvas lp4-snap lp4-stage" id="flow">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">End to End</div>
@@ -470,7 +493,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ FEATURES ══ */}
-      <section className="lp4-section lp4-bg-tint" id="features">
+      <section className="lp4-section lp4-bg-tint lp4-snap lp4-stage" id="features">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Product</div>
@@ -505,7 +528,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ AI ENGINES ══ */}
-      <section className="lp4-section lp4-bg-dark" id="engines">
+      <section className="lp4-section lp4-bg-dark lp4-snap lp4-stage" id="engines">
         <div className="lp4-dark-orbs" />
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
@@ -515,7 +538,7 @@ export default function LandingPage() {
           </Reveal>
           <div className="lp4-eng-grid">
             {ENGINES.map((e) => (
-              <Reveal key={e.num}><div className="lp4-eng lp4-card">
+              <Reveal key={e.num}><div className="lp4-eng">
                 <div className="lp4-eng-head">
                   <span className="lp4-eng-chip"><EngineGlyph n={e.num} /></span>
                   <div className="lp4-eng-id">
@@ -523,17 +546,16 @@ export default function LandingPage() {
                     <div className="lp4-eng-eng">ENGINE {e.num} · {e.eng}</div>
                   </div>
                 </div>
-                <div className="lp4-eng-line">{e.headline}</div>
-                {/* 3단계 처리 흐름 — 설명 문단 대신 시각적 파이프라인으로 (텍스트 과다 해소) */}
-                <div className="lp4-eng-steps">
-                  {e.steps.map((st, j) => <div key={j} className="lp4-eng-step"><span className="lp4-eng-dot">{j + 1}</span><span>{st}</span></div>)}
-                </div>
-                <div className="lp4-eng-tags">
-                  {e.features.map((ft) => <span key={ft} className="lp4-eng-tag">{ft}</span>)}
-                </div>
-                <div className="lp4-eng-rep">
-                  <span className="lp4-eng-rep-cap">대체 인력 · {e.replaces}</span>
-                  <span className="lp4-eng-rep-cost">{e.replacesCost} 절감</span>
+                <div className="lp4-eng-main">
+                  <div className="lp4-eng-line">{e.headline}</div>
+                  {/* 3단계 처리 흐름 — 설명 문단 대신 시각적 파이프라인으로 */}
+                  <div className="lp4-eng-steps">
+                    {e.steps.map((st, j) => <div key={j} className="lp4-eng-step"><span className="lp4-eng-dot">{j + 1}</span><span>{st}</span></div>)}
+                  </div>
+                  <div className="lp4-eng-rep">
+                    <span className="lp4-eng-rep-cap">대체 인력 · {e.replaces}</span>
+                    <span className="lp4-eng-rep-cost">{e.replacesCost} 절감</span>
+                  </div>
                 </div>
               </div></Reveal>
             ))}
@@ -542,7 +564,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ COMPARE ══ */}
-      <section className="lp4-section lp4-bg-tint" id="compare">
+      <section className="lp4-section lp4-bg-tint lp4-snap lp4-stage" id="compare">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Compare</div>
@@ -587,7 +609,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ PRICING ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="pricing">
+      <section className="lp4-section lp4-bg-canvas lp4-snap lp4-stage" id="pricing">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Pricing</div>
@@ -616,7 +638,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ 도입 사례 — 실제 운영 계정 수치만. 회사명은 마스킹 ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="cases">
+      <section className="lp4-section lp4-bg-canvas lp4-snap lp4-stage" id="cases">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">In Production</div>
@@ -650,7 +672,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ FAQ ══ */}
-      <section className="lp4-section lp4-bg-tint" id="faq">
+      <section className="lp4-section lp4-bg-tint lp4-snap lp4-stage" id="faq">
         <div className="lp4-narrow">
           <Reveal className="lp4-sec-head"><div className="lp4-eyebrow">FAQ</div><h2 className="lp4-h2">자주 묻는 질문이에요</h2></Reveal>
           <div>

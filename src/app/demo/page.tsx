@@ -190,10 +190,12 @@ export default function DemoPage() {
           <div className="demo-sidebar-brand">
             <OwnerViewMark />
             <div className="demo-sidebar-brand-text">
-              <span className="demo-sidebar-brand-name">OwnerView</span>
-              <span className="demo-sidebar-brand-sub">{DEMO_COMPANY}</span>
+              <span className="demo-sidebar-brand-name">오너뷰</span>
+              <span className="demo-sidebar-brand-sub">{DEMO_USER} <b className="demo-role">대표</b></span>
             </div>
           </div>
+
+          <div className="demo-side-search"><SearchGlyph /><span>검색</span><kbd className="demo-side-kbd">⌘K</kbd></div>
 
           <nav className="demo-sidebar-nav">
             {NAV_GROUPS.map((g) => (
@@ -214,11 +216,9 @@ export default function DemoPage() {
           </nav>
 
           <div className="demo-sidebar-foot">
-            <div className="demo-sidebar-avatar">김</div>
-            <div className="demo-sidebar-user">
-              <div className="demo-sidebar-user-name">{DEMO_USER}</div>
-              <div className="demo-sidebar-user-role">대표 · owner</div>
-            </div>
+            <span className="demo-foot-item">« 접기</span>
+            <span className="demo-foot-item">☾ 다크 모드</span>
+            <span className="demo-foot-item">↪ 로그아웃</span>
           </div>
         </aside>
 
@@ -231,14 +231,14 @@ export default function DemoPage() {
             </div>
             <div className="demo-header-search">
               <SearchGlyph />
-              <span>검색</span>
+              <span>무엇이든 검색</span>
               <kbd className="demo-header-kbd">⌘K</kbd>
             </div>
             <div className="demo-header-chip">
               <BellGlyph />
-              <span className="demo-header-dot" />
+              <span className="demo-header-badge">99+</span>
             </div>
-            <div className="demo-header-avatar">김</div>
+            <div className="demo-header-profile"><span className="demo-header-avatar">김</span><span className="demo-header-me"><b>{DEMO_USER}</b><i>대표</i></span></div>
           </header>
 
           <main className="demo-main">

@@ -253,14 +253,24 @@
 .lp4-day-time b { font-size:20px; font-weight:800; letter-spacing:-.03em; color: var(--ink); font-variant-numeric: tabular-nums; }
 .lp4-day-time span { font-size:12.5px; color: var(--ink3); margin-top:2px; }
 .lp4-day-before, .lp4-day-after { padding:16px 18px; border-radius:16px; }
-.lp4-day-before { background: var(--canvas2); }
+.lp4-day-before { background: var(--canvas2); position:relative; }
+.lp4-day-before::after { content:""; position:absolute; inset:0; border-radius:16px;
+  background: repeating-linear-gradient(135deg, transparent 0 9px, rgba(20,18,31,.028) 9px 18px); pointer-events:none; }
 .lp4-day-after { background: linear-gradient(135deg, rgba(79,70,229,.07), rgba(99,102,241,.10));
   border:1px solid rgba(79,70,229,.18); }
 .lp4-day-tag { display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:.04em;
   color: var(--ink3); margin-bottom:7px; }
 .lp4-day-tag-on { color: var(--brand); }
-.lp4-day-before p { font-size:14.5px; color: var(--ink2); line-height:1.6; }
-.lp4-day-after p { font-size:14.5px; color: var(--ink); font-weight:600; line-height:1.6; }
+.lp4-day-before p { font-size:14.5px; color: var(--ink3); line-height:1.6; text-decoration: line-through; text-decoration-color: rgba(20,18,31,.18); text-decoration-thickness:1px; }
+.lp4-day-after p { font-size:15px; color: var(--ink); font-weight:700; line-height:1.6; }
+.lp4-day-after { position:relative; overflow:hidden; }
+.lp4-day-after::before { content:""; position:absolute; top:0; left:-40%; width:40%; height:100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); animation: lp4-shine 4.5s ease-in-out infinite; }
+@keyframes lp4-shine { 0%,70% { left:-40%; } 100% { left:120%; } }
+.lp4-day-row { transition: background .25s; border-radius:18px; }
+.lp4-day-row:hover { background: rgba(79,70,229,.03); }
+.lp4-day-time b { transition: color .25s; }
+.lp4-day-row:hover .lp4-day-time b { color: var(--brand); }
 .lp4-day-arrow { display:none; align-items:center; justify-content:center; color: var(--brand); }
 @media (min-width: 960px){
   .lp4-day-arrow { display:flex; }
@@ -331,18 +341,12 @@
 .lp4-bg-dark .lp4-underline { box-shadow: inset 0 -.48em 0 rgba(129,140,248,.28); }
 .lp4-bg-dark .lp4-card { background: rgba(255,255,255,.055); border-color: rgba(255,255,255,.12);
   box-shadow: 0 20px 46px -22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.10); }
-.lp4-bg-dark .lp4-eng:hover { box-shadow: 0 26px 54px -22px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.16); }
 .lp4-bg-dark .lp4-eng-name { color:#fff; }
 .lp4-bg-dark .lp4-eng-eng { color: rgba(255,255,255,.48); }
 .lp4-bg-dark .lp4-eng-line { color:#fff; }
 .lp4-bg-dark .lp4-eng-step { color: rgba(255,255,255,.72); }
 .lp4-bg-dark .lp4-eng-dot { background: rgba(129,140,248,.22); color:#c7d2fe; }
-.lp4-bg-dark .lp4-eng-steps { border-color: rgba(255,255,255,.12); }
-.lp4-bg-dark .lp4-eng-tag { color: rgba(255,255,255,.78); background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); }
-.lp4-bg-dark .lp4-eng-rep { border-color: rgba(255,255,255,.12); }
 .lp4-bg-dark .lp4-eng-rep-cap { color: rgba(255,255,255,.5); }
-.lp4-bg-dark .lp4-eng-rep-cost { color:#6ee7b7; background: rgba(110,231,183,.12); }
-.lp4-bg-dark .lp4-eng::before { background: linear-gradient(90deg, #818cf8, #6ee7b7); }
 
 /* ── 견적 → 정산 흐름 (좌: 단계 / 우: 실제 화면 크로스페이드) ── */
 .lp4-flow { display:grid; grid-template-columns:1fr; gap:28px; align-items:start; }
@@ -429,34 +433,31 @@
 .lp4-feat-row-on .lp4-feat-plus { color:#fff; border-color:transparent;
   background: linear-gradient(135deg, var(--brand), var(--brand-soft)); }
 
-/* ── Engines (AI 4종, 2x2) ─────────────────────────── */
-.lp4-eng-grid { display:grid; grid-template-columns:1fr; gap:18px; }
-@media (min-width: 860px){ .lp4-eng-grid { grid-template-columns: repeat(2,1fr); } }
-.lp4-eng { padding:28px; position:relative; overflow:hidden; transition: transform .2s, box-shadow .2s; }
-.lp4-eng:hover { transform: translateY(-3px); box-shadow: 0 22px 46px -22px rgba(31,38,75,.3), inset 0 1px 0 var(--glass-line); }
-.lp4-eng::before { content:""; position:absolute; top:0; left:0; right:0; height:3px;
-  background: linear-gradient(90deg, var(--brand), var(--brand-soft)); }
-.lp4-eng-head { display:flex; align-items:center; gap:12px; }
-.lp4-eng-chip { display:inline-flex; align-items:center; justify-content:center; width:48px; height:48px;
-  border-radius:15px; background: linear-gradient(135deg, var(--brand), var(--brand-soft)); color:#fff;
-  flex-shrink:0; box-shadow: 0 6px 16px -6px rgba(79,70,229,.6); }
+/* ── Engines — 촌스럽던 4카드 그리드 폐기, 초대형 넘버 + 미니멀 다크 ──
+   테두리·태그칩·배지를 걷어내고 번호·이름·한 줄·3스텝만 남긴다. */
+.lp4-eng-grid { display:grid; grid-template-columns:1fr; gap:0; max-width:1000px; margin:0 auto; }
+.lp4-eng { position:relative; padding:44px 0; border-top:1px solid rgba(255,255,255,.12);
+  background:transparent; border-radius:0; box-shadow:none; display:grid; grid-template-columns:1fr; gap:22px; }
+@media (min-width: 860px){ .lp4-eng { grid-template-columns: 300px 1fr; gap:52px; align-items:start; } }
+.lp4-eng:hover { transform:none; box-shadow:none; }
+.lp4-eng::before { content:none; }
+.lp4-eng-head { display:flex; align-items:center; gap:16px; }
+.lp4-eng-chip { width:auto; height:auto; border-radius:0; background:none; box-shadow:none; color:#818cf8; }
+.lp4-eng-chip svg { width:30px; height:30px; }
 .lp4-eng-id { min-width:0; }
-.lp4-eng-name { font-size:19px; font-weight:800; letter-spacing:-.02em; }
-.lp4-eng-eng { font-size:11.5px; color: var(--ink3); margin-top:1px; letter-spacing:.02em; }
-.lp4-eng-line { font-size:16.5px; font-weight:700; margin-top:20px; line-height:1.5; letter-spacing:-.015em; }
-.lp4-eng-steps { margin-top:18px; padding-top:16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:11px; }
-.lp4-eng-step { display:flex; gap:11px; font-size:13.5px; color: var(--ink2); line-height:1.55; align-items:flex-start; }
-.lp4-eng-dot { flex-shrink:0; width:21px; height:21px; border-radius:999px; background: var(--brand-dim);
-  color: var(--brand); font-size:11.5px; font-weight:800; display:flex; align-items:center; justify-content:center; }
-.lp4-eng-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; }
-.lp4-eng-tag { font-size:11.5px; font-weight:600; color: var(--ink2); background: rgba(20,18,31,.04);
-  border:1px solid var(--line); padding:5px 10px; border-radius:8px; }
-/* 절감 효과 — 문장 속에 묻혀 있던 금액을 카드 하단 강조 블록으로 분리 */
-.lp4-eng-rep { margin-top:18px; padding-top:16px; border-top:1px solid var(--line);
-  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-.lp4-eng-rep-cap { font-size:12px; color: var(--ink3); }
-.lp4-eng-rep-cost { font-size:15px; font-weight:800; color: var(--ok);
-  background: rgba(5,150,105,.09); padding:6px 13px; border-radius:999px; white-space:nowrap; }
+.lp4-eng-name { font-size:24px; font-weight:800; letter-spacing:-.035em; color:#fff; line-height:1.2; }
+.lp4-eng-eng { font-size:11.5px; color: rgba(255,255,255,.42); margin-top:4px; letter-spacing:.05em; }
+.lp4-eng-line { font-size:19px; font-weight:700; color:#fff; line-height:1.5; letter-spacing:-.02em; margin-top:0; }
+@media (min-width: 860px){ .lp4-eng-line { margin-top:2px; } }
+.lp4-eng-steps { margin-top:20px; padding-top:0; border:none; display:grid; grid-template-columns:1fr; gap:10px; }
+@media (min-width: 700px){ .lp4-eng-steps { grid-template-columns: repeat(3,1fr); gap:12px; } }
+.lp4-eng-step { display:flex; gap:9px; font-size:13px; color: rgba(255,255,255,.68); line-height:1.55;
+  align-items:flex-start; padding:14px 16px; border-radius:14px; background: rgba(255,255,255,.05); }
+.lp4-eng-dot { width:18px; height:18px; font-size:10.5px; background: rgba(129,140,248,.25); color:#c7d2fe; }
+.lp4-eng-main { min-width:0; }
+.lp4-eng-rep { margin-top:18px; padding-top:0; border:none; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.lp4-eng-rep-cap { font-size:12.5px; color: rgba(255,255,255,.4); }
+.lp4-eng-rep-cost { font-size:20px; font-weight:800; color:#6ee7b7; background:none; padding:0; letter-spacing:-.02em; }
 
 /* ── Compare ───────────────────────────────────────── */
 .lp4-cmp-grid { display:grid; grid-template-columns:1fr; gap:18px; }
@@ -597,6 +598,23 @@
 .lp4-sticky-cta-on { transform:none; }
 .lp4-sticky-cta .lp4-btn { flex:1; padding:13px 16px; font-size:14.5px; }
 @media (min-width: 720px){ .lp4-sticky-cta { display:none; } }
+
+
+/* ── 스크롤 섹션 전환 (토스모바일 레퍼런스) ─────────────
+   내릴 때마다 "화면이 바뀌는" 느낌을 준다.
+   · snap 은 proximity — mandatory 로 하면 스크롤이 갇혀서 답답해진다.
+   · html 에 직접 걸면 앱 전 페이지에 새므로 :has() 로 랜딩에서만 켠다.
+   · 섹션은 들어올 때 살짝 커지며 나타나고, 지나가면 가라앉는다. */
+@media (min-width: 1000px) and (prefers-reduced-motion: no-preference) {
+  html:has(.lp4-root) { scroll-snap-type: y proximity; scroll-behavior: smooth; }
+  .lp4-snap { scroll-snap-align: start; scroll-snap-stop: normal; }
+}
+.lp4-stage { --lp4-in: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .lp4-stage > * { transition: opacity .6s cubic-bezier(.22,1,.36,1), transform .6s cubic-bezier(.22,1,.36,1); }
+  .lp4-stage-out > * { opacity:.25; transform: scale(.965) translateY(18px); }
+  .lp4-stage-in > * { opacity:1; transform:none; }
+}
 
 /* ── Reveal ────────────────────────────────────────── */
 .lp4-reveal { opacity:0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }

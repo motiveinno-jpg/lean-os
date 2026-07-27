@@ -1271,9 +1271,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .wb-grid-m { @apply grid md:hidden gap-3; }
 .wb-tile { @apply flex flex-col overflow-hidden; }
 .wb-tile-head { @apply flex items-center gap-2 px-3.5 pt-3 pb-2 shrink-0; }
-.wb-tile-icon { @apply text-[13px]; }
-.wb-tile-name { @apply text-[12px] font-bold text-[var(--text)] flex-1 truncate; }
-.wb-grip { @apply text-[13px] text-[var(--text-dim)] leading-none; }
+.wb-tile-name { @apply text-[12.5px] font-bold text-[var(--text)] flex-1 truncate; }
+.wb-tile-link { @apply text-[11px] font-semibold text-[var(--primary)] shrink-0; }
 .wb-tile-body { @apply px-3.5 pb-3.5 flex-1 min-h-0 overflow-hidden; }
 
 .wg-row { @apply flex items-center justify-between gap-2 py-1.5 text-[11.5px] border-b border-[var(--border)] last:border-0; }
@@ -1327,6 +1326,19 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .wg-dot-p { background: var(--primary); }
 .wg-dot-w { background: var(--warning); }
 .wg-dot-o { background: var(--success); }
+
+
+/* 실제 앱과 맞춘 데모 셸 요소 (2026-07-27 실계정 화면 대조) */
+.demo-role { @apply ml-1 px-1 py-px rounded text-[8px] font-bold text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.demo-side-search { @apply flex items-center gap-2 mx-1 mt-3 px-3 py-2 rounded-xl border border-[var(--border)]/80 bg-[var(--bg)]/60 text-[11.5px] text-[var(--text-dim)]; }
+.demo-side-kbd { @apply ml-auto px-1.5 py-0.5 rounded border border-[var(--border)] text-[9.5px] font-semibold; }
+.demo-sidebar-foot { @apply flex flex-col gap-1.5 pt-3 mt-1 border-t border-[var(--border)]/70; }
+.demo-foot-item { @apply text-[11.5px] text-[var(--text-dim)] px-1; }
+.demo-header-badge { @apply absolute -top-1 -right-1 px-1 rounded-full bg-[var(--danger)] text-white text-[9px] font-bold leading-[14px]; }
+.demo-header-profile { @apply flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-[var(--border)]/70; }
+.demo-header-me { @apply hidden lg:flex flex-col leading-tight; }
+.demo-header-me b { @apply text-[11.5px] font-bold text-[var(--text)]; }
+.demo-header-me i { @apply not-italic text-[9.5px] text-[var(--text-dim)]; }
 
 /* ── /demo 3대 축 패널 (2026-07-27) — 경영흐름 · 인사관리 · 회계관리 캡처 소스 ── */
 .pp { @apply mb-5 p-6; }
