@@ -243,10 +243,15 @@ function resolveFormFields(
     ? formsById.get(formId)?.fields
     : (policies || []).find((p) => p.document_type === requestType)?.fields;
   if (!defs || defs.length === 0) return [];
-  // 값이 빈 필드도 포함한다 — 양식에 있는 항목이면 빈칸으로라도 표에 있어야 하고,
-  // 빼버리면 본문에 병합돼 있던 "라벨: " 줄이 제거되지 않아 표 밖으로 새어 나온다
+  // 값이 빈 필드도 포함한다 — 양식에 있는 항목이면 표에 있어야 하고, 빼버리면 본문에
+  // 병합돼 있던 "라벨: " 줄이 제거되지 않아 표 밖으로 새어 나온다
   // (2026-07-27 사장님 제보: 관련프로젝트가 표 밖에 찍힘).
-  return defs.map((fd) => ({ label: fd.label, type: fd.type, value: String(customFields?.[fd.key] ?? "") }));
+  // 빈 값은 "-" 로 표시해 빈 칸이 비어 보이지 않게 한다(사장님 요청). 본문 병합줄
+  // 제거는 라벨로만 매칭하므로 이 치환에 영향받지 않는다.
+  return defs.map((fd) => {
+    const raw = String(customFields?.[fd.key] ?? "").trim();
+    return { label: fd.label, type: fd.type, value: raw || "-" };
+  });
 }
 
 // ── 상세 내용 서식(HTML) 지원 (2026-07-16) — RichEditor 로 작성한 결재 내용(표·서식 포함) ──
