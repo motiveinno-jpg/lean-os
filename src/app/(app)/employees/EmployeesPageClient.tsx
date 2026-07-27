@@ -48,6 +48,7 @@ import { type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, resendEmployeeInvitationByEmail, addExistingMemberAsEmployee } from "@/lib/invitations";
 import {
   MonthlyRecomputeButton,
+  AttendanceEditRequestDialog,
 } from "@/components/hr-attendance-extras";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
@@ -1196,7 +1197,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const [selectedMonth, setSelectedMonth] = useState(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
   );
-  const [viewMode, setViewMode] = useState<"calendar" | "table">("calendar");
+  // 직원 역할은 '데이터'(표) 기본 — 본인 기록 옆 '수정 요청' 동선이 표에 있음. 관리자는 캘린더 조망 유지.
+  const [viewMode, setViewMode] = useState<"calendar" | "table">(role === "employee" ? "table" : "calendar");
   const showDerivedAbsence = true; // 결근 자동표시(과거 평일 무기록) — 항상 on (2026-07-15 리디자인에서 토글 UI 제거)
   // 근태 캘린더 리디자인(2026-07-15) — 선택한 날짜(우측 패널에 그 날 직원별 출근 현황 표시).
   //   기본값은 오늘(선택 월이 이번 달일 때만) — 이미지 시안처럼 진입 시 바로 오늘 상세가 보임.
@@ -1282,6 +1284,22 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const isAdmin = role === "owner" || role === "admin";
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ check_in: "", check_out: "", status: "" });
+
+  // 직원 본인 — 근태 수정 요청(관리자 승인 후 반영). 관리자는 위 인라인 '수정'으로 직접 보정.
+  //   본인 직원 레코드 매칭: user_id 우선, 이메일 폴백(초대 수락 전 user_id 미연결 대비).
+  const myEmployeeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const e of (employees as any[]) || []) {
+      const byUser = userId && e.user_id === userId;
+      const byEmail = userEmail && e.email && String(e.email).toLowerCase() === String(userEmail).toLowerCase();
+      if (byUser || byEmail) ids.add(e.id);
+    }
+    return ids;
+  }, [employees, userId, userEmail]);
+  const canRequestEdit = !isAdmin && myEmployeeIds.size > 0;
+  // 관리(수정/수정 요청) 컬럼 노출 조건 — 관리자 전체, 직원은 본인 기록만.
+  const showActionCol = isAdmin || canRequestEdit;
+  const [editRequestRecord, setEditRequestRecord] = useState<any | null>(null);
 
   const doCorrectAttendance = useMutation({
     mutationFn: ({ recordId, updates }: { recordId: string; updates: { check_in?: string; check_out?: string; status?: string } }) =>
@@ -1656,7 +1674,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   <th className="th-cell text-right">근무시간</th>
                   <th className="th-cell text-right">연장</th>
                   <th className="th-cell text-center">상태</th>
-                  {isAdmin && <th className="th-cell text-center">관리</th>}
+                  {showActionCol && <th className="th-cell text-center">관리</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1758,14 +1776,23 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                         <AttendanceBadges record={r} compact />
                       </div>
                     </td>
-                    {isAdmin && (
+                    {showActionCol && (
                       <td className="px-5 py-3 text-center">
-                        <button
-                          onClick={() => startEditing(r)}
-                          className="px-2.5 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition"
-                        >
-                          수정
-                        </button>
+                        {isAdmin ? (
+                          <button
+                            onClick={() => startEditing(r)}
+                            className="px-2.5 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition"
+                          >
+                            수정
+                          </button>
+                        ) : myEmployeeIds.has(r.employee_id) ? (
+                          <button
+                            onClick={() => setEditRequestRecord(r)}
+                            className="px-2.5 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition"
+                          >
+                            수정 요청
+                          </button>
+                        ) : null}
                       </td>
                     )}
                   </tr>
@@ -1926,6 +1953,22 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           </div>
         );
       })()}
+
+      {/* 직원 본인 — 근태 수정 요청 모달 (관리자 승인 후 attendance_records 반영) */}
+      {editRequestRecord && companyId && userId && (
+        <AttendanceEditRequestDialog
+          open
+          onClose={() => setEditRequestRecord(null)}
+          companyId={companyId}
+          attendanceRecordId={editRequestRecord.id}
+          userId={userId}
+          initial={{
+            check_in: editRequestRecord.check_in || undefined,
+            check_out: editRequestRecord.check_out || undefined,
+            status: effectiveStatus(editRequestRecord),
+          }}
+        />
+      )}
     </div>
   );
 }

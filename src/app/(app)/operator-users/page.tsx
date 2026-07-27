@@ -134,7 +134,7 @@ export default function OperatorUsersPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") doLookup(); }}
-              placeholder="user@example.com 또는 계정 UUID"
+              placeholder="이메일 · 이름(예: 홍길동) · 계정 UUID"
               className="flex-1 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
             />
             <button

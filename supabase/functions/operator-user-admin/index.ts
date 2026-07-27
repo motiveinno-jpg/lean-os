@@ -58,7 +58,7 @@ serve(withSentry("operator-user-admin", async (req) => {
     // ── 조회 ──
     if (mode === "lookup") {
       const q = String(body?.query || "").trim();
-      if (!q) return json({ error: "검색어(이메일 또는 ID)를 입력하세요" }, 400);
+      if (!q) return json({ error: "검색어(이메일·이름 또는 ID)를 입력하세요" }, 400);
 
       let userRow: any = null;
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
@@ -71,11 +71,14 @@ serve(withSentry("operator-user-admin", async (req) => {
         userRow = data;
       }
       if (!userRow) {
-        // 부분 일치 후보 목록
+        // 부분 일치 후보 목록 — email 뿐 아니라 name 도 검색 (한글 이름으로 찾을 때 0건 나던 문제).
+        //   PostgREST or() 는 , ( ) 를 문법 문자로 쓰므로 검색어에서 제거 후 조립.
+        const safe = q.replace(/[,()\\]/g, "").trim();
+        if (!safe) return json({ found: false, candidates: [] });
         const { data: candidates } = await svc
           .from("users")
           .select("id, email, name, role, company_id")
-          .ilike("email", `%${q}%`)
+          .or(`email.ilike.%${safe}%,name.ilike.%${safe}%`)
           .limit(10);
         return json({ found: false, candidates: candidates || [] });
       }

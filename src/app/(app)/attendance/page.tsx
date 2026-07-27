@@ -10,6 +10,7 @@ import { OvertimeRequestCard } from "@/components/overtime-request-card";
 import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
 import { OvertimeStats } from "@/components/overtime-stats";
 import { FlexWorkBoard } from "@/components/flex-work-board";
+import { EditRequestInbox } from "@/components/hr-attendance-extras";
 
 // 근태 관리 — employees/page.tsx 의 AttendanceTab 재사용. 사이드바 '근태 관리' 진입점.
 //   래퍼 시안 리스킨 (공용 컴포넌트 사용, 표시 전용). AttendanceTab 본체(6342줄) 무변경.
@@ -90,6 +91,11 @@ export default function AttendancePage() {
               </button>
             ))}
           </div>
+          {/* 관리자 — 직원이 올린 근태 수정 요청 승인 인박스. 대기 0건이면 자체적으로 렌더 안 함.
+              알림 딥링크(?view=records)가 도착하는 화면이라 기록 상세 상단에 배치. */}
+          {isManager && attView === "records" && userId && (
+            <EditRequestInbox companyId={companyId} reviewerId={userId} />
+          )}
           {attView === "work" ? (
             <FlexWorkBoard companyId={companyId} employees={employees} role={role} userId={userId} />
           ) : (
