@@ -14,7 +14,6 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { HERO, STATS, PILLARS, DAY, MOBILE, ENGINES, CATALOG, AI_AUTOMATION, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
-import { LIVE } from "@/components/landing/live-panels";
 
 function Logo({ size = 26 }: { size?: number }) {
   return (
@@ -27,7 +26,6 @@ function Logo({ size = 26 }: { size?: number }) {
     </svg>
   );
 }
-const DAY_LIVE = ["brief", "quote", "attend", "match", "forecast"];
 
 const Check = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
 const Arrow = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" /></svg>);
@@ -188,7 +186,7 @@ function PillarTabs() {
           <div className="lp4-mf-stage">
             <span className="lp4-mf-orb" />
             <div className="lp4-mf-screen" key={B.src}>
-              <Image src={B.src} alt={B.alt} width={1968} height={1320} sizes="(max-width: 1000px) 100vw, 700px" />
+              <Image src={B.src} alt={B.alt} width={1968} height={1320} sizes="(max-width: 1000px) 100vw, 800px" />
             </div>
             {B.chips.map((ch, i) => (
               <span key={`${B.src}-${ch}`} className={`lp4-mf-chip lp4-mf-chip-${i + 1}`}>{ch}</span>
@@ -267,7 +265,7 @@ function MobileScroll() {
                   alt={st.alt}
                   width={1170}
                   height={2400}
-                  sizes="330px"
+                  sizes="(max-width: 999px) 80vw, 380px"
                   className={k === i ? "lp4-phone3d-img lp4-phone3d-on" : "lp4-phone3d-img"}
                 />
               ))}
@@ -289,7 +287,7 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
         <span className="lp4-shot-dot lp4-shot-dot-g" />
         <span className="lp4-shot-url">app.owner-view.com</span>
       </div>
-      <Image className="lp4-shot-img" src={src} alt={alt} width={1440} height={900} priority={priority} sizes="(max-width: 1100px) 100vw, 1032px" />
+      <Image className="lp4-shot-img" src={src} alt={alt} width={1440} height={900} priority={priority} sizes="(max-width: 1100px) 100vw, 1256px" />
     </div>
   );
 }
@@ -449,7 +447,7 @@ export default function LandingPage() {
         </div>
         {/* 실제 오너뷰 대시보드 — 히어로 아래로 걸쳐 다음 섹션까지 이어진다 */}
         <div className="lp4-hero-shot">
-          <ShotFrame src="/product/dashboard-v3.png" alt="오너뷰 위젯 대시보드 — 근태·일정·프로젝트·매출·미수금 위젯" priority />
+          <ShotFrame src="/product/dashboard-v4.png" alt="오너뷰 위젯 대시보드 — 근태·일정·프로젝트·매출·미수금 위젯" priority />
         </div>
       </header>
       <div className="lp4-hero-spacer" />
@@ -514,13 +512,10 @@ export default function LandingPage() {
                     alt={d.alt}
                     width={1440}
                     height={900}
-                    sizes="(max-width: 1000px) 100vw, 720px"
+                    sizes="(max-width: 1000px) 100vw, 820px"
                     className={i === day ? "lp4-tl-shot lp4-tl-shot-on" : "lp4-tl-shot"}
                   />
                 ))}
-                <div className="lp4-tl-live" key={`lv-${DAY[day].time}`}>
-                  {(() => { const C = LIVE[DAY_LIVE[day]]; return <C />; })()}
-                </div>
               </div>
             </div>
           </div>
@@ -566,7 +561,7 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="lp4-eshot">
-              <Image src={ENGINES[eng].src} alt={ENGINES[eng].alt} width={1200} height={760} sizes="(max-width: 1000px) 100vw, 620px" />
+              <Image src={ENGINES[eng].src} alt={ENGINES[eng].alt} width={1200} height={760} sizes="(max-width: 1000px) 100vw, 740px" />
             </div>
           </div>
 

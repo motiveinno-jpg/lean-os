@@ -177,7 +177,7 @@ export default function FeaturesView() {
                       alt={CATALOG[cat].menus[menu].alt}
                       width={1968}
                       height={1320}
-                      sizes="(max-width: 1000px) 100vw, 760px"
+                      sizes="(max-width: 1000px) 100vw, 900px"
                     />
                   </div>
                   <div className="lp4-cat-feats">
