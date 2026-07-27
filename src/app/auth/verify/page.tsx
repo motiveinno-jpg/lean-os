@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { provisionCompanyForUser } from "@/lib/company-signup";
+import { recordConsent, hasConsentPending, clearConsentPending } from "@/lib/legal";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -60,6 +61,14 @@ export default function VerifyEmailPage() {
       user_metadata?: Record<string, string>;
     }): Promise<boolean> {
       try {
+        // 약관 동의 기록 — 가입 화면에서 동의한 사실을 세션이 생긴 지금 남긴다.
+        //   이메일 가입은 확인 전, 소셜은 리다이렉트 중이라 그 시점엔 세션이 없어 기록이 불가했다.
+        //   'signup' 은 계정당 1건(부분 유니크) 이라 재시도·새로고침에도 중복되지 않는다.
+        if (hasConsentPending()) {
+          await recordConsent({ authId: user.id, consentType: "signup" });
+          clearConsentPending();
+        }
+
         const result = await provisionCompanyForUser(user);
         if (result === "join_pending") {
           completed = true;

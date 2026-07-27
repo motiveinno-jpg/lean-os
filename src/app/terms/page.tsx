@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LEGAL_DOC_VERSIONS } from "@/lib/legal";
 import { RollingBrandText } from "@/components/brand-logo";
 
 const SECTIONS = [
@@ -204,7 +205,7 @@ export default function TermsPage() {
       <main className="legal-content">
         <div className="legal-header">
           <h1 className="text-3xl md:text-4xl font-bold mb-3">이용약관</h1>
-          <p className="text-slate-400 text-sm">최종 수정일: 2026년 3월 5일 | 시행일: 2026년 3월 5일</p>
+          <p className="text-slate-400 text-sm">{`시행일: ${LEGAL_DOC_VERSIONS.terms}`}</p>
         </div>
 
         <div className="legal-sections">

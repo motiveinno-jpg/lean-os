@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { markConsentPending } from "@/lib/legal";
 import { useRouter } from "next/navigation";
 import { RollingBrandText } from "@/components/brand-logo";
 import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, provisionCompanyForUser, createCompanyWithOwner, assertBizNoOwnerValid } from "@/lib/company-signup";
@@ -190,6 +191,9 @@ export default function AuthPage() {
       return setError(translateAuthError(authErr.message));
     }
     if (!authData.user) return setError("가입 처리 중 오류가 발생했습니다.");
+    // 이메일 가입은 확인 전까지 세션이 없어 지금은 기록할 수 없다(RLS: auth.uid() 필요).
+    //   소셜과 동일하게 보관해 두고, 세션이 생기는 /auth/verify 에서 기록한다.
+    markConsentPending();
 
     // Supabase는 이미 확인된 이메일로 signUp 시 identities 빈 배열 반환
     if (authData.user.identities && authData.user.identities.length === 0) {
@@ -422,6 +426,7 @@ export default function AuthPage() {
                 if (mode === "signup" && !agreed) {
                   return setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
                 }
+                if (mode === "signup") markConsentPending(); // 콜백 후 세션 생기면 기록
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "kakao",
                   options: { redirectTo: "https://www.owner-view.com/api/auth/callback?next=/auth/verify" },
@@ -444,6 +449,7 @@ export default function AuthPage() {
                 if (mode === "signup" && !agreed) {
                   return setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
                 }
+                if (mode === "signup") markConsentPending(); // 콜백 후 세션 생기면 기록
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "google",
                   options: { redirectTo: "https://www.owner-view.com/api/auth/callback?next=/auth/verify" },

@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
+import { recordConsent } from "@/lib/legal";
 import { useUser } from "@/components/user-context";
 import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
@@ -204,6 +205,18 @@ export default function BillingPage() {
     if (cycle === "annual" && !annualRefundAck) {
       toast("연간 결제는 환불 불가 안내에 동의해야 진행할 수 있습니다.", "error");
       return;
+    }
+    // 연간 동의는 결제 건마다 남긴다(가입 동의와 달리 1회성이 아님).
+    if (cycle === "annual") {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        await recordConsent({
+          authId: authUser.id,
+          consentType: "annual_billing_no_refund",
+          companyId,
+          context: { planSlug, billingCycle: cycle, seatCount: usage?.employees || 1 },
+        });
+      }
     }
     setIsPaymentLoading(true);
     try {

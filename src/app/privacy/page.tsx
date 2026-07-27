@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LEGAL_DOC_VERSIONS } from "@/lib/legal";
 import { RollingBrandText } from "@/components/brand-logo";
 
 const SECTIONS = [
@@ -296,7 +297,7 @@ export default function PrivacyPage() {
       <main className="legal-content">
         <div className="legal-header">
           <h1 className="text-3xl md:text-4xl font-bold mb-3">개인정보처리방침</h1>
-          <p className="text-slate-400 text-sm">최종 수정일: 2026년 4월 29일 | 시행일: 2026년 4월 29일</p>
+          <p className="text-slate-400 text-sm">{`시행일: ${LEGAL_DOC_VERSIONS.privacy}`}</p>
         </div>
 
         <div className="legal-intro-box">
