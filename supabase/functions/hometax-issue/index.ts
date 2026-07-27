@@ -78,6 +78,15 @@ function codefErrorHint(code?: string): string {
   return `CODEF 발행 오류 (${code}). 자세한 내용은 nts_response_payload 또는 CODEF 대시보드 오류 로그를 확인하세요.`;
 }
 
+// 국세청 승인번호 정규화 — CODEF 는 24자리 영숫자를 요구한다.
+//   홈택스 동기화로 들어온 값은 화면 표기형(8-8-8, 하이픈 2개 = 26자)이라 그대로 보내면 거부된다.
+//   실데이터 확인(2026-07-27): 승인번호 보유 1,806건 전부 하이픈 제거 시 정확히 24자리.
+//     · 동기화분 1,805건 = 26자 하이픈형 (예: 20250501-10250502-27435031)
+//     · CODEF 발행분 1건 = 24자 그대로 (예: 202607224100020300002561)
+function normalizeNtsConfirmNum(v: string | null | undefined): string {
+  return String(v || "").replace(/[^0-9A-Za-z]/g, "");
+}
+
 // 안전 변환: yyyy-mm-dd → yyyymmdd
 function toYmd(d: string | null): string {
   if (!d) return new Date().toISOString().slice(0, 10).replaceAll("-", "");
@@ -363,6 +372,7 @@ serve(withSentry("hometax-issue", async (req) => {
         }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       // 수정세금계산서는 당초 승인번호가 반드시 필요하다(국세청 필수 항목).
+      const orgConfirmNo = normalizeNtsConfirmNum(original.nts_confirm_no);
       if (!original.nts_confirm_no) {
         return new Response(JSON.stringify({
           error: "당초 세금계산서에 국세청 승인번호가 없습니다. 원본이 홈택스에 실제 발행된 뒤에만 수정세금계산서를 발행할 수 있습니다.",
@@ -380,7 +390,15 @@ serve(withSentry("hometax-issue", async (req) => {
         }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      modification = { originalConfirmNo: original.nts_confirm_no, reasonCode };
+      if (orgConfirmNo.length !== 24) {
+        return new Response(JSON.stringify({
+          error: `당초 승인번호 형식이 올바르지 않습니다(24자리 필요, 현재 ${orgConfirmNo.length}자리).`,
+          hint: "홈택스 동기화 값이 손상됐을 수 있습니다. 원본 세금계산서의 승인번호를 확인하세요.",
+          code: "MODIFY_ORIGINAL_CONFIRM_NO_INVALID",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      modification = { originalConfirmNo: orgConfirmNo, reasonCode };
     }
 
     // 3) 이미 발행된 건 중복 방지
