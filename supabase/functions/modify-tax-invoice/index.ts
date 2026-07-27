@@ -18,13 +18,16 @@ function getCorsHeaders(req: Request) {
 }
 
 // 수정세금계산서 사유 코드 (국세청 기준)
+// 국세청 수정사유 코드. 키는 UI(tax-invoices/page.tsx MODIFICATION_REASONS)가 보내는 값과 동일하게 맞춘다.
+//   2026-07-27: 기존 맵은 한글 라벨을 키로 써서 UI 값("duplicate" 등)과 절대 매칭되지 않는
+//   죽은 코드였다. 실제 전송(hometax-issue NTS_MODIFY_CODES)과 같은 기준으로 통일.
 const MODIFICATION_REASON_CODES: Record<string, string> = {
-  "기재사항 착오정정": "01",
-  "공급가액 변동": "02",
-  "환입": "03",
-  "계약의 해제": "04",
-  "내국신용장 사후개설": "05",
-  "착오에 의한 이중발급": "06",
+  error_correction: "01", // 기재사항 착오정정
+  price_change: "02",     // 공급가액 변동
+  return: "03",           // 환입
+  contract_cancel: "04",  // 계약의 해제
+  inland_lc: "05",        // 내국신용장 사후개설
+  duplicate: "06",        // 착오에 의한 이중발급
 };
 
 serve(withSentry("modify-tax-invoice", async (req) => {
@@ -77,7 +80,14 @@ serve(withSentry("modify-tax-invoice", async (req) => {
       return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    void MODIFICATION_REASON_CODES; // 국세청 코드값은 전송(hometax-issue) 단계에서 사용
+    // 사유 검증 — 국세청 코드로 변환 불가한 값이 저장되면 나중에 발행 단계에서야 막힌다.
+    //   실제 코드값 전송은 hometax-issue 가 담당하고, 여기선 저장 전에 형식을 보장한다.
+    if (!MODIFICATION_REASON_CODES[String(reason)]) {
+      return new Response(JSON.stringify({
+        error: `수정사유가 올바르지 않습니다: ${reason}`,
+        hint: `허용값: ${Object.keys(MODIFICATION_REASON_CODES).join(", ")}`,
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const modDate = modification_date || new Date().toISOString().slice(0, 10);
     // 취소(전액 반대) = new_supply_amount 미지정 → 원본 음수. 부분 수정(공급가액 변동) = 지정값.
     const hasNewAmount = new_supply_amount !== undefined && new_supply_amount !== null;

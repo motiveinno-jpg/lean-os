@@ -80,6 +80,28 @@ function toYmd(d: string | null): string {
   return d.replaceAll("-", "").slice(0, 8);
 }
 
+// ── 수정세금계산서(수정발행) ──────────────────────────────────────────────
+//   UI(tax-invoices/page.tsx MODIFICATION_REASONS)가 보내는 사유값 → 국세청 수정사유 코드.
+//   modify-tax-invoice 안의 한글 라벨 맵은 UI 값과 형식이 달라 매칭되지 않는 죽은 코드였다.
+//   이쪽(전송 단계)이 단일 기준이다.
+const NTS_MODIFY_CODES: Record<string, string> = {
+  error_correction: "01", // 기재사항 착오정정
+  price_change: "02",     // 공급가액 변동
+  return: "03",           // 환입
+  contract_cancel: "04",  // 계약의 해제
+  inland_lc: "05",        // 내국신용장 사후개설
+  duplicate: "06",        // 착오에 의한 이중발급
+};
+
+// ⚠️ CODEF 발행 API의 "수정발행" 필드명·코드값은 사내에 확보된 명세(발행 API PDF 2026-05)에
+//   포함돼 있지 않다. 이 파일 115행에 남아 있듯, 명세에 없는 필드를 payload 에 넣으면
+//   CF-05001(API 처리 오류)이 발생한 전례가 있어 필드명을 추정해서 보내지 않는다.
+//   CODEF 로부터 수정발행 명세를 받은 뒤 아래 상수를 채우고 env 로 활성화한다.
+//     CODEF_MODIFY_ISSUE_ENABLED=true
+//   활성화 전까지는 "수정세금계산서를 정발행으로 잘못 전송하는 것"을 차단하는 역할을 한다
+//   (기존엔 issueType 이 "정발행" 으로 고정돼 수정분도 일반 발행으로 나갔다).
+const MODIFY_ISSUE_ENABLED = Deno.env.get("CODEF_MODIFY_ISSUE_ENABLED") === "true";
+
 // CODEF 발행 payload 구성 — 발행 API PDF 명세 기준 (한글 코드값).
 function buildIssuePayload(args: {
   invoice: any;
@@ -87,8 +109,10 @@ function buildIssuePayload(args: {
   partner: any | null;
   invoicerEmail: string;
   connectedId: string;
+  /** 수정발행일 때만 — 당초 승인번호 + 국세청 수정사유 코드 */
+  modification?: { originalConfirmNo: string; reasonCode: string } | null;
 }): Record<string, unknown> {
-  const { invoice, company, partner, invoicerEmail, connectedId } = args;
+  const { invoice, company, partner, invoicerEmail, connectedId, modification } = args;
   const writeDate = toYmd(invoice.issue_date);
   const supply = String(Math.round(Number(invoice.supply_amount || 0)));
   const tax = String(Math.round(Number(invoice.tax_amount || 0)));
@@ -115,7 +139,12 @@ function buildIssuePayload(args: {
   void connectedId; // QA 2026-07-13: connectedId 는 발행 API 공식 명세에 없는 필드 — payload 에 넣으면 CF-05001(API 처리 오류) 유발 확인. 제거.
   return {
     corpNum: myCorpNum,         // 회원가입 완료 사업자번호 (CODEF 필수) = 발행 주체
-    issueType: "정발행",
+    issueType: modification ? "수정발행" : "정발행",
+    // 수정발행 전용 항목 — 당초 승인번호와 수정사유 코드. 명세 확보 후 필드명을 확정해야 하며
+    //   그때까지는 이 경로 자체가 MODIFY_ISSUE_ENABLED 로 막혀 실제 전송되지 않는다.
+    ...(modification
+      ? { modifyCode: modification.reasonCode, orgNtsConfirmNum: modification.originalConfirmNo }
+      : {}),
     taxType: "과세",            // 영세/면세는 추후 invoice 유형 컬럼 연동
     purposeType,                // "영수"(결제완료) / "청구"
     sendToNtsYn: "N",           // 2026-07-22 CODEF(헥토데이터) 공식 안내: Y(즉시전송) 시 Codef 로직 버그로 CF-05001 반환.
@@ -322,6 +351,52 @@ serve(withSentry("hometax-issue", async (req) => {
       }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // 3-1) 수정세금계산서(수정발행) 판정 + 전제조건 검증
+    //   기존엔 이 분기가 없어 수정세금계산서도 issueType "정발행" 으로 전송됐다 —
+    //   국세청에 잘못된 문서가 나가는 경로였으므로 여기서 반드시 걸러낸다.
+    let modification: { originalConfirmNo: string; reasonCode: string } | null = null;
+    if (invoice.original_invoice_id) {
+      const { data: original } = await supabase
+        .from("tax_invoices")
+        .select("id, nts_confirm_no, nts_issue_status, counterparty_name")
+        .eq("id", invoice.original_invoice_id)
+        .maybeSingle();
+
+      if (!original) {
+        return new Response(JSON.stringify({
+          error: "당초 세금계산서를 찾을 수 없습니다. 수정세금계산서를 발행할 수 없습니다.",
+          code: "MODIFY_ORIGINAL_NOT_FOUND",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      // 수정세금계산서는 당초 승인번호가 반드시 필요하다(국세청 필수 항목).
+      if (!original.nts_confirm_no) {
+        return new Response(JSON.stringify({
+          error: "당초 세금계산서에 국세청 승인번호가 없습니다. 원본이 홈택스에 실제 발행된 뒤에만 수정세금계산서를 발행할 수 있습니다.",
+          hint: "원본이 아직 미발행(draft)이면 수정 대신 원본을 삭제·정정해 다시 발행하세요.",
+          code: "MODIFY_ORIGINAL_NOT_ISSUED",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const reasonCode = NTS_MODIFY_CODES[String(invoice.modification_reason || "")];
+      if (!reasonCode) {
+        return new Response(JSON.stringify({
+          error: `수정사유가 올바르지 않습니다: ${invoice.modification_reason ?? "(없음)"}`,
+          hint: `허용값: ${Object.keys(NTS_MODIFY_CODES).join(", ")}`,
+          code: "MODIFY_REASON_INVALID",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      if (!MODIFY_ISSUE_ENABLED) {
+        return new Response(JSON.stringify({
+          error: "수정세금계산서 전송은 아직 활성화되지 않았습니다. CODEF 수정발행 API 명세 확인 후 열립니다.",
+          hint: "명세 확보 후 CODEF_MODIFY_ISSUE_ENABLED=true 로 활성화하세요. 임의 필드 전송은 CF-05001(API 처리 오류)을 유발합니다.",
+          code: "MODIFY_ISSUE_NOT_ENABLED",
+        }), { status: 501, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      modification = { originalConfirmNo: original.nts_confirm_no, reasonCode };
+    }
+
     // 3) 이미 발행된 건 중복 방지
     if (invoice.nts_issue_status === "issued" && invoice.nts_confirm_no) {
       return new Response(JSON.stringify({
@@ -424,7 +499,7 @@ serve(withSentry("hometax-issue", async (req) => {
     }
 
     // 7) payload 구성 + pending 상태 마킹
-    const payload = buildIssuePayload({ invoice, company, partner, invoicerEmail, connectedId });
+    const payload = buildIssuePayload({ invoice, company, partner, invoicerEmail, connectedId, modification });
     await supabase.from("tax_invoices").update({
       nts_issue_status: "pending",
       nts_request_payload: payload,
