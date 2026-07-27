@@ -7,6 +7,54 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const KST_OFFSET_MS = 9 * 3600 * 1000;
+
+function parseHhmm(v: unknown, fallback: number): number {
+  if (typeof v !== "string" || !/^\d{2}:\d{2}/.test(v)) return fallback;
+  const [h, m] = v.slice(0, 5).split(":");
+  return (Number(h) || 0) * 60 + (Number(m) || 0);
+}
+
+/**
+ * 근무시간 정책 로드 — 회사 기본값 + 직원 개인 override.
+ * 지각 판정(checkin)과 근무·연장 산정(checkout)이 같은 값을 쓰도록 한 곳에 모았다.
+ */
+// deno-lint-ignore no-explicit-any
+async function loadWorkSettings(
+  admin: any,
+  companyId: string,
+  employeeId: string,
+): Promise<{ workStartMin: number; workEndMin: number; lunchMin: number }> {
+  const csRes = await admin.from("company_settings")
+    .select("work_start_time, work_end_time, lunch_minutes")
+    .eq("company_id", companyId)
+    .maybeSingle();
+  const cs = (csRes.data || {}) as Record<string, unknown>;
+
+  let workStartMin = parseHhmm(cs.work_start_time, 9 * 60);
+  let workEndMin = parseHhmm(cs.work_end_time, 18 * 60);
+  const lunchRaw = Number(cs.lunch_minutes);
+  const lunchMin = Number.isFinite(lunchRaw) && lunchRaw >= 0 ? lunchRaw : 60;
+
+  // 직원 개인 출퇴근시간 override — 있으면 회사 기본값 대신 사용.
+  const empRes = await admin.from("employees")
+    .select("work_start_time, work_end_time")
+    .eq("id", employeeId)
+    .maybeSingle();
+  const emp = (empRes.data || {}) as Record<string, unknown>;
+  workStartMin = parseHhmm(emp.work_start_time, workStartMin);
+  workEndMin = parseHhmm(emp.work_end_time, workEndMin);
+
+  return { workStartMin, workEndMin, lunchMin };
+}
+
+/** 그 날(check_in 이 속한 KST 날짜)의 지정 출근시각을 epoch ms 로 */
+function scheduledStartMs(checkInIso: string, workStartMin: number): number {
+  const kst = new Date(new Date(checkInIso).getTime() + KST_OFFSET_MS);
+  const kstMidnightMs = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate()) - KST_OFFSET_MS;
+  return kstMidnightMs + workStartMin * 60_000;
+}
+
 serve(withSentry("attendance-checkin", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -43,7 +91,9 @@ serve(withSentry("attendance-checkin", async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    const today = date || new Date().toISOString().slice(0, 10);
+    // ⚠️ toISOString().slice(0,10) 은 UTC 날짜라 KST 00:00~08:59 출근이 "어제" 로 기록됐다.
+    //    근태는 전부 KST 기준이므로 날짜도 KST 로 뽑는다(2026-07-27).
+    const today = date || new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
     const now = new Date().toISOString();
 
     const { data: empCheck } = await admin.from("employees").select("id").eq("id", employeeId).maybeSingle();
@@ -62,24 +112,7 @@ serve(withSentry("attendance-checkin", async (req) => {
       // 회귀픽스 (2026-05-21): INSERT 시 is_late / late_minutes 컬럼을 함께 채워
       //   "출근 누를 때마다 행 재생성 → late 컬럼 0" 회귀 차단. KST 분 단위 비교.
       //   클라이언트 hr.ts mark_attendance_late RPC 도 유지 (이중 안전망).
-      const csRes = await admin.from("company_settings")
-        .select("work_start_time")
-        .eq("company_id", companyId)
-        .maybeSingle();
-      let wst = "09:00";
-      if (csRes.data && typeof csRes.data.work_start_time === "string" && /^\d{2}:\d{2}/.test(csRes.data.work_start_time)) {
-        wst = csRes.data.work_start_time.slice(0, 5);
-      }
-      // 직원 개인 출퇴근시간 override — 있으면 회사 기본값 대신 사용 (지각 판정 일관성).
-      const empRes = await admin.from("employees")
-        .select("work_start_time")
-        .eq("id", employeeId)
-        .maybeSingle();
-      if (empRes.data && typeof empRes.data.work_start_time === "string" && /^\d{2}:\d{2}/.test(empRes.data.work_start_time)) {
-        wst = empRes.data.work_start_time.slice(0, 5);
-      }
-      const wparts = wst.split(":");
-      const workStartMin = (Number(wparts[0]) || 0) * 60 + (Number(wparts[1]) || 0);
+      const { workStartMin } = await loadWorkSettings(admin, companyId, employeeId);
       const kstDate = new Date(new Date(now).getTime() + 9 * 3600 * 1000);
       const ciKstMin = kstDate.getUTCHours() * 60 + kstDate.getUTCMinutes();
 
@@ -130,11 +163,26 @@ serve(withSentry("attendance-checkin", async (req) => {
         });
       }
 
+      // 근무·연장 산정 (2026-07-27 사장님 제보 수정).
+      //   기존: (퇴근-출근) - 1h 고정, 8h 초과분을 연장 → 09:30 출근 회사에서 09:15 에 찍으면
+      //         15분이 연장으로 잡혔다. 점심 1h·정시 8h 하드코딩이라 회사 설정도 무시했다.
+      //   변경: attendance-calc.ts 의 calcDailyAttendance 와 동일 규칙 —
+      //         ① 지정 출근시각보다 이른 출근은 산정 시각을 지정 출근시각으로 clamp
+      //            (표시용 check_in 원본은 실제 시각 그대로 유지)
+      //         ② 점심·정시는 회사/직원 설정에서 읽는다
+      const { workStartMin, workEndMin, lunchMin } = await loadWorkSettings(admin, companyId, employeeId);
       const checkInTime = new Date(record.check_in).getTime();
       const checkOutTime = new Date(now).getTime();
-      const diffHours = (checkOutTime - checkInTime) / (1000 * 60 * 60);
-      const workHours = Math.round(Math.max(0, diffHours - 1) * 100) / 100;
-      const overtimeHours = Math.round(Math.max(0, workHours - 8) * 100) / 100;
+      const effCheckInTime = Math.max(checkInTime, scheduledStartMs(record.check_in, workStartMin));
+
+      const grossMin = Math.max(0, (checkOutTime - effCheckInTime) / 60_000);
+      const workMin = grossMin > lunchMin ? grossMin - lunchMin : grossMin;
+      // 설정이 비정상이면(정시 <= 0) 법정 8h 로 안전 fallback.
+      const nominalRaw = (workEndMin - workStartMin) - lunchMin;
+      const nominalMin = nominalRaw > 0 ? nominalRaw : 8 * 60;
+
+      const workHours = Math.round((workMin / 60) * 100) / 100;
+      const overtimeHours = Math.round((Math.max(0, workMin - nominalMin) / 60) * 100) / 100;
 
       const { data, error } = await admin.from("attendance_records")
         .update({ check_out: now, work_hours: workHours, overtime_hours: overtimeHours })

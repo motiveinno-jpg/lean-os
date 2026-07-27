@@ -1697,6 +1697,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .expense-receipt-uploader { @apply mb-4; }
 .expense-list-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
 .attendance-toolbar { @apply flex items-center justify-between gap-3 flex-wrap mb-4; }
+.attendance-manual-add-btn { @apply px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] rounded-xl text-xs font-semibold hover:bg-[var(--bg-surface)] transition; }
 .attendance-today-panel { @apply flex flex-col gap-4 h-full; }
 .attendance-records-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
 .attendance-monthly-summary { @apply mt-6; }

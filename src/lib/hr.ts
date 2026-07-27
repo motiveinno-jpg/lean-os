@@ -9,6 +9,7 @@ import { supabase } from './supabase';
 import { getCurrentUser } from './queries';
 import {
   calcDailyAttendance,
+  calcLegacyWorkHours,
   calcOvertimePay,
   type AttendanceCompanySettings,
   type DailyResult,
@@ -992,11 +993,26 @@ export async function correctAttendanceRecord(recordId: string, updates: {
   let overtimeHours: number | undefined;
 
   if (updates.check_in && updates.check_out) {
-    const checkInTime = new Date(updates.check_in).getTime();
-    const checkOutTime = new Date(updates.check_out).getTime();
-    const diffHours = (checkOutTime - checkInTime) / (1000 * 60 * 60);
-    workHours = Math.round(Math.max(0, diffHours - 1) * 100) / 100; // subtract 1hr lunch
-    overtimeHours = Math.round(Math.max(0, workHours - 8) * 100) / 100;
+    // 점심 1h·정시 8h 하드코딩이던 것을 회사 설정 기반으로 교체 (2026-07-27).
+    //   조기 출근이 연장으로 잡히던 문제를 관리자 수정 경로에서도 동일하게 차단한다
+    //   (attendance-checkin 엣지 checkout 분기와 같은 규칙).
+    const rec = logRead('lib/hr:rec-calc', await db
+      .from('attendance_records').select('company_id, employee_id').eq('id', recordId).maybeSingle());
+    const settings = rec?.company_id
+      ? await getAttendanceCompanySettings(rec.company_id as string)
+      : { ...DEFAULT_ATTENDANCE_COMPANY_SETTINGS };
+    const startOverride = rec?.company_id
+      ? (await getAttendancePolicy(rec.company_id as string, (rec.employee_id as string) || undefined)).workStartTime
+      : settings.work_start_time;
+    const legacy = calcLegacyWorkHours({
+      checkIn: updates.check_in,
+      checkOut: updates.check_out,
+      workStartTime: startOverride,
+      workEndTime: settings.work_end_time,
+      lunchMinutes: settings.lunch_minutes,
+    });
+    workHours = legacy.workHours;
+    overtimeHours = legacy.overtimeHours;
   }
 
   const updatePayload: Record<string, any> = {};
@@ -1032,6 +1048,81 @@ export async function correctAttendanceRecord(recordId: string, updates: {
     .from('attendance_records')
     .update(updatePayload as never)
     .eq('id', recordId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * 관리자 대행 출퇴근 기록 (2026-07-27 사장님 요청).
+ *   "직원이 실수로 출근하기를 안 눌렀을 때 대신 눌러줄 수 있게" —
+ *   기록이 아예 없는 날도 관리자가 건별로 만들 수 있어야 한다.
+ *
+ * UNIQUE(employee_id, date) 라 같은 날 기록이 이미 있으면 덮어쓴다(upsert).
+ * 지각·근무시간 판정 규칙은 correctAttendanceRecord 와 동일하게 맞춘다.
+ * RLS: attendance_records_insert_self_or_admin (is_company_admin) 로 관리자만 통과.
+ */
+export async function upsertAttendanceRecordAsAdmin(params: {
+  companyId: string;
+  employeeId: string;
+  date: string;            // 'YYYY-MM-DD' (KST)
+  checkIn?: string | null;  // ISO
+  checkOut?: string | null; // ISO
+  status?: string;
+  note?: string | null;
+  editedBy?: string | null;
+}) {
+  const { companyId, employeeId, date } = params;
+  if (!companyId || !employeeId || !date) throw new Error('회사·직원·날짜는 필수입니다.');
+
+  const settings = await getAttendanceCompanySettings(companyId);
+  const policy = await getAttendancePolicy(companyId, employeeId);
+
+  const row: Record<string, any> = {
+    company_id: companyId,
+    employee_id: employeeId,
+    date,
+    check_in: params.checkIn || null,
+    check_out: params.checkOut || null,
+    status: params.status || 'present',
+    note: params.note || null,
+    edited_by: params.editedBy || null,
+    edited_at: new Date().toISOString(),
+    work_hours: 0,
+    overtime_hours: 0,
+    is_late: false,
+    late_minutes: 0,
+  };
+
+  if (params.checkIn) {
+    const ci = new Date(params.checkIn);
+    if (!isNaN(ci.getTime())) {
+      const kst = new Date(ci.getTime() + 9 * 3600 * 1000);
+      const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
+      const late = isLate(kstMin, policy);
+      // 관리자가 상태를 명시했으면 그 값을 존중하고, 없을 때만 지각 여부로 자동 판정.
+      if (!params.status) row.status = late ? 'late' : 'present';
+      row.is_late = row.status === 'late';
+      row.late_minutes = row.is_late ? Math.max(0, kstMin - parseHhmmToMinutes(policy.workStartTime)) : 0;
+    }
+  }
+
+  if (params.checkIn && params.checkOut) {
+    const legacy = calcLegacyWorkHours({
+      checkIn: params.checkIn,
+      checkOut: params.checkOut,
+      workStartTime: policy.workStartTime,
+      workEndTime: settings.work_end_time,
+      lunchMinutes: settings.lunch_minutes,
+    });
+    row.work_hours = legacy.workHours;
+    row.overtime_hours = legacy.overtimeHours;
+  }
+
+  const { data, error } = await db
+    .from('attendance_records')
+    .upsert(row as never, { onConflict: 'employee_id,date' })
     .select()
     .single();
   if (error) throw error;

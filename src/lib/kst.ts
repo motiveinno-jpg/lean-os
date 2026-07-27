@@ -16,3 +16,36 @@ export function kstDateStr(d: Date): string {
 export function todayKst(): string {
   return kstDateStr(new Date());
 }
+
+// ── datetime-local 입력용 KST 변환 (2026-07-27) ─────────────────────────────
+//   timestamptz 를 그대로 slice(0,16) 하면 UTC 시각이 그대로 픽커에 들어가
+//   KST 18:30 퇴근 기록이 09:30 으로 뜨고, 그 상태로 저장하면 -9h 씩 밀렸다.
+//   브라우저 로컬 타임존에 의존하지 않도록 읽기·쓰기 양쪽을 KST 로 고정한다.
+
+const KST_PARTS_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Seoul",
+  year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", hour12: false,
+});
+
+/** timestamptz(ISO) → datetime-local 값 'YYYY-MM-DDTHH:mm' (KST 기준) */
+export function kstDateTimeLocal(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const p: Record<string, string> = {};
+  for (const part of KST_PARTS_FMT.formatToParts(d)) p[part.type] = part.value;
+  // en-CA + hour12:false 는 자정을 '24' 로 내는 환경이 있어 '00' 으로 정규화한다.
+  const hour = p.hour === "24" ? "00" : p.hour;
+  return `${p.year}-${p.month}-${p.day}T${hour}:${p.minute}`;
+}
+
+/** datetime-local 값 'YYYY-MM-DDTHH:mm' (KST 로 해석) → 저장용 ISO 문자열 */
+export function kstLocalToIso(local: string | null | undefined): string | null {
+  if (!local) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(local);
+  if (!m) return null;
+  // KST(UTC+9)는 서머타임이 없어 고정 오프셋 표기로 안전하게 파싱된다.
+  const d = new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00+09:00`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}

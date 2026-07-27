@@ -1322,7 +1322,9 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
   doc.setFontSize(7);
   setKoreanFont(doc, 'normal');
   doc.setTextColor(150, 150, 150);
-  doc.text('이 문서는 OwnerView 결재 시스템에서 생성되었습니다.', pageW / 2, pageH - 8, { align: 'center' });
+  // addPageNumbers 가 pageH-8 에 페이지 표기를 찍으므로 한 줄 위로 — 같은 좌표면 두 문구가
+  // 겹쳐 찍혀 읽을 수 없었다(2026-07-27 PDF 렌더 점검에서 발견).
+  doc.text('이 문서는 OwnerView 결재 시스템에서 생성되었습니다.', pageW / 2, pageH - 12, { align: 'center' });
 
   addPageNumbers(doc, params.companyName || '');
   return doc.output('blob');

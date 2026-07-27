@@ -1,6 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
-import { todayKst, kstDateStr } from "@/lib/kst";
+import { todayKst, kstDateStr, kstDateTimeLocal, kstLocalToIso } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo, useRef } from "react";
@@ -49,6 +49,7 @@ import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInv
 import {
   MonthlyRecomputeButton,
   AttendanceEditRequestDialog,
+  ManualAttendanceDialog,
 } from "@/components/hr-attendance-extras";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
@@ -1296,6 +1297,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     }
     return ids;
   }, [employees, userId, userEmail]);
+  const [manualRecordOpen, setManualRecordOpen] = useState(false);
   const canRequestEdit = !isAdmin && myEmployeeIds.size > 0;
   // 관리(수정/수정 요청) 컬럼 노출 조건 — 관리자 전체, 직원은 본인 기록만.
   const showActionCol = isAdmin || canRequestEdit;
@@ -1314,9 +1316,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
   const startEditing = (record: any) => {
     setEditingRecordId(record.id);
+    // ⚠️ slice(0,16) 금지 — timestamptz 는 UTC 문자열이라 KST 18:30 이 09:30 으로 들어가고,
+    //    그대로 저장하면 기록이 매번 9시간씩 밀렸다(2026-07-27 사장님 제보).
     setEditForm({
-      check_in: record.check_in ? record.check_in.slice(0, 16) : "",
-      check_out: record.check_out ? record.check_out.slice(0, 16) : "",
+      check_in: kstDateTimeLocal(record.check_in),
+      check_out: kstDateTimeLocal(record.check_out),
       status: record.status || "present",
     });
   };
@@ -1324,8 +1328,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const submitCorrection = () => {
     if (!editingRecordId) return;
     const updates: { check_in?: string; check_out?: string; status?: string } = {};
-    if (editForm.check_in) updates.check_in = new Date(editForm.check_in).toISOString();
-    if (editForm.check_out) updates.check_out = new Date(editForm.check_out).toISOString();
+    // 픽커 값은 KST 로 해석한다(브라우저 타임존 무관 — 읽기와 대칭).
+    const ci = kstLocalToIso(editForm.check_in);
+    const co = kstLocalToIso(editForm.check_out);
+    if (ci) updates.check_in = ci;
+    if (co) updates.check_out = co;
     if (editForm.status) updates.status = editForm.status;
     doCorrectAttendance.mutate({ recordId: editingRecordId, updates });
   };
@@ -1472,6 +1479,16 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               데이터
             </button>
           </div>
+          {/* 관리자 대행 기록 — 직원이 출근 버튼을 못 눌렀을 때 대신 찍어준다(2026-07-27). */}
+          {isAdmin && companyId && (
+            <button
+              type="button"
+              onClick={() => setManualRecordOpen(true)}
+              className="attendance-manual-add-btn"
+            >
+              + 출퇴근 기록
+            </button>
+          )}
           {/* L 근태 — C-3 관리자: 가산수당 재계산 (월 일괄) */}
           {isAdmin && companyId && (
             <MonthlyRecomputeButton companyId={companyId} from={monthStart} to={monthEnd} />
@@ -1967,6 +1984,18 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             check_out: editRequestRecord.check_out || undefined,
             status: effectiveStatus(editRequestRecord),
           }}
+        />
+      )}
+
+      {/* 관리자 대행 — 직원이 못 누른 출퇴근을 대신 기록 */}
+      {isAdmin && companyId && (
+        <ManualAttendanceDialog
+          open={manualRecordOpen}
+          onClose={() => setManualRecordOpen(false)}
+          companyId={companyId}
+          userId={userId}
+          employees={employees as any[]}
+          defaultDate={effectiveSelectedDay || todayKst()}
         />
       )}
     </div>

@@ -376,4 +376,51 @@ export function calcLateOnCheckIn(
   return { is_late, late_minutes, is_holiday: false };
 }
 
+/**
+ * 레거시 컬럼(work_hours·overtime_hours) 산정 — 2026-07-27.
+ *
+ * 화면의 '근무시간/연장' 열은 아직 이 두 컬럼을 본다. 기존엔 호출처마다
+ * `(퇴근-출근) - 1h`, `8h 초과분` 을 하드코딩해 ① 회사 설정(점심·정시)을 무시하고
+ * ② 지정 출근시각보다 이른 출근이 그대로 연장으로 잡혔다
+ * (09:30 출근 회사에서 09:15 에 찍으면 15분 연장 — 사장님 제보).
+ *
+ * calcDailyAttendance 의 평일 규칙과 동일하게 맞춘 공용 구현.
+ * 휴일/야간 분류는 하지 않는다 — 그건 recomputeAttendance 가 분 컬럼에 채운다.
+ */
+export function calcLegacyWorkHours(input: {
+  checkIn: Date | string;
+  checkOut: Date | string;
+  workStartTime: string;  // 'HH:MM'
+  workEndTime: string;    // 'HH:MM'
+  lunchMinutes: number;
+}): { workHours: number; overtimeHours: number } {
+  const ci = new Date(input.checkIn);
+  const co = new Date(input.checkOut);
+  if (Number.isNaN(ci.getTime()) || Number.isNaN(co.getTime())) {
+    return { workHours: 0, overtimeHours: 0 };
+  }
+
+  const workStartMin = parseHhmm(input.workStartTime, 9 * 60);
+  const workEndMin = parseHhmm(input.workEndTime, 18 * 60);
+  const lunch = Math.max(0, input.lunchMinutes || 0);
+
+  // 이른 출근은 산정 시각만 지정 출근시각으로 clamp (표시용 check_in 원본은 그대로).
+  const KST = 9 * 3600 * 1000;
+  const ciKst = new Date(ci.getTime() + KST);
+  const kstMidnight = Date.UTC(ciKst.getUTCFullYear(), ciKst.getUTCMonth(), ciKst.getUTCDate()) - KST;
+  const effCiMs = Math.max(ci.getTime(), kstMidnight + workStartMin * 60_000);
+
+  const grossMin = Math.max(0, (co.getTime() - effCiMs) / 60_000);
+  const workMin = grossMin > lunch ? grossMin - lunch : grossMin;
+
+  // 설정이 비정상이면(정시 <= 0) 법정 8h 로 안전 fallback.
+  const nominalRaw = (workEndMin - workStartMin) - lunch;
+  const nominalMin = nominalRaw > 0 ? nominalRaw : 8 * 60;
+
+  return {
+    workHours: Math.round((workMin / 60) * 100) / 100,
+    overtimeHours: Math.round((Math.max(0, workMin - nominalMin) / 60) * 100) / 100,
+  };
+}
+
 export const __internal = { parseHhmm, dayOfWeekKst, isWorkday, calcNightMinutes, toKstAbsMinutes };

@@ -11,10 +11,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { DateTimeField } from "@/components/datetime-field";
+import { DateField } from "@/components/date-field";
+import { kstLocalToIso } from "@/lib/kst";
 import {
   recomputeAttendance,
   recomputeMonthlyExtraPay,
   createAttendanceEditRequest,
+  upsertAttendanceRecordAsAdmin,
   listAttendanceEditRequests,
   reviewAttendanceEditRequest,
   type MonthlyPayResult,
@@ -143,8 +146,9 @@ export function AttendanceEditRequestDialog({
         attendanceRecordId,
         requestedBy: userId,
         requestedChanges: {
-          ...(form.check_in ? { check_in: new Date(form.check_in).toISOString() } : {}),
-          ...(form.check_out ? { check_out: new Date(form.check_out).toISOString() } : {}),
+          // 픽커 값은 KST 로 해석 — 브라우저 타임존이 KST 가 아니면 시각이 밀렸다.
+          ...(kstLocalToIso(form.check_in) ? { check_in: kstLocalToIso(form.check_in)! } : {}),
+          ...(kstLocalToIso(form.check_out) ? { check_out: kstLocalToIso(form.check_out)! } : {}),
           ...(form.status ? { status: form.status } : {}),
         },
         reason: form.reason || undefined,
@@ -226,6 +230,172 @@ export function AttendanceEditRequestDialog({
             className="flex-1 btn-primary btn-sm"
           >
             {mut.isPending ? "전송 중…" : "요청 보내기"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 관리자 대행 출퇴근 기록 (2026-07-27) ──
+//   "직원이 실수로 출근하기를 안 눌렀을 때 대신 눌러줄 수 있게" — 사장님 요청.
+//   기록이 아예 없는 날짜도 만들 수 있고, 이미 있으면 그 날 기록을 덮어쓴다.
+
+export function ManualAttendanceDialog({
+  open, onClose, companyId, userId, employees, defaultDate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  companyId: string;
+  userId?: string | null;
+  employees: { id: string; name?: string | null; status?: string | null }[];
+  defaultDate: string; // 'YYYY-MM-DD'
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const activeEmployees = (employees || []).filter((e) => (e.status ?? "active") === "active");
+  const [form, setForm] = useState({
+    employeeId: "",
+    date: defaultDate,
+    checkIn: "",
+    checkOut: "",
+    status: "",
+    note: "",
+  });
+
+  // 날짜를 고르면 출퇴근 픽커의 날짜 부분도 따라가야 한다 — 시각만 입력해도 되게.
+  const setDate = (date: string) => {
+    setForm((f) => ({
+      ...f,
+      date,
+      checkIn: f.checkIn ? `${date}T${f.checkIn.slice(11, 16)}` : "",
+      checkOut: f.checkOut ? `${date}T${f.checkOut.slice(11, 16)}` : "",
+    }));
+  };
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      const rec = await upsertAttendanceRecordAsAdmin({
+        companyId,
+        employeeId: form.employeeId,
+        date: form.date,
+        checkIn: kstLocalToIso(form.checkIn),
+        checkOut: kstLocalToIso(form.checkOut),
+        status: form.status || undefined,
+        note: form.note || null,
+        editedBy: userId || null,
+      });
+      // 분 컬럼(정규/연장/야간/휴일)은 recompute 가 채운다 — 저장 즉시 화면 수치가 맞도록.
+      await recomputeAttendance({ companyId, from: form.date, to: form.date, employeeId: form.employeeId });
+      return rec;
+    },
+    onSuccess: () => {
+      toast("출퇴근 기록을 저장했습니다.", "success");
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
+      onClose();
+    },
+    onError: (err: any) => toast(friendlyError(err, "기록 저장에 실패했습니다."), "error"),
+  });
+
+  // 출근 시각 없이 저장하면 "기록만 있고 시간이 없는" 행이 생겨 결근과 구분이 안 된다.
+  const canSave = !!form.employeeId && !!form.date && !!form.checkIn && !mut.isPending;
+  // 퇴근이 출근보다 빠르면 근무시간이 0 으로 저장돼버린다 — 저장 전에 막는다.
+  const outBeforeIn = !!form.checkIn && !!form.checkOut && form.checkOut < form.checkIn;
+
+  useModalKeys(open, onClose, canSave && !outBeforeIn ? () => mut.mutate() : undefined);
+
+  if (!open) return null;
+
+  return (
+    <div className="attendance-edit-dialog-overlay fixed inset-0">
+      <div className="attendance-edit-dialog-panel glass-card" onClick={(e) => e.stopPropagation()}>
+        <h3 className="section-title">출퇴근 기록 추가</h3>
+        <p className="text-[10px] text-[var(--text-dim)] mb-4">
+          직원이 출근·퇴근 버튼을 누르지 못한 날을 관리자가 대신 기록합니다.
+          <b className="text-[var(--text-muted)]"> 같은 날 기록이 이미 있으면 덮어씁니다.</b>
+        </p>
+        <div className="attendance-edit-form">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">직원</label>
+            <select
+              value={form.employeeId}
+              onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+            >
+              <option value="">직원 선택</option>
+              {activeEmployees.map((e) => (
+                <option key={e.id} value={e.id}>{e.name || "이름 없음"}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">날짜</label>
+            <DateField
+              value={form.date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">출근 시각</label>
+            <DateTimeField
+              value={form.checkIn}
+              onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">
+              퇴근 시각 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 아직 근무 중이면 비워 두세요</span>
+            </label>
+            <DateTimeField
+              value={form.checkOut}
+              onChange={(e) => setForm({ ...form, checkOut: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+            />
+            {outBeforeIn && (
+              <div className="text-[10px] text-[var(--danger)] mt-1">퇴근 시각이 출근 시각보다 빠릅니다.</div>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">
+              출근 유형 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 비우면 출근 시각으로 자동 판정</span>
+            </label>
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+            >
+              <option value="">자동 (정상 출근 / 지각)</option>
+              <option value="present">정상 출근</option>
+              <option value="late">지각</option>
+              <option value="remote">재택</option>
+              <option value="half_day">반차</option>
+              <option value="absent">결근</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">사유 · 메모</label>
+            <textarea
+              rows={2}
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs resize-none"
+              placeholder="예: 외근 직행으로 출근 버튼을 누르지 못함"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 py-2 bg-[var(--bg)] text-[var(--text-muted)] rounded-lg text-xs">
+            취소
+          </button>
+          <button
+            onClick={() => mut.mutate()}
+            disabled={!canSave || outBeforeIn}
+            className="flex-1 btn-primary btn-sm"
+          >
+            {mut.isPending ? "저장 중…" : "기록 저장"}
           </button>
         </div>
       </div>
