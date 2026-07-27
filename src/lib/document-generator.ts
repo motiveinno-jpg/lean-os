@@ -770,6 +770,101 @@ export async function generateTaxInvoicePdf(params: TaxInvoicePdfParams): Promis
 // 4.5 결재 문서 PDF (승인 완료 결재 요청)
 // ────────────────────────────────────────────
 
+// ── 결재 본문(RichEditor HTML) → PDF 블록 ──────────────────────────────────
+//   본문을 평문화하면 표는 공백으로 뭉개지고 이미지는 사라진다. 화면과 같은 문서를
+//   내려면 문단·표·이미지를 순서대로 재현해야 한다(2026-07-27 사장님 요청).
+type PdfBlock =
+  | { kind: 'text'; text: string; bold: boolean; size: number }
+  | { kind: 'table'; head?: string[]; rows: string[][] }
+  | { kind: 'image'; src: string };
+
+const cellText = (el: Element) => (el.textContent || '').replace(/ /g, ' ').trim();
+
+function parseTableEl(el: Element): PdfBlock {
+  const rows: string[][] = [];
+  let head: string[] | undefined;
+  Array.from(el.querySelectorAll('tr')).forEach((tr, i) => {
+    const cells = Array.from(tr.children).map(cellText);
+    if (cells.length === 0) return;
+    const allTh = Array.from(tr.children).every((c) => c.tagName.toLowerCase() === 'th');
+    if (i === 0 && allTh) head = cells;
+    else rows.push(cells);
+  });
+  return { kind: 'table', head, rows };
+}
+
+/** RichEditor HTML → 렌더 블록 목록(문서 순서 유지). */
+function htmlToPdfBlocks(html: string): PdfBlock[] {
+  if (typeof window === 'undefined') return [];
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  const blocks: PdfBlock[] = [];
+
+  const walk = (node: Element) => {
+    for (const child of Array.from(node.children)) {
+      const tag = child.tagName.toLowerCase();
+      if (tag === 'table') { blocks.push(parseTableEl(child)); continue; }
+      if (tag === 'img') {
+        const src = child.getAttribute('src') || '';
+        if (src) blocks.push({ kind: 'image', src });
+        continue;
+      }
+      // 표·이미지를 품고 있으면 내려가되, 그 요소가 직접 가진 텍스트는 먼저 뽑는다.
+      if (child.querySelector('table, img')) {
+        const direct = Array.from(child.childNodes)
+          .filter((n) => n.nodeType === 3)
+          .map((n) => n.textContent || '')
+          .join('')
+          .replace(/ /g, ' ')
+          .trim();
+        if (direct) blocks.push({ kind: 'text', text: direct, bold: false, size: 9 });
+        walk(child);
+        continue;
+      }
+      const isHeading = /^h[1-6]$/.test(tag);
+      const text = cellText(child);
+      if (tag === 'ul' || tag === 'ol') {
+        Array.from(child.children).forEach((li) => {
+          const t = cellText(li);
+          if (t) blocks.push({ kind: 'text', text: `· ${t}`, bold: false, size: 9 });
+        });
+        continue;
+      }
+      if (text) blocks.push({ kind: 'text', text, bold: isHeading, size: isHeading ? 11 : 9 });
+    }
+  };
+  walk(parsed.body);
+  return blocks;
+}
+
+/** 이미지 → dataURL + 원본 픽셀 크기. 실패(CORS·404 등) 시 null 이면 해당 이미지는 건너뛴다. */
+async function loadImageForPdf(src: string): Promise<{ dataUrl: string; w: number; h: number; fmt: string } | null> {
+  try {
+    let dataUrl = src;
+    if (!src.startsWith('data:')) {
+      const res = await fetch(src);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      dataUrl = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result));
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      });
+    }
+    const mime = /^data:([^;]+)/.exec(dataUrl)?.[1] || 'image/png';
+    const fmt = mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : mime.includes('webp') ? 'WEBP' : 'PNG';
+    const dim = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+    return { dataUrl, ...dim, fmt };
+  } catch {
+    return null;
+  }
+}
+
 export interface ApprovalPdfParams {
   title: string;
   requestTypeLabel: string;
@@ -777,6 +872,8 @@ export interface ApprovalPdfParams {
   requesterName: string;
   amount: number;
   description?: string;
+  /** RichEditor 로 작성한 본문 HTML — 주면 표·이미지까지 그대로 재현(description 보다 우선). */
+  descriptionHtml?: string;
   createdAt: string; // yyyy-mm-dd 또는 ISO
   companyName?: string;
   formFields?: { label: string; value: string }[]; // 커스텀 결재 양식 구조화 필드 — 화면과 동일 순서로 표시
@@ -842,18 +939,82 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
   }
 
   // ── 내용 (줄간격 넓게 — 가독성) ──
-  if (params.description) {
+  const marginX = 14;
+  const contentW = pageW - marginX * 2;
+  const bottomLimit = pageH - 18;
+  /** 남은 높이가 모자라면 새 페이지로. */
+  const ensureSpace = (need: number) => {
+    if (y + need > bottomLimit) {
+      doc.addPage();
+      y = 16;
+    }
+  };
+
+  if (params.descriptionHtml || params.description) {
     doc.setFontSize(9);
     setKoreanFont(doc, 'bold');
     doc.setTextColor(60, 60, 60);
-    doc.text('내용', 14, y);
+    ensureSpace(12);
+    doc.text('내용', marginX, y);
     y += 6;
-    setKoreanFont(doc, 'normal');
-    doc.setTextColor(40, 40, 40);
     const lineHeight = 6; // mm — 기본보다 넓은 줄간격
-    const lines: string[] = doc.splitTextToSize(params.description, pageW - 28);
-    lines.forEach((line, i) => doc.text(line, 14, y + i * lineHeight));
-    y += lines.length * lineHeight + 6;
+
+    if (params.descriptionHtml) {
+      // 서식 본문 — 문단·표·이미지를 작성 순서대로 재현
+      const blocks = htmlToPdfBlocks(params.descriptionHtml);
+      for (const block of blocks) {
+        if (block.kind === 'text') {
+          doc.setFontSize(block.size);
+          setKoreanFont(doc, block.bold ? 'bold' : 'normal');
+          doc.setTextColor(40, 40, 40);
+          const lines: string[] = doc.splitTextToSize(block.text, contentW);
+          for (const line of lines) {
+            ensureSpace(lineHeight);
+            doc.text(line, marginX, y);
+            y += lineHeight;
+          }
+          y += 1;
+        } else if (block.kind === 'table') {
+          ensureSpace(16);
+          autoTable(doc, {
+            startY: y,
+            head: block.head ? [block.head] : undefined,
+            body: block.rows,
+            theme: 'grid',
+            styles: { fontSize: 8.5, cellPadding: 2.5, font: 'NanumGothic', overflow: 'linebreak' },
+            headStyles: { fillColor: [245, 247, 250], textColor: [40, 40, 40], fontStyle: 'bold' },
+            margin: { left: marginX, right: marginX },
+          });
+          y = (doc as any).lastAutoTable.finalY + 5;
+        } else {
+          const img = await loadImageForPdf(block.src);
+          if (!img || !img.w || !img.h) continue; // 불러오지 못한 이미지는 건너뜀
+          let w = contentW;
+          let h = (img.h / img.w) * w;
+          const maxH = bottomLimit - 16; // 한 페이지에 담기도록 축소
+          if (h > maxH) { h = maxH; w = (img.w / img.h) * h; }
+          ensureSpace(h + 2);
+          // 포맷 미지원(WEBP 등) 이미지 한 장 때문에 문서 전체 생성이 실패하지 않도록 방어.
+          try {
+            doc.addImage(img.dataUrl, img.fmt, marginX, y, w, h);
+            y += h + 5;
+          } catch {
+            /* 렌더 불가 이미지는 건너뜀 */
+          }
+        }
+      }
+      y += 2;
+    } else {
+      setKoreanFont(doc, 'normal');
+      doc.setTextColor(40, 40, 40);
+      const lines: string[] = doc.splitTextToSize(params.description!, contentW);
+      for (const line of lines) {
+        ensureSpace(lineHeight);
+        doc.text(line, marginX, y);
+        y += lineHeight;
+      }
+      y += 6;
+    }
   }
 
   // ── 첨부파일 (클릭 시 열람 가능한 링크) ──

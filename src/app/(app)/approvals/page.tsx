@@ -225,16 +225,25 @@ function FormFieldRows({ fields }: { fields: { label: string; type: string; valu
   );
 }
 
-// 결재 양식(form_id) 필드 정의(label·type)와 저장된 값(custom_fields)을 짝지어 구조화된 항목으로
+/**
+ * 결재 문서의 구조화 필드(라벨+값) 해석.
+ *   - 커스텀 양식 문서(form_id 有) → approval_forms.fields
+ *   - 기본 유형 문서(form_id 無, 휴가·출장·지출결의 등) → approval_policies.fields
+ * 기존엔 앞쪽만 봐서 기본 유형은 필드가 항상 빈 배열이었고(→ 화면·PDF 에서 표 대신 평문),
+ * 삭제된 양식도 못 찾아 같은 증상이 났다. 편집 경로(getEditFieldDefs)와 동일 규칙으로 통일.
+ */
 function resolveFormFields(
   formId: string | null | undefined,
   customFields: Record<string, unknown> | undefined,
-  formsById: Map<string, ApprovalForm>
+  formsById: Map<string, ApprovalForm>,
+  policies?: ApprovalPolicy[],
+  requestType?: string
 ): { label: string; type: string; value: string }[] {
-  if (!formId) return [];
-  const form = formsById.get(formId);
-  if (!form) return [];
-  return form.fields
+  const defs = formId
+    ? formsById.get(formId)?.fields
+    : (policies || []).find((p) => p.document_type === requestType)?.fields;
+  if (!defs || defs.length === 0) return [];
+  return defs
     .map((fd) => ({ label: fd.label, type: fd.type, value: String(customFields?.[fd.key] ?? "") }))
     .filter((f) => f.value);
 }
@@ -251,17 +260,6 @@ function plainToHtml(text: string): string {
   if (!text) return "";
   if (isHtmlDesc(text)) return text;
   return text.split("\n").map((line) => (line.trim() === "" ? "<p><br/></p>" : `<p>${escapeHtmlText(line)}</p>`)).join("");
-}
-
-/** HTML 상세 내용 → 평문 (PDF·목록 미리보기용). 표 셀은 공백 2칸, 블록 종료는 줄바꿈. */
-function htmlToPlainText(html: string): string {
-  return html
-    .replace(/<\s*\/t[dh]\s*>/gi, "  ")
-    .replace(/<\s*(br|\/p|\/div|\/tr|\/li|\/h[1-6]|\/blockquote)[^>]*>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 /** RichEditor 빈 문서(<p></p> 등) 판별 — 텍스트·이미지·표 전부 없으면 빈 것으로 취급 */
@@ -724,9 +722,16 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
   });
 
   // 커스텀 결재 양식 필드 정의 (label·type) — custom_fields 값과 짝지어 구조화된 항목으로 표시
+  //   이미 기안된 문서를 보는 화면이므로 삭제(비활성)된 양식도 포함해야 라벨을 되찾는다.
   const { data: customForms = [] } = useQuery({
-    queryKey: ["approval-forms", companyId],
-    queryFn: () => listApprovalForms(),
+    queryKey: ["approval-forms", companyId, "all"],
+    queryFn: () => listApprovalForms({ includeInactive: true }),
+    enabled: !!companyId,
+  });
+  // 기본 유형(form_id 없는 휴가·출장·지출결의 등)의 필드 정의는 정책에 있다.
+  const { data: fieldPolicies = [] } = useQuery({
+    queryKey: ["approval-policies", companyId],
+    queryFn: () => getApprovalPolicies(companyId),
     enabled: !!companyId,
   });
   const formsById = useMemo(() => {
@@ -796,7 +801,9 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
     );
   }
 
-  const selectedFormFields = selected ? resolveFormFields(selected.formId, selected.customFields, formsById) : [];
+  const selectedFormFields = selected
+    ? resolveFormFields(selected.formId, selected.customFields, formsById, fieldPolicies as ApprovalPolicy[], selected.requestType)
+    : [];
   const selectedContent = selected ? contentWithoutFieldLines(selected.description || "", selectedFormFields) : "";
 
   const handleApprove = () => {
@@ -941,7 +948,7 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
 
   // ── 대기중 요청 본인 수정 (2026-07-16 사장님 요청) ──
   //   양식/정책 필드 정의를 되찾아 생성 화면과 동일한 입력으로 편집.
-  const { data: editForms = [] } = useQuery({ queryKey: ["approval-forms", companyId], queryFn: () => listApprovalForms(), enabled: !!companyId });
+  const { data: editForms = [] } = useQuery({ queryKey: ["approval-forms", companyId, "all"], queryFn: () => listApprovalForms({ includeInactive: true }), enabled: !!companyId });
   const { data: editPolicies = [] } = useQuery({ queryKey: ["approval-policies", companyId], queryFn: () => getApprovalPolicies(companyId), enabled: !!companyId });
   const [editReq, setEditReq] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ title: "", amount: "", description: "" });
@@ -1316,8 +1323,13 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
 
   // 양식 필드 정의 — custom_fields 값과 짝지어 구조화 항목으로 표시 (다른 탭과 동일 규칙)
   const { data: customForms = [] } = useQuery({
-    queryKey: ["approval-forms", companyId],
-    queryFn: () => listApprovalForms(),
+    queryKey: ["approval-forms", companyId, "all"],
+    queryFn: () => listApprovalForms({ includeInactive: true }),
+    enabled: !!companyId,
+  });
+  const { data: fieldPolicies = [] } = useQuery({
+    queryKey: ["approval-policies", companyId],
+    queryFn: () => getApprovalPolicies(companyId),
     enabled: !!companyId,
   });
   const formsById = useMemo(() => {
@@ -1347,7 +1359,7 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
       {requests.map((req: any) => {
         const m = typeMeta(req.request_type);
         const open = expandedId === req.id;
-        const formFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
+        const formFields = resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
         const contentText = contentWithoutFieldLines(req.description || "", formFields);
         const requesterName = req.users?.name || req.users?.email || "알 수 없음";
         return (
@@ -1443,8 +1455,13 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
 
   // 커스텀 결재 양식 필드 정의 — custom_fields 값과 짝지어 펼침 패널에 구조화된 항목으로 표시
   const { data: customForms = [] } = useQuery({
-    queryKey: ["approval-forms", companyId],
-    queryFn: () => listApprovalForms(),
+    queryKey: ["approval-forms", companyId, "all"],
+    queryFn: () => listApprovalForms({ includeInactive: true }),
+    enabled: !!companyId,
+  });
+  const { data: fieldPolicies = [] } = useQuery({
+    queryKey: ["approval-policies", companyId],
+    queryFn: () => getApprovalPolicies(companyId),
     enabled: !!companyId,
   });
   const formsById = useMemo(() => {
@@ -1512,7 +1529,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
         })
       )).filter((a): a is { name: string; url: string } => !!a);
       // 화면(팝업)과 완전히 동일한 순서·내용으로 — 구조화 필드 분리 + 중복 제거된 본문
-      const formFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
+      const formFields = resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
       const contentText = contentWithoutFieldLines(req.description || "", formFields);
       const blob = await generateApprovalPdf({
         title: req.title,
@@ -1520,7 +1537,10 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
         statusLabel: STATUS_CONFIG[req.status]?.label || req.status,
         requesterName: requesterNames.get(req.requester_id) || "-",
         amount: req.amount || 0,
-        description: contentText ? (isHtmlDesc(contentText) ? htmlToPlainText(contentText) : contentText) : undefined,
+        // 서식 본문(표·이미지 포함)은 HTML 그대로 넘겨 PDF 에서 재현한다.
+        //   과거엔 여기서 평문화해 넘겨 표가 공백으로 뭉개지고 이미지는 사라졌음(2026-07-27 수정).
+        descriptionHtml: contentText && isHtmlDesc(contentText) ? sanitizeDocumentHtml(contentText) : undefined,
+        description: contentText && !isHtmlDesc(contentText) ? contentText : undefined,
         formFields: formFields.length > 0 ? formFields : undefined,
         createdAt: formatDate(req.created_at),
         attachments: attachments.length > 0 ? attachments : undefined,
@@ -1688,7 +1708,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
         const req = allRequests.find((r: any) => r.id === expandedId);
         if (!req) return null;
         const m = typeMeta(req.request_type);
-        const reqFormFields = resolveFormFields(req.form_id, req.custom_fields, formsById);
+        const reqFormFields = resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
         const reqContentText = contentWithoutFieldLines(req.description || "", reqFormFields);
         return (
           <div className="approval-detail-modal fixed inset-0" onClick={() => setExpandedId(null)}>

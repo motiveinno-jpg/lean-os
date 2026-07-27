@@ -48,12 +48,17 @@ export interface ApprovalForm {
   updated_at: string;
 }
 
-export async function listApprovalForms(): Promise<ApprovalForm[]> {
-  const { data, error } = await db
-    .from("approval_forms")
-    .select("*")
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
+/**
+ * 결재 양식 목록.
+ * @param opts.includeInactive 비활성(삭제 처리된) 양식까지 포함.
+ *   기안 화면의 양식 선택은 활성만 써야 하지만, **이미 기안된 문서를 표시·PDF 출력**할 때는
+ *   비활성 양식도 필요하다 — 양식이 삭제되면 fields(라벨 정의)를 못 찾아 과거 문서의
+ *   필드값이 표가 아닌 평문으로 떨어지기 때문(2026-07-27 지출결의서 건).
+ */
+export async function listApprovalForms(opts?: { includeInactive?: boolean }): Promise<ApprovalForm[]> {
+  let q = db.from("approval_forms").select("*");
+  if (!opts?.includeInactive) q = q.eq("is_active", true);
+  const { data, error } = await q.order("created_at", { ascending: false });
   if (error) throw error;
   return (data || []) as unknown as ApprovalForm[];
 }
