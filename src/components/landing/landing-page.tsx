@@ -379,7 +379,6 @@ export default function LandingPage() {
                       <div className="lp4-fcard-name">{f.tab}</div>
                       <div className="lp4-fcard-title">{f.title}</div>
                       <p className="lp4-fcard-desc">{f.desc}</p>
-                      <div className="lp4-fcard-rep">대체 {f.replaces}</div>
                     </div>
                   ))}
                 </div>

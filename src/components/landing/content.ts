@@ -283,27 +283,28 @@ export const SCREENS = [
 ];
 
 // 기능 카드 (2026-07-27 재구성) — 카드 4~7장을 나열하는 형태.
+//   ⚠️ "무엇을 대체한다"는 식의 경쟁사 지목 문구는 넣지 않는다.
 //   tone: 카드 배경. ink=진한 카드 1장, brand=브랜드 카드 1장, 나머지는 옅은 회색/파스텔.
 export const FEATURES = [
-  { tab: "전자결재", tone: "plain", icon: "approve", replaces: "플*스 + 시*티",
+  { tab: "전자결재", tone: "plain", icon: "approve",
     title: "요청하면 결재선이 잡히고, 승인은 한 번이면 돼요",
     desc: "경비·지출·휴가가 하나의 결재함에 모여요." },
-  { tab: "프로젝트 파이프라인", tone: "ink", icon: "pipeline", replaces: "먼*이",
+  { tab: "프로젝트 파이프라인", tone: "ink", icon: "pipeline",
     title: "견적에서 계약, 전자서명까지 한 흐름이에요",
     desc: "단계·금액·진행률을 한 화면에서 봐요." },
-  { tab: "전자계약", tone: "brand", icon: "sign", replaces: "모두*인",
+  { tab: "전자계약", tone: "brand", icon: "sign",
     title: "문서 작성부터 서명 완료까지 한 번에 끝나요",
     desc: "직인은 자동으로 찍히고 PDF로 모아 받아요." },
-  { tab: "HR & 급여", tone: "plain", icon: "hr", replaces: "플*스",
+  { tab: "HR & 급여", tone: "plain", icon: "hr",
     title: "4대보험·원천세를 계산하고 명세서까지 보내요",
     desc: "근태·연차·연장근무도 같이 챙겨요." },
-  { tab: "팀 & 파트너 채팅", tone: "mint", icon: "chat", replaces: "채*톡",
+  { tab: "팀 & 파트너 채팅", tone: "mint", icon: "chat",
     title: "프로젝트별 채널에서 파트너와 바로 이야기해요",
     desc: "외부 파트너도 초대 한 번이면 들어와요." },
-  { tab: "고객 DB", tone: "plain", icon: "crm", replaces: "리*버",
+  { tab: "고객 DB", tone: "plain", icon: "crm",
     title: "거래처 하나에 프로젝트·계약·매출이 쌓여요",
     desc: "한동안 거래 없던 곳은 찾아서 알려줘요." },
-  { tab: "서류 자동관리", tone: "sky", icon: "docs", replaces: "자*스 + 드라이브",
+  { tab: "서류 자동관리", tone: "sky", icon: "docs",
     title: "작성·서명·버전 관리를 한곳에서 해요",
     desc: "회사 저장소에 안전하게 보관돼요." },
 ];
@@ -328,15 +329,17 @@ export const ENGINES = [
   { num: "04", src: "/product/acct-ledger-v1.png", alt: "오너뷰 거래 장부", short: "거래처마다 프로젝트·계약·매출 기록이 자동으로 쌓여요.", name: "거래처 자산화", eng: "Client Asset Engine", headline: "담당자가 퇴사해도 고객 관계는 회사에 남아요.", desc: "거래처를 등록하면 프로젝트, 계약서, 매출 등 모든 상호작용이 자동으로 연결·축적됩니다. 휴면 거래처는 버튼 한 번으로 감지해 담당자에게 리마인더를 보낼 수 있습니다.", replaces: "CRM + 명함관리 구독", replacesCost: "연 200만원+", steps: ["거래처 등록 → 프로젝트·계약·매출 이력 자동 연결", "휴면 감지 → 미거래 거래처 표시", "관계 유지 → 리마인더 발송·파트너 포털"], features: ["거래 이력 자동 축적", "파트너 포털", "사업자 자동조회", "거래처 원장"] },
 ];
 
-// 경쟁사(개별 툴) — 비교/계산기. 인원당 vs 정액 개념 유지.
+// 개별 툴 비교/계산기 — 인원당 vs 정액 개념만 남긴다.
+//   ⚠️ 회사명(브랜드)은 넣지 않는다. 마스킹해도 특정 가능하면 비교광고 분쟁 소지가 있다 (2026-07-27 사장님 지시).
+//   가격은 각 카테고리의 공개 요금 기준 참고치이며, 특정 업체를 지목하지 않는다.
 export const COMPETITORS = [
-  { full: "Flex", cat: "HR/급여", price: 70000, perSeat: true },
-  { full: "Monday", cat: "프로젝트", price: 16000, perSeat: true },
-  { full: "Modusign", cat: "전자계약", price: 39900, perSeat: false },
-  { full: "Remember", cat: "CRM", price: 4900, perSeat: true },
-  { full: "Channel", cat: "채팅", price: 120000, perSeat: false },
-  { full: "Shiftee", cat: "근태", price: 4000, perSeat: true },
-  { full: "Jobis", cat: "세무", price: 33000, perSeat: false },
+  { cat: "HR/급여", price: 70000, perSeat: true },
+  { cat: "프로젝트", price: 16000, perSeat: true },
+  { cat: "전자계약", price: 39900, perSeat: false },
+  { cat: "CRM", price: 4900, perSeat: true },
+  { cat: "채팅", price: 120000, perSeat: false },
+  { cat: "근태", price: 4000, perSeat: true },
+  { cat: "세무", price: 33000, perSeat: false },
 ];
 
 export const PLANS = [

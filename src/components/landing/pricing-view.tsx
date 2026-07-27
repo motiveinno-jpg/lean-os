@@ -166,10 +166,11 @@ export default function PricingView() {
           <div className="lp4-cmp-grid">
             <div className="lp4-cmp lp4-card">
               <div className="lp4-cmp-title">개별 도구를 따로 쓰는 방식</div>
+              <div className="lp4-cmp-note">각 분야 도구를 하나씩 구독했을 때의 참고 금액이에요.</div>
               <div className="lp4-cmp-rows">
                 {COMPETITORS.map((c) => (
-                  <div key={c.full} className="lp4-cmp-row">
-                    <span className="lp4-cmp-name">{c.cat} · {c.full}{c.perSeat ? " (인원당)" : ""}</span>
+                  <div key={c.cat} className="lp4-cmp-row">
+                    <span className="lp4-cmp-name">{c.cat}{c.perSeat ? " (인원당)" : ""}</span>
                     <span className="lp4-cmp-price">{won(c.perSeat ? c.price * team : c.price)}</span>
                   </div>
                 ))}

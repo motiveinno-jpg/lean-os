@@ -374,6 +374,7 @@
 .lp4-cmp-hl { border:1px solid var(--line2); color: var(--ink);
   background: linear-gradient(160deg, var(--pastel-lav), #f7f6ff 60%, var(--pastel-sky)); }
 .lp4-cmp-title { font-size:16px; font-weight:800; }
+.lp4-cmp-note { font-size:12px; color: var(--ink3); margin-top:6px; }
 .lp4-cmp-rows { margin-top:14px; }
 .lp4-cmp-row { display:flex; align-items:center; justify-content:space-between; gap:12px;
   padding:11px 0; border-bottom:1px solid var(--line); font-size:14px; }
