@@ -255,6 +255,57 @@ function resolveFormFields(
   });
 }
 
+/**
+ * 결재 문서 PDF 생성 + 저장 — 화면(팝업)과 동일한 구성으로 만든다.
+ *   전체 현황 / 내 요청 / 내가 결재한 건 세 화면이 같은 결과물을 내도록 한 곳에 모았다.
+ *   (과거 '내 요청'에만 PDF 가 빠져 있었고, 본문 평문화 버그도 화면마다 따로 고쳐야 했다.)
+ * @returns 저장 완료 여부 (사용자가 저장 취소하면 false)
+ */
+async function buildAndSaveApprovalPdf(args: {
+  req: {
+    id: string; title: string; request_type: string; status: string;
+    amount?: number | null; description?: string | null; created_at: string;
+    attachments?: string[] | null; form_id?: string | null;
+    custom_fields?: Record<string, unknown>;
+  };
+  requesterName: string;
+  formFields: { label: string; type: string; value: string }[];
+}): Promise<boolean> {
+  const { req, requesterName, formFields } = args;
+  const timeline = await getApprovalTimeline(req.id);
+  const attachments = (await Promise.all(
+    (req.attachments || []).map(async (url) => {
+      const name = attachmentFileName(url);
+      const signed = await resolveSignedUrl(url, name);
+      return signed ? { name, url: signed } : null;
+    })
+  )).filter((a): a is { name: string; url: string } => !!a);
+
+  const contentText = contentWithoutFieldLines(req.description || "", formFields);
+  const blob = await generateApprovalPdf({
+    title: req.title,
+    requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
+    statusLabel: STATUS_CONFIG[req.status]?.label || req.status,
+    requesterName,
+    amount: req.amount || 0,
+    // 서식 본문(표·이미지·정렬)은 HTML 그대로 넘겨 PDF 에서 재현한다.
+    descriptionHtml: contentText && isHtmlDesc(contentText) ? sanitizeDocumentHtml(contentText) : undefined,
+    description: contentText && !isHtmlDesc(contentText) ? contentText : undefined,
+    formFields: formFields.length > 0 ? formFields : undefined,
+    createdAt: formatDate(req.created_at),
+    attachments: attachments.length > 0 ? attachments : undefined,
+    steps: timeline.map((st) => ({
+      stage: st.stage,
+      stageName: st.stage_name,
+      approverName: st.approver_name || "담당자",
+      statusLabel: STATUS_CONFIG[st.status]?.label || st.status,
+      comment: st.comment || undefined,
+      decidedAt: st.decided_at ? formatDateTime(st.decided_at) : null,
+    })),
+  });
+  return await saveBlobToUserChosenPath(blob, `결재문서_${req.title}_${formatDate(req.created_at)}.pdf`);
+}
+
 // ── 상세 내용 서식(HTML) 지원 (2026-07-16) — RichEditor 로 작성한 결재 내용(표·서식 포함) ──
 const isHtmlDesc = (s?: string | null) => !!s && /^\s*</.test(String(s).trim());
 
@@ -996,6 +1047,37 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
   onGoToMyRequests?: () => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+
+  // 내가 결재한 건도 문서로 보관할 수 있어야 한다(2026-07-27 사장님 요청).
+  //   목록 항목은 step 기준이라 PDF 생성이 기대하는 request 모양으로 맞춰 넘긴다.
+  const handlePdf = async (item: any) => {
+    setPdfLoadingId(item.stepId);
+    try {
+      const fields = resolveFormFields(item.formId, item.customFields, formsById, policies, item.requestType);
+      const saved = await buildAndSaveApprovalPdf({
+        req: {
+          id: item.requestId,
+          title: item.title,
+          request_type: item.requestType,
+          status: item.requestStatus,
+          amount: item.amount,
+          description: item.description,
+          created_at: item.createdAt,
+          attachments: item.attachments,
+          form_id: item.formId,
+          custom_fields: item.customFields,
+        },
+        requesterName: item.requesterName || "-",
+        formFields: fields,
+      });
+      if (saved) toast("PDF 다운로드 완료", "success");
+    } catch (err: any) {
+      toast(`PDF 생성 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
+    }
+    setPdfLoadingId(null);
+  };
 
   // 이 화면은 "내가 결재자로서 승인·반려한 건"이다. 내가 올린 결재와 헷갈리기 쉬워
   //   (2026-07-27 사장님 제보: 올린 8건이 안 보인다 → 실제로는 '내 요청' 탭에 있었음)
@@ -1064,9 +1146,22 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
                     {` · ${item.stage}단계 ${item.stageName || ""}`}
                   </div>
                 </div>
-                {item.amount ? (
-                  <div className="text-sm font-bold shrink-0 mono-number">{Number(item.amount).toLocaleString("ko-KR")}원</div>
-                ) : null}
+                <div className="flex items-center gap-2 shrink-0">
+                  {item.amount ? (
+                    <div className="text-sm font-bold mono-number">{Number(item.amount).toLocaleString("ko-KR")}원</div>
+                  ) : null}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handlePdf(item); }}
+                    disabled={pdfLoadingId === item.stepId}
+                    title="결재 문서 PDF 저장"
+                    className="approval-modal-pdf-btn"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                    </svg>
+                    {pdfLoadingId === item.stepId ? "생성 중..." : "PDF"}
+                  </button>
+                </div>
               </div>
               {item.myComment && (
                 <div className="text-[11px] text-[var(--text-muted)] mt-2">내 의견: {item.myComment}</div>
@@ -1142,40 +1237,8 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   const handleDownloadApprovalPdf = async (req: any) => {
     setPdfLoadingId(req.id);
     try {
-      const timeline = await getApprovalTimeline(req.id);
-      const rawAttachments: string[] = req.attachments || [];
-      const attachments = (await Promise.all(
-        rawAttachments.map(async (url) => {
-          const name = attachmentFileName(url);
-          const signed = await resolveSignedUrl(url, name);
-          return signed ? { name, url: signed } : null;
-        })
-      )).filter((a): a is { name: string; url: string } => !!a);
-      // 화면(팝업)과 완전히 동일한 순서·내용으로
       const formFields = resolveFormFields(req.form_id, req.custom_fields, detailFormsById, editPolicies as ApprovalPolicy[], req.request_type);
-      const contentText = contentWithoutFieldLines(req.description || "", formFields);
-      const blob = await generateApprovalPdf({
-        title: req.title,
-        requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
-        statusLabel: STATUS_CONFIG[req.status]?.label || req.status,
-        // 이 탭은 '내가 올린 요청'이므로 기안자는 항상 본인이다.
-        requesterName: userName(req.requester_id),
-        amount: req.amount || 0,
-        descriptionHtml: contentText && isHtmlDesc(contentText) ? sanitizeDocumentHtml(contentText) : undefined,
-        description: contentText && !isHtmlDesc(contentText) ? contentText : undefined,
-        formFields: formFields.length > 0 ? formFields : undefined,
-        createdAt: formatDate(req.created_at),
-        attachments: attachments.length > 0 ? attachments : undefined,
-        steps: timeline.map((st) => ({
-          stage: st.stage,
-          stageName: st.stage_name,
-          approverName: st.approver_name || "담당자",
-          statusLabel: STATUS_CONFIG[st.status]?.label || st.status,
-          comment: st.comment || undefined,
-          decidedAt: st.decided_at ? formatDateTime(st.decided_at) : null,
-        })),
-      });
-      const saved = await saveBlobToUserChosenPath(blob, `결재문서_${req.title}_${formatDate(req.created_at)}.pdf`);
+      const saved = await buildAndSaveApprovalPdf({ req, requesterName: userName(req.requester_id), formFields });
       if (saved) toast("PDF 다운로드 완료", "success");
     } catch (err: any) {
       toast(`PDF 생성 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
@@ -1817,44 +1880,11 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
   const handleDownloadApprovalPdf = async (req: any) => {
     setPdfLoadingId(req.id);
     try {
-      const timeline = await getApprovalTimeline(req.id);
-      const rawAttachments: string[] = req.attachments || [];
-      const attachments = (await Promise.all(
-        rawAttachments.map(async (url) => {
-          const name = attachmentFileName(url);
-          const signed = await resolveSignedUrl(url, name);
-          return signed ? { name, url: signed } : null;
-        })
-      )).filter((a): a is { name: string; url: string } => !!a);
-      // 화면(팝업)과 완전히 동일한 순서·내용으로 — 구조화 필드 분리 + 중복 제거된 본문
       const formFields = resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
-      const contentText = contentWithoutFieldLines(req.description || "", formFields);
-      const blob = await generateApprovalPdf({
-        title: req.title,
-        requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
-        statusLabel: STATUS_CONFIG[req.status]?.label || req.status,
-        requesterName: requesterNames.get(req.requester_id) || "-",
-        amount: req.amount || 0,
-        // 서식 본문(표·이미지 포함)은 HTML 그대로 넘겨 PDF 에서 재현한다.
-        //   과거엔 여기서 평문화해 넘겨 표가 공백으로 뭉개지고 이미지는 사라졌음(2026-07-27 수정).
-        descriptionHtml: contentText && isHtmlDesc(contentText) ? sanitizeDocumentHtml(contentText) : undefined,
-        description: contentText && !isHtmlDesc(contentText) ? contentText : undefined,
-        formFields: formFields.length > 0 ? formFields : undefined,
-        createdAt: formatDate(req.created_at),
-        attachments: attachments.length > 0 ? attachments : undefined,
-        steps: timeline.map((s) => ({
-          stage: s.stage,
-          stageName: s.stage_name,
-          approverName: s.approver_name || "담당자",
-          statusLabel: STATUS_CONFIG[s.status]?.label || s.status,
-          comment: s.comment || undefined,
-          decidedAt: s.decided_at ? formatDateTime(s.decided_at) : null,
-        })),
-      });
-      const saved = await saveBlobToUserChosenPath(blob, `결재문서_${req.title}_${formatDate(req.created_at)}.pdf`);
+      const saved = await buildAndSaveApprovalPdf({ req, requesterName: requesterNames.get(req.requester_id) || "-", formFields });
       if (saved) toast("PDF 다운로드 완료", "success");
     } catch (err: any) {
-      toast(`PDF 생성 실패: ${err.message}`, "error");
+      toast(`PDF 생성 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
     }
     setPdfLoadingId(null);
   };
