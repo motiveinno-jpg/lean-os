@@ -518,6 +518,62 @@
 .lp4-tool-d { font-size:13.5px; color: var(--ink2); line-height:1.7; margin-top:7px; }
 .lp4-feat-cta { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:26px; }
 
+/* ── 모바일 섹션 — 스크롤 핀. 좌 대형 카피(둘째 줄은 흐리게) / 우 큰 폰 목업 ── */
+.lp4-mob { position:relative; background: linear-gradient(180deg, var(--canvas2), var(--canvas)); }
+.lp4-mob-pin { padding:80px 0; }
+@media (min-width: 1000px){
+  .lp4-mob { height: calc(var(--mn) * 78vh); }
+  .lp4-mob-pin { position:sticky; top:0; height:100vh; display:flex; align-items:center; padding:0; }
+}
+.lp4-mob-grid { display:grid; grid-template-columns:1fr; gap:40px; align-items:center; }
+@media (min-width: 1000px){ .lp4-mob-grid { grid-template-columns: 1.08fr 0.92fr; gap:40px; } }
+.lp4-mob-eyebrow { font-size:14px; font-weight:800; color: var(--brand); }
+.lp4-mob-title { font-size: clamp(30px,4.2vw,52px); font-weight:800; letter-spacing:-.04em;
+  line-height:1.16; color: var(--ink); margin-top:12px; }
+.lp4-mob-step { margin-top:44px; animation: lp4-rise .38s ease; }
+.lp4-mob-h { font-size: clamp(23px,2.8vw,36px); font-weight:800; letter-spacing:-.04em; line-height:1.25; color: var(--ink); }
+.lp4-mob-h em { font-style:normal; color: var(--ink3); }
+.lp4-mob-d { font-size:16px; color: var(--ink2); line-height:1.8; margin-top:18px; }
+.lp4-mob-dots { display:flex; gap:7px; margin-top:34px; }
+.lp4-mob-dot { width:26px; height:4px; border-radius:999px; background: var(--line2); transition: all .3s; }
+.lp4-mob-dot-on { width:46px; background: var(--brand); }
+
+/* 폰 목업 — 베젤 하이라이트·2단 그림자·살짝한 기울기로 입체감을 준다 */
+.lp4-mob-stage { position:relative; display:flex; justify-content:center; align-items:center; }
+.lp4-mob-glow { position:absolute; width:120%; aspect-ratio:1; border-radius:999px;
+  background: radial-gradient(closest-side, rgba(91,84,232,.16), transparent 72%); }
+.lp4-phone3d { position:relative; z-index:2; width:min(330px, 78vw); aspect-ratio: 1170 / 2400;
+  border-radius:44px; padding:9px; background: linear-gradient(150deg, #f4f3fb, #d9d7ec 46%, #f7f6fd);
+  box-shadow:
+    0 2px 3px rgba(255,255,255,.9) inset,
+    0 -2px 3px rgba(27,26,46,.14) inset,
+    0 44px 90px -30px rgba(27,26,46,.5),
+    0 12px 26px -12px rgba(27,26,46,.3);
+  transform: perspective(1400px) rotateY(-7deg) rotateX(2deg); }
+.lp4-phone3d-img { position:absolute; inset:9px; width:calc(100% - 18px); height:calc(100% - 18px);
+  object-fit:cover; object-position: top; border-radius:36px; opacity:0; transition: opacity .45s ease; }
+.lp4-phone3d-on { opacity:1; }
+.lp4-phone3d-notch { position:absolute; z-index:3; top:16px; left:50%; transform:translateX(-50%);
+  width:96px; height:20px; border-radius:999px; background:#1b1a2e; opacity:.86; }
+@media (max-width: 999px){ .lp4-phone3d { transform:none; } }
+
+/* ── 화면 프레임 입체·글래스 — "평면적" 지적 반영 ──
+   테두리 하이라이트 + 2단 그림자 + 살짝한 기울기. */
+.lp4-mf-screen, .lp4-cat-shot, .lp4-eshot img {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.9) inset,
+    0 0 0 1px rgba(27,26,46,.06),
+    0 10px 22px -12px rgba(27,26,46,.3),
+    0 46px 92px -34px rgba(27,26,46,.46) !important;
+}
+.lp4-mf-screen { transform: perspective(1600px) rotateY(-3.5deg) rotateX(1.6deg); }
+.lp4-cat-shot { position:relative; }
+.lp4-mf-screen::after, .lp4-cat-shot::after {
+  content:""; position:absolute; inset:0; pointer-events:none; border-radius:inherit; z-index:2;
+  background: linear-gradient(150deg, rgba(255,255,255,.4), rgba(255,255,255,0) 34%);
+}
+@media (max-width: 999px){ .lp4-mf-screen { transform:none; } }
+
 /* ── Partner form ──────────────────────────────────── */
 .lp4-form { padding:30px; }
 .lp4-flabel { display:block; font-size:13px; font-weight:600; color: var(--ink2); margin-bottom:6px; }
@@ -755,12 +811,14 @@
 
 
 /* ── Reveal ────────────────────────────────────────── */
-.lp4-reveal { opacity:0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
-.lp4-reveal-in { opacity:1; transform:none; }
+/* 스크롤하면 섹션이 떠오르듯 등장한다 */
+.lp4-reveal { opacity:0; transform: translateY(30px) scale(.985); filter: blur(6px);
+  transition: opacity .7s cubic-bezier(.2,.7,.3,1), transform .7s cubic-bezier(.2,.7,.3,1), filter .7s ease; }
+.lp4-reveal-in { opacity:1; transform:none; filter:none; }
 @keyframes lp4-fade { from{opacity:0; transform: translateY(8px);} to{opacity:1; transform:none;} }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp4-reveal { opacity:1 !important; transform:none !important; transition:none !important; }
+  .lp4-reveal { opacity:1 !important; transform:none !important; filter:none !important; transition:none !important; }
   .lp4-tour-shot { animation:none !important; }
   .lp4-pain, .lp4-eng, .lp4-price, .lp4-feat, .lp4-btn, .lp4-sticky-cta { transition:none !important; }
 }

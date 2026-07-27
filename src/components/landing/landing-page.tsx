@@ -200,6 +200,85 @@ function PillarTabs() {
   );
 }
 
+// 모바일 — 스크롤을 내리면 문구와 폰 화면이 순서대로 넘어간다.
+//   좌: 큰 헤드라인(둘째 줄은 흐리게) + 설명 / 우: 실제 모바일 화면이 든 폰 목업.
+function MobileScroll() {
+  const [i, setI] = useState(0);
+  const ref = useRef<HTMLElement>(null);
+  const n = MOBILE.steps.length;
+
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const r = el.getBoundingClientRect();
+        const total = r.height - window.innerHeight;
+        if (total <= 0) return;
+        const p = Math.min(1, Math.max(0, -r.top / total));
+        setI(Math.min(n - 1, Math.floor(p * n)));
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [n]);
+
+  const S = MOBILE.steps[i];
+  return (
+    <section className="lp4-mob" id="mobile" ref={ref} style={{ ["--mn" as string]: n }}>
+      <div className="lp4-mob-pin">
+        <div className="lp4-container lp4-mob-grid">
+          <div className="lp4-mob-copy">
+            <div className="lp4-mob-eyebrow">{MOBILE.eyebrow}</div>
+            <h2 className="lp4-mob-title">
+              {MOBILE.title.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
+            </h2>
+            <div className="lp4-mob-step" key={S.src}>
+              <div className="lp4-mob-h">
+                {S.head}<br /><em>{S.muted}</em>
+              </div>
+              <p className="lp4-mob-d">
+                {S.desc.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
+              </p>
+            </div>
+            <div className="lp4-mob-dots">
+              {MOBILE.steps.map((st, k) => (
+                <span key={st.src} className={`lp4-mob-dot ${k === i ? "lp4-mob-dot-on" : ""}`} />
+              ))}
+            </div>
+          </div>
+
+          <div className="lp4-mob-stage">
+            <span className="lp4-mob-glow" />
+            <div className="lp4-phone3d">
+              <div className="lp4-phone3d-notch" />
+              {MOBILE.steps.map((st, k) => (
+                <Image
+                  key={st.src}
+                  src={st.src}
+                  alt={st.alt}
+                  width={1170}
+                  height={2400}
+                  sizes="330px"
+                  className={k === i ? "lp4-phone3d-img lp4-phone3d-on" : "lp4-phone3d-img"}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // 제품 화면 프레임 — 브라우저 크롬을 씌워 "실제 화면"임을 시각적으로 못 박는다.
 function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
   return (
@@ -516,27 +595,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ 모바일 — 언제 어디서든 같은 화면 ══ */}
-      <section className="lp4-mobile" id="mobile">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <h2 className="lp4-h2">{MOBILE.title.split("\n").map((l, i) => <span key={i}>{l}<br /></span>)}</h2>
-            <p className="lp4-sub">{MOBILE.sub}</p>
-          </Reveal>
-          <Reveal>
-            <div className="lp4-phone-wrap">
-              <div className="lp4-phone">
-                <Image src={MOBILE.src} alt={MOBILE.alt} width={390} height={844} sizes="330px" />
-              </div>
-              <div className="lp4-phone-points">
-                {MOBILE.points.map((t) => (
-                  <span key={t} className="lp4-phone-point"><Check /> {t}</span>
-                ))}
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
+      {/* ══ 모바일 — 스크롤에 따라 문구·화면이 넘어간다 ══ */}
+      <MobileScroll />
 
       {/* ══ FAQ ══ */}
       <section className="lp4-section lp4-bg-tint" id="faq">
