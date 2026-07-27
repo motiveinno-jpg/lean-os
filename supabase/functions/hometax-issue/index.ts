@@ -28,6 +28,10 @@ const CODEF_TOKEN_URL = "https://oauth.codef.io/oauth/token";
 
 // CODEF 전자세금계산서 발행 API (정발행/위수탁). 명세: 승인내역 PDF 기준.
 const ISSUE_PATH = "/v1/kr/public/a/tax-invoice/regist-invoicer-trustee";
+// 수정발행은 별도 엔드포인트다(명세 2026-04-22). 송신부는 정발행과 동일하고
+//   modifyCode(수정사유) + orgNTSConfirmNum(원본 승인번호 24자리)만 추가된다.
+//   issueType 은 수정발행에서도 "정발행"/"위수탁" 중 택1 — "수정발행" 이라는 값은 없다.
+const REVISE_ISSUE_PATH = "/v1/kr/public/a/tax-invoice/regist-revise-invoicer-trustee";
 
 // Token cache
 let tokenCache: { token: string; expiresAt: number } | null = null;
@@ -65,7 +69,7 @@ async function codefRequest(token: string, path: string, body: Record<string, un
 function codefErrorHint(code?: string): string {
   if (!code) return "응답이 없습니다. CODEF 연동 상태를 확인하세요.";
   if (code === "CF-00000") return "";
-  if (code === "CF-00003") return "CODEF 대시보드에서 '전자세금계산서 발행 (popbill-taxinvoice-regist-invoicer-trustee)' 상품을 신청하지 않았습니다. CODEF 관리자 페이지 → 상품 관리 → 사용 API 변경 신청에서 추가하세요.";
+  if (code === "CF-00003") return "CODEF 대시보드에서 해당 발행 상품을 신청하지 않았습니다. 정발행은 'regist-invoicer-trustee', 수정발행은 'regist-revise-invoicer-trustee' 로 상품이 각각 분리돼 있습니다. CODEF 관리자 페이지 → 상품 관리 → 사용 API 변경 신청에서 추가하세요.";
   if (code === "CF-00401") return "발행 API 권한 없음. 발행 product (popbill-taxinvoice-*) 가 승인되었는지 CODEF 대시보드에서 확인하세요.";
   if (code === "CF-04015" || code.startsWith("CF-0401")) return "Connected ID/인증 정보가 만료. 설정 → API 연동에서 홈택스 계정을 다시 등록하세요.";
   if (code === "CF-05001") return "공동인증서가 팝빌에 등록되지 않았습니다. 이 화면의 '① 발행 등록 (회원가입+인증서)' 버튼을 눌러 뜨는 팝업에서 인증서를 먼저 등록하세요. (윈도우 PC 전용, URL 30초 유효 — 전자세금용/표준/범용 인증서만 가능, 인터넷뱅킹·보험·증권·우체국용 인증서는 등록 불가)";
@@ -85,22 +89,13 @@ function toYmd(d: string | null): string {
 //   modify-tax-invoice 안의 한글 라벨 맵은 UI 값과 형식이 달라 매칭되지 않는 죽은 코드였다.
 //   이쪽(전송 단계)이 단일 기준이다.
 const NTS_MODIFY_CODES: Record<string, string> = {
-  error_correction: "01", // 기재사항 착오정정
-  price_change: "02",     // 공급가액 변동
-  return: "03",           // 환입
-  contract_cancel: "04",  // 계약의 해제
-  inland_lc: "05",        // 내국신용장 사후개설
-  duplicate: "06",        // 착오에 의한 이중발급
+  error_correction: "1", // 기재사항 착오정정 (원본 취소분 부(-) + 수정분 정(+) = 2장)
+  price_change: "2",     // 공급가액 변동 (증감분 1장)
+  return: "3",           // 환입 (부(-) 1장)
+  contract_cancel: "4",  // 계약의 해제 (부(-) 1장)
+  inland_lc: "5",        // 내국신용장 사후개설 (과세 부(-) + 영세 = 2장)
+  duplicate: "6",        // 착오에 의한 이중발급 (부(-) 1장)
 };
-
-// ⚠️ CODEF 발행 API의 "수정발행" 필드명·코드값은 사내에 확보된 명세(발행 API PDF 2026-05)에
-//   포함돼 있지 않다. 이 파일 115행에 남아 있듯, 명세에 없는 필드를 payload 에 넣으면
-//   CF-05001(API 처리 오류)이 발생한 전례가 있어 필드명을 추정해서 보내지 않는다.
-//   CODEF 로부터 수정발행 명세를 받은 뒤 아래 상수를 채우고 env 로 활성화한다.
-//     CODEF_MODIFY_ISSUE_ENABLED=true
-//   활성화 전까지는 "수정세금계산서를 정발행으로 잘못 전송하는 것"을 차단하는 역할을 한다
-//   (기존엔 issueType 이 "정발행" 으로 고정돼 수정분도 일반 발행으로 나갔다).
-const MODIFY_ISSUE_ENABLED = Deno.env.get("CODEF_MODIFY_ISSUE_ENABLED") === "true";
 
 // CODEF 발행 payload 구성 — 발행 API PDF 명세 기준 (한글 코드값).
 function buildIssuePayload(args: {
@@ -139,11 +134,10 @@ function buildIssuePayload(args: {
   void connectedId; // QA 2026-07-13: connectedId 는 발행 API 공식 명세에 없는 필드 — payload 에 넣으면 CF-05001(API 처리 오류) 유발 확인. 제거.
   return {
     corpNum: myCorpNum,         // 회원가입 완료 사업자번호 (CODEF 필수) = 발행 주체
-    issueType: modification ? "수정발행" : "정발행",
-    // 수정발행 전용 항목 — 당초 승인번호와 수정사유 코드. 명세 확보 후 필드명을 확정해야 하며
-    //   그때까지는 이 경로 자체가 MODIFY_ISSUE_ENABLED 로 막혀 실제 전송되지 않는다.
+    issueType: "정발행",        // 수정발행에서도 "정발행"/"위수탁" 중 택1 (명세 2026-04-22)
+    // 수정발행 전용 항목 — 엔드포인트(REVISE_ISSUE_PATH)와 함께 이 둘이 수정분을 결정한다.
     ...(modification
-      ? { modifyCode: modification.reasonCode, orgNtsConfirmNum: modification.originalConfirmNo }
+      ? { modifyCode: modification.reasonCode, orgNTSConfirmNum: modification.originalConfirmNo }
       : {}),
     taxType: "과세",            // 영세/면세는 추후 invoice 유형 컬럼 연동
     purposeType,                // "영수"(결제완료) / "청구"
@@ -386,14 +380,6 @@ serve(withSentry("hometax-issue", async (req) => {
         }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      if (!MODIFY_ISSUE_ENABLED) {
-        return new Response(JSON.stringify({
-          error: "수정세금계산서 전송은 아직 활성화되지 않았습니다. CODEF 수정발행 API 명세 확인 후 열립니다.",
-          hint: "명세 확보 후 CODEF_MODIFY_ISSUE_ENABLED=true 로 활성화하세요. 임의 필드 전송은 CF-05001(API 처리 오류)을 유발합니다.",
-          code: "MODIFY_ISSUE_NOT_ENABLED",
-        }), { status: 501, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-
       modification = { originalConfirmNo: original.nts_confirm_no, reasonCode };
     }
 
@@ -511,7 +497,7 @@ serve(withSentry("hometax-issue", async (req) => {
     let codefResp: any;
     try {
       const token = await getCodefToken(clientId, clientSecret);
-      codefResp = await codefRequest(token, ISSUE_PATH, payload);
+      codefResp = await codefRequest(token, modification ? REVISE_ISSUE_PATH : ISSUE_PATH, payload);
     } catch (err: any) {
       await supabase.from("tax_invoices").update({
         nts_issue_status: "failed",

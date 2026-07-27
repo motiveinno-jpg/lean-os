@@ -22,12 +22,12 @@ function getCorsHeaders(req: Request) {
 //   2026-07-27: 기존 맵은 한글 라벨을 키로 써서 UI 값("duplicate" 등)과 절대 매칭되지 않는
 //   죽은 코드였다. 실제 전송(hometax-issue NTS_MODIFY_CODES)과 같은 기준으로 통일.
 const MODIFICATION_REASON_CODES: Record<string, string> = {
-  error_correction: "01", // 기재사항 착오정정
-  price_change: "02",     // 공급가액 변동
-  return: "03",           // 환입
-  contract_cancel: "04",  // 계약의 해제
-  inland_lc: "05",        // 내국신용장 사후개설
-  duplicate: "06",        // 착오에 의한 이중발급
+  error_correction: "1", // 기재사항 착오정정
+  price_change: "2",     // 공급가액 변동
+  return: "3",           // 환입
+  contract_cancel: "4",  // 계약의 해제
+  inland_lc: "5",        // 내국신용장 사후개설
+  duplicate: "6",        // 착오에 의한 이중발급
 };
 
 serve(withSentry("modify-tax-invoice", async (req) => {
