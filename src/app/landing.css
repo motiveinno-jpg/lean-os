@@ -511,6 +511,153 @@
 .lp4-cmp-grid > .lp4-reveal > *,
 .lp4-price-grid > .lp4-reveal > * { flex:1; min-width:0; }
 
+
+/* ── 하루 — 가로 타임라인 + 라이브 미리보기 ── */
+.lp4-tl { position:relative; display:grid; grid-template-columns: repeat(5,1fr); gap:8px; margin-bottom:40px; }
+@media (max-width: 760px){ .lp4-tl { grid-template-columns: repeat(2,1fr); } }
+.lp4-tl-line { position:absolute; left:6%; right:6%; top:13px; height:2px; background: var(--line); }
+.lp4-tl-item { position:relative; display:flex; flex-direction:column; align-items:center; gap:9px;
+  padding:0 6px 10px; text-align:center; }
+.lp4-tl-dot { width:14px; height:14px; border-radius:999px; background:#fff; border:2px solid var(--line2);
+  position:relative; z-index:2; transition: all .25s; }
+.lp4-tl-on .lp4-tl-dot { border-color: var(--brand); background: var(--brand); box-shadow: 0 0 0 6px var(--brand-dim); }
+.lp4-tl-time { font-size:19px; font-weight:800; letter-spacing:-.03em; color: var(--ink3);
+  font-variant-numeric: tabular-nums; transition: color .25s; }
+.lp4-tl-on .lp4-tl-time { color: var(--ink); }
+.lp4-tl-scene { font-size:12.5px; color: var(--ink3); }
+.lp4-tl-on .lp4-tl-scene { color: var(--brand); font-weight:600; }
+.lp4-tl-panel { display:grid; grid-template-columns:1fr; gap:26px; align-items:center; animation: lp4-rise .35s ease; }
+@media (min-width: 1000px){ .lp4-tl-panel { grid-template-columns: 1fr 1fr; gap:52px; } }
+.lp4-tl-copy { display:flex; flex-direction:column; gap:16px; }
+.lp4-tl-before, .lp4-tl-after { padding:20px 22px; border-radius:18px; }
+.lp4-tl-before { background: var(--canvas2); }
+.lp4-tl-before p { font-size:15px; color: var(--ink3); line-height:1.65; margin-top:8px;
+  text-decoration: line-through; text-decoration-color: rgba(27,26,46,.2); }
+.lp4-tl-after { background: var(--pastel-lav); border:1px solid var(--line); }
+.lp4-tl-after p { font-size:16px; color: var(--ink); font-weight:700; line-height:1.65; margin-top:8px; }
+.lp4-tl-tag { font-size:11px; font-weight:800; letter-spacing:.05em; color: var(--ink3); }
+.lp4-tl-tag-on { color: var(--brand); }
+
+/* ── 라이브 패널 — 그래프·채팅이 실제로 움직인다 ── */
+.lp4-tl-live, .lv-host { width:100%; }
+.lv { background:#fff; border:1px solid var(--line); border-radius:20px; padding:24px;
+  box-shadow: 0 24px 54px -30px rgba(27,26,46,.3); min-height:300px; display:flex; flex-direction:column; }
+.lv-head { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:.08em;
+  color: var(--ink3); text-transform:uppercase; }
+.lv-dot { width:8px; height:8px; border-radius:999px; background: var(--brand); }
+.lv-dot-ok { background: var(--ok); }
+.lv-bal { font-size:32px; font-weight:800; letter-spacing:-.04em; color: var(--ink); margin-top:14px;
+  font-variant-numeric: tabular-nums; }
+.lv-cap { font-size:12.5px; color: var(--ink3); margin-top:2px; }
+.lv-lines { margin-top:18px; display:flex; flex-direction:column; gap:10px; }
+.lv-line { font-size:14px; color: var(--ink2); line-height:1.6; opacity:0; transform: translateY(8px);
+  transition: opacity .45s ease, transform .45s ease; }
+.lv-line.lv-in { opacity:1; transform:none; }
+.lv-rows { margin-top:14px; display:flex; flex-direction:column; }
+.lv-row { display:flex; justify-content:space-between; gap:12px; font-size:13.5px; color: var(--ink2);
+  padding:9px 0; border-bottom:1px solid var(--line); opacity:0; transform: translateY(6px);
+  transition: opacity .35s ease, transform .35s ease; }
+.lv-row.lv-in { opacity:1; transform:none; }
+.lv-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.lv-total { display:flex; justify-content:space-between; align-items:baseline; margin-top:14px; padding-top:12px;
+  border-top:2px solid var(--line); font-size:14px; color: var(--ink2); }
+.lv-total b { font-size:22px; font-weight:800; color: var(--brand); font-variant-numeric: tabular-nums; }
+.lv-pay { display:flex; margin-top:16px; height:30px; border-radius:10px; overflow:hidden; }
+.lv-seg { display:grid; place-items:center; font-size:10.5px; font-weight:700; color:#fff; transition: width .6s ease; }
+.lv-seg-a { background: var(--brand); } .lv-seg-b { background: var(--brand-soft); } .lv-seg-c { background: var(--ok); }
+.lv-bars { display:flex; align-items:flex-end; gap:7px; height:96px; margin-top:20px; }
+.lv-bar { flex:1; border-radius:6px 6px 0 0; background: linear-gradient(180deg, var(--brand-soft), var(--brand));
+  transition: height .7s cubic-bezier(.22,1,.36,1); }
+.lv-chips { display:flex; flex-wrap:wrap; gap:7px; margin-top:16px; }
+.lv-chip { font-size:11.5px; font-weight:600; color: var(--ink2); background: var(--canvas2);
+  border:1px solid var(--line); padding:6px 12px; border-radius:999px; }
+.lv-match { display:grid; grid-template-columns: repeat(3,1fr); gap:9px; margin-top:18px; }
+.lv-mcard { position:relative; padding:14px 10px; border-radius:14px; border:1px solid var(--line);
+  text-align:center; opacity:.35; transform: scale(.97); transition: all .4s ease; }
+.lv-mcard.lv-in { opacity:1; transform:none; border-color: var(--ok); background: rgba(63,157,132,.06); }
+.lv-mcap { font-size:10px; font-weight:800; color: var(--ink3); text-transform:uppercase; letter-spacing:.05em; }
+.lv-mval { font-size:14px; font-weight:800; color: var(--ink); margin-top:5px; font-variant-numeric: tabular-nums; }
+.lv-msub { font-size:10px; color: var(--ink3); margin-top:3px; }
+.lv-mcheck { position:absolute; top:-8px; right:-8px; width:22px; height:22px; border-radius:999px;
+  background: var(--ok); color:#fff; font-size:12px; display:grid; place-items:center;
+  opacity:0; transform: scale(.5); transition: all .35s ease; }
+.lv-mcheck.lv-in { opacity:1; transform:none; }
+.lv-note { margin-top:18px; padding:11px 14px; border-radius:12px; background: var(--pastel-mint);
+  font-size:12.5px; font-weight:600; color: var(--ok); opacity:0; transition: opacity .5s ease; }
+.lv-note.lv-in { opacity:1; }
+.lv-fc { display:grid; grid-template-columns: repeat(4,1fr); gap:12px; margin-top:20px; }
+.lv-fcol { display:flex; flex-direction:column; align-items:center; }
+.lv-fbar-wrap { height:120px; width:100%; display:flex; align-items:flex-end; justify-content:center; }
+.lv-fbar { width:60%; border-radius:8px 8px 0 0; background: linear-gradient(180deg, var(--brand-soft), var(--brand));
+  transition: height .8s cubic-bezier(.22,1,.36,1); }
+.lv-fbar-warn { background: linear-gradient(180deg, #f0b183, var(--warn)); }
+.lv-flabel { font-size:11.5px; color: var(--ink3); margin-top:8px; }
+.lv-chat { margin-top:16px; display:flex; flex-direction:column; gap:10px; flex:1; justify-content:flex-end; }
+.lv-msg { display:flex; flex-direction:column; align-items:flex-start; gap:4px; opacity:0; transform: translateY(8px); }
+.lv-msg.lv-in { opacity:1; transform:none; transition: opacity .3s ease, transform .3s ease; }
+.lv-msg-me { align-items:flex-end; }
+.lv-who { font-size:10.5px; color: var(--ink3); font-weight:600; }
+.lv-bubble { max-width:82%; font-size:13.5px; line-height:1.5; padding:11px 15px; border-radius:16px;
+  background: var(--canvas2); color: var(--ink); }
+.lv-msg-me .lv-bubble { background: var(--brand); color:#fff; }
+.lv-typing { display:inline-flex; gap:4px; align-items:center; }
+.lv-typing i { width:6px; height:6px; border-radius:999px; background: var(--ink3); animation: lv-bounce 1.1s infinite; }
+.lv-typing i:nth-child(2){ animation-delay:.16s } .lv-typing i:nth-child(3){ animation-delay:.32s }
+@keyframes lv-bounce { 0%,60%,100%{ transform: translateY(0); opacity:.4 } 30%{ transform: translateY(-4px); opacity:1 } }
+
+/* ── 기능 카드 롬링 ── */
+.lp4-roll { overflow:hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+.lp4-roll-track { display:flex; width:max-content; animation: lp4-roll 46s linear infinite; }
+.lp4-roll-run { display:flex; gap:16px; padding-right:16px; }
+.lp4-roll .lp4-fcard { width:300px; flex:none; }
+.lp4-roll:hover .lp4-roll-track { animation-play-state: paused; }
+@keyframes lp4-roll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce){ .lp4-roll-track { animation:none; } }
+
+/* ── AI 엔진 — 탭 + 좌 설명 / 우 화면 (먼데이 레퍼런스) ── */
+.lp4-etabs { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:36px; }
+.lp4-etab { display:inline-flex; align-items:center; gap:9px; padding:12px 20px; border-radius:999px;
+  font-size:14.5px; font-weight:700; color: var(--ink2); background: rgba(255,255,255,.72);
+  border:1px solid var(--line); transition: all .18s; }
+.lp4-etab svg { width:18px; height:18px; }
+.lp4-etab:hover { border-color: var(--brand); color: var(--brand); }
+.lp4-etab-on { background: var(--brand); border-color: var(--brand); color:#fff; }
+.lp4-epanel { display:grid; grid-template-columns:1fr; gap:32px; align-items:center; animation: lp4-rise .35s ease; }
+@media (min-width: 1000px){ .lp4-epanel { grid-template-columns: 1fr 1.05fr; gap:56px; } }
+.lp4-eno { font-size:11.5px; font-weight:800; letter-spacing:.08em; color: var(--ink3); }
+.lp4-eline { font-size: clamp(22px,2.6vw,30px); font-weight:800; letter-spacing:-.035em; line-height:1.36; margin-top:12px; color: var(--ink); }
+.lp4-eshort { font-size:16px; color: var(--ink2); margin-top:14px; line-height:1.7; }
+.lp4-esteps { margin-top:22px; display:flex; flex-direction:column; gap:9px; }
+.lp4-estep { display:flex; gap:11px; align-items:flex-start; font-size:14px; color: var(--ink2); line-height:1.55;
+  background: rgba(255,255,255,.75); border:1px solid var(--line); border-radius:14px; padding:13px 16px; }
+.lp4-edot { flex:none; width:20px; height:20px; border-radius:999px; background: var(--brand-dim); color: var(--brand);
+  font-size:11px; font-weight:800; display:grid; place-items:center; }
+.lp4-erep { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-top:22px; }
+.lp4-erep-cap { font-size:13px; color: var(--ink3); }
+.lp4-erep-cost { font-size:20px; font-weight:800; color: var(--ok); letter-spacing:-.02em; }
+.lp4-eshot img { display:block; width:100%; height:auto; border-radius:18px; border:1px solid var(--line);
+  box-shadow: 0 26px 60px -30px rgba(27,26,46,.3); }
+
+/* ── 요금제 기능 목록 (별도 페이지) ── */
+.lp4-matrix { max-width:1000px; margin:0 auto; border:1px solid var(--line); border-radius:20px; overflow:hidden; background:#fff; }
+.lp4-mx-head, .lp4-mx-row { display:grid; grid-template-columns: 1.6fr 1fr 1.3fr 1.3fr; gap:10px; padding:14px 20px; align-items:center; }
+.lp4-mx-head { background: var(--canvas2); font-size:12.5px; font-weight:800; color: var(--ink2); }
+.lp4-mx-gname { padding:12px 20px 6px; font-size:11.5px; font-weight:800; letter-spacing:.06em; color: var(--brand); text-transform:uppercase; }
+.lp4-mx-row { border-top:1px solid var(--line); font-size:13.5px; }
+.lp4-mx-name { color: var(--ink); font-weight:600; }
+.lp4-mx-v { color: var(--ink2); }
+.lp4-mx-hl { color: var(--brand-ink); font-weight:700; }
+.lp4-mx-tools { max-width:1000px; margin:34px auto 0; text-align:center; }
+.lp4-mx-tools-t { font-size:14px; font-weight:700; color: var(--ink2); margin-bottom:14px; }
+.lp4-mx-tools-list { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+@media (max-width: 760px){
+  .lp4-mx-head, .lp4-mx-row { grid-template-columns: 1.4fr 1fr 1fr; }
+  .lp4-mx-head span:nth-child(4), .lp4-mx-row span:nth-child(4) { display:none; }
+}
+
+
 /* ── Reveal ────────────────────────────────────────── */
 .lp4-reveal { opacity:0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
 .lp4-reveal-in { opacity:1; transform:none; }

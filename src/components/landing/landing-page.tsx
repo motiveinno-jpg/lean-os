@@ -12,8 +12,9 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, STATS, PILLARS, DAY, MOBILE, CASES, CASES_NOTE, FEATURES, ENGINES, COMPETITORS, PLANS, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, STATS, PILLARS, DAY, MOBILE, FEATURES, ENGINES, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { PartnershipForm } from "@/components/landing/partnership-form";
+import { LIVE } from "@/components/landing/live-panels";
 
 function Logo({ size = 26 }: { size?: number }) {
   return (
@@ -26,6 +27,8 @@ function Logo({ size = 26 }: { size?: number }) {
     </svg>
   );
 }
+const DAY_LIVE = ["brief", "quote", "attend", "match", "forecast"];
+
 const Check = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
 const Arrow = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" /></svg>);
 
@@ -217,9 +220,9 @@ function FeatGlyph({ n }: { n: string }) {
 
 export default function LandingPage() {
   const [on, setOn] = useState(false);
-  const [feat, setFeat] = useState(0); // 기능 리스트 — 열린 항목
+  const [day, setDay] = useState(0);   // 하루 타임라인 선택 시간
+  const [eng, setEng] = useState(0);   // AI 엔진 탭
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [team, setTeam] = useState(8);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
   useEffect(() => {
@@ -234,10 +237,6 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", h);
   }, []);
 
-  const compTotal = COMPETITORS.reduce((s, c) => s + (c.perSeat ? c.price * team : c.price), 0);
-  const owvTotal = 79500 + Math.max(0, team - 5) * 10000;
-  const savePct = Math.round(((compTotal - owvTotal) / compTotal) * 100);
-  const won = (n: number) => "₩" + n.toLocaleString("ko-KR");
 
   return (
     <div className="lp4-root">
@@ -312,39 +311,45 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ 대표님의 하루 — 지금 방식 vs 오너뷰 ══ */}
+      {/* ══ 하루 — 가로 타임라인. 시간에 마우스를 올리면 그 시간의 변화가 보인다 ══ */}
       <section className="lp4-section lp4-bg-canvas" id="day">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">A Day of the Owner</div>
-            <h2 className="lp4-h2">대표님의 하루가 <span className="lp4-underline">이렇게 바뀌어요</span></h2>
-            <p className="lp4-sub">기능 목록 말고, 하루 동안 무엇이 사라지는지로 보여드릴게요.</p>
+            <h2 className="lp4-h2">회사의 하루가 <span className="lp4-underline">이렇게 달라져요</span></h2>
+            <p className="lp4-sub">시간을 눌러보세요. 그 시간에 하던 일이 어떻게 바뀌는지 보여드릴게요.</p>
           </Reveal>
 
-          <div className="lp4-day">
-            <div className="lp4-day-legend">
-              <span className="lp4-day-leg lp4-day-leg-before">지금까지</span>
-              <span className="lp4-day-leg lp4-day-leg-after">오너뷰</span>
-            </div>
-            {DAY.map((d) => (
-              <Reveal key={d.time}>
-                <div className="lp4-day-row">
-                  <div className="lp4-day-time">
-                    <b>{d.time}</b>
-                    <span>{d.scene}</span>
-                  </div>
-                  <div className="lp4-day-before">
-                    <span className="lp4-day-tag">지금까지</span>
-                    <p>{d.before}</p>
-                  </div>
-                  <div className="lp4-day-arrow"><Arrow /></div>
-                  <div className="lp4-day-after">
-                    <span className="lp4-day-tag lp4-day-tag-on">오너뷰 · {d.menu}</span>
-                    <p>{d.after}</p>
-                  </div>
-                </div>
-              </Reveal>
+          {/* 가로 시간표 */}
+          <div className="lp4-tl">
+            <div className="lp4-tl-line" />
+            {DAY.map((d, i) => (
+              <button
+                key={d.time}
+                className={`lp4-tl-item ${i === day ? "lp4-tl-on" : ""}`}
+                onMouseEnter={() => setDay(i)}
+                onFocus={() => setDay(i)}
+                onClick={() => setDay(i)}
+                aria-current={i === day}
+              >
+                <span className="lp4-tl-dot" />
+                <span className="lp4-tl-time">{d.time}</span>
+                <span className="lp4-tl-scene">{d.scene}</span>
+              </button>
             ))}
+          </div>
+
+          <div className="lp4-tl-panel" key={DAY[day].time}>
+            <div className="lp4-tl-copy">
+              <div className="lp4-tl-before">
+                <span className="lp4-tl-tag">지금까지</span>
+                <p>{DAY[day].before}</p>
+              </div>
+              <div className="lp4-tl-after">
+                <span className="lp4-tl-tag lp4-tl-tag-on">오너뷰 · {DAY[day].menu}</span>
+                <p>{DAY[day].after}</p>
+              </div>
+            </div>
+            <div className="lp4-tl-live">{(() => { const C = LIVE[DAY_LIVE[day]]; return <C />; })()}</div>
           </div>
         </div>
       </section>
@@ -363,18 +368,23 @@ export default function LandingPage() {
             <h2 className="lp4-h2">흩어진 7개 도구, 하나로 합쳐보세요</h2>
             <p className="lp4-sub">따로 결제하던 도구들이 하나의 데이터 위에서 같이 움직여요.</p>
           </Reveal>
-          <div className="lp4-fcards">
-            {FEATURES.map((f) => (
-              <Reveal key={f.tab}>
-                <div className={`lp4-fcard lp4-fcard-${f.tone}`}>
-                  <div className="lp4-fcard-art"><FeatGlyph n={f.icon} /></div>
-                  <div className="lp4-fcard-name">{f.tab}</div>
-                  <div className="lp4-fcard-title">{f.title}</div>
-                  <p className="lp4-fcard-desc">{f.desc}</p>
-                  <div className="lp4-fcard-rep">대체 {f.replaces}</div>
+          {/* 한 줄에 전부 두고 가로로 흐르게 — 마우스를 올리면 멈춘다 */}
+          <div className="lp4-roll">
+            <div className="lp4-roll-track">
+              {[0, 1].map((dup) => (
+                <div key={dup} className="lp4-roll-run" aria-hidden={dup === 1}>
+                  {FEATURES.map((f) => (
+                    <div key={f.tab} className={`lp4-fcard lp4-fcard-${f.tone}`}>
+                      <div className="lp4-fcard-art"><FeatGlyph n={f.icon} /></div>
+                      <div className="lp4-fcard-name">{f.tab}</div>
+                      <div className="lp4-fcard-title">{f.title}</div>
+                      <p className="lp4-fcard-desc">{f.desc}</p>
+                      <div className="lp4-fcard-rep">대체 {f.replaces}</div>
+                    </div>
+                  ))}
                 </div>
-              </Reveal>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -425,137 +435,34 @@ export default function LandingPage() {
               </div>
             </div>
           </Reveal>
-          <div className="lp4-eng-grid">
-            {ENGINES.map((e) => (
-              <Reveal key={e.num}><div className="lp4-eng">
-                <div className="lp4-eng-head">
-                  <span className="lp4-eng-chip"><EngineGlyph n={e.num} /></span>
-                  <div className="lp4-eng-id">
-                    <div className="lp4-eng-name">{e.name}</div>
-                    <div className="lp4-eng-eng">ENGINE {e.num} · {e.eng}</div>
-                  </div>
-                </div>
-                <div className="lp4-eng-main">
-                  <div className="lp4-eng-line">{e.headline}</div>
-                  {/* 3단계 처리 흐름 — 설명 문단 대신 시각적 파이프라인으로 */}
-                  <div className="lp4-eng-steps">
-                    {e.steps.map((st, j) => <div key={j} className="lp4-eng-step"><span className="lp4-eng-dot">{j + 1}</span><span>{st}</span></div>)}
-                  </div>
-                  <div className="lp4-eng-rep">
-                    <span className="lp4-eng-rep-cap">대체 인력 · {e.replaces}</span>
-                    <span className="lp4-eng-rep-cost">{e.replacesCost} 절감</span>
-                  </div>
-                </div>
-              </div></Reveal>
+          {/* 탭으로 묶고, 고르면 우측 화면이 바뀐다 (먼데이 레퍼런스) */}
+          <div className="lp4-etabs">
+            {ENGINES.map((e, i) => (
+              <button key={e.num} className={`lp4-etab ${i === eng ? "lp4-etab-on" : ""}`} onClick={() => setEng(i)}>
+                <EngineGlyph n={e.num} />
+                <span>{e.name}</span>
+              </button>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* ══ COMPARE ══ */}
-      <section className="lp4-section lp4-bg-tint" id="compare">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">Compare</div>
-            <h2 className="lp4-h2">따로 쓰면 인원마다 늘어나요</h2>
-            <p className="lp4-sub">7개 도구를 따로 구독할 때와 오너뷰 정액제를 같은 조건으로 비교해봤어요.</p>
-          </Reveal>
-          <div className="lp4-cmp-grid">
-            <Reveal><div className="lp4-cmp lp4-card">
-              <div className="lp4-cmp-title">개별 도구를 따로 쓰는 방식</div>
-              <div className="lp4-cmp-rows">
-                {COMPETITORS.map((c) => (
-                  <div key={c.full} className="lp4-cmp-row">
-                    <span className="lp4-cmp-name">{c.cat} · {c.full}{c.perSeat ? " (인원당)" : ""}</span>
-                    <span className="lp4-cmp-price">{won(c.perSeat ? c.price * team : c.price)}</span>
-                  </div>
+          <div className="lp4-epanel" key={ENGINES[eng].num}>
+            <div className="lp4-ecopy">
+              <div className="lp4-eno">ENGINE {ENGINES[eng].num} · {ENGINES[eng].eng}</div>
+              <div className="lp4-eline">{ENGINES[eng].headline}</div>
+              <p className="lp4-eshort">{ENGINES[eng].short}</p>
+              <div className="lp4-esteps">
+                {ENGINES[eng].steps.map((st, j) => (
+                  <div key={j} className="lp4-estep"><span className="lp4-edot">{j + 1}</span><span>{st}</span></div>
                 ))}
               </div>
-              <div className="lp4-cmp-total">
-                <span className="lp4-cmp-total-cap">{team}명 기준 월</span>
-                <span className="lp4-cmp-total-val lp4-cmp-total-warn">{won(compTotal)}</span>
+              <div className="lp4-erep">
+                <span className="lp4-erep-cap">대체 인력 · {ENGINES[eng].replaces}</span>
+                <span className="lp4-erep-cost">{ENGINES[eng].replacesCost} 절감</span>
               </div>
-            </div></Reveal>
-            <Reveal><div className="lp4-cmp lp4-card lp4-cmp-hl">
-              <div className="lp4-cmp-title">OwnerView 하나로</div>
-              <div className="lp4-cmp-rows">
-                <div className="lp4-cmp-row"><span className="lp4-cmp-name">프로 (기본 5명 포함)</span><span className="lp4-cmp-price">₩79,500</span></div>
-                <div className="lp4-cmp-row"><span className="lp4-cmp-name">추가 {Math.max(0, team - 5)}명 × ₩10,000</span><span className="lp4-cmp-price">{won(Math.max(0, team - 5) * 10000)}</span></div>
-                <div className="lp4-cmp-row"><span className="lp4-cmp-name">전 기능 포함 · VAT 별도</span><span className="lp4-cmp-price lp4-cmp-inc">포함</span></div>
-              </div>
-              <div className="lp4-cmp-total">
-                <span className="lp4-cmp-total-cap">{team}명 기준 월</span>
-                <span className="lp4-cmp-total-val">{won(owvTotal)}</span>
-              </div>
-              <div className="lp4-cmp-save">매월 약 {won(compTotal - owvTotal)} 절감 ({savePct}%)</div>
-            </div></Reveal>
-          </div>
-          <div className="lp4-calc lp4-card">
-            <div className="lp4-calc-head"><span>팀 인원</span><b>{team}명</b></div>
-            <input type="range" min={1} max={50} value={team} onChange={(e) => setTeam(Number(e.target.value))} className="lp4-slider" aria-label="팀 인원" />
-          </div>
-        </div>
-      </section>
-
-      {/* ══ PRICING ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="pricing">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">Pricing</div>
-            <h2 className="lp4-h2">14일 써보고 결정하세요</h2>
-            <p className="lp4-sub">가입할 때 카드만 등록해요. 14일 안에 해지하면 첫 결제는 없어요.</p>
-          </Reveal>
-          <div className="lp4-price-grid">
-            {PLANS.map((p) => (
-              <Reveal key={p.name}><div className={`lp4-price lp4-card ${p.hl ? "lp4-price-hl" : ""}`}>
-                {p.hl && <span className="lp4-price-best">BEST</span>}
-                <div className="lp4-price-name">{p.name}</div>
-                <div className="lp4-price-desc">{p.desc}</div>
-                {p.regularPrice
-                  ? <div className="lp4-price-reg">₩{p.regularPrice}{p.discount && <span className="lp4-price-off">{p.discount} 할인</span>}</div>
-                  : <div className="lp4-price-reg-empty" />}
-                <div className={`lp4-price-amt ${p.price === "별도 협의" ? "lp4-price-amt-text" : ""}`}>{p.price === "별도 협의" ? "별도 협의" : `₩${p.price}`}<span className="lp4-price-unit">{p.unit && ` ${p.unit}`}</span></div>
-                <div className="lp4-price-period">{p.period}</div>
-                <ul className="lp4-price-feats">{p.features.map((ft, i) => <li key={i} className="lp4-price-feat"><Check />{ft}</li>)}</ul>
-                <Link href={p.name === "엔터프라이즈" ? "#partner" : p.slug ? `/auth?plan=${p.slug}` : "/auth"} className={`lp4-price-cta ${p.hl ? "lp4-price-cta-brand" : "lp4-price-cta-line"}`}>
-                  {p.name === "엔터프라이즈" ? "도입 문의하기" : "14일 무료로 시작하기"}
-                </Link>
-              </div></Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ 도입 사례 — 실제 운영 계정 수치만. 회사명은 마스킹 ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="cases">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">In Production</div>
-            <h2 className="lp4-h2">만든 회사가 <span className="lp4-underline">직접 쓰고</span> 있어요</h2>
-            <p className="lp4-sub">{CASES_NOTE}</p>
-          </Reveal>
-          <div className="lp4-case-grid">
-            {CASES.map((c) => (
-              <Reveal key={c.masked}><div className="lp4-case lp4-card">
-                <div className="lp4-case-head">
-                  <span className="lp4-case-mark">{c.masked.slice(0, 1)}</span>
-                  <div className="lp4-case-id">
-                    <div className="lp4-case-name">{c.masked}</div>
-                    <div className="lp4-case-meta">{c.industry} · {c.size} · {c.plan}</div>
-                  </div>
-                  <span className="lp4-case-private">회사명 비공개</span>
-                </div>
-                <p className="lp4-case-note">{c.note}</p>
-                <div className="lp4-case-metrics">
-                  {c.metrics.map((m) => (
-                    <div key={m.label} className="lp4-case-metric">
-                      <div className="lp4-case-metric-value">{m.value}</div>
-                      <div className="lp4-case-metric-label">{m.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div></Reveal>
-            ))}
+            </div>
+            <div className="lp4-eshot">
+              <Image src={ENGINES[eng].src} alt={ENGINES[eng].alt} width={1200} height={760} sizes="(max-width: 1000px) 100vw, 620px" />
+            </div>
           </div>
         </div>
       </section>

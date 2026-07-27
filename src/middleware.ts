@@ -45,6 +45,7 @@ const PUBLIC_ROUTES = [
   '/guide',
   '/platform',
   '/demo',
+  '/pricing',   // 랜딩에서 분리한 요금제 페이지 — 비로그인 노출이 목적 (2026-07-27)
   '/maintenance',
   '/status',
 ];
