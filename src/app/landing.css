@@ -45,10 +45,23 @@
 .lp4-menu a { font-size: 14.5px; font-weight: 500; color: var(--ink2); }
 .lp4-menu a:hover { color: var(--ink); }
 .lp4-nav-right { display: flex; align-items: center; gap: 16px; }
-.lp4-login { font-size: 14.5px; font-weight: 600; color: var(--ink2); }
+/* 모바일에선 숨김 — 좁은 폭에서 CTA 와 햄버거에 자리를 내주고, 로그인은 모바일 메뉴 안에 둔다 */
+.lp4-login { display: none; font-size: 14.5px; font-weight: 600; color: var(--ink2); }
 .lp4-pill { display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: #fff; font-weight: 600; font-size: 14px; padding: 9px 18px; border-radius: 8px; transition: background .15s; }
 .lp4-pill:hover { background: #000; }
-@media (min-width: 920px){ .lp4-menu { display: flex; } }
+.lp4-burger { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-right: -8px; border-radius: 9px; color: var(--ink); }
+.lp4-burger:hover { background: rgba(0,0,0,.05); }
+.lp4-mobile-menu { display: none; flex-direction: column; border-top: 1px solid var(--line); background: rgba(250,248,245,.98); padding: 8px 28px 16px; }
+.lp4-mobile-menu-open { display: flex; }
+.lp4-mobile-menu a { padding: 13px 0; font-size: 15px; font-weight: 600; color: var(--ink2); border-bottom: 1px solid var(--line); }
+.lp4-mobile-menu a:last-child { border-bottom: none; }
+.lp4-mobile-menu a:hover { color: var(--ink); }
+@media (min-width: 920px){
+  .lp4-menu { display: flex; }
+  .lp4-login { display: inline-flex; }
+  .lp4-burger { display: none; }
+  .lp4-mobile-menu, .lp4-mobile-menu-open { display: none; }
+}
 
 /* Buttons */
 .lp4-btn { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; border-radius: 10px; transition: all .15s; }
@@ -114,8 +127,9 @@
 .lp4-pain:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -20px rgba(0,0,0,.2); }
 .lp4-pain-badge { display: inline-block; font-size: 12px; font-weight: 700; color: var(--ink); border: 1px solid var(--line2); padding: 4px 11px; border-radius: 999px; }
 .lp4-pain-pain { font-size: 14.5px; color: var(--ink2); margin-top: 16px; line-height: 1.5; }
-.lp4-pain-solve { display: flex; gap: 7px; font-size: 14px; color: var(--ink); font-weight: 600; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); line-height: 1.55; max-height: 0; opacity: 0; overflow: hidden; transition: max-height .35s, opacity .3s, margin .3s, padding .3s; }
-.lp4-pain:hover .lp4-pain-solve { max-height: 170px; opacity: 1; }
+/* 해결책은 항상 노출 — 이전엔 :hover 로만 펼쳐져 터치 기기(모바일)에서는
+   고통만 보이고 해결책이 영구히 가려졌다. 랜딩 설득의 핵심 구간이라 상시 표시로 전환. */
+.lp4-pain-solve { display: flex; gap: 7px; font-size: 14px; color: var(--ink); font-weight: 600; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); line-height: 1.55; }
 .lp4-pain-solve b { color: var(--blue); flex-shrink: 0; }
 
 /* Feature tabs */
