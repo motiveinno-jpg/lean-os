@@ -1256,6 +1256,78 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .risk-item-card { @apply p-3; }
 .deal-pipeline-card { @apply mb-5 p-4; }
 .deal-pipeline-row { @apply flex items-center gap-3 px-3 py-2.5 rounded-lg; }
+/* ── /demo 위젯 대시보드 (2026-07-27) ──────────────────────────────
+   실제 앱 대시보드는 react-grid-layout 위젯 보드(12칼럼 · rowHeight 44 · margin 12)다.
+   데모에 이게 빠져 있어 "예전 화면" 으로 보였다. 같은 격자 규격을 CSS Grid 로 재현한다. */
+.wb { @apply mb-5; }
+.wb-head { @apply flex items-end justify-between gap-3 flex-wrap mb-3; }
+.wb-eyebrow { @apply text-[11px] font-bold tracking-wider uppercase text-[var(--primary)]; }
+.wb-title { @apply text-[13px] text-[var(--text-dim)] mt-0.5; }
+.wb-actions { @apply flex items-center gap-1.5 shrink-0; }
+.wb-btn { @apply px-3 py-1.5 rounded-lg text-[11px] font-bold border border-[var(--border)] text-[var(--text-muted)] bg-[var(--bg-card)]; }
+.wb-btn-on { @apply text-white border-transparent; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.wb-grid { @apply hidden md:grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: 44px; gap: 12px; }
+/* 모바일은 실제 앱도 1칼럼으로 떨어진다 */
+.wb-grid-m { @apply grid md:hidden gap-3; }
+.wb-tile { @apply flex flex-col overflow-hidden; }
+.wb-tile-head { @apply flex items-center gap-2 px-3.5 pt-3 pb-2 shrink-0; }
+.wb-tile-icon { @apply text-[13px]; }
+.wb-tile-name { @apply text-[12px] font-bold text-[var(--text)] flex-1 truncate; }
+.wb-grip { @apply text-[13px] text-[var(--text-dim)] leading-none; }
+.wb-tile-body { @apply px-3.5 pb-3.5 flex-1 min-h-0 overflow-hidden; }
+
+.wg-row { @apply flex items-center justify-between gap-2 py-1.5 text-[11.5px] border-b border-[var(--border)] last:border-0; }
+.wg-row-l { @apply text-[var(--text-muted)] truncate; }
+.wg-row-r { @apply font-bold text-[var(--text)] shrink-0; font-variant-numeric: tabular-nums; }
+.wg-warn { color: var(--warning); }
+.wg-ok { color: var(--success); }
+.wg-big { @apply text-[21px] font-extrabold text-[var(--text)] leading-tight; font-variant-numeric: tabular-nums; }
+.wg-delta { @apply ml-2 text-[11px] font-bold; color: var(--success); }
+.wg-cap { @apply text-[10.5px] text-[var(--text-dim)] mt-1; }
+.wg-mt { @apply mt-2.5; }
+.wg-bar { @apply h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mt-2 flex-1; }
+.wg-bar-fill { @apply h-full rounded-full; background: linear-gradient(90deg, var(--primary), var(--primary-soft)); }
+.wg-bar-warn { background: var(--warning); }
+.wg-bar-ok { background: var(--success); }
+.wg-att { @apply flex items-center justify-between gap-3 h-full; }
+.wg-att-state { @apply text-[15px] font-extrabold; color: var(--success); }
+.wg-att-time { @apply text-[10.5px] text-[var(--text-dim)] mt-0.5; }
+.wg-btn { @apply px-3 py-1.5 rounded-lg text-[11px] font-bold text-white shrink-0; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.wg-list { @apply flex flex-col; }
+.wg-tasks { @apply flex flex-col gap-1.5; }
+.wg-task { @apply flex items-center gap-2 text-[11.5px]; }
+.wg-check { @apply w-3.5 h-3.5 rounded border border-[var(--border)] shrink-0; }
+.wg-task-t { @apply flex-1 truncate text-[var(--text-muted)]; }
+.wg-task-d { @apply text-[10px] text-[var(--text-dim)] shrink-0 font-semibold; }
+.wg-proj { @apply py-1.5 border-b border-[var(--border)] last:border-0; }
+.wg-proj-top { @apply flex items-center justify-between gap-2; }
+.wg-proj-n { @apply text-[11.5px] font-semibold text-[var(--text)] truncate; }
+.wg-tag { @apply text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0 bg-[var(--primary-light)] text-[var(--primary)]; }
+.wg-proj-bot { @apply flex items-center gap-2 mt-1; }
+.wg-proj-a { @apply text-[10.5px] font-bold text-[var(--text-muted)] shrink-0; font-variant-numeric: tabular-nums; }
+.wg-spark { @apply flex items-end gap-1 h-9 mt-2; }
+.wg-spark span { @apply flex-1 rounded-t-sm; background: linear-gradient(180deg, var(--primary-soft), var(--primary)); opacity: .85; }
+.wg-tax { @apply flex items-center gap-2 py-1.5 border-b border-[var(--border)] last:border-0; }
+.wg-dday { @apply text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 bg-[var(--bg-surface)] text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.wg-dday-hot { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.wg-tax-n { @apply text-[11.5px] text-[var(--text-muted)] truncate; }
+.wg-kpis { @apply grid grid-cols-2 gap-x-3 gap-y-2.5 h-full content-center; }
+.wg-kpi { @apply flex flex-col; }
+.wg-kpi span { @apply text-[10px] text-[var(--text-dim)]; }
+.wg-kpi b { @apply text-[14px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.wg-cal-head { @apply text-[11px] font-bold text-[var(--text)] text-center mb-1.5; }
+.wg-cal-dow { @apply grid grid-cols-7 text-[9px] text-[var(--text-dim)] text-center; }
+.wg-cal-grid { @apply grid grid-cols-7 gap-y-0.5 text-[10px] text-center mt-1; }
+.wg-cal-day { @apply py-0.5 rounded text-[var(--text-muted)] relative; }
+.wg-cal-today { @apply text-white font-bold; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.wg-cal-mark:not(.wg-cal-today)::after { content: ""; @apply absolute left-1/2 bottom-0 w-1 h-1 rounded-full -translate-x-1/2; background: var(--primary); }
+.wg-cal-list { @apply mt-2.5 pt-2.5 border-t border-[var(--border)] flex flex-col gap-1.5; }
+.wg-cal-item { @apply flex items-center gap-1.5 text-[10.5px] text-[var(--text-muted)]; }
+.wg-dot { @apply w-1.5 h-1.5 rounded-full shrink-0; }
+.wg-dot-p { background: var(--primary); }
+.wg-dot-w { background: var(--warning); }
+.wg-dot-o { background: var(--success); }
+
 /* ── /demo 프로젝트 흐름 패널 (2026-07-27) — 랜딩 "견적부터 정산까지" 모션 섹션의 캡처 소스 ── */
 .flow-panel { @apply mb-5 p-6; }
 .flow-head { @apply flex items-start justify-between gap-4 flex-wrap; }

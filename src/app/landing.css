@@ -192,15 +192,78 @@
 .lp4-tour-tab-on { color:#fff; border-color: transparent;
   background: linear-gradient(135deg, var(--brand), var(--brand-soft));
   box-shadow: 0 6px 18px -6px rgba(79,70,229,.6); }
+.lp4-tour-tab { position:relative; overflow:hidden; }
+.lp4-tour-tab-bar { position:absolute; left:0; bottom:0; height:3px; width:100%; background: rgba(255,255,255,.85);
+  transform-origin:left; animation: lp4-flowbar 5s linear forwards; }
 .lp4-tour-panel { display:grid; grid-template-columns:1fr; gap:26px; align-items:center; }
-@media (min-width: 1000px){ .lp4-tour-panel { grid-template-columns: 350px 1fr; gap:44px; } }
-.lp4-tour-title { font-size:25px; font-weight:800; letter-spacing:-.03em; line-height:1.3; }
+@media (min-width: 1000px){ .lp4-tour-panel { grid-template-columns: 360px 1fr; gap:44px; } }
+.lp4-tour-copy { animation: lp4-rise .4s ease; }
+.lp4-tour-step { font-size:11.5px; font-weight:800; letter-spacing:.12em; color: var(--brand); }
+.lp4-tour-title { font-size:26px; font-weight:800; letter-spacing:-.03em; line-height:1.3; margin-top:8px; }
 .lp4-tour-desc { font-size:15.5px; color: var(--ink2); margin-top:14px; line-height:1.75; }
 .lp4-tour-note { display:inline-flex; align-items:center; gap:7px; margin-top:20px; font-size:12.5px;
   font-weight:600; color: var(--ok); background: rgba(5,150,105,.09); padding:7px 13px; border-radius:999px; }
-.lp4-tour-shot { border-radius:14px; overflow:hidden; border:1px solid var(--line);
-  box-shadow: 0 30px 60px -28px rgba(31,38,75,.45); background:#fff; animation: lp4-fade .35s ease; }
-.lp4-tour-shot img { display:block; width:100%; height:auto; }
+/* 화면을 살짝 기울여 배치 — 정면 캡처만 나열하면 카탈로그처럼 밋밋하다 */
+.lp4-tour-stage { perspective: 1600px; }
+.lp4-tour-shot { position:relative; border-radius:14px; overflow:visible; background:#fff;
+  border:1px solid var(--line); box-shadow: 0 36px 70px -30px rgba(31,38,75,.5);
+  transform: rotateY(-4deg) rotateX(1.5deg); transition: transform .5s ease; animation: lp4-rise .45s ease; }
+.lp4-tour-stage:hover .lp4-tour-shot { transform: none; }
+.lp4-tour-shot img { display:block; width:100%; height:auto; border-radius:14px; }
+
+/* 화면 위 주석 — 어디를 봐야 하는지 짚어준다 */
+.lp4-callout { position:absolute; display:flex; align-items:center; gap:8px; transform: translate(-50%,-50%);
+  opacity:0; animation: lp4-pop .45s ease forwards; white-space:nowrap; pointer-events:none; z-index:3; }
+.lp4-callout-pulse { position:relative; width:11px; height:11px; border-radius:999px; flex:none;
+  background: var(--brand); box-shadow: 0 0 0 4px rgba(79,70,229,.22); }
+.lp4-callout-pulse::after { content:""; position:absolute; inset:-4px; border-radius:999px;
+  border:2px solid var(--brand); opacity:.65; animation: lp4-ping 2s ease-out infinite; }
+.lp4-callout-label { font-size:12px; font-weight:700; color:#fff; padding:6px 12px; border-radius:999px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-soft));
+  box-shadow: 0 8px 20px -8px rgba(79,70,229,.75); }
+@keyframes lp4-ping { 0% { transform: scale(1); opacity:.65; } 70% { transform: scale(2.1); opacity:0; } 100% { opacity:0; } }
+@keyframes lp4-pop { from { opacity:0; transform: translate(-50%,-50%) scale(.86); } to { opacity:1; transform: translate(-50%,-50%) scale(1); } }
+@keyframes lp4-rise { from { opacity:0; transform: translateY(14px); } to { opacity:1; transform:none; } }
+@media (max-width: 700px){ .lp4-callout-label { font-size:10.5px; padding:4px 9px; } .lp4-tour-shot { transform:none; } }
+
+/* ── 기능 티커 ─────────────────────────────────────── */
+.lp4-ticker { background: var(--paper); border-bottom:1px solid var(--line); overflow:hidden; padding:14px 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.lp4-ticker-track { display:flex; width:max-content; animation: lp4-marquee 46s linear infinite; }
+.lp4-ticker-run { display:flex; gap:12px; padding-right:12px; }
+.lp4-ticker-item { flex:none; font-size:13.5px; font-weight:600; color: var(--ink2); white-space:nowrap;
+  background: var(--canvas); border:1px solid var(--line); padding:8px 16px; border-radius:999px; }
+@keyframes lp4-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.lp4-ticker:hover .lp4-ticker-track { animation-play-state: paused; }
+
+/* ── 다크 밴드 (AI 엔진) ───────────────────────────── */
+.lp4-bg-dark { background: linear-gradient(165deg, #171532 0%, #221f4d 55%, #191735 100%); color:#fff; overflow:hidden; }
+.lp4-dark-orbs { position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(560px 560px at 8% -8%, rgba(99,102,241,.30), transparent 68%),
+    radial-gradient(520px 520px at 94% 12%, rgba(79,70,229,.28), transparent 70%),
+    radial-gradient(480px 480px at 50% 112%, rgba(45,212,191,.10), transparent 70%); }
+.lp4-bg-dark .lp4-container { position:relative; z-index:2; }
+.lp4-bg-dark .lp4-h2 { color:#fff; }
+.lp4-bg-dark .lp4-sub { color: rgba(255,255,255,.7); }
+.lp4-bg-dark .lp4-eyebrow { color:#a5b4fc; }
+.lp4-bg-dark .lp4-eyebrow::before { background:#a5b4fc; }
+.lp4-bg-dark .lp4-underline { box-shadow: inset 0 -.48em 0 rgba(129,140,248,.28); }
+.lp4-bg-dark .lp4-card { background: rgba(255,255,255,.055); border-color: rgba(255,255,255,.12);
+  box-shadow: 0 20px 46px -22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.10); }
+.lp4-bg-dark .lp4-eng:hover { box-shadow: 0 26px 54px -22px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.16); }
+.lp4-bg-dark .lp4-eng-name { color:#fff; }
+.lp4-bg-dark .lp4-eng-eng { color: rgba(255,255,255,.48); }
+.lp4-bg-dark .lp4-eng-line { color:#fff; }
+.lp4-bg-dark .lp4-eng-step { color: rgba(255,255,255,.72); }
+.lp4-bg-dark .lp4-eng-dot { background: rgba(129,140,248,.22); color:#c7d2fe; }
+.lp4-bg-dark .lp4-eng-steps { border-color: rgba(255,255,255,.12); }
+.lp4-bg-dark .lp4-eng-tag { color: rgba(255,255,255,.78); background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); }
+.lp4-bg-dark .lp4-eng-rep { border-color: rgba(255,255,255,.12); }
+.lp4-bg-dark .lp4-eng-rep-cap { color: rgba(255,255,255,.5); }
+.lp4-bg-dark .lp4-eng-rep-cost { color:#6ee7b7; background: rgba(110,231,183,.12); }
+.lp4-bg-dark .lp4-eng::before { background: linear-gradient(90deg, #818cf8, #6ee7b7); }
 
 /* ── 견적 → 정산 흐름 (좌: 단계 / 우: 실제 화면 크로스페이드) ── */
 .lp4-flow { display:grid; grid-template-columns:1fr; gap:28px; align-items:start; }

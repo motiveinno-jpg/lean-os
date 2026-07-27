@@ -114,6 +114,7 @@ function ShotFrame({ src, alt, priority = false }: { src: string; alt: string; p
 export default function LandingPage() {
   const [on, setOn] = useState(false);
   const [tour, setTour] = useState(0);
+  const [tourAuto, setTourAuto] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [team, setTeam] = useState(8);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -140,6 +141,25 @@ export default function LandingPage() {
     const t = setTimeout(() => setFlow((i) => (i + 1) % FLOW.length), 4200);
     return () => clearTimeout(t);
   }, [flow, flowAuto]);
+
+  // 제품 화면 투어도 같은 방식으로 자동 순환 — 정적 탭이라 "심플하다"는 지적을 받았다
+  const tourRef = useRef<HTMLDivElement>(null);
+  const tourPinned = useRef(false);
+  useEffect(() => {
+    const el = tourRef.current; if (!el) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (es) => setTourAuto(es[0].isIntersecting && !tourPinned.current),
+      { threshold: 0.35 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!tourAuto) return;
+    const t = setTimeout(() => setTour((i) => (i + 1) % SCREENS.length), 5000);
+    return () => clearTimeout(t);
+  }, [tour, tourAuto]);
 
   useEffect(() => {
     const h = () => {
@@ -232,6 +252,21 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ══ 기능 티커 — 정적인 화면에 흐름을 주고, 한눈에 커버 범위를 훑게 한다 ══ */}
+      <div className="lp4-ticker" aria-hidden="true">
+        <div className="lp4-ticker-track">
+          {[0, 1].map((dup) => (
+            <div key={dup} className="lp4-ticker-run">
+              {["AI 모닝 브리핑", "현금 90일 예측", "위젯 대시보드", "견적 → 계약 자동화", "전자서명 · 직인", "3-Way 입금 매칭",
+                "4대보험 자동 계산", "급여명세서 자동 발송", "근태 · 연차", "전자결재", "세금계산서 국세청 발행", "거래처 원장",
+                "은행 · 카드 실계좌 연동", "AI 거래 분류", "파트너 포털", "전표 자동 기장"].map((t) => (
+                <span key={t} className="lp4-ticker-item">{t}</span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ══ PROBLEM ══ */}
       <section className="lp4-section lp4-bg-canvas">
         <div className="lp4-container">
@@ -263,20 +298,39 @@ export default function LandingPage() {
 
           <div className="lp4-tour-tabs">
             {SCREENS.map((s, i) => (
-              <button key={s.key} className={`lp4-tour-tab ${i === tour ? "lp4-tour-tab-on" : ""}`} onClick={() => setTour(i)}>
+              <button
+                key={s.key}
+                className={`lp4-tour-tab ${i === tour ? "lp4-tour-tab-on" : ""}`}
+                onClick={() => { tourPinned.current = true; setTourAuto(false); setTour(i); }}
+              >
                 {s.tab}
+                {i === tour && tourAuto && <span className="lp4-tour-tab-bar" key={`tb${tour}`} />}
               </button>
             ))}
           </div>
 
-          <div className="lp4-tour-panel">
-            <div>
+          <div className="lp4-tour-panel" ref={tourRef}>
+            <div className="lp4-tour-copy" key={`c${scr.key}`}>
+              <div className="lp4-tour-step">SCREEN {String(tour + 1).padStart(2, "0")} / {String(SCREENS.length).padStart(2, "0")}</div>
               <div className="lp4-tour-title">{scr.title}</div>
               <p className="lp4-tour-desc">{scr.desc}</p>
               <span className="lp4-tour-note"><Check /> 실제 서비스 화면 캡처</span>
             </div>
-            <div className="lp4-tour-shot" key={scr.key}>
-              <Image src={scr.src} alt={scr.alt} width={1440} height={900} sizes="(max-width: 1000px) 100vw, 760px" />
+            {/* 화면 위에 기능 위치를 짚어주는 주석 — 처음 보는 방문자가 어디를 봐야 할지 알 수 있게 */}
+            <div className="lp4-tour-stage">
+              <div className="lp4-tour-shot" key={scr.key}>
+                <Image src={scr.src} alt={scr.alt} width={1440} height={900} sizes="(max-width: 1000px) 100vw, 760px" />
+                {scr.callouts?.map((c, i) => (
+                  <span
+                    key={c.text}
+                    className="lp4-callout"
+                    style={{ left: `${c.x}%`, top: `${c.y}%`, animationDelay: `${0.35 + i * 0.22}s` }}
+                  >
+                    <span className="lp4-callout-pulse" />
+                    <span className="lp4-callout-label">{c.text}</span>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -357,7 +411,8 @@ export default function LandingPage() {
       </section>
 
       {/* ══ AI ENGINES ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="engines">
+      <section className="lp4-section lp4-bg-dark" id="engines">
+        <div className="lp4-dark-orbs" />
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">4 AI Engines</div>

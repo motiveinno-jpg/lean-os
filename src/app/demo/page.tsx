@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ProjectFlow } from "./_components/project-flow";
+import { WidgetBoard } from "./_components/widget-board";
 
 // ── Constants ──
 
@@ -240,6 +241,9 @@ export default function DemoPage() {
           </header>
 
           <main className="demo-main">
+          {/* ═══ 위젯 대시보드 (실제 앱 최상단) ═══ */}
+          <WidgetBoard />
+
           {/* ═══ Morning Brief ═══ */}
           <section
             className="morning-brief-card glass-card"
