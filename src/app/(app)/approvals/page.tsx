@@ -528,7 +528,7 @@ export default function ApprovalsPage() {
 
       {/* Tab content */}
       {tab === "my-approvals" && companyId && userId && (
-        <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} />
+        <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={() => setTab("my-requests")} />
       )}
       {tab === "my-requests" && companyId && userId && (
         <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} />
@@ -731,8 +731,8 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
 // Tab 1: 내 결재함
 // ══════════════════════════════════════════════
 
-function MyApprovalsTab({ companyId, userId, invalidate }: {
-  companyId: string; userId: string; invalidate: () => void;
+function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
+  companyId: string; userId: string; invalidate: () => void; onGoToMyRequests?: () => void;
 }) {
   const { toast } = useToast();
   const [comment, setComment] = useState("");
@@ -823,7 +823,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
     <div className="seg-bar w-fit mb-4">
       {([
         ["pending", `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}`],
-        ["processed", "처리완료"],
+        ["processed", "내가 결재한 건"],
       ] as const).map(([k, l]) => (
         <button key={k} onClick={() => setView(k)} className={`seg-item ${view === k ? "seg-item-active" : ""}`}>
           {l}
@@ -841,6 +841,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
           isLoading={processedLoading}
           formsById={formsById}
           policies={fieldPolicies as ApprovalPolicy[]}
+          onGoToMyRequests={onGoToMyRequests}
         />
       </div>
     );
@@ -860,7 +861,7 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
           </div>
           <div className="text-base font-bold mb-1.5">모두 처리했어요</div>
           <div className="text-sm text-[var(--text-muted)]">
-            새 결재 요청이 배정되면 이곳에 표시됩니다. 이미 처리한 건은 <b>처리완료</b> 탭에서 볼 수 있습니다.
+            새 결재 요청이 배정되면 이곳에 표시됩니다. 내가 승인·반려한 건은 <b>내가 결재한 건</b>에서 볼 수 있습니다.
           </div>
         </div>
       </div>
@@ -987,27 +988,52 @@ function MyApprovalsTab({ companyId, userId, invalidate }: {
  *   내 결정(승인/반려)·처리일시·의견과, 문서의 최종 상태를 함께 보여준다.
  *   내가 승인했어도 다음 단계에서 반려될 수 있어 둘을 구분해 표시한다.
  */
-function ProcessedApprovalsList({ items, isLoading, formsById, policies }: {
+function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToMyRequests }: {
   items: any[];
   isLoading: boolean;
   formsById: Map<string, ApprovalForm>;
   policies: ApprovalPolicy[];
+  onGoToMyRequests?: () => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+
+  // 이 화면은 "내가 결재자로서 승인·반려한 건"이다. 내가 올린 결재와 헷갈리기 쉬워
+  //   (2026-07-27 사장님 제보: 올린 8건이 안 보인다 → 실제로는 '내 요청' 탭에 있었음)
+  //   어디로 가야 하는지 항상 안내한다.
+  const hint = (
+    <div className="text-xs text-[var(--text-muted)] mb-3">
+      내가 <b>결재자로서</b> 승인·반려한 건입니다. 내가 올린 결재는{" "}
+      {onGoToMyRequests ? (
+        <button onClick={onGoToMyRequests} className="text-[var(--primary)] font-semibold underline underline-offset-2">
+          내 요청
+        </button>
+      ) : (
+        <b>내 요청</b>
+      )}{" "}
+      탭에서 볼 수 있습니다.
+    </div>
+  );
 
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
   if (items.length === 0) {
     return (
-      <div className="text-center py-20 px-6 glass-card">
-        <div className="text-base font-bold mb-1.5">아직 처리한 결재가 없습니다</div>
-        <div className="text-sm text-[var(--text-muted)]">승인하거나 반려한 결재건이 여기에 쌓입니다</div>
+      <div>
+        {hint}
+        <div className="text-center py-20 px-6 glass-card">
+          <div className="text-base font-bold mb-1.5">아직 결재한 건이 없습니다</div>
+          <div className="text-sm text-[var(--text-muted)]">
+            내가 승인하거나 반려한 결재가 여기에 쌓입니다
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
+    <div>
+    {hint}
     <div className="approval-my-requests-list">
       {items.map((item) => {
         const open = openId === item.stepId;
@@ -1062,6 +1088,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies }: {
         );
       })}
     </div>
+    </div>
   );
 }
 
@@ -1102,6 +1129,12 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
   //   양식/정책 필드 정의를 되찾아 생성 화면과 동일한 입력으로 편집.
   const { data: editForms = [] } = useQuery({ queryKey: ["approval-forms", companyId, "all"], queryFn: () => listApprovalForms({ includeInactive: true }), enabled: !!companyId });
   const { data: editPolicies = [] } = useQuery({ queryKey: ["approval-policies", companyId], queryFn: () => getApprovalPolicies(companyId), enabled: !!companyId });
+  // 상세 팝업에서 필드표·본문을 그리기 위한 양식 정의 맵 (편집용으로 이미 불러온 것을 재사용)
+  const detailFormsById = useMemo(() => {
+    const map = new Map<string, ApprovalForm>();
+    (editForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
+    return map;
+  }, [editForms]);
   const [editReq, setEditReq] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ title: "", amount: "", description: "" });
   const [editFieldValues, setEditFieldValues] = useState<Record<string, string>>({});
@@ -1306,16 +1339,69 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                 </div>
 
                 {/* Expanded: Timeline */}
-                {open && (
-                  <div className="approval-timeline-panel">
-                    <ApprovalTimelineView requestId={req.id} currentStage={req.current_stage} totalStages={req.total_stages} requestStatus={req.status} currentUserId={userId} />
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
       )}
+
+      {/* 상세 팝업 — 올린 결재의 전체 내용(필드표·본문·첨부·결재선) 확인.
+          2026-07-27 사장님 요청: 눌러도 내용이 안 보였음(기존 펼침은 결재 진행단계만). */}
+      {expandedId && (() => {
+        const req = (requests as any[]).find((r) => r.id === expandedId);
+        if (!req) return null;
+        const m = typeMeta(req.request_type);
+        const fields = resolveFormFields(req.form_id, req.custom_fields, detailFormsById, editPolicies as ApprovalPolicy[], req.request_type);
+        const content = contentWithoutFieldLines(req.description || "", fields);
+        return (
+          <div className="approval-detail-modal fixed inset-0" onClick={() => setExpandedId(null)}>
+            <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                    <TypeIcon name={m.icon} className="w-4 h-4" />
+                  </span>
+                  <StatusBadge status={req.status} />
+                </div>
+                <button onClick={() => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+              </div>
+              <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{req.title}</h3>
+              <div className="text-xs text-[var(--text-dim)] mb-1.5">
+                {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} · {formatDate(req.created_at)}
+              </div>
+              {Array.isArray(req.reference_user_ids) && req.reference_user_ids.length > 0 && (
+                <div className="approval-reference-line text-[11px] text-[var(--text-dim)] mb-5">
+                  참조: {req.reference_user_ids.map((id: string) => userName(id)).join(", ")}
+                </div>
+              )}
+
+              {req.amount > 0 && (
+                <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(req.amount)}</div>
+              )}
+
+              {fields.length > 0 && (
+                <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
+                  <FormFieldRows fields={fields} />
+                </div>
+              )}
+              {!isEmptyHtml(content) && (
+                <DescriptionContent text={content} className="mb-2 text-sm text-[var(--text)] leading-8" />
+              )}
+              <AttachmentList attachments={req.attachments} />
+
+              <div className="mt-6 pt-5 border-t border-[var(--border)]">
+                <ApprovalTimelineView
+                  requestId={req.id}
+                  currentStage={req.current_stage}
+                  totalStages={req.total_stages}
+                  requestStatus={req.status}
+                  currentUserId={userId}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── 대기중 요청 수정 모달 — 요청자 본인만, 생성 화면과 동일한 입력 구성 ── */}
       {editReq && (() => {
