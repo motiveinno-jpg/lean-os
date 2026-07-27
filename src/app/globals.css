@@ -1409,6 +1409,27 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pp-tag-w { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
 .pp-ai { @apply ml-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
 
+
+/* ── /demo 메뉴별 패널 (2026-07-27) — 랜딩 "오너뷰 둘러보기" 캐프처 소스
+   기존 pp- 클래스를 그대로 쓰고, 여기서는 새 이름만 추가한다(기존 정의 변경 금지). ── */
+.pp-cal { @apply grid grid-cols-5 gap-2; }
+.pp-cal-day { @apply p-2.5 rounded-xl border border-[var(--border)] min-h-[92px]; }
+.pp-cal-dh { @apply text-[10px] font-bold text-[var(--text-dim)] mb-2; }
+.pp-bar { @apply mt-3 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.pp-bar-fill { @apply h-full rounded-full; background: linear-gradient(90deg, var(--primary-soft), var(--primary)); }
+.pp-chatwrap { @apply grid gap-3; grid-template-columns: 190px 1fr; }
+.pp-chan { @apply p-3 rounded-xl border border-[var(--border)] flex flex-col gap-0.5; }
+.pp-chan-row { @apply flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)]; }
+.pp-chan-row:nth-child(2) { @apply bg-[var(--primary-light)] text-[var(--primary)]; }
+.pp-chan-badge { @apply text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full bg-[var(--primary)] text-white; }
+.pp-thread { @apply p-3.5 rounded-xl border border-[var(--border)] flex flex-col gap-2.5; }
+.pp-thread-h { @apply text-[11px] font-bold text-[var(--text-dim)] pb-2.5 border-b border-[var(--border)]; }
+.pp-msg { @apply max-w-[78%] px-3 py-2 rounded-2xl bg-[var(--bg-surface)]; }
+.pp-msg-me { @apply self-end bg-[var(--primary-light)]; }
+.pp-msg-who { @apply block text-[9.5px] font-bold text-[var(--text-dim)] mb-0.5; }
+.pp-msg p { @apply text-[11.5px] text-[var(--text)] leading-relaxed; }
+.pp-msg-input { @apply mt-1 px-3 py-2 rounded-xl border border-[var(--border)] text-[11px] text-[var(--text-dim)]; }
+
 /* ── /demo 프로젝트 흐름 패널 (2026-07-27) — 랜딩 "견적부터 정산까지" 모션 섹션의 캡처 소스 ── */
 .flow-panel { @apply mb-5 p-6; }
 .flow-head { @apply flex items-start justify-between gap-4 flex-wrap; }

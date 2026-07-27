@@ -98,6 +98,45 @@
   .lp4-mobile-menu, .lp4-mobile-menu-open { display:none; }
 }
 
+
+/* ── 오너뷰 둘러보기 — 네비 메가메뉴 ──
+   패널을 .lp4-navdrop 기준으로 두고 위쪽 padding 으로 링크와 이어 둔다 —
+   사이가 띄면 마우스가 내려오는 도중 hover 가 끊겨 메뉴가 닫힌다. */
+.lp4-navdrop { position: relative; }
+.lp4-navdrop-t { display:inline-flex; align-items:center; gap:4px; }
+.lp4-navdrop-caret { transition: transform .2s; opacity:.6; }
+.lp4-navdrop:hover .lp4-navdrop-caret { transform: rotate(180deg); }
+.lp4-mega { position:absolute; top:100%; left:50%; transform: translateX(-50%) translateY(6px);
+  width: 1000px; max-width: calc(100vw - 32px); padding-top:14px;
+  opacity:0; visibility:hidden; pointer-events:none; transition: opacity .18s ease, transform .18s ease; }
+.lp4-navdrop:hover .lp4-mega, .lp4-navdrop:focus-within .lp4-mega {
+  opacity:1; visibility:visible; pointer-events:auto; transform: translateX(-50%) translateY(0); }
+.lp4-mega-inner { display:grid; grid-template-columns: repeat(5,1fr); gap:8px;
+  background:#fff; border:1px solid var(--line); border-radius:20px; padding:22px;
+  box-shadow: 0 30px 70px -30px rgba(27,26,46,.34); }
+.lp4-mega-col { display:flex; flex-direction:column; padding:0 12px; }
+.lp4-mega-col + .lp4-mega-col { border-left:1px solid var(--line); }
+.lp4-mega-col-ai { background: var(--pastel-lav); border-radius:14px; padding:14px 14px 16px; margin:-6px -6px -6px 0; border-left:none; }
+.lp4-mega-g { align-self:flex-start; font-size:15px; font-weight:800; letter-spacing:-.02em;
+  color: var(--ink); cursor:pointer; background:none; border:none; padding:0; text-align:left; }
+.lp4-mega-g:hover { color: var(--brand); }
+.lp4-mega-lead { font-size:11.5px; color: var(--ink3); line-height:1.55; margin-top:6px; }
+.lp4-mega-items { display:flex; flex-direction:column; align-items:flex-start; gap:2px; margin-top:12px; }
+.lp4-mega-m { font-size:13.5px; font-weight:600; color: var(--ink2); cursor:pointer;
+  background:none; border:none; padding:6px 8px; margin-left:-8px; border-radius:8px;
+  text-align:left; width:calc(100% + 8px); transition: background .15s, color .15s; }
+.lp4-mega-m:hover { background: var(--canvas2); color: var(--brand); }
+.lp4-mega-col-ai .lp4-mega-m:hover { background: rgba(255,255,255,.7); }
+.lp4-mega-more { color: var(--brand); font-weight:700; }
+
+/* 모바일 드로우어 — 호버가 없으므로 그룹을 펼쳐 둔다 */
+.lp4-mob-group { border-bottom:1px solid var(--line); }
+.lp4-mob-group > a { border-bottom:none !important; }
+.lp4-mob-subs { display:flex; flex-wrap:wrap; gap:7px; padding:0 0 13px; }
+.lp4-mob-sub { font-size:13px; font-weight:600; color: var(--ink2); background: var(--canvas2);
+  border:1px solid var(--line); border-radius:999px; padding:7px 13px; cursor:pointer;
+  border-bottom:1px solid var(--line) !important; }
+
 /* ── Buttons ───────────────────────────────────────── */
 .lp4-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:700;
   border-radius:12px; transition: filter .15s, transform .15s, background .15s, border-color .15s; }
@@ -348,21 +387,34 @@
 .lp4-cat-tab-on .lp4-cat-tab-n { color:#fff; }
 .lp4-cat-tab-on .lp4-cat-tab-c { color: rgba(255,255,255,.75); }
 
-.lp4-cat-panel { animation: lp4-rise .3s ease; }
-.lp4-cat-lead { text-align:center; font-size:17px; color: var(--ink2); margin-bottom:28px; }
-.lp4-cat-grid { display:grid; grid-template-columns:1fr; gap:16px; }
-@media (min-width: 720px){ .lp4-cat-grid { grid-template-columns: repeat(2,1fr); } }
-@media (min-width: 1060px){ .lp4-cat-grid { grid-template-columns: repeat(3,1fr); } }
-.lp4-cat-card { background:#fff; border:1px solid var(--line); border-radius:20px; padding:24px 24px 22px;
-  transition: transform .2s, box-shadow .2s, border-color .2s; }
-.lp4-cat-card:hover { transform: translateY(-3px); border-color: var(--line2);
-  box-shadow: 0 22px 46px -28px rgba(27,26,46,.28); }
-.lp4-cat-name { font-size:19px; font-weight:800; letter-spacing:-.03em; color: var(--ink); }
-.lp4-cat-desc { font-size:14.5px; color: var(--ink2); line-height:1.7; margin-top:9px; }
-.lp4-cat-items { list-style:none; margin:16px 0 0; padding:14px 0 0; border-top:1px solid var(--line);
-  display:flex; flex-direction:column; gap:9px; }
-.lp4-cat-item { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color: var(--ink2); }
-.lp4-cat-item svg { flex:none; color: var(--brand); }
+.lp4-cat-lead { text-align:center; font-size:17px; color: var(--ink2); margin-bottom:30px; }
+
+/* 좌: 메뉴 목록 / 우: 그 메뉴의 실제 화면 */
+.lp4-cat-body { display:grid; grid-template-columns:1fr; gap:20px; align-items:start; }
+@media (min-width: 1000px){ .lp4-cat-body { grid-template-columns: 340px 1fr; gap:32px; } }
+.lp4-cat-list { display:flex; flex-direction:column; gap:6px; }
+.lp4-cat-item { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:16px;
+  border:1px solid transparent; background:transparent; cursor:pointer; text-align:left; transition: all .18s; }
+.lp4-cat-item:hover { background: var(--canvas2); }
+.lp4-cat-item-on { background:#fff; border-color: var(--line); box-shadow: 0 16px 34px -24px rgba(27,26,46,.3); }
+.lp4-cat-ico { flex:none; display:grid; place-items:center; width:34px; height:34px; border-radius:11px;
+  background: var(--canvas2); color: var(--ink3); transition: all .18s; }
+.lp4-cat-item-on .lp4-cat-ico { background: var(--brand); color:#fff; }
+.lp4-cat-item-txt { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.lp4-cat-item-n { font-size:15.5px; font-weight:800; letter-spacing:-.02em; color: var(--ink2); }
+.lp4-cat-item-on .lp4-cat-item-n { color: var(--ink); }
+.lp4-cat-item-d { font-size:12.5px; color: var(--ink3); line-height:1.6; }
+.lp4-cat-item:not(.lp4-cat-item-on) .lp4-cat-item-d { display:none; }
+@media (min-width: 1000px){ .lp4-cat-item:not(.lp4-cat-item-on) .lp4-cat-item-d { display:block; } }
+
+.lp4-cat-view { animation: lp4-rise .28s ease; }
+.lp4-cat-shot { border-radius:20px; overflow:hidden; border:1px solid var(--line); background:#fff;
+  box-shadow: 0 34px 72px -34px rgba(27,26,46,.36); }
+.lp4-cat-shot img { display:block; width:100%; height:auto; }
+.lp4-cat-feats { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.lp4-cat-feat { display:inline-flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600;
+  color: var(--ink2); background:#fff; border:1px solid var(--line); border-radius:999px; padding:8px 15px; }
+.lp4-cat-feat svg { color: var(--brand); }
 
 /* ── AI 자동화 — 사람이 하던 반복 작업을 무엇이 대신하는지 ── */
 .lp4-ai-grid { display:grid; grid-template-columns:1fr; gap:14px; }

@@ -5,6 +5,10 @@ import { useState } from "react";
 import { ProjectFlow } from "./_components/project-flow";
 import { WidgetBoard } from "./_components/widget-board";
 import { FlowPanel, HrPanel, AccountPanel } from "./_components/pillar-panels";
+import {
+  PartnersPanel, VoucherPanel, SchedulePanel, ApprovalsPanel, BoardPanel, ChatPanel,
+  TemplatesPanel, DocumentsPanel, BankPanel, CardsPanel, PaymentsPanel, LoansPanel, VaultPanel,
+} from "./_components/menu-panels";
 
 // ── Constants ──
 
@@ -728,6 +732,21 @@ export default function DemoPage() {
           <FlowPanel />
           <HrPanel />
           <AccountPanel />
+
+          {/* ═══ 메뉴별 화면 — 랜딩 "오너뷰 둘러보기" 캐프처 소스 ═══ */}
+          <PartnersPanel />
+          <VoucherPanel />
+          <SchedulePanel />
+          <ApprovalsPanel />
+          <BoardPanel />
+          <ChatPanel />
+          <TemplatesPanel />
+          <DocumentsPanel />
+          <BankPanel />
+          <CardsPanel />
+          <PaymentsPanel />
+          <LoansPanel />
+          <VaultPanel />
 
           {/* ═══ Quick Links ═══ */}
           <div className="quick-links-section">
