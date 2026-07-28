@@ -8,8 +8,12 @@ import { getCurrentUser } from "@/lib/queries";
 import Link from "next/link";
 import { GlobalConfirmHost } from "@/components/global-confirm";
 
-// 게이트: 검증된 Auth 로그인 이메일이 @mo-tive.com (서버 is_platform_operator() 와 동일 기준)
-const OPERATOR_EMAIL_PATTERN = /@mo-tive\.com$/i;
+// 게이트: 검증된 Auth 로그인 이메일이 허용 목록에 정확히 일치 (서버 is_platform_operator() 와 동일 기준).
+//   2026-07-28 사장님 지시로 도메인 전체(@mo-tive.com)에서 단일 계정으로 축소.
+//   그 전에는 직원 계정 11개가 운영자로 통과했다.
+//   ⚠️ 운영자를 늘릴 때는 여기와 DB is_platform_operator() 를 반드시 함께 바꿀 것.
+const OPERATOR_EMAILS = ["creative@mo-tive.com"];
+const isOperatorEmail = (email: string) => OPERATOR_EMAILS.includes(email.trim().toLowerCase());
 
 // OP-A 메뉴 섹션화: 비즈니스(매출/고객) + 운영(평균/업계/에러/의존성/사고/감사)
 type NavGroup = { title: string; items: { href: string; label: string; icon: string }[] };
@@ -85,7 +89,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         // 게이트: 서버 is_platform_operator() 와 동일 기준 — 검증된 Auth 로그인 이메일(@mo-tive.com).
         //   (2026-07-20 P0 봉합) 자가수정 가능한 public.users.email·회사명이 아니라 세션 Auth 이메일로 판정.
         const authEmail = data.session.user?.email || "";
-        if (!user || !OPERATOR_EMAIL_PATTERN.test(authEmail)) {
+        if (!user || !isOperatorEmail(authEmail)) {
           setStatus("denied");
           return;
         }

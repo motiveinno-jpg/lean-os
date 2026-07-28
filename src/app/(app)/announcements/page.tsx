@@ -8,9 +8,12 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 
-// 서비스 운영자 판별 — @mo-tive.com 이메일이면 글쓰기 가능 (RLS 와 동일 기준)
+// 서비스 운영자 판별 — 전사 공지 작성 권한 (DB is_platform_operator() 와 동일 기준).
+//   2026-07-28: 도메인 전체(@mo-tive.com)에서 단일 계정으로 축소. 여기를 안 맞추면
+//   버튼은 보이는데 RLS 에 막혀 조용히 실패한다.
+const OPERATOR_EMAILS = ["creative@mo-tive.com"];
 function isPlatformOperator(email?: string | null): boolean {
-  return !!email && /@mo-tive\.com$/i.test(email.trim());
+  return !!email && OPERATOR_EMAILS.includes(email.trim().toLowerCase());
 }
 
 type Announcement = {
