@@ -1,0 +1,24 @@
+-- 활동 지표를 last_sign_in_at 단독에서 다중 근거로 (2026-07-28)
+--
+-- 문제: auth.users.last_sign_in_at 은 "새로 로그인" 할 때만 갱신된다. 세션이 살아 있는
+--   채로 계속 쓰면 절대 안 올라가므로 실사용을 과소 집계한다.
+--   실사례: contact@i-um.co.kr — last_sign_in_at 3/12 인데 오늘 도입문의를 넣었고,
+--   4/21 에는 회사까지 만들어졌다. 대시보드의 "마지막 접속 3월"이 사실과 어긋나 보인 원인.
+--   실측: DAU 9 → 16 (기존 방식이 실사용자 7명을 놓치고 있었다).
+--
+-- 해결: 활동을 세 근거의 합집합으로 본다.
+--   ① page_views (2026-07-28~ 수집 시작)  ② audit_logs (업무 행위, 2026-05-06~)
+--   ③ last_sign_in_at (로그인 이벤트)
+--   커버 구간이 달라 합쳐야 실제에 가장 가깝다. coverage 키로 각 근거의 수집
+--   시작일을 함께 반환해, 화면이 "언제부터 정확한지" 밝힐 수 있게 했다.
+--
+-- 적용 함수:
+--   · platform_usage_stats     — DAU/WAU/MAU 를 마지막 활동 기준으로 + coverage 추가
+--   · platform_company_activity — 신설. 회사별 마지막 로그인/활동/문의
+--   · platform_ops_risk        — 휴면 판정의 last_seen 을 다중 근거로 (부분 치환)
+--
+-- ⚠️ platform_ops_risk 는 전문을 덮어쓰지 않고 pg_get_functiondef 로 현재 정의를 읽어
+--    dormant 블록만 문자열 치환했다. 같은 날 platform_signup_funnel 을 전문 덮어쓰기로
+--    재정의했다가 다른 PC 가 추가한 today_detail 을 날린 사고가 있었기 때문.
+--
+-- ※ 이미 MCP 로 prod 적용됨 — 이 파일은 저장소 기록용.

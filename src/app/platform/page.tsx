@@ -261,7 +261,10 @@ export default function PlatformOverview() {
     ...dormant.map((d) => ({
       type: "휴면 위험", cls: "platform-risk-dormant",
       who: `${d.name} (${d.plan})`,
-      detail: `마지막 접속 ${fmtD(d.last_seen)}`,
+      // "접속"이 아니라 로그인·업무행위·방문을 합친 마지막 활동 시각이다.
+      //   last_sign_in_at 만 보던 시절, 오늘 도입문의를 넣은 회사가 "마지막 접속 3월"로
+      //   표시돼 사실과 어긋나 보였다(2026-07-28 이음네트웍스).
+      detail: `마지막 활동 ${fmtD(d.last_seen)}`,
     })),
   ];
 
