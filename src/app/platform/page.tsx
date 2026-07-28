@@ -15,6 +15,12 @@ type UsageStats = {
   plans: { free: number; trialing: number; paid: number };
   activity_14d: { date: string; count: number }[];
 };
+type FunnelStats = {
+  as_of: string; days: number;
+  today: { accounts: number; signed_in: number; companies: number; trials: number };
+  period: { accounts: number; signed_in: number; companies: number; trials: number };
+  pending: { email: string; created_at: string; last_sign_in: string | null; provider: string; confirmed: boolean }[];
+};
 type TrafficStats = {
   as_of: string; days: number;
   totals: { views_today: number; visitors_today: number; views: number; visitors: number; guest_visitors: number };
@@ -104,6 +110,17 @@ export default function PlatformOverview() {
     refetchInterval: 60_000,
   });
 
+  // 가입 퍼널 — companies 기준 통계로는 "계정만 만들고 회사 등록 전 이탈" 이 안 잡힌다.
+  const { data: funnel } = useQuery<FunnelStats | null>({
+    queryKey: ["p-signup-funnel"],
+    queryFn: async () => {
+      const { data, error } = await (db as any).rpc("platform_signup_funnel", { p_days: 7 });
+      if (error) return null;
+      return data as FunnelStats;
+    },
+    refetchInterval: 60_000,
+  });
+
   const totalCompanies = companies.length;
   const totalUsers = users.length;
   const activeSubs = subscriptions.filter((s: any) => s.status === "active" || s.status === "trialing").length;
@@ -151,6 +168,9 @@ export default function PlatformOverview() {
           </div>
         ))}
       </div>
+
+      {/* 가입 퍼널 · 회사 미등록 가입자 (2026-07-28) */}
+      <SignupFunnelSection funnel={funnel ?? null} />
 
       {/* 트래픽·이용 현황 (2026-07-28) */}
       <TrafficSection usage={usage ?? null} traffic={traffic ?? null} />
@@ -358,6 +378,90 @@ function TrafficSection({ usage, traffic }: { usage: UsageStats | null; traffic:
             </ul>
           )}
         </div>
+      </div>
+    </section>
+  );
+}
+
+// ── 가입 퍼널 ────────────────────────────────────────────────────────────────
+//   "총 가입사" 는 companies 기준이라 계정만 만들고 회사 등록 전에 떠난 사람이
+//   통계에서 통째로 빠진다. 그 구간을 드러내는 게 이 섹션의 목적.
+function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
+  const t = funnel?.today;
+  const pending = funnel?.pending ?? [];
+
+  const steps = [
+    { label: "계정 생성", n: t?.accounts ?? 0 },
+    { label: "로그인", n: t?.signed_in ?? 0 },
+    { label: "회사 등록", n: t?.companies ?? 0 },
+    { label: "체험 시작", n: t?.trials ?? 0 },
+  ];
+  // 가장 크게 빠지는 구간 — 여기가 오늘의 병목
+  let worstIdx = -1, worstDrop = 0;
+  for (let i = 1; i < steps.length; i++) {
+    const drop = steps[i - 1].n - steps[i].n;
+    if (drop > worstDrop) { worstDrop = drop; worstIdx = i; }
+  }
+
+  const fmtKst = (iso?: string | null) =>
+    iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+
+  return (
+    <section className="platform-funnel">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="text-lg font-bold text-[var(--text)]">오늘 가입 퍼널</h2>
+        <span className="text-[11px] text-[var(--text-dim)]">최근 7일: 계정 {funnel?.period.accounts ?? 0} · 회사 {funnel?.period.companies ?? 0}</span>
+      </div>
+
+      <div className="platform-funnel-steps glass-card">
+        {steps.map((s, i) => (
+          <div key={s.label} className="platform-funnel-step">
+            <span className="text-[11px] text-[var(--text-muted)]">{s.label}</span>
+            <span className={`text-[24px] leading-7 font-extrabold mono-number ${i === worstIdx && worstDrop > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
+              {s.n}
+            </span>
+            {i === worstIdx && worstDrop > 0 && (
+              <span className="text-[10px] font-semibold text-[var(--danger)]">-{worstDrop} 이탈</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="glass-card p-5">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">회사 등록을 안 끝낸 가입자</span>
+          <span className="text-[11px] text-[var(--text-dim)]">최근 30일 · {pending.length}명</span>
+        </div>
+        {pending.length === 0 ? (
+          <div className="platform-traffic-empty">전원 회사 등록을 마쳤습니다.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-xs">
+              <thead>
+                <tr className="table-head-row">
+                  <th className="th-cell text-left">이메일</th>
+                  <th className="th-cell text-left">가입</th>
+                  <th className="th-cell text-center">경로</th>
+                  <th className="th-cell text-center">로그인</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pending.map((p) => (
+                  <tr key={p.email} className="border-b border-[var(--border)]/50">
+                    <td className="px-3 py-2 text-[var(--text)]">{p.email}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{fmtKst(p.created_at)}</td>
+                    <td className="px-3 py-2 text-center text-[var(--text-muted)]">{p.provider}</td>
+                    <td className="px-3 py-2 text-center">
+                      {p.last_sign_in
+                        ? <span className="text-[var(--success)]">완료</span>
+                        : <span className="text-[var(--text-dim)]">{p.confirmed ? "미접속" : "인증 전"}</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   );

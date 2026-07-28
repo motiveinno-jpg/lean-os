@@ -2781,6 +2781,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-release-item { @apply p-4 rounded-xl bg-[var(--bg-surface)]; }
 .platform-kpi-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
 
+/* 운영자 대시보드 — 가입 퍼널 (2026-07-28) */
+.platform-funnel { @apply space-y-4; }
+.platform-funnel-steps { @apply grid grid-cols-2 lg:grid-cols-4 gap-3 p-5; }
+.platform-funnel-step { @apply flex flex-col gap-1; }
+
 /* 운영자 대시보드 — 트래픽·이용 현황 (2026-07-28) */
 .platform-traffic { @apply space-y-4; }
 .platform-traffic-grid { @apply grid grid-cols-1 lg:grid-cols-3 gap-4; }
