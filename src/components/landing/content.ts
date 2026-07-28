@@ -50,7 +50,7 @@ export const STATS = [
   {
     value: 30, suffix: "+", label: "통합 기능",
     head: "회사 운영에 필요한 기능,\n하나도 빠짐없이",
-    desc: "메뉴 20개에 걸쳐 30가지가 넘는 기능이 들어 있어요. 필요할 때마다 도구를 새로 붙일 일이 없어요.",
+    desc: "메뉴 18개에 걸쳐 30가지가 넘는 기능이 들어 있어요. 필요할 때마다 도구를 새로 붙일 일이 없어요.",
     kind: "menus",
   },
   {
@@ -518,7 +518,7 @@ export const CATALOG = [
   {
     key: "asset",
     group: "자산관리",
-    lead: "통장·카드·대출까지 회사 자산을 한 화면에서 봐요.",
+    lead: "통장·카드와 매달 나가는 돈을 한 화면에서 봐요.",
     menus: [
       { name: "통장", icon: "swap", src: "/product/f-bank2-v1.png", alt: "오너뷰 통장 — 계좌 잔액과 총 자산",
         desc: "은행 계좌를 실계좌로 연결해 잔액과 거래를 자동으로 받아요.",
@@ -529,12 +529,6 @@ export const CATALOG = [
       { name: "정기 지출", icon: "repeat", src: "/product/f-payments-v1.png", alt: "오너뷰 정기 지출 목록",
         desc: "매달 나가는 돈을 자동으로 찾아 등록을 추천하고, 결제일 전에 알려줘요.",
         items: ["반복 결제 자동 감지", "다음 결제일 알림", "고정비 비중 분석"] },
-      { name: "대출", icon: "trend", src: "/product/f-loans-v1.png", alt: "오너뷰 대출 목록과 상환 일정",
-        desc: "남은 원금과 월 납부액이 현금 흐름에 자동으로 들어가요.",
-        items: ["대출 등록 · 상환 이력", "상환 자동 매칭", "자금 전망 반영"] },
-      { name: "자산", icon: "shield", src: "/product/f-vault-v1.png", alt: "오너뷰 자산 목록 — 유형·무형·구독",
-        desc: "유형·무형 자산과 구독 계정을 담당자별로 관리해요.",
-        items: ["유형·무형 자산", "구독 계정 관리", "미사용 자산 감지"] },
     ],
   },
 ];

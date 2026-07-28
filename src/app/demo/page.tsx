@@ -7,7 +7,7 @@ import { WidgetBoard } from "./_components/widget-board";
 import { FlowPanel, HrPanel, AccountPanel } from "./_components/pillar-panels";
 import {
   PartnersPanel, VoucherPanel, SchedulePanel, ApprovalsPanel, BoardPanel, ChatPanel,
-  TemplatesPanel, DocumentsPanel, BankPanel, CardsPanel, PaymentsPanel, LoansPanel, VaultPanel,
+  TemplatesPanel, DocumentsPanel, BankPanel, CardsPanel, PaymentsPanel,
 } from "./_components/menu-panels";
 import {
   ProjectsPanel, EstimatePanel, ContractPanel, SettlementPanel, MembersPanel, LeavePanel, TaxPanel,
@@ -119,8 +119,6 @@ const NAV_GROUPS: { label: string; items: { label: string; icon: string; view?: 
     { label: "통장", icon: "swap", view: "bank" },
     { label: "카드", icon: "wallet", view: "cards" },
     { label: "정기 지출", icon: "repeat", view: "payments" },
-    { label: "대출", icon: "trend", view: "loans" },
-    { label: "자산", icon: "shield", view: "vault" },
   ] },
 ];
 
@@ -146,8 +144,6 @@ const VIEW_META: Record<string, { crumb: string; title: string }> = {
   bank: { crumb: "자산관리", title: "통장" },
   cards: { crumb: "자산관리", title: "카드" },
   payments: { crumb: "자산관리", title: "정기 지출" },
-  loans: { crumb: "자산관리", title: "대출" },
-  vault: { crumb: "자산관리", title: "자산" },
 };
 
 // ── Glyphs ──
@@ -806,8 +802,6 @@ export default function DemoPage() {
           {show("bank") && <BankRealPanel />}
           {show("cards") && <CardsRealPanel />}
           {show("payments") && <PaymentsRealPanel />}
-          {show("loans") && <LoansPanel />}
-          {show("vault") && <VaultPanel />}
           {show("projects") && <ProjectHubPanel />}
           {(show("projects") || capAll) && <EstimatePanel />}
           {show("contract") && <SignRealPanel />}
