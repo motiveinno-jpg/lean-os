@@ -18,6 +18,7 @@ import {
   ProjectsBeforePanel, HrBeforePanel, MembersBeforePanel, LeaveBeforePanel,
   AcctBeforePanel, BankBeforePanel, TaxBeforePanel,
 } from "./_components/before-frames";
+import { AnalyticsPanel, LedgerPanel, TaxRealPanel, ReconPanel } from "./_components/real-frames";
 
 // ── Constants ──
 
@@ -787,9 +788,9 @@ export default function DemoPage() {
           </>)}
 
           {/* ═══ 메뉴별 화면 — 사이드바에서 고른 메뉴 하나만 (?all=1 이면 전부) ═══ */}
-          {show("flow") && <FlowPanel />}
+          {show("flow") && <AnalyticsPanel />}
           {show("leave") && <HrPanel />}
-          {show("ledger") && <AccountPanel />}
+          {show("ledger") && <LedgerPanel />}
           {show("partners") && <PartnersPanel />}
           {show("voucher") && <VoucherPanel />}
           {show("schedule") && <SchedulePanel />}
@@ -809,7 +810,7 @@ export default function DemoPage() {
           {(show("projects") || capAll) && <SettlementPanel />}
           {show("members") && <MembersPanel />}
           {(show("leave") || capAll) && <LeavePanel />}
-          {show("tax") && <TaxPanel />}
+          {show("tax") && <TaxRealPanel />}
           {/* 랜딩 "처리 전 → 처리 후" 크로스페이드용 앞 상태 — 캡처 모드에서만 렌더 */}
           {capAll && <EstimateBeforePanel />}
           {capAll && <SettlementBeforePanel />}
@@ -820,6 +821,11 @@ export default function DemoPage() {
           {capAll && <AcctBeforePanel />}
           {capAll && <BankBeforePanel />}
           {capAll && <TaxBeforePanel />}
+          {capAll && <AnalyticsPanel before />}
+          {capAll && <LedgerPanel before />}
+          {capAll && <TaxRealPanel before />}
+          {capAll && <ReconPanel />}
+          {capAll && <ReconPanel before />}
           {show("copilot") && <CopilotPanel />}
           {(show("copilot") || capAll) && <BriefPanel />}
           {(show("approvals") || capAll) && <OcrPanel />}
