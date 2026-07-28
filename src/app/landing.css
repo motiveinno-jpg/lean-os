@@ -601,21 +601,44 @@
 .lp4-eauto-chip { font-size:15px; font-weight:700; color: var(--brand-ink);
   background: var(--pastel-lav); border-radius:999px; padding:8px 15px; }
 
-/* ── 전체 메뉴 — 그룹 4개 × 메뉴 칩 ──
-   배너 한 장은 앞뒤와 이어지지 않아 겉돌았다. 주요 기능의 칩 언어를 그대로 이어받는다. */
+/* ── 커버리지 — 규모 요약 바 + 영역 카드 4장 ──
+   "메뉴 N개" 자랑 대신 스펙시트처럼 읽히게. 번호·아이콘·메뉴 칩을 함께 둔다. */
+.lp4-cov-bar { display:grid; grid-template-columns: repeat(2,1fr); gap:0;
+  margin-bottom:34px; border-radius:20px; overflow:hidden;
+  background: linear-gradient(158deg, rgba(255,255,255,.94), rgba(255,255,255,.74));
+  -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%);
+  border:1px solid var(--g-rim); box-shadow: var(--g-depth); }
+@media (min-width: 760px){ .lp4-cov-bar { grid-template-columns: repeat(4,1fr); } }
+.lp4-cov-stat { display:flex; flex-direction:column; align-items:center; gap:5px;
+  padding:26px 16px; border-right:1px solid var(--g-edge); border-bottom:1px solid var(--g-edge); }
+.lp4-cov-stat:nth-child(2n) { border-right:none; }
+@media (min-width: 760px){
+  .lp4-cov-stat { border-bottom:none; border-right:1px solid var(--g-edge); }
+  .lp4-cov-stat:nth-child(2n) { border-right:1px solid var(--g-edge); }
+  .lp4-cov-stat:last-child { border-right:none; }
+}
+.lp4-cov-stat b { font-size:34px; font-weight:800; letter-spacing:-.04em; line-height:1;
+  color: var(--ink); font-variant-numeric: tabular-nums; }
+.lp4-cov-stat span { font-size:13px; font-weight:600; color: var(--ink3); }
+
 .lp4-mgrid { display:grid; grid-template-columns:1fr; gap:18px; }
 @media (min-width: 700px){ .lp4-mgrid { grid-template-columns: repeat(2,1fr); } }
 @media (min-width: 1100px){ .lp4-mgrid { grid-template-columns: repeat(4,1fr); gap:20px; } }
-.lp4-mcol-in { display:flex; flex-direction:column; height:100%; padding:28px 26px 24px;
-  border-radius:24px;
+.lp4-mcol-in { position:relative; display:flex; flex-direction:column; height:100%;
+  padding:28px 26px 24px; border-radius:24px;
   background: linear-gradient(158deg, rgba(255,255,255,.94), rgba(255,255,255,.74));
   -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%);
   border:1px solid var(--g-rim); box-shadow: var(--g-depth);
   transition: transform .22s, box-shadow .22s; }
 .lp4-mcol-in:hover { transform: translateY(-4px); box-shadow: var(--g-depth-hi); }
-.lp4-mcol-head { display:flex; align-items:baseline; gap:8px; }
+.lp4-mcol-no { position:absolute; top:22px; right:24px; font-size:12px; font-weight:800;
+  letter-spacing:.06em; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.lp4-mcol-ico { display:grid; place-items:center; width:40px; height:40px; border-radius:13px;
+  color: var(--brand); background: var(--pastel-lav);
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 0 0 1px var(--g-edge); }
+.lp4-mcol-head { display:flex; align-items:baseline; gap:8px; margin-top:16px; }
 .lp4-mcol-name { font-size:19px; font-weight:800; letter-spacing:-.03em; color: var(--ink); }
-.lp4-mcol-n { font-size:13px; font-weight:800; color: var(--brand); }
+.lp4-mcol-n { font-size:12px; font-weight:700; color: var(--brand); }
 .lp4-mcol-lead { font-size:13px; color: var(--ink3); line-height:1.6; margin-top:8px; }
 .lp4-mcol-chips { flex:1; display:flex; flex-wrap:wrap; align-content:flex-start; gap:6px;
   margin-top:18px; padding-top:16px; border-top:1px solid var(--g-edge); }

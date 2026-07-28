@@ -84,6 +84,17 @@ function CountUp({ to, suffix = "", dur = 1400 }: { to: number; suffix?: string;
   return <span ref={ref}>{n.toLocaleString("ko-KR")}{suffix}</span>;
 }
 
+// 업무 영역 아이콘 — 커버리지 섹션
+function GroupGlyph({ n }: { n: string }) {
+  const p = { width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (n) {
+    case "finance": return <svg {...p}><path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 5-9" /></svg>;
+    case "workspace": return <svg {...p}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>;
+    case "hr": return <svg {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /></svg>;
+    default: return <svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
+  }
+}
+
 // AI 엔진 아이콘 — 텍스트만으로 나열되던 카드에 시각적 식별자를 준다.
 function EngineGlyph({ n }: { n: string }) {
   const p = { width: 24, height: 24, fill: "none", stroke: "currentColor", strokeWidth: 1.9, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -473,23 +484,37 @@ export default function LandingPage() {
       {/* ══ 주요 기능 둘러보기 — 축 탭 → 기능 탭 → 화면 전환 ══ */}
       <PillarTabs />
 
-      {/* ══ 전체 메뉴 — 주요 기능 바로 다음. 배너 한 장이 아니라 메뉴 20개를 실제로 펼쳐 보여준다 ══
-           앞 섹션(주요 기능)의 칩 언어를 그대로 이어받아 흐름이 끊기지 않게 한다. */}
+      {/* ══ 커버리지 — 주요 기능(3축)에서 전 영역으로 넓히는 자리 ══
+           "메뉴가 몇 개 있다"는 자랑이 아니라 "회사 운영의 어느 구간도 비지 않는다"를 말한다.
+           앞 섹션을 첫 문장에서 직접 받아 흐름이 끊기지 않게 한다. */}
       <section className="lp4-section lp4-bg-canvas" id="more">
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">All menus</div>
-            <h2 className="lp4-h2">이 세 축을 <span className="lp4-underline">메뉴 {CATALOG.reduce((n, g) => n + g.menus.length, 0)}개가 받쳐요</span></h2>
-            <p className="lp4-sub">회사 운영에 필요한 메뉴가 영역별로 나뉘어 있어요. 눌러서 각 메뉴 화면을 볼 수 있어요.</p>
+            <div className="lp4-eyebrow">Coverage</div>
+            <h2 className="lp4-h2">회사 운영의 <span className="lp4-underline">전 영역을 다뤄요</span></h2>
+            <p className="lp4-sub">
+              앞서 본 프로젝트·인사·회계는 그중 일부예요.
+              재무부터 자산까지 {CATALOG.length}개 영역이 하나의 데이터 위에서 이어져요.
+            </p>
+          </Reveal>
+
+          {/* 규모를 먼저 한 줄로 — 스펙을 보는 눈으로 읽히게 */}
+          <Reveal className="lp4-cov-bar">
+            <div className="lp4-cov-stat"><b>{CATALOG.length}</b><span>업무 영역</span></div>
+            <div className="lp4-cov-stat"><b>{CATALOG.reduce((n, g) => n + g.menus.length, 0)}</b><span>메뉴</span></div>
+            <div className="lp4-cov-stat"><b>30+</b><span>세부 기능</span></div>
+            <div className="lp4-cov-stat"><b>0</b><span>추가 도입 모듈</span></div>
           </Reveal>
 
           <div className="lp4-mgrid">
-            {CATALOG.map((g) => (
+            {CATALOG.map((g, i) => (
               <Reveal key={g.key} className="lp4-mcol">
                 <Link href={`/features?g=${g.key}`} className="lp4-mcol-in">
+                  <span className="lp4-mcol-no">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="lp4-mcol-ico"><GroupGlyph n={g.key} /></span>
                   <div className="lp4-mcol-head">
                     <span className="lp4-mcol-name">{g.group}</span>
-                    <span className="lp4-mcol-n">{g.menus.length}</span>
+                    <span className="lp4-mcol-n">메뉴 {g.menus.length}</span>
                   </div>
                   <p className="lp4-mcol-lead">{g.lead}</p>
                   <div className="lp4-mcol-chips">
