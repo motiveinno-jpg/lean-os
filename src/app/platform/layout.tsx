@@ -127,23 +127,35 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
     );
   }
 
+  // 톱바 타이틀 — 현재 경로에 해당하는 메뉴 라벨 (2026-07-28 레이아웃 리디자인)
+  const allNavItems = NAV_GROUPS.flatMap((g) => g.items);
+  const currentItem = allNavItems.find(
+    (i) =>
+      pathname === i.href ||
+      (i.href !== "/platform" && pathname.startsWith(i.href)) ||
+      (i.href === "/platform/customers" && pathname.startsWith("/platform/companies")),
+  );
+  const logout = async () => { await supabase.auth.signOut(); router.replace("/auth"); };
+
   return (
     // 2026-07-03 TeamHub 라운드 — 다크 고정 콘솔을 라이트 토큰 캔버스로 전환(고객 앱과 동일 언어)
     // 2026-07-06 라운드8.2 — 고객 앱 셸과 동일한 리퀴드글래스 적용(전 화면 통일):
     //   래퍼 배경 제거(body::before 앰비언트 캔버스가 비쳐 보이게) + 사이드바를 떠 있는 유리 패널로.
+    // 2026-07-28 리디자인 — 상단 톱바(현재 화면명·사이트 보기·로그아웃) + 모바일 대응
+    //   (기존엔 좁은 화면에서 고정 사이드바가 콘텐츠를 덮었음 — md 미만은 사이드바 숨기고 칩 내비로).
     <div className="min-h-screen flex">
       {/* Sidebar — 고객 앱 sidebar.tsx 와 동일한 인셋 플로팅 유리 패널 */}
       <aside className="platform-sidebar chrome-glass">
         <div className="p-5 border-b border-[var(--border)]">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-soft)] flex items-center justify-center shadow-[0_4px_12px_-4px_var(--primary)]">
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
               </svg>
             </div>
-            <div>
-              <div className="text-sm font-bold text-[var(--text)]">OwnerView</div>
-              <div className="text-[10px] text-[var(--text-dim)] font-medium">Platform Admin</div>
+            <div className="min-w-0">
+              <div className="text-sm font-extrabold tracking-tight text-[var(--text)]">OwnerView</div>
+              <span className="platform-brand-badge">OPERATOR</span>
             </div>
           </div>
         </div>
@@ -180,11 +192,14 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         </nav>
 
         <div className="platform-sidebar-footer">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs font-bold">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-soft)] flex items-center justify-center text-white text-xs font-bold shrink-0">
               {userName.charAt(0)}
             </div>
-            <div className="text-xs text-[var(--text-muted)] truncate">{userName}</div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-[var(--text)] truncate">{userName}</div>
+              <div className="text-[10px] text-[var(--text-dim)]">플랫폼 운영자</div>
+            </div>
           </div>
           <Link href="/dashboard" className="flex items-center gap-2 text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
@@ -194,6 +209,34 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
       </aside>
 
       <main className="platform-main-content">
+        {/* 톱바 — 현재 화면명 + 빠른 액션 (2026-07-28) */}
+        <div className="platform-topbar chrome-glass">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">
+              {NAV_GROUPS.find((g) => g.items.some((i) => i === currentItem))?.title || "Platform"}
+            </div>
+            <h1 className="text-base font-extrabold text-[var(--text)] truncate">{currentItem?.label || "플랫폼"}</h1>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a href="https://www.owner-view.com" target="_blank" rel="noreferrer" className="platform-topbar-action">
+              사이트 보기 ↗
+            </a>
+            <button onClick={logout} className="platform-topbar-action platform-topbar-logout">로그아웃</button>
+          </div>
+        </div>
+
+        {/* 모바일 내비 — md 미만에서 사이드바 대신 가로 스크롤 칩 */}
+        <nav className="platform-mobile-nav">
+          {allNavItems.map((item) => {
+            const active = item === currentItem;
+            return (
+              <Link key={item.href} href={item.href} className={`platform-mobile-nav-chip ${active ? "nav-active" : ""}`}>
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
         {children}
       </main>
       <GlobalConfirmHost />
