@@ -42,7 +42,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   growth: { monthRevenue: number; quarterRevenue: number; yearRevenue: number; monthTarget: number; quarterTarget: number; yearTarget: number };
   risks: { label: string; name: string; detail: string }[];
   riskCounts: Record<string, number>;
-  cashPulse: { currentBalance: number; forecast30d: number; forecast90d: number; pulseScore: number } | null | undefined;
+  cashPulse: { currentBalance: number; forecast30d: number; forecast90d: number; pulseScore: number; hasData?: boolean } | null | undefined;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -97,8 +97,10 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
     rejectMut.mutate({ a, reason: reason.trim() });
   };
 
+  // 데이터가 하나도 없는 신규 가입사는 점수가 기본 조합(50)으로 나와 오도 → "—" 처리 (2026-07-28 사장님)
+  const pulseReady = !!cashPulse && cashPulse.hasData !== false;
   const score = cashPulse?.pulseScore ?? 0;
-  const scoreColor = score >= 60 ? "var(--success)" : score >= 40 ? "var(--warning)" : "var(--danger)";
+  const scoreColor = !pulseReady ? "var(--text-dim)" : score >= 60 ? "var(--success)" : score >= 40 ? "var(--warning)" : "var(--danger)";
   const balance = cashPulse?.currentBalance ?? sixPack.cashBalance;
   const f30 = cashPulse?.forecast30d ?? 0;
   const f90 = cashPulse?.forecast90d ?? 0;
@@ -226,11 +228,11 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
               <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
                 <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--bg-surface)" strokeWidth="3.2" />
                 <circle cx="18" cy="18" r="15.9155" fill="none" stroke={scoreColor} strokeWidth="3.2"
-                  strokeDasharray={`${Math.max(0, Math.min(100, score))} ${100 - Math.max(0, Math.min(100, score))}`} strokeLinecap="round" />
+                  strokeDasharray={`${pulseReady ? Math.max(0, Math.min(100, score)) : 0} ${pulseReady ? 100 - Math.max(0, Math.min(100, score)) : 100}`} strokeLinecap="round" />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-black mono-number" style={{ color: scoreColor }}>{score}</span>
-                <span className="text-[8px] text-[var(--text-dim)]">/ 100</span>
+                <span className="text-xl font-black mono-number" style={{ color: scoreColor }}>{pulseReady ? score : "—"}</span>
+                <span className="text-[8px] text-[var(--text-dim)]">{pulseReady ? "/ 100" : "데이터 없음"}</span>
               </div>
             </div>
             <div className="min-w-0 flex-1 space-y-1.5">

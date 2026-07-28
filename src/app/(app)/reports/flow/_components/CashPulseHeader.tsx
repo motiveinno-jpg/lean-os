@@ -85,7 +85,7 @@ export function CashPulseHeader({ companyId, userId }: { companyId: string; user
         </div>
         <div className="cash-pulse-stats">
           <StatPill label="런웨이" value={runway >= 999 ? "∞" : String(runway)} unit={runway >= 999 ? undefined : "개월"} sub={runwayTone.label} color={runwayTone.color} />
-          <StatPill label="펄스 점수" value={String(pulse.pulseScore)} unit="/100" color={pulseColor} />
+          <StatPill label="펄스 점수" value={pulse.hasData === false ? "—" : String(pulse.pulseScore)} unit={pulse.hasData === false ? undefined : "/100"} sub={pulse.hasData === false ? "데이터 없음" : undefined} color={pulse.hasData === false ? "var(--text-dim)" : pulseColor} />
         </div>
       </div>
 

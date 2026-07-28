@@ -40,6 +40,9 @@ export interface CashPulseResult {
   forecastPoints: ForecastPoint[];
   monthlyBurn: number;
   pulseScore: number; // 0-100
+  // 2026-07-28: 입력 데이터가 하나도 없으면 점수가 기본 조합(50점)으로 나와 신규 가입사를 오도.
+  //   false 면 표시단에서 점수를 "—" 처리한다.
+  hasData: boolean;
   scoreBreakdown: {
     runway: number;        // /40
     cashflowTrend: number; // /20
@@ -80,6 +83,16 @@ function fmtBriefing(n: number): string {
 
 export function buildCashPulse(input: CashPulseInput): CashPulseResult {
   const now = new Date();
+
+  // 0. 데이터 존재 여부 — 통장·현금보정·일정·반복결제·급여·결제큐 전부 비어 있으면 점수 무의미
+  const hasData =
+    input.bankBalances.length > 0 ||
+    Number(input.manualCashAdjustment || 0) !== 0 ||
+    input.revenueSchedules.length > 0 ||
+    input.costSchedules.length > 0 ||
+    input.recurringPayments.length > 0 ||
+    Number(input.employeeSalaryTotal || 0) > 0 ||
+    input.paymentQueue.length > 0;
 
   // 1. Current balance — 연동 계좌 합산 + 사용자 수동 보정 (시재금 등)
   const linkedBalance = input.bankBalances.reduce((s, b) => s + Number(b.balance || 0), 0);
@@ -189,6 +202,7 @@ export function buildCashPulse(input: CashPulseInput): CashPulseResult {
     forecastPoints,
     monthlyBurn,
     pulseScore,
+    hasData,
     scoreBreakdown: {
       runway: runwayScore,
       cashflowTrend: cashflowScore,
