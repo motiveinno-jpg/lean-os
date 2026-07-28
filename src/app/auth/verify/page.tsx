@@ -87,8 +87,20 @@ export default function VerifyEmailPage() {
           router.push("/onboarding");
           return true;
         }
+        // 2026-07-28 P0: "error" 를 그냥 흘려보내면 markSuccess → 대시보드 무한 로딩.
+        //   회사 설정이 안 된 상태이므로 /company-setup 에서 다시 시도하게 한다.
+        if (result === "error") {
+          completed = true;
+          router.push("/company-setup");
+          return true;
+        }
+        // "exists" — 이미 회사 연결됨, 대시보드로 (markSuccess)
       } catch (err) {
         console.error("setupCompany error:", err);
+        // 실패도 대시보드로 보내지 않는다 — 위와 동일한 무한 로딩 방지
+        completed = true;
+        router.push("/company-setup");
+        return true;
       }
       return false;
     }

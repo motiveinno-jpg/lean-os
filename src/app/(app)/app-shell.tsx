@@ -427,9 +427,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.replace("/auth");
-      else setReady(true);
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) { router.replace("/auth"); return; }
+      // 2026-07-28 P0: 세션만 보고 통과시키면 회사 설정을 마치지 않은 계정(구글 OAuth 후
+      //   /company-setup 이탈, users 행 없음)이 모든 앱 페이지에서 무한 "불러오는 중"에 갇힌다.
+      //   users 행·company_id 가 없으면 회사 설정으로 보낸다 — /company-setup 은 (app) 밖이고
+      //   회사가 이미 있으면 스스로 /dashboard 로 돌려보내므로 루프 없음.
+      const { getCurrentUser } = await import("@/lib/queries");
+      const u = await getCurrentUser().catch(() => null);
+      if (!u) { router.replace("/company-setup"); return; }
+      setReady(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
