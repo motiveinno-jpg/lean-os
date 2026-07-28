@@ -828,6 +828,12 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 })()}
               </div>
             </div>
+            {/* 지금 청구되는 게 아님을 명시 — 실결제 테스트 때 "바로 결제된 거냐" 오해 (2026-07-28 사장님) */}
+            {showUpgradeModal !== "free" && !(hasStripeSubscription && currentSlug !== "free") && (
+              <p className="text-[11px] text-[var(--text-dim)] mb-4">
+                지금은 카드만 등록되며 <b>청구되지 않습니다.</b> 무료체험이 끝나는 날 위 금액이 자동 결제되고, 체험 중 해지하면 청구가 없습니다.
+              </p>
+            )}
             {/* 할인코드 적용 표시 — 배너에서 입력한 코드가 결제에 실린다는 걸 결제 직전에 보여준다 (2026-07-28) */}
             {showUpgradeModal !== "free" && salesCode.trim() && (
               <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
@@ -849,7 +855,10 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition disabled:opacity-50"
                 onClick={handleUpgradeConfirm}
               >
-                {isPaymentLoading ? "로딩 중..." : showUpgradeModal === "free" ? "다운그레이드" : "결제하기"}
+                {isPaymentLoading ? "로딩 중..."
+                  : showUpgradeModal === "free" ? "다운그레이드"
+                  : hasStripeSubscription && currentSlug !== "free" ? "구독 관리에서 변경"
+                  : "카드 등록하고 체험 시작"}
               </button>
             </div>
           </div>
