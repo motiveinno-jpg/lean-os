@@ -12,7 +12,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO, HERO_STRIP, STATS, PILLARS, DAY, MOBILE, ENGINES, CATALOG, AI_AUTOMATION, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { HERO, HERO_STRIP, HERO_INTRO, STATS, PILLARS, DAY, MOBILE, ENGINES, CATALOG, AI_AUTOMATION, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 
@@ -369,24 +369,27 @@ export default function LandingPage() {
             <div className="lp4-hero-checks">{HERO.checks.map((c) => <span key={c} className="lp4-hero-check"><Check /> {c}</span>)}</div>
           </div>
         </div>
-        {/* 실제 화면이 가로로 흐른다 — "이게 다 된다"를 한 장면으로.
-            렌더링·목업 대신 진짜 캡처를 쓰는 게 이 제품의 신뢰 근거다. 마우스를 올리면 멈춘다. */}
+        {/* 실제 화면이 가로로 한 줄 흐른다 — "이게 다 된다"를 한 장면으로.
+            렌더링·목업 대신 진짜 캡처를 쓰는 게 이 제품의 신뢰 근거다. 멈추지 않고 계속 흐른다. */}
         <div className="lp4-hero-strip" aria-hidden>
-          {HERO_STRIP.map((row, r) => (
-            <div key={r} className={`lp4-strip-row ${r === 1 ? "lp4-strip-rev" : ""}`}>
-              <div className="lp4-strip-track">
-                {[0, 1].map((dup) => (
-                  <div key={dup} className="lp4-strip-run">
-                    {row.map((sc) => (
-                      <div key={sc.src} className="lp4-strip-card">
-                        <Image src={sc.src} alt={sc.alt} width={1968} height={1320} sizes="340px" priority={r === 0 && dup === 0} />
-                      </div>
-                    ))}
+          <div className="lp4-strip-track">
+            {[0, 1].map((dup) => (
+              <div key={dup} className="lp4-strip-run">
+                {HERO_STRIP.map((sc) => (
+                  <div key={sc.src} className="lp4-strip-card">
+                    <Image src={sc.src} alt={sc.alt} width={1968} height={1320} sizes="360px" priority={dup === 0} />
                   </div>
                 ))}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+
+        {/* 서비스 소개 — 후킹과 본문 사이를 잇는다 */}
+        <div className="lp4-container">
+          <Reveal className="lp4-hero-intro">
+            {HERO_INTRO.map((l, k) => <p key={k} className={k === 0 ? "lp4-hero-intro-lead" : ""}>{l}</p>)}
+          </Reveal>
         </div>
       </header>
       <div className="lp4-hero-spacer" />

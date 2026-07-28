@@ -638,27 +638,28 @@
   border-top:1px solid var(--line); }
 .lp4-eng4-f .lp4-pillar-menu { font-size:12.5px; padding:6px 12px; }
 
-
-/* ── 히어로 화면 띠 — 실제 캡처가 가로로 흐른다 ──
-   정적 대시보드 한 장 대신, 두 줄이 서로 반대 방향으로 아주 느리게 흐른다.
-   마우스를 올리면 멈추고, reduced-motion 이면 아예 움직이지 않는다. */
-.lp4-hero-strip { position:relative; margin-top:56px;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent); }
-.lp4-strip-row { overflow:hidden; }
-.lp4-strip-row + .lp4-strip-row { margin-top:18px; }
-.lp4-strip-track { display:flex; width:max-content; animation: lp4-strip 64s linear infinite; }
-.lp4-strip-rev .lp4-strip-track { animation-duration: 78s; animation-direction: reverse; }
-.lp4-hero-strip:hover .lp4-strip-track { animation-play-state: paused; }
+/* ── 히어로 화면 띠 — 실제 캡처가 한 줄로 계속 흐른다 ──
+   두 줄은 정신산란해 한 줄로 줄였고, 호버로 멈추지도 않는다(2026-07-28). */
+.lp4-hero-strip { position:relative; margin-top:58px; overflow:hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.lp4-strip-track { display:flex; width:max-content; animation: lp4-strip 72s linear infinite; }
 @keyframes lp4-strip { from { transform: translateX(0) } to { transform: translateX(-50%) } }
-.lp4-strip-run { display:flex; gap:18px; padding-right:18px; }
-.lp4-strip-card { flex:none; width:340px; border-radius:16px; overflow:hidden; background:#fff;
+.lp4-strip-run { display:flex; gap:20px; padding-right:20px; }
+.lp4-strip-card { flex:none; width:360px; border-radius:16px; overflow:hidden; background:#fff;
   border:1px solid var(--line);
   box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 0 0 1px rgba(27,26,46,.05),
     0 8px 18px -10px rgba(27,26,46,.26), 0 30px 60px -30px rgba(27,26,46,.4); }
 .lp4-strip-card img { display:block; width:100%; height:auto; }
-@media (max-width: 720px){ .lp4-strip-card { width:250px; } .lp4-hero-strip { margin-top:40px; } }
+@media (max-width: 720px){ .lp4-strip-card { width:260px; } .lp4-hero-strip { margin-top:42px; } }
 @media (prefers-reduced-motion: reduce){ .lp4-strip-track { animation:none !important; } }
+
+/* 롤링 아래 서비스 소개 — 후킹과 본문 사이를 잇는다 */
+.lp4-hero-intro { text-align:center; padding:96px 0 8px; }
+.lp4-hero-intro p { font-size: clamp(19px,2.1vw,26px); font-weight:600; letter-spacing:-.03em;
+  line-height:1.62; color: var(--ink3); }
+.lp4-hero-intro-lead { color: var(--ink) !important; font-weight:800 !important; margin-bottom:14px; }
+
 
 /* ── Partner form ──────────────────────────────────── */
 .lp4-form { padding:30px; }
