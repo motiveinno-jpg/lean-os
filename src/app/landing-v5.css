@@ -1,0 +1,332 @@
+/* ══════════════════════════════════════════════════════════════
+   랜딩 v5 — 장면(Scene) 스타일  ·  네임스페이스: lp5-
+   2026-07-28. 사장님: "화면이 스르륵 생겨나고, 전체를 차지하면서 답답하지 않게."
+
+   ⚠️ lp4- (landing.css) 는 /features · /ai · /pricing 이 계속 쓴다. 절대 건드리지 말 것.
+      메인 랜딩의 FAQ·제휴폼·푸터·상단바도 lp4- 를 그대로 재사용한다 — v5 는 "장면"만 담당.
+
+   원칙 3개
+   1) 한 장면 = 100vh 무대. 스크롤은 그 무대의 재생 헤드(--p: 0~1)다.
+   2) 움직임은 진입할 때만. 다 움직이면 멈춘다 — 계속 흔들리면 답답해진다.
+   3) transform / opacity 만 쓴다. width·top 을 애니메이션하면 매 프레임 레이아웃이 다시 잡힌다.
+   ══════════════════════════════════════════════════════════════ */
+
+/* --p 를 숫자로 등록해 두면 브라우저가 보간을 안전하게 처리한다 */
+@property --p { syntax: "<number>"; initial-value: 0; inherits: true; }
+
+.lp5-root {
+  --ink: #0B0B0F;
+  --ink2: #4A4A55;
+  --ink3: #8A8A96;
+  --brand: #4F46E5;
+  --brand2: #7C6BFF;
+  --line: #E6E8F0;
+  --canvas: #FFFFFF;
+  --canvas2: #F5F6FB;
+  --dark: #0A0A12;
+
+  color: var(--ink);
+  background: var(--canvas);
+  font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-synthesis-weight: none;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  /* ⚠️ hidden 을 쓰면 자손의 position:sticky 가 죽는다 — 무대가 전부 sticky 라 치명적이다 */
+  overflow-x: clip;
+}
+
+/* ── 무대 ── */
+.lp5-scene { position: relative; height: calc(var(--len, 1.6) * 100vh); }
+.lp5-stage {
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  overflow: hidden;
+  background: var(--canvas);
+}
+.lp5-scene-dark .lp5-stage { background: var(--dark); color: #fff; }
+
+/* 화면이 무대를 차지해야 한다 — 문구 칸을 좁히고 남는 폭은 전부 화면에 준다 */
+.lp5-wrap { width: 100%; max-width: 1420px; padding: 0 32px; margin: 0 auto; }
+
+/* ── 타이포 ── */
+.lp5-eyebrow {
+  font-size: 13px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--brand); margin-bottom: 18px;
+}
+.lp5-scene-dark .lp5-eyebrow { color: var(--brand2); }
+.lp5-h {
+  font-size: clamp(38px, 5.4vw, 74px); font-weight: 800; line-height: 1.14;
+  letter-spacing: -.035em; margin: 0;
+}
+.lp5-h-sm { font-size: clamp(30px, 3.6vw, 48px); }
+.lp5-lead {
+  font-size: clamp(16px, 1.35vw, 20px); line-height: 1.75; color: var(--ink2);
+  margin-top: 18px; max-width: 620px;
+}
+.lp5-scene-dark .lp5-lead { color: #B9B9C6; }
+.lp5-grad {
+  background: linear-gradient(96deg, var(--brand) 6%, var(--brand2) 54%, #B39BFF 96%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* ── 등장 ── */
+.lp5-rise {
+  opacity: 0; transform: translateY(26px);
+  transition: opacity .78s cubic-bezier(.2,.7,.25,1), transform .78s cubic-bezier(.2,.7,.25,1);
+  will-change: opacity, transform;
+}
+.lp5-rise-on { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .lp5-rise { opacity: 1; transform: none; transition: none; } }
+
+/* ── 화면 프레임 ── 실제 제품 화면이 들어가는 자리. 유리 테두리 + 3단 그림자 ── */
+.lp5-shot {
+  position: relative; width: 100%; border-radius: 20px; overflow: hidden;
+  background: #fff;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.7) inset,
+    0 2px 8px rgba(11,11,15,.05),
+    0 34px 80px -28px rgba(79,70,229,.35);
+  border: 1px solid rgba(255,255,255,.75);
+}
+.lp5-shot img { display: block; width: 100%; height: auto; }
+.lp5-scene-dark .lp5-shot {
+  border-color: rgba(255,255,255,.1);
+  box-shadow: 0 40px 100px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06);
+}
+/* 크로스페이드용 — 같은 자리에 겹쳐 두고 활성만 보인다 */
+.lp5-shot-stack { position: relative; width: 100%; }
+.lp5-shot-stack > .lp5-shot { position: absolute; inset: 0; opacity: 0; transition: opacity .7s ease; }
+.lp5-shot-stack > .lp5-shot img { height: 100%; object-fit: cover; object-position: top center; }
+.lp5-shot-on { opacity: 1 !important; }
+/* 스택은 높이를 잡아 줄 기준이 필요하다 — 16:10 무대.
+   ⚠️ 100vh 무대 안이라 max-height 로 천장을 막지 않으면 세로가 긴 화면에서 상단바를 뚫는다. */
+.lp5-shot-stack { aspect-ratio: 16 / 10; max-height: 76vh; }
+
+/* ══ 1. 히어로 ══
+   문구가 떠오르고, 그 뒤에서 제품 화면이 확대되며 자리를 잡는다.
+   화면은 아래 화면 밖으로 흘러나간다(애플식) — 레터박스가 안 생긴다. */
+.lp5-hero { justify-content: flex-start; padding-top: 120px; }
+.lp5-hero-bg {
+  position: absolute; inset: -20% -10% auto -10%; height: 90%;
+  background:
+    radial-gradient(52% 60% at 22% 12%, rgba(124,107,255,.24), transparent 62%),
+    radial-gradient(46% 56% at 80% 4%, rgba(79,70,229,.20), transparent 60%);
+  filter: blur(10px); pointer-events: none;
+  transform: translateY(calc(var(--p) * -60px));
+}
+.lp5-hero-copy {
+  text-align: center; position: relative; z-index: 2;
+  /* 0 → .38 구간에서 위로 빠져나간다 — 화면에 자리를 내준다 */
+  transform: translateY(calc(var(--p) * -74px));
+  opacity: calc(1 - clamp(0, calc((var(--p) - .42) / .3), 1));
+}
+.lp5-hero-h { font-size: clamp(40px, 6.2vw, 88px); font-weight: 800; line-height: 1.1; letter-spacing: -.04em; }
+.lp5-hero-sub { font-size: clamp(17px, 1.6vw, 23px); color: var(--ink2); margin-top: 20px; }
+.lp5-hero-cta { display: flex; gap: 12px; justify-content: center; margin-top: 34px; flex-wrap: wrap; }
+.lp5-hero-shot {
+  position: relative; z-index: 1; width: min(1120px, 88vw); margin: 46px auto 0;
+  transform: scale(calc(.9 + clamp(0, calc(var(--p) / .5), 1) * .1))
+             translateY(calc((1 - clamp(0, calc(var(--p) / .5), 1)) * 60px));
+  opacity: clamp(0, calc(var(--p) / .18 + .25), 1);
+}
+.lp5-hero-hint {
+  position: absolute; z-index: 3; bottom: 26px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--ink3);
+  opacity: calc(1 - clamp(0, calc(var(--p) / .2), 1));
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+}
+.lp5-hero-hint i { display: block; width: 1px; height: 22px; background: linear-gradient(var(--ink3), transparent); }
+
+/* ══ 2. 통합 — 흩어진 도구들이 가운데로 빨려들어와 오너뷰가 된다 ══ */
+.lp5-unify { justify-content: center; }
+.lp5-unify-in { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; }
+/* ⚠️ 궤도는 무대(100vh) 전체를 기준으로 잡는다. 문구 박스 안에 두면 그 박스 높이의
+   가운데를 중심으로 삼아 칩이 제목 위로 겹친다 (첫 구현에서 실제로 겹쳤다). */
+.lp5-orbit { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.lp5-chip {
+  position: absolute; left: 50%; top: 50%;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 17px; border-radius: 14px; white-space: nowrap;
+  font-size: 14px; font-weight: 700; color: var(--ink2);
+  background: rgba(255,255,255,.86); border: 1px solid var(--line);
+  box-shadow: 0 12px 30px -14px rgba(11,11,15,.3);
+  /* --x/--y 만큼 밖에 있다가 진행률에 따라 가운데로 모이며 사라진다.
+     ⚠️ 칩이 다 사라지기 전에 화면이 떠오르면 칩이 화면 위에 얹혀 지저분해진다.
+        칩은 .40 에서 끝내고 화면은 .34 부터 시작 — 겹치는 구간을 최소로 둔다. */
+  --k: calc(1 - clamp(0, calc(var(--p) / .4), 1));
+  transform: translate(-50%, -50%)
+             translate(calc(var(--x) * var(--k)), calc(var(--y) * var(--k)))
+             scale(calc(.55 + var(--k) * .45));
+  opacity: calc(var(--k) * var(--k) * 1.4);
+}
+.lp5-unify-core {
+  position: relative; z-index: 2; width: min(760px, 82vw);
+  transform: scale(calc(.88 + clamp(0, calc((var(--p) - .34) / .46), 1) * .12));
+  opacity: clamp(0, calc((var(--p) - .34) / .26), 1);
+}
+.lp5-unify-copy { position: relative; z-index: 3; margin-bottom: 34px; }
+.lp5-unify-lines { margin-top: 16px; min-height: 96px; }
+.lp5-unify-line {
+  font-size: clamp(16px, 1.5vw, 21px); line-height: 1.7; color: var(--ink2);
+  opacity: 0; transform: translateY(10px); transition: opacity .55s ease, transform .55s ease;
+}
+.lp5-unify-line-on { opacity: 1; transform: none; }
+
+/* ══ 3. 하루 ══ */
+.lp5-day { justify-content: center; }
+.lp5-day-grid {
+  display: grid; grid-template-columns: 350px 1fr; gap: 52px; align-items: center; width: 100%;
+}
+.lp5-day-time {
+  font-size: clamp(56px, 7vw, 92px); font-weight: 800; letter-spacing: -.045em;
+  line-height: 1; color: var(--brand);
+}
+.lp5-day-scene { font-size: clamp(22px, 2.2vw, 30px); font-weight: 800; margin-top: 14px; letter-spacing: -.02em; }
+.lp5-day-ba { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; }
+.lp5-day-row { display: flex; gap: 11px; align-items: flex-start; font-size: 15px; line-height: 1.65; }
+.lp5-day-tag {
+  flex: none; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 7px; margin-top: 2px;
+}
+.lp5-day-tag-b { background: #F1F2F7; color: var(--ink3); }
+.lp5-day-tag-a { background: rgba(79,70,229,.1); color: var(--brand); }
+.lp5-day-b { color: var(--ink3); text-decoration: line-through; text-decoration-color: rgba(138,138,150,.45); }
+.lp5-day-a { color: var(--ink); font-weight: 600; }
+.lp5-day-dots { display: flex; gap: 7px; margin-top: 30px; }
+.lp5-day-dot { width: 26px; height: 3px; border-radius: 99px; background: var(--line); transition: background .3s; }
+.lp5-day-dot-on { background: var(--brand); }
+
+/* ══ 4. 세 축 ══ */
+.lp5-ax { justify-content: center; }
+.lp5-ax-grid { display: grid; grid-template-columns: 350px 1fr; gap: 52px; align-items: center; width: 100%; }
+.lp5-ax-kick {
+  font-size: clamp(44px, 5.4vw, 72px); font-weight: 800; letter-spacing: -.04em; line-height: 1;
+}
+.lp5-ax-head { font-size: clamp(20px, 1.9vw, 26px); font-weight: 700; margin-top: 18px; line-height: 1.4; letter-spacing: -.02em; }
+.lp5-ax-lead { font-size: 15.5px; line-height: 1.75; color: var(--ink2); margin-top: 14px; }
+.lp5-ax-menus { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 24px; }
+.lp5-ax-menu {
+  font-size: 12.5px; font-weight: 700; color: var(--ink2);
+  background: var(--canvas2); border: 1px solid var(--line); border-radius: 9px; padding: 6px 11px;
+}
+.lp5-ax-steps { display: flex; gap: 7px; margin-top: 30px; }
+.lp5-ax-step { width: 34px; height: 3px; border-radius: 99px; background: var(--line); transition: background .3s; }
+.lp5-ax-step-on { background: var(--brand); }
+
+/* ══ 5. AI 엔진 (어두운 장면) ══ */
+.lp5-eng { justify-content: center; }
+.lp5-eng-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(44% 50% at 18% 24%, rgba(124,107,255,.28), transparent 64%),
+    radial-gradient(40% 46% at 84% 72%, rgba(79,70,229,.22), transparent 62%);
+  transform: translateY(calc(var(--p) * -40px));
+}
+.lp5-eng-grid { display: grid; grid-template-columns: 390px 1fr; gap: 52px; align-items: center; width: 100%; position: relative; z-index: 1; }
+.lp5-eng-list { display: flex; flex-direction: column; gap: 10px; }
+.lp5-eng-item {
+  display: flex; gap: 14px; align-items: flex-start; padding: 15px 17px; border-radius: 15px;
+  border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.03);
+  transition: background .45s ease, border-color .45s ease, opacity .45s ease;
+  opacity: .42;
+}
+.lp5-eng-item-on {
+  opacity: 1; background: rgba(124,107,255,.13); border-color: rgba(124,107,255,.4);
+}
+.lp5-eng-num { font-size: 12px; font-weight: 800; color: var(--brand2); letter-spacing: .06em; margin-top: 3px; }
+.lp5-eng-name { font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; }
+.lp5-eng-short { font-size: 13.5px; line-height: 1.65; color: #A9A9B8; margin-top: 5px; }
+.lp5-eng-h { color: #fff; }
+
+/* ══ 6. 커버리지 — 메뉴가 하나씩 켜진다 ══ */
+.lp5-cov { justify-content: center; }
+.lp5-cov-head { text-align: center; margin-bottom: 40px; }
+.lp5-cov-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; width: 100%; }
+.lp5-cov-cell {
+  border: 1px solid var(--line); border-radius: 15px; padding: 17px 15px; background: var(--canvas);
+  transition: opacity .5s ease, transform .5s ease, border-color .5s ease, box-shadow .5s ease;
+}
+.lp5-cov-cell-off { opacity: .3; transform: translateY(9px); }
+.lp5-cov-cell-on { border-color: rgba(79,70,229,.34); box-shadow: 0 16px 34px -22px rgba(79,70,229,.5); }
+.lp5-cov-g { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--brand); }
+.lp5-cov-n { font-size: 14.5px; font-weight: 700; margin-top: 6px; letter-spacing: -.01em; }
+.lp5-cov-d { font-size: 12px; line-height: 1.55; color: var(--ink3); margin-top: 5px; }
+
+/* ══ 7. 모바일 ══ */
+.lp5-mob { justify-content: center; }
+.lp5-mob-grid { display: grid; grid-template-columns: 1fr 400px; gap: 60px; align-items: center; width: 100%; }
+.lp5-mob-copy { display: flex; flex-direction: column; }
+.lp5-mob-step { margin-top: auto; padding-top: 40px; }
+.lp5-mob-h { font-size: clamp(24px, 2.4vw, 34px); font-weight: 800; letter-spacing: -.025em; line-height: 1.32; }
+.lp5-mob-h em { font-style: normal; color: var(--ink3); }
+.lp5-mob-d { font-size: 15.5px; line-height: 1.75; color: var(--ink2); margin-top: 14px; }
+.lp5-mob-dots { display: flex; gap: 7px; margin-top: 24px; }
+.lp5-mob-dot { width: 26px; height: 3px; border-radius: 99px; background: var(--line); transition: background .3s; }
+.lp5-mob-dot-on { background: var(--brand); }
+.lp5-phone {
+  position: relative; width: 340px; margin: 0 auto; aspect-ratio: 1170 / 2400;
+  border-radius: 46px; padding: 9px; background: linear-gradient(160deg, #2B2B36, #0C0C12 62%);
+  box-shadow: 0 50px 90px -34px rgba(11,11,15,.6), 0 0 0 1px rgba(255,255,255,.08) inset;
+  transform: rotate(-3deg) translateY(calc((1 - clamp(0, calc(var(--p) / .35), 1)) * 40px));
+}
+.lp5-phone-notch {
+  position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+  width: 96px; height: 22px; border-radius: 99px; background: #0C0C12; z-index: 3;
+}
+.lp5-phone img {
+  position: absolute; inset: 9px; width: calc(100% - 18px); height: calc(100% - 18px);
+  object-fit: cover; object-position: top center; border-radius: 38px;
+  opacity: 0; transition: opacity .6s ease;
+}
+.lp5-phone-on { opacity: 1 !important; }
+
+/* ══ 8. 마무리 ══ */
+.lp5-end { justify-content: center; text-align: center; }
+.lp5-end-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(50% 54% at 50% 44%, rgba(124,107,255,.3), transparent 66%);
+}
+.lp5-end-in { position: relative; z-index: 1; }
+
+/* ── 버튼 ── */
+.lp5-btn {
+  display: inline-flex; align-items: center; gap: 9px; height: 56px; padding: 0 30px;
+  border-radius: 99px; font-size: 16px; font-weight: 800; letter-spacing: -.01em;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.lp5-btn:hover { transform: translateY(-2px); }
+.lp5-btn-brand {
+  background: var(--brand); color: #fff;
+  box-shadow: 0 16px 34px -14px rgba(79,70,229,.7);
+}
+.lp5-btn-ghost { background: rgba(11,11,15,.04); color: var(--ink); border: 1px solid var(--line); }
+.lp5-scene-dark .lp5-btn-ghost { background: rgba(255,255,255,.07); color: #fff; border-color: rgba(255,255,255,.16); }
+.lp5-checks { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+.lp5-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink3); }
+
+/* ══ 반응형 ══
+   ⚠️ 좁은 화면에서 100vh 무대에 2단 그리드를 밀어 넣으면 내용이 잘린다.
+      1000px 미만에서는 핀을 아예 풀고 평범한 세로 흐름으로 돌린다. */
+@media (max-width: 999px) {
+  .lp5-scene { height: auto !important; }
+  .lp5-stage { position: static; height: auto; padding: 96px 0; overflow: visible; --p: 1; }
+  .lp5-hero { padding-top: 96px; }
+  .lp5-day-grid, .lp5-ax-grid, .lp5-eng-grid, .lp5-mob-grid { grid-template-columns: 1fr; gap: 34px; }
+  .lp5-mob-grid > .lp5-phone { order: -1; }
+  .lp5-mob-step { margin-top: 0; padding-top: 22px; }
+  .lp5-cov-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp5-orbit { display: none; }
+  .lp5-hero-copy, .lp5-hero-shot, .lp5-unify-core, .lp5-phone, .lp5-hero-bg { transform: none; opacity: 1; }
+  .lp5-hero-hint { display: none; }
+  .lp5-shot-stack { aspect-ratio: 16 / 11; }
+}
+@media (max-width: 1200px) and (min-width: 1000px) {
+  .lp5-cov-grid { grid-template-columns: repeat(4, 1fr); }
+  .lp5-day-grid, .lp5-ax-grid, .lp5-eng-grid { grid-template-columns: 320px 1fr; gap: 40px; }
+}
+/* 세로가 짧은 노트북 — 무대 안에서 글자와 화면이 서로 밀어내지 않게 */
+@media (min-height: 0px) and (max-height: 780px) and (min-width: 1000px) {
+  .lp5-hero { padding-top: 84px; }
+  .lp5-hero-shot { width: min(940px, 78vw); margin-top: 30px; }
+  .lp5-h { font-size: clamp(32px, 4.2vw, 52px); }
+}

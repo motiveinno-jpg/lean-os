@@ -1,616 +1,369 @@
 "use client";
 
-// OwnerView 랜딩 뷰 — "AI ERP" 재디자인 (2026-07-27).
-//   원칙 3가지:
-//     1) 주인공은 제품 실물 화면이다. 히어로와 투어 섹션의 이미지는 전부 /demo 를 실제 뷰포트에서
-//        캡처한 진짜 오너뷰 화면(public/product/*.png). 일러스트·목업 금지.
-//     2) 강조색은 브랜드 인디고 하나. 오렌지는 위험/주의, 초록은 확인/절감 의미일 때만.
-//        (이전 버전은 인디고·블루·오렌지·초록·신호등이 한 화면에 섞여 브랜드가 읽히지 않았다.)
-//     3) 앱 본체(리퀴드글래스·인디고 그라데이션)와 같은 언어 — 가입 후 진입해도 같은 제품으로 보이게.
-//   문구·가격은 content.ts 단일 출처. 스타일은 landing.css(lp4- 네임스페이스).
-import "@/app/landing.css";
+// ══ OwnerView 랜딩 v5 — 장면 기반 (2026-07-28) ══
+//   사장님: "애플 페이지처럼 사진 배열·화질·레이아웃이 깔끔하고, 스크롤할 때마다 화면이
+//   스르륵 생겨나고, 화면이 전체를 차지하면서도 답답하지 않게. 기존 걸 유지하려 하지 말고 탈바꿈."
+//
+//   v4(섹션을 위에서 아래로 쌓는 문서 구조) → v5(장면 8개 + 꼬리 3섹션).
+//   ▸ 한 장면 = 100vh 무대, 스크롤이 재생 헤드(scene.tsx 의 --p). 리렌더 없이 CSS 가 움직인다.
+//   ▸ 세부(메뉴 18개 각각 · AI 자동화 8종)는 /features · /ai 가 맡는다 — 메인은 압축한다.
+//   ▸ 문구·데이터는 content.ts 단일 출처. 스타일은 landing-v5.css(lp5-).
+//     FAQ·제휴폼·푸터·상단바는 lp4-(landing.css) 를 그대로 재사용한다 — 잘 도는 걸 다시 만들지 않는다.
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
-import { HERO, HERO_STRIP, HERO_INTRO, STATS, PILLARS, DAY, MOBILE, ENGINES, CATALOG, AI_AUTOMATION, FAQS, NAV_LINKS, FOOTER } from "@/components/landing/content";
+import { useEffect, useState } from "react";
+import "@/app/landing.css";
+import "@/app/landing-v5.css";
 import { LandingNav } from "@/components/landing/landing-nav";
-import { StatArt } from "@/components/landing/stat-art";
 import { PartnershipForm } from "@/components/landing/partnership-form";
+import { Scene, Rise } from "@/components/landing/scene";
+import {
+  HERO, HERO_INTRO, DAY, PILLARS, ENGINES, CATALOG, MOBILE, FAQS, FOOTER,
+} from "@/components/landing/content";
 
-function Logo({ size = 26 }: { size?: number }) {
+const Arrow = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" />
+  </svg>
+);
+const Check = () => (
+  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+  </svg>
+);
+const Logo = ({ size = 26 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+    <rect width="40" height="40" rx="10" fill="#5b54e8" />
+    <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none" />
+    <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
+    <polyline points="12,20 15,18 18,19 22,14" stroke="#fdba74" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    <circle cx="22" cy="14" r="1.5" fill="#fdba74" />
+  </svg>
+);
+
+/** 화면 한 장 — 실제 제품 캡처. sizes 를 정확히 줘야 큰 이미지가 과다 다운로드되지 않는다. */
+function Shot({ src, alt, priority = false, sizes = "(max-width: 999px) 92vw, 1120px" }: {
+  src: string; alt: string; priority?: boolean; sizes?: string;
+}) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-      <rect width="40" height="40" rx="10" fill="#4F46E5" />
-      <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.2" fill="none" />
-      <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
-      <polyline points="12,20 15,18 18,19 22,14" stroke="#fdba74" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      <circle cx="22" cy="14" r="1.5" fill="#fdba74" />
-    </svg>
+    <div className="lp5-shot">
+      <Image src={src} alt={alt} width={1968} height={1320} sizes={sizes} priority={priority} />
+    </div>
   );
 }
 
-const Check = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
-const Arrow = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" /></svg>);
-
-// 스크롤 등장 옵저버 — 인스턴스마다 IntersectionObserver 를 만들면 랜딩 한 장에 20개 이상이 생긴다.
-// 하나만 만들어 모든 Reveal 이 공유하고, 한 번 보이면 즉시 unobserve 한다.
-type RevealCb = () => void;
-let revealIO: IntersectionObserver | null = null;
-const revealTargets = new WeakMap<Element, RevealCb>();
-
-function observeReveal(el: Element, cb: RevealCb) {
-  if (typeof IntersectionObserver === "undefined") { cb(); return () => {}; }
-  if (!revealIO) {
-    revealIO = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        revealTargets.get(e.target)?.();
-        revealTargets.delete(e.target);
-        revealIO?.unobserve(e.target);
-      }
-    }, { threshold: 0.12 });
-  }
-  revealTargets.set(el, cb);
-  revealIO.observe(el);
-  return () => { revealTargets.delete(el); revealIO?.unobserve(el); };
-}
-
-function Reveal({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [seen, setSeen] = useState(false);
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    return observeReveal(el, () => setSeen(true));
-  }, []);
-  return <div ref={ref} className={`lp4-reveal ${seen ? "lp4-reveal-in" : ""} ${className}`}>{children}</div>;
-}
-
-function CountUp({ to, suffix = "", dur = 1400 }: { to: number; suffix?: string; dur?: number }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    let raf = 0; let started = false;
-    const io = new IntersectionObserver((es) => {
-      if (es[0].isIntersecting && !started) {
-        started = true; const t0 = performance.now();
-        const tick = (t: number) => { const p = Math.min(1, (t - t0) / dur); setN(Math.round(to * (1 - Math.pow(1 - p, 3)))); if (p < 1) raf = requestAnimationFrame(tick); };
-        raf = requestAnimationFrame(tick); io.disconnect();
-      }
-    }, { threshold: 0.4 });
-    io.observe(el);
-    return () => { io.disconnect(); cancelAnimationFrame(raf); };
-  }, [to, dur]);
-  return <span ref={ref}>{n.toLocaleString("ko-KR")}{suffix}</span>;
-}
-
-// 업무 영역 아이콘 — 커버리지 섹션
-function GroupGlyph({ n }: { n: string }) {
-  const p = { width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  switch (n) {
-    case "finance": return <svg {...p}><path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 5-9" /></svg>;
-    case "workspace": return <svg {...p}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>;
-    case "hr": return <svg {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /></svg>;
-    default: return <svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
-  }
-}
-
-// AI 엔진 아이콘 — 텍스트만으로 나열되던 카드에 시각적 식별자를 준다.
-function EngineGlyph({ n }: { n: string }) {
-  const p = { width: 24, height: 24, fill: "none", stroke: "currentColor", strokeWidth: 1.9, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  switch (n) {
-    case "01": // 생존 레이더 — 레이더 스윕
-      return <svg {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4.5" /><path d="M12 12L18.4 5.6" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /></svg>;
-    case "02": // 원클릭 파이프라인 — 문서에서 문서로
-      return <svg {...p}><path d="M4 4h7l3 3v4" /><path d="M4 4v13h6" /><rect x="12" y="12" width="8" height="8" rx="1.6" /><path d="M14.5 16.2l1.5 1.5 3-3" /></svg>;
-    case "03": // AI 인사/총무팀 — 사람 + 자동 체크
-      return <svg {...p}><circle cx="9" cy="8" r="3.4" /><path d="M3.5 20v-1.4A4.6 4.6 0 018.1 14h1.8" /><path d="M14 17.5l2 2 4.5-4.5" /></svg>;
-    default: // 거래처 자산화 — 연결된 노드
-      return <svg {...p}><circle cx="6" cy="7" r="2.4" /><circle cx="18" cy="7" r="2.4" /><circle cx="12" cy="18" r="2.4" /><path d="M7.9 8.6l2.6 7.2M16.1 8.6l-2.6 7.2M8.4 7h7.2" /></svg>;
-  }
-}
-
-
-// 주요 기능 둘러보기 — 축 탭(프로젝트·인사·회계) → 기능 탭 → 우측 화면이 바뀐다.
-//   핀 스크롤을 걷어낸 자리. 스크롤을 522vh 잡아먹던 걸 한 화면으로 줄이고,
-//   대신 4초마다 다음 기능으로 저절로 넘어가 "계속 바뀌는" 느낌을 준다(직접 누르면 자동 진행 중단).
-function PillarTabs() {
-  const [ax, setAx] = useState(0);   // 축
-  const [bl, setBl] = useState(0);   // 그 축의 기능
-  const [auto, setAuto] = useState(true);
-  const ref = useRef<HTMLDivElement>(null);
-  const [live, setLive] = useState(false);
-
-  // 화면에 들어와 있을 때만 돌린다
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    const io = new IntersectionObserver((es) => setLive(es[0].isIntersecting), { threshold: 0.25 });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!auto || !live) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = setInterval(() => {
-      setBl((v) => {
-        const n = PILLARS[ax].blocks.length;
-        if (v + 1 < n) return v + 1;
-        setAx((k) => (k + 1) % PILLARS.length);   // 마지막 기능이면 다음 축으로
-        return 0;
-      });
-    }, 4200);
-    return () => clearInterval(t);
-  }, [auto, live, ax]);
-
-  // 같은 탭을 다시 눌러도 "처리 전 → 후"가 다시 재생되게 replay 를 올린다
-  //   (ax·bl 만 의존하면 상태가 그대로라 effect 가 다시 돌지 않는다)
-  const [replay, setReplay] = useState(0);
-  const pick = (a: number, b: number) => { setAuto(false); setAx(a); setBl(b); setReplay((v) => v + 1); };
-  const P = PILLARS[ax];
-  const B = P.blocks[bl];
-  const beforeSrc = (B as { before?: string }).before;
-
-  // "품목을 넣는 화면 → 완성된 화면" 처럼 같은 화면의 앞뒤 상태를 이어 보여준다.
-  //   ⚠️ 두 장 모두 실제 앱 화면이다. 가짜 UI 를 얹어 움직이게 만들지 말 것.
-  const [phase, setPhase] = useState(0);
-  useEffect(() => {
-    setPhase(0);
-    if (!beforeSrc) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setPhase(1); return; }
-    const t = setTimeout(() => setPhase(1), 1300);
-    return () => clearTimeout(t);
-  }, [ax, bl, beforeSrc, replay]);
-
+/** 크로스페이드 스택 — 같은 자리에서 화면만 바뀐다(장면 안에서 축·시간대가 넘어갈 때). */
+function ShotStack({ items, active, sizes = "(max-width: 999px) 94vw, 1040px" }: {
+  items: { src: string; alt: string }[]; active: number; sizes?: string;
+}) {
   return (
-    <section className="lp4-section lp4-bg-tint" id="pillars" ref={ref}>
-      <div className="lp4-container">
-        <Reveal className="lp4-sec-head lp4-sec-head-c">
-          <div className="lp4-eyebrow">Core</div>
-          <h2 className="lp4-h2">일은 줄이고, <span className="lp4-underline">효율과 성과는 높여요</span></h2>
-          <p className="lp4-sub">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
-        </Reveal>
-
-        {/* 축 탭 */}
-        <div className="lp4-ax">
-          {PILLARS.map((q, i) => (
-            <button key={q.key} className={`lp4-ax-t ${i === ax ? "lp4-ax-on" : ""}`} onClick={() => pick(i, 0)}>
-              {q.kicker}
-            </button>
-          ))}
+    <div className="lp5-shot-stack">
+      {items.map((it, i) => (
+        <div key={it.src} className={`lp5-shot ${i === active ? "lp5-shot-on" : ""}`}>
+          <Image src={it.src} alt={it.alt} width={1968} height={1320} sizes={sizes} />
         </div>
+      ))}
+    </div>
+  );
+}
 
-        <div className="lp4-mf">
-          <div className="lp4-mf-copy">
-            <div className="lp4-mf-kicker">{P.kicker}</div>
-            <h3 className="lp4-mf-h">
-              {P.headline.split("\n").map((line, k) => <span key={k}>{line}<br /></span>)}
-            </h3>
-            <p className="lp4-mf-lead">{P.lead}</p>
+// ══════════════════ 1. 히어로 ══════════════════
+function SceneHero() {
+  return (
+    <Scene len={1.5} className="lp5-hero">
+      {() => (
+        <>
+          <div className="lp5-hero-bg" />
+          <div className="lp5-wrap lp5-hero-copy">
+            <h1 className="lp5-hero-h">
+              {HERO.headline.split("\n").map((l, i) => (
+                <span key={i}>{i === 1 ? <span className="lp5-grad">{l}</span> : l}<br /></span>
+              ))}
+            </h1>
+            <p className="lp5-hero-sub">{HERO.sub}</p>
+            <div className="lp5-hero-cta">
+              <Link href="/auth" className="lp5-btn lp5-btn-brand">무료로 시작하기 <Arrow /></Link>
+              <Link href="/demo" className="lp5-btn lp5-btn-ghost">데모 보기</Link>
+            </div>
+            <div className="lp5-checks">
+              {HERO.checks.map((c) => <span key={c} className="lp5-check"><Check /> {c}</span>)}
+            </div>
+          </div>
+          <div className="lp5-hero-shot">
+            <Shot src="/product/dashboard-v4.png" alt="오너뷰 대시보드" priority sizes="(max-width: 999px) 92vw, 1120px" />
+          </div>
+          <div className="lp5-hero-hint"><i />SCROLL</div>
+        </>
+      )}
+    </Scene>
+  );
+}
 
-            {/* 기능 탭 — 참고 레퍼런스의 알약 버튼 */}
-            <div className="lp4-mf-tabs">
-              {P.blocks.map((q, i) => (
-                <button key={q.tab} className={`lp4-mf-tab ${i === bl ? "lp4-mf-tab-on" : ""}`} onClick={() => pick(ax, i)}>
-                  {q.tab}
-                  {i === bl && auto && <span className="lp4-mf-tick" key={`${ax}-${bl}`} />}
-                </button>
+// ══════════════════ 2. 통합 ══════════════════
+//   흩어져 있던 도구들이 스크롤에 따라 가운데로 모이며 사라지고, 그 자리에 오너뷰가 남는다.
+const SCATTER = [
+  { t: "엑셀 견적서", x: "-430px", y: "-190px" },
+  { t: "카톡 결재", x: "330px", y: "-215px" },
+  { t: "통장 앱", x: "-500px", y: "40px" },
+  { t: "카드사 앱", x: "470px", y: "10px" },
+  { t: "수기 장부", x: "-360px", y: "215px" },
+  { t: "메일 계약서", x: "395px", y: "205px" },
+  { t: "급여 대장", x: "-90px", y: "-268px" },
+  { t: "세무 자료 폴더", x: "120px", y: "262px" },
+];
+
+function SceneUnify() {
+  return (
+    <Scene len={1.7} beats={HERO_INTRO.length} className="lp5-unify">
+      {(beat) => (
+        <>
+          {/* ⚠️ 궤도는 무대(100vh) 기준이어야 한다. 문구 박스 안에 두면 칩이 제목 위로 겹친다. */}
+          <div className="lp5-orbit" aria-hidden>
+            {SCATTER.map((s) => (
+              <span key={s.t} className="lp5-chip" style={{ ["--x" as string]: s.x, ["--y" as string]: s.y }}>{s.t}</span>
+            ))}
+          </div>
+          <div className="lp5-wrap lp5-unify-in">
+          <div className="lp5-unify-copy">
+            <div className="lp5-eyebrow">One Place</div>
+            <h2 className="lp5-h lp5-h-sm">흩어져 있던 회사 일이<br /><span className="lp5-grad">하나로 모여요</span></h2>
+            <div className="lp5-unify-lines">
+              {HERO_INTRO.map((l, i) => (
+                <p key={l} className={`lp5-unify-line ${i <= beat ? "lp5-unify-line-on" : ""}`}>{l}</p>
               ))}
             </div>
-
-            <div className="lp4-mf-body" key={`${P.key}-${bl}`}>
-              <div className="lp4-mf-t">{B.title}</div>
-              <p className="lp4-mf-d">{B.desc}</p>
-            </div>
-
-            <div className="lp4-mf-menus">
-              <span className="lp4-pillar-mcap">주요 기능</span>
-              {P.menus.map((m) => <span key={m} className="lp4-pillar-menu">{m}</span>)}
-              <Link href={`/features?g=${P.grp}`} className="lp4-pillar-more">전체 보기 <Arrow /></Link>
-            </div>
           </div>
-
-          {/* 원형 배경 위에 뜬 화면 — 바뀔 때 슬라이드 인, 주변 칩이 따라 뜬다 */}
-          <div className="lp4-mf-stage">
-            <span className="lp4-mf-orb" />
-            <div className={`lp4-mf-screen ${beforeSrc ? "lp4-mf-screen-2" : ""}`} key={`${P.key}-${bl}`}>
-              {beforeSrc && (
-                <Image
-                  className={`lp4-mf-img ${phase === 0 ? "lp4-mf-img-on" : ""}`}
-                  src={beforeSrc} alt={`${B.alt} — 입력 전`} width={1968} height={1320}
-                  sizes="(max-width: 1000px) 100vw, 800px"
-                />
-              )}
-              <Image
-                className={`lp4-mf-img ${!beforeSrc || phase === 1 ? "lp4-mf-img-on" : ""}`}
-                src={B.src} alt={B.alt} width={1968} height={1320}
-                sizes="(max-width: 1000px) 100vw, 800px"
-              />
-              {beforeSrc && (
-                <span className={`lp4-mf-flash ${phase === 1 ? "lp4-mf-flash-on" : ""}`} key={`fl-${P.key}-${bl}-${phase}`} />
-              )}
-            </div>
+          <div className="lp5-unify-core">
+            <Shot src="/product/dashboard-v4.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 820px" />
           </div>
-        </div>
-      </div>
-    </section>
+          </div>
+        </>
+      )}
+    </Scene>
   );
 }
 
-// 모바일 — 화면에 들어오면 문구와 폰 화면이 자동으로 넘어간다.
-//   좌: 큰 헤드라인(둘째 줄은 흐리게) + 설명 / 우: 실제 모바일 화면이 든 폰 목업.
-//   좌측 아래 단계 문구와 폰 화면은 같은 i 를 쓰므로 언제나 같이 넘어간다.
-function MobileAuto() {
+// ══════════════════ 3. 하루 ══════════════════
+function SceneDay() {
+  return (
+    <Scene id="day" len={2.4} beats={DAY.length} className="lp5-day">
+      {(beat) => {
+        const d = DAY[beat];
+        return (
+          <div className="lp5-wrap lp5-day-grid">
+            <div>
+              <div className="lp5-eyebrow">Before &amp; After</div>
+              <div className="lp5-day-time">{d.time}</div>
+              <div className="lp5-day-scene">{d.scene}</div>
+              <div className="lp5-day-ba">
+                <div className="lp5-day-row">
+                  <span className="lp5-day-tag lp5-day-tag-b">전</span>
+                  <span className="lp5-day-b">{d.before}</span>
+                </div>
+                <div className="lp5-day-row">
+                  <span className="lp5-day-tag lp5-day-tag-a">후</span>
+                  <span className="lp5-day-a">{d.after}</span>
+                </div>
+              </div>
+              <div className="lp5-day-dots">
+                {DAY.map((x, i) => <span key={x.time} className={`lp5-day-dot ${i === beat ? "lp5-day-dot-on" : ""}`} />)}
+              </div>
+            </div>
+            <ShotStack items={DAY.map((x) => ({ src: x.src, alt: x.alt }))} active={beat} />
+          </div>
+        );
+      }}
+    </Scene>
+  );
+}
+
+// ══════════════════ 4. 세 축 ══════════════════
+//   프로젝트 → 회계 → 인사. 무대는 고정, 좌측 문구와 우측 화면만 바뀐다.
+function SceneAxes() {
+  return (
+    <Scene id="pillars" len={2.6} beats={PILLARS.length} className="lp5-ax">
+      {(beat) => {
+        const P = PILLARS[beat];
+        return (
+          <div className="lp5-wrap lp5-ax-grid">
+            <div>
+              <div className="lp5-eyebrow">Core</div>
+              <div className="lp5-ax-kick lp5-grad">{P.kicker}</div>
+              <div className="lp5-ax-head">
+                {P.headline.split("\n").map((l, i) => <span key={i}>{l}<br /></span>)}
+              </div>
+              <p className="lp5-ax-lead">{P.lead}</p>
+              <div className="lp5-ax-menus">
+                {P.menus.map((m) => <span key={m} className="lp5-ax-menu">{m}</span>)}
+              </div>
+              <div className="lp5-ax-steps">
+                {PILLARS.map((x, i) => <span key={x.key} className={`lp5-ax-step ${i === beat ? "lp5-ax-step-on" : ""}`} />)}
+              </div>
+            </div>
+            <ShotStack items={PILLARS.map((x) => ({ src: x.blocks[0].src, alt: x.blocks[0].alt }))} active={beat} />
+          </div>
+        );
+      }}
+    </Scene>
+  );
+}
+
+// ══════════════════ 5. AI 엔진 ══════════════════
+function SceneEngines() {
+  return (
+    <Scene id="engines" len={2.3} beats={ENGINES.length} tone="dark" className="lp5-eng">
+      {(beat) => (
+        <>
+          <div className="lp5-eng-bg" />
+          <div className="lp5-wrap lp5-eng-grid">
+            <div>
+              <div className="lp5-eyebrow">4 AI Engines</div>
+              <h2 className="lp5-h lp5-h-sm lp5-eng-h">반복되던 일,<br /><span className="lp5-grad">이제 AI 몫이에요</span></h2>
+              <div className="lp5-eng-list" style={{ marginTop: 28 }}>
+                {ENGINES.map((e, i) => (
+                  <div key={e.num} className={`lp5-eng-item ${i === beat ? "lp5-eng-item-on" : ""}`}>
+                    <span className="lp5-eng-num">{e.num}</span>
+                    <span>
+                      <span className="lp5-eng-name">{e.name}</span>
+                      <p className="lp5-eng-short">{e.short}</p>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <ShotStack items={ENGINES.map((e) => ({ src: e.src, alt: e.alt }))} active={beat} />
+          </div>
+        </>
+      )}
+    </Scene>
+  );
+}
+
+// ══════════════════ 6. 커버리지 ══════════════════
+//   메뉴 18개가 스크롤에 따라 하나씩 켜진다. 각각의 설명은 /features 가 맡는다.
+function SceneCoverage() {
+  const cells = CATALOG.flatMap((g) => g.menus.map((m) => ({ g: g.group, n: m.name, d: m.desc })));
+  return (
+    <Scene id="more" len={1.7} beats={cells.length} className="lp5-cov">
+      {(beat) => (
+        <div className="lp5-wrap">
+          <div className="lp5-cov-head">
+            <div className="lp5-eyebrow">Coverage</div>
+            <h2 className="lp5-h lp5-h-sm">회사 운영, <span className="lp5-grad">오직 오너뷰 안에서</span></h2>
+            <p className="lp5-lead" style={{ margin: "16px auto 0" }}>
+              방금 본 세 축 아래로 메뉴 {cells.length}개가 이어져요. 재무부터 자산까지, 밖에서 따로 처리할 일이 없어요.
+            </p>
+          </div>
+          <div className="lp5-cov-grid">
+            {cells.map((c, i) => (
+              <div key={c.n} className={`lp5-cov-cell ${i <= beat ? "lp5-cov-cell-on" : "lp5-cov-cell-off"}`}>
+                <div className="lp5-cov-g">{c.g}</div>
+                <div className="lp5-cov-n">{c.n}</div>
+                <div className="lp5-cov-d">{c.d}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", marginTop: 34 }}>
+            <Link href="/features" className="lp5-btn lp5-btn-ghost">메뉴별로 자세히 보기 <Arrow /></Link>
+          </div>
+        </div>
+      )}
+    </Scene>
+  );
+}
+
+// ══════════════════ 7. 모바일 ══════════════════
+//   여긴 스크롤이 아니라 시간으로 넘어간다 — 폰 화면은 가만히 두고 봐도 돌아가야 한다.
+function SceneMobile() {
   const [i, setI] = useState(0);
-  const ref = useRef<HTMLElement>(null);
-  const [live, setLive] = useState(false);
   const n = MOBILE.steps.length;
-
-  // 화면에 들어와 있을 때만 돌린다 (주요 기능 탭과 동일)
   useEffect(() => {
-    const el = ref.current; if (!el) return;
-    const io = new IntersectionObserver((es) => setLive(es[0].isIntersecting), { threshold: 0.25 });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!live) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const t = setInterval(() => setI((v) => (v + 1) % n), 3600);
     return () => clearInterval(t);
-  }, [live, n]);
-
+  }, [n]);
   const S = MOBILE.steps[i];
   return (
-    <section className="lp4-mob" id="mobile" ref={ref}>
-      <div className="lp4-mob-pin">
-        <div className="lp4-container lp4-mob-grid">
-          <div className="lp4-mob-copy">
-            <div className="lp4-mob-eyebrow">{MOBILE.eyebrow}</div>
-            <h2 className="lp4-mob-title">
+    <Scene id="mobile" len={1.35} className="lp5-mob">
+      {() => (
+        <div className="lp5-wrap lp5-mob-grid">
+          <div className="lp5-mob-copy">
+            <div className="lp5-eyebrow">{MOBILE.eyebrow}</div>
+            <h2 className="lp5-h lp5-h-sm">
               {MOBILE.title.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
             </h2>
-            <p className="lp4-mob-lead">{MOBILE.sub}</p>
-            <div className="lp4-mob-step" key={S.src}>
-              <div className="lp4-mob-h">
-                {S.head}<br /><em>{S.muted}</em>
-              </div>
-              <p className="lp4-mob-d">
+            <p className="lp5-lead">{MOBILE.sub}</p>
+            <div className="lp5-mob-step">
+              <div className="lp5-mob-h">{S.head}<br /><em>{S.muted}</em></div>
+              <p className="lp5-mob-d">
                 {S.desc.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
               </p>
-            </div>
-            <div className="lp4-mob-dots">
-              {MOBILE.steps.map((st, k) => (
-                <span key={st.src} className={`lp4-mob-dot ${k === i ? "lp4-mob-dot-on" : ""}`} />
-              ))}
+              <div className="lp5-mob-dots">
+                {MOBILE.steps.map((st, k) => <span key={st.src} className={`lp5-mob-dot ${k === i ? "lp5-mob-dot-on" : ""}`} />)}
+              </div>
             </div>
           </div>
-
-          <div className="lp4-mob-stage">
-            <span className="lp4-mob-glow" />
-            <div className="lp4-phone3d">
-              <div className="lp4-phone3d-notch" />
-              {MOBILE.steps.map((st, k) => (
-                <Image
-                  key={st.src}
-                  src={st.src}
-                  alt={st.alt}
-                  width={1170}
-                  height={2400}
-                  sizes="(max-width: 999px) 80vw, 380px"
-                  className={k === i ? "lp4-phone3d-img lp4-phone3d-on" : "lp4-phone3d-img"}
-                />
-              ))}
-            </div>
+          <div className="lp5-phone">
+            <div className="lp5-phone-notch" />
+            {MOBILE.steps.map((st, k) => (
+              <Image key={st.src} src={st.src} alt={st.alt} width={1170} height={2400}
+                sizes="(max-width: 999px) 78vw, 340px" className={k === i ? "lp5-phone-on" : ""} />
+            ))}
           </div>
         </div>
-      </div>
-    </section>
+      )}
+    </Scene>
   );
 }
 
+// ══════════════════ 8. 마무리 ══════════════════
+function SceneEnd() {
+  return (
+    <Scene len={1.1} tone="dark" className="lp5-end">
+      {() => (
+        <>
+          <div className="lp5-end-bg" />
+          <div className="lp5-wrap lp5-end-in">
+            <Rise as="h2" className="lp5-h">회사 운영, <span className="lp5-grad">오늘부터 달라져요</span></Rise>
+            <Rise delay={90}>
+              <p className="lp5-lead" style={{ margin: "20px auto 0", textAlign: "center" }}>
+                가입하면 바로 씁니다. 구축도, 교육도 필요 없어요.
+              </p>
+            </Rise>
+            <Rise delay={170}>
+              <div className="lp5-hero-cta">
+                <Link href="/auth" className="lp5-btn lp5-btn-brand">무료로 시작하기 <Arrow /></Link>
+                <Link href="/pricing" className="lp5-btn lp5-btn-ghost">가격 보기</Link>
+              </div>
+            </Rise>
+          </div>
+        </>
+      )}
+    </Scene>
+  );
+}
 
-
-const NAV_AI = 99;   // 드롭다운에서 AI 자동화를 가리키는 값
-
+// ══════════════════ 페이지 ══════════════════
 export default function LandingPage() {
-  const [on, setOn] = useState(false);
-  const [day, setDay] = useState(0);   // 하루 타임라인 — 스크롤 진행률로 바뀐다
-  const dayRef = useRef<HTMLElement>(null);
-  const [eng, setEng] = useState(0);   // AI 엔진 탭
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [drop, setDrop] = useState(false);   // 오너뷰 둘러보기 드롭다운
-  const [navG, setNavG] = useState(0);       // 드롭다운에서 보고 있는 영역
-  const [showSticky, setShowSticky] = useState(false);
-  const footRef = useRef<HTMLElement>(null);
-  // 드롭다운 — 바깥을 누르거나 ESC 를 누르면 닫는다
-  useEffect(() => {
-    if (!drop) return;
-    const onDown = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement)?.closest?.(".lp4-navdrop")) setDrop(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrop(false); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [drop]);
-
-  // 하루 섹션: 스크롤한 만큼 09:00 → 23:00 이 순서대로 넘어간다
-  useEffect(() => {
-    const el = dayRef.current; if (!el) return;
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const r = el.getBoundingClientRect();
-        const total = r.height - window.innerHeight;
-        if (total <= 0) return;
-        const p = Math.min(1, Math.max(0, -r.top / total));
-        setDay(Math.min(DAY.length - 1, Math.floor(p * DAY.length)));
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  useEffect(() => {
-    const h = () => {
-      const y = window.scrollY;
-      setOn(y > 8);
-      // 히어로를 지나면 하단 고정 CTA 노출 — 스크롤 어디에서든 가입 경로가 살아있게
-      const foot = footRef.current;
-      const footTop = foot ? foot.getBoundingClientRect().top : Infinity;
-      setShowSticky(y > 700 && footTop > window.innerHeight);
-    };
-    h();
-    window.addEventListener("scroll", h, { passive: true });
-    return () => window.removeEventListener("scroll", h);
-  }, []);
-
 
   return (
-    <div className="lp4-root">
+    <div className="lp4-root lp5-root">
       <LandingNav />
 
-      {/* ══ HERO ══ */}
-      <header className="lp4-hero">
-        <div className="lp4-hero-orbs" />
-        <div className="lp4-hero-grid" />
-        <div className="lp4-container">
-          <div className="lp4-hero-inner">
-            <h1 className="lp4-hero-title">
-              {HERO.headline.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
-            </h1>
-            <p className="lp4-hero-sub">{HERO.sub}</p>
-            <div className="lp4-hero-cta">
-              <Link href="/auth" className="lp4-btn lp4-btn-onink">무료로 시작하기 <Arrow /></Link>
-              <Link href="/demo" className="lp4-btn lp4-btn-ghost-light">데모 버전 확인하기</Link>
-            </div>
-            <div className="lp4-hero-checks">{HERO.checks.map((c) => <span key={c} className="lp4-hero-check"><Check /> {c}</span>)}</div>
-          </div>
-        </div>
-        {/* 실제 화면이 가로로 한 줄 흐른다 — "이게 다 된다"를 한 장면으로.
-            렌더링·목업 대신 진짜 캡처를 쓰는 게 이 제품의 신뢰 근거다. 멈추지 않고 계속 흐른다. */}
-        <div className="lp4-hero-strip" aria-hidden>
-          <div className="lp4-strip-track">
-            {[0, 1].map((dup) => (
-              <div key={dup} className="lp4-strip-run">
-                {HERO_STRIP.map((sc) => (
-                  <div key={sc.src} className="lp4-strip-card">
-                    <Image src={sc.src} alt={sc.alt} width={1968} height={1320} sizes="360px" priority={dup === 0} />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
+      <SceneHero />
+      <SceneUnify />
+      <SceneDay />
+      <SceneAxes />
+      <SceneEngines />
+      <SceneCoverage />
+      <SceneMobile />
+      <SceneEnd />
 
-        {/* 서비스 소개 — 후킹과 본문 사이를 잇는다 */}
-        <div className="lp4-container">
-          <Reveal className="lp4-hero-intro">
-            {HERO_INTRO.map((l, k) => <p key={k} className={k === 0 ? "lp4-hero-intro-lead" : ""}>{l}</p>)}
-          </Reveal>
-        </div>
-      </header>
-
-      {/* ══ 숫자 4개를 풀어 설명하는 카드 — 설명 + 오너뷰 UI 조각 일러스트 ══ */}
-      <section className="lp4-section lp4-bg-tint" id="why">
-        <div className="lp4-container">
-          <div className="lp4-stats-grid">
-            {STATS.map((st) => (
-              <Reveal key={st.label} className="lp4-why">
-                <div className="lp4-why-copy">
-                  <div className="lp4-why-num">
-                    {st.value === 0 ? <>0<span className="lp4-why-suffix">{st.suffix}</span></> : <CountUp to={st.value} suffix={st.suffix} />}
-                    <span className="lp4-why-label">{st.label}</span>
-                  </div>
-                  <h3 className="lp4-why-h">
-                    {st.head.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
-                  </h3>
-                  <p className="lp4-why-d">{st.desc}</p>
-                </div>
-                <StatArt kind={st.kind} />
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ 하루 — 스크롤에 따라 09:00 → 23:00 이 순서대로 넘어간다 ══ */}
-      <section className="lp4-daysec" id="day" ref={dayRef} style={{ ["--dn" as string]: DAY.length }}>
-        <div className="lp4-daypin">
-          <div className="lp4-container">
-            <div className="lp4-sec-head lp4-sec-head-c lp4-day-head">
-              <div className="lp4-eyebrow">Before & After</div>
-              <h2 className="lp4-h2">오너뷰로 하루가 <span className="lp4-underline">이렇게 달라져요</span></h2>
-              <p className="lp4-sub">어떻게 달라지는지, 시간대별로 보여드릴게요.</p>
-            </div>
-
-            <div className="lp4-tl">
-              <div className="lp4-tl-line" />
-              <div className="lp4-tl-fill" style={{ width: `${(day / (DAY.length - 1)) * 100}%` }} />
-              {DAY.map((d, i) => (
-                <button
-                  key={d.time}
-                  className={`lp4-tl-item ${i === day ? "lp4-tl-on" : ""} ${i < day ? "lp4-tl-done" : ""}`}
-                  onClick={() => setDay(i)}
-                  aria-current={i === day}
-                >
-                  <span className="lp4-tl-dot" />
-                  <span className="lp4-tl-time">{d.time}</span>
-                  <span className="lp4-tl-scene">{d.scene}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="lp4-tl-panel">
-              <div className="lp4-tl-copy" key={DAY[day].time}>
-                <div className="lp4-tl-before">
-                  <span className="lp4-tl-tag">지금까지</span>
-                  <p>{DAY[day].before}</p>
-                </div>
-                <div className="lp4-tl-after">
-                  <span className="lp4-tl-tag lp4-tl-tag-on">오너뷰 · {DAY[day].menu}</span>
-                  <p>{DAY[day].after}</p>
-                </div>
-              </div>
-
-              {/* 실제 오너뷰 화면 — 신뢰를 위해 캡처를 쓰고, 위에 라이브 카드를 겹쳐 움직임을 준다 */}
-              <div className="lp4-tl-stage">
-                {DAY.map((d, i) => (
-                  <Image
-                    key={d.src}
-                    src={d.src}
-                    alt={d.alt}
-                    width={1440}
-                    height={900}
-                    sizes="(max-width: 1000px) 100vw, 820px"
-                    className={i === day ? "lp4-tl-shot lp4-tl-shot-on" : "lp4-tl-shot"}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ 주요 기능 둘러보기 — 축 탭 → 기능 탭 → 화면 전환 ══ */}
-      <PillarTabs />
-
-      {/* ══ 커버리지 — 주요 기능(3축)에서 전 영역으로 넓히는 자리 ══
-           "메뉴가 몇 개 있다"는 자랑이 아니라 "회사 운영의 어느 구간도 비지 않는다"를 말한다.
-           앞 섹션을 첫 문장에서 직접 받아 흐름이 끊기지 않게 한다. */}
-      <section className="lp4-section lp4-bg-canvas" id="more">
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">Coverage</div>
-            <h2 className="lp4-h2">회사 운영, <span className="lp4-underline">오직 오너뷰 안에서</span></h2>
-            <p className="lp4-sub">
-              방금 본 세 축 아래로 메뉴 {CATALOG.reduce((n, g) => n + g.menus.length, 0)}개가 이어져요.
-              재무부터 자산까지, 밖에서 따로 처리할 일이 없어요.
-            </p>
-          </Reveal>
-
-          {/* 규모를 먼저 한 줄로 — 스펙을 보는 눈으로 읽히게 */}
-          <Reveal className="lp4-cov-bar">
-            <div className="lp4-cov-stat"><b>{CATALOG.length}</b><span>업무 영역</span></div>
-            <div className="lp4-cov-stat"><b>{CATALOG.reduce((n, g) => n + g.menus.length, 0)}</b><span>메뉴</span></div>
-            <div className="lp4-cov-stat"><b>30+</b><span>세부 기능</span></div>
-            <div className="lp4-cov-stat"><b>0</b><span>추가 도입 모듈</span></div>
-          </Reveal>
-
-          <div className="lp4-mgrid">
-            {CATALOG.map((g, i) => (
-              <Reveal key={g.key} className="lp4-mcol">
-                <Link href={`/features?g=${g.key}`} className="lp4-mcol-in">
-                  <span className="lp4-mcol-no">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="lp4-mcol-ico"><GroupGlyph n={g.key} /></span>
-                  <div className="lp4-mcol-head">
-                    <span className="lp4-mcol-name">{g.group}</span>
-                    <span className="lp4-mcol-n">메뉴 {g.menus.length}</span>
-                  </div>
-                  <p className="lp4-mcol-lead">{g.lead}</p>
-                  <div className="lp4-mcol-chips">
-                    {g.menus.map((m) => <span key={m.name} className="lp4-mcol-chip">{m.name}</span>)}
-                  </div>
-                  <span className="lp4-mcol-go">화면 보기 <Arrow /></span>
-                </Link>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ AI ENGINES ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="engines">
-        <div className="lp4-dark-orbs" />
-        <div className="lp4-container">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
-            <div className="lp4-eyebrow">4 AI Engines</div>
-            <h2 className="lp4-h2">반복되던 일, <span className="lp4-underline">이제 AI 몫이에요</span></h2>
-            {/* 제목에서 "4개"가 빠졌으니 엔진 수는 이 줄이 받는다 (eyebrow "4 AI Engines" 와 함께) */}
-            <p className="lp4-sub">사람을 대체하는 게 아니라, 매번 되풀이되는 일을 AI 엔진 4개가 나눠서 처리해요.</p>
-          </Reveal>
-
-          {/* 탭으로 묶고, 고르면 우측 화면이 바뀐다 (먼데이 레퍼런스) */}
-          <div className="lp4-etabs">
-            {ENGINES.map((e, i) => (
-              <button key={e.num} className={`lp4-etab ${i === eng ? "lp4-etab-on" : ""}`} onClick={() => setEng(i)}>
-                <EngineGlyph n={e.num} />
-                <span>{e.name}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="lp4-epanel" key={ENGINES[eng].num}>
-            <div className="lp4-ecopy">
-              <div className="lp4-eno">ENGINE {ENGINES[eng].num} · {ENGINES[eng].eng}</div>
-              <div className="lp4-eline">{ENGINES[eng].headline}</div>
-              <p className="lp4-eshort">{ENGINES[eng].short}</p>
-              <div className="lp4-esteps">
-                {ENGINES[eng].steps.map((st, j) => (
-                  <div key={j} className="lp4-estep"><span className="lp4-edot">{j + 1}</span><span>{st}</span></div>
-                ))}
-              </div>
-              <div className="lp4-erep">
-                <span className="lp4-erep-cap">대체 인력 · {ENGINES[eng].replaces}</span>
-                <span className="lp4-erep-cost">{ENGINES[eng].replacesCost} 절감</span>
-              </div>
-            </div>
-            <div className="lp4-eshot">
-              <Image src={ENGINES[eng].src} alt={ENGINES[eng].alt} width={1200} height={760} sizes="(max-width: 1000px) 100vw, 740px" />
-            </div>
-          </div>
-
-          {/* 엔진이 실제로 대신하는 일 — 별도 섹션으로 또 나열하던 걸 여기 한 줄로 합쳤다 */}
-          <div className="lp4-eauto">
-            <span className="lp4-eauto-cap">이런 일들을 알아서 해요</span>
-            <div className="lp4-eauto-chips">
-              {AI_AUTOMATION.map((a) => <span key={a.name} className="lp4-eauto-chip">{a.name}</span>)}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ 모바일 — 스크롤에 따라 문구·화면이 넘어간다 ══ */}
-      <MobileAuto />
-
-      {/* ══ FAQ ══ */}
+      {/* ══ 꼬리 — 장면 연출이 필요 없는 실무 구간. lp4- 를 그대로 쓴다 ══ */}
       <section className="lp4-section lp4-bg-canvas" id="faq">
         <div className="lp4-narrow">
-          <Reveal className="lp4-sec-head"><div className="lp4-eyebrow">FAQ</div><h2 className="lp4-h2">자주 묻는 질문이에요</h2></Reveal>
+          <Rise className="lp4-sec-head"><div className="lp4-eyebrow">FAQ</div><h2 className="lp4-h2">자주 묻는 질문이에요</h2></Rise>
           <div>
             {FAQS.map((faq, i) => (
               <div key={i} className={`lp4-faq ${openFaq === i ? "lp4-faq-open" : ""}`}>
@@ -625,24 +378,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ PARTNER — 대다수 방문자와 무관한 엔터프라이즈 폼은 최종 CTA 뒤로 ══ */}
       <section className="lp4-section lp4-bg-tint" id="partner">
         <div className="lp4-narrow">
-          <Reveal className="lp4-sec-head lp4-sec-head-c">
+          <Rise className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Contact</div>
             <h2 className="lp4-h2">제휴·도입이 궁금하세요?</h2>
             <p className="lp4-sub">엔터프라이즈 도입, API 연동, 리셀러 제휴를 상담해 드릴게요.</p>
-          </Reveal>
-          <Reveal><PartnershipForm /></Reveal>
+          </Rise>
+          <Rise><PartnershipForm /></Rise>
         </div>
       </section>
 
-      {/* ══ FOOTER ══ */}
-      <footer className="lp4-footer" ref={footRef}>
+      <footer className="lp4-footer">
         <div className="lp4-container">
           <div className="lp4-footer-top">
             <div className="lp4-logo"><Logo size={25} /> OwnerView <span className="lp4-footer-sub">Company Operating System</span></div>
-            <div className="lp4-flinks"><Link href="/features">오너뷰 둘러보기</Link><a href="#engines">AI 엔진</a><Link href="/pricing">가격</Link><a href="#partner">제휴문의</a><a href="#faq">FAQ</a></div>
+            <div className="lp4-flinks"><Link href="/features">오너뷰 알아보기</Link><a href="#engines">AI 엔진</a><Link href="/pricing">가격</Link><a href="#partner">제휴문의</a><a href="#faq">FAQ</a></div>
           </div>
           <div className="lp4-footer-bottom">
             <div className="lp4-finfo"><div>{FOOTER.company}</div><div>{FOOTER.reg}</div><div>{FOOTER.addr}</div></div>
@@ -650,13 +401,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-
-      {/* ══ 스크롤하면 따라오는 시작 버튼 ══
-           최종 CTA 섹션을 없앤 대신, 히어로를 지나면 어디서든 가입 경로가 살아있게 한다.
-           데스크톱은 하단 가운데 떠 있는 알약, 모바일은 하단 전체 폭 바. */}
-      <div className={`lp4-sticky-cta ${showSticky ? "lp4-sticky-cta-on" : ""}`}>
-        <Link href="/auth" className="lp4-btn lp4-btn-brand">무료로 시작하기 <Arrow /></Link>
-      </div>
     </div>
   );
 }
