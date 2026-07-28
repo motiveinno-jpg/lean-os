@@ -198,76 +198,102 @@
 
 /* ── 숫자 4개를 풀어 설명하는 카드 ──
    숫자만 세워 두면 무슨 뜻인지 알 수 없어, 설명 + 오너뷰 UI 조각 일러스트를 붙였다 (2026-07-28).
-   ⚠️ 일러스트는 설명 그림이다. 앱 화면처럼 보이게 크롬을 씌우지 말 것. */
+   ⚠️ 일러스트는 설명 그림이다. 앱 화면처럼 보이게 크롬을 씌우지 말 것.
+   ⚠️ 원색 금지 — 앱 본체와 같은 유리 언어(반투명 흰색 + blur + 2단 그림자)만 쓴다.
+      .lp4-art-ai 를 컨테이너와 배지에 중복으로 붙였다가 컨테이너에 인디고 배경이 먹은 적 있다.
+      새 클래스는 반드시 기존 이름과 겹치지 않는지 확인할 것. */
 .lp4-stats-grid { display:grid; grid-template-columns:1fr; gap:20px; }
 @media (min-width: 900px){ .lp4-stats-grid { grid-template-columns: repeat(2,1fr); gap:24px; } }
-.lp4-why { display:flex; flex-direction:column; background:#fff; border:1px solid var(--line);
-  border-radius:26px; padding:34px 34px 0; overflow:hidden;
-  transition: transform .2s, box-shadow .2s; }
-.lp4-why:hover { transform: translateY(-3px); box-shadow: 0 30px 62px -34px rgba(27,26,46,.3); }
-.lp4-why-copy { flex:none; }
+.lp4-why { position:relative; display:flex; flex-direction:column; overflow:hidden;
+  border-radius:28px; padding:36px 36px 0;
+  background: linear-gradient(158deg, rgba(255,255,255,.92), rgba(255,255,255,.72));
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  border:1px solid rgba(255,255,255,.9);
+  box-shadow: 0 1px 0 rgba(255,255,255,.95) inset, 0 0 0 1px rgba(27,26,46,.045),
+    0 12px 26px -16px rgba(27,26,46,.24), 0 46px 90px -44px rgba(27,26,46,.4);
+  transition: transform .25s, box-shadow .25s; }
+.lp4-why::before { content:""; position:absolute; z-index:0; width:340px; height:340px; border-radius:999px;
+  right:-120px; top:-140px; filter: blur(10px); opacity:.5;
+  background: radial-gradient(closest-side, var(--pastel-lav), transparent 72%); }
+.lp4-why:nth-child(2)::before { background: radial-gradient(closest-side, var(--pastel-sky), transparent 72%); }
+.lp4-why:nth-child(3)::before { background: radial-gradient(closest-side, var(--pastel-peach), transparent 72%); }
+.lp4-why:nth-child(4)::before { background: radial-gradient(closest-side, var(--pastel-mint), transparent 72%); }
+.lp4-why:hover { transform: translateY(-4px);
+  box-shadow: 0 1px 0 rgba(255,255,255,.95) inset, 0 0 0 1px rgba(27,26,46,.05),
+    0 16px 32px -18px rgba(27,26,46,.26), 0 56px 104px -46px rgba(27,26,46,.46); }
+.lp4-why-copy { position:relative; z-index:1; flex:none; }
 .lp4-why-num { display:flex; align-items:baseline; gap:10px; font-size:38px; font-weight:800;
-  letter-spacing:-.04em; line-height:1; color: var(--brand); font-variant-numeric: tabular-nums; }
-.lp4-why-suffix { color: var(--brand-soft); }
+  letter-spacing:-.04em; line-height:1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.lp4-why-suffix { color: var(--ink3); }
 .lp4-why-label { font-size:14px; font-weight:700; letter-spacing:-.01em; color: var(--ink3); }
 .lp4-why-h { font-size:24px; font-weight:800; letter-spacing:-.035em; line-height:1.35;
   color: var(--ink); margin-top:18px; }
 .lp4-why-d { font-size:15.5px; color: var(--ink2); line-height:1.75; margin-top:12px; }
 
-/* 공통 일러스트 바닥판 */
-.lp4-art { position:relative; margin:26px -34px 0; padding:24px 34px 30px; min-height:210px;
-  background: linear-gradient(180deg, var(--canvas2), #fff); border-top:1px solid var(--line); }
+/* 일러스트 바닥판 — 카드 안에 한 단 낮게 파인 유리판 */
+.lp4-art { position:relative; z-index:1; margin:28px -36px 0; padding:26px 36px 32px; min-height:214px;
+  background: linear-gradient(180deg, rgba(247,247,252,.86), rgba(255,255,255,.5));
+  border-top:1px solid rgba(27,26,46,.05);
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset; }
+
+/* 유리 조각 공통 — 반투명 흰색 + 테두리 하이라이트 + 2단 그림자 */
+.lp4-art-chip, .lp4-art-row, .lp4-art-one, .lp4-art-bar-track {
+  background: rgba(255,255,255,.78);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border:1px solid rgba(255,255,255,.9);
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 0 0 1px rgba(27,26,46,.05),
+    0 8px 18px -12px rgba(27,26,46,.22); }
 
 /* 1) 메뉴 칩 */
 .lp4-art-menus { overflow:hidden; }
 .lp4-art-chips { display:flex; flex-wrap:wrap; gap:8px; }
-.lp4-art-chip { font-size:13px; font-weight:600; color: var(--ink3); background:#fff;
-  border:1px solid var(--line); border-radius:999px; padding:8px 14px; }
-.lp4-art-chip-on { color: var(--brand-ink); background: var(--pastel-lav); border-color: transparent; font-weight:700; }
-.lp4-art-fade { position:absolute; left:0; right:0; bottom:0; height:62px;
+.lp4-art-chip { font-size:13px; font-weight:600; color: var(--ink2); border-radius:999px; padding:8px 14px; }
+.lp4-art-chip-on { color: var(--brand-ink); font-weight:700;
+  background: linear-gradient(160deg, rgba(255,255,255,.95), var(--pastel-lav)); }
+.lp4-art-fade { position:absolute; left:0; right:0; bottom:0; height:66px;
   background: linear-gradient(180deg, transparent, #fff); }
 
 /* 2) AI 분류 행 */
-.lp4-art-ai { display:flex; flex-direction:column; gap:8px; }
-.lp4-art-row { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line);
-  border-radius:13px; padding:11px 14px; }
-.lp4-art-row-warn { background: var(--pastel-peach); border-color: transparent; }
+.lp4-art-ai { display:flex; flex-direction:column; gap:9px; }
+.lp4-art-row { display:flex; align-items:center; gap:10px; border-radius:14px; padding:12px 15px; }
+.lp4-art-row-warn { background: linear-gradient(160deg, rgba(255,255,255,.92), var(--pastel-peach)); }
 .lp4-art-date { font-size:11.5px; color: var(--ink3); font-variant-numeric: tabular-nums; flex:none; }
 .lp4-art-name { flex:1; min-width:0; font-size:13px; font-weight:600; color: var(--ink);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lp4-art-tag { flex:none; font-size:11px; font-weight:700; color: var(--ink2);
-  background: var(--canvas2); border-radius:7px; padding:4px 8px; }
-.lp4-art-tag-warn { color: var(--warn); background: rgba(255,255,255,.75); }
-.lp4-art-ai { flex:none; font-size:10px; font-weight:800; color:#fff; background: var(--brand);
-  border-radius:6px; padding:4px 7px; letter-spacing:.02em; }
+  background: rgba(27,26,46,.05); border-radius:7px; padding:4px 8px; }
+.lp4-art-tag-warn { color: var(--warn); background: rgba(255,255,255,.8); }
+.lp4-art-aibadge { flex:none; font-size:10.5px; font-weight:800; letter-spacing:-.01em;
+  color: var(--brand-ink); background: var(--brand-dim); border-radius:7px; padding:5px 8px; }
 
 /* 3) 도구 7개 vs 하나 */
-.lp4-art-save { display:grid; grid-template-columns: 1fr; gap:16px; }
-@media (min-width: 560px){ .lp4-art-save { grid-template-columns: 1.1fr .9fr; align-items:center; } }
-.lp4-art-bars { display:flex; flex-direction:column; gap:7px; }
+.lp4-art-save { display:grid; grid-template-columns: 1fr; gap:18px; }
+@media (min-width: 560px){ .lp4-art-save { grid-template-columns: 1.05fr .95fr; align-items:center; } }
+.lp4-art-bars { display:flex; flex-direction:column; gap:8px; }
 .lp4-art-bar { display:flex; align-items:center; gap:10px; }
 .lp4-art-bar-n { flex:none; width:84px; font-size:11.5px; color: var(--ink3); }
-.lp4-art-bar-track { flex:1; height:9px; border-radius:999px; background:#fff; border:1px solid var(--line); overflow:hidden; }
+.lp4-art-bar-track { flex:1; height:10px; border-radius:999px; overflow:hidden; }
 .lp4-art-bar-fill { display:block; height:100%; border-radius:999px;
-  background: linear-gradient(90deg, #f0c3a4, var(--warn)); }
-.lp4-art-one { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px 18px;
-  box-shadow: 0 18px 38px -26px rgba(27,26,46,.34); }
-.lp4-art-one-cap { display:block; font-size:11.5px; font-weight:700; color: var(--brand); }
-.lp4-art-one-v { display:block; font-size:24px; font-weight:800; letter-spacing:-.035em; color: var(--ink); margin-top:5px; }
+  background: linear-gradient(90deg, rgba(27,26,46,.14), rgba(27,26,46,.26)); }
+.lp4-art-one { border-radius:18px; padding:18px 20px; }
+.lp4-art-one-cap { display:block; font-size:11.5px; font-weight:700; color: var(--brand-ink); }
+.lp4-art-one-v { display:block; font-size:25px; font-weight:800; letter-spacing:-.035em; color: var(--ink); margin-top:6px; }
 .lp4-art-one-v i { font-style:normal; font-size:13px; color: var(--ink3); font-weight:700; }
-.lp4-art-one-note { display:block; font-size:11px; color: var(--ink3); margin-top:4px; }
+.lp4-art-one-note { display:block; font-size:11px; color: var(--ink3); margin-top:5px; }
 
 /* 4) 3단계 */
 .lp4-art-zero { display:flex; flex-direction:column; gap:2px; }
-.lp4-art-step { position:relative; display:flex; align-items:center; gap:12px; padding:9px 0; }
-.lp4-art-step-no { flex:none; display:grid; place-items:center; width:26px; height:26px; border-radius:999px;
-  background: var(--pastel-mint); color: var(--ok); }
+.lp4-art-step { position:relative; display:flex; align-items:center; gap:13px; padding:10px 0; }
+.lp4-art-step-no { flex:none; display:grid; place-items:center; width:28px; height:28px; border-radius:999px;
+  color: var(--ok); background: linear-gradient(160deg, rgba(255,255,255,.95), var(--pastel-mint));
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 0 0 1px rgba(27,26,46,.05); }
 .lp4-art-step-t { display:flex; flex-direction:column; }
 .lp4-art-step-t b { font-size:14.5px; font-weight:700; color: var(--ink); }
 .lp4-art-step-t i { font-style:normal; font-size:12px; color: var(--ink3); margin-top:1px; }
-.lp4-art-step-line { position:absolute; left:12.5px; top:35px; width:1px; height:18px; background: var(--line2); }
-.lp4-art-zero-tag { align-self:flex-start; margin-top:12px; font-size:12px; font-weight:700;
-  color: var(--brand-ink); background: var(--pastel-lav); border-radius:999px; padding:8px 14px; }
+.lp4-art-step-line { position:absolute; left:13.5px; top:38px; width:1px; height:18px; background: rgba(27,26,46,.12); }
+.lp4-art-zero-tag { align-self:flex-start; margin-top:14px; font-size:12px; font-weight:700;
+  color: var(--ink2); background: rgba(255,255,255,.8); border:1px solid rgba(27,26,46,.06);
+  border-radius:999px; padding:8px 15px; }
 
 /* ── Glass card 공통 (앱 .glass-card 와 같은 공식) ───── */
 .lp4-card { background: var(--glass); border:1px solid var(--line); border-radius:18px;

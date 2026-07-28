@@ -60,7 +60,7 @@ export function StatArt({ kind }: { kind: string }) {
             <span className="lp4-art-date">{t.d}</span>
             <span className="lp4-art-name">{t.n}</span>
             <span className={`lp4-art-tag ${t.ai ? "" : "lp4-art-tag-warn"}`}>{t.a}</span>
-            {t.ai && <span className="lp4-art-ai">AI</span>}
+            {t.ai && <span className="lp4-art-aibadge">AI 분류</span>}
           </div>
         ))}
       </div>
