@@ -400,8 +400,9 @@
   padding-top:22px; border-top:1px solid var(--line); }
 
 /* 우측 — 원형 배경 위에 화면이 떠 있고, 바뀔 때 칩이 따라 뜨며 들어온다 */
+/* 칩을 걷어낸 자리 — 좌우 여백을 줄여 실제 화면을 더 크게 보여준다 (2026-07-28) */
 .lp4-mf-stage { position:relative; display:flex; align-items:center; justify-content:center;
-  padding:24px 74px 24px 34px; }
+  padding:22px 26px; }
 .lp4-mf-orb { position:absolute; width:74%; aspect-ratio:1; border-radius:999px;
   background: linear-gradient(150deg, var(--pastel-lav), var(--pastel-sky) 55%, var(--pastel-mint));
   filter: blur(.4px); }
@@ -411,18 +412,10 @@
   animation: lp4-mf-in .5s cubic-bezier(.2,.7,.3,1); }
 .lp4-mf-screen img { display:block; width:100%; height:auto; }
 @keyframes lp4-mf-in { from { opacity:0; transform: translateY(16px) scale(.985) } to { opacity:1; transform:none } }
-.lp4-mf-chip { position:absolute; z-index:3; font-size:14px; font-weight:800; color: var(--ink);
-  background:#fff; border:1px solid var(--line); border-radius:999px; padding:9px 16px;
-  box-shadow: 0 16px 32px -16px rgba(27,26,46,.4); white-space:nowrap;
-  animation: lp4-mf-pop .55s .18s backwards cubic-bezier(.2,.9,.3,1.2); }
-.lp4-mf-chip-1 { left:-14px; top:12%; }
-.lp4-mf-chip-2 { right:0; bottom:13%; animation-delay:.34s; }
-@keyframes lp4-mf-pop { from { opacity:0; transform: scale(.8) translateY(8px) } to { opacity:1; transform:none } }
-@media (max-width: 860px){ .lp4-mf-stage { padding:16px 0; } .lp4-mf-chip { display:none; } }
+@media (max-width: 860px){ .lp4-mf-stage { padding:16px 0; } }
 
-.lp4-pillar-menu { font-size:15px; font-weight:600; color: var(--ink2); background: var(--canvas2);
-  border:1px solid var(--line); border-radius:999px; padding:9px 17px; }
-
+.lp4-pillar-menu { font-size:15px; font-weight:600; color: var(--ink2);
+  border-radius:999px; padding:9px 17px; }
 
 /* ── /features — 토글 바. 스크롤해도 상단에 남아 영역을 바꿀 수 있게 한다 ── */
 .lp4-catbar { position:sticky; top:63px; z-index:40; padding:18px 0 20px; margin-bottom:34px;
@@ -1003,7 +996,7 @@
 
 /* ── 작은 표면: 칩·탭·행 (blur 없이 재질만) ── */
 .lp4-cat-tab, .lp4-cat-feat, .lp4-cat-item-on, .lp4-aiw-item-on, .lp4-ax-t,
-.lp4-mf-chip, .lp4-pillar-menu, .lp4-eauto-chip, .lp4-faq, .lp4-mega-side {
+.lp4-pillar-menu, .lp4-eauto-chip, .lp4-faq, .lp4-mega-side {
   background: linear-gradient(158deg, rgba(255,255,255,.94), rgba(255,255,255,.74));
   border: 1px solid var(--g-rim);
   box-shadow: 0 1px 0 rgba(255,255,255,.95) inset,

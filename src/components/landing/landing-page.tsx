@@ -190,9 +190,6 @@ function PillarTabs() {
             <div className="lp4-mf-screen" key={B.src}>
               <Image src={B.src} alt={B.alt} width={1968} height={1320} sizes="(max-width: 1000px) 100vw, 800px" />
             </div>
-            {B.chips.map((ch, i) => (
-              <span key={`${B.src}-${ch}`} className={`lp4-mf-chip lp4-mf-chip-${i + 1}`}>{ch}</span>
-            ))}
           </div>
         </div>
       </div>
