@@ -23,6 +23,10 @@ import {
   ProjectHubPanel, ApprovalsRealPanel, SignRealPanel, EmployeesRealPanel,
   AttendanceRealPanel, BankRealPanel, CardsRealPanel, PaymentsRealPanel, CopilotRealPanel,
 } from "./_components/real-frames2";
+import {
+  OutlookPanel, PayrollPanel, PartnersRealPanel, VoucherRealPanel, ScheduleRealPanel,
+  BoardRealPanel, ChatRealPanel, TemplatesRealPanel, DocumentsRealPanel, BriefRealPanel,
+} from "./_components/real-frames3";
 
 // ── Constants ──
 
@@ -791,14 +795,14 @@ export default function DemoPage() {
           {show("flow") && <AnalyticsPanel />}
           {show("leave") && <HrPanel />}
           {show("ledger") && <LedgerPanel />}
-          {show("partners") && <PartnersPanel />}
-          {show("voucher") && <VoucherPanel />}
-          {show("schedule") && <SchedulePanel />}
+          {show("partners") && <PartnersRealPanel />}
+          {show("voucher") && <VoucherRealPanel />}
+          {show("schedule") && <ScheduleRealPanel />}
           {show("approvals") && <ApprovalsRealPanel />}
-          {show("board") && <BoardPanel />}
-          {show("chat") && <ChatPanel />}
-          {show("templates") && <TemplatesPanel />}
-          {show("documents") && <DocumentsPanel />}
+          {show("board") && <BoardRealPanel />}
+          {show("chat") && <ChatRealPanel />}
+          {show("templates") && <TemplatesRealPanel />}
+          {show("documents") && <DocumentsRealPanel />}
           {show("bank") && <BankRealPanel />}
           {show("cards") && <CardsRealPanel />}
           {show("payments") && <PaymentsRealPanel />}
@@ -833,6 +837,16 @@ export default function DemoPage() {
           {capAll && <CardsRealPanel before />}
           {capAll && <PaymentsRealPanel before />}
           {capAll && <CopilotRealPanel before />}
+          {capAll && <OutlookPanel />}         {capAll && <OutlookPanel before />}
+          {capAll && <PayrollPanel />}         {capAll && <PayrollPanel before />}
+          {capAll && <PartnersRealPanel before />}
+          {capAll && <VoucherRealPanel before />}
+          {capAll && <ScheduleRealPanel before />}
+          {capAll && <BoardRealPanel before />}
+          {capAll && <ChatRealPanel before />}
+          {capAll && <TemplatesRealPanel before />}
+          {capAll && <DocumentsRealPanel before />}
+          {capAll && <BriefRealPanel />}       {capAll && <BriefRealPanel before />}
           {show("copilot") && <CopilotRealPanel />}
           {(show("copilot") || capAll) && <BriefPanel />}
           {(show("approvals") || capAll) && <OcrPanel />}
