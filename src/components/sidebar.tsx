@@ -74,8 +74,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
       // 2026-07-08 "정기 지출" 재편 — 자동 추천 중심. 지출결의→결재관리, 급여→인사, 구독→정기지출 "구독" 탭 흡수.
       { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"] },
-      { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
-      { href: "/vault", label: "자산", icon: "shield", roles: ["owner"] },
+      // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(사장님 확인).
+      //   라우트(/loans, /vault)와 데이터는 그대로 둔다 — 자금 전망·다가오는 지출에서
+      //   여전히 링크로 들어가고, 되살릴 땐 아래 두 줄만 복구하면 된다.
+      // { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
+      // { href: "/vault", label: "자산", icon: "shield", roles: ["owner"] },
     ],
   },
   {
