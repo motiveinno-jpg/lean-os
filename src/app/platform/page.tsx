@@ -143,47 +143,51 @@ export default function PlatformOverview() {
   });
 
   // 위험·성장 신호 (2026-07-28) — 합류요청 방치·휴면 고객·메일 실패·영업코드 실적·탈퇴 추이
-  const { data: opsRisk } = useQuery<OpsRisk | null>({
+  const { data: opsRisk, isError: opsRiskErr } = useQuery<OpsRisk | null>({
     queryKey: ["p-ops-risk"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("platform_ops_risk");
-      if (error) return null;
+      if (error) throw error;
       return data as OpsRisk;
     },
     refetchInterval: 60_000,
+    retry: 1,
   });
 
   // 트래픽·사용 지표 (2026-07-28) — auth.users 는 클라에서 못 읽어 운영자 전용 RPC 로 감쌌다.
   //   두 RPC 모두 함수 안에서 is_platform_operator() 를 확인하므로 비운영자는 예외를 받는다.
-  const { data: usage } = useQuery<UsageStats | null>({
+  const { data: usage, isError: usageErr } = useQuery<UsageStats | null>({
     queryKey: ["p-usage-stats"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("platform_usage_stats");
-      if (error) return null;
+      if (error) throw error;
       return data as UsageStats;
     },
     refetchInterval: 60_000,
+    retry: 1,
   });
 
-  const { data: traffic } = useQuery<TrafficStats | null>({
+  const { data: traffic, isError: trafficErr } = useQuery<TrafficStats | null>({
     queryKey: ["p-traffic-stats"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("platform_traffic_stats", { p_days: 14 });
-      if (error) return null;
+      if (error) throw error;
       return data as TrafficStats;
     },
     refetchInterval: 60_000,
+    retry: 1,
   });
 
   // 가입 퍼널 — companies 기준 통계로는 "계정만 만들고 회사 등록 전 이탈" 이 안 잡힌다.
-  const { data: funnel } = useQuery<FunnelStats | null>({
+  const { data: funnel, isError: funnelErr } = useQuery<FunnelStats | null>({
     queryKey: ["p-signup-funnel"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("platform_signup_funnel", { p_days: 7 });
-      if (error) return null;
+      if (error) throw error;
       return data as FunnelStats;
     },
     refetchInterval: 60_000,
+    retry: 1,
   });
 
   // KPI 카드 클릭 → 아래 "가입사" 목록을 해당 그룹으로 필터 (2026-07-28 사장님 요청).
@@ -289,6 +293,11 @@ export default function PlatformOverview() {
           <span className={`platform-header-live mt-2 inline-block ${todoTotal > 0 ? "platform-header-live-warn" : ""}`}>
             {todoTotal > 0 ? `처리 대기 ${todoTotal}건` : "모두 처리됨 ✓"}
           </span>
+          {(usageErr || trafficErr || funnelErr || opsRiskErr) && (
+            <span className="platform-header-live platform-header-live-warn mt-2 ml-2 inline-block" title="일부 지표 RPC 호출이 실패했습니다 — 표시된 0은 실제 0이 아닐 수 있습니다">
+              ⚠️ 일부 데이터 로드 실패
+            </span>
+          )}
         </div>
         <div className="platform-hero-metrics">
           {[
