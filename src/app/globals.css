@@ -1474,6 +1474,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pp-statbar > span { @apply flex-1 min-w-[80px] flex flex-col items-center gap-0.5 px-3 py-3 border-r border-[var(--border)] last:border-r-0; }
 .pp-statbar i { @apply not-italic text-[10.5px] text-[var(--text-dim)]; }
 /* 5구간 예측(오늘·D+7·D+30·D+60·D+90) — 4칸 그리드에 넣으면 줄바꿈된다 */
+.pp-chart-empty { @apply h-[150px] flex items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-[12px] text-[var(--text-dim)]; }
 .pp-forecast5 { @apply grid grid-cols-5 gap-3 items-end; }
 .pp-forecast5 .pp-fc { @apply text-center; }
 .pp-forecast5 .pp-fc-bar-wrap { @apply h-16 flex items-end justify-center; }

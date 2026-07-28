@@ -11,6 +11,8 @@
 //     서식      → /hr-templates 보관함  → /documents
 //     AI 브리핑 → /dashboard (AI 액션 플랜)  영수증 OCR → /approvals
 
+import { AreaTrend } from "@/app/(app)/reports/flow/_components/AreaTrend";
+
 function Head({ crumb, title, sub, tabs, active = 0 }: { crumb: string; title: string; sub: string; tabs: string[]; active?: number }) {
   return (
     <>
@@ -33,15 +35,18 @@ function Head({ crumb, title, sub, tabs, active = 0 }: { crumb: string; title: s
 }
 const D = "—";
 
+// 실제 자금 전망 화면이 쓰는 차트 컴포넌트를 그대로 가져다 쓴다 — 재현이 아니라 같은 컴포넌트다.
+//   ⚠️ 막대 그래프로 흉내 내지 말 것. 실제는 얇은 라인 + 옅은 그라데이션 면적 + 점선 오늘 마커다.
+
 // ── 분석 › 자금 전망 (/reports/outlook) ───────────────────────
 export function OutlookPanel({ before = false }: { before?: boolean }) {
   const v = (x: string) => (before ? D : x);
-  const bars = [
-    { l: "오늘", h: 100, t: "2.3억" },
-    { l: "D+7", h: 92, t: "2.1억" },
-    { l: "D+30", h: 84, t: "1.9억" },
-    { l: "D+60", h: 70, t: "1.6억" },
-    { l: "D+90", h: 60, t: "1.4억" },
+  const pts = [
+    { label: "오늘", value: 230_400_000 },
+    { label: "D+7", value: 214_000_000 },
+    { label: "D+30", value: 192_000_000 },
+    { label: "D+60", value: 163_000_000 },
+    { label: "D+90", value: 141_000_000 },
   ];
   return (
     <section className="pp glass-card" id={before ? "pp-outlook-b" : "pp-outlook"}>
@@ -65,17 +70,11 @@ export function OutlookPanel({ before = false }: { before?: boolean }) {
       </div>
 
       <div className="pp-section-t">현금 잔액 전망 <i className="pp-dim">오늘부터 90일</i></div>
-      <div className="pp-forecast5 pp-forecast-sm">
-        {bars.map((b) => (
-          <div key={b.l} className="pp-fc">
-            <div className="pp-fc-bar-wrap">
-              <div className={`pp-fc-bar ${b.h < 75 ? "pp-fc-warn" : "pp-fc-ok"}`} style={{ height: before ? "6%" : `${b.h}%` }} />
-            </div>
-            <div className="pp-fc-v">{before ? D : b.t}</div>
-            <div className="pp-fc-l">{b.l}</div>
-          </div>
-        ))}
-      </div>
+      {before ? (
+        <div className="pp-chart-empty">잔액을 예측하는 중이에요…</div>
+      ) : (
+        <AreaTrend points={pts} height={150} markerIndex={0} showValues />
+      )}
 
       <div className="pp-grid3">
         <div className="pp-mini pp-mini-ok"><span>현 수준 유지</span><b>{v("8.2개월")}</b></div>
