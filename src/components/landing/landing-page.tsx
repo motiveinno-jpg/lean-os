@@ -167,7 +167,7 @@ function PillarTabs() {
       <div className="lp4-container">
         <Reveal className="lp4-sec-head lp4-sec-head-c">
           <div className="lp4-eyebrow">Core</div>
-          <h2 className="lp4-h2">주요 기능, <span className="lp4-underline">여기서 둘러보세요</span></h2>
+          <h2 className="lp4-h2">하나를 하면, <span className="lp4-underline">나머지가 따라와요</span></h2>
           <p className="lp4-sub">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
         </Reveal>
 
@@ -566,8 +566,9 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">4 AI Engines</div>
-            <h2 className="lp4-h2">4개의 AI 엔진이 <span className="lp4-underline">반복 업무를 대신 해요</span></h2>
-            <p className="lp4-sub">사람을 대체하는 게 아니라, 매번 되풀이되는 일을 자동으로 처리해요.</p>
+            <h2 className="lp4-h2">반복되던 일, <span className="lp4-underline">이제 AI 몫이에요</span></h2>
+            {/* 제목에서 "4개"가 빠졌으니 엔진 수는 이 줄이 받는다 (eyebrow "4 AI Engines" 와 함께) */}
+            <p className="lp4-sub">사람을 대체하는 게 아니라, 매번 되풀이되는 일을 AI 엔진 4개가 나눠서 처리해요.</p>
           </Reveal>
 
           {/* 탭으로 묶고, 고르면 우측 화면이 바뀐다 (먼데이 레퍼런스) */}
