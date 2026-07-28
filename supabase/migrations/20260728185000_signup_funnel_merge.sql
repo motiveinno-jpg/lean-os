@@ -1,0 +1,10 @@
+-- 병합 복구 (2026-07-28) — 두 PC 가 같은 함수를 각자 재정의해 충돌한 건.
+--   · 20260728170000_signup_funnel_today_detail : today_detail 추가(단계 클릭 → 명단)
+--   · 20260728175000_stats_respect_trial_end    : 만료 체험을 '체험 시작' 에서 제외
+--   후자를 나중에 적용하면서 today_detail 을 통째로 날려, 화면에서 퍼널 단계를
+--   눌러도 명단이 안 나왔다(사장님 제보). 두 변경을 합친 정본.
+--
+--   교훈: 두 PC 가 같은 RPC 를 만질 때는 create or replace 로 전문을 덮으므로
+--         상대 변경이 조용히 사라진다. 재정의 전에 현재 정의를 반드시 확인할 것.
+--   ※ 이미 MCP 로 prod 적용됨 — 이 파일은 저장소 기록용.
+--   ※ 함수 전문은 apply_migration(signup_funnel_merge_detail_and_trial_end) 과 동일.
