@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { OpsPageHeader, OpsSearch, OpsExportButton, exportCsv } from "../_components/ops-kit";
 
 const db = supabase;
 
@@ -39,12 +40,14 @@ export default function CustomersPage() {
       const data = logRead('customers/page:data', await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }));
       return data || [];
     },
+    refetchInterval: 60_000,
   });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return companies.filter((c: any) => {
-      if (q && !c.name?.toLowerCase().includes(q)) return false;
+      // 회사명 + 사업자번호로 검색 (2026-07-28 전면 정비)
+      if (q && !c.name?.toLowerCase().includes(q) && !String(c.business_number || "").includes(q)) return false;
       if (statusFilter !== "all") {
         const sub = latestSub(c);
         if (statusFilter === "free" && sub?.subscription_plans?.slug !== "free" && sub) return false;
@@ -56,15 +59,21 @@ export default function CustomersPage() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="platform-customers-toolbar">
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">고객사 관리</h1>
+      <OpsPageHeader title="고객사 관리" sub="전체 가입사 · 1분마다 자동 갱신 · 행을 누르면 상세로 이동합니다">
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="회사명 검색..."
-            className="field-input max-w-sm"
+          <OpsSearch value={search} onChange={setSearch} placeholder="회사명·사업자번호 검색" />
+          <OpsExportButton
+            disabled={filtered.length === 0}
+            onClick={() => exportCsv(filtered.map((c: any) => {
+              const sub = latestSub(c);
+              return {
+                회사명: c.name || "", 사업자번호: c.business_number || "",
+                플랜: sub?.subscription_plans?.name || "미구독",
+                상태: sub ? (STATUS_COLORS[sub.status]?.label || sub.status) : "미구독",
+                인원: c.users?.[0]?.count ?? 0, 좌석: sub?.seat_count || 1,
+                가입일: kstDateStr(new Date(c.created_at)),
+              };
+            }), "고객사목록")}
           />
           <div className="seg-bar">
             {[
@@ -82,7 +91,7 @@ export default function CustomersPage() {
             ))}
           </div>
         </div>
-      </div>
+      </OpsPageHeader>
 
       <div className="text-xs text-[var(--text-dim)]">{filtered.length}개 고객사</div>
 

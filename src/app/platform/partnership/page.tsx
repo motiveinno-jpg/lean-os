@@ -4,9 +4,10 @@
 //   partnership_inquiries 는 RLS 정책 0개(PII 차단) → operator_* SECURITY DEFINER RPC 로만 조회/수정.
 //   접수는 /api/partnership (service_role) 경유.
 
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useMemo, useState } from "react";
+import { OpsSearch, OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { kstDateStr } from "@/lib/kst";
 
 const db = supabase;
@@ -42,7 +43,20 @@ export default function PlatformPartnershipPage() {
       if (error) throw error;
       return (data || []) as Inquiry[];
     },
+    refetchInterval: 60_000,
   });
+
+  // 검색 (2026-07-28 전면 정비) — 회사·담당자·이메일·내용
+  const [search, setSearch] = useState("");
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((it) =>
+      (it.company_name || "").toLowerCase().includes(q) ||
+      (it.contact_name || "").toLowerCase().includes(q) ||
+      (it.email || "").toLowerCase().includes(q) ||
+      (it.message || "").toLowerCase().includes(q));
+  }, [items, search]);
 
   const setStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -60,6 +74,17 @@ export default function PlatformPartnershipPage() {
           <p className="text-sm text-[var(--text-muted)] mt-1">
             랜딩페이지 문의 폼 접수분 — {items.length}건
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <OpsSearch value={search} onChange={setSearch} placeholder="회사·담당자·이메일 검색" />
+          <OpsExportButton
+            disabled={shown.length === 0}
+            onClick={() => exportCsv(shown.map((it) => ({
+              상태: it.status, 회사: it.company_name || "", 담당자: it.contact_name || "",
+              이메일: it.email || "", 전화: it.phone || "",
+              내용: (it.message || "").slice(0, 200), 접수일: String(it.created_at).slice(0, 10),
+            })), "도입문의")}
+          />
         </div>
         <div className="platform-partnership-filters">
           {[null, "new", "contacted", "closed"].map((s) => (
@@ -81,11 +106,11 @@ export default function PlatformPartnershipPage() {
       <div className="platform-partnership-list glass-card">
         {isLoading ? (
           <div className="text-center py-16 text-sm text-[var(--text-dim)]">불러오는 중…</div>
-        ) : items.length === 0 ? (
+        ) : shown.length === 0 ? (
           <div className="text-center py-16 text-sm text-[var(--text-dim)]">문의가 없습니다</div>
         ) : (
           <div className="divide-y divide-[var(--border)]">
-            {items.map((it) => {
+            {shown.map((it) => {
               const st = STATUS[it.status] || STATUS.new;
               return (
                 <div key={it.id} className="platform-partnership-row">

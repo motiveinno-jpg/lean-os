@@ -4,6 +4,8 @@ import { logRead } from "@/lib/log-read";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useMemo, useState } from "react";
+import { OpsSearch, OpsExportButton, exportCsv } from "../_components/ops-kit";
 
 const db = supabase;
 
@@ -33,7 +35,20 @@ export default function FeedbackPage() {
       const data = logRead('feedback/page:data', await db.from("feedback").select("*, users(name, email), companies(name)").order("created_at", { ascending: false }));
       return data || [];
     },
+    refetchInterval: 60_000,
   });
+
+  // 검색 (2026-07-28 전면 정비) — 제목·내용·회사·작성자
+  const [search, setSearch] = useState("");
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return feedback;
+    return feedback.filter((f: any) =>
+      (f.title || "").toLowerCase().includes(q) ||
+      (f.description || "").toLowerCase().includes(q) ||
+      (f.companies?.name || "").toLowerCase().includes(q) ||
+      (f.users?.name || f.users?.email || "").toLowerCase().includes(q));
+  }, [feedback, search]);
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -47,6 +62,18 @@ export default function FeedbackPage() {
     <div className="max-w-5xl space-y-6">
       <div className="platform-feedback-header">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">고객 피드백</h1>
+        <div className="flex items-center gap-2">
+          <OpsSearch value={search} onChange={setSearch} placeholder="제목·내용·회사 검색" />
+          <OpsExportButton
+            disabled={shown.length === 0}
+            onClick={() => exportCsv(shown.map((f: any) => ({
+              상태: FB_STATUS[f.status]?.label || f.status, 분류: FB_CATEGORY[f.category] || f.category,
+              제목: f.title || "", 내용: (f.description || "").slice(0, 200),
+              회사: f.companies?.name || "", 작성자: f.users?.name || f.users?.email || "",
+              접수일: kstDateStr(new Date(f.created_at)),
+            })), "고객피드백")}
+          />
+        </div>
         <div className="platform-feedback-status-summary">
           {Object.entries(FB_STATUS).map(([key, val]) => {
             const count = feedback.filter((f: any) => f.status === key).length;
@@ -60,11 +87,11 @@ export default function FeedbackPage() {
       </div>
 
       <div className="platform-feedback-list glass-card">
-        {feedback.length === 0 ? (
+        {shown.length === 0 ? (
           <div className="text-center py-16 text-sm text-[var(--text-dim)]">피드백이 없습니다</div>
         ) : (
           <div className="divide-y divide-[var(--border)]">
-            {feedback.map((fb: any) => {
+            {shown.map((fb: any) => {
               const st = FB_STATUS[fb.status] || FB_STATUS.pending;
               return (
                 <div key={fb.id} className="platform-feedback-row">

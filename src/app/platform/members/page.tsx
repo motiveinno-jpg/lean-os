@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { PlatformMemberActions, PLATFORM_ROLE_META } from "@/components/platform-member-actions";
+import { OpsPageHeader, OpsSearch, OpsExportButton, exportCsv } from "../_components/ops-kit";
 
 const db = supabase;
 
@@ -51,6 +52,7 @@ export default function PlatformMembersPage() {
         .order("created_at", { ascending: false }));
       return (data || []) as MemberRow[];
     },
+    refetchInterval: 60_000,
   });
 
   const filtered = useMemo(() => {
@@ -68,18 +70,17 @@ export default function PlatformMembersPage() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="platform-members-toolbar">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">사용자 관리</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">계정 지원 — 비밀번호 재설정 · 이메일 변경 · 잠금 · 역할</p>
-        </div>
+      <OpsPageHeader title="사용자 관리" sub="계정 지원 — 비밀번호 재설정 · 이메일 변경 · 잠금 · 역할 · 1분마다 자동 갱신">
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="이름·이메일·회사 검색..."
-            className="field-input max-w-sm"
+          <OpsSearch value={search} onChange={setSearch} placeholder="이름·이메일·회사 검색" />
+          <OpsExportButton
+            disabled={filtered.length === 0}
+            onClick={() => exportCsv(filtered.map((m) => ({
+              이름: m.name || "", 이메일: m.email,
+              역할: (PLATFORM_ROLE_META[m.role || ""] || PLATFORM_ROLE_META.employee).label,
+              회사: m.companies?.name || "무소속",
+              가입일: m.created_at ? kstDateStr(new Date(m.created_at)) : "",
+            })), "사용자목록")}
           />
           <div className="seg-bar">
             {ROLE_FILTERS.map((f) => (
@@ -93,7 +94,7 @@ export default function PlatformMembersPage() {
             ))}
           </div>
         </div>
-      </div>
+      </OpsPageHeader>
 
       <div className="text-xs text-[var(--text-dim)]">{filtered.length}명</div>
 

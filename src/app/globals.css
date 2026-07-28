@@ -2907,6 +2907,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-rail-stats > div { @apply flex flex-col gap-0.5 px-4 py-3.5; }
 .platform-rail-stats > div > span:last-child { @apply text-[10px] text-[var(--text-dim)]; }
 
+/* 운영 콘솔 공통 킷 (2026-07-28 전면 정비) — 헤더·검색·내보내기 통일 */
+.ops-page-header { @apply flex flex-wrap items-end justify-between gap-3 mb-6; }
+.ops-search-input { @apply pl-9 pr-3 py-2 rounded-xl text-xs w-[220px] bg-[var(--bg-card)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)] transition; }
+.ops-export-btn { @apply inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)] transition disabled:opacity-40; }
+
 /* 시스템 상태 통합 페이지 (2026-07-28) — 신호등 + 사람언어 타임라인 */
 .platform-light-row { @apply grid grid-cols-2 md:grid-cols-5 gap-1 p-3; }
 .platform-light { @apply flex items-center gap-2.5 px-3 py-2.5 rounded-xl; }

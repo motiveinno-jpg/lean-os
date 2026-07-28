@@ -19,23 +19,33 @@ const isOperatorEmail = (email: string) => OPERATOR_EMAILS.includes(email.trim()
 type NavGroup = { title: string; items: { href: string; label: string; icon: string }[] };
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: "비즈니스",
+    // 2026-07-28 전면 정비: 목적별 4그룹 — 고객(누가 쓰나)/매출(돈)/지원(응대)/운영(상태·분석)
+    title: "고객",
     items: [
       { href: "/platform", label: "개요", icon: "chart" },
       { href: "/platform/customers", label: "고객사", icon: "building" },
       { href: "/platform/members", label: "사용자", icon: "users" },
+    ],
+  },
+  {
+    title: "매출",
+    items: [
       { href: "/platform/revenue", label: "수익", icon: "dollar" },
       { href: "/platform/sales-codes", label: "영업코드", icon: "link" },
-      { href: "/platform/feedback", label: "피드백", icon: "message" },
+    ],
+  },
+  {
+    title: "지원",
+    items: [
       { href: "/platform/support", label: "고객센터", icon: "headset" },
+      { href: "/platform/feedback", label: "피드백", icon: "message" },
       { href: "/platform/partnership", label: "도입문의", icon: "inbox" },
     ],
   },
   {
-    title: "운영 (OP)",
+    title: "운영",
     items: [
-      // 2026-07-28 통합: 에러해석·의존성·사고기록·감사로그 4개 → "시스템 상태" 1개.
-      //   기존 화면들은 라우트 유지(시스템 상태 하단 링크로 진입) — 메뉴에서만 제거.
+      // 에러해석·의존성·사고기록·감사로그 4개 → "시스템 상태" 1개 (기존 라우트는 유지, 메뉴만 통합)
       { href: "/platform/health", label: "시스템 상태", icon: "alert" },
       { href: "/platform/averages", label: "재무평균", icon: "trending" },
       { href: "/platform/industry", label: "업계분석", icon: "layers" },

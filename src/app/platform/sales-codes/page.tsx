@@ -6,6 +6,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { useToast } from "@/components/toast";
 import {
   listSalesCodes,
@@ -41,10 +42,12 @@ export default function SalesCodesPage() {
   const { data: codes = [], isLoading: codesLoading } = useQuery({
     queryKey: ["sales-codes"],
     queryFn: listSalesCodes,
+    refetchInterval: 60_000,
   });
   const { data: signups = [], isLoading: signupsLoading } = useQuery({
     queryKey: ["sales-code-signups"],
     queryFn: listSalesCodeSignups,
+    refetchInterval: 60_000,
   });
 
   const createMut = useMutation({
@@ -119,12 +122,22 @@ export default function SalesCodesPage() {
         <div className="glass-card p-5">
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <h2 className="text-sm font-bold">어떤 영업코드로 어떤 회사가 가입했는지</h2>
-            <input
-              value={codeFilter}
-              onChange={(e) => setCodeFilter(e.target.value)}
-              placeholder="코드·영업사원·회사명 검색"
-              className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm w-[260px] focus:outline-none focus:border-[var(--primary)]"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                value={codeFilter}
+                onChange={(e) => setCodeFilter(e.target.value)}
+                placeholder="코드·영업사원·회사명 검색"
+                className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm w-[260px] focus:outline-none focus:border-[var(--primary)]"
+              />
+              <OpsExportButton
+                disabled={filteredSignups.length === 0}
+                onClick={() => exportCsv((filteredSignups as any[]).map((r: any) => ({
+                  코드: r.code || "", 영업사원: r.owner_name || "", 회사: r.company_name || "",
+                  체험일수: r.applied_trial_days ?? "", 유입일: r.redeemed_at ? String(r.redeemed_at).slice(0, 10) : "",
+                  유료전환: r.converted_at ? String(r.converted_at).slice(0, 10) : "미전환",
+                })), "영업코드_유입회사")}
+              />
+            </div>
           </div>
           {signupsLoading ? (
             <div className="py-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
