@@ -147,7 +147,7 @@ function PillarTabs() {
   const B = P.blocks[bl];
 
   return (
-    <section className="lp4-section lp4-bg-canvas" id="pillars" ref={ref}>
+    <section className="lp4-section lp4-bg-tint" id="pillars" ref={ref}>
       <div className="lp4-container">
         <Reveal className="lp4-sec-head lp4-sec-head-c">
           <div className="lp4-eyebrow">Core</div>
@@ -482,7 +482,7 @@ export default function LandingPage() {
       <PillarTabs />
 
       {/* ══ AI ENGINES ══ */}
-      <section className="lp4-section lp4-bg-dark" id="engines">
+      <section className="lp4-section lp4-bg-canvas" id="engines">
         <div className="lp4-dark-orbs" />
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
@@ -532,7 +532,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ 전체 기능은 별도 페이지로 — 메인 스크롤을 짧게 유지한다 ══ */}
-      <section className="lp4-section lp4-bg-canvas" id="more">
+      <section className="lp4-section lp4-bg-tint" id="more">
         <div className="lp4-container">
           <Reveal>
             <Link href="/features" className="lp4-more">
@@ -550,7 +550,7 @@ export default function LandingPage() {
       <MobileScroll />
 
       {/* ══ FAQ ══ */}
-      <section className="lp4-section lp4-bg-tint" id="faq">
+      <section className="lp4-section lp4-bg-canvas" id="faq">
         <div className="lp4-narrow">
           <Reveal className="lp4-sec-head"><div className="lp4-eyebrow">FAQ</div><h2 className="lp4-h2">자주 묻는 질문이에요</h2></Reveal>
           <div>

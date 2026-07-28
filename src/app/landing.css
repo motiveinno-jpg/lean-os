@@ -50,9 +50,10 @@
 
 /* 토스·먼데이처럼 화면을 채우도록 폭을 넓혔다 (2026-07-27) */
 .lp4-container { max-width: 1320px; margin: 0 auto; padding: 0 32px; }
-.lp4-narrow { max-width: 860px; margin: 0 auto; padding: 0 32px; }
+/* 위 섹션(1320px)과 격차가 커 아래로 갈수록 화면이 좁아 보였다 → 1040px 로 (2026-07-28) */
+.lp4-narrow { max-width: 1040px; margin: 0 auto; padding: 0 32px; }
 /* 토스처럼 섹션 사이를 넉넉히 — 붙어 있어 답답하다는 지적 (2026-07-28) */
-.lp4-section { padding: 150px 0; position: relative; }
+.lp4-section { padding: 190px 0; position: relative; }
 .lp4-bg-canvas { background: var(--canvas); }
 .lp4-bg-tint { background: var(--canvas2); }
 .lp4-bg-paper { background: var(--paper); }
@@ -197,7 +198,7 @@
 
 /* ── 숫자 4개 — 아이콘 + 파스텔 타일 ──
    원색 인디고 숫자를 세로줄로 나열하니 촌스럽고 위 문단과 견뎬었다 (2026-07-28). */
-.lp4-stats { background: var(--canvas); padding-bottom:8px; }
+.lp4-stats { background: var(--canvas); padding-bottom:40px; }
 .lp4-stats-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:16px; }
 @media (min-width: 900px){ .lp4-stats-grid { grid-template-columns: repeat(4,1fr); gap:20px; } }
 .lp4-stat { display:flex; flex-direction:column; align-items:flex-start;
@@ -500,7 +501,7 @@
 .lp4-faq-open .lp4-faq-chev { transform: rotate(180deg); color: var(--brand); }
 .lp4-faq-panel { max-height:0; overflow:hidden; transition: max-height .3s ease; }
 .lp4-faq-open .lp4-faq-panel { max-height:300px; }
-.lp4-faq-a { padding:0 4px 23px; font-size:16px; color: var(--ink2); line-height:1.8; max-width:720px; }
+.lp4-faq-a { padding:0 4px 23px; font-size:16px; color: var(--ink2); line-height:1.8; max-width:780px; }
 
 
 /* ── 3대 축 — 주요 기능 강조 ── */
@@ -542,11 +543,13 @@
 
 /* ── 모바일 섹션 — 스크롤 핀. 좌 대형 카피(둘째 줄은 흐리게) / 우 큰 폰 목업 ── */
 .lp4-mob { position:relative; background: linear-gradient(180deg, var(--canvas2), var(--canvas)); }
-.lp4-mob-pin { padding:80px 0; }
+.lp4-mob-pin { padding:104px 0; }
 @media (min-width: 1000px){
   /* 모바일도 같은 기준 — 단계당 약 12vh */
   .lp4-mob { height: calc(var(--mn) * 45vh); }
   .lp4-mob-pin { position:sticky; top:0; height:100vh; display:flex; align-items:center; padding:0; }
+  /* ⚠️ flex 자식이라 컨테이너가 내용 폭(972px)까지 쪼그라들어 이 구간부터 화면이 좁아 보였다 */
+  .lp4-mob-pin > .lp4-container { width:100%; }
 }
 .lp4-mob-grid { display:grid; grid-template-columns:1fr; gap:48px; align-items:center; }
 @media (min-width: 1000px){ .lp4-mob-grid { grid-template-columns: 1.02fr 0.98fr; gap:90px; } }
@@ -662,7 +665,7 @@
 @media (prefers-reduced-motion: reduce){ .lp4-strip-track { animation:none !important; } }
 
 /* 롤링 아래 서비스 소개 — 후킹과 본문 사이를 잇는다 */
-.lp4-hero-intro { text-align:center; padding:150px 0 130px; }
+.lp4-hero-intro { text-align:center; padding:180px 0 170px; }
 .lp4-hero-intro p { font-size: clamp(19px,2.05vw,25px); font-weight:600; letter-spacing:-.03em;
   line-height:1.72; color: var(--ink2); }
 .lp4-hero-intro-lead { font-size: clamp(24px,2.7vw,34px) !important; color: var(--ink) !important;
@@ -733,12 +736,13 @@
 
 
 /* ── 하루 — 스크롤에 따라 시간이 넘어간다 ── */
-.lp4-daysec { position:relative; background: var(--canvas); }
+.lp4-daysec { position:relative; background: var(--canvas); padding:40px 0; }
 .lp4-daypin { padding:96px 0; }
 @media (min-width: 1000px){
   /* 핀 구간(=dn*30vh - 100vh)을 시간 수로 균등 분할 → 한 시간당 10vh, 휠 한 번에 하나씩 */
   .lp4-daysec { height: calc(var(--dn) * 30vh); }
   .lp4-daypin { position:sticky; top:0; height:100vh; display:flex; align-items:center; padding:0; }
+  .lp4-daypin > .lp4-container { width:100%; }
 }
 .lp4-day-head { margin-bottom:34px; }
 .lp4-tl { position:relative; display:grid; grid-template-columns: repeat(5,1fr); gap:8px; margin-bottom:34px; }
@@ -842,7 +846,7 @@
   .lp4-pain, .lp4-eng, .lp4-price, .lp4-feat, .lp4-btn, .lp4-sticky-cta { transition:none !important; }
 }
 @media (max-width: 700px) {
-  .lp4-section { padding:84px 0; }
+  .lp4-section { padding:104px 0; }
   .lp4-hero-intro { padding:88px 0 76px; }
   .lp4-hero-shot { margin:36px auto -64px; }
 }
