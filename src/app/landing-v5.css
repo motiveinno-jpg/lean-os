@@ -175,6 +175,82 @@
 }
 .lp5-unify-line-on { opacity: 1; transform: none; }
 
+/* ── 섹션 후킹 문구 ──
+   ⚠️ v5 초안에서 이게 통째로 빠져 있었다. 장면 연출이 아무리 좋아도 "이 섹션이 무슨 말을
+      하려는지"가 없으면 그냥 화면 구경이 된다. eyebrow 만으로는 전달되지 않는다. */
+.lp5-sec-head { width: 100%; margin-bottom: clamp(20px, 3vh, 40px); }
+.lp5-sec-head .lp5-lead { margin-top: 12px; }
+
+/* ── 문구 교체를 부드럽게 ──
+   화면은 크로스페이드되는데 문구는 즉시 갈려서 "뚝뚝" 끊겨 보였다.
+   구간이 바뀔 때 key 로 다시 마운트하고 여기서 살짝 떠오르게 받는다. */
+@keyframes lp5-swap-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.lp5-swap { animation: lp5-swap-in .62s cubic-bezier(.2,.7,.25,1) both; }
+@media (prefers-reduced-motion: reduce) { .lp5-swap { animation: none; } }
+
+/* ══ 가로 레일 ══ (세 축 · AI)
+   사장님: "위에서부터 다 같은 형식이라 느낌이 너무 똑같음" → 좌측 제목 + 가로 이동으로 리듬을 끊는다.
+   ⚠️ 이동은 beat(구간)가 아니라 --p(연속값)로 한다. 구간 단위로 옮기면 카드가 툭툭 튄다. */
+.lp5-rail { justify-content: center; }
+.lp5-rail-view { width: 100%; overflow: hidden; }
+.lp5-rail-track {
+  --cw: min(720px, 74vw);
+  --gap: 22px;
+  display: flex; gap: var(--gap); will-change: transform;
+  /* ⚠️ 이동량을 p*(n-1) 로 잡으면 활성 카드(=floor(p*n))와 화면 위치가 한 칸씩 어긋난다.
+     점 표시와 눈에 보이는 카드가 따로 논다 → 같은 식(p*n)을 쓰고 끝만 막는다. */
+  --pos: min(calc(var(--p) * var(--n)), calc(var(--n) - 1));
+  transform: translateX(calc(-1 * var(--pos) * (var(--cw) + var(--gap))));
+}
+.lp5-rail-track.lp5-rail-tall { --cw: min(380px, 68vw); }
+.lp5-rail-card {
+  flex: 0 0 var(--cw); width: var(--cw);
+  border-radius: 20px; overflow: hidden; background: var(--canvas2);
+  border: 1px solid var(--line);
+  opacity: .5; transition: opacity .45s ease, transform .45s ease;
+}
+.lp5-rail-card-on { opacity: 1; }
+.lp5-scene-dark .lp5-rail-card { background: rgba(255,255,255,.045); border-color: rgba(255,255,255,.09); }
+
+.lp5-rail-cap { padding: 20px 22px 14px; }
+.lp5-rail-kick { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; color: var(--brand); }
+.lp5-rail-title { font-size: clamp(16px, calc(12px + .85vw), 22px); font-weight: 800; letter-spacing: -.02em; margin-top: 7px; line-height: 1.4; }
+.lp5-rail-shot { position: relative; aspect-ratio: 16 / 10; max-height: 46vh; overflow: hidden; margin: 0 14px 14px; border-radius: 13px; }
+.lp5-rail-shot img { width: 100%; height: 100%; object-fit: cover; object-position: left top; display: block; }
+
+/* AI 카드 — 세로형. 화면 전체를 축소하지 않고 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
+   ⚠️ aspect-ratio 로만 높이를 잡으면 카드가 100vh 무대를 넘어 제목이 위로 잘린다.
+      카드 높이를 뷰포트에 묶고 크롭이 남는 높이를 먹게 한다. */
+.lp5-rail-tall .lp5-rail-card { height: min(60vh, 560px); display: flex; flex-direction: column; }
+.lp5-rail-crop { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.lp5-rail-crop img {
+  width: 100%; height: 100%; display: block;
+  object-fit: cover; object-position: left top; transform: scale(1.55); transform-origin: left top;
+}
+.lp5-rail-tall .lp5-rail-note { flex: 0 0 auto; }
+.lp5-rail-note { padding: 16px 18px 20px; }
+.lp5-rail-kind {
+  display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
+  padding: 3px 8px; border-radius: 99px; margin-bottom: 9px;
+  background: rgba(124,107,255,.16); color: var(--brand2);
+}
+.lp5-rail-kind-e { background: rgba(255,255,255,.12); color: #fff; }
+.lp5-rail-note b { font-size: 15.5px; font-weight: 800; letter-spacing: -.01em; }
+.lp5-rail-tag { font-size: 12px; color: var(--brand2); font-weight: 700; margin-left: 6px; }
+.lp5-rail-note p { font-size: 13.5px; line-height: 1.7; color: #A9A9B8; margin-top: 8px; }
+.lp5-rail-where { display: block; font-size: 11.5px; color: #7B7B8A; margin-top: 9px; }
+
+.lp5-rail-bar { display: flex; align-items: center; gap: 16px; margin-top: 22px; }
+.lp5-rail-dots { display: flex; gap: 6px; }
+.lp5-rail-dot { width: 22px; height: 3px; border-radius: 99px; background: var(--line); transition: background .3s; }
+.lp5-scene-dark .lp5-rail-dot { background: rgba(255,255,255,.18); }
+.lp5-rail-dot-on { background: var(--brand) !important; }
+.lp5-scene-dark .lp5-rail-dot-on { background: var(--brand2) !important; }
+.lp5-rail-count { font-size: 12.5px; font-weight: 700; color: var(--ink3); }
+
 /* ══ 3. 하루 ══ */
 .lp5-day { justify-content: center; }
 .lp5-day-grid {
@@ -248,8 +324,8 @@
   border: 1px solid var(--line); border-radius: 15px; padding: 17px 15px; background: var(--canvas);
   transition: opacity .5s ease, transform .5s ease, border-color .5s ease, box-shadow .5s ease;
 }
-.lp5-cov-cell-off { opacity: .3; transform: translateY(9px); }
-.lp5-cov-cell-on { border-color: rgba(79,70,229,.34); box-shadow: 0 16px 34px -22px rgba(79,70,229,.5); }
+/* 등장은 .lp5-rise(계단식 delay)가 맡는다 — 한 칸씩 켜던 on/off 클래스는 걷어냈다 */
+.lp5-cov-cell.lp5-rise-on { border-color: rgba(79,70,229,.28); box-shadow: 0 14px 30px -22px rgba(79,70,229,.42); }
 .lp5-cov-g { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--brand); }
 .lp5-cov-n { font-size: 14.5px; font-weight: 700; margin-top: 6px; letter-spacing: -.01em; }
 .lp5-cov-d { font-size: 12px; line-height: 1.55; color: var(--ink3); margin-top: 5px; }

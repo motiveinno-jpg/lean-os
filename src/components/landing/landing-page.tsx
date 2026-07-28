@@ -18,7 +18,7 @@ import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 import { Scene, Rise, useNarrow } from "@/components/landing/scene";
 import {
-  HERO, HERO_INTRO, DAY, PILLARS, ENGINES, CATALOG, MOBILE, FAQS, FOOTER,
+  HERO, HERO_INTRO, DAY, PILLARS, ENGINES, AI_AUTOMATION, CATALOG, MOBILE, FAQS, FOOTER,
 } from "@/components/landing/content";
 
 const Arrow = () => (
@@ -56,6 +56,20 @@ function Shot({ src, alt, priority = false, sizes = "(max-width: 999px) 92vw, 11
 function ShotStack({ items, active, sizes = "(max-width: 999px) 94vw, 1040px" }: {
   items: { src: string; alt: string }[]; active: number; sizes?: string;
 }) {
+  const narrow = useNarrow();
+  // 좁은 화면 + 모든 화면에 모바일 대응본이 있을 때만 폰으로 바꾼다(한 장이라도 없으면 섞이니 그대로 둔다)
+  const mob = items.every((it) => MOBILE_OF[it.src]);
+  if (narrow && mob) {
+    return (
+      <div className="lp5-phone lp5-phone-solo">
+        <div className="lp5-phone-notch" />
+        {items.map((it, i) => (
+          <Image key={it.src} src={MOBILE_OF[it.src]} alt={it.alt} width={1170} height={2400}
+            sizes="66vw" className={i === active ? "lp5-phone-on" : ""} />
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="lp5-shot-stack">
       {items.map((it, i) => (
@@ -67,7 +81,21 @@ function ShotStack({ items, active, sizes = "(max-width: 999px) 94vw, 1040px" }:
   );
 }
 
-/** 폰 목업 한 대 — 좀은 화면에서 데스크톱 캐프처 대신 들어간다. */
+/** 데스크톱 캡처 → 같은 기능의 모바일 캡처.
+ *   ⚠️ 폰에서 데스크톱 화면을 320px 로 줄이면 글자가 안 읽혀 전달이 0 이 된다.
+ *      /demo 를 390px 뷰포트로 열어 실제 앱이 리플로우된 화면을 그대로 찍은 것들이다. */
+const MOBILE_OF: Record<string, string> = {
+  "/product/dashboard-v5.png":   "/product/m-dash-v2.png",
+  "/product/f-estimate-v1.png":  "/product/m-estimate.png",
+  "/product/f-settlement-v1.png":"/product/m-settlement.png",
+  "/product/f-hr-v1.png":        "/product/m-payroll.png",
+  "/product/f-flow-v1.png":      "/product/m-outlook.png",
+  "/product/f-projects-v1.png":  "/product/m-hub.png",
+  "/product/f-acct-v1.png":      "/product/m-analytics.png",
+  "/product/f-bank-v1.png":      "/product/m-bank.png",
+};
+
+/** 폰 목업 한 대 — 좁은 화면에서 데스크톱 캡처 대신 들어간다. */
 function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
   return (
     <div className="lp5-phone lp5-phone-solo">
@@ -114,16 +142,42 @@ function SceneHero() {
 
 // ══════════════════ 2. 통합 ══════════════════
 //   흩어져 있던 도구들이 스크롤에 따라 가운데로 모이며 사라지고, 그 자리에 오너뷰가 남는다.
+// ⚠️ 좌표는 무대 중앙 기준이다. 가운데(±360 x ±150)는 문구가 차지하므로 그 박스를 피해 둔다 —
+//    예전엔 "급여 대장"이 (-90,-268)에 있어 제목 뒤로 들어가 잘려 보였다.
 const SCATTER = [
-  { t: "엑셀 견적서", x: "-430px", y: "-190px" },
-  { t: "카톡 결재", x: "330px", y: "-215px" },
-  { t: "통장 앱", x: "-500px", y: "40px" },
-  { t: "카드사 앱", x: "470px", y: "10px" },
-  { t: "수기 장부", x: "-360px", y: "215px" },
-  { t: "메일 계약서", x: "395px", y: "205px" },
-  { t: "급여 대장", x: "-90px", y: "-268px" },
-  { t: "세무 자료 폴더", x: "120px", y: "262px" },
+  { t: "엑셀 견적서",   i: "sheet",  x: "-560px", y: "-235px" },
+  { t: "카톡 결재",     i: "chat",   x: "560px",  y: "-245px" },
+  { t: "통장 앱",       i: "bank",   x: "-625px", y: "-60px" },
+  { t: "카드사 앱",     i: "card",   x: "630px",  y: "-70px" },
+  { t: "수기 장부",     i: "book",   x: "-545px", y: "115px" },
+  { t: "메일 계약서",   i: "mail",   x: "545px",  y: "110px" },
+  { t: "급여 대장",     i: "won",    x: "-435px", y: "270px" },
+  { t: "세무 자료 폴더", i: "folder", x: "440px",  y: "280px" },
+  { t: "종이 근태표",   i: "clock",  x: "-330px", y: "-380px" },
+  { t: "드라이브 서류함", i: "drive", x: "340px",  y: "-385px" },
+  { t: "달력 일정",     i: "cal",    x: "-195px", y: "340px" },
+  { t: "문자 알림",     i: "bell",   x: "205px",  y: "345px" },
 ];
+
+/** 칩 아이콘 — 무슨 도구인지 글자 없이도 읽히게. */
+function ChipIcon({ n }: { n: string }) {
+  const p = { width: 15, height: 15, fill: "none", stroke: "currentColor", strokeWidth: 1.9,
+    viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (n) {
+    case "sheet":  return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>;
+    case "chat":   return <svg {...p}><path d="M21 11.5a8.4 8.4 0 01-9 8.4 9 9 0 01-3.9-.9L3 21l1.9-4.5A8.4 8.4 0 013 11.5 8.5 8.5 0 0112 3a8.5 8.5 0 019 8.5z"/></svg>;
+    case "bank":   return <svg {...p}><path d="M3 10l9-6 9 6"/><path d="M5 10v9M19 10v9M9 10v9M15 10v9M3 21h18"/></svg>;
+    case "card":   return <svg {...p}><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>;
+    case "book":   return <svg {...p}><path d="M4 4a2 2 0 012-2h13v18H6a2 2 0 00-2 2V4z"/><path d="M8 7h8M8 11h6"/></svg>;
+    case "mail":   return <svg {...p}><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>;
+    case "won":    return <svg {...p}><path d="M3 7l3.5 10L10 9l3.5 8L17 7"/><path d="M2 11h19"/></svg>;
+    case "folder": return <svg {...p}><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>;
+    case "clock":  return <svg {...p}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>;
+    case "drive":  return <svg {...p}><path d="M12 3l7 12H5L12 3z"/><path d="M5 15l-2 4h18l-2-4"/></svg>;
+    case "cal":    return <svg {...p}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>;
+    default:       return <svg {...p}><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>;
+  }
+}
 
 function SceneUnify() {
   const narrow = useNarrow();
@@ -134,7 +188,9 @@ function SceneUnify() {
           {/* ⚠️ 궤도는 무대(100vh) 기준이어야 한다. 문구 박스 안에 두면 칩이 제목 위로 겹친다. */}
           <div className="lp5-orbit" aria-hidden>
             {SCATTER.map((s) => (
-              <span key={s.t} className="lp5-chip" style={{ ["--x" as string]: s.x, ["--y" as string]: s.y }}>{s.t}</span>
+              <span key={s.t} className="lp5-chip" style={{ ["--x" as string]: s.x, ["--y" as string]: s.y }}>
+                <ChipIcon n={s.i} />{s.t}
+              </span>
             ))}
           </div>
           <div className="lp5-wrap lp5-unify-in">
@@ -166,26 +222,35 @@ function SceneDay() {
       {(beat) => {
         const d = DAY[beat];
         return (
-          <div className="lp5-wrap lp5-day-grid">
-            <div>
+          <div className="lp5-wrap">
+            {/* ⚠️ v5 로 옮기면서 섹션 후킹 문구가 빠졌었다. 장면이 바뀌어도 "이 섹션이 무슨 말을
+                하려는지"는 남아 있어야 한다 — eyebrow 만으로는 전달되지 않는다. */}
+            <div className="lp5-sec-head">
               <div className="lp5-eyebrow">Before &amp; After</div>
-              <div className="lp5-day-time">{d.time}</div>
-              <div className="lp5-day-scene">{d.scene}</div>
-              <div className="lp5-day-ba">
-                <div className="lp5-day-row">
-                  <span className="lp5-day-tag lp5-day-tag-b">전</span>
-                  <span className="lp5-day-b">{d.before}</span>
-                </div>
-                <div className="lp5-day-row">
-                  <span className="lp5-day-tag lp5-day-tag-a">후</span>
-                  <span className="lp5-day-a">{d.after}</span>
-                </div>
-              </div>
-              <div className="lp5-day-dots">
-                {DAY.map((x, i) => <span key={x.time} className={`lp5-day-dot ${i === beat ? "lp5-day-dot-on" : ""}`} />)}
-              </div>
+              <h2 className="lp5-h lp5-h-sm">오너뷰로 하루가 <span className="lp5-grad">이렇게 달라져요</span></h2>
+              <p className="lp5-lead">어떻게 달라지는지, 시간대별로 보여드릴게요.</p>
             </div>
-            <ShotStack items={DAY.map((x) => ({ src: x.src, alt: x.alt }))} active={beat} />
+            <div className="lp5-day-grid">
+              {/* key 를 붙여 구간이 바뀔 때마다 다시 마운트 → 문구가 툭 갈리지 않고 스르륵 바뀐다 */}
+              <div className="lp5-swap" key={d.time}>
+                <div className="lp5-day-time">{d.time}</div>
+                <div className="lp5-day-scene">{d.scene}</div>
+                <div className="lp5-day-ba">
+                  <div className="lp5-day-row">
+                    <span className="lp5-day-tag lp5-day-tag-b">전</span>
+                    <span className="lp5-day-b">{d.before}</span>
+                  </div>
+                  <div className="lp5-day-row">
+                    <span className="lp5-day-tag lp5-day-tag-a">후</span>
+                    <span className="lp5-day-a">{d.after}</span>
+                  </div>
+                </div>
+              </div>
+              <ShotStack items={DAY.map((x) => ({ src: x.src, alt: x.alt }))} active={beat} />
+            </div>
+            <div className="lp5-day-dots">
+              {DAY.map((x, i) => <span key={x.time} className={`lp5-day-dot ${i === beat ? "lp5-day-dot-on" : ""}`} />)}
+            </div>
           </div>
         );
       }}
@@ -193,61 +258,105 @@ function SceneDay() {
   );
 }
 
-// ══════════════════ 4. 세 축 ══════════════════
-//   프로젝트 → 회계 → 인사. 무대는 고정, 좌측 문구와 우측 화면만 바뀐다.
+// ══════════════════ 4. 세 축 — 가로 레일 ══════════════════
+//   사장님: "위에서부터 다 같은 형식이라 느낌이 너무 똑같음. 좌측 제목 + 가로로 움직이는 형태로."
+//   앞뒤 장면이 전부 [좌 문구 / 우 화면] 이라, 여기만 가로 레일로 리듬을 끊는다.
+//   레일은 --p 로 연속 이동한다(구간 단위로 튀지 않게). 점은 현재 구간만 표시.
 function SceneAxes() {
+  const cards = PILLARS.flatMap((P) =>
+    P.blocks.map((b) => ({ kicker: P.kicker, tab: b.tab, title: b.title, desc: b.desc, src: b.src, alt: b.alt })),
+  );
   return (
-    <Scene id="pillars" len={2.6} beats={PILLARS.length} className="lp5-ax">
-      {(beat) => {
-        const P = PILLARS[beat];
-        return (
-          <div className="lp5-wrap lp5-ax-grid">
-            <div>
-              <div className="lp5-eyebrow">Core</div>
-              <div className="lp5-ax-kick lp5-grad">{P.kicker}</div>
-              <div className="lp5-ax-head">
-                {P.headline.split("\n").map((l, i) => <span key={i}>{l}<br /></span>)}
-              </div>
-              <p className="lp5-ax-lead">{P.lead}</p>
-              <div className="lp5-ax-menus">
-                {P.menus.map((m) => <span key={m} className="lp5-ax-menu">{m}</span>)}
-              </div>
-              <div className="lp5-ax-steps">
-                {PILLARS.map((x, i) => <span key={x.key} className={`lp5-ax-step ${i === beat ? "lp5-ax-step-on" : ""}`} />)}
-              </div>
-            </div>
-            <ShotStack items={PILLARS.map((x) => ({ src: x.blocks[0].src, alt: x.blocks[0].alt }))} active={beat} />
+    <Scene id="pillars" len={3.6} beats={cards.length} className="lp5-rail">
+      {(beat) => (
+        <div className="lp5-wrap">
+          <div className="lp5-sec-head">
+            <div className="lp5-eyebrow">Core</div>
+            <h2 className="lp5-h lp5-h-sm">일은 줄이고, <span className="lp5-grad">효율과 성과는 높여요</span></h2>
+            <p className="lp5-lead">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요. 옆으로 넘기며 살펴보세요.</p>
           </div>
-        );
-      }}
+          <div className="lp5-rail-view">
+            <div className="lp5-rail-track" style={{ ["--n" as string]: cards.length }}>
+              {cards.map((c, i) => (
+                <article key={c.src + c.tab} className={`lp5-rail-card ${i === beat ? "lp5-rail-card-on" : ""}`}>
+                  <div className="lp5-rail-cap">
+                    <span className="lp5-rail-kick">{c.kicker} · {c.tab}</span>
+                    <h3 className="lp5-rail-title">{c.title}</h3>
+                  </div>
+                  <div className="lp5-rail-shot">
+                    <Image src={c.src} alt={c.alt} width={1968} height={1320} sizes="(max-width: 999px) 84vw, 760px" />
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+          <div className="lp5-rail-bar">
+            <div className="lp5-rail-dots">
+              {cards.map((c, i) => <span key={c.src + c.tab} className={`lp5-rail-dot ${i === beat ? "lp5-rail-dot-on" : ""}`} />)}
+            </div>
+            <span className="lp5-rail-count">{beat + 1} / {cards.length}</span>
+          </div>
+        </div>
+      )}
     </Scene>
   );
 }
 
-// ══════════════════ 5. AI 엔진 ══════════════════
-function SceneEngines() {
+// ══════════════════ 5. AI — 어두운 장면 + 가로 레일 ══════════════════
+//   사장님: "뒤 배경색은 마음에 들어. 근데 이미지를 더 키우고 설명이 들어가되 가로로 넘어가고,
+//   AI 자동화에 있는 부분을 가져와도 될 것 같아. 이미지는 핵심적인 부분만 보여줘도 좋을 것 같아."
+//   ⚠️ 카드 안의 화면은 전체를 축소해 넣지 않는다 — 세로 카드에 꽉 채우고 좌상단(헤더+핵심 카드가
+//      있는 자리)을 확대해 잘라 보여준다. 전체를 넣으면 아무것도 안 읽힌다.
+function SceneAI() {
+  // 엔진(큰 묶음) + 자동화(세부 기능)를 한 레일에 합친다.
+  //   ⚠️ 중복 판정 기준은 "같은 화면을 쓰는가" 다 — 생존 레이더/현금 소진 예측,
+  //      거래처 자산화/휴면 감지처럼 같은 화면을 가리키면 같은 이야기를 두 번 하는 셈이라
+  //      더 큰 묶음인 엔진 쪽만 남긴다. (사장님: "중복되는 내용은 한 개만 노출")
+  const engineCards = ENGINES.map((e) => ({
+    kind: "엔진", name: e.name, tag: e.eng, desc: e.short, where: "", src: e.src, alt: e.alt,
+  }));
+  const used = new Set(engineCards.map((e) => e.src));
+  const autoCards = AI_AUTOMATION.filter((a) => !used.has(a.src)).map((a) => ({
+    kind: "자동화", name: a.name, tag: a.tag, desc: a.desc, where: a.where, src: a.src, alt: a.alt,
+  }));
+  const items = [...engineCards, ...autoCards];
   return (
-    <Scene id="engines" len={2.3} beats={ENGINES.length} tone="dark" className="lp5-eng">
+    <Scene id="engines" len={3.4} beats={items.length} tone="dark" className="lp5-rail">
       {(beat) => (
         <>
           <div className="lp5-eng-bg" />
-          <div className="lp5-wrap lp5-eng-grid">
-            <div>
-              <div className="lp5-eyebrow">4 AI Engines</div>
+          <div className="lp5-wrap" style={{ position: "relative", zIndex: 1 }}>
+            <div className="lp5-sec-head">
+              <div className="lp5-eyebrow">AI Automation</div>
               <h2 className="lp5-h lp5-h-sm lp5-eng-h">반복되던 일,<br /><span className="lp5-grad">이제 AI 몫이에요</span></h2>
-              <div className="lp5-eng-list" style={{ marginTop: 28 }}>
-                {ENGINES.map((e, i) => (
-                  <div key={e.num} className={`lp5-eng-item ${i === beat ? "lp5-eng-item-on" : ""}`}>
-                    <span className="lp5-eng-num">{e.num}</span>
-                    <span>
-                      <span className="lp5-eng-name">{e.name}</span>
-                      <p className="lp5-eng-short">{e.short}</p>
-                    </span>
-                  </div>
+              <p className="lp5-lead">
+                사람을 대체하는 게 아니라, 매번 되풀이되는 일을 AI가 먼저 처리해 둬요.
+                엔진 {engineCards.length}개와 자동화 {autoCards.length}가지가 나눠서 맡아요.
+              </p>
+            </div>
+            <div className="lp5-rail-view">
+              <div className="lp5-rail-track lp5-rail-tall" style={{ ["--n" as string]: items.length }}>
+                {items.map((a, i) => (
+                  <article key={a.name} className={`lp5-rail-card ${i === beat ? "lp5-rail-card-on" : ""}`}>
+                    <div className="lp5-rail-crop">
+                      <Image src={a.src} alt={a.alt} width={1968} height={1320} sizes="(max-width: 999px) 74vw, 380px" />
+                    </div>
+                    <div className="lp5-rail-note">
+                      <span className={`lp5-rail-kind ${a.kind === "엔진" ? "lp5-rail-kind-e" : ""}`}>{a.kind}</span>
+                      <b>{a.name}</b> <span className="lp5-rail-tag">{a.tag}</span>
+                      <p>{a.desc}</p>
+                      {a.where && <span className="lp5-rail-where">{a.where}</span>}
+                    </div>
+                  </article>
                 ))}
               </div>
             </div>
-            <ShotStack items={ENGINES.map((e) => ({ src: e.src, alt: e.alt }))} active={beat} />
+            <div className="lp5-rail-bar">
+              <div className="lp5-rail-dots">
+                {items.map((a, i) => <span key={a.name} className={`lp5-rail-dot ${i === beat ? "lp5-rail-dot-on" : ""}`} />)}
+              </div>
+              <span className="lp5-rail-count">{beat + 1} / {items.length}</span>
+            </div>
           </div>
         </>
       )}
@@ -260,8 +369,8 @@ function SceneEngines() {
 function SceneCoverage() {
   const cells = CATALOG.flatMap((g) => g.menus.map((m) => ({ g: g.group, n: m.name, d: m.desc })));
   return (
-    <Scene id="more" len={1.7} beats={cells.length} className="lp5-cov">
-      {(beat) => (
+    <Scene id="more" len={1.15} className="lp5-cov">
+      {() => (
         <div className="lp5-wrap">
           <div className="lp5-cov-head">
             <div className="lp5-eyebrow">Coverage</div>
@@ -271,12 +380,14 @@ function SceneCoverage() {
             </p>
           </div>
           <div className="lp5-cov-grid">
+            {/* 사장님: "메뉴 생성되는 쪽은 스크롤이 의미없이 많다" — 18칸을 한 칸씩 켜면
+                그만큼의 스크롤을 써야 한다. 진입하면 계단식으로 한 번에 떠오르게 바꿈. */}
             {cells.map((c, i) => (
-              <div key={c.n} className={`lp5-cov-cell ${i <= beat ? "lp5-cov-cell-on" : "lp5-cov-cell-off"}`}>
+              <Rise key={c.n} delay={i * 34} className="lp5-cov-cell">
                 <div className="lp5-cov-g">{c.g}</div>
                 <div className="lp5-cov-n">{c.n}</div>
                 <div className="lp5-cov-d">{c.d}</div>
-              </div>
+              </Rise>
             ))}
           </div>
           <div style={{ textAlign: "center", marginTop: 34 }}>
@@ -371,7 +482,7 @@ export default function LandingPage() {
       <SceneUnify />
       <SceneDay />
       <SceneAxes />
-      <SceneEngines />
+      <SceneAI />
       <SceneCoverage />
       <SceneMobile />
       <SceneEnd />
