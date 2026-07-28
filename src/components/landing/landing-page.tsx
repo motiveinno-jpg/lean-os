@@ -461,8 +461,8 @@ export default function LandingPage() {
           <div className="lp4-container">
             <div className="lp4-sec-head lp4-sec-head-c lp4-day-head">
               <div className="lp4-eyebrow">Before & After</div>
-              <h2 className="lp4-h2">그래서 하루가 <span className="lp4-underline">이렇게 달라져요</span></h2>
-              <p className="lp4-sub">앞에서 말한 게 실제로 어떻게 달라지는지, 시간대별로 보여드릴게요.</p>
+              <h2 className="lp4-h2">오너뷰로 하루가 <span className="lp4-underline">이렇게 달라져요</span></h2>
+              <p className="lp4-sub">어떻게 달라지는지, 시간대별로 보여드릴게요.</p>
             </div>
 
             <div className="lp4-tl">
