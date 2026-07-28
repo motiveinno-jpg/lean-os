@@ -4,13 +4,39 @@
 //      "~해요 / ~돼요 / ~이에요 / ~해보세요 / ~답게". 짧고 담백하게, 과장 없이 사실만.
 //      "~합니다/~됩니다" 같은 격식체와 "돌립니다" 같은 구어체 모두 쓰지 않는다.
 
+// 히어로 (2026-07-28 정리)
+//   sub·desc 두 문장이 "다 있다 / 한 곳에서 처리한다"로 사실상 같은 말이라 하나로 합쳤다.
+//   토스처럼 후킹 한 줄 + 서비스 전체를 관통하는 한 문장만 둔다. 설명 대신 실제 화면이 흐른다.
 export const HERO = {
   badge: "로드맵이 아니에요 — 가입하면 오늘 바로 쓸 수 있어요",
   title: "중소기업 대표를 위한 올인원 운영 플랫폼",
-  sub: "현금, 프로젝트, 세무, 급여, 결재. 회사 운영에 필요한 건 여기 다 있어요.",
-  desc: "회계·세무·문서·정산으로 흩어져 있던 일을 한 곳에서 자동으로 처리해요.",
+  // ⚠️ "금융의 모든 것, 토스에서 쉽고 간편하게" 를 거의 그대로 따라가고 있었다 →
+  //    오너뷰의 핵심 가치(흩어진 걸 하나로)를 정면에 세운 문장으로 교체 (2026-07-28 사장님 선택).
+  headline: "흩어져 있던 회사 일,\n한곳에 모았어요",
+  sub: "통장부터 프로젝트·인사·회계까지. 따로 쓰던 도구 7개를 오너뷰 하나로 해요.",
   checks: ["14일 무료 (가입 시 카드 등록)", "가입하면 바로 시작", "24시간 자동 운영", "RLS 기반 데이터 보안"],
 };
+
+// 히어로에서 가로로 흐르는 실제 화면들 — "이게 다 된다"를 한 장면으로.
+//   ⚠️ 전부 /demo 를 실제 뷰포트에서 찍은 진짜 화면이다. 렌더링·목업을 섞지 말 것.
+export const HERO_STRIP = [
+  [
+    { src: "/product/dashboard-v4.png", alt: "오너뷰 대시보드" },
+    { src: "/product/f-projects-v1.png", alt: "오너뷰 프로젝트 파이프라인" },
+    { src: "/product/f-bank-v1.png", alt: "오너뷰 통장 거래내역" },
+    { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브" },
+    { src: "/product/f-hr-v1.png", alt: "오너뷰 급여 배치" },
+    { src: "/product/f-tax-v1.png", alt: "오너뷰 세금계산서" },
+  ],
+  [
+    { src: "/product/f-flow-v1.png", alt: "오너뷰 경영 흐름" },
+    { src: "/product/f-contract-v1.png", alt: "오너뷰 전자계약" },
+    { src: "/product/f-partners-v1.png", alt: "오너뷰 거래처" },
+    { src: "/product/f-chat-v1.png", alt: "오너뷰 메신저" },
+    { src: "/product/f-cards-v1.png", alt: "오너뷰 법인카드" },
+    { src: "/product/f-ai-copilot-v1.png", alt: "오너뷰 AI 참모" },
+  ],
+];
 
 export const STATS = [
   { value: 30, suffix: "+", label: "통합 기능" },

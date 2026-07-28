@@ -194,11 +194,6 @@
 .lp4-hero-check { display:inline-flex; align-items:center; gap:6px; font-size:13px; color: var(--ink3); }
 .lp4-hero-check svg { color: var(--ok); }
 .lp4-hero-shot { position:relative; z-index:2; margin:56px auto -90px; max-width:1080px; padding:0 24px; }
-.lp4-shot-frame { border-radius:20px; overflow:hidden; background:#fff;
-  box-shadow: 0 40px 80px -34px rgba(27,26,46,.28), 0 0 0 1px var(--line); }
-.lp4-shot-bar { display:flex; align-items:center; gap:6px; padding:12px 16px; background: var(--canvas2); border-bottom:1px solid var(--line); }
-.lp4-shot-dot { width:10px; height:10px; border-radius:999px; }
-.lp4-shot-dot-r { background:#f3b3b3; } .lp4-shot-dot-y { background:#f6dda6; } .lp4-shot-dot-g { background:#b3e0cf; }
 .lp4-shot-url { margin-left:10px; font-size:11.5px; font-weight:600; color: var(--ink3); }
 .lp4-shot-img { display:block; width:100%; height:auto; }
 .lp4-hero-spacer { height:114px; background: var(--canvas); }
@@ -642,6 +637,28 @@
 .lp4-eng4-f { display:flex; flex-wrap:wrap; gap:6px; margin-top:18px; padding-top:16px;
   border-top:1px solid var(--line); }
 .lp4-eng4-f .lp4-pillar-menu { font-size:12.5px; padding:6px 12px; }
+
+
+/* ── 히어로 화면 띠 — 실제 캡처가 가로로 흐른다 ──
+   정적 대시보드 한 장 대신, 두 줄이 서로 반대 방향으로 아주 느리게 흐른다.
+   마우스를 올리면 멈추고, reduced-motion 이면 아예 움직이지 않는다. */
+.lp4-hero-strip { position:relative; margin-top:56px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent); }
+.lp4-strip-row { overflow:hidden; }
+.lp4-strip-row + .lp4-strip-row { margin-top:18px; }
+.lp4-strip-track { display:flex; width:max-content; animation: lp4-strip 64s linear infinite; }
+.lp4-strip-rev .lp4-strip-track { animation-duration: 78s; animation-direction: reverse; }
+.lp4-hero-strip:hover .lp4-strip-track { animation-play-state: paused; }
+@keyframes lp4-strip { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+.lp4-strip-run { display:flex; gap:18px; padding-right:18px; }
+.lp4-strip-card { flex:none; width:340px; border-radius:16px; overflow:hidden; background:#fff;
+  border:1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 0 0 1px rgba(27,26,46,.05),
+    0 8px 18px -10px rgba(27,26,46,.26), 0 30px 60px -30px rgba(27,26,46,.4); }
+.lp4-strip-card img { display:block; width:100%; height:auto; }
+@media (max-width: 720px){ .lp4-strip-card { width:250px; } .lp4-hero-strip { margin-top:40px; } }
+@media (prefers-reduced-motion: reduce){ .lp4-strip-track { animation:none !important; } }
 
 /* ── Partner form ──────────────────────────────────── */
 .lp4-form { padding:30px; }
