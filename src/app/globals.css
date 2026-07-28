@@ -2912,6 +2912,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .ops-search-input { @apply pl-9 pr-3 py-2 rounded-xl text-xs w-[220px] bg-[var(--bg-card)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)] transition; }
 .ops-export-btn { @apply inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)] transition disabled:opacity-40; }
 
+/* 헬스체크 실패 배너 — 권한/네트워크 실패를 "장애"와 구분해 설명 (2026-07-28) */
+.platform-check-failed-banner { @apply p-4 rounded-2xl border border-[var(--warning)]/40 bg-[var(--warning-dim)] text-[13px] text-[var(--text)]; }
+
 /* 시스템 상태 통합 페이지 (2026-07-28) — 신호등 + 사람언어 타임라인 */
 .platform-light-row { @apply grid grid-cols-2 md:grid-cols-5 gap-1 p-3; }
 .platform-light { @apply flex items-center gap-2.5 px-3 py-2.5 rounded-xl; }

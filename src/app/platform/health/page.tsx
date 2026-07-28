@@ -92,14 +92,15 @@ function Light({ label, tone, desc }: { label: string; tone: "ok" | "warn" | "da
 }
 
 export default function PlatformHealthPage() {
-  const { data, isLoading } = useQuery<Feed | null>({
+  const { data, isLoading, error: feedError } = useQuery<Feed | null>({
     queryKey: ["p-activity-feed"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("platform_activity_feed", { p_hours: 48, p_limit: 120 });
-      if (error) return null;
+      if (error) throw error;
       return data as Feed;
     },
     refetchInterval: 30_000,
+    retry: 1,
   });
   const { data: deps } = useQuery<DepsHealth | null>({
     queryKey: ["op-deps-health"],
@@ -126,6 +127,15 @@ export default function PlatformHealthPage() {
         <p className="text-xs text-[var(--text-dim)] mt-1">30초마다 자동 갱신 · 최근 48시간의 모든 활동을 시간순으로 보여줍니다</p>
       </div>
 
+      {feedError && (
+        <div className="platform-check-failed-banner">
+          <span className="font-bold">⚠️ 데이터를 불러오지 못했습니다.</span>{" "}
+          {/forbidden|운영자/i.test((feedError as any)?.message || "")
+            ? "권한 없음 — 플랫폼 운영자 계정(creative@mo-tive.com)만 조회할 수 있습니다."
+            : `조회 실패 — ${(feedError as any)?.message || "네트워크 또는 서버 오류"}`}
+        </div>
+      )}
+
       {/* ① 지금 문제 있나 — 신호등 */}
       <div className="platform-light-row glass-card">
         <Light label="가입" tone={signupTone as never}
@@ -148,6 +158,8 @@ export default function PlatformHealthPage() {
         </div>
         {isLoading ? (
           <div className="px-4 py-8 text-center text-sm text-[var(--text-dim)]">불러오는 중...</div>
+        ) : feedError ? (
+          <div className="px-4 py-8 text-center text-sm text-[var(--text-dim)]">위 안내를 확인하세요 — 데이터 조회에 실패했습니다.</div>
         ) : (data?.feed?.length ?? 0) === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-[var(--text-dim)]">최근 48시간 동안 기록된 활동이 없습니다.</div>
         ) : (

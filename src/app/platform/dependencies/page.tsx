@@ -39,8 +39,16 @@ export default function PlatformDependenciesPage() {
     refetchInterval: 60000,
   });
 
-  // 상태 판정 — 로딩/에러를 전 서비스 일관 처리 (로딩=확인 중, 에러=헬스체크 자체 실패로 장애)
-  const baseStatus: DepStatus | null = error ? "down" : !data ? "loading" : null;
+  // 상태 판정 (2026-07-28 정정): 헬스체크 "호출 실패"는 서비스 장애가 아니다 —
+  //   권한 거부·네트워크 문제를 전 서비스 '장애'로 표시해 큰 혼란을 줬던 문제.
+  //   호출 실패 시엔 판정을 보류(loading 배지)하고 아래 배너로 실패 원인을 설명한다.
+  const checkFailed = !!error;
+  const failReason = checkFailed
+    ? (/forbidden|운영자/i.test((error as any)?.message || "")
+        ? "권한 없음 — 이 화면은 플랫폼 운영자 계정(creative@mo-tive.com)만 조회할 수 있습니다."
+        : `상태 조회 실패 — ${(error as any)?.message || "네트워크 또는 서버 오류"}`)
+    : null;
+  const baseStatus: DepStatus | null = checkFailed || !data ? "loading" : null;
   const supabaseStatus: DepStatus = baseStatus ?? (data!.supabase.errors_1h > 50 ? "warn" : "ok");
   const stripeStatus: DepStatus = baseStatus ?? (data!.stripe.failed_invoices_24h > 5 ? "warn" : "ok");
   const codefStatus: DepStatus = baseStatus ?? (data!.codef.bank_tx_24h + data!.codef.card_tx_24h === 0 ? "warn" : "ok");
@@ -115,6 +123,12 @@ export default function PlatformDependenciesPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
+      {failReason && (
+        <div className="platform-check-failed-banner">
+          <span className="font-bold">⚠️ 서비스 상태를 판정하지 못했습니다.</span> {failReason}
+          <span className="block mt-1 text-[11px] opacity-80">이것은 외부 서비스 장애 판정이 아닙니다 — 실제 장애 여부는 시스템 상태 화면의 신호등·타임라인에서 확인하세요.</span>
+        </div>
+      )}
       <div className="platform-dependencies-header">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">의존성 상태</h1>
