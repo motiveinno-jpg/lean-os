@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { markConsentPending } from "@/lib/legal";
 import { useRouter } from "next/navigation";
@@ -55,6 +55,25 @@ export default function AuthPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [showPw, setShowPw] = useState(false);
   const router = useRouter();
+
+  // 이미 로그인된 상태로 /auth 방문 시 — 로그인 폼 대신 계정 상태에 맞는 화면으로 (2026-07-28).
+  //   회사 연결 완료 → 대시보드(redirectTo 존중) / 미완료 → 회사 설정 / 합류 대기 → join-pending.
+  //   handleLogin 의 safety-net 과 동일 분기 — 마운트 1회만 검사(가입 폼 흐름엔 세션이 없어 영향 없음).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user || cancelled) return;
+      const result = await provisionCompanyForUser(session.user).catch(() => "error" as const);
+      if (cancelled) return;
+      if (result === "join_pending") router.replace("/join-pending");
+      else if (result === "needs_company_setup" || result === "error") router.replace("/company-setup");
+      else if (result === "created") router.replace("/onboarding");
+      else router.replace(getRedirectPath()); // "exists" — 정상 계정
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   // C1 Fix: redirectTo 파라미터 존중
   function getRedirectPath(): string {
