@@ -12,12 +12,13 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { DateTimeField } from "@/components/datetime-field";
 import { DateField } from "@/components/date-field";
-import { kstLocalToIso } from "@/lib/kst";
+import { kstLocalToIso, kstDateStr } from "@/lib/kst";
 import {
   recomputeAttendance,
   recomputeMonthlyExtraPay,
   createAttendanceEditRequest,
   upsertAttendanceRecordAsAdmin,
+  getAttendanceCompanySettings,
   listAttendanceEditRequests,
   reviewAttendanceEditRequest,
   type MonthlyPayResult,
@@ -248,31 +249,71 @@ export function ManualAttendanceDialog({
   onClose: () => void;
   companyId: string;
   userId?: string | null;
-  employees: { id: string; name?: string | null; status?: string | null }[];
-  defaultDate: string; // 'YYYY-MM-DD'
+  employees: {
+    id: string; name?: string | null; status?: string | null;
+    work_start_time?: string | null; work_end_time?: string | null;
+  }[];
+  defaultDate: string; // 'YYYY-MM-DD' — 캘린더에서 선택한 날짜
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   // 재직 판정은 AttendanceTab 의 activeEmployees 와 동일 규칙 — 실데이터는 대부분 'joined'(초대 수락)
   //   이라 'active' 만 통과시키면 목록이 통째로 비어 보인다(2026-07-28 사장님 제보).
   const activeEmployees = (employees || []).filter((e) => e.status === "active" || e.status === "joined");
+  // 날짜는 위 '날짜' 칸 하나로만 고른다 — 출퇴근까지 날짜 픽커를 두면 같은 날짜를
+  //   세 번 고르게 되고 서로 어긋날 수도 있었다(2026-07-28 사장님 제보). 시각만 입력.
   const [form, setForm] = useState({
     employeeId: "",
     date: defaultDate,
-    checkIn: "",
-    checkOut: "",
+    checkInTime: "",   // 'HH:MM'
+    checkOutTime: "",  // 'HH:MM'
+    nextDayOut: false, // 자정을 넘겨 퇴근한 경우
     status: "",
     note: "",
   });
+  // 시각을 손으로 고친 뒤에는 기본값이 다시 덮어쓰지 않도록.
+  const [timesTouched, setTimesTouched] = useState(false);
 
-  // 날짜를 고르면 출퇴근 픽커의 날짜 부분도 따라가야 한다 — 시각만 입력해도 되게.
-  const setDate = (date: string) => {
+  // 회사 근무시간 — 출퇴근 시각 기본값 (2026-07-28 사장님 요청).
+  const { data: companySettings } = useQuery({
+    queryKey: ["attendance-company-settings", companyId],
+    queryFn: () => getAttendanceCompanySettings(companyId),
+    enabled: !!companyId && open,
+  });
+
+  const hhmm = (v?: string | null) => (typeof v === "string" && /^\d{2}:\d{2}/.test(v) ? v.slice(0, 5) : "");
+  // 직원 개인 출퇴근시간 override 가 있으면 회사 기본값보다 우선.
+  const defaultTimes = (employeeId: string) => {
+    const emp = activeEmployees.find((e) => e.id === employeeId);
+    return {
+      checkInTime: hhmm(emp?.work_start_time) || hhmm(companySettings?.work_start_time),
+      checkOutTime: hhmm(emp?.work_end_time) || hhmm(companySettings?.work_end_time),
+    };
+  };
+
+  // 열 때마다 캘린더에서 고른 날짜 + 회사 근무시간으로 초기화.
+  //   다이얼로그가 상시 마운트라 useState 초기값만으로는 두 번째 열 때 갱신되지 않는다.
+  React.useEffect(() => {
+    if (!open) return;
+    setTimesTouched(false);
     setForm((f) => ({
       ...f,
-      date,
-      checkIn: f.checkIn ? `${date}T${f.checkIn.slice(11, 16)}` : "",
-      checkOut: f.checkOut ? `${date}T${f.checkOut.slice(11, 16)}` : "",
+      date: defaultDate,
+      checkInTime: hhmm(companySettings?.work_start_time),
+      checkOutTime: hhmm(companySettings?.work_end_time),
+      nextDayOut: false,
     }));
+    // defaultDate·회사설정이 바뀌었을 때만 재초기화 (입력 중 리셋 방지).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultDate, companySettings?.work_start_time, companySettings?.work_end_time]);
+
+  /** 'YYYY-MM-DD' + 'HH:MM' → 저장용 ISO (KST 해석) */
+  const toIso = (date: string, time: string, plusDay = false) => {
+    if (!date || !time) return null;
+    const d = plusDay ? new Date(`${date}T00:00:00+09:00`) : null;
+    if (d) d.setUTCDate(d.getUTCDate() + 1);
+    const day = d ? kstDateStr(d) : date;
+    return kstLocalToIso(`${day}T${time}`);
   };
 
   const mut = useMutation({
@@ -281,8 +322,8 @@ export function ManualAttendanceDialog({
         companyId,
         employeeId: form.employeeId,
         date: form.date,
-        checkIn: kstLocalToIso(form.checkIn),
-        checkOut: kstLocalToIso(form.checkOut),
+        checkIn: toIso(form.date, form.checkInTime),
+        checkOut: toIso(form.date, form.checkOutTime, form.nextDayOut),
         status: form.status || undefined,
         note: form.note || null,
         editedBy: userId || null,
@@ -301,9 +342,11 @@ export function ManualAttendanceDialog({
   });
 
   // 출근 시각 없이 저장하면 "기록만 있고 시간이 없는" 행이 생겨 결근과 구분이 안 된다.
-  const canSave = !!form.employeeId && !!form.date && !!form.checkIn && !mut.isPending;
-  // 퇴근이 출근보다 빠르면 근무시간이 0 으로 저장돼버린다 — 저장 전에 막는다.
-  const outBeforeIn = !!form.checkIn && !!form.checkOut && form.checkOut < form.checkIn;
+  const canSave = !!form.employeeId && !!form.date && !!form.checkInTime && !mut.isPending;
+  // 같은 날인데 퇴근이 출근보다 빠르면 근무시간이 0 으로 저장돼버린다 — 저장 전에 막는다.
+  //   자정을 넘긴 근무는 '익일 퇴근' 을 켜면 되므로 그때는 정상.
+  const outBeforeIn = !form.nextDayOut && !!form.checkInTime && !!form.checkOutTime
+    && form.checkOutTime <= form.checkInTime;
 
   useModalKeys(open, onClose, canSave && !outBeforeIn ? () => mut.mutate() : undefined);
 
@@ -322,7 +365,12 @@ export function ManualAttendanceDialog({
             <label className="block text-xs text-[var(--text-muted)] mb-1">직원</label>
             <select
               value={form.employeeId}
-              onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+              onChange={(e) => {
+                const employeeId = e.target.value;
+                // 개인 출퇴근시간이 따로 설정된 직원이면 그 값으로 다시 채운다.
+                //   단, 관리자가 이미 시각을 손봤으면 건드리지 않는다.
+                setForm((f) => ({ ...f, employeeId, ...(timesTouched ? {} : defaultTimes(employeeId)) }));
+              }}
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
             >
               <option value="">직원 선택</option>
@@ -335,29 +383,47 @@ export function ManualAttendanceDialog({
             <label className="block text-xs text-[var(--text-muted)] mb-1">날짜</label>
             <DateField
               value={form.date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
             />
           </div>
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">출근 시각</label>
-            <DateTimeField
-              value={form.checkIn}
-              onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
-              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
-            />
+          <div className="manual-attendance-times">
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">출근 시각</label>
+              <input
+                type="time"
+                value={form.checkInTime}
+                onChange={(e) => { setTimesTouched(true); setForm({ ...form, checkInTime: e.target.value }); }}
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">
+                퇴근 시각 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 근무 중이면 비움</span>
+              </label>
+              <input
+                type="time"
+                value={form.checkOutTime}
+                onChange={(e) => { setTimesTouched(true); setForm({ ...form, checkOutTime: e.target.value }); }}
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+              />
+            </div>
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">
-              퇴근 시각 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 아직 근무 중이면 비워 두세요</span>
+            {/* 자정을 넘겨 퇴근한 날은 날짜 픽커 없이 표현할 수 없어 토글로 둔다. */}
+            <label className="manual-attendance-nextday">
+              <input
+                type="checkbox"
+                checked={form.nextDayOut}
+                onChange={(e) => setForm({ ...form, nextDayOut: e.target.checked })}
+                disabled={!form.checkOutTime}
+              />
+              <span>익일 퇴근 (자정 넘김)</span>
             </label>
-            <DateTimeField
-              value={form.checkOut}
-              onChange={(e) => setForm({ ...form, checkOut: e.target.value })}
-              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
-            />
             {outBeforeIn && (
-              <div className="text-[10px] text-[var(--danger)] mt-1">퇴근 시각이 출근 시각보다 빠릅니다.</div>
+              <div className="text-[10px] text-[var(--danger)] mt-1">
+                퇴근 시각이 출근 시각보다 빠릅니다. 자정을 넘겨 퇴근했다면 &lsquo;익일 퇴근&rsquo;을 체크하세요.
+              </div>
             )}
           </div>
           <div>

@@ -3863,6 +3863,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .attendance-edit-dialog-overlay { @apply z-50 flex items-center justify-center bg-black/60; } /* fixed inset-0 kept literal in JSX — class-attr CSS selector dependency */
 .attendance-edit-dialog-panel { @apply p-6 w-[420px] max-w-[90vw]; } /* glass-card (existing custom class) kept literal in JSX */
 .attendance-edit-form { @apply space-y-3; }
+.manual-attendance-times { @apply grid grid-cols-2 gap-3; }
+.manual-attendance-nextday { @apply flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer select-none; }
 .edit-request-inbox { @apply p-4 mb-4; } /* glass-card (existing custom class) kept literal in JSX */
 .edit-request-row { @apply px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }
 .channel-button { @apply w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition hover:bg-[var(--bg-surface)] text-[var(--text-muted)]; }
