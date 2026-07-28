@@ -19,6 +19,10 @@ import {
   AcctBeforePanel, BankBeforePanel, TaxBeforePanel,
 } from "./_components/before-frames";
 import { AnalyticsPanel, LedgerPanel, TaxRealPanel, ReconPanel } from "./_components/real-frames";
+import {
+  ProjectHubPanel, ApprovalsRealPanel, SignRealPanel, EmployeesRealPanel,
+  AttendanceRealPanel, BankRealPanel, CardsRealPanel, PaymentsRealPanel, CopilotRealPanel,
+} from "./_components/real-frames2";
 
 // ── Constants ──
 
@@ -794,22 +798,22 @@ export default function DemoPage() {
           {show("partners") && <PartnersPanel />}
           {show("voucher") && <VoucherPanel />}
           {show("schedule") && <SchedulePanel />}
-          {show("approvals") && <ApprovalsPanel />}
+          {show("approvals") && <ApprovalsRealPanel />}
           {show("board") && <BoardPanel />}
           {show("chat") && <ChatPanel />}
           {show("templates") && <TemplatesPanel />}
           {show("documents") && <DocumentsPanel />}
-          {show("bank") && <BankPanel />}
-          {show("cards") && <CardsPanel />}
-          {show("payments") && <PaymentsPanel />}
+          {show("bank") && <BankRealPanel />}
+          {show("cards") && <CardsRealPanel />}
+          {show("payments") && <PaymentsRealPanel />}
           {show("loans") && <LoansPanel />}
           {show("vault") && <VaultPanel />}
-          {show("projects") && <ProjectsPanel />}
+          {show("projects") && <ProjectHubPanel />}
           {(show("projects") || capAll) && <EstimatePanel />}
-          {show("contract") && <ContractPanel />}
+          {show("contract") && <SignRealPanel />}
           {(show("projects") || capAll) && <SettlementPanel />}
-          {show("members") && <MembersPanel />}
-          {(show("leave") || capAll) && <LeavePanel />}
+          {show("members") && <EmployeesRealPanel />}
+          {show("leave") && <AttendanceRealPanel />}
           {show("tax") && <TaxRealPanel />}
           {/* 랜딩 "처리 전 → 처리 후" 크로스페이드용 앞 상태 — 캡처 모드에서만 렌더 */}
           {capAll && <EstimateBeforePanel />}
@@ -826,7 +830,16 @@ export default function DemoPage() {
           {capAll && <TaxRealPanel before />}
           {capAll && <ReconPanel />}
           {capAll && <ReconPanel before />}
-          {show("copilot") && <CopilotPanel />}
+          {capAll && <ProjectHubPanel before />}
+          {capAll && <ApprovalsRealPanel before />}
+          {capAll && <SignRealPanel before />}
+          {capAll && <EmployeesRealPanel before />}
+          {capAll && <AttendanceRealPanel before />}
+          {capAll && <BankRealPanel before />}
+          {capAll && <CardsRealPanel before />}
+          {capAll && <PaymentsRealPanel before />}
+          {capAll && <CopilotRealPanel before />}
+          {show("copilot") && <CopilotRealPanel />}
           {(show("copilot") || capAll) && <BriefPanel />}
           {(show("approvals") || capAll) && <OcrPanel />}
 

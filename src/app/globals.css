@@ -1470,6 +1470,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pp-grid4 { @apply grid grid-cols-2 md:grid-cols-4 gap-3; }
 .pp-mini i { @apply not-italic text-[9.5px] text-[var(--text-dim)] mt-1; }
 .pp-dim { @apply text-[var(--text-dim)] font-normal; }
+.pp-statbar { @apply flex flex-wrap items-stretch gap-0 rounded-xl border border-[var(--border)] overflow-hidden mb-3; }
+.pp-statbar > span { @apply flex-1 min-w-[80px] flex flex-col items-center gap-0.5 px-3 py-3 border-r border-[var(--border)] last:border-r-0; }
+.pp-statbar i { @apply not-italic text-[10.5px] text-[var(--text-dim)]; }
+.pp-statbar b { @apply text-[16px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
 
 /* ── /demo 프로젝트 흐름 패널 (2026-07-27) — 랜딩 "견적부터 정산까지" 모션 섹션의 캡처 소스 ── */
 .flow-panel { @apply mb-5 p-6; }

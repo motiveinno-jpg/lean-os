@@ -520,7 +520,7 @@ export const CATALOG = [
     group: "자산관리",
     lead: "통장·카드·대출까지 회사 자산을 한 화면에서 봐요.",
     menus: [
-      { name: "통장", icon: "swap", src: "/product/f-bank-v1.png", alt: "오너뷰 통장 — 계좌 잔액과 거래내역",
+      { name: "통장", icon: "swap", src: "/product/f-bank2-v1.png", alt: "오너뷰 통장 — 계좌 잔액과 총 자산",
         desc: "은행 계좌를 실계좌로 연결해 잔액과 거래를 자동으로 받아요.",
         items: ["계좌별 잔액", "거래내역 자동 수집", "AI 계정과목 분류"] },
       { name: "카드", icon: "wallet", src: "/product/f-cards-v1.png", alt: "오너뷰 카드 — 사용액과 승인 내역",
