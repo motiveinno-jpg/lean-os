@@ -11,6 +11,7 @@ import {
 } from "./_components/menu-panels";
 import {
   ProjectsPanel, EstimatePanel, ContractPanel, SettlementPanel, MembersPanel, LeavePanel, TaxPanel,
+  EstimateBeforePanel, SettlementBeforePanel,
 } from "./_components/pillar-frames";
 import { CopilotPanel, BriefPanel, OcrPanel } from "./_components/ai-panels";
 
@@ -805,6 +806,8 @@ export default function DemoPage() {
           {show("members") && <MembersPanel />}
           {(show("leave") || capAll) && <LeavePanel />}
           {show("tax") && <TaxPanel />}
+          {capAll && <EstimateBeforePanel />}
+          {capAll && <SettlementBeforePanel />}
           {show("copilot") && <CopilotPanel />}
           {(show("copilot") || capAll) && <BriefPanel />}
           {(show("approvals") || capAll) && <OcrPanel />}

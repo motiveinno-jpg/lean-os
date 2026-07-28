@@ -131,9 +131,14 @@
   opacity:0; visibility:hidden; pointer-events:none; transition: opacity .18s ease, transform .18s ease; }
 .lp4-navdrop-open .lp4-mega, .lp4-navdrop:focus-within .lp4-mega {
   opacity:1; visibility:visible; pointer-events:auto; transform: translateX(-50%) translateY(0); }
+/* ⚠️ 유리 처리를 공통 규칙에서 받으면 뒤 배경이 비쳐 글씨가 안 읽힌다 —
+   드롭다운은 읽는 면이므로 불투명하게 둔다 (2026-07-28 사장님 지적) */
 .lp4-mega-inner { display:grid; grid-template-columns: 200px 1fr; gap:24px;
-  background:#fff; border:1px solid var(--line); border-radius:22px; padding:18px;
-  box-shadow: 0 34px 76px -32px rgba(27,26,46,.36); }
+  background:#fff !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+  border:1px solid var(--line); border-radius:22px; padding:18px;
+  box-shadow: 0 0 0 1px rgba(27,26,46,.05), 0 18px 36px -20px rgba(27,26,46,.28),
+    0 44px 88px -36px rgba(27,26,46,.4); }
+.lp4-mega-side { background: var(--canvas2) !important; box-shadow:none !important; border-color: transparent !important; }
 
 .lp4-mega-side { display:flex; flex-direction:column; gap:2px;
   background: var(--canvas2); border-radius:16px; padding:8px; }
@@ -411,6 +416,22 @@
   box-shadow: 0 40px 84px -34px rgba(27,26,46,.42);
   animation: lp4-mf-in .5s cubic-bezier(.2,.7,.3,1); }
 .lp4-mf-screen img { display:block; width:100%; height:auto; }
+/* 같은 화면의 앞 상태 → 완성 상태로 이어 보여준다 (2026-07-28)
+   두 장 다 실제 앱 화면이다. 가짜 UI 를 얹지 않는다. */
+.lp4-mf-screen-2 { position:relative; }
+.lp4-mf-screen-2 .lp4-mf-img { position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; object-position:top; opacity:0; transition: opacity .55s ease; }
+.lp4-mf-screen-2 .lp4-mf-img:last-of-type { position:relative; }
+.lp4-mf-img-on { opacity:1 !important; }
+/* 계산이 끝난 순간을 한 번 훑는 빛 */
+.lp4-mf-flash { position:absolute; inset:0; pointer-events:none; z-index:3; opacity:0; }
+.lp4-mf-flash-on { animation: lp4-sweep 1.1s ease-out; }
+@keyframes lp4-sweep {
+  0%   { opacity:0; background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,.85) 6%, transparent 14%); background-position:-40% 0; }
+  12%  { opacity:1; }
+  100% { opacity:0; background: linear-gradient(105deg, transparent 86%, rgba(255,255,255,.85) 94%, transparent 100%); background-position:140% 0; }
+}
+@media (prefers-reduced-motion: reduce){ .lp4-mf-flash-on { animation:none; } }
 @keyframes lp4-mf-in { from { opacity:0; transform: translateY(16px) scale(.985) } to { opacity:1; transform:none } }
 @media (max-width: 860px){ .lp4-mf-stage { padding:16px 0; } }
 

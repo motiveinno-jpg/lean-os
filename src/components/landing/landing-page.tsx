@@ -146,6 +146,18 @@ function PillarTabs() {
   const pick = (a: number, b: number) => { setAuto(false); setAx(a); setBl(b); };
   const P = PILLARS[ax];
   const B = P.blocks[bl];
+  const beforeSrc = (B as { before?: string }).before;
+
+  // "품목을 넣는 화면 → 완성된 화면" 처럼 같은 화면의 앞뒤 상태를 이어 보여준다.
+  //   ⚠️ 두 장 모두 실제 앱 화면이다. 가짜 UI 를 얹어 움직이게 만들지 말 것.
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    setPhase(0);
+    if (!beforeSrc) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setPhase(1); return; }
+    const t = setTimeout(() => setPhase(1), 1300);
+    return () => clearTimeout(t);
+  }, [ax, bl, beforeSrc]);
 
   return (
     <section className="lp4-section lp4-bg-tint" id="pillars" ref={ref}>
@@ -198,8 +210,22 @@ function PillarTabs() {
           {/* 원형 배경 위에 뜬 화면 — 바뀔 때 슬라이드 인, 주변 칩이 따라 뜬다 */}
           <div className="lp4-mf-stage">
             <span className="lp4-mf-orb" />
-            <div className="lp4-mf-screen" key={B.src}>
-              <Image src={B.src} alt={B.alt} width={1968} height={1320} sizes="(max-width: 1000px) 100vw, 800px" />
+            <div className={`lp4-mf-screen ${beforeSrc ? "lp4-mf-screen-2" : ""}`} key={`${P.key}-${bl}`}>
+              {beforeSrc && (
+                <Image
+                  className={`lp4-mf-img ${phase === 0 ? "lp4-mf-img-on" : ""}`}
+                  src={beforeSrc} alt={`${B.alt} — 입력 전`} width={1968} height={1320}
+                  sizes="(max-width: 1000px) 100vw, 800px"
+                />
+              )}
+              <Image
+                className={`lp4-mf-img ${!beforeSrc || phase === 1 ? "lp4-mf-img-on" : ""}`}
+                src={B.src} alt={B.alt} width={1968} height={1320}
+                sizes="(max-width: 1000px) 100vw, 800px"
+              />
+              {beforeSrc && (
+                <span className={`lp4-mf-flash ${phase === 1 ? "lp4-mf-flash-on" : ""}`} key={`fl-${P.key}-${bl}-${phase}`} />
+              )}
             </div>
           </div>
         </div>
@@ -493,7 +519,7 @@ export default function LandingPage() {
             <div className="lp4-eyebrow">Coverage</div>
             <h2 className="lp4-h2">회사 운영의 <span className="lp4-underline">전 영역을 다뤄요</span></h2>
             <p className="lp4-sub">
-              앞서 본 프로젝트·인사·회계는 그중 일부예요.
+              모듈을 더 살 일이 없어요.
               재무부터 자산까지 {CATALOG.length}개 영역이 하나의 데이터 위에서 이어져요.
             </p>
           </Reveal>

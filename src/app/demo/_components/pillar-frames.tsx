@@ -314,3 +314,85 @@ export function TaxPanel() {
     </section>
   );
 }
+
+// ── "계산 전" 상태 패널 (2026-07-28) ───────────────────────────
+//   랜딩 주요 기능에서 "품목을 넣는 화면 → 완성된 화면" 처럼 두 장면을 크로스페이드하려면
+//   같은 화면의 앞 상태가 필요하다. 실제 앱에서도 저장 전에는 합계가 비어 있으므로
+//   지어낸 화면이 아니라 같은 화면의 이전 단계다.
+
+export function EstimateBeforePanel() {
+  const items = [
+    { n: "기획 · 설계", q: "1식", u: "₩38,000,000" },
+    { n: "디자인 (메인 + 서브 12p)", q: "1식", u: "₩24,000,000" },
+    { n: "퍼블리싱 · 개발", q: "1식", u: "₩142,000,000" },
+    { n: "유지보수 (6개월)", q: "6개월", u: "₩8,000,000" },
+  ];
+  return (
+    <section className="pp glass-card" id="pp-estimate-b">
+      <PanelHead
+        menu="프로젝트 › 견적서"
+        title="품목만 넣으면 견적서가 완성돼요"
+        sub="수량·단가만 넣으면 공급가와 부가세가 자동으로 계산돼요"
+        right={<span className="pp-badge pp-badge-p">입력 중</span>}
+      />
+      <table className="pp-table">
+        <thead><tr><th>품목</th><th>수량</th><th>단가</th><th>금액</th></tr></thead>
+        <tbody>
+          {items.map((i) => (
+            <tr key={i.n}>
+              <td className="pp-strong">{i.n}</td>
+              <td>{i.q}</td>
+              <td className="pp-num">{i.u}</td>
+              <td className="pp-num">—</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="pp-grid3">
+        <div className="pp-mini"><span>공급가액</span><b>—</b></div>
+        <div className="pp-mini"><span>부가세 10%</span><b>—</b></div>
+        <div className="pp-mini"><span>합계</span><b>—</b></div>
+      </div>
+      <div className="pp-section-t">결제 조건</div>
+      <div className="pp-grid3">
+        <div className="pp-sub-card"><div className="pp-sub-t">선금 30%</div><div className="pp-stat"><b>—</b><span>계약 시</span></div></div>
+        <div className="pp-sub-card"><div className="pp-sub-t">중도금 40%</div><div className="pp-stat"><b>—</b><span>중간 검수</span></div></div>
+        <div className="pp-sub-card"><div className="pp-sub-t">잔금 30%</div><div className="pp-stat"><b>—</b><span>납품 완료</span></div></div>
+      </div>
+      <div className="pp-pay-cta">
+        <span className="pp-chip-ok">품목을 넣는 중이에요</span>
+        <span className="pp-btn">자동 계산</span>
+      </div>
+    </section>
+  );
+}
+
+export function SettlementBeforePanel() {
+  return (
+    <section className="pp glass-card" id="pp-settlement-b">
+      <PanelHead
+        menu="프로젝트 › 정산 확인"
+        title="계약·세금계산서·입금을 맞춰봐요"
+        sub="세 금액이 맞는지 알아서 대조하고, 맞으면 전표까지 만들어요"
+        right={<span className="pp-badge pp-badge-p">대조 중</span>}
+      />
+      <div className="pp-grid3">
+        <div className="pp-sub-card"><div className="pp-sub-t">① 계약 금액</div><div className="pp-stat"><b>₩277,200,000</b><span>하늘건설 사옥 리뉴얼</span></div></div>
+        <div className="pp-sub-card"><div className="pp-sub-t">② 세금계산서</div><div className="pp-stat"><b>확인 중…</b><span>국세청 조회</span></div></div>
+        <div className="pp-sub-card"><div className="pp-sub-t">③ 입금</div><div className="pp-stat"><b>확인 중…</b><span>국민 •••• 4821</span></div></div>
+      </div>
+      <div className="pp-section-t">자동 생성된 전표</div>
+      <table className="pp-table">
+        <thead><tr><th>계정과목</th><th>거래처</th><th>차변</th><th>대변</th></tr></thead>
+        <tbody>
+          <tr><td className="pp-strong">—</td><td>—</td><td className="pp-num">—</td><td className="pp-num">—</td></tr>
+          <tr><td className="pp-strong">—</td><td>—</td><td className="pp-num">—</td><td className="pp-num">—</td></tr>
+        </tbody>
+      </table>
+      <div className="pp-pay-cta">
+        <span className="pp-chip-ok">세 금액을 맞춰보는 중이에요</span>
+        <span className="pp-btn">대조 실행</span>
+      </div>
+    </section>
+  );
+}

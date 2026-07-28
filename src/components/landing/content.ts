@@ -216,14 +216,14 @@ export const PILLARS = [
         alt: "오너뷰 프로젝트 파이프라인",
       },
       {
-        tab: "견적서",
+        tab: "견적서", before: "/product/f-estimate-b-v1.png",
         title: "품목만 넣으면 견적서가 완성돼요",
         desc: "수량·단가만 넣으면 공급가와 부가세가 자동으로 계산돼요. 선금·중도금·잔금 비율까지 정해서 바로 보내요.",
         src: "/product/f-estimate-v1.png",
         alt: "오너뷰 견적서 작성 화면",
       },
       {
-        tab: "정산 확인",
+        tab: "정산 확인", before: "/product/f-settlement-b-v1.png",
         title: "계약·세금계산서·입금을 맞춰봐요",
         desc: "세 금액이 맞는지 알아서 대조하고, 맞으면 전표까지 만들어요. 대표님은 결과만 확인하면 돼요.",
         src: "/product/f-settlement-v1.png",
@@ -581,7 +581,7 @@ export const AI_AUTOMATION = [
 //   엔진은 자동화를 4개로 묶은 이름일 뿐이라 /ai 한곳에서 같이 설명한다 (2026-07-27).
 export const TOUR_HREF = "/features";
 export const NAV_LINKS = [
-  { href: TOUR_HREF, label: "오너뷰 둘러보기" },
+  { href: TOUR_HREF, label: "오너뷰 알아보기" },
   { href: "/ai", label: "AI 자동화" },
   { href: "/pricing", label: "가격" },
   { href: "#faq", label: "FAQ" },
