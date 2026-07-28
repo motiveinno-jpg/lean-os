@@ -38,7 +38,10 @@ export default function SystemPage() {
   const { data: plans = [] } = useQuery({
     queryKey: ["p-sys-plans"],
     queryFn: async () => {
-      const data = logRead('system/page:data', await db.from("subscription_plans").select("*").order("base_price", { ascending: true }));
+      // 비활성 요금제(구버전)는 숨긴다 — 2026-07-28 이전엔 필터가 없어 지운 줄 알았던
+      //   Starter·Pro 가 계속 보였다. 실제 행 삭제는 별건으로 처리함.
+      const data = logRead('system/page:data', await db.from("subscription_plans")
+        .select("*").eq("is_active", true).order("base_price", { ascending: true }));
       return data || [];
     },
   });
@@ -157,7 +160,10 @@ export default function SystemPage() {
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-[var(--text)]">{p.name}</span>
                     <span className="text-sm font-bold mono-number text-[var(--primary)]">
-                      ₩{(p.base_price || 0).toLocaleString()}/월
+                      {/* 엔터프라이즈는 가격 정책 미확정 — 고객용 billing 화면과 동일하게 표기 */}
+                      {p.slug === "enterprise"
+                        ? "별도 문의"
+                        : `₩${(p.base_price || 0).toLocaleString()}/월`}
                     </span>
                   </div>
                   <div className="text-xs text-[var(--text-dim)]">
