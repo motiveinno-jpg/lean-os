@@ -1,4 +1,5 @@
 import { logRead } from "@/lib/log-read";
+import { logServerError } from '@/lib/server-error-log';
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
@@ -119,6 +120,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, status: 'pending', requestId: reqRow.id, companyNameMasked: mask(company.name) });
   } catch (err: any) {
+    await logServerError({ where: 'join-request', message: err?.message || '서버 오류' });
     return NextResponse.json({ error: err?.message || '서버 오류' }, { status: 500 });
   }
 }

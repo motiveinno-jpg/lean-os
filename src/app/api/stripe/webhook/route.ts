@@ -1,4 +1,5 @@
 import { logRead } from "@/lib/log-read";
+import { logServerError } from '@/lib/server-error-log';
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -67,6 +68,8 @@ export async function POST(request: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Webhook handler error';
     console.error(`Webhook handler error [${event.type}]:`, message);
+    // 웹훅 실패 = 결제는 됐는데 구독 반영이 안 되는 최악 유형 — 시스템 상태 화면에 노출 (2026-07-28)
+    await logServerError({ where: 'stripe-webhook', message: `${event.type}: ${message}` });
     return NextResponse.json(
       { error: { code: 'HANDLER_ERROR', message } },
       { status: 500 },

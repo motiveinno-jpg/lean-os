@@ -249,7 +249,7 @@ export default function PlatformOverview() {
     { label: "신규 도입문의", n: (newInquiries as any[]).length, href: "/platform/partnership", icon: "📥" },
     { label: "미답변 고객센터", n: (openTickets as any[]).length, href: "/platform/support", icon: "🎧" },
     { label: "미처리 피드백", n: pendingFeedback, href: "/platform/feedback", icon: "💬" },
-    { label: "24시간 에러", n: recentErrors.length, href: "/platform/errors", icon: "🚨", danger: recentErrors.length > 50 },
+    { label: "24시간 에러", n: recentErrors.length, href: "/platform/health", icon: "🚨", danger: recentErrors.length > 50 },
   ];
   const todoTotal = inboxItems.reduce((s, i) => s + i.n, 0);
 

@@ -1,4 +1,5 @@
 import { logRead } from "@/lib/log-read";
+import { logServerError } from '@/lib/server-error-log';
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
@@ -149,6 +150,7 @@ export async function POST(req: NextRequest) {
       existingUser: !!existingUser,
     });
   } catch (err: any) {
+    await logServerError({ where: 'invite-accept', message: err?.message || '서버 오류' });
     return NextResponse.json({ error: err.message || '서버 오류' }, { status: 500 });
   }
 }

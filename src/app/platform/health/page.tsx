@@ -1,0 +1,185 @@
+"use client";
+// 시스템 상태 (2026-07-28) — 에러해석·의존성·사고기록·감사로그 4개 화면 통합.
+//   비개발자 운영자의 세 질문에 답한다: ① 지금 문제 있나(신호등) ② 무슨 일이
+//   있었나(사람 언어 타임라인) ③ 뭘 해야 하나(문제 항목에 색·안내).
+//   30초 자동 갱신. 원본 상세(에러·사고·감사·의존성)는 하단 링크로 유지.
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { explainError } from "@/lib/operator-error-explain";
+import Link from "next/link";
+
+const db = supabase;
+
+type Feed = {
+  as_of: string; hours: number;
+  health: {
+    signup: { accounts: number; companies: number };
+    payment: { subs_started: number; failures: number };
+    errors_24h: number;
+    notifications_24h: number;
+    active_users_24h: number;
+  };
+  feed: { at: string; kind: string; who: string | null; what: string | null; extra: string | null }[];
+};
+type DepsHealth = {
+  supabase: { errors_1h: number };
+  stripe: { failed_invoices_24h: number };
+  codef: { bank_tx_24h: number; card_tx_24h: number };
+};
+
+// 고객 활동(audit_logs)의 entity.action → 사람 언어
+const AUDIT_LABEL: Record<string, string> = {
+  "approval_request.created": "결재 요청 생성",
+  "approval_request.auto_approved": "결재 자동 승인",
+  "approval_step.approved": "결재 승인",
+  "approval_step.rejected": "결재 반려",
+  "signature_request.created": "전자계약 발송",
+  "signature_request.completed": "전자계약 서명 완료",
+  "employee.created": "직원 등록",
+  "employee.updated": "직원 정보 수정",
+  "deal.created": "프로젝트 생성",
+  "invoice.issued": "세금계산서 발행",
+};
+const auditLabel = (code?: string | null) => {
+  if (!code) return "활동";
+  if (AUDIT_LABEL[code]) return AUDIT_LABEL[code];
+  const [entity, action] = code.split(".");
+  return `${entity || "항목"} ${action || "변경"}`;
+};
+
+const fmtKst = (iso: string) =>
+  new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+function feedLine(f: Feed["feed"][number]): { icon: string; text: string; sub: string; tone?: "danger" | "warn" } {
+  switch (f.kind) {
+    case "account":
+      return { icon: "🧑", text: `계정 생성 — ${f.who}`, sub: `${f.what === "email" ? "이메일" : f.what} 가입` };
+    case "company":
+      return { icon: "🏢", text: `회사 개설 — ${f.who}`, sub: f.what ? `사업자번호 ${f.what}` : "" };
+    case "subscription":
+      return {
+        icon: "💳",
+        text: `${f.who} — ${f.what === "trialing" ? "무료체험 시작" : "구독 시작"}`,
+        sub: f.extra ? `${f.extra} 플랜` : "",
+      };
+    case "audit":
+      return { icon: "📋", text: `${f.who || "고객사"} — ${auditLabel(f.what)}`, sub: f.extra ? `처리: ${f.extra}` : "" };
+    case "error": {
+      const exp = explainError(f.what, f.extra, null);
+      return { icon: "⚠️", text: `오류 — ${exp?.what || f.what || "알 수 없는 오류"}`, sub: `${f.who ? `발생: ${f.who}` : ""}${exp?.fix ? ` · 조치: ${exp.fix}` : ""}`, tone: "danger" };
+    }
+    case "operator":
+      return { icon: "🛠️", text: `운영자 작업 — ${f.what}`, sub: f.who || "" };
+    default:
+      return { icon: "•", text: f.what || f.kind, sub: "" };
+  }
+}
+
+function Light({ label, tone, desc }: { label: string; tone: "ok" | "warn" | "danger" | "loading"; desc: string }) {
+  const color =
+    tone === "ok" ? "text-[var(--success)]" :
+    tone === "warn" ? "text-[var(--warning)]" :
+    tone === "danger" ? "text-[var(--danger)]" : "text-[var(--text-dim)]";
+  return (
+    <div className="platform-light">
+      <span className={`text-lg leading-none ${color}`}>●</span>
+      <div className="min-w-0">
+        <div className="text-[13px] font-bold text-[var(--text)]">{label}</div>
+        <div className="text-[11px] text-[var(--text-dim)] truncate">{desc}</div>
+      </div>
+    </div>
+  );
+}
+
+export default function PlatformHealthPage() {
+  const { data, isLoading } = useQuery<Feed | null>({
+    queryKey: ["p-activity-feed"],
+    queryFn: async () => {
+      const { data, error } = await (db as any).rpc("platform_activity_feed", { p_hours: 48, p_limit: 120 });
+      if (error) return null;
+      return data as Feed;
+    },
+    refetchInterval: 30_000,
+  });
+  const { data: deps } = useQuery<DepsHealth | null>({
+    queryKey: ["op-deps-health"],
+    queryFn: async () => {
+      const { data, error } = await (db as any).rpc("operator_dependencies_health");
+      if (error) return null;
+      return data as DepsHealth;
+    },
+    refetchInterval: 60_000,
+  });
+
+  const h = data?.health;
+  // 신호 판정 — 실측 기반. "계정만 생기고 회사 등록이 없는 날"은 가입 흐름 점검 신호.
+  const signupTone = !h ? "loading" : h.signup.accounts > 0 && h.signup.companies === 0 ? "warn" : "ok";
+  const payTone = !h ? "loading" : h.payment.failures > 0 ? "danger" : "ok";
+  const errTone = !h ? "loading" : h.errors_24h > 10 ? "danger" : h.errors_24h > 0 ? "warn" : "ok";
+  const depsTone = !deps ? "loading" :
+    (deps.supabase.errors_1h > 50 || deps.stripe.failed_invoices_24h > 5) ? "warn" : "ok";
+
+  return (
+    <div className="max-w-5xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-extrabold text-[var(--text)]">시스템 상태</h1>
+        <p className="text-xs text-[var(--text-dim)] mt-1">30초마다 자동 갱신 · 최근 48시간의 모든 활동을 시간순으로 보여줍니다</p>
+      </div>
+
+      {/* ① 지금 문제 있나 — 신호등 */}
+      <div className="platform-light-row glass-card">
+        <Light label="가입" tone={signupTone as never}
+          desc={h ? `24시간: 계정 ${h.signup.accounts} · 회사 등록 ${h.signup.companies}` : "확인 중"} />
+        <Light label="결제" tone={payTone as never}
+          desc={h ? (h.payment.failures > 0 ? `실패 ${h.payment.failures}건 — 확인 필요` : `구독 시작 ${h.payment.subs_started}건 · 실패 없음`) : "확인 중"} />
+        <Light label="오류" tone={errTone as never}
+          desc={h ? (h.errors_24h === 0 ? "24시간 오류 없음" : `24시간 ${h.errors_24h}건`) : "확인 중"} />
+        <Light label="외부 서비스" tone={depsTone as never}
+          desc={deps ? "Supabase · Stripe · CODEF 정상 범위" : "확인 중"} />
+        <Light label="이용" tone={h ? "ok" : "loading"}
+          desc={h ? `24시간 접속 ${h.active_users_24h}명 · 알림 ${h.notifications_24h}건` : "확인 중"} />
+      </div>
+
+      {/* ② 무슨 일이 있었나 — 사람 언어 타임라인 */}
+      <div className="glass-card p-0 overflow-hidden">
+        <div className="platform-card-head">
+          <span className="platform-card-title">무슨 일이 있었나</span>
+          <span className="text-[11px] text-[var(--text-dim)]">최근 48시간 · 최신순</span>
+        </div>
+        {isLoading ? (
+          <div className="px-4 py-8 text-center text-sm text-[var(--text-dim)]">불러오는 중...</div>
+        ) : (data?.feed?.length ?? 0) === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-[var(--text-dim)]">최근 48시간 동안 기록된 활동이 없습니다.</div>
+        ) : (
+          <div className="platform-rail-rows">
+            {data!.feed.map((f, i) => {
+              const l = feedLine(f);
+              return (
+                <div key={i} className={`platform-feed-row ${l.tone === "danger" ? "platform-feed-danger" : ""}`}>
+                  <span className="text-sm shrink-0">{l.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-[13px] font-semibold truncate ${l.tone === "danger" ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{l.text}</div>
+                    {l.sub && <div className="text-[11px] text-[var(--text-dim)] truncate">{l.sub}</div>}
+                  </div>
+                  <span className="text-[11px] text-[var(--text-dim)] mono-number shrink-0">{fmtKst(f.at)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 원본 상세 — 기존 화면들 (메뉴에서는 빠지고 여기서만 진입) */}
+      <div className="platform-detail-links">
+        {[
+          { href: "/platform/errors", label: "에러 원본·해석" },
+          { href: "/platform/dependencies", label: "외부 서비스 상세" },
+          { href: "/platform/incidents", label: "사고 기록" },
+          { href: "/platform/audit", label: "운영자 행동 로그" },
+        ].map((l) => (
+          <Link key={l.href} href={l.href} className="platform-detail-link">{l.label} →</Link>
+        ))}
+      </div>
+    </div>
+  );
+}

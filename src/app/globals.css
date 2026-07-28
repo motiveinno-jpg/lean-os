@@ -2907,6 +2907,14 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-rail-stats > div { @apply flex flex-col gap-0.5 px-4 py-3.5; }
 .platform-rail-stats > div > span:last-child { @apply text-[10px] text-[var(--text-dim)]; }
 
+/* 시스템 상태 통합 페이지 (2026-07-28) — 신호등 + 사람언어 타임라인 */
+.platform-light-row { @apply grid grid-cols-2 md:grid-cols-5 gap-1 p-3; }
+.platform-light { @apply flex items-center gap-2.5 px-3 py-2.5 rounded-xl; }
+.platform-feed-row { @apply flex items-center gap-2.5 px-4 py-2.5 transition hover:bg-[var(--bg-surface)]/60; }
+.platform-feed-danger { @apply bg-[var(--danger-dim)]/40; }
+.platform-detail-links { @apply flex flex-wrap gap-2; }
+.platform-detail-link { @apply px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] transition; }
+
 /* 가입 퍼널 단계 클릭 → 명단 (2026-07-28) */
 .platform-funnel-step-btn { @apply text-left rounded-xl px-3 py-2 -mx-3 -my-2 transition hover:bg-[var(--bg-surface)] cursor-pointer; }
 .platform-funnel-step-active { @apply bg-[var(--primary)]/8 ring-1 ring-[var(--primary)]/30; }

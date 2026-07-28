@@ -34,12 +34,11 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "운영 (OP)",
     items: [
+      // 2026-07-28 통합: 에러해석·의존성·사고기록·감사로그 4개 → "시스템 상태" 1개.
+      //   기존 화면들은 라우트 유지(시스템 상태 하단 링크로 진입) — 메뉴에서만 제거.
+      { href: "/platform/health", label: "시스템 상태", icon: "alert" },
       { href: "/platform/averages", label: "재무평균", icon: "trending" },
       { href: "/platform/industry", label: "업계분석", icon: "layers" },
-      { href: "/platform/errors", label: "에러해석", icon: "alert" },
-      { href: "/platform/dependencies", label: "의존성", icon: "link" },
-      { href: "/platform/incidents", label: "사고기록", icon: "siren" },
-      { href: "/platform/audit", label: "감사로그", icon: "shield" },
     ],
   },
   {
