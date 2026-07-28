@@ -115,7 +115,10 @@ export async function createCompanyWithOwner(
     userErr = updErr || (updated && updated.length > 0 ? null : { message: "기존 계정 정보를 갱신하지 못했습니다. 고객센터로 문의해주세요." });
   }
   if (userErr) {
-    await db.from("companies").delete().eq("id", companyId); // 고아 회사 정리
+    // 고아 회사 정리 — 직접 delete 는 소속 없는 사용자의 RLS 에 조용히 막힌다(0행 매칭).
+    //   2026-07-28 실사례: 정리 실패로 유령 회사가 남아 그 사업자번호가 영구 잠김.
+    //   소속 0명 회사만 지우는 SECURITY DEFINER RPC 로 정리.
+    await (db as any).rpc("cleanup_orphan_company", { p_company_id: companyId });
     return { ok: false, error: userErr.message };
   }
 
