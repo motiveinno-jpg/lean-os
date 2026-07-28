@@ -687,11 +687,9 @@
 .lp4-mob { position:relative; background: linear-gradient(180deg, var(--canvas2), var(--canvas)); }
 .lp4-mob-pin { padding:104px 0; }
 @media (min-width: 1000px){
-  /* 모바일도 같은 기준 — 단계당 약 12vh */
-  .lp4-mob { height: calc(var(--mn) * 45vh); }
-  .lp4-mob-pin { position:sticky; top:0; height:100vh; display:flex; align-items:center; padding:0; }
-  /* ⚠️ flex 자식이라 컨테이너가 내용 폭(972px)까지 쪼그라들어 이 구간부터 화면이 좁아 보였다 */
-  .lp4-mob-pin > .lp4-container { width:100%; }
+  /* 스크롤 구동 → 자동 롤링으로 바꾸면서 핀 스크롤(트랙 높이 + sticky)을 걷어냈다.
+     이제 다른 섹션과 같은 여백만 준다 (트랙이 없으니 --mn 도 필요 없다) */
+  .lp4-mob-pin { padding:190px 0; }
 }
 .lp4-mob-grid { display:grid; grid-template-columns:1fr; gap:48px; align-items:center; }
 /* 좌측 카피를 폰 높이에 맞춰 늘리고, 제목은 위 · 단계는 아래로 붙여 가운데를 비운다 */

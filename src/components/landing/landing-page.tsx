@@ -237,40 +237,33 @@ function PillarTabs() {
   );
 }
 
-// 모바일 — 스크롤을 내리면 문구와 폰 화면이 순서대로 넘어간다.
+// 모바일 — 화면에 들어오면 문구와 폰 화면이 자동으로 넘어간다.
 //   좌: 큰 헤드라인(둘째 줄은 흐리게) + 설명 / 우: 실제 모바일 화면이 든 폰 목업.
-function MobileScroll() {
+//   좌측 아래 단계 문구와 폰 화면은 같은 i 를 쓰므로 언제나 같이 넘어간다.
+function MobileAuto() {
   const [i, setI] = useState(0);
   const ref = useRef<HTMLElement>(null);
+  const [live, setLive] = useState(false);
   const n = MOBILE.steps.length;
 
+  // 화면에 들어와 있을 때만 돌린다 (주요 기능 탭과 동일)
   useEffect(() => {
     const el = ref.current; if (!el) return;
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const r = el.getBoundingClientRect();
-        const total = r.height - window.innerHeight;
-        if (total <= 0) return;
-        const p = Math.min(1, Math.max(0, -r.top / total));
-        setI(Math.min(n - 1, Math.floor(p * n)));
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [n]);
+    const io = new IntersectionObserver((es) => setLive(es[0].isIntersecting), { threshold: 0.25 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!live) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setI((v) => (v + 1) % n), 3600);
+    return () => clearInterval(t);
+  }, [live, n]);
 
   const S = MOBILE.steps[i];
   return (
-    <section className="lp4-mob" id="mobile" ref={ref} style={{ ["--mn" as string]: n }}>
+    <section className="lp4-mob" id="mobile" ref={ref}>
       <div className="lp4-mob-pin">
         <div className="lp4-container lp4-mob-grid">
           <div className="lp4-mob-copy">
@@ -612,7 +605,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ 모바일 — 스크롤에 따라 문구·화면이 넘어간다 ══ */}
-      <MobileScroll />
+      <MobileAuto />
 
       {/* ══ FAQ ══ */}
       <section className="lp4-section lp4-bg-canvas" id="faq">
