@@ -7,6 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { explainError } from "@/lib/operator-error-explain";
 import Link from "next/link";
+import { useMemo, useState } from "react";
+import { SystemTabs } from "../_components/system-tabs";
 
 const db = supabase;
 
@@ -120,12 +122,30 @@ export default function PlatformHealthPage() {
   const depsTone = !deps ? "loading" :
     (deps.supabase.errors_1h > 50 || deps.stripe.failed_invoices_24h > 5) ? "warn" : "ok";
 
+  // 회사별 필터 (2026-07-28 사장님 요청) — 전 회사 활동이 한데 섞여 회사가 늘면 못 쓰게 되는 문제.
+  //   피드에 등장한 회사명으로 드롭다운을 만들고, 선택 시 그 회사 관련 항목만 표시.
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const feedCompanies = useMemo(() => {
+    const set = new Set<string>();
+    (data?.feed ?? []).forEach((f) => {
+      if ((f.kind === "company" || f.kind === "subscription" || f.kind === "audit" || f.kind === "error") && f.who) set.add(f.who);
+    });
+    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [data]);
+  const shownFeed = useMemo(() => {
+    const feed = data?.feed ?? [];
+    if (companyFilter === "all") return feed;
+    return feed.filter((f) => f.who === companyFilter);
+  }, [data, companyFilter]);
+
   return (
     <div className="max-w-5xl space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold text-[var(--text)]">시스템 상태</h1>
         <p className="text-xs text-[var(--text-dim)] mt-1">30초마다 자동 갱신 · 최근 48시간의 모든 활동을 시간순으로 보여줍니다</p>
       </div>
+
+      <SystemTabs />
 
       {feedError && (
         <div className="platform-check-failed-banner">
@@ -154,17 +174,27 @@ export default function PlatformHealthPage() {
       <div className="glass-card p-0 overflow-hidden">
         <div className="platform-card-head">
           <span className="platform-card-title">무슨 일이 있었나</span>
-          <span className="text-[11px] text-[var(--text-dim)]">최근 48시간 · 최신순</span>
+          <div className="flex items-center gap-2">
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="platform-feed-company-select"
+            >
+              <option value="all">전체 회사</option>
+              {feedCompanies.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <span className="text-[11px] text-[var(--text-dim)]">최근 48시간 · {shownFeed.length}건</span>
+          </div>
         </div>
         {isLoading ? (
           <div className="px-4 py-8 text-center text-sm text-[var(--text-dim)]">불러오는 중...</div>
         ) : feedError ? (
           <div className="px-4 py-8 text-center text-sm text-[var(--text-dim)]">위 안내를 확인하세요 — 데이터 조회에 실패했습니다.</div>
-        ) : (data?.feed?.length ?? 0) === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-[var(--text-dim)]">최근 48시간 동안 기록된 활동이 없습니다.</div>
+        ) : shownFeed.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-[var(--text-dim)]">{companyFilter === "all" ? "최근 48시간 동안 기록된 활동이 없습니다." : "이 회사의 최근 활동이 없습니다."}</div>
         ) : (
           <div className="platform-rail-rows">
-            {data!.feed.map((f, i) => {
+            {shownFeed.map((f, i) => {
               const l = feedLine(f);
               return (
                 <div key={i} className={`platform-feed-row ${l.tone === "danger" ? "platform-feed-danger" : ""}`}>
@@ -181,17 +211,6 @@ export default function PlatformHealthPage() {
         )}
       </div>
 
-      {/* 원본 상세 — 기존 화면들 (메뉴에서는 빠지고 여기서만 진입) */}
-      <div className="platform-detail-links">
-        {[
-          { href: "/platform/errors", label: "에러 원본·해석" },
-          { href: "/platform/dependencies", label: "외부 서비스 상세" },
-          { href: "/platform/incidents", label: "사고 기록" },
-          { href: "/platform/audit", label: "운영자 행동 로그" },
-        ].map((l) => (
-          <Link key={l.href} href={l.href} className="platform-detail-link">{l.label} →</Link>
-        ))}
-      </div>
     </div>
   );
 }

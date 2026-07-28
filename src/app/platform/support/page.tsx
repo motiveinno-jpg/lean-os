@@ -8,7 +8,7 @@ import { logRead } from "@/lib/log-read";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { OpsSearch, OpsExportButton, exportCsv } from "../_components/ops-kit";
+import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { getCurrentUser } from "@/lib/queries";
 
 const db = supabase;
@@ -83,9 +83,16 @@ export default function PlatformSupportPage() {
 
   // 검색 (2026-07-28 전면 정비) — 제목·내용·회사·문의자
   const [search, setSearch] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    tickets.forEach((t) => { if (t.companies?.name) set.add(t.companies.name); });
+    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [tickets]);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tickets.filter((t) => {
+      if (companyFilter !== "all" && (t.companies?.name || "") !== companyFilter) return false;
       if (filter !== "all" && t.status !== filter) return false;
       if (!q) return true;
       return (
@@ -95,7 +102,7 @@ export default function PlatformSupportPage() {
         (t.users?.name || t.users?.email || "").toLowerCase().includes(q)
       );
     });
-  }, [tickets, filter, search]);
+  }, [tickets, filter, search, companyFilter]);
   const openCount = useMemo(() => tickets.filter((t) => t.status === "open").length, [tickets]);
 
   return (
@@ -104,6 +111,7 @@ export default function PlatformSupportPage() {
         <h1 className="text-2xl font-extrabold text-[var(--text)]">고객센터 문의</h1>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {openCount > 0 && <span className="px-2.5 py-1 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">미답변 {openCount}</span>}
+          <OpsCompanySelect value={companyFilter} onChange={setCompanyFilter} options={companyOptions} />
           <OpsSearch value={search} onChange={setSearch} placeholder="제목·내용·회사 검색" />
           <OpsExportButton
             disabled={filtered.length === 0}

@@ -1,4 +1,5 @@
 "use client";
+import { SystemTabs } from "../_components/system-tabs";
 
 import { useState } from "react";
 import { DateTimeField } from "@/components/datetime-field";
@@ -99,6 +100,7 @@ export default function PlatformIncidentsPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
+      <SystemTabs />
       <div className="platform-incident-toolbar">
         <div className="flex flex-wrap items-baseline gap-2">
           <h1 className="text-2xl font-extrabold text-[var(--text)]">사고 기록</h1>

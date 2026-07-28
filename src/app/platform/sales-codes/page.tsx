@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { OpsExportButton, exportCsv } from "../_components/ops-kit";
+import { OpsExportButton, OpsCompanySelect, exportCsv } from "../_components/ops-kit";
 import { useToast } from "@/components/toast";
 import {
   listSalesCodes,
@@ -38,6 +38,7 @@ export default function SalesCodesPage() {
   const [tab, setTab] = useState<"signups" | "codes">("signups");
   const [form, setForm] = useState({ code: "", ownerName: "", ownerEmail: "", ownerPhone: "", memo: "", bonusTrialDays: "30" });
   const [codeFilter, setCodeFilter] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("all");
 
   const { data: codes = [], isLoading: codesLoading } = useQuery({
     queryKey: ["sales-codes"],
@@ -89,13 +90,18 @@ export default function SalesCodesPage() {
     return m;
   }, [signups]);
 
+  const signupCompanyOptions = useMemo(() => {
+    const set = new Set<string>();
+    (signups as SalesCodeSignup[]).forEach((r: any) => { if (r.company_name) set.add(r.company_name); });
+    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [signups]);
   const filteredSignups = useMemo(() => {
     const q = codeFilter.trim().toUpperCase();
     if (!q) return signups as SalesCodeSignup[];
     return (signups as SalesCodeSignup[]).filter(
       (s) => s.code.includes(q) || s.owner_name.toUpperCase().includes(q) || s.company_name.toUpperCase().includes(q),
     );
-  }, [signups, codeFilter]);
+  }, [signups, codeFilter]).filter((r: any) => companyFilter === "all" || r.company_name === companyFilter);
 
   const canSubmit =
     SALES_CODE_PATTERN.test(normalizeSalesCode(form.code)) && form.ownerName.trim().length > 0 && !createMut.isPending;
@@ -123,6 +129,7 @@ export default function SalesCodesPage() {
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <h2 className="text-sm font-bold">어떤 영업코드로 어떤 회사가 가입했는지</h2>
             <div className="flex items-center gap-2">
+              <OpsCompanySelect value={companyFilter} onChange={setCompanyFilter} options={signupCompanyOptions} />
               <input
                 value={codeFilter}
                 onChange={(e) => setCodeFilter(e.target.value)}

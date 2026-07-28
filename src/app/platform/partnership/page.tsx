@@ -7,7 +7,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useMemo, useState } from "react";
-import { OpsSearch, OpsExportButton, exportCsv } from "../_components/ops-kit";
+import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { kstDateStr } from "@/lib/kst";
 
 const db = supabase;
@@ -48,15 +48,23 @@ export default function PlatformPartnershipPage() {
 
   // 검색 (2026-07-28 전면 정비) — 회사·담당자·이메일·내용
   const [search, setSearch] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((it) => { if (it.company_name) set.add(it.company_name); });
+    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [items]);
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((it) =>
-      (it.company_name || "").toLowerCase().includes(q) ||
-      (it.contact_name || "").toLowerCase().includes(q) ||
-      (it.email || "").toLowerCase().includes(q) ||
-      (it.message || "").toLowerCase().includes(q));
-  }, [items, search]);
+    return items.filter((it) => {
+      if (companyFilter !== "all" && (it.company_name || "") !== companyFilter) return false;
+      if (!q) return true;
+      return (it.company_name || "").toLowerCase().includes(q) ||
+        (it.contact_name || "").toLowerCase().includes(q) ||
+        (it.email || "").toLowerCase().includes(q) ||
+        (it.message || "").toLowerCase().includes(q);
+    });
+  }, [items, search, companyFilter]);
 
   const setStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -76,6 +84,7 @@ export default function PlatformPartnershipPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <OpsCompanySelect value={companyFilter} onChange={setCompanyFilter} options={companyOptions} />
           <OpsSearch value={search} onChange={setSearch} placeholder="회사·담당자·이메일 검색" />
           <OpsExportButton
             disabled={shown.length === 0}

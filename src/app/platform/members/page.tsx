@@ -41,6 +41,8 @@ export default function PlatformMembersPage() {
     return new URLSearchParams(window.location.search).get("q") || "";
   });
   const [roleFilter, setRoleFilter] = useState("all");
+  // 회사별 보기 (2026-07-28 사장님 요청)
+  const [companyFilter, setCompanyFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: members = [], isLoading } = useQuery<MemberRow[]>({
@@ -55,9 +57,17 @@ export default function PlatformMembersPage() {
     refetchInterval: 60_000,
   });
 
+  const companyOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    members.forEach((m) => { if (m.company_id && m.companies?.name) map.set(m.company_id, m.companies.name); });
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], "ko"));
+  }, [members]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return members.filter((m) => {
+      if (companyFilter === "none" && m.company_id) return false;
+      if (companyFilter !== "all" && companyFilter !== "none" && m.company_id !== companyFilter) return false;
       if (roleFilter !== "all" && m.role !== roleFilter) return false;
       if (!q) return true;
       return (
@@ -66,13 +76,23 @@ export default function PlatformMembersPage() {
         (m.companies?.name || "").toLowerCase().includes(q)
       );
     });
-  }, [members, search, roleFilter]);
+  }, [members, search, roleFilter, companyFilter]);
 
   return (
     <div className="max-w-6xl space-y-6">
       <OpsPageHeader title="사용자 관리" sub="계정 지원 — 비밀번호 재설정 · 이메일 변경 · 잠금 · 역할 · 1분마다 자동 갱신">
         <div className="flex flex-wrap items-center gap-2">
           <OpsSearch value={search} onChange={setSearch} placeholder="이름·이메일·회사 검색" />
+          <select
+            value={companyFilter}
+            onChange={(e) => setCompanyFilter(e.target.value)}
+            className="platform-feed-company-select"
+            title="회사별로 보기"
+          >
+            <option value="all">전체 회사</option>
+            <option value="none">무소속</option>
+            {companyOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select>
           <OpsExportButton
             disabled={filtered.length === 0}
             onClick={() => exportCsv(filtered.map((m) => ({

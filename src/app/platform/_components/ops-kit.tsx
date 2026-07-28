@@ -51,6 +51,18 @@ export function exportCsv(rows: Record<string, unknown>[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/** 회사별 보기 셀렉트 — 목록에 등장한 회사명으로 옵션 구성 (2026-07-28) */
+export function OpsCompanySelect({ value, onChange, options }: {
+  value: string; onChange: (v: string) => void; options: string[];
+}) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="platform-feed-company-select" title="회사별로 보기">
+      <option value="all">전체 회사</option>
+      {options.map((name) => <option key={name} value={name}>{name}</option>)}
+    </select>
+  );
+}
+
 /** 내보내기 버튼 */
 export function OpsExportButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (

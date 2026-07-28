@@ -1,4 +1,5 @@
 "use client";
+import { SystemTabs } from "../_components/system-tabs";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -123,6 +124,7 @@ export default function PlatformDependenciesPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
+      <SystemTabs />
       {failReason && (
         <div className="platform-check-failed-banner">
           <span className="font-bold">⚠️ 서비스 상태를 판정하지 못했습니다.</span> {failReason}

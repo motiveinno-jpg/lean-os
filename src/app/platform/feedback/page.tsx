@@ -5,7 +5,7 @@ import { logRead } from "@/lib/log-read";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useMemo, useState } from "react";
-import { OpsSearch, OpsExportButton, exportCsv } from "../_components/ops-kit";
+import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
 
 const db = supabase;
 
@@ -40,15 +40,23 @@ export default function FeedbackPage() {
 
   // 검색 (2026-07-28 전면 정비) — 제목·내용·회사·작성자
   const [search, setSearch] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    feedback.forEach((f: any) => { if (f.companies?.name) set.add(f.companies.name); });
+    return [...set].sort((a: string, b: string) => a.localeCompare(b, "ko"));
+  }, [feedback]);
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return feedback;
-    return feedback.filter((f: any) =>
-      (f.title || "").toLowerCase().includes(q) ||
-      (f.description || "").toLowerCase().includes(q) ||
-      (f.companies?.name || "").toLowerCase().includes(q) ||
-      (f.users?.name || f.users?.email || "").toLowerCase().includes(q));
-  }, [feedback, search]);
+    return feedback.filter((f: any) => {
+      if (companyFilter !== "all" && (f.companies?.name || "") !== companyFilter) return false;
+      if (!q) return true;
+      return (f.title || "").toLowerCase().includes(q) ||
+        (f.description || "").toLowerCase().includes(q) ||
+        (f.companies?.name || "").toLowerCase().includes(q) ||
+        (f.users?.name || f.users?.email || "").toLowerCase().includes(q);
+    });
+  }, [feedback, search, companyFilter]);
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -63,6 +71,7 @@ export default function FeedbackPage() {
       <div className="platform-feedback-header">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">고객 피드백</h1>
         <div className="flex items-center gap-2">
+          <OpsCompanySelect value={companyFilter} onChange={setCompanyFilter} options={companyOptions} />
           <OpsSearch value={search} onChange={setSearch} placeholder="제목·내용·회사 검색" />
           <OpsExportButton
             disabled={shown.length === 0}

@@ -1,4 +1,5 @@
 "use client";
+import { SystemTabs } from "../_components/system-tabs";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -61,6 +62,7 @@ export default function PlatformAuditPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
+      <SystemTabs />
       <div className="platform-audit-header">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">감사 로그</h1>

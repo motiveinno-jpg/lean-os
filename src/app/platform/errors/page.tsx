@@ -1,4 +1,5 @@
 "use client";
+import { SystemTabs } from "../_components/system-tabs";
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -102,6 +103,7 @@ export default function PlatformErrorsPage() {
 
   return (
     <div className="max-w-6xl space-y-6">
+      <SystemTabs />
       <div className="platform-error-toolbar">
         <div className="flex flex-wrap items-baseline gap-2">
           <h1 className="text-2xl font-extrabold text-[var(--text)]">에러 해석</h1>

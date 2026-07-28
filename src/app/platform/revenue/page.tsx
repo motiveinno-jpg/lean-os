@@ -5,7 +5,7 @@ import { logRead } from "@/lib/log-read";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useMemo, useState } from "react";
-import { OpsPageHeader, OpsSearch, OpsExportButton, exportCsv } from "../_components/ops-kit";
+import { OpsPageHeader, OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
 
 const db = supabase;
 
@@ -19,6 +19,7 @@ function fmtW(n: number): string {
 
 export default function RevenuePage() {
   const [search, setSearch] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("all");
   const { data: subscriptions = [] } = useQuery({
     queryKey: ["p-subs-rev"],
     queryFn: async () => {
@@ -45,14 +46,21 @@ export default function RevenuePage() {
       return sum + (plan.base_price || 0) + (plan.per_seat_price || 0) * (s.seat_count || 1);
     }, 0);
 
-  // 회사명·청구서번호 검색 (2026-07-28 전면 정비)
+  // 회사명·청구서번호 검색 + 회사별 보기 (2026-07-28 전면 정비)
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    invoices.forEach((i: any) => { if (i.companies?.name) set.add(i.companies.name); });
+    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [invoices]);
   const shownInvoices = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return invoices;
-    return invoices.filter((i: any) =>
-      (i.companies?.name || "").toLowerCase().includes(q) ||
-      String(i.invoice_number || "").toLowerCase().includes(q));
-  }, [invoices, search]);
+    return invoices.filter((i: any) => {
+      if (companyFilter !== "all" && (i.companies?.name || "") !== companyFilter) return false;
+      if (!q) return true;
+      return (i.companies?.name || "").toLowerCase().includes(q) ||
+        String(i.invoice_number || "").toLowerCase().includes(q);
+    });
+  }, [invoices, search, companyFilter]);
 
   const paidInvoices = invoices.filter((i: any) => i.status === "paid");
   const pendingInvoices = invoices.filter((i: any) => i.status === "pending");
@@ -62,6 +70,7 @@ export default function RevenuePage() {
   return (
     <div className="max-w-6xl space-y-6">
       <OpsPageHeader title="수익 관리" sub="구독·청구 현황 · 1분마다 자동 갱신">
+        <OpsCompanySelect value={companyFilter} onChange={setCompanyFilter} options={companyOptions} />
         <OpsSearch value={search} onChange={setSearch} placeholder="회사명·청구서번호 검색" />
         <OpsExportButton
           disabled={shownInvoices.length === 0}
