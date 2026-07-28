@@ -29,6 +29,14 @@ type TrafficStats = {
   top_paths: { path: string; views: number; visitors: number }[];
   top_referrers: { host: string; visitors: number }[];
 };
+type OpsRisk = {
+  as_of: string;
+  stale_join_requests: { company: string; email: string; days: number; created_at: string }[];
+  dormant_companies: { name: string; plan: string; last_seen: string | null }[];
+  email_failures: { join_requests: number; billing: number };
+  sales_codes: { code: string; owner: string | null; bonus_days: number; active: boolean; redemptions: number; conversions: number }[];
+  deletions: { d7: number; d30: number };
+};
 
 function fmtW(n: number): string {
   const abs = Math.abs(n);
@@ -108,6 +116,17 @@ export default function PlatformOverview() {
     refetchInterval: 60_000,
   });
 
+  // 위험·성장 신호 (2026-07-28) — 합류요청 방치·휴면 고객·메일 실패·영업코드 실적·탈퇴 추이
+  const { data: opsRisk } = useQuery<OpsRisk | null>({
+    queryKey: ["p-ops-risk"],
+    queryFn: async () => {
+      const { data, error } = await (db as any).rpc("platform_ops_risk");
+      if (error) return null;
+      return data as OpsRisk;
+    },
+    refetchInterval: 60_000,
+  });
+
   // 트래픽·사용 지표 (2026-07-28) — auth.users 는 클라에서 못 읽어 운영자 전용 RPC 로 감쌌다.
   //   두 RPC 모두 함수 안에서 is_platform_operator() 를 확인하므로 비운영자는 예외를 받는다.
   const { data: usage } = useQuery<UsageStats | null>({
@@ -168,6 +187,57 @@ export default function PlatformOverview() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
 
+  // 위험 신호 계산 — 체험 만료 임박(D-3)·해지 예약·결제 실패는 subscriptions 로 직접
+  const nowMs = Date.now();
+  const trialEndingSoon = subscriptions.filter((s: any) => {
+    if (s.status !== "trialing" || !s.trial_ends_at) return false;
+    const left = new Date(s.trial_ends_at).getTime() - nowMs;
+    return left > 0 && left < 3 * 24 * 3600 * 1000;
+  });
+  const cancelScheduled = subscriptions.filter((s: any) =>
+    s.cancel_at_period_end && (s.status === "active" || s.status === "trialing"));
+  const pastDue = subscriptions.filter((s: any) => s.status === "past_due");
+  const staleJoinReqs = (opsRisk?.stale_join_requests ?? []).filter((r) => r.days >= 3);
+  const dormant = opsRisk?.dormant_companies ?? [];
+  const emailFails = (opsRisk?.email_failures?.join_requests ?? 0) + (opsRisk?.email_failures?.billing ?? 0);
+  // 좌석 임박 — 유료/체험 회사 중 인원이 기본좌석-1 이상 (추가좌석 매출 리드)
+  const seatPressure = (companies as any[]).filter((c: any) => {
+    const sub = (c.subscriptions || []).find((s: any) => s.status === "active" || s.status === "trialing");
+    if (!sub) return false;
+    const included = sub.subscription_plans?.included_seats || 5;
+    return (c.users?.[0]?.count ?? 0) >= included - 1;
+  });
+
+  // 위험 신호 통합 리스트 (유형 배지 + 대상 + 시점)
+  const fmtD = (iso?: string | null) => (iso ? kstDateStr(new Date(iso)) : "기록 없음");
+  const riskRows: { type: string; cls: string; who: string; detail: string }[] = [
+    ...trialEndingSoon.map((s: any) => ({
+      type: "체험 만료 임박", cls: "platform-risk-trial",
+      who: s.companies?.name || "-",
+      detail: `${fmtD(s.trial_ends_at)} 종료`,
+    })),
+    ...cancelScheduled.map((s: any) => ({
+      type: "해지 예약", cls: "platform-risk-cancel",
+      who: s.companies?.name || "-",
+      detail: s.current_period_end ? `${fmtD(s.current_period_end)}까지 이용` : "기간 종료 시 해지",
+    })),
+    ...pastDue.map((s: any) => ({
+      type: "결제 실패", cls: "platform-risk-pastdue",
+      who: s.companies?.name || "-",
+      detail: "카드 확인 필요",
+    })),
+    ...staleJoinReqs.map((r) => ({
+      type: "합류요청 방치", cls: "platform-risk-join",
+      who: `${r.company} ← ${r.email}`,
+      detail: `${r.days}일째 대기`,
+    })),
+    ...dormant.map((d) => ({
+      type: "휴면 위험", cls: "platform-risk-dormant",
+      who: `${d.name} (${d.plan})`,
+      detail: `마지막 접속 ${fmtD(d.last_seen)}`,
+    })),
+  ];
+
   // 운영 인박스 — 0건이면 초록, 있으면 주의 색으로
   const inboxItems = [
     { label: "신규 도입문의", n: (newInquiries as any[]).length, href: "/platform/partnership", icon: "📥" },
@@ -205,6 +275,48 @@ export default function PlatformOverview() {
             </Link>
           ))}
         </div>
+      </section>
+
+      {/* 위험 신호 — 매출이 새는 순간·고객이 떠나는 순간 (2026-07-28) */}
+      <section className="space-y-3">
+        <h2 className="platform-section-title">위험 신호</h2>
+        <div className="platform-inbox-grid lg:grid-cols-6">
+          {[
+            { label: "체험 만료 D-3", n: trialEndingSoon.length },
+            { label: "해지 예약", n: cancelScheduled.length },
+            { label: "결제 실패", n: pastDue.length, danger: true },
+            { label: "합류요청 방치 3일+", n: staleJoinReqs.length },
+            { label: "휴면 위험 고객", n: dormant.length },
+            { label: "메일 발송 실패 30일", n: emailFails, danger: true },
+          ].map((k) => (
+            <div key={k.label} className={`platform-inbox-tile glass-card ${k.n > 0 ? (k.danger ? "platform-inbox-danger" : "platform-inbox-attention") : ""}`}>
+              <span className={`text-[22px] leading-7 font-extrabold mono-number ${k.n === 0 ? "text-[var(--text-dim)]" : k.danger ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{k.n}</span>
+              <span className="text-[11px] font-semibold text-[var(--text-muted)]">{k.label}</span>
+            </div>
+          ))}
+        </div>
+        {riskRows.length > 0 && (
+          <div className="glass-card p-0 overflow-x-auto">
+            <table className="w-full min-w-[560px] text-xs">
+              <thead>
+                <tr className="table-head-row">
+                  <th className="th-cell text-left">유형</th>
+                  <th className="th-cell text-left">대상</th>
+                  <th className="th-cell text-left">상세</th>
+                </tr>
+              </thead>
+              <tbody>
+                {riskRows.map((r, i) => (
+                  <tr key={i} className="border-b border-[var(--border)]/50">
+                    <td className="px-3 py-2"><span className={`platform-badge ${r.cls}`}>{r.type}</span></td>
+                    <td className="px-3 py-2 font-semibold text-[var(--text)]">{r.who}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)]">{r.detail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* KPI Row 1 */}
@@ -264,6 +376,75 @@ export default function PlatformOverview() {
               <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">{conversionRate}%</span>
             </div>
             <div className="text-[11px] text-[var(--text-dim)]">유료 {paidSubs}곳 / 전체 {totalCompanies}곳</div>
+          </div>
+        </div>
+      </section>
+
+      {/* 성장 신호 — 영업코드 실적 · 좌석 임박 · 탈퇴 추이 (2026-07-28) */}
+      <section className="space-y-3">
+        <h2 className="platform-section-title">성장 신호</h2>
+        <div className="platform-growth-grid">
+          {/* 영업코드 실적 */}
+          <div className="glass-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">영업코드 실적</span>
+              <Link href="/platform/sales-codes" className="text-[11px] text-[var(--primary)] hover:underline">관리 →</Link>
+            </div>
+            {(opsRisk?.sales_codes?.length ?? 0) === 0 ? (
+              <div className="platform-traffic-empty">발급된 영업코드가 없습니다.<br /><span className="text-[11px]">영업코드 화면에서 발급하면 실적이 여기 집계됩니다.</span></div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="table-head-row">
+                    <th className="th-cell text-left">코드</th>
+                    <th className="th-cell text-left">담당</th>
+                    <th className="th-cell text-center">사용</th>
+                    <th className="th-cell text-center">유료 전환</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {opsRisk!.sales_codes.slice(0, 6).map((sc) => (
+                    <tr key={sc.code} className="border-b border-[var(--border)]/50">
+                      <td className="px-3 py-2 mono-number font-bold text-[var(--text)]">{sc.code}{!sc.active && <span className="text-[10px] text-[var(--text-dim)] ml-1">(비활성)</span>}</td>
+                      <td className="px-3 py-2 text-[var(--text-muted)]">{sc.owner || "—"}</td>
+                      <td className="px-3 py-2 text-center mono-number">{sc.redemptions}</td>
+                      <td className="px-3 py-2 text-center mono-number text-[var(--success)]">{sc.conversions}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* 좌석 임박 + 탈퇴 추이 */}
+          <div className="space-y-4">
+            <div className="glass-card p-5">
+              <span className="text-[13px] font-semibold text-[var(--text-muted)]">좌석 초과 임박 <span className="text-[11px] text-[var(--text-dim)]">(추가좌석 매출 리드)</span></span>
+              {seatPressure.length === 0 ? (
+                <div className="text-[12px] text-[var(--text-dim)] mt-2">기본 좌석에 여유가 있는 상태입니다.</div>
+              ) : (
+                <ul className="platform-traffic-list mt-3">
+                  {seatPressure.slice(0, 5).map((c: any) => (
+                    <li key={c.id}>
+                      <span className="truncate font-semibold text-[var(--text)]">{c.name}</span>
+                      <span className="mono-number">{c.users?.[0]?.count ?? 0}명 사용 중</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="glass-card p-5 flex items-center justify-between">
+              <div>
+                <span className="text-[13px] font-semibold text-[var(--text-muted)]">탈퇴</span>
+                <div className="text-[11px] text-[var(--text-dim)] mt-0.5">최근 7일 / 30일</div>
+              </div>
+              <div className="text-right">
+                <span className={`text-[24px] leading-7 font-extrabold mono-number ${(opsRisk?.deletions?.d7 ?? 0) > 0 ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>
+                  {opsRisk?.deletions?.d7 ?? 0}
+                </span>
+                <span className="text-[13px] text-[var(--text-dim)] mono-number"> / {opsRisk?.deletions?.d30 ?? 0}</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>

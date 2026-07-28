@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     if (!caller) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
 
     const admin = createSupabaseAdminClient();
-    const urow = logRead('delete-account/route:urow', await admin.from('users').select('id').eq('auth_id', caller.id).maybeSingle());
+    const urow = logRead('delete-account/route:urow', await admin.from('users').select('id, company_id, role').eq('auth_id', caller.id).maybeSingle());
 
     // 1) public.users 익명화 (행 유지, PII 파기)
     if (urow?.id) {
@@ -23,6 +23,12 @@ export async function POST(req: NextRequest) {
         avatar_url: null,
       }).eq('id', urow.id);
     }
+
+    // 1.5) 탈퇴 시점 기록 — 운영자 대시보드 탈퇴 추이용, PII 없음 (2026-07-28)
+    await admin.from('account_deletions' as never).insert({
+      company_id: (urow as any)?.company_id ?? null,
+      role: (urow as any)?.role ?? null,
+    } as never);
 
     // 2) auth 계정 삭제 — 로그인 영구 차단 (= 탈퇴 완료)
     const { error: delErr } = await admin.auth.admin.deleteUser(caller.id);
