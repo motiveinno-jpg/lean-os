@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ProjectFlow } from "./_components/project-flow";
 import { WidgetBoard } from "./_components/widget-board";
 import { FlowPanel, HrPanel, AccountPanel } from "./_components/pillar-panels";
@@ -76,33 +76,69 @@ const YESTERDAY_TX = [
 
 // 사이드바 — 실제 앱(components/sidebar.tsx)의 그룹·라벨을 그대로 옮긴 정적 사본.
 //   데모는 라우팅/권한이 없으므로 링크 없이 모양만 재현한다.
-const NAV_GROUPS: { label: string; items: { label: string; icon: string; active?: boolean; badge?: string }[] }[] = [
+// 사이드바 — 실제 앱(components/sidebar.tsx)의 그룹·라벨을 그대로 옮긴 사본.
+//   view 는 이 메뉴를 눌렀을 때 보여줄 화면 키다(가상 데이터). 없는 메뉴는 준비중으로 안내한다.
+const NAV_GROUPS: { label: string; items: { label: string; icon: string; view?: string; badge?: string }[] }[] = [
   { label: "홈", items: [
-    { label: "대시보드", icon: "grid", active: true },
-    { label: "AI 참모", icon: "sparkles" },
+    { label: "대시보드", icon: "grid", view: "dashboard" },
+    { label: "AI 참모", icon: "sparkles", view: "copilot" },
     { label: "알림", icon: "bell", badge: "3" },
   ] },
   { label: "파이낸스", items: [
-    { label: "거래처", icon: "users" },
-    { label: "세금·증빙", icon: "receipt" },
-    { label: "거래 장부", icon: "book" },
-    { label: "분석", icon: "chart" },
+    { label: "거래처", icon: "users", view: "partners" },
+    { label: "세금·증빙", icon: "receipt", view: "tax" },
+    { label: "거래 장부", icon: "book", view: "ledger" },
+    { label: "전표입력", icon: "pen", view: "voucher" },
+    { label: "분석", icon: "chart", view: "flow" },
   ] },
   { label: "워크스페이스", items: [
-    { label: "프로젝트", icon: "briefcase" },
-    { label: "결재 허브", icon: "check", badge: "5" },
-    { label: "전자계약", icon: "pen" },
-    { label: "메신저", icon: "chat" },
+    { label: "일정 / 할 일", icon: "calendar", view: "schedule" },
+    { label: "프로젝트", icon: "briefcase", view: "projects" },
+    { label: "결재 허브", icon: "check", badge: "5", view: "approvals" },
+    { label: "게시판", icon: "board", view: "board" },
+    { label: "메신저", icon: "chat", view: "chat" },
+    { label: "전자계약", icon: "pen", view: "contract" },
   ] },
   { label: "인사관리", items: [
-    { label: "구성원", icon: "user" },
-    { label: "근태 관리", icon: "calendar" },
+    { label: "구성원", icon: "user", view: "members" },
+    { label: "근태 관리", icon: "calendar", view: "leave" },
+    { label: "근로계약·서식", icon: "file", view: "templates" },
+    { label: "파일보관함", icon: "folder", view: "documents" },
   ] },
   { label: "자산관리", items: [
-    { label: "통장", icon: "swap" },
-    { label: "카드", icon: "wallet" },
+    { label: "통장", icon: "swap", view: "bank" },
+    { label: "카드", icon: "wallet", view: "cards" },
+    { label: "정기 지출", icon: "repeat", view: "payments" },
+    { label: "대출", icon: "trend", view: "loans" },
+    { label: "자산", icon: "shield", view: "vault" },
   ] },
 ];
+
+// 헤더에 뿌릴 위치 정보
+const VIEW_META: Record<string, { crumb: string; title: string }> = {
+  dashboard: { crumb: "홈", title: "대시보드" },
+  copilot: { crumb: "홈", title: "AI 참모" },
+  partners: { crumb: "파이낸스", title: "거래처" },
+  tax: { crumb: "파이낸스", title: "세금·증빙" },
+  ledger: { crumb: "파이낸스", title: "거래 장부" },
+  voucher: { crumb: "파이낸스", title: "전표입력" },
+  flow: { crumb: "파이낸스", title: "분석" },
+  schedule: { crumb: "워크스페이스", title: "일정 / 할 일" },
+  projects: { crumb: "워크스페이스", title: "프로젝트" },
+  approvals: { crumb: "워크스페이스", title: "결재 허브" },
+  board: { crumb: "워크스페이스", title: "게시판" },
+  chat: { crumb: "워크스페이스", title: "메신저" },
+  contract: { crumb: "워크스페이스", title: "전자계약" },
+  members: { crumb: "인사관리", title: "구성원" },
+  leave: { crumb: "인사관리", title: "근태 관리" },
+  templates: { crumb: "인사관리", title: "근로계약·서식" },
+  documents: { crumb: "인사관리", title: "파일보관함" },
+  bank: { crumb: "자산관리", title: "통장" },
+  cards: { crumb: "자산관리", title: "카드" },
+  payments: { crumb: "자산관리", title: "정기 지출" },
+  loans: { crumb: "자산관리", title: "대출" },
+  vault: { crumb: "자산관리", title: "자산" },
+};
 
 // ── Glyphs ──
 
@@ -174,6 +210,15 @@ function formatBrief(): string[] {
 
 export default function DemoPage() {
   const [showDeals, setShowDeals] = useState(false);
+  // 사이드바에서 고른 메뉴. ?all=1 은 랜딩 캡처용 — 모든 화면을 한 번에 렌더한다.
+  const [view, setView] = useState("dashboard");
+  const [soon, setSoon] = useState({ crumb: "홈", title: "알림" });   // 데모에 없는 메뉴의 헤더용
+  const [capAll, setCapAll] = useState(false);
+  useEffect(() => {
+    setCapAll(new URLSearchParams(window.location.search).get("all") === "1");
+  }, []);
+  const show = (k: string) => capAll || view === k;
+  const meta = VIEW_META[view] ?? soon;
   const briefLines = formatBrief();
   const maxForecast = Math.max(...PULSE_FORECAST.map((p) => p.balance));
 
@@ -210,14 +255,16 @@ export default function DemoPage() {
               <div key={g.label}>
                 <div className="demo-sidebar-group">{g.label}</div>
                 {g.items.map((item) => (
-                  <div
+                  <button
+                    type="button"
                     key={item.label}
-                    className={`demo-nav-item ${item.active ? "nav-active" : ""}`}
+                    className={`demo-nav-item ${item.view === view ? "nav-active" : ""}`}
+                    onClick={() => { setView(item.view ?? "soon"); if (!item.view) setSoon({ crumb: g.label, title: item.label }); window.scrollTo({ top: 0 }); }}
                   >
                     <NavGlyph type={item.icon} />
                     <span>{item.label}</span>
                     {item.badge ? <span className="demo-nav-badge">{item.badge}</span> : null}
-                  </div>
+                  </button>
                 ))}
               </div>
             ))}
@@ -234,8 +281,8 @@ export default function DemoPage() {
         <div className="demo-main-col">
           <header className="demo-header chrome-glass">
             <div className="demo-header-titles">
-              <div className="demo-header-crumb">홈 ›</div>
-              <div className="demo-header-title">대시보드</div>
+              <div className="demo-header-crumb">{meta.crumb} ›</div>
+              <div className="demo-header-title">{meta.title}</div>
             </div>
             <div className="demo-header-search">
               <SearchGlyph />
@@ -250,6 +297,7 @@ export default function DemoPage() {
           </header>
 
           <main className="demo-main">
+          {show("dashboard") && (<>
           {/* ═══ 위젯 대시보드 (실제 앱 최상단) ═══ */}
           <WidgetBoard />
 
@@ -729,42 +777,49 @@ export default function DemoPage() {
             )}
           </div>
 
-          {/* ═══ 프로젝트 흐름 (견적서→계약서→진척→완료→정산) ═══ */}
+          {/* 대시보드에서만 프로젝트 흐름을 같이 보여준다 */}
           <ProjectFlow />
+          </>)}
 
-          {/* ═══ 3대 축 — 경영흐름 · 인사관리 · 회계관리 ═══ */}
-          <FlowPanel />
-          <HrPanel />
-          <AccountPanel />
+          {/* ═══ 메뉴별 화면 — 사이드바에서 고른 메뉴 하나만 (?all=1 이면 전부) ═══ */}
+          {show("flow") && <FlowPanel />}
+          {show("leave") && <HrPanel />}
+          {show("ledger") && <AccountPanel />}
+          {show("partners") && <PartnersPanel />}
+          {show("voucher") && <VoucherPanel />}
+          {show("schedule") && <SchedulePanel />}
+          {show("approvals") && <ApprovalsPanel />}
+          {show("board") && <BoardPanel />}
+          {show("chat") && <ChatPanel />}
+          {show("templates") && <TemplatesPanel />}
+          {show("documents") && <DocumentsPanel />}
+          {show("bank") && <BankPanel />}
+          {show("cards") && <CardsPanel />}
+          {show("payments") && <PaymentsPanel />}
+          {show("loans") && <LoansPanel />}
+          {show("vault") && <VaultPanel />}
+          {show("projects") && <ProjectsPanel />}
+          {(show("projects") || capAll) && <EstimatePanel />}
+          {show("contract") && <ContractPanel />}
+          {(show("projects") || capAll) && <SettlementPanel />}
+          {show("members") && <MembersPanel />}
+          {(show("leave") || capAll) && <LeavePanel />}
+          {show("tax") && <TaxPanel />}
+          {show("copilot") && <CopilotPanel />}
+          {(show("copilot") || capAll) && <BriefPanel />}
+          {(show("approvals") || capAll) && <OcrPanel />}
 
-          {/* ═══ 메뉴별 화면 — 랜딩 "오너뷰 둘러보기" 캐프처 소스 ═══ */}
-          <PartnersPanel />
-          <VoucherPanel />
-          <SchedulePanel />
-          <ApprovalsPanel />
-          <BoardPanel />
-          <ChatPanel />
-          <TemplatesPanel />
-          <DocumentsPanel />
-          <BankPanel />
-          <CardsPanel />
-          <PaymentsPanel />
-          <LoansPanel />
-          <VaultPanel />
-
-          {/* ═══ 주요 기능 둘러보기(3대 축) 탭 화면 — 균일 비율 캡처 소스 ═══ */}
-          <ProjectsPanel />
-          <EstimatePanel />
-          <ContractPanel />
-          <SettlementPanel />
-          <MembersPanel />
-          <LeavePanel />
-          <TaxPanel />
-
-          {/* ═══ AI 자동화 화면 — 랜딩 /ai 캐프처 소스 ═══ */}
-          <CopilotPanel />
-          <BriefPanel />
-          <OcrPanel />
+          {view === "soon" && !capAll && (
+            <section className="pp glass-card">
+              <div className="pp-head">
+                <div className="pp-head-l">
+                  <div className="pp-menu">데모</div>
+                  <div className="pp-title">이 메뉴는 데모에 담지 않았어요</div>
+                  <div className="pp-sub">가입하면 알림·설정까지 전부 쓸 수 있어요. 다른 메뉴를 눌러보세요.</div>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* ═══ Quick Links ═══ */}
           <div className="quick-links-section">

@@ -1212,9 +1212,13 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .demo-sidebar-brand-text { @apply flex flex-col min-w-0; }
 .demo-sidebar-brand-name { @apply text-sm font-extrabold text-[var(--text)] leading-4; }
 .demo-sidebar-brand-sub { @apply text-[10px] text-[var(--text-dim)] truncate; }
-.demo-sidebar-nav { @apply flex-1 overflow-hidden space-y-3 pt-2; }
+.demo-sidebar-nav { @apply flex-1 overflow-y-auto space-y-3 pt-2 pr-0.5; }
 .demo-sidebar-group { @apply px-2 pb-1 text-[10px] font-bold tracking-wider uppercase text-[var(--text-dim)]; }
-.demo-nav-item { @apply flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium text-[var(--text-muted)] cursor-default; }
+/* 2026-07-28 데모 사이드바를 실제로 눌러 볼 수 있게 바꿨다 — cursor-default → pointer + hover */
+.demo-nav-item { @apply w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium
+  text-[var(--text-muted)] cursor-pointer text-left transition-colors; }
+.demo-nav-item:hover { @apply bg-[var(--bg-surface)] text-[var(--text)]; }
+.demo-nav-item.nav-active:hover { @apply text-white; }
 .demo-nav-glyph { @apply w-4 h-4 shrink-0; }
 .demo-nav-badge { @apply ml-auto px-1.5 py-0.5 rounded-full bg-[var(--danger)] text-white text-[10px] font-bold leading-none; }
 .demo-nav-item.nav-active .demo-nav-badge { @apply bg-white/25; }
