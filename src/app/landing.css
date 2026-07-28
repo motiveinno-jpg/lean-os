@@ -694,6 +694,14 @@
   .lp4-mob-pin > .lp4-container { width:100%; }
 }
 .lp4-mob-grid { display:grid; grid-template-columns:1fr; gap:48px; align-items:center; }
+/* 좌측 카피를 폰 높이에 맞춰 늘리고, 제목은 위 · 단계는 아래로 붙여 가운데를 비운다 */
+@media (min-width: 1000px){
+  .lp4-mob-grid { align-items:stretch; }
+  .lp4-mob-copy { display:flex; flex-direction:column; }
+  /* ⚠️ 기본 .lp4-mob-step 규칙이 뒤에 있어 미디어쿼리만으론 덮이지 않는다 — 특이도를 올린다 */
+  .lp4-mob-copy .lp4-mob-step { margin-top:auto; }
+  .lp4-mob-copy .lp4-mob-dots { margin-top:26px; margin-bottom:4px; }
+}
 @media (min-width: 1000px){ .lp4-mob-grid { grid-template-columns: 1.02fr 0.98fr; gap:90px; } }
 .lp4-mob-eyebrow { font-size:15px; font-weight:800; color: var(--brand); }
 .lp4-mob-title { font-size: clamp(33px,4.6vw,58px); font-weight:800; letter-spacing:-.04em;

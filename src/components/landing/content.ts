@@ -379,7 +379,7 @@ export const FEATURES = [
 export const MOBILE = {
   eyebrow: "Anywhere",
   title: "회사는 책상 앞에만\n있지 않으니까",
-  sub: "PC에서 보던 화면을 휴대폰에서도 그대로 봐요. 앱을 따로 깔 필요도 없어요.",
+  sub: "PC에서 보던 화면을 휴대폰에서도 그대로 봐요. 설치할 필요가 없어요.",
   steps: [
     {
       head: "출근도 퇴근도,",

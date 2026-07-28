@@ -523,7 +523,7 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Coverage</div>
-            <h2 className="lp4-h2">회사 운영, <span className="lp4-underline">오너뷰 안에서 끝나요</span></h2>
+            <h2 className="lp4-h2">회사 운영, <span className="lp4-underline">오직 오너뷰 안에서</span></h2>
             <p className="lp4-sub">
               방금 본 세 축 아래로 메뉴 {CATALOG.reduce((n, g) => n + g.menus.length, 0)}개가 이어져요.
               재무부터 자산까지, 밖에서 따로 처리할 일이 없어요.
