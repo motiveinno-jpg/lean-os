@@ -167,7 +167,7 @@ function PillarTabs() {
       <div className="lp4-container">
         <Reveal className="lp4-sec-head lp4-sec-head-c">
           <div className="lp4-eyebrow">Core</div>
-          <h2 className="lp4-h2">일은 <span className="lp4-underline">한 번만 하면 돼요</span></h2>
+          <h2 className="lp4-h2">일은 줄이고, <span className="lp4-underline">효율과 성과는 높여요</span></h2>
           <p className="lp4-sub">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
         </Reveal>
 
