@@ -98,12 +98,22 @@ export async function createCompanyWithOwner(
     return { ok: false, error: compErr.message };
   }
 
-  // upsert: 레거시 limbo(행은 있는데 company_id NULL) 계정도 개설을 완료할 수 있게 (2026-07-28 P0).
-  //   기존엔 plain insert 라 id 충돌 → 개설 실패 → 회사 없는 계정으로 남아 무한 로딩 류의 원인.
-  const { error: userErr } = await db.from("users").upsert({
+  // ⚠️ upsert(ON CONFLICT DO UPDATE) 금지 (2026-07-28 핫픽스): Postgres 는 upsert 의 INSERT
+  //   경로에도 SELECT 정책을 추가 검사하는데, users 의 SELECT 정책(company_id = get_my_company_id())은
+  //   아직 회사가 없는 신규 가입자에게 항상 false → 모든 신규 개설이 RLS 위반으로 실패했다.
+  //   insert 후 id 충돌(23505 = 레거시 limbo 행)일 때만 본인 행 update 로 연결하는 2단계 방식 사용.
+  let userErr: { code?: string; message: string } | null = (await db.from("users").insert({
     id: authId, auth_id: authId, company_id: companyId,
     email, name: displayName, role: "owner",
-  }, { onConflict: "id" });
+  })).error;
+  if (userErr?.code === "23505") {
+    // 레거시 limbo(행은 있는데 company_id NULL) — 본인 행 update 는 UPDATE 정책(auth_id=auth.uid())으로 허용.
+    const { data: updated, error: updErr } = await db.from("users")
+      .update({ company_id: companyId, role: "owner", name: displayName, email })
+      .eq("id", authId)
+      .select("id");
+    userErr = updErr || (updated && updated.length > 0 ? null : { message: "기존 계정 정보를 갱신하지 못했습니다. 고객센터로 문의해주세요." });
+  }
   if (userErr) {
     await db.from("companies").delete().eq("id", companyId); // 고아 회사 정리
     return { ok: false, error: userErr.message };
