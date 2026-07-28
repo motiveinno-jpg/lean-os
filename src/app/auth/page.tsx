@@ -97,6 +97,12 @@ export default function AuthPage() {
         router.push("/onboarding");
         return;
       }
+      // 2026-07-28 P0: "error" 를 흘려보내면 대시보드 무한 로딩 — 회사 설정 재시도로
+      if (result === "error") {
+        setLoading(false);
+        router.push("/company-setup");
+        return;
+      }
     }
 
     setLoading(false);

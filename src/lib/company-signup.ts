@@ -98,10 +98,12 @@ export async function createCompanyWithOwner(
     return { ok: false, error: compErr.message };
   }
 
-  const { error: userErr } = await db.from("users").insert({
+  // upsert: 레거시 limbo(행은 있는데 company_id NULL) 계정도 개설을 완료할 수 있게 (2026-07-28 P0).
+  //   기존엔 plain insert 라 id 충돌 → 개설 실패 → 회사 없는 계정으로 남아 무한 로딩 류의 원인.
+  const { error: userErr } = await db.from("users").upsert({
     id: authId, auth_id: authId, company_id: companyId,
     email, name: displayName, role: "owner",
-  });
+  }, { onConflict: "id" });
   if (userErr) {
     await db.from("companies").delete().eq("id", companyId); // 고아 회사 정리
     return { ok: false, error: userErr.message };
@@ -131,8 +133,10 @@ export async function createCompanyWithOwner(
 export async function provisionCompanyForUser(user: {
   id: string; email?: string; user_metadata?: Record<string, string>;
 }): Promise<ProvisionResult> {
-  const existingUser = logRead('lib/company-signup:existingUser', await db.from("users").select("id").eq("auth_id", user.id).maybeSingle());
-  if (existingUser) return "exists";
+  // 2026-07-28 P0: company_id 없는 행(레거시 limbo)을 "exists" 로 통과시키면 대시보드에서
+  //   무한 로딩/리다이렉트 — 회사 연결까지 있어야 exists, 아니면 아래 개설/합류 흐름으로.
+  const existingUser = logRead('lib/company-signup:existingUser', await db.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle());
+  if (existingUser?.company_id) return "exists";
 
   const meta = user.user_metadata || {};
 

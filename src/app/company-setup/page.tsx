@@ -31,9 +31,11 @@ export default function CompanySetupPage() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth"); return; }
-      // 이미 회사 소속(기존 회원·승인 완료)이면 통과
-      const existing = logRead('company-setup/page:existing', await supabase.from("users").select("id").eq("auth_id", user.id).maybeSingle());
-      if (existing) { router.push("/dashboard"); return; }
+      // 이미 회사 소속(기존 회원·승인 완료)이면 통과.
+      //   2026-07-28 P0: company_id 까지 확인해야 한다 — 행만 있고 회사가 NULL 인 레거시 계정을
+      //   대시보드로 보내면 앱 셸 가드(getCurrentUser null → /company-setup)와 무한 리다이렉트 루프.
+      const existing = logRead('company-setup/page:existing', await supabase.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle());
+      if (existing?.company_id) { router.push("/dashboard"); return; }
       setAuthUser(user as any);
       setCompanyName(user.user_metadata?.company_name || "");
       setReady(true);
