@@ -14,6 +14,10 @@ import {
   EstimateBeforePanel, SettlementBeforePanel,
 } from "./_components/pillar-frames";
 import { CopilotPanel, BriefPanel, OcrPanel } from "./_components/ai-panels";
+import {
+  ProjectsBeforePanel, HrBeforePanel, MembersBeforePanel, LeaveBeforePanel,
+  AcctBeforePanel, BankBeforePanel, TaxBeforePanel,
+} from "./_components/before-frames";
 
 // ── Constants ──
 
@@ -806,8 +810,16 @@ export default function DemoPage() {
           {show("members") && <MembersPanel />}
           {(show("leave") || capAll) && <LeavePanel />}
           {show("tax") && <TaxPanel />}
+          {/* 랜딩 "처리 전 → 처리 후" 크로스페이드용 앞 상태 — 캡처 모드에서만 렌더 */}
           {capAll && <EstimateBeforePanel />}
           {capAll && <SettlementBeforePanel />}
+          {capAll && <ProjectsBeforePanel />}
+          {capAll && <HrBeforePanel />}
+          {capAll && <MembersBeforePanel />}
+          {capAll && <LeaveBeforePanel />}
+          {capAll && <AcctBeforePanel />}
+          {capAll && <BankBeforePanel />}
+          {capAll && <TaxBeforePanel />}
           {show("copilot") && <CopilotPanel />}
           {(show("copilot") || capAll) && <BriefPanel />}
           {(show("approvals") || capAll) && <OcrPanel />}

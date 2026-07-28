@@ -209,7 +209,7 @@ export const PILLARS = [
     menus: ["프로젝트", "결재 허브", "전자계약", "메신저"],
     blocks: [
       {
-        tab: "파이프라인",
+        tab: "파이프라인", before: "/product/f-projects-b-v1.png",
         title: "지금 어디까지 왔는지 한눈에",
         desc: "프로젝트별 단계·금액·진행률이 한 화면에 정리돼요. 미수금과 마진이 무너진 건은 따로 표시해줘요.",
         src: "/product/f-projects-v1.png",
@@ -239,21 +239,21 @@ export const PILLARS = [
     menus: ["구성원", "근태 관리", "근로계약·서식", "전자결재"],
     blocks: [
       {
-        tab: "급여",
+        tab: "급여", before: "/product/f-hr-b-v1.png",
         title: "4대보험·원천세는 알아서 계산돼요",
         desc: "국민연금 4.5% · 건보 3.545% · 고용 0.9% · 간이세액표가 자동으로 적용돼요. 승인하면 전 직원에게 명세서가 나가요.",
         src: "/product/f-hr-v1.png",
         alt: "오너뷰 근태 요약과 급여 배치",
       },
       {
-        tab: "구성원",
+        tab: "구성원", before: "/product/f-members-b-v1.png",
         title: "누가 언제 들어왔는지 다 남아요",
         desc: "부서·직급·입사일·재직 상태가 정리돼요. 근로계약서는 전자서명으로 받고 그대로 보관돼요.",
         src: "/product/f-members-v1.png",
         alt: "오너뷰 구성원 목록",
       },
       {
-        tab: "근태·연차",
+        tab: "근태·연차", before: "/product/f-leave-b-v1.png",
         title: "연차는 직원이 직접 확인해요",
         desc: "출근율·지각·사용 연차·연장근무가 자동으로 모여요. 대표님께 물어볼 일이 없어져요.",
         src: "/product/f-leave-v1.png",
@@ -269,21 +269,21 @@ export const PILLARS = [
     menus: ["거래 장부", "세금·증빙", "통장·카드", "분석·결산"],
     blocks: [
       {
-        tab: "경영 요약",
+        tab: "경영 요약", before: "/product/f-acct-b-v1.png",
         title: "이번 달 얼마 벌고 얼마 썼는지",
         desc: "매출·비용·순현금이 실시간으로 잡혀요. 엑셀에 옮겨 적을 일이 없어요.",
         src: "/product/f-acct-v1.png",
         alt: "오너뷰 회계 요약 — 매출·비용·순현금",
       },
       {
-        tab: "거래 장부",
+        tab: "거래 장부", before: "/product/f-bank-b-v1.png",
         title: "계정과목은 AI가 나눠줘요",
         desc: "은행·카드 실계좌가 하루 두 번 동기화되고, AI가 계정과목을 지정해요. 애매한 것만 확인해 달라고 해요.",
         src: "/product/f-bank-v1.png",
         alt: "오너뷰 거래 장부 자동 분류",
       },
       {
-        tab: "세금·증빙",
+        tab: "세금·증빙", before: "/product/f-tax-b-v1.png",
         title: "세금계산서도 국세청에서 받아와요",
         desc: "매출·매입 내역을 자동으로 수집하고 계약·입금과 대조해요. 월결산과 재무제표까지 이어져요.",
         src: "/product/f-tax-v1.png",

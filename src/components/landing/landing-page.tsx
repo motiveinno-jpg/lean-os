@@ -143,7 +143,10 @@ function PillarTabs() {
     return () => clearInterval(t);
   }, [auto, live, ax]);
 
-  const pick = (a: number, b: number) => { setAuto(false); setAx(a); setBl(b); };
+  // 같은 탭을 다시 눌러도 "처리 전 → 후"가 다시 재생되게 replay 를 올린다
+  //   (ax·bl 만 의존하면 상태가 그대로라 effect 가 다시 돌지 않는다)
+  const [replay, setReplay] = useState(0);
+  const pick = (a: number, b: number) => { setAuto(false); setAx(a); setBl(b); setReplay((v) => v + 1); };
   const P = PILLARS[ax];
   const B = P.blocks[bl];
   const beforeSrc = (B as { before?: string }).before;
@@ -157,7 +160,7 @@ function PillarTabs() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setPhase(1); return; }
     const t = setTimeout(() => setPhase(1), 1300);
     return () => clearTimeout(t);
-  }, [ax, bl, beforeSrc]);
+  }, [ax, bl, beforeSrc, replay]);
 
   return (
     <section className="lp4-section lp4-bg-tint" id="pillars" ref={ref}>
