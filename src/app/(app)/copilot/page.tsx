@@ -7,6 +7,9 @@ import { useToast } from "@/components/toast";
 import { getCurrentUser } from "@/lib/queries";
 import { checkIn, checkOut } from "@/lib/hr";
 import { createApprovalRequest } from "@/lib/approval-workflow";
+import { createContractPackage, sendContractPackage } from "@/lib/hr-contracts";
+import { createAttendanceEditRequest } from "@/lib/hr";
+import { kstLocalToIso } from "@/lib/kst";
 import { friendlyError } from "@/lib/friendly-error";
 
 // AI 참모 — 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리하는 읽기전용 AI.
@@ -197,6 +200,59 @@ export default function CopilotPage() {
           description: a.description || "",
         });
         setActionState(idx, "done", `결재를 상신했습니다. (${req?.title ?? a.title})`);
+        return;
+      }
+
+      if (action.tool === "request_attendance_edit") {
+        const a = action.args as { date?: string; check_in_time?: string; check_out_time?: string; status?: string; reason?: string };
+        if (!a.date) throw new Error("정정할 날짜를 특정하지 못했습니다.");
+        const { data: emp } = await supabase
+          .from("employees").select("id").eq("company_id", companyId).eq("user_id", user.id).maybeSingle();
+        const employeeId = (emp as { id?: string } | null)?.id;
+        if (!employeeId) throw new Error("본인 직원 정보가 연결돼 있지 않습니다. 관리자에게 문의하세요.");
+        // 정정 요청은 기존 기록에 붙는다 — 그날 기록이 없으면 요청 대상이 없다.
+        const { data: rec } = await supabase
+          .from("attendance_records").select("id")
+          .eq("company_id", companyId).eq("employee_id", employeeId).eq("date", a.date).maybeSingle();
+        const recordId = (rec as { id?: string } | null)?.id;
+        if (!recordId) throw new Error(`${a.date} 근태 기록이 없어 정정을 요청할 수 없습니다. 관리자에게 기록 생성을 요청해 주세요.`);
+        const changes: Record<string, string> = {};
+        // 시각은 KST 로 해석 — 브라우저 타임존과 무관하게 저장돼야 한다.
+        const ci = a.check_in_time ? kstLocalToIso(`${a.date}T${a.check_in_time}`) : null;
+        const co = a.check_out_time ? kstLocalToIso(`${a.date}T${a.check_out_time}`) : null;
+        if (ci) changes.check_in = ci;
+        if (co) changes.check_out = co;
+        if (a.status) changes.status = a.status;
+        if (Object.keys(changes).length === 0) throw new Error("바꿀 항목이 없습니다.");
+        await createAttendanceEditRequest({
+          companyId, attendanceRecordId: recordId, requestedBy: user.id,
+          requestedChanges: changes, reason: a.reason || undefined,
+        });
+        setActionState(idx, "done", `${a.date} 근태 수정 요청을 보냈습니다. 관리자 승인 후 반영됩니다.`);
+        return;
+      }
+
+      if (action.tool === "create_employee_contract") {
+        const a = action.args as { employee_id?: string; template_ids?: string[]; title?: string; send?: boolean };
+        if (!a.employee_id) throw new Error("직원을 특정하지 못했습니다.");
+        if (!a.template_ids?.length) throw new Error("사용할 서식이 지정되지 않았습니다.");
+        // 변수(직원명·부서·연봉·회사명)는 buildContractVariables 가 DB 에서 채운다 — AI 가 값을 만들지 않는다.
+        const { package: pkg } = await createContractPackage({
+          companyId,
+          employeeId: a.employee_id,
+          title: a.title || "근로계약서",
+          templateIds: a.template_ids,
+          createdBy: user.id,
+        });
+        if (!a.send) {
+          setActionState(idx, "done", `계약을 만들었습니다. (${a.title || "근로계약서"}) 발송은 전자계약 화면에서 할 수 있습니다.`);
+          return;
+        }
+        // 발송은 되돌릴 수 없다 — 생성이 끝난 뒤에만 시도하고, 실패해도 초안은 남는다.
+        const sent = await sendContractPackage(pkg.id, window.location.origin);
+        setActionState(idx, "done", sent?.emailSent || sent?.inAppDelivered
+          ? `계약을 만들고 직원에게 보냈습니다. (${a.title || "근로계약서"})`
+          : `계약은 만들었지만 발송에 실패했습니다. 전자계약 화면에서 다시 보내주세요.`);
         return;
       }
 
@@ -407,6 +463,28 @@ function ActionCard({ msg, onRun, onCancel }: {
     <div className="copilot2-action-confirm">
       <div className="copilot2-action-confirm-head">{act.label} — 아래 내용으로 진행할까요?</div>
       <dl className="copilot2-action-fields">
+        {act.tool === "request_attendance_edit" && (() => {
+          const r = act.args as { date?: string; check_in_time?: string; check_out_time?: string; status?: string; reason?: string };
+          return (
+            <>
+              <div><dt>날짜</dt><dd>{r.date || "—"}</dd></div>
+              {r.check_in_time && <div><dt>출근</dt><dd>{r.check_in_time} 으로 정정</dd></div>}
+              {r.check_out_time && <div><dt>퇴근</dt><dd>{r.check_out_time} 으로 정정</dd></div>}
+              {r.status && <div><dt>유형</dt><dd>{r.status}</dd></div>}
+              {r.reason && <div><dt>사유</dt><dd className="copilot2-action-desc">{clean(r.reason)}</dd></div>}
+            </>
+          );
+        })()}
+        {act.tool === "create_employee_contract" && (() => {
+          const c = act.args as { title?: string; template_ids?: string[]; send?: boolean };
+          return (
+            <>
+              <div><dt>제목</dt><dd>{clean(c.title) || "근로계약서"}</dd></div>
+              <div><dt>서식</dt><dd>{c.template_ids?.length ?? 0}건</dd></div>
+              <div><dt>발송</dt><dd>{c.send ? "만든 뒤 직원에게 바로 발송" : "생성만 (발송 안 함)"}</dd></div>
+            </>
+          );
+        })()}
         {act.tool === "create_approval_request" && (
           <>
             <div><dt>유형</dt><dd>{APPROVAL_TYPE_LABEL[args.request_type || ""] || args.request_type || "품의서"}</dd></div>
@@ -418,9 +496,19 @@ function ActionCard({ msg, onRun, onCancel }: {
       </dl>
       <div className="copilot2-action-confirm-btns">
         <button onClick={onCancel} className="copilot2-action-cancel-btn">취소</button>
-        <button onClick={onRun} className="btn-primary btn-sm">{act.label}</button>
+        <button onClick={onRun} className="btn-primary btn-sm">
+          {act.tool === "create_employee_contract" && (act.args as { send?: boolean }).send ? "만들고 보내기" : act.label}
+        </button>
       </div>
-      <div className="copilot2-action-note">결재선은 회사 결재 정책에 따라 자동으로 정해집니다.</div>
+      <div className="copilot2-action-note">
+        {act.tool === "create_employee_contract"
+          ? ((act.args as { send?: boolean }).send
+              ? "발송하면 직원에게 서명 요청이 나가며 되돌릴 수 없습니다. 계약 내용은 회사 서식과 직원 정보로 자동 작성됩니다."
+              : "계약 내용은 회사 서식과 직원 정보로 자동 작성됩니다.")
+          : act.tool === "request_attendance_edit"
+            ? "직접 수정이 아니라 관리자 승인 요청입니다."
+            : "결재선은 회사 결재 정책에 따라 자동으로 정해집니다."}
+      </div>
     </div>
   );
 }

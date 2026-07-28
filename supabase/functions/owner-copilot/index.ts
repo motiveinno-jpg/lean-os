@@ -158,6 +158,11 @@ const MANAGER_READ_TOOLS = [
     },
   },
   {
+    name: "list_contract_templates",
+    description: "우리 회사의 인사 계약 서식 목록(서식 id·이름·분류)을 반환합니다. 근로계약서를 만들려면 이 툴로 서식 id 를 먼저 확인하세요.",
+    input_schema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
     name: "list_pending_payments",
     description: "지급 대기 중인 건을 금액 큰 순으로 반환합니다. snapshot 의 지급대기 건수를 건별로 볼 때 사용.",
     input_schema: {
@@ -229,6 +234,48 @@ const ACTION_TOOLS = [
       },
     },
   },
+  {
+    name: "request_attendance_edit",
+    tier: "confirm",
+    label: "근태 수정 요청",
+    def: {
+      name: "request_attendance_edit",
+      description: "본인의 출퇴근 기록 정정을 관리자에게 요청합니다(직접 수정이 아니라 승인 요청). 사용자 확인 후 전송됩니다. 바꿀 항목만 채우세요 — 출근만 틀렸으면 check_in_time 만 넣습니다. 날짜나 시각이 불분명하면 액션 툴을 부르지 말고 respond 로 되물으세요.",
+      input_schema: {
+        type: "object", additionalProperties: false,
+        properties: {
+          date: { type: "string", description: "정정할 근무일 YYYY-MM-DD (KST)" },
+          check_in_time: { type: "string", description: "바로잡을 출근 시각 HH:MM. 안 바꾸면 생략" },
+          check_out_time: { type: "string", description: "바로잡을 퇴근 시각 HH:MM. 안 바꾸면 생략" },
+          status: { type: "string", enum: ["present", "late", "remote", "half_day", "absent"], description: "출근 유형을 바꿀 때만" },
+          reason: { type: "string", description: "정정 사유" },
+        },
+        required: ["date"],
+      },
+    },
+  },
+  {
+    name: "create_employee_contract",
+    tier: "confirm",
+    label: "근로계약 생성",
+    def: {
+      name: "create_employee_contract",
+      description: "직원에게 보낼 인사 계약(근로계약서 등)을 만듭니다. 사용자 확인 후 실행됩니다. employee_id 는 find_employee, template_ids 는 list_contract_templates 로 먼저 확인하세요. 계약 내용은 회사 서식과 직원 정보로 자동으로 채워지므로 연봉·부서 같은 값을 지어내지 마세요.",
+      input_schema: {
+        type: "object", additionalProperties: false,
+        properties: {
+          employee_id: { type: "string", description: "find_employee 가 준 employee_id" },
+          template_ids: {
+            type: "array", items: { type: "string" },
+            description: "list_contract_templates 가 준 서식 id 목록(1개 이상). 사용자가 지목한 서식만 넣으세요.",
+          },
+          title: { type: "string", description: "계약 제목. 예: 남기원 근로계약서" },
+          send: { type: "boolean", description: "사용자가 '보내줘'라고 했으면 true. 생성만 원하면 false." },
+        },
+        required: ["employee_id", "template_ids", "title"],
+      },
+    },
+  },
 ];
 
 const ACTION_BY_NAME = new Map(ACTION_TOOLS.map((a) => [a.name, a]));
@@ -242,7 +289,7 @@ function clampLimit(v: unknown, def = 10, max = 30): number {
   return Math.min(Math.max(Math.trunc(n), 1), max);
 }
 
-const ATT_COLS = "date, check_in, check_out, status, is_late, late_minutes, work_hours, overtime_minutes";
+const ATT_COLS = "id, date, check_in, check_out, status, is_late, late_minutes, work_hours, overtime_minutes";
 
 /**
  * 조회 툴 실행. 모델 입력은 신뢰하지 않는다 — 형식 검증 후 사용하고,
@@ -296,6 +343,19 @@ async function executeReadTool(
     return { records: data ?? [] };
   }
 
+  if (name === "list_contract_templates") {
+    // 회사 서식 + 공용(company_id is null) 서식. 인사 계약 카테고리만.
+    const { data, error } = await admin
+      .from("doc_templates")
+      .select("id, name, category, variables")
+      .or(`company_id.eq.${companyId},company_id.is.null`)
+      .in("category", ["salary_contract", "nda", "non_compete", "privacy_consent", "comprehensive_labor", "contract_labor"])
+      .eq("is_active", true)
+      .order("name");
+    if (error) return { error: "서식 조회에 실패했습니다." };
+    return { templates: data ?? [] };
+  }
+
   if (name === "list_receivables") {
     const { data, error } = await admin
       .from("tax_invoices")
@@ -335,6 +395,27 @@ function sanitizeActionArgs(name: string, input: Record<string, unknown>): Recor
       title: String(input.title ?? "").trim().slice(0, 200),
       amount: Number.isFinite(amt) && amt > 0 ? Math.trunc(amt) : 0,
       description: String(input.description ?? "").trim().slice(0, 5000),
+    };
+  }
+  if (name === "request_attendance_edit") {
+    const hhmm = (v: unknown) => (/^\d{2}:\d{2}$/.test(String(v ?? "")) ? String(v) : "");
+    const st = String(input.status ?? "");
+    return {
+      date: DATE_RE.test(String(input.date ?? "")) ? String(input.date) : "",
+      check_in_time: hhmm(input.check_in_time),
+      check_out_time: hhmm(input.check_out_time),
+      status: ["present", "late", "remote", "half_day", "absent"].includes(st) ? st : "",
+      reason: String(input.reason ?? "").trim().slice(0, 500),
+    };
+  }
+  if (name === "create_employee_contract") {
+    const ids = Array.isArray(input.template_ids) ? input.template_ids : [];
+    return {
+      employee_id: UUID_RE.test(String(input.employee_id ?? "")) ? String(input.employee_id) : "",
+      // 서식 id 는 UUID 이거나 내장 서식 문자열 id("builtin-...") 둘 다 올 수 있다.
+      template_ids: ids.map((v) => String(v).slice(0, 80)).filter(Boolean).slice(0, 10),
+      title: String(input.title ?? "").trim().slice(0, 200),
+      send: input.send === true,
     };
   }
   return {};
@@ -537,7 +618,9 @@ serve(withSentry("owner-copilot", async (req) => {
           // 액션 툴 — 실행하지 않는다. 의도만 채택하고 모델에게 그 사실을 알린다.
           if (pendingAction) {
             payload = { accepted: false, reason: "이미 한 건의 액션이 접수됐습니다. 액션은 한 번에 하나만 가능합니다." };
-          } else if (callName !== "create_approval_request" && !myEmployeeId) {
+          } else if (callName === "create_employee_contract" && mode !== "manager") {
+            payload = { accepted: false, reason: "근로계약 생성은 대표·관리자만 할 수 있습니다." };
+          } else if (!["create_approval_request", "create_employee_contract"].includes(callName) && !myEmployeeId) {
             payload = { accepted: false, reason: "본인 직원 정보가 연결돼 있지 않아 출퇴근을 기록할 수 없습니다. 관리자에게 문의하세요." };
           } else {
             pendingAction = {
