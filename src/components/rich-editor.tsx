@@ -44,12 +44,10 @@ function escapeHtml(s: string): string {
 
 // 글자 색상 팔레트
 const COLORS = ["#000000", "#374151", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff"];
-const FONT_SIZES = [
-  { label: "작게", value: "12px" },
-  { label: "보통", value: "15px" },
-  { label: "크게", value: "20px" },
-  { label: "제목급", value: "28px" },
-];
+// 2026-07-28 사장님 요청: 작게/보통/크게 프리셋 대신 한글 프로그램처럼 숫자 px 로 직접 선택
+const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 32, 36, 40, 48].map(
+  (n) => ({ label: `${n}px`, value: `${n}px` })
+);
 const FONT_FAMILIES = [
   { label: "기본", value: "" },
   { label: "명조", value: "'Nanum Myeongjo', serif" },
@@ -123,7 +121,12 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     editor.chain().focus().setImage({ src }).run();
   };
 
-  // PDF → 각 페이지 PNG → 본문에 순서대로 삽입 (그래프·표 레이아웃 100% 보존)
+  // PDF → 원형 그대로 복원 (2026-07-28 사장님: "pdf 모양 그대로 — 줄바꿈·정렬·서식·표 그대로")
+  //   · 줄바꿈: PDF 의 시각적 줄(y좌표) 하나 = 한 줄. 임의 재줄바꿈 없음.
+  //   · 글자 크기: PDF 폰트 크기(pt)를 px(×4/3)로 환산해 줄마다 그대로 적용.
+  //   · 정렬: 줄의 좌우 여백으로 가운데/오른쪽 정렬 감지 → text-align 부여.
+  //   · 표: 연속된 다열(多列) 줄들을 열 좌표로 묶어 실제 편집 가능한 <table> 로 재구성.
+  //     표 재구성이 안 된 괘선 페이지·이미지 페이지만 기존처럼 페이지 PNG 로 보존.
   const handlePdfInsert = async (file: File) => {
     setPdfProgress("PDF 불러오는 중...");
     try {
@@ -141,28 +144,134 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       // 페이지별로 HTML 조각을 누적 → 마지막에 한 번에 삽입 (전체 페이지 보장 = 마지막장만 나오던 버그 해소).
       const parts: string[] = [];
 
+      type Run = { text: string; x0: number; x1: number; h: number };
+      type VLine = { y: number; h: number; runs: Run[] };
+
       for (let i = 1; i <= total; i++) {
         setPdfProgress(`${total}페이지 중 ${i}페이지 변환 중...`);
         const page = await pdf.getPage(i);
+        const pageW = page.getViewport({ scale: 1.0 }).width;
 
-        // 1) 텍스트 레이어 추출 (편집 가능) — y좌표로 줄 복원
-        let pageText = "";
+        // 1) 텍스트 아이템 수집 (x·y·폭·글자크기)
+        const rawItems: { str: string; x: number; y: number; w: number; h: number }[] = [];
         try {
           const tc = await page.getTextContent();
-          let lastY: number | null = null;
           for (const it of tc.items as any[]) {
-            if (typeof it.str !== "string") continue;
-            const y = it.transform?.[5];
-            if (lastY !== null && typeof y === "number" && Math.abs(y - lastY) > 3) pageText += "\n";
-            pageText += it.str;
-            if (typeof y === "number") lastY = y;
+            if (typeof it.str !== "string" || !Array.isArray(it.transform)) continue;
+            const h = Math.hypot(it.transform[2] || 0, it.transform[3] || 0) || 10;
+            rawItems.push({ str: it.str, x: it.transform[4] || 0, y: it.transform[5] || 0, w: it.width || 0, h });
           }
-        } catch { /* 텍스트 없는 페이지 무시 */ }
-        const trimmedText = pageText.trim();
+        } catch { /* 텍스트 레이어 없는 페이지 */ }
 
-        // 2) 그래픽 판정 — 이미지뿐 아니라 벡터 path(표·그래프는 선/사각형으로 그려짐)도 포함.
-        //    표는 paintImage* 가 아니라 constructPath/stroke/fill/rectangle 로 그려지므로
-        //    벡터 op 가 일정 수 이상이면 그래픽 페이지로 간주 → 이미지로 보존.
+        // 2) y좌표로 시각적 줄 복원 → 줄 안에서 x 간격으로 run(연속 글자 덩어리) 분리
+        rawItems.sort((a, b) => (b.y - a.y) || (a.x - b.x));
+        const vlines: VLine[] = [];
+        for (const it of rawItems) {
+          const last = vlines[vlines.length - 1];
+          if (last && Math.abs(last.y - it.y) <= Math.max(2.5, last.h * 0.5)) {
+            last.runs.push({ text: it.str, x0: it.x, x1: it.x + it.w, h: it.h });
+            last.h = Math.max(last.h, it.h);
+          } else {
+            vlines.push({ y: it.y, h: it.h, runs: [{ text: it.str, x0: it.x, x1: it.x + it.w, h: it.h }] });
+          }
+        }
+        // run 병합: 좁은 간격은 같은 덩어리(공백 복원), 넓은 간격은 열 구분으로 유지
+        for (const ln of vlines) {
+          ln.runs.sort((a, b) => a.x0 - b.x0);
+          const merged: Run[] = [];
+          for (const r of ln.runs) {
+            const cur = merged[merged.length - 1];
+            const em = Math.max(cur?.h || 0, r.h, 6);
+            if (cur && r.x0 - cur.x1 <= em * 1.1) {
+              cur.text += (r.x0 - cur.x1 > em * 0.22 ? " " : "") + r.text;
+              cur.x1 = Math.max(cur.x1, r.x1);
+              cur.h = Math.max(cur.h, r.h);
+            } else {
+              merged.push({ ...r });
+            }
+          }
+          ln.runs = merged.filter((r) => r.text.trim().length > 0);
+        }
+        const textLines = vlines.filter((l) => l.runs.length > 0);
+        const totalChars = textLines.reduce((s, l) => s + l.runs.reduce((a, r) => a + r.text.length, 0), 0);
+
+        const pxOf = (h: number) => Math.min(72, Math.max(6, Math.round((h * 4) / 3)));
+        const spanOf = (r: Run) => `<span style="font-size: ${pxOf(r.h)}px">${escapeHtml(r.text.trim())}</span>`;
+        const alignOf = (l: VLine): "left" | "center" | "right" => {
+          const x0 = Math.min(...l.runs.map((r) => r.x0));
+          const x1 = Math.max(...l.runs.map((r) => r.x1));
+          const lm = x0, rm = pageW - x1;
+          if (Math.abs(lm - rm) < pageW * 0.1 && lm > pageW * 0.15) return "center";
+          if (rm < pageW * 0.08 && lm > pageW * 0.3) return "right";
+          return "left";
+        };
+
+        // 3) 표 재구성 — 연속 2줄 이상이 다열(runs≥2)이면 표 밴드로 보고 열 좌표를 클러스터링
+        let tablesBuilt = 0;
+        const pageHtml: string[] = [];
+        let para: { align: string; lines: string[] } | null = null;
+        let prevY: number | null = null;
+        let prevH = 0;
+        const flushPara = () => {
+          if (para && para.lines.length) {
+            const alignStyle = para.align !== "left" ? ` style="text-align: ${para.align}"` : "";
+            pageHtml.push(`<p${alignStyle}>${para.lines.join("<br>")}</p>`);
+          }
+          para = null;
+        };
+
+        let li = 0;
+        while (li < textLines.length) {
+          const ln = textLines[li];
+          // 표 밴드 감지: 이 줄부터 연속으로 다열인 줄 세기
+          let bandEnd = li;
+          while (bandEnd < textLines.length && textLines[bandEnd].runs.length >= 2) bandEnd++;
+          if (bandEnd - li >= 2) {
+            flushPara();
+            const band = textLines.slice(li, bandEnd);
+            // 열 좌표 클러스터링 (시작 x 기준, 페이지폭 3% 허용)
+            const cols: number[] = [];
+            for (const bl of band) {
+              for (const r of bl.runs) {
+                const hit = cols.findIndex((c) => Math.abs(c - r.x0) <= pageW * 0.03);
+                if (hit < 0) cols.push(r.x0);
+              }
+            }
+            cols.sort((a, b) => a - b);
+            const rows = band.map((bl) => {
+              const cells: string[] = new Array(cols.length).fill("");
+              for (const r of bl.runs) {
+                let ci = 0, best = Infinity;
+                cols.forEach((c, idx) => { const d = Math.abs(c - r.x0); if (d < best) { best = d; ci = idx; } });
+                cells[ci] = cells[ci] ? `${cells[ci]} ${spanOf(r)}` : spanOf(r);
+              }
+              return `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+            });
+            pageHtml.push(`<table><tbody>${rows.join("")}</tbody></table>`);
+            tablesBuilt++;
+            prevY = band[band.length - 1].y;
+            prevH = band[band.length - 1].h;
+            li = bandEnd;
+            continue;
+          }
+
+          // 일반 줄: PDF 줄바꿈 그대로 — 정렬 같고 줄간격이 촘촘하면 같은 문단에 <br> 로 잇는다
+          const align = alignOf(ln);
+          const lineHtml = ln.runs.map(spanOf).join("&nbsp;&nbsp;&nbsp;");
+          const gapBig = prevY !== null && prevY - ln.y > Math.max(prevH, ln.h) * 1.9;
+          if (!para || para.align !== align || gapBig) {
+            flushPara();
+            para = { align, lines: [lineHtml] };
+          } else {
+            para.lines.push(lineHtml);
+          }
+          prevY = ln.y;
+          prevH = ln.h;
+          li++;
+        }
+        flushPara();
+
+        // 4) 그래픽 판정 — 이미지 포함, 또는 괘선(벡터)이 많은데 표 재구성이 안 된 페이지만 PNG 보존
         let imageOps = 0;
         let vectorOps = 0;
         try {
@@ -178,26 +287,16 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
             }
           }
         } catch { /* ignore */ }
-        // 임계값 5: 일반 텍스트 페이지의 밑줄·구분선(0~few)은 텍스트 유지, 표/그래프(다수 선)는 이미지.
-        const hasGraphic = imageOps > 0 || vectorOps >= 5;
+        const hasGraphic = imageOps > 0 || (vectorOps >= 5 && tablesBuilt === 0);
 
         // 페이지 구분 헤더 (2페이지 이상일 때만)
         if (total > 1) parts.push(`<p><strong>— ${i} / ${total} 페이지 —</strong></p>`);
 
-        // 3) 텍스트가 있으면 편집 가능한 문단으로 (혼합 페이지에서도 글자는 수정 가능하게).
-        if (trimmedText.length > 0) {
-          const paras = trimmedText
-            .split("\n")
-            .map((l) => l.trim())
-            .filter(Boolean)
-            .map((l) => `<p>${escapeHtml(l)}</p>`)
-            .join("");
-          parts.push(paras);
-        }
+        // 5) 복원한 텍스트/표 삽입
+        if (pageHtml.length > 0) parts.push(pageHtml.join(""));
 
-        // 4) 그래픽(표·그래프·이미지) 포함 또는 텍스트 거의 없는 페이지 → 페이지 이미지도 삽입.
-        //    사장님 선택: 혼합 페이지는 "글자=편집가능 텍스트 + 표=이미지" 둘 다 제공.
-        if (hasGraphic || trimmedText.length < 10) {
+        // 6) 이미지 페이지·표 재구성 실패 괘선 페이지 → 페이지 이미지도 삽입 (내용 유실 방지)
+        if (hasGraphic || totalChars < 10) {
           const viewport = page.getViewport({ scale: 2.0 });
           const canvas = document.createElement("canvas");
           canvas.width = viewport.width;
