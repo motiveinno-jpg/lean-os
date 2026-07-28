@@ -2810,6 +2810,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-badge-free { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
 .platform-badge-trial { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
 .platform-badge-paid { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.platform-badge-expired { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
 
 /* 운영자 대시보드 — 가입 퍼널 (2026-07-28) */
 .platform-funnel { @apply space-y-4; }
@@ -2825,6 +2826,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-plan-free { @apply bg-[var(--text-dim)]; }
 .platform-plan-trial { @apply bg-[var(--warning)]; }
 .platform-plan-paid { @apply bg-[var(--success)]; }
+.platform-plan-expired { @apply bg-[var(--danger)]; }
 .platform-traffic-empty { @apply text-xs text-[var(--text-dim)] py-6 text-center leading-6; }
 .platform-traffic-bars { @apply flex items-end gap-1 h-32; }
 .platform-traffic-bar-col { @apply flex-1 flex flex-col items-center justify-end gap-1 h-full; }

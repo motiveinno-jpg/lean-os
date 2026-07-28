@@ -14,7 +14,7 @@ type UsageStats = {
   as_of: string;
   accounts: { total: number; dau: number; wau: number; mau: number; never_signed_in: number };
   companies: { total: number; new_this_month: number };
-  plans: { free: number; trialing: number; paid: number };
+  plans: { free: number; trialing: number; trial_expired: number; paid: number };
   activity_14d: { date: string; count: number }[];
 };
 type FunnelStats = {
@@ -168,7 +168,7 @@ export default function PlatformOverview() {
 
   // KPI 카드 클릭 → 아래 "가입사" 목록을 해당 그룹으로 필터 (2026-07-28 사장님 요청).
   //   숫자만 보고 "그게 어떤 회사인지" 알 방법이 없던 문제.
-  const [kpiFilter, setKpiFilter] = useState<"all" | "paid" | "trial" | "free" | "new">("all");
+  const [kpiFilter, setKpiFilter] = useState<"all" | "paid" | "trial" | "free" | "new" | "expired">("all");
 
   const totalCompanies = companies.length;
   const totalUsers = users.length;
@@ -458,9 +458,12 @@ function TrafficSection({ usage, traffic }: { usage: UsageStats | null; traffic:
             {[
               { label: "미구독 (카드 미등록)", n: plans?.free ?? 0, cls: "platform-plan-free" },
               { label: "체험 중 (카드 등록)", n: plans?.trialing ?? 0, cls: "platform-plan-trial" },
+              // status 는 trialing 인데 기간이 지난 회사 — 실제로는 페이월에 막혀 있다.
+              //   status 만 세면 "체험 중" 으로 잡혀 실사용 회사 수가 부풀었다(2026-07-28).
+              { label: "체험 만료", n: plans?.trial_expired ?? 0, cls: "platform-plan-expired" },
               { label: "유료", n: plans?.paid ?? 0, cls: "platform-plan-paid" },
             ].map((r) => {
-              const total = Math.max(1, (plans?.free ?? 0) + (plans?.trialing ?? 0) + (plans?.paid ?? 0));
+              const total = Math.max(1, (plans?.free ?? 0) + (plans?.trialing ?? 0) + (plans?.trial_expired ?? 0) + (plans?.paid ?? 0));
               return (
                 <div key={r.label}>
                   <div className="flex items-center justify-between text-xs mb-1">
@@ -673,21 +676,26 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
 //   1건만 보고 있었다("총 가입사 1"). 정책 추가 후 전체가 보이므로 목록을 붙인다.
 function RecentCompanies({ companies, filter, onFilter }: {
   companies: any[];
-  filter: "all" | "paid" | "trial" | "free" | "new";
-  onFilter: (f: "all" | "paid" | "trial" | "free" | "new") => void;
+  filter: "all" | "paid" | "trial" | "free" | "new" | "expired";
+  onFilter: (f: "all" | "paid" | "trial" | "free" | "new" | "expired") => void;
 }) {
   // 행 어디를 눌러도 상세로 — 기존엔 회사명 글자만 링크라 "눌러도 아무것도 안 나온다"는 제보 (2026-07-28)
   const router = useRouter();
   // 명칭 정리(2026-07-28 사장님): "무료 vs 체험" 구분이 안 됨 → 미구독(카드 미등록) /
   //   체험 D-n(카드 등록, 남은 일수) / 플랜명. kind 는 필터 매칭용(라벨 문자열 비교 제거).
-  const planOf = (c: any): { kind: "free" | "trial" | "paid"; label: string; cls: string } => {
+  const planOf = (c: any): { kind: "free" | "trial" | "expired" | "paid"; label: string; cls: string } => {
     const sub = (c.subscriptions || []).find((s: any) => s.status === "active" || s.status === "trialing");
     if (!sub) return { kind: "free", label: "미구독", cls: "platform-badge-free" };
     if (sub.status === "trialing") {
+      // status 는 만료 후에도 trialing 으로 남는다(이음네트웍스: 67일 경과).
+      //   차단 판정(get_company_entitlement)은 trial_ends_at 기준이라 집계도 분리한다.
       const left = sub.trial_ends_at ? Math.ceil((new Date(sub.trial_ends_at).getTime() - Date.now()) / 86400000) : null;
+      if (left !== null && left < 0) {
+        return { kind: "expired", label: "체험 만료", cls: "platform-badge-expired" };
+      }
       return {
         kind: "trial",
-        label: left === null ? "체험 중" : left >= 0 ? `체험 D-${left}` : "체험 만료",
+        label: left === null ? "체험 중" : `체험 D-${left}`,
         cls: "platform-badge-trial",
       };
     }
@@ -709,6 +717,7 @@ function RecentCompanies({ companies, filter, onFilter }: {
     const k = planOf(c).kind;
     if (filter === "paid") return k === "paid";
     if (filter === "trial") return k === "trial";
+    if (filter === "expired") return k === "expired";
     if (filter === "free") return k === "free";
     if (filter === "new") return isThisMonth(c);
     return true;
@@ -719,7 +728,7 @@ function RecentCompanies({ companies, filter, onFilter }: {
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
   const FILTER_LABEL: Record<string, string> = {
-    all: "전체", new: "이번 달 신규", paid: "유료", trial: "체험 중", free: "미구독",
+    all: "전체", new: "이번 달 신규", paid: "유료", trial: "체험 중", free: "미구독", expired: "체험 만료",
   };
 
   return (

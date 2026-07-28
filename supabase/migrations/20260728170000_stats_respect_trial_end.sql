@@ -1,0 +1,9 @@
+-- 대시보드 집계가 status 만 보고 만료 체험을 "체험 중" 으로 세던 문제 (2026-07-28)
+--   실사례: 주식회사 이음네트웍스 — trial_ends_at 이 67일 전(05-22)인데 status 는
+--   여전히 'trialing'. 차단은 get_company_entitlement 가 날짜로 판정해 정상 동작했지만
+--   (entitled=false, trial_expired → 하드 페이월), 대시보드만 status 를 그대로 세서
+--   "체험 중" 에 만료 건이 섞여 실사용 회사 수가 부풀었다.
+--   → 판정 로직과 동일하게 trial_ends_at 을 함께 본다. 만료분은 trial_expired 버킷으로 분리.
+--   ※ 이미 MCP 로 prod 적용됨 — 이 파일은 저장소 기록용.
+--   ※ 함수 전문은 20260728120000·20260728130000 마이그레이션의 갱신본이다.
+-- (본문은 apply_migration 으로 적용된 platform_usage_stats / platform_signup_funnel 재정의)
