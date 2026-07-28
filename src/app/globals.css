@@ -2540,7 +2540,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .billing-kpi-row { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
 .billing-usage-card { @apply p-6 mb-6; }
 .billing-plan-grid { @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4; }
-.billing-plan-card { @apply relative rounded-2xl border-2 p-6 transition; }
+/* flex-col: 카드 내용 길이가 달라도 결제 버튼이 모든 카드 하단에 정렬되게 (2026-07-28) */
+.billing-plan-card { @apply relative rounded-2xl border-2 p-6 transition flex flex-col; }
 .billing-cancel-section { @apply mt-8 p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger-dim)]; }
 .billing-cancel-scheduled-badge { @apply mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400; }
 .billing-trial-start-banner { @apply flex items-center justify-between gap-4 flex-wrap mb-4 p-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--primary)]/5; }

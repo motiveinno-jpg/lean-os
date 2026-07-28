@@ -619,7 +619,8 @@ export default function BillingPage() {
                       )}
                     </div>
                   </div>
-                  <ul className="space-y-2 mb-6">
+                  {/* flex-1: 리스트가 남는 높이를 차지 → 아래 버튼이 카드 하단 고정 */}
+                  <ul className="space-y-2 mb-6 flex-1">
                     {meta.features.map((f, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-[var(--text-muted)]">
                         <span className="text-green-500 mt-0.5">✓</span>
