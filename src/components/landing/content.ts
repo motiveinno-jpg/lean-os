@@ -40,11 +40,14 @@ export const HERO_INTRO = [
   "반복되는 일은 AI가 대신하니까 대표님은 결정에만 집중하면 돼요.",
 ];
 
+// 숫자 4개 (2026-07-28 재구성)
+//   원색 인디고 숫자 + 세로줄 나열이 촌스럽고 위 문단과 동떨어져 보였다 →
+//   아이콘 + 파스텔 타일 카드로 바꾸고 숫자는 잉크색으로 낮췄다. note 는 숫자만으로 안 읽히는 맥락.
 export const STATS = [
-  { value: 30, suffix: "+", label: "통합 기능" },
-  { value: 4, suffix: "", label: "자동화 엔진" },
-  { value: 89, suffix: "%", label: "비용 절감" },
-  { value: 0, suffix: "원", label: "도입 비용" },
+  { value: 30, suffix: "+", label: "통합 기능", note: "메뉴 20개에 걸쳐", icon: "grid" },
+  { value: 4, suffix: "", label: "자동화 엔진", note: "가입하면 바로 작동", icon: "spark" },
+  { value: 89, suffix: "%", label: "비용 절감", note: "도구 7개 따로 쓸 때 대비", icon: "save" },
+  { value: 0, suffix: "원", label: "도입 비용", note: "구축·컨설팅 없이", icon: "zero" },
 ];
 
 export const PROBLEMS = [

@@ -83,6 +83,17 @@ function CountUp({ to, suffix = "", dur = 1400 }: { to: number; suffix?: string;
   return <span ref={ref}>{n.toLocaleString("ko-KR")}{suffix}</span>;
 }
 
+// 숫자 카드 아이콘
+function StatGlyph({ n }: { n: string }) {
+  const p = { width: 22, height: 22, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (n) {
+    case "grid": return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1.6" /><rect x="14" y="3" width="7" height="7" rx="1.6" /><rect x="3" y="14" width="7" height="7" rx="1.6" /><rect x="14" y="14" width="7" height="7" rx="1.6" /></svg>;
+    case "spark": return <svg {...p}><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z" /><path d="M18 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9L18 15z" /></svg>;
+    case "save": return <svg {...p}><path d="M21 8l-7.5 7.5-4-4L3 18" /><path d="M15 8h6v6" /></svg>;
+    default: return <svg {...p}><circle cx="12" cy="12" r="9" /><path d="M8.5 12h7" /></svg>;
+  }
+}
+
 // AI 엔진 아이콘 — 텍스트만으로 나열되던 카드에 시각적 식별자를 준다.
 function EngineGlyph({ n }: { n: string }) {
   const p = { width: 24, height: 24, fill: "none", stroke: "currentColor", strokeWidth: 1.9, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -393,15 +404,19 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* ══ STATS ══ */}
+      {/* ══ STATS — 아이콘 + 파스텔 타일. 숫자만 크게 세워두면 위 문단과 겉돈다 ══ */}
       <section className="lp4-stats">
         <div className="lp4-container">
           <div className="lp4-stats-grid">
-            {STATS.map((s) => (
-              <div key={s.label} className="lp4-stat">
-                <div className="lp4-stat-value">{s.value === 0 ? <>0<span className="lp4-stat-mute">{s.suffix}</span></> : <CountUp to={s.value} suffix={s.suffix} />}</div>
+            {STATS.map((s, i) => (
+              <Reveal key={s.label} className={`lp4-stat lp4-stat-${i + 1}`}>
+                <span className="lp4-stat-ico"><StatGlyph n={s.icon} /></span>
+                <div className="lp4-stat-value">
+                  {s.value === 0 ? <>0<span className="lp4-stat-suffix">{s.suffix}</span></> : <CountUp to={s.value} suffix={s.suffix} />}
+                </div>
                 <div className="lp4-stat-label">{s.label}</div>
-              </div>
+                <div className="lp4-stat-note">{s.note}</div>
+              </Reveal>
             ))}
           </div>
         </div>

@@ -195,16 +195,26 @@
 .lp4-hero-check { display:inline-flex; align-items:center; gap:6px; font-size:13px; color: var(--ink3); }
 .lp4-hero-check svg { color: var(--ok); }
 
-/* ── Trust bar (stats) ─────────────────────────────── */
-.lp4-stats { background: var(--paper); border-bottom:1px solid var(--line); }
-.lp4-stats-grid { display:grid; grid-template-columns: repeat(2,1fr); }
-@media (min-width: 720px){ .lp4-stats-grid { grid-template-columns: repeat(4,1fr); } }
-.lp4-stat { text-align:center; padding:46px 16px; border-right:1px solid var(--line); }
-.lp4-stat:nth-child(2n) { border-right:none; }
-@media (min-width: 720px){ .lp4-stat { border-right:1px solid var(--line); } .lp4-stat:last-child { border-right:none; } .lp4-stat:nth-child(2n) { border-right:1px solid var(--line); } }
-.lp4-stat-value { font-size:44px; font-weight:800; letter-spacing:-.035em; font-variant-numeric: tabular-nums; color: var(--brand); }
-.lp4-stat-mute { color: var(--ink3); }
-.lp4-stat-label { font-size:14.5px; color: var(--ink2); margin-top:5px; }
+/* ── 숫자 4개 — 아이콘 + 파스텔 타일 ──
+   원색 인디고 숫자를 세로줄로 나열하니 촌스럽고 위 문단과 견뎬었다 (2026-07-28). */
+.lp4-stats { background: var(--canvas); padding-bottom:8px; }
+.lp4-stats-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:16px; }
+@media (min-width: 900px){ .lp4-stats-grid { grid-template-columns: repeat(4,1fr); gap:20px; } }
+.lp4-stat { display:flex; flex-direction:column; align-items:flex-start;
+  padding:28px 26px 24px; border-radius:22px; border:1px solid var(--line);
+  transition: transform .2s, box-shadow .2s; }
+.lp4-stat:hover { transform: translateY(-3px); box-shadow: 0 24px 50px -32px rgba(27,26,46,.28); }
+.lp4-stat-1 { background: var(--pastel-lav); }
+.lp4-stat-2 { background: var(--pastel-sky); }
+.lp4-stat-3 { background: var(--pastel-mint); }
+.lp4-stat-4 { background: var(--pastel-peach); }
+.lp4-stat-ico { display:grid; place-items:center; width:42px; height:42px; border-radius:13px;
+  background: rgba(255,255,255,.72); color: var(--ink2); }
+.lp4-stat-value { font-size:40px; font-weight:800; letter-spacing:-.04em; line-height:1.1;
+  font-variant-numeric: tabular-nums; color: var(--ink); margin-top:20px; }
+.lp4-stat-suffix { color: var(--ink3); }
+.lp4-stat-label { font-size:15.5px; font-weight:700; color: var(--ink); margin-top:8px; }
+.lp4-stat-note { font-size:13px; color: var(--ink3); margin-top:4px; line-height:1.55; }
 
 /* ── Glass card 공통 (앱 .glass-card 와 같은 공식) ───── */
 .lp4-card { background: var(--glass); border:1px solid var(--line); border-radius:18px;
