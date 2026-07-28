@@ -156,6 +156,66 @@ const POSTGRES_CODES: Record<string, Omit<ErrorExplanation, "code">> = {
 // ──────────────────────────────────────────────────────────────────
 // 2) PostgREST 메시지 패턴
 // ──────────────────────────────────────────────────────────────────
+// 업무 도메인 패턴 (2026-07-28) — 발행·결제·가입 실패를 비개발자 언어로.
+//   클라이언트/서버 적재 시 붙이는 [프리픽스] 와 매칭 — POSTGREST/GENERIC 보다 먼저 평가.
+const DOMAIN_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExplanation, "code"> }[] = [
+  {
+    pattern: /\[세금계산서 발행 실패\]|hometax-issue/i,
+    key: "TAX_INVOICE_ISSUE",
+    explain: {
+      what: "고객이 세금계산서 전자발행을 시도했는데 실패했어요.",
+      why: "홈택스/CODEF 연동 오류 — 인증서 만료, 발행 등록 미완료, 국세청 점검시간(23:30~06:00), 또는 CF-코드 오류.",
+      fix: "메시지의 CF-코드를 확인하세요. 인증서 문제면 고객에게 설정→인증서 재등록 안내, CF-12200 계열은 CODEF 문의(알려진 BLOCKED 이슈).",
+      severity: "high",
+      category: "external",
+    },
+  },
+  {
+    pattern: /\[현금영수증 발행 실패\]|cashbill-issue/i,
+    key: "CASHBILL_ISSUE",
+    explain: {
+      what: "고객이 현금영수증 발행을 시도했는데 실패했어요.",
+      why: "국세청(팝빌/CODEF) 연동 오류 — 식별번호 오류, 발행 등록 미완료, 또는 연동 장애.",
+      fix: "식별번호(휴대폰/사업자번호) 형식 문제면 고객 안내로 충분. 반복되면 현금영수증 연동 상태 확인(알려진 취약 경로 — 프로덕션 성공 0건 이력).",
+      severity: "high",
+      category: "external",
+    },
+  },
+  {
+    pattern: /\[stripe-checkout\]|\[stripe-webhook\]/i,
+    key: "PAYMENT",
+    explain: {
+      what: "결제 처리(카드 등록·구독 반영)가 실패했어요.",
+      why: "Stripe 연동 오류 — 웹훅 서명·시크릿 불일치, price 설정, 또는 카드 거절.",
+      fix: "webhook 실패면 구독이 DB에 반영 안 됐을 수 있음 — 고객사 상세에서 구독 상태를 Stripe 와 대조하세요. 반복 시 즉시 개발 확인 필요.",
+      severity: "critical",
+      category: "external",
+    },
+  },
+  {
+    pattern: /\[가입\/로그인\]|\[join-request\]|\[invite-accept\]/i,
+    key: "SIGNUP",
+    explain: {
+      what: "가입·로그인·합류 과정에서 오류가 났어요.",
+      why: "회사 연결 실패, 합류요청/초대 처리 오류 등 — 사용자가 진행을 못 하고 있을 가능성.",
+      fix: "해당 이메일 사용자가 회사에 정상 연결됐는지 사용자 관리에서 확인하고, 안 됐으면 재로그인(회사 설정 재시도) 안내.",
+      severity: "high",
+      category: "auth",
+    },
+  },
+  {
+    pattern: /CF-\d{5}/,
+    key: "CODEF",
+    explain: {
+      what: "은행·카드·홈택스 연동(CODEF)에서 오류 코드가 반환됐어요.",
+      why: "인증 만료, 기관 점검, 또는 CODEF 측 제한 — CF-코드가 원인을 특정합니다.",
+      fix: "CF-12200/CF-00007/CF-00000 은 알려진 BLOCKED 이슈(운영팀 답변 대기). 그 외 코드는 에러 해석 화면에서 코드로 검색.",
+      severity: "medium",
+      category: "external",
+    },
+  },
+];
+
 const POSTGREST_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExplanation, "code"> }[] = [
   {
     pattern: /PGRST116|JSON object requested, multiple \(or no\) rows/i,
@@ -484,6 +544,12 @@ export function explainError(
   }
 
   // 4) PostgREST 패턴
+  // 업무 도메인 우선 — 발행·결제·가입 실패는 기술 패턴보다 업무 설명이 먼저다 (2026-07-28)
+  for (const p of DOMAIN_PATTERNS) {
+    if (p.pattern.test(joined)) {
+      return { ...p.explain, code: `app:${p.key}` };
+    }
+  }
   for (const p of POSTGREST_PATTERNS) {
     if (p.pattern.test(joined)) {
       return { ...p.explain, code: `pgrst:${p.key}` };

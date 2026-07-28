@@ -1,3 +1,4 @@
+import { logError } from '@/lib/error-logger';
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
@@ -301,6 +302,8 @@ export async function issueTaxInvoice(
     const err = new Error(result.error || `홈택스 발행 실패 (HTTP ${res.status})`);
     (err as any).code = result.code;
     (err as any).hint = result.hint;
+    // 운영자 시스템 상태 화면 적재 — 발행 실패는 고객이 바로 전화하는 유형 (2026-07-28)
+    logError({ source: "manual", message: `[세금계산서 발행 실패] ${err.message}`, context: { invoiceId, code: result.code, hint: result.hint } });
     throw err;
   }
   // 발행 성공 — 갱신된 invoice 반환

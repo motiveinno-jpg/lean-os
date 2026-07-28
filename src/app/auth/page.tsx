@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { logError } from "@/lib/error-logger";
 import { markConsentPending } from "@/lib/legal";
 import { useRouter } from "next/navigation";
 import { RollingBrandText } from "@/components/brand-logo";
@@ -118,6 +119,7 @@ export default function AuthPage() {
       }
       // 2026-07-28 P0: "error" 를 흘려보내면 대시보드 무한 로딩 — 회사 설정 재시도로
       if (result === "error") {
+        logError({ source: "manual", message: "[가입/로그인] 회사 연결 처리 실패 — 회사 설정 재시도로 안내됨", context: { page: "login" } });
         setLoading(false);
         router.push("/company-setup");
         return;

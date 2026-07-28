@@ -1,4 +1,5 @@
 import { logRead } from "@/lib/log-read";
+import { logError } from '@/lib/error-logger';
 /**
  * OwnerView Cash Receipt Management
  * 현금영수증 관리 — 매출(발행) / 매입(수취) CRUD + 집계
@@ -130,6 +131,8 @@ async function callCashbillEdge(body: Record<string, unknown>) {
   if (!res.ok) {
     const err = new Error(result.error || `현금영수증 처리 실패 (HTTP ${res.status})`);
     (err as any).hint = result.hint;
+    // 운영자 시스템 상태 화면 적재 (2026-07-28)
+    logError({ source: "manual", message: `[현금영수증 발행 실패] ${err.message}`, context: { action: body.action, hint: result.hint } });
     throw err;
   }
   return result as { success: boolean; receipt?: CashReceipt; documentKey?: string; message?: string };
