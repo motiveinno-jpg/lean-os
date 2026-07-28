@@ -8,6 +8,21 @@ import Link from "next/link";
 
 const db = supabase;
 
+type UsageStats = {
+  as_of: string;
+  accounts: { total: number; dau: number; wau: number; mau: number; never_signed_in: number };
+  companies: { total: number; new_this_month: number };
+  plans: { free: number; trialing: number; paid: number };
+  activity_14d: { date: string; count: number }[];
+};
+type TrafficStats = {
+  as_of: string; days: number;
+  totals: { views_today: number; visitors_today: number; views: number; visitors: number; guest_visitors: number };
+  daily: { date: string; views: number; visitors: number }[];
+  top_paths: { path: string; views: number; visitors: number }[];
+  top_referrers: { host: string; visitors: number }[];
+};
+
 function fmtW(n: number): string {
   const abs = Math.abs(n);
   const sign = n < 0 ? "-" : "";
@@ -67,6 +82,28 @@ export default function PlatformOverview() {
     },
   });
 
+  // 트래픽·사용 지표 (2026-07-28) — auth.users 는 클라에서 못 읽어 운영자 전용 RPC 로 감쌌다.
+  //   두 RPC 모두 함수 안에서 is_platform_operator() 를 확인하므로 비운영자는 예외를 받는다.
+  const { data: usage } = useQuery<UsageStats | null>({
+    queryKey: ["p-usage-stats"],
+    queryFn: async () => {
+      const { data, error } = await (db as any).rpc("platform_usage_stats");
+      if (error) return null;
+      return data as UsageStats;
+    },
+    refetchInterval: 60_000,
+  });
+
+  const { data: traffic } = useQuery<TrafficStats | null>({
+    queryKey: ["p-traffic-stats"],
+    queryFn: async () => {
+      const { data, error } = await (db as any).rpc("platform_traffic_stats", { p_days: 14 });
+      if (error) return null;
+      return data as TrafficStats;
+    },
+    refetchInterval: 60_000,
+  });
+
   const totalCompanies = companies.length;
   const totalUsers = users.length;
   const activeSubs = subscriptions.filter((s: any) => s.status === "active" || s.status === "trialing").length;
@@ -114,6 +151,9 @@ export default function PlatformOverview() {
           </div>
         ))}
       </div>
+
+      {/* 트래픽·이용 현황 (2026-07-28) */}
+      <TrafficSection usage={usage ?? null} traffic={traffic ?? null} />
 
       {/* Revenue Row */}
       <div className="platform-revenue-row">
@@ -205,5 +245,120 @@ export default function PlatformOverview() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── 트래픽·이용 현황 ─────────────────────────────────────────────────────────
+//   방문자·페이지뷰는 2026-07-28 부터 수집 시작 — 그 이전 기간은 데이터가 없다.
+function TrafficSection({ usage, traffic }: { usage: UsageStats | null; traffic: TrafficStats | null }) {
+  const acc = usage?.accounts;
+  const plans = usage?.plans;
+  const t = traffic?.totals;
+
+  const daily = traffic?.daily ?? [];
+  const maxViews = Math.max(1, ...daily.map((d) => d.views));
+  const noTraffic = !t || t.views === 0;
+
+  return (
+    <section className="platform-traffic">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="text-lg font-bold text-[var(--text)]">트래픽 · 이용 현황</h2>
+        <span className="text-[11px] text-[var(--text-dim)]">로그인 지표는 실시간 · 방문자는 2026-07-28부터 수집</span>
+      </div>
+
+      <div className="platform-kpi-grid">
+        {[
+          { label: "오늘 방문자", value: t?.visitors_today ?? 0, sub: `페이지뷰 ${(t?.views_today ?? 0).toLocaleString()}` },
+          { label: "14일 방문자", value: t?.visitors ?? 0, sub: `비로그인 ${(t?.guest_visitors ?? 0).toLocaleString()}` },
+          { label: "오늘 활동 사용자", value: acc?.dau ?? 0, sub: `주간 ${acc?.wau ?? 0} · 월간 ${acc?.mau ?? 0}` },
+          { label: "미로그인 계정", value: acc?.never_signed_in ?? 0, sub: `전체 계정 ${acc?.total ?? 0}` },
+        ].map((k) => (
+          <div key={k.label} className="platform-kpi-card glass-card">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{k.label}</span>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{k.value.toLocaleString()}</span>
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)]">{k.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="platform-traffic-grid">
+        {/* 요금제 분포 */}
+        <div className="glass-card p-5">
+          <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-3">이용 형태</div>
+          <div className="platform-plan-rows">
+            {[
+              { label: "무료", n: plans?.free ?? 0, cls: "platform-plan-free" },
+              { label: "체험 중", n: plans?.trialing ?? 0, cls: "platform-plan-trial" },
+              { label: "유료", n: plans?.paid ?? 0, cls: "platform-plan-paid" },
+            ].map((r) => {
+              const total = Math.max(1, (plans?.free ?? 0) + (plans?.trialing ?? 0) + (plans?.paid ?? 0));
+              return (
+                <div key={r.label}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-[var(--text-muted)]">{r.label}</span>
+                    <span className="mono-number font-bold text-[var(--text)]">{r.n}곳</span>
+                  </div>
+                  <div className="platform-plan-bar">
+                    <div className={`platform-plan-fill ${r.cls}`} style={{ width: `${(r.n / total) * 100}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 일별 방문 추이 */}
+        <div className="glass-card p-5">
+          <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-3">일별 방문 (14일)</div>
+          {noTraffic ? (
+            <div className="platform-traffic-empty">
+              아직 수집된 방문 기록이 없습니다.<br />
+              <span className="text-[11px]">배포 후 방문이 발생하면 이 자리에 그래프가 나타납니다.</span>
+            </div>
+          ) : (
+            <div className="platform-traffic-bars">
+              {daily.map((d) => (
+                <div key={d.date} className="platform-traffic-bar-col" title={`${d.date} · 방문자 ${d.visitors} · 페이지뷰 ${d.views}`}>
+                  <div className="platform-traffic-bar" style={{ height: `${Math.max(4, (d.views / maxViews) * 100)}%` }} />
+                  <span className="platform-traffic-bar-label mono-number">{d.date.slice(8)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 인기 페이지 · 유입 */}
+        <div className="glass-card p-5">
+          <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-3">많이 본 페이지</div>
+          {(traffic?.top_paths?.length ?? 0) === 0 ? (
+            <div className="platform-traffic-empty">수집 대기 중</div>
+          ) : (
+            <ul className="platform-traffic-list">
+              {traffic!.top_paths.slice(0, 6).map((p) => (
+                <li key={p.path}>
+                  <span className="truncate">{p.path}</span>
+                  <span className="mono-number">{p.views.toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="text-[13px] font-semibold text-[var(--text-muted)] mt-4 mb-2">유입 경로</div>
+          {(traffic?.top_referrers?.length ?? 0) === 0 ? (
+            <div className="platform-traffic-empty">수집 대기 중</div>
+          ) : (
+            <ul className="platform-traffic-list">
+              {traffic!.top_referrers.slice(0, 5).map((r) => (
+                <li key={r.host}>
+                  <span className="truncate">{r.host}</span>
+                  <span className="mono-number">{r.visitors.toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

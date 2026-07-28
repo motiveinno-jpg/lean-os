@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider, MutationCache } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { ThemeProvider } from "@/components/theme-context";
+import { PageViewBeacon } from "@/components/page-view-beacon";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -62,6 +63,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>{children}</ThemeProvider>
+      {/* 방문자·페이지뷰 수집 — 화면을 그리지 않는 비콘. 실패해도 무시된다. */}
+      <PageViewBeacon />
     </QueryClientProvider>
   );
 }

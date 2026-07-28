@@ -2752,6 +2752,23 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-release-log-card { @apply p-5 md:col-span-2; }
 .platform-release-item { @apply p-4 rounded-xl bg-[var(--bg-surface)]; }
 .platform-kpi-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+
+/* 운영자 대시보드 — 트래픽·이용 현황 (2026-07-28) */
+.platform-traffic { @apply space-y-4; }
+.platform-traffic-grid { @apply grid grid-cols-1 lg:grid-cols-3 gap-4; }
+.platform-plan-rows { @apply space-y-3; }
+.platform-plan-bar { @apply h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.platform-plan-fill { @apply h-full rounded-full transition-all; }
+.platform-plan-free { @apply bg-[var(--text-dim)]; }
+.platform-plan-trial { @apply bg-[var(--warning)]; }
+.platform-plan-paid { @apply bg-[var(--success)]; }
+.platform-traffic-empty { @apply text-xs text-[var(--text-dim)] py-6 text-center leading-6; }
+.platform-traffic-bars { @apply flex items-end gap-1 h-32; }
+.platform-traffic-bar-col { @apply flex-1 flex flex-col items-center justify-end gap-1 h-full; }
+.platform-traffic-bar { @apply w-full rounded-t bg-[var(--primary)] min-h-[4px]; }
+.platform-traffic-bar-label { @apply text-[9px] text-[var(--text-dim)]; }
+.platform-traffic-list { @apply space-y-1.5; }
+.platform-traffic-list li { @apply flex items-center justify-between gap-3 text-xs text-[var(--text-muted)]; }
 .platform-kpi-card { @apply p-5 flex flex-col gap-3; }
 .platform-revenue-row { @apply grid grid-cols-2 lg:grid-cols-3 gap-4; }
 .platform-ops-signal-row { @apply grid grid-cols-2 gap-4; }
