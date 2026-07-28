@@ -343,11 +343,11 @@ export function Sidebar() {
               </>
             )}
           </Link>
-          {/* 팝업으로 열기 — hover 시 우측에 등장. 현재 페이지 유지하며 이 메뉴를 플로팅 창으로. */}
+          {/* 팝업으로 열기 — hover 시 우측에 등장. 현재 페이지 유지하며 이 메뉴를 바로 OS 새 창으로. */}
           {!collapsed && popups && (
-            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); popups.open(item.href, item.label); }}
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); popups.openDetached(item.href, item.label); }}
               className="nav-item-popup-btn"
-              title="팝업 창으로 열기" aria-label={`${item.label} 팝업으로 열기`}>
+              title="새 창으로 열기" aria-label={`${item.label} 새 창으로 열기`}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18" /><path d="M13 13h4v4" /><path d="M17 13l-4 4" />
               </svg>

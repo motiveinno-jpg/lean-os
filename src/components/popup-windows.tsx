@@ -19,6 +19,7 @@ type Ctx = {
   dragging: boolean;
   setDragging: (v: boolean) => void;
   open: (href: string, title: string) => void;
+  openDetached: (href: string, title: string) => void;
   close: (id: string) => void;
   focus: (id: string) => void;
   toggleMin: (id: string) => void;
@@ -60,6 +61,19 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // 사이드바 "팝업으로 열기" — 인앱 플로팅 창을 거치지 않고 바로 OS 새 창으로 (2026-07-28 사장님:
+  //   "두번 안누르고 바로 새창으로"). 팝업 차단 시에만 기존 인앱 플로팅 창으로 폴백.
+  const openDetached = useCallback((href: string, title: string) => {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const width = Math.min(820, Math.round(vw * 0.62));
+    const height = Math.min(600, Math.round(vh * 0.7));
+    const left = (window.screenX || 0) + Math.round((vw - width) / 2);
+    const top = (window.screenY || 0) + 96;
+    const feat = `popup=yes,noopener=no,width=${width},height=${height},left=${Math.max(0, left)},top=${Math.max(0, top)}`;
+    const wref = window.open(`${href}?embed=1`, `ovpop-${href}`, feat);
+    if (!wref) open(href, title);
+  }, [open]);
+
   const close = useCallback((id: string) => setWins((prev) => prev.filter((w) => w.id !== id)), []);
   const toggleMin = useCallback((id: string) => setWins((prev) => prev.map((w) => (w.id === id ? { ...w, min: !w.min } : w))), []);
   const restore = useCallback((id: string) => {
@@ -71,7 +85,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
     setWins((prev) => prev.map((w) => (w.id === id ? { ...w, ...r } : w))), []);
 
   return (
-    <PopupCtx.Provider value={{ wins, dragging, setDragging, open, close, focus, toggleMin, restore, toggleMax, setRect }}>
+    <PopupCtx.Provider value={{ wins, dragging, setDragging, open, openDetached, close, focus, toggleMin, restore, toggleMax, setRect }}>
       {children}
     </PopupCtx.Provider>
   );
