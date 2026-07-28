@@ -2781,6 +2781,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-release-item { @apply p-4 rounded-xl bg-[var(--bg-surface)]; }
 .platform-kpi-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
 
+.platform-badge { @apply inline-block px-2 py-0.5 rounded-full text-[10px] font-bold; }
+.platform-badge-free { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+.platform-badge-trial { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.platform-badge-paid { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+
 /* 운영자 대시보드 — 가입 퍼널 (2026-07-28) */
 .platform-funnel { @apply space-y-4; }
 .platform-funnel-steps { @apply grid grid-cols-2 lg:grid-cols-4 gap-3 p-5; }

@@ -169,6 +169,9 @@ export default function PlatformOverview() {
         ))}
       </div>
 
+      {/* 최근 가입사 (2026-07-28) — 운영자 RLS 정책 추가 전까지 자기 회사 1건만 보이던 자리 */}
+      <RecentCompanies companies={companies as any[]} />
+
       {/* 가입 퍼널 · 회사 미등록 가입자 (2026-07-28) */}
       <SignupFunnelSection funnel={funnel ?? null} />
 
@@ -462,6 +465,72 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
             </table>
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+// ── 최근 가입사 ──────────────────────────────────────────────────────────────
+//   2026-07-28: companies SELECT 정책에 운영자 예외가 없어 이 화면이 자기 회사
+//   1건만 보고 있었다("총 가입사 1"). 정책 추가 후 전체가 보이므로 목록을 붙인다.
+function RecentCompanies({ companies }: { companies: any[] }) {
+  const rows = [...(companies || [])]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .slice(0, 12);
+
+  const planOf = (c: any) => {
+    const sub = (c.subscriptions || []).find((s: any) => s.status === "active" || s.status === "trialing");
+    if (!sub) return { label: "무료", cls: "platform-badge-free" };
+    if (sub.status === "trialing") return { label: "체험", cls: "platform-badge-trial" };
+    const slug = sub.subscription_plans?.slug;
+    return slug && slug !== "free"
+      ? { label: sub.subscription_plans?.name || "유료", cls: "platform-badge-paid" }
+      : { label: "무료", cls: "platform-badge-free" };
+  };
+
+  const fmtKst = (iso?: string) =>
+    iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+
+  return (
+    <section className="platform-funnel">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="text-lg font-bold text-[var(--text)]">최근 가입사</h2>
+        <span className="text-[11px] text-[var(--text-dim)]">전체 {companies?.length ?? 0}곳 · 최근 12곳 표시</span>
+      </div>
+      <div className="glass-card p-0 overflow-x-auto">
+        <table className="w-full min-w-[560px] text-xs">
+          <thead>
+            <tr className="table-head-row">
+              <th className="th-cell text-left">회사</th>
+              <th className="th-cell text-left">사업자번호</th>
+              <th className="th-cell text-center">인원</th>
+              <th className="th-cell text-center">이용</th>
+              <th className="th-cell text-left">가입</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-dim)]">가입사가 없습니다</td></tr>
+            ) : rows.map((c) => {
+              const p = planOf(c);
+              return (
+                <tr key={c.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                  <td className="px-3 py-2">
+                    <Link href={`/platform/companies/${c.id}`} className="font-semibold text-[var(--primary)] hover:underline">
+                      {c.name || "이름 없음"}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{c.business_number || "—"}</td>
+                  <td className="px-3 py-2 text-center mono-number text-[var(--text-muted)]">{c.users?.[0]?.count ?? 0}</td>
+                  <td className="px-3 py-2 text-center">
+                    <span className={`platform-badge ${p.cls}`}>{p.label}</span>
+                  </td>
+                  <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{fmtKst(c.created_at)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </section>
   );
