@@ -5,7 +5,7 @@
 //
 //   출력: src/generated/release-log.json  (초기 1회 커밋해 두고, 빌드 시 덮어씀 —
 //   로컬 `npm run build` 후 이 파일 diff 는 커밋하지 않아도 된다)
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,8 +20,13 @@ const TYPE_LABEL = {
 
 let entries = [];
 try {
-  const raw = execSync(
-    "git log --no-merges -80 --date=format:'%Y-%m-%d' --pretty=format:'%h%x09%ad%x09%s'",
+  // ⚠️ 셸을 거치지 않는다(execFileSync). execSync 는 Windows 에서 cmd.exe 를 태우는데
+  //    cmd 는 작은따옴표를 벗겨내지 않아 포맷 문자열의 ' 가 값에 그대로 섞였다.
+  //    ("hash": "'20fbe107", "date": "'2026-07-28'") — bash 인 다른 PC 에서는 정상이라
+  //    윈도우에서 빌드할 때만 이 파일이 매번 깨졌다 (2026-07-28).
+  const raw = execFileSync(
+    "git",
+    ["log", "--no-merges", "-80", "--date=format:%Y-%m-%d", "--pretty=format:%h%x09%ad%x09%s"],
     { cwd: root, encoding: "utf8" },
   );
   entries = raw.split("\n").filter(Boolean).map((line) => {
