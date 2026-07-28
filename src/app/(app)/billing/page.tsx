@@ -408,7 +408,15 @@ export default function BillingPage() {
               </span>
             </div>
           </div>
-          <button onClick={() => setTab("plan")} className="btn-primary btn-sm whitespace-nowrap">플랜 선택하고 시작</button>
+          <button
+            onClick={() => {
+              // 이 배너는 요금제 탭에서도 보이므로 setTab 만으론 무반응 (2026-07-28 사장님 제보)
+              //   → 탭 전환 + 플랜 카드로 스크롤
+              setTab("plan");
+              setTimeout(() => document.getElementById("billing-plan-cards")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+            }}
+            className="btn-primary btn-sm whitespace-nowrap"
+          >플랜 선택하고 시작</button>
         </div>
       )}
 
@@ -555,7 +563,7 @@ export default function BillingPage() {
           )}
 
 
-          <div className="billing-plan-grid">
+          <div id="billing-plan-cards" className="billing-plan-grid scroll-mt-24">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
               const meta = PLAN_FEATURES[slug] || { icon: "📦", features: [] };
