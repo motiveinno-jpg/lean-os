@@ -48,20 +48,23 @@
 /* 화면이 무대를 차지해야 한다 — 문구 칸을 좁히고 남는 폭은 전부 화면에 준다 */
 .lp5-wrap { width: 100%; max-width: 1420px; padding: 0 32px; margin: 0 auto; }
 
-/* ── 타이포 ── */
+/* ── 타이포 ──
+   ⚠️ clamp 의 최솟값을 크게 잡으면 좁은 화면에서 글자가 안 줄어 제목이 화면을 뚫는다.
+      최솟값은 360px 에서 읽히는 크기로 낮추고, 가운데는 calc(고정 + vw) 로 매끄럽게 잇는다.
+      (min 40px + 6.2vw 로 뒀더니 360px 에서 40px 이 그대로 나와 한 줄이 넘쳤다) */
 .lp5-eyebrow {
-  font-size: 13px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--brand); margin-bottom: 18px;
+  font-size: clamp(11px, calc(6px + .5vw), 13px); font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--brand); margin-bottom: clamp(10px, 1.4vw, 18px);
 }
 .lp5-scene-dark .lp5-eyebrow { color: var(--brand2); }
 .lp5-h {
-  font-size: clamp(38px, 5.4vw, 74px); font-weight: 800; line-height: 1.14;
+  font-size: clamp(28px, calc(9px + 4.9vw), 74px); font-weight: 800; line-height: 1.16;
   letter-spacing: -.035em; margin: 0;
 }
-.lp5-h-sm { font-size: clamp(30px, 3.6vw, 48px); }
+.lp5-h-sm { font-size: clamp(24px, calc(8px + 4.2vw), 48px); }
 .lp5-lead {
-  font-size: clamp(16px, 1.35vw, 20px); line-height: 1.75; color: var(--ink2);
-  margin-top: 18px; max-width: 620px;
+  font-size: clamp(14.5px, calc(11px + .62vw), 20px); line-height: 1.72; color: var(--ink2);
+  margin-top: clamp(12px, 1.4vw, 18px); max-width: 620px;
 }
 .lp5-scene-dark .lp5-lead { color: #B9B9C6; }
 .lp5-grad {
@@ -120,9 +123,9 @@
   transform: translateY(calc(var(--p) * -74px));
   opacity: calc(1 - clamp(0, calc((var(--p) - .42) / .3), 1));
 }
-.lp5-hero-h { font-size: clamp(40px, 6.2vw, 88px); font-weight: 800; line-height: 1.1; letter-spacing: -.04em; }
-.lp5-hero-sub { font-size: clamp(17px, 1.6vw, 23px); color: var(--ink2); margin-top: 20px; }
-.lp5-hero-cta { display: flex; gap: 12px; justify-content: center; margin-top: 34px; flex-wrap: wrap; }
+.lp5-hero-h { font-size: clamp(30px, calc(10px + 5.4vw), 88px); font-weight: 800; line-height: 1.12; letter-spacing: -.04em; }
+.lp5-hero-sub { font-size: clamp(15px, calc(11px + .82vw), 23px); color: var(--ink2); margin-top: clamp(12px, 1.5vw, 20px); }
+.lp5-hero-cta { display: flex; gap: 10px; justify-content: center; margin-top: clamp(22px, 2.6vw, 34px); flex-wrap: wrap; }
 .lp5-hero-shot {
   position: relative; z-index: 1; width: min(1120px, 88vw); margin: 46px auto 0;
   transform: scale(calc(.9 + clamp(0, calc(var(--p) / .5), 1) * .1))
@@ -155,7 +158,7 @@
         칩은 .40 에서 끝내고 화면은 .34 부터 시작 — 겹치는 구간을 최소로 둔다. */
   --k: calc(1 - clamp(0, calc(var(--p) / .4), 1));
   transform: translate(-50%, -50%)
-             translate(calc(var(--x) * var(--k)), calc(var(--y) * var(--k)))
+             translate(calc(var(--x) * var(--k) * var(--r, 1)), calc(var(--y) * var(--k) * var(--r, 1)))
              scale(calc(.55 + var(--k) * .45));
   opacity: calc(var(--k) * var(--k) * 1.4);
 }
@@ -167,7 +170,7 @@
 .lp5-unify-copy { position: relative; z-index: 3; margin-bottom: 34px; }
 .lp5-unify-lines { margin-top: 16px; min-height: 96px; }
 .lp5-unify-line {
-  font-size: clamp(16px, 1.5vw, 21px); line-height: 1.7; color: var(--ink2);
+  font-size: clamp(14px, calc(10px + .78vw), 21px); line-height: 1.7; color: var(--ink2);
   opacity: 0; transform: translateY(10px); transition: opacity .55s ease, transform .55s ease;
 }
 .lp5-unify-line-on { opacity: 1; transform: none; }
@@ -178,10 +181,10 @@
   display: grid; grid-template-columns: 350px 1fr; gap: 52px; align-items: center; width: 100%;
 }
 .lp5-day-time {
-  font-size: clamp(56px, 7vw, 92px); font-weight: 800; letter-spacing: -.045em;
+  font-size: clamp(38px, calc(12px + 5.6vw), 92px); font-weight: 800; letter-spacing: -.045em;
   line-height: 1; color: var(--brand);
 }
-.lp5-day-scene { font-size: clamp(22px, 2.2vw, 30px); font-weight: 800; margin-top: 14px; letter-spacing: -.02em; }
+.lp5-day-scene { font-size: clamp(18px, calc(12px + 1.3vw), 30px); font-weight: 800; margin-top: 14px; letter-spacing: -.02em; }
 .lp5-day-ba { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; }
 .lp5-day-row { display: flex; gap: 11px; align-items: flex-start; font-size: 15px; line-height: 1.65; }
 .lp5-day-tag {
@@ -199,9 +202,9 @@
 .lp5-ax { justify-content: center; }
 .lp5-ax-grid { display: grid; grid-template-columns: 350px 1fr; gap: 52px; align-items: center; width: 100%; }
 .lp5-ax-kick {
-  font-size: clamp(44px, 5.4vw, 72px); font-weight: 800; letter-spacing: -.04em; line-height: 1;
+  font-size: clamp(32px, calc(12px + 4.2vw), 72px); font-weight: 800; letter-spacing: -.04em; line-height: 1;
 }
-.lp5-ax-head { font-size: clamp(20px, 1.9vw, 26px); font-weight: 700; margin-top: 18px; line-height: 1.4; letter-spacing: -.02em; }
+.lp5-ax-head { font-size: clamp(17px, calc(13px + .95vw), 26px); font-weight: 700; margin-top: 18px; line-height: 1.4; letter-spacing: -.02em; }
 .lp5-ax-lead { font-size: 15.5px; line-height: 1.75; color: var(--ink2); margin-top: 14px; }
 .lp5-ax-menus { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 24px; }
 .lp5-ax-menu {
@@ -256,14 +259,15 @@
 .lp5-mob-grid { display: grid; grid-template-columns: 1fr 400px; gap: 60px; align-items: center; width: 100%; }
 .lp5-mob-copy { display: flex; flex-direction: column; }
 .lp5-mob-step { margin-top: auto; padding-top: 40px; }
-.lp5-mob-h { font-size: clamp(24px, 2.4vw, 34px); font-weight: 800; letter-spacing: -.025em; line-height: 1.32; }
+.lp5-mob-h { font-size: clamp(20px, calc(13px + 1.5vw), 34px); font-weight: 800; letter-spacing: -.025em; line-height: 1.32; }
 .lp5-mob-h em { font-style: normal; color: var(--ink3); }
 .lp5-mob-d { font-size: 15.5px; line-height: 1.75; color: var(--ink2); margin-top: 14px; }
 .lp5-mob-dots { display: flex; gap: 7px; margin-top: 24px; }
 .lp5-mob-dot { width: 26px; height: 3px; border-radius: 99px; background: var(--line); transition: background .3s; }
 .lp5-mob-dot-on { background: var(--brand); }
 .lp5-phone {
-  position: relative; width: 340px; margin: 0 auto; aspect-ratio: 1170 / 2400;
+  /* ⚠️ 340px 고정이라 360px 화면에서 그리드 트랙을 밀어 옆 칸 문구까지 샐지게 했다 */
+  position: relative; width: min(340px, 74vw); margin: 0 auto; aspect-ratio: 1170 / 2400;
   border-radius: 46px; padding: 9px; background: linear-gradient(160deg, #2B2B36, #0C0C12 62%);
   box-shadow: 0 50px 90px -34px rgba(11,11,15,.6), 0 0 0 1px rgba(255,255,255,.08) inset;
   transform: rotate(-3deg) translateY(calc((1 - clamp(0, calc(var(--p) / .35), 1)) * 40px));
@@ -323,6 +327,30 @@
 @media (max-width: 1200px) and (min-width: 1000px) {
   .lp5-cov-grid { grid-template-columns: repeat(4, 1fr); }
   .lp5-day-grid, .lp5-ax-grid, .lp5-eng-grid { grid-template-columns: 320px 1fr; gap: 40px; }
+  /* ⚠️ 칩 궤도(±500px)가 1024px 화면 밖으로 나간다 — 반경을 같이 줄인다 */
+  .lp5-chip { --r: .68; font-size: 12.5px; padding: 9px 13px; }
+}
+/* 좁은 화면에서 히어로·통합에 들어가는 폰 목업 (데스크톱 캡처 대체) */
+.lp5-phone-solo { width: min(300px, 66vw); transform: none; margin-top: 8px; }
+.lp5-phone-solo img { opacity: 1; }
+/* ⚠️ 폰은 세로가 길다(1170x2400). 무대 높이를 넘지 않게 천장을 둔다 */
+.lp5-phone-solo { max-height: 52vh; aspect-ratio: 1170 / 2400; }
+
+/* 아주 좁은 화면 — 여백·칸수를 줄여 내용이 뭉개지지 않게 */
+@media (max-width: 620px) {
+  .lp5-wrap { padding: 0 20px; }
+  .lp5-stage { padding: 68px 0; }
+  .lp5-cov-grid { grid-template-columns: 1fr; gap: 9px; }
+  .lp5-cov-cell { padding: 13px 14px; }
+  .lp5-checks { gap: 10px 14px; }
+  .lp5-btn { height: 50px; padding: 0 22px; font-size: 15px; }
+  .lp5-hero-cta .lp5-btn { flex: 1 1 auto; justify-content: center; }
+  .lp5-day-ba { margin-top: 18px; }
+  .lp5-day-row { font-size: 14px; }
+  .lp5-ax-menu { font-size: 11.5px; padding: 5px 9px; }
+  .lp5-eng-item { padding: 12px 13px; gap: 10px; }
+  .lp5-eng-name { font-size: 15px; }
+  .lp5-eng-short { font-size: 12.5px; }
 }
 /* 세로가 짧은 노트북 — 무대 안에서 글자와 화면이 서로 밀어내지 않게 */
 @media (min-height: 0px) and (max-height: 780px) and (min-width: 1000px) {

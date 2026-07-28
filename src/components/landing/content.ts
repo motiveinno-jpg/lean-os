@@ -23,7 +23,7 @@ export const HERO = {
 // 히어로에서 가로로 흐르는 실제 화면들 — "이게 다 된다"를 한 장면으로.
 //   ⚠️ 전부 /demo 를 실제 뷰포트에서 찍은 진짜 화면이다. 렌더링·목업을 섞지 말 것.
 export const HERO_STRIP = [
-  { src: "/product/dashboard-v4.png", alt: "오너뷰 대시보드" },
+  { src: "/product/dashboard-v5.png", alt: "오너뷰 대시보드" },
   { src: "/product/f-projects-v1.png", alt: "오너뷰 프로젝트 파이프라인" },
   { src: "/product/f-bank-v1.png", alt: "오너뷰 통장 거래내역" },
   { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브" },
@@ -161,7 +161,7 @@ export const DAY = [
     before: "통장 앱, 카드사 앱, 엑셀을 차례로 열어 잔고부터 확인해요",
     after: "로그인하면 AI가 잔고·미수금·오늘 챙길 일을 먼저 알려줘요",
     menu: "대시보드",
-    src: "/product/dashboard-v4.png",
+    src: "/product/dashboard-v5.png",
     alt: "오너뷰 위젯 대시보드",
   },
   {
@@ -303,7 +303,7 @@ export const SCREENS = [
   {
     key: "dashboard",
     tab: "위젯 대시보드",
-    src: "/product/dashboard-v4.png",
+    src: "/product/dashboard-v5.png",
     alt: "오너뷰 위젯 대시보드 — 근태·일정·프로젝트·매출·세금·미수금 위젯",
     title: "필요한 위젯만 골라 내 대시보드를 만들어요",
     desc: "근태·일정·프로젝트·매출·세금·자산까지 위젯으로 있어요. 원하는 자리에 끌어다 놓으면 사람마다 다른 화면이 돼요.",

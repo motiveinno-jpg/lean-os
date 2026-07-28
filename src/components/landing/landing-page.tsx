@@ -16,7 +16,7 @@ import "@/app/landing.css";
 import "@/app/landing-v5.css";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
-import { Scene, Rise } from "@/components/landing/scene";
+import { Scene, Rise, useNarrow } from "@/components/landing/scene";
 import {
   HERO, HERO_INTRO, DAY, PILLARS, ENGINES, CATALOG, MOBILE, FAQS, FOOTER,
 } from "@/components/landing/content";
@@ -67,8 +67,19 @@ function ShotStack({ items, active, sizes = "(max-width: 999px) 94vw, 1040px" }:
   );
 }
 
+/** 폰 목업 한 대 — 좀은 화면에서 데스크톱 캐프처 대신 들어간다. */
+function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
+  return (
+    <div className="lp5-phone lp5-phone-solo">
+      <div className="lp5-phone-notch" />
+      <Image src={src} alt={alt} width={1170} height={2400} sizes="74vw" priority={priority} className="lp5-phone-on" />
+    </div>
+  );
+}
+
 // ══════════════════ 1. 히어로 ══════════════════
 function SceneHero() {
+  const narrow = useNarrow();
   return (
     <Scene len={1.5} className="lp5-hero">
       {() => (
@@ -90,7 +101,9 @@ function SceneHero() {
             </div>
           </div>
           <div className="lp5-hero-shot">
-            <Shot src="/product/dashboard-v4.png" alt="오너뷰 대시보드" priority sizes="(max-width: 999px) 92vw, 1120px" />
+            {narrow
+              ? <PhoneShot src="/product/m-dash-v2.png" alt="휴대폰에서 본 오너뷰 대시보드" priority />
+              : <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" priority sizes="(max-width: 999px) 92vw, 1120px" />}
           </div>
           <div className="lp5-hero-hint"><i />SCROLL</div>
         </>
@@ -113,6 +126,7 @@ const SCATTER = [
 ];
 
 function SceneUnify() {
+  const narrow = useNarrow();
   return (
     <Scene len={1.7} beats={HERO_INTRO.length} className="lp5-unify">
       {(beat) => (
@@ -134,7 +148,9 @@ function SceneUnify() {
             </div>
           </div>
           <div className="lp5-unify-core">
-            <Shot src="/product/dashboard-v4.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 820px" />
+            {narrow
+              ? <PhoneShot src="/product/m-money-v2.png" alt="휴대폰에서 본 오너뷰 경영 요약" />
+              : <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 820px" />}
           </div>
           </div>
         </>

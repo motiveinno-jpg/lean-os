@@ -27,7 +27,9 @@ export function useScene(beats = 1) {
     // 모션을 줄이고 싶은 사용자에겐 연출을 재생하지 않고 "다 끝난 상태"를 바로 보여준다.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       stage.style.setProperty("--p", "1");
-      if (beats > 1) setBeat(0);
+      // ⚠️ 여기서 beat 를 0 으로 두면 "다 끝난 상태"가 아니라 "시작 상태"가 된다 —
+      //    커버리지처럼 쌓이는 장면은 메뉴 18개 중 1개만 켜진 채로 멈춘다. 마지막 구간으로 둔다.
+      if (beats > 1) setBeat(beats - 1);
       return;
     }
 
@@ -99,6 +101,24 @@ function observeReveal(el: Element, cb: () => void) {
   revealCbs.set(el, cb);
   revealIO.observe(el);
   return () => { revealIO?.unobserve(el); revealCbs.delete(el); };
+}
+
+/**
+ * 좁은 화면 판정.
+ *   ⚠️ 폰에서 데스크톱 화면 캡처를 그대로 축소하면 글자가 안 읽혀 "무슨 화면인지" 전달이 0이 된다.
+ *      좁을 때는 같은 기능의 모바일 화면으로 바꿔 끼운다.
+ *   SSR 은 항상 false(데스크톱)로 그리고 마운트 후 판정한다 — 하이드레이션 불일치를 피한다.
+ */
+export function useNarrow(max = 700) {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${max}px)`);
+    const on = () => setNarrow(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [max]);
+  return narrow;
 }
 
 /** 뷰포트에 들어오면 스르륵 떠오른다. delay 는 같은 줄에 여러 개일 때 계단식으로. */
