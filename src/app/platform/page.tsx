@@ -52,6 +52,26 @@ function fmtW(n: number): string {
   return `${sign}₩${abs.toLocaleString()}`;
 }
 
+// 회사의 이용 등급 판정 — 카드 숫자·목록·배지가 모두 이 함수 하나만 쓴다.
+//   2026-07-28: 카드는 status 로, 목록은 trial_ends_at 로 따로 세다가 "체험 중 1개인데
+//   눌러도 아무것도 안 나온다"가 났다. 판정을 한 곳으로 모아 재발을 막는다.
+//   기준은 차단 판정(get_company_entitlement)과 동일 — status 는 만료 후에도
+//   trialing 으로 남으므로 trial_ends_at 을 함께 본다.
+export type PlanKind = "free" | "trial" | "expired" | "paid";
+function planOf(c: any): { kind: PlanKind; label: string; cls: string } {
+  const sub = (c.subscriptions || []).find((s: any) => s.status === "active" || s.status === "trialing");
+  if (!sub) return { kind: "free", label: "미구독", cls: "platform-badge-free" };
+  if (sub.status === "trialing") {
+    const left = sub.trial_ends_at ? Math.ceil((new Date(sub.trial_ends_at).getTime() - Date.now()) / 86400000) : null;
+    if (left !== null && left < 0) return { kind: "expired", label: "체험 만료", cls: "platform-badge-expired" };
+    return { kind: "trial", label: left === null ? "체험 중" : `체험 D-${left}`, cls: "platform-badge-trial" };
+  }
+  const slug = sub.subscription_plans?.slug;
+  return slug && slug !== "free"
+    ? { kind: "paid", label: sub.subscription_plans?.name || "유료", cls: "platform-badge-paid" }
+    : { kind: "free", label: "미구독", cls: "platform-badge-free" };
+}
+
 export default function PlatformOverview() {
   const { data: companies = [] } = useQuery({
     queryKey: ["p-companies"],
@@ -172,8 +192,14 @@ export default function PlatformOverview() {
 
   const totalCompanies = companies.length;
   const totalUsers = users.length;
-  const activeSubs = subscriptions.filter((s: any) => s.status === "active" || s.status === "trialing").length;
-  const paidSubs = subscriptions.filter((s: any) => s.status === "active" && s.subscription_plans?.slug !== "free").length;
+  // ⚠️ subscriptions 배열이 아니라 companies 기준 planOf 로 센다 — 목록 필터와 같은 함수라
+  //    "카드 숫자 1인데 눌러도 목록 0" 같은 어긋남이 원천적으로 안 생긴다.
+  const kindCounts = (companies as any[]).reduce(
+    (acc: Record<PlanKind, number>, c: any) => { acc[planOf(c).kind] += 1; return acc; },
+    { free: 0, trial: 0, expired: 0, paid: 0 } as Record<PlanKind, number>,
+  );
+  const paidSubs = kindCounts.paid;
+  const activeSubs = kindCounts.paid + kindCounts.trial;
   const mrr = subscriptions
     .filter((s: any) => s.status === "active")
     .reduce((sum: number, s: any) => {
@@ -293,8 +319,9 @@ export default function PlatformOverview() {
               {[
                 { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const },
                 { label: "이번 달 신규", value: thisMonth, sub: "신규 가입", f: "new" as const },
-                { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%`, f: "paid" as const },
-                { label: "체험 중", value: activeSubs - paidSubs, sub: "카드 등록 · 전환 대기", f: "trial" as const },
+                { label: "유료 구독", value: kindCounts.paid, sub: `전환율 ${conversionRate}%`, f: "paid" as const },
+                { label: "체험 중", value: kindCounts.trial, sub: "카드 등록 · 전환 대기", f: "trial" as const },
+                { label: "체험 만료", value: kindCounts.expired, sub: "차단 중 · 연락 대상", f: "expired" as const },
               ].map((kpi) => (
                 <button
                   key={kpi.label}
@@ -317,7 +344,7 @@ export default function PlatformOverview() {
           <SignupFunnelSection funnel={funnel ?? null} />
 
           {/* 트래픽·이용 현황 */}
-          <TrafficSection usage={usage ?? null} traffic={traffic ?? null} />
+          <TrafficSection usage={usage ?? null} traffic={traffic ?? null} companies={companies as any[]} />
         </div>
 
         {/* ▶ 작업 레일 */}
@@ -417,9 +444,14 @@ export default function PlatformOverview() {
 
 // ── 트래픽·이용 현황 ─────────────────────────────────────────────────────────
 //   방문자·페이지뷰는 2026-07-28 부터 수집 시작 — 그 이전 기간은 데이터가 없다.
-function TrafficSection({ usage, traffic }: { usage: UsageStats | null; traffic: TrafficStats | null }) {
+function TrafficSection({ usage, traffic, companies }: {
+  usage: UsageStats | null; traffic: TrafficStats | null; companies: any[];
+}) {
+  const kinds = (companies || []).reduce(
+    (acc: Record<PlanKind, number>, c: any) => { acc[planOf(c).kind] += 1; return acc; },
+    { free: 0, trial: 0, expired: 0, paid: 0 } as Record<PlanKind, number>,
+  );
   const acc = usage?.accounts;
-  const plans = usage?.plans;
   const t = traffic?.totals;
 
   const daily = traffic?.daily ?? [];
@@ -456,14 +488,13 @@ function TrafficSection({ usage, traffic }: { usage: UsageStats | null; traffic:
           <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-3">이용 형태</div>
           <div className="platform-plan-rows">
             {[
-              { label: "미구독 (카드 미등록)", n: plans?.free ?? 0, cls: "platform-plan-free" },
-              { label: "체험 중 (카드 등록)", n: plans?.trialing ?? 0, cls: "platform-plan-trial" },
-              // status 는 trialing 인데 기간이 지난 회사 — 실제로는 페이월에 막혀 있다.
-              //   status 만 세면 "체험 중" 으로 잡혀 실사용 회사 수가 부풀었다(2026-07-28).
-              { label: "체험 만료", n: plans?.trial_expired ?? 0, cls: "platform-plan-expired" },
-              { label: "유료", n: plans?.paid ?? 0, cls: "platform-plan-paid" },
+              // 위 KPI 카드·아래 가입사 목록과 같은 planOf 로 센다(RPC 집계와 이중화하지 않는다).
+              { label: "미구독 (카드 미등록)", n: kinds.free, cls: "platform-plan-free" },
+              { label: "체험 중 (카드 등록)", n: kinds.trial, cls: "platform-plan-trial" },
+              { label: "체험 만료", n: kinds.expired, cls: "platform-plan-expired" },
+              { label: "유료", n: kinds.paid, cls: "platform-plan-paid" },
             ].map((r) => {
-              const total = Math.max(1, (plans?.free ?? 0) + (plans?.trialing ?? 0) + (plans?.trial_expired ?? 0) + (plans?.paid ?? 0));
+              const total = Math.max(1, kinds.free + kinds.trial + kinds.expired + kinds.paid);
               return (
                 <div key={r.label}>
                   <div className="flex items-center justify-between text-xs mb-1">
@@ -683,28 +714,6 @@ function RecentCompanies({ companies, filter, onFilter }: {
   const router = useRouter();
   // 명칭 정리(2026-07-28 사장님): "무료 vs 체험" 구분이 안 됨 → 미구독(카드 미등록) /
   //   체험 D-n(카드 등록, 남은 일수) / 플랜명. kind 는 필터 매칭용(라벨 문자열 비교 제거).
-  const planOf = (c: any): { kind: "free" | "trial" | "expired" | "paid"; label: string; cls: string } => {
-    const sub = (c.subscriptions || []).find((s: any) => s.status === "active" || s.status === "trialing");
-    if (!sub) return { kind: "free", label: "미구독", cls: "platform-badge-free" };
-    if (sub.status === "trialing") {
-      // status 는 만료 후에도 trialing 으로 남는다(이음네트웍스: 67일 경과).
-      //   차단 판정(get_company_entitlement)은 trial_ends_at 기준이라 집계도 분리한다.
-      const left = sub.trial_ends_at ? Math.ceil((new Date(sub.trial_ends_at).getTime() - Date.now()) / 86400000) : null;
-      if (left !== null && left < 0) {
-        return { kind: "expired", label: "체험 만료", cls: "platform-badge-expired" };
-      }
-      return {
-        kind: "trial",
-        label: left === null ? "체험 중" : `체험 D-${left}`,
-        cls: "platform-badge-trial",
-      };
-    }
-    const slug = sub.subscription_plans?.slug;
-    return slug && slug !== "free"
-      ? { kind: "paid", label: sub.subscription_plans?.name || "유료", cls: "platform-badge-paid" }
-      : { kind: "free", label: "미구독", cls: "platform-badge-free" };
-  };
-
   const fmtKst = (iso?: string) =>
     iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
 
