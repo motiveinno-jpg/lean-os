@@ -597,7 +597,6 @@ export default function LandingPage() {
            최종 CTA 섹션을 없앤 대신, 히어로를 지나면 어디서든 가입 경로가 살아있게 한다.
            데스크톱은 하단 가운데 떠 있는 알약, 모바일은 하단 전체 폭 바. */}
       <div className={`lp4-sticky-cta ${showSticky ? "lp4-sticky-cta-on" : ""}`}>
-        <span className="lp4-sticky-copy">14일 무료 · 가입하면 지금 바로</span>
         <Link href="/auth" className="lp4-btn lp4-btn-brand">무료로 시작하기 <Arrow /></Link>
       </div>
     </div>
