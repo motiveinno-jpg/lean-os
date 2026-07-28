@@ -278,6 +278,7 @@ function MobileScroll() {
             <h2 className="lp4-mob-title">
               {MOBILE.title.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
             </h2>
+            <p className="lp4-mob-lead">{MOBILE.sub}</p>
             <div className="lp4-mob-step" key={S.src}>
               <div className="lp4-mob-h">
                 {S.head}<br /><em>{S.muted}</em>
@@ -459,7 +460,9 @@ export default function LandingPage() {
         <div className="lp4-daypin">
           <div className="lp4-container">
             <div className="lp4-sec-head lp4-sec-head-c lp4-day-head">
-              <h2 className="lp4-h2">회사의 하루가 <span className="lp4-underline">이렇게 달라져요</span></h2>
+              <div className="lp4-eyebrow">Before & After</div>
+              <h2 className="lp4-h2">그래서 하루가 <span className="lp4-underline">이렇게 달라져요</span></h2>
+              <p className="lp4-sub">앞에서 말한 게 실제로 어떻게 달라지는지, 시간대별로 보여드릴게요.</p>
             </div>
 
             <div className="lp4-tl">
@@ -520,10 +523,10 @@ export default function LandingPage() {
         <div className="lp4-container">
           <Reveal className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Coverage</div>
-            <h2 className="lp4-h2">회사 운영의 <span className="lp4-underline">전 영역을 다뤄요</span></h2>
+            <h2 className="lp4-h2">회사 운영, <span className="lp4-underline">오너뷰 안에서 끝나요</span></h2>
             <p className="lp4-sub">
-              모듈을 더 살 일이 없어요.
-              재무부터 자산까지 {CATALOG.length}개 영역이 하나의 데이터 위에서 이어져요.
+              방금 본 세 축 아래로 메뉴 {CATALOG.reduce((n, g) => n + g.menus.length, 0)}개가 이어져요.
+              재무부터 자산까지, 밖에서 따로 처리할 일이 없어요.
             </p>
           </Reveal>
 

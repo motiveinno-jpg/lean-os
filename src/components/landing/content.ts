@@ -232,36 +232,6 @@ export const PILLARS = [
     ],
   },
   {
-    key: "hr", grp: "hr",
-    kicker: "인사",
-    headline: "급여일 업무,\n승인 한 번이면 끝나요",
-    lead: "입사부터 근태·연차·급여·계약서까지 사람에 대한 기록이 한곳에 쌓여요.",
-    menus: ["구성원", "근태 관리", "근로계약·서식", "전자결재"],
-    blocks: [
-      {
-        tab: "급여", before: "/product/f-hr-b-v1.png",
-        title: "4대보험·원천세는 알아서 계산돼요",
-        desc: "국민연금 4.5% · 건보 3.545% · 고용 0.9% · 간이세액표가 자동으로 적용돼요. 승인하면 전 직원에게 명세서가 나가요.",
-        src: "/product/f-hr-v1.png",
-        alt: "오너뷰 근태 요약과 급여 배치",
-      },
-      {
-        tab: "구성원", before: "/product/f-members-b-v1.png",
-        title: "누가 언제 들어왔는지 다 남아요",
-        desc: "부서·직급·입사일·재직 상태가 정리돼요. 근로계약서는 전자서명으로 받고 그대로 보관돼요.",
-        src: "/product/f-members-v1.png",
-        alt: "오너뷰 구성원 목록",
-      },
-      {
-        tab: "근태·연차", before: "/product/f-leave-b-v1.png",
-        title: "연차는 직원이 직접 확인해요",
-        desc: "출근율·지각·사용 연차·연장근무가 자동으로 모여요. 대표님께 물어볼 일이 없어져요.",
-        src: "/product/f-leave-v1.png",
-        alt: "오너뷰 인사관리 화면",
-      },
-    ],
-  },
-  {
     key: "account", grp: "finance",
     kicker: "회계",
     headline: "통장과 카드가\n그대로 장부가 돼요",
@@ -288,6 +258,36 @@ export const PILLARS = [
         desc: "매출·매입 내역을 자동으로 수집하고 계약·입금과 대조해요. 월결산과 재무제표까지 이어져요.",
         src: "/product/f-tax-v1.png",
         alt: "오너뷰 세금계산서와 월결산",
+      },
+    ],
+  },
+  {
+    key: "hr", grp: "hr",
+    kicker: "인사",
+    headline: "급여일 업무,\n승인 한 번이면 끝나요",
+    lead: "입사부터 근태·연차·급여·계약서까지 사람에 대한 기록이 한곳에 쌓여요.",
+    menus: ["구성원", "근태 관리", "근로계약·서식", "전자결재"],
+    blocks: [
+      {
+        tab: "급여", before: "/product/f-hr-b-v1.png",
+        title: "4대보험·원천세는 알아서 계산돼요",
+        desc: "국민연금 4.5% · 건보 3.545% · 고용 0.9% · 간이세액표가 자동으로 적용돼요. 승인하면 전 직원에게 명세서가 나가요.",
+        src: "/product/f-hr-v1.png",
+        alt: "오너뷰 근태 요약과 급여 배치",
+      },
+      {
+        tab: "구성원", before: "/product/f-members-b-v1.png",
+        title: "누가 언제 들어왔는지 다 남아요",
+        desc: "부서·직급·입사일·재직 상태가 정리돼요. 근로계약서는 전자서명으로 받고 그대로 보관돼요.",
+        src: "/product/f-members-v1.png",
+        alt: "오너뷰 구성원 목록",
+      },
+      {
+        tab: "근태·연차", before: "/product/f-leave-b-v1.png",
+        title: "연차는 직원이 직접 확인해요",
+        desc: "출근율·지각·사용 연차·연장근무가 자동으로 모여요. 대표님께 물어볼 일이 없어져요.",
+        src: "/product/f-leave-v1.png",
+        alt: "오너뷰 인사관리 화면",
       },
     ],
   },
@@ -377,9 +377,9 @@ export const FEATURES = [
 //   head 의 두 번째 줄은 회색으로 흐려 강조 대비를 준다(레퍼런스 형태).
 //   src 는 /demo 를 390px 뷰포트·DPR3 로 찍은 진짜 모바일 화면이다.
 export const MOBILE = {
-  eyebrow: "모바일",
-  title: "언제 어디서든\n보던 화면 그대로",
-  sub: "PC에서 보던 오너뷰를 휴대폰에서도 그대로 봐요. 따로 앱을 깔지 않아도 돼요.",
+  eyebrow: "Anywhere",
+  title: "회사는 책상 앞에만\n있지 않으니까",
+  sub: "PC에서 보던 화면을 휴대폰에서도 그대로 봐요. 앱을 따로 깔 필요도 없어요.",
   steps: [
     {
       head: "출근도 퇴근도,",

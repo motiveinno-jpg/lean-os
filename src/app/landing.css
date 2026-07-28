@@ -237,7 +237,10 @@
 .lp4-why:hover { transform: translateY(-4px);
   box-shadow: 0 1px 0 rgba(255,255,255,.95) inset, 0 0 0 1px rgba(27,26,46,.05),
     0 16px 32px -18px rgba(27,26,46,.26), 0 56px 104px -46px rgba(27,26,46,.46); }
+/* 카드마다 헤드 줄 수·설명 길이가 달라 음영(일러스트) 시작 높이가 어긋났다 →
+   설명 영역에 최소 높이를 줘 한 줄에 놓인 카드들의 음영이 같은 지점에서 시작하게 한다 */
 .lp4-why-copy { position:relative; z-index:1; flex:none; }
+@media (min-width: 900px){ .lp4-why-copy { min-height: 208px; } }
 .lp4-why-num { display:flex; align-items:baseline; gap:10px; font-size:38px; font-weight:800;
   letter-spacing:-.04em; line-height:1; color: var(--ink); font-variant-numeric: tabular-nums; }
 .lp4-why-suffix { color: var(--ink3); }
