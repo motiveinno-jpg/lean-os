@@ -4,6 +4,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useState, useEffect } from "react";
 import { friendlyError } from "@/lib/friendly-error";
+import { logError } from "@/lib/error-logger";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
@@ -238,7 +239,22 @@ export default function BillingPage() {
       });
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error?.message || '결제 세션 생성 실패');
+        const code = result.error?.code as string | undefined;
+        const serverMsg = result.error?.message || "결제 세션 생성 실패";
+        // 서버가 이미 한국어로 안내하는 사용자 원인 오류는 그대로 보여준다
+        if (code === "CYCLE_UNAVAILABLE" || code === "INVALID_SALES_CODE" || code === "VALIDATION_ERROR" || code === "FORBIDDEN") {
+          toast(serverMsg, "error");
+          setIsPaymentLoading(false);
+          return;
+        }
+        // 원인 불명(500 등) — 실제 서버 메시지는 사용자에게 숨겨지므로(friendlyError 가
+        // 영문·기술 메시지를 일반 문구로 대체) error_logs 에 남겨 운영자가 추적 가능하게 (2026-07-28)
+        logError({
+          source: "manual",
+          message: `[stripe-checkout] ${code || response.status}: ${serverMsg}`,
+          context: { planSlug, billingCycle: cycle, seatCount: usage?.employees || 1 },
+        });
+        throw new Error("결제 시스템 연결에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
       }
       window.location.href = result.data.url;
     } catch (err: any) {
