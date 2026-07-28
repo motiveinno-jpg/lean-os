@@ -2786,6 +2786,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-release-item { @apply p-4 rounded-xl bg-[var(--bg-surface)]; }
 .platform-kpi-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
 
+.platform-kpi-clickable { @apply text-left cursor-pointer transition hover:border-[var(--primary)]/50; }
+.platform-kpi-active { @apply ring-2 ring-[var(--primary)] ring-inset; }
+.platform-filter-clear { @apply text-[11px] font-semibold text-[var(--primary)] hover:underline; }
 .platform-badge { @apply inline-block px-2 py-0.5 rounded-full text-[10px] font-bold; }
 .platform-badge-free { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
 .platform-badge-trial { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }

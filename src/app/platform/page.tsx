@@ -2,6 +2,7 @@
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -121,6 +122,10 @@ export default function PlatformOverview() {
     refetchInterval: 60_000,
   });
 
+  // KPI 카드 클릭 → 아래 "가입사" 목록을 해당 그룹으로 필터 (2026-07-28 사장님 요청).
+  //   숫자만 보고 "그게 어떤 회사인지" 알 방법이 없던 문제.
+  const [kpiFilter, setKpiFilter] = useState<"all" | "paid" | "trial" | "free" | "new">("all");
+
   const totalCompanies = companies.length;
   const totalUsers = users.length;
   const activeSubs = subscriptions.filter((s: any) => s.status === "active" || s.status === "trialing").length;
@@ -154,23 +159,28 @@ export default function PlatformOverview() {
       {/* KPI Row 1 */}
       <div className="platform-kpi-grid">
         {[
-          { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}` },
-          { label: "총 사용자", value: totalUsers, sub: `회사당 ${totalCompanies ? (totalUsers / totalCompanies).toFixed(1) : 0}명` },
-          { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%` },
-          { label: "활성 구독", value: activeSubs, sub: "체험+유료 포함" },
+          { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const },
+          { label: "이번 달 신규", value: thisMonth, sub: "이번 달 가입", f: "new" as const },
+          { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%`, f: "paid" as const },
+          { label: "체험 중", value: activeSubs - paidSubs, sub: "무료 체험", f: "trial" as const },
         ].map((kpi) => (
-          <div key={kpi.label} className="platform-kpi-card glass-card">
+          <button
+            key={kpi.label}
+            type="button"
+            onClick={() => setKpiFilter(kpi.f)}
+            className={`platform-kpi-card glass-card platform-kpi-clickable ${kpiFilter === kpi.f ? "platform-kpi-active" : ""}`}
+          >
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">{kpi.label}</span>
             <div className="flex items-end gap-2">
               <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{kpi.value}</span>
             </div>
             <div className="text-[11px] text-[var(--text-dim)]">{kpi.sub}</div>
-          </div>
+          </button>
         ))}
       </div>
 
       {/* 최근 가입사 (2026-07-28) — 운영자 RLS 정책 추가 전까지 자기 회사 1건만 보이던 자리 */}
-      <RecentCompanies companies={companies as any[]} />
+      <RecentCompanies companies={companies as any[]} filter={kpiFilter} onFilter={setKpiFilter} />
 
       {/* 가입 퍼널 · 회사 미등록 가입자 (2026-07-28) */}
       <SignupFunnelSection funnel={funnel ?? null} />
@@ -473,11 +483,11 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
 // ── 최근 가입사 ──────────────────────────────────────────────────────────────
 //   2026-07-28: companies SELECT 정책에 운영자 예외가 없어 이 화면이 자기 회사
 //   1건만 보고 있었다("총 가입사 1"). 정책 추가 후 전체가 보이므로 목록을 붙인다.
-function RecentCompanies({ companies }: { companies: any[] }) {
-  const rows = [...(companies || [])]
-    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
-    .slice(0, 12);
-
+function RecentCompanies({ companies, filter, onFilter }: {
+  companies: any[];
+  filter: "all" | "paid" | "trial" | "free" | "new";
+  onFilter: (f: "all" | "paid" | "trial" | "free" | "new") => void;
+}) {
   const planOf = (c: any) => {
     const sub = (c.subscriptions || []).find((s: any) => s.status === "active" || s.status === "trialing");
     if (!sub) return { label: "무료", cls: "platform-badge-free" };
@@ -491,11 +501,40 @@ function RecentCompanies({ companies }: { companies: any[] }) {
   const fmtKst = (iso?: string) =>
     iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
 
+  const now = new Date();
+  const isThisMonth = (c: any) => {
+    const d = new Date(c.created_at);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  };
+  const matches = (c: any) => {
+    const p = planOf(c).label;
+    if (filter === "paid") return p !== "무료" && p !== "체험";
+    if (filter === "trial") return p === "체험";
+    if (filter === "free") return p === "무료";
+    if (filter === "new") return isThisMonth(c);
+    return true;
+  };
+
+  const rows = [...(companies || [])]
+    .filter(matches)
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+
+  const FILTER_LABEL: Record<string, string> = {
+    all: "전체", new: "이번 달 신규", paid: "유료", trial: "체험 중", free: "무료",
+  };
+
   return (
     <section className="platform-funnel">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-bold text-[var(--text)]">최근 가입사</h2>
-        <span className="text-[11px] text-[var(--text-dim)]">전체 {companies?.length ?? 0}곳 · 최근 12곳 표시</span>
+        <h2 className="text-lg font-bold text-[var(--text)]">
+          가입사 <span className="text-[var(--primary)]">{FILTER_LABEL[filter]}</span>
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[var(--text-dim)]">{rows.length}곳 / 전체 {companies?.length ?? 0}곳</span>
+          {filter !== "all" && (
+            <button onClick={() => onFilter("all")} className="platform-filter-clear">전체 보기</button>
+          )}
+        </div>
       </div>
       <div className="glass-card p-0 overflow-x-auto">
         <table className="w-full min-w-[560px] text-xs">
@@ -510,7 +549,7 @@ function RecentCompanies({ companies }: { companies: any[] }) {
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-dim)]">가입사가 없습니다</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-dim)]">해당하는 가입사가 없습니다</td></tr>
             ) : rows.map((c) => {
               const p = planOf(c);
               return (
