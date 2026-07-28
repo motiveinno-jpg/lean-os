@@ -384,7 +384,8 @@ export const FEATURES = [
 //   src 는 /demo 를 390px 뷰포트·DPR3 로 찍은 진짜 모바일 화면이다.
 export const MOBILE = {
   eyebrow: "Anywhere",
-  title: "업무는 책상 앞에서만\n보지 않으니까",
+  // ⚠️ 감성 문구 하나만 놓으니 앞뒤 섹션과 동떨어졌다 — 이 장면도 "일이 더 잘 돌아간다"를 말한다.
+  title: "회사 밖에서도\n더 빠르게. 더 정확하게.",
   sub: "PC에서 보던 화면을 휴대폰에서도 그대로 봐요. 설치할 필요가 없어요.",
   steps: [
     {
