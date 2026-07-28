@@ -388,7 +388,7 @@ export default function BillingPage() {
               <span className="text-[11px] text-[var(--text-dim)]">
                 {salesCode.trim()
                   ? "코드가 확인되면 무료체험이 44일로 늘어납니다"
-                  : "영업사원에게 받은 코드가 있다면 입력하세요 (체험 44일)"}
+                  : "할인 코드가 있다면 입력하세요 (체험 44일)"}
               </span>
             </div>
           </div>
