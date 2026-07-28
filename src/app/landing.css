@@ -824,8 +824,9 @@
 .lp4-day-head { margin-bottom:34px; }
 .lp4-tl { position:relative; display:grid; grid-template-columns: repeat(5,1fr); gap:8px; margin-bottom:34px; }
 @media (max-width: 760px){ .lp4-tl { grid-template-columns: repeat(3,1fr); } }
-.lp4-tl-line { position:absolute; left:10%; right:10%; top:13px; height:2px; background: var(--line); }
-.lp4-tl-fill { position:absolute; left:10%; top:13px; height:2px; background: var(--brand);
+/* 원(14px) 중앙 = 7px. 선(2px)의 중앙을 여기 맞춘다 — top:13px 이라 선이 원 아래로 지나갔다 */
+.lp4-tl-line { position:absolute; left:10%; right:10%; top:6px; height:2px; background: var(--line); }
+.lp4-tl-fill { position:absolute; left:10%; top:6px; height:2px; background: var(--brand);
   max-width:80%; transition: width .35s ease; }
 .lp4-tl-item { position:relative; display:flex; flex-direction:column; align-items:center; gap:8px;
   padding:0 6px 8px; text-align:center; }

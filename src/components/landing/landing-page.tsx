@@ -365,7 +365,7 @@ export default function LandingPage() {
             <p className="lp4-hero-sub">{HERO.sub}</p>
             <div className="lp4-hero-cta">
               <Link href="/auth" className="lp4-btn lp4-btn-onink">무료로 시작하기 <Arrow /></Link>
-              <Link href="/demo" className="lp4-btn lp4-btn-ghost-light">실제 화면 둘러보기</Link>
+              <Link href="/demo" className="lp4-btn lp4-btn-ghost-light">데모 버전 확인하기</Link>
             </div>
             <div className="lp4-hero-checks">{HERO.checks.map((c) => <span key={c} className="lp4-hero-check"><Check /> {c}</span>)}</div>
           </div>
@@ -532,8 +532,8 @@ export default function LandingPage() {
           <Reveal>
             <Link href="/features" className="lp4-more">
               <div className="lp4-more-txt">
-                <div className="lp4-more-h">이 밖에도 메뉴 20개가 더 있어요</div>
-                <p className="lp4-more-p">거래처·세금·장부·결재·전자계약·통장·카드·대출까지. 어느 메뉴에서 무엇을 할 수 있는지 실제 화면으로 정리했어요.</p>
+                <div className="lp4-more-h">오너뷰에서 제공하는 기능, 더 확인해보세요</div>
+                <p className="lp4-more-p">메뉴 20개에 걸쳐 거래처·세금·장부·결재·전자계약·통장·카드·대출까지 들어 있어요. 어느 메뉴에서 무엇을 할 수 있는지 실제 화면으로 정리했어요.</p>
               </div>
               <span className="lp4-more-cta">기능 전체 보기 <Arrow /></span>
             </Link>
