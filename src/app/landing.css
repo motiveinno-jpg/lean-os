@@ -196,26 +196,78 @@
 .lp4-hero-check { display:inline-flex; align-items:center; gap:6px; font-size:13px; color: var(--ink3); }
 .lp4-hero-check svg { color: var(--ok); }
 
-/* ── 숫자 4개 — 아이콘 + 파스텔 타일 ──
-   원색 인디고 숫자를 세로줄로 나열하니 촌스럽고 위 문단과 견뎬었다 (2026-07-28). */
-.lp4-stats { background: var(--canvas); padding-bottom:40px; }
-.lp4-stats-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:16px; }
-@media (min-width: 900px){ .lp4-stats-grid { grid-template-columns: repeat(4,1fr); gap:20px; } }
-.lp4-stat { display:flex; flex-direction:column; align-items:flex-start;
-  padding:28px 26px 24px; border-radius:22px; border:1px solid var(--line);
+/* ── 숫자 4개를 풀어 설명하는 카드 ──
+   숫자만 세워 두면 무슨 뜻인지 알 수 없어, 설명 + 오너뷰 UI 조각 일러스트를 붙였다 (2026-07-28).
+   ⚠️ 일러스트는 설명 그림이다. 앱 화면처럼 보이게 크롬을 씌우지 말 것. */
+.lp4-stats-grid { display:grid; grid-template-columns:1fr; gap:20px; }
+@media (min-width: 900px){ .lp4-stats-grid { grid-template-columns: repeat(2,1fr); gap:24px; } }
+.lp4-why { display:flex; flex-direction:column; background:#fff; border:1px solid var(--line);
+  border-radius:26px; padding:34px 34px 0; overflow:hidden;
   transition: transform .2s, box-shadow .2s; }
-.lp4-stat:hover { transform: translateY(-3px); box-shadow: 0 24px 50px -32px rgba(27,26,46,.28); }
-.lp4-stat-1 { background: var(--pastel-lav); }
-.lp4-stat-2 { background: var(--pastel-sky); }
-.lp4-stat-3 { background: var(--pastel-mint); }
-.lp4-stat-4 { background: var(--pastel-peach); }
-.lp4-stat-ico { display:grid; place-items:center; width:42px; height:42px; border-radius:13px;
-  background: rgba(255,255,255,.72); color: var(--ink2); }
-.lp4-stat-value { font-size:40px; font-weight:800; letter-spacing:-.04em; line-height:1.1;
-  font-variant-numeric: tabular-nums; color: var(--ink); margin-top:20px; }
-.lp4-stat-suffix { color: var(--ink3); }
-.lp4-stat-label { font-size:15.5px; font-weight:700; color: var(--ink); margin-top:8px; }
-.lp4-stat-note { font-size:13px; color: var(--ink3); margin-top:4px; line-height:1.55; }
+.lp4-why:hover { transform: translateY(-3px); box-shadow: 0 30px 62px -34px rgba(27,26,46,.3); }
+.lp4-why-copy { flex:none; }
+.lp4-why-num { display:flex; align-items:baseline; gap:10px; font-size:38px; font-weight:800;
+  letter-spacing:-.04em; line-height:1; color: var(--brand); font-variant-numeric: tabular-nums; }
+.lp4-why-suffix { color: var(--brand-soft); }
+.lp4-why-label { font-size:14px; font-weight:700; letter-spacing:-.01em; color: var(--ink3); }
+.lp4-why-h { font-size:24px; font-weight:800; letter-spacing:-.035em; line-height:1.35;
+  color: var(--ink); margin-top:18px; }
+.lp4-why-d { font-size:15.5px; color: var(--ink2); line-height:1.75; margin-top:12px; }
+
+/* 공통 일러스트 바닥판 */
+.lp4-art { position:relative; margin:26px -34px 0; padding:24px 34px 30px; min-height:210px;
+  background: linear-gradient(180deg, var(--canvas2), #fff); border-top:1px solid var(--line); }
+
+/* 1) 메뉴 칩 */
+.lp4-art-menus { overflow:hidden; }
+.lp4-art-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.lp4-art-chip { font-size:13px; font-weight:600; color: var(--ink3); background:#fff;
+  border:1px solid var(--line); border-radius:999px; padding:8px 14px; }
+.lp4-art-chip-on { color: var(--brand-ink); background: var(--pastel-lav); border-color: transparent; font-weight:700; }
+.lp4-art-fade { position:absolute; left:0; right:0; bottom:0; height:62px;
+  background: linear-gradient(180deg, transparent, #fff); }
+
+/* 2) AI 분류 행 */
+.lp4-art-ai { display:flex; flex-direction:column; gap:8px; }
+.lp4-art-row { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line);
+  border-radius:13px; padding:11px 14px; }
+.lp4-art-row-warn { background: var(--pastel-peach); border-color: transparent; }
+.lp4-art-date { font-size:11.5px; color: var(--ink3); font-variant-numeric: tabular-nums; flex:none; }
+.lp4-art-name { flex:1; min-width:0; font-size:13px; font-weight:600; color: var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lp4-art-tag { flex:none; font-size:11px; font-weight:700; color: var(--ink2);
+  background: var(--canvas2); border-radius:7px; padding:4px 8px; }
+.lp4-art-tag-warn { color: var(--warn); background: rgba(255,255,255,.75); }
+.lp4-art-ai { flex:none; font-size:10px; font-weight:800; color:#fff; background: var(--brand);
+  border-radius:6px; padding:4px 7px; letter-spacing:.02em; }
+
+/* 3) 도구 7개 vs 하나 */
+.lp4-art-save { display:grid; grid-template-columns: 1fr; gap:16px; }
+@media (min-width: 560px){ .lp4-art-save { grid-template-columns: 1.1fr .9fr; align-items:center; } }
+.lp4-art-bars { display:flex; flex-direction:column; gap:7px; }
+.lp4-art-bar { display:flex; align-items:center; gap:10px; }
+.lp4-art-bar-n { flex:none; width:84px; font-size:11.5px; color: var(--ink3); }
+.lp4-art-bar-track { flex:1; height:9px; border-radius:999px; background:#fff; border:1px solid var(--line); overflow:hidden; }
+.lp4-art-bar-fill { display:block; height:100%; border-radius:999px;
+  background: linear-gradient(90deg, #f0c3a4, var(--warn)); }
+.lp4-art-one { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px 18px;
+  box-shadow: 0 18px 38px -26px rgba(27,26,46,.34); }
+.lp4-art-one-cap { display:block; font-size:11.5px; font-weight:700; color: var(--brand); }
+.lp4-art-one-v { display:block; font-size:24px; font-weight:800; letter-spacing:-.035em; color: var(--ink); margin-top:5px; }
+.lp4-art-one-v i { font-style:normal; font-size:13px; color: var(--ink3); font-weight:700; }
+.lp4-art-one-note { display:block; font-size:11px; color: var(--ink3); margin-top:4px; }
+
+/* 4) 3단계 */
+.lp4-art-zero { display:flex; flex-direction:column; gap:2px; }
+.lp4-art-step { position:relative; display:flex; align-items:center; gap:12px; padding:9px 0; }
+.lp4-art-step-no { flex:none; display:grid; place-items:center; width:26px; height:26px; border-radius:999px;
+  background: var(--pastel-mint); color: var(--ok); }
+.lp4-art-step-t { display:flex; flex-direction:column; }
+.lp4-art-step-t b { font-size:14.5px; font-weight:700; color: var(--ink); }
+.lp4-art-step-t i { font-style:normal; font-size:12px; color: var(--ink3); margin-top:1px; }
+.lp4-art-step-line { position:absolute; left:12.5px; top:35px; width:1px; height:18px; background: var(--line2); }
+.lp4-art-zero-tag { align-self:flex-start; margin-top:12px; font-size:12px; font-weight:700;
+  color: var(--brand-ink); background: var(--pastel-lav); border-radius:999px; padding:8px 14px; }
 
 /* ── Glass card 공통 (앱 .glass-card 와 같은 공식) ───── */
 .lp4-card { background: var(--glass); border:1px solid var(--line); border-radius:18px;
