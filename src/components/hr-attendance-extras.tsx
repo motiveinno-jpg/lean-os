@@ -253,7 +253,9 @@ export function ManualAttendanceDialog({
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const activeEmployees = (employees || []).filter((e) => (e.status ?? "active") === "active");
+  // 재직 판정은 AttendanceTab 의 activeEmployees 와 동일 규칙 — 실데이터는 대부분 'joined'(초대 수락)
+  //   이라 'active' 만 통과시키면 목록이 통째로 비어 보인다(2026-07-28 사장님 제보).
+  const activeEmployees = (employees || []).filter((e) => e.status === "active" || e.status === "joined");
   const [form, setForm] = useState({
     employeeId: "",
     date: defaultDate,
