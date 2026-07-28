@@ -392,7 +392,6 @@ export default function LandingPage() {
           </Reveal>
         </div>
       </header>
-      <div className="lp4-hero-spacer" />
 
       {/* ══ STATS ══ */}
       <section className="lp4-stats">
