@@ -920,6 +920,15 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 })()}
               </div>
             </div>
+            {/* 할인코드 적용 표시 — 배너에서 입력한 코드가 결제에 실린다는 걸 결제 직전에 보여준다 (2026-07-28) */}
+            {showUpgradeModal !== "free" && salesCode.trim() && (
+              <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+                <span className="text-sm">🎟️</span>
+                <span className="text-xs font-semibold text-[var(--primary)]">
+                  할인 코드 {salesCode.trim()} 적용 — 유효한 코드면 무료체험이 44일로 늘어납니다
+                </span>
+              </div>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={() => setShowUpgradeModal(null)}
