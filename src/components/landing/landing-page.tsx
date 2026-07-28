@@ -476,6 +476,36 @@ export default function LandingPage() {
       {/* ══ 주요 기능 둘러보기 — 축 탭 → 기능 탭 → 화면 전환 ══ */}
       <PillarTabs />
 
+      {/* ══ 전체 메뉴 — 주요 기능 바로 다음. 배너 한 장이 아니라 메뉴 20개를 실제로 펼쳐 보여준다 ══
+           앞 섹션(주요 기능)의 칩 언어를 그대로 이어받아 흐름이 끊기지 않게 한다. */}
+      <section className="lp4-section lp4-bg-canvas" id="more">
+        <div className="lp4-container">
+          <Reveal className="lp4-sec-head lp4-sec-head-c">
+            <div className="lp4-eyebrow">All menus</div>
+            <h2 className="lp4-h2">이 세 축을 <span className="lp4-underline">메뉴 {CATALOG.reduce((n, g) => n + g.menus.length, 0)}개가 받쳐요</span></h2>
+            <p className="lp4-sub">회사 운영에 필요한 메뉴가 영역별로 나뉘어 있어요. 눌러서 각 메뉴 화면을 볼 수 있어요.</p>
+          </Reveal>
+
+          <div className="lp4-mgrid">
+            {CATALOG.map((g) => (
+              <Reveal key={g.key} className="lp4-mcol">
+                <Link href={`/features?g=${g.key}`} className="lp4-mcol-in">
+                  <div className="lp4-mcol-head">
+                    <span className="lp4-mcol-name">{g.group}</span>
+                    <span className="lp4-mcol-n">{g.menus.length}</span>
+                  </div>
+                  <p className="lp4-mcol-lead">{g.lead}</p>
+                  <div className="lp4-mcol-chips">
+                    {g.menus.map((m) => <span key={m.name} className="lp4-mcol-chip">{m.name}</span>)}
+                  </div>
+                  <span className="lp4-mcol-go">화면 보기 <Arrow /></span>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ══ AI ENGINES ══ */}
       <section className="lp4-section lp4-bg-canvas" id="engines">
         <div className="lp4-dark-orbs" />
@@ -523,21 +553,6 @@ export default function LandingPage() {
               {AI_AUTOMATION.map((a) => <span key={a.name} className="lp4-eauto-chip">{a.name}</span>)}
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ══ 전체 기능은 별도 페이지로 — 메인 스크롤을 짧게 유지한다 ══ */}
-      <section className="lp4-section lp4-bg-tint" id="more">
-        <div className="lp4-container">
-          <Reveal>
-            <Link href="/features" className="lp4-more">
-              <div className="lp4-more-txt">
-                <div className="lp4-more-h">오너뷰에서 제공하는 기능, 더 확인해보세요</div>
-                <p className="lp4-more-p">메뉴 20개에 걸쳐 거래처·세금·장부·결재·전자계약·통장·카드·대출까지 들어 있어요. 어느 메뉴에서 무엇을 할 수 있는지 실제 화면으로 정리했어요.</p>
-              </div>
-              <span className="lp4-more-cta">기능 전체 보기 <Arrow /></span>
-            </Link>
-          </Reveal>
         </div>
       </section>
 

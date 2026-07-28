@@ -608,17 +608,30 @@
 .lp4-eauto-chip { font-size:15px; font-weight:700; color: var(--brand-ink);
   background: var(--pastel-lav); border-radius:999px; padding:8px 15px; }
 
-/* ── 전체 기능으로 보내는 배너 ── */
-.lp4-more { display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;
-  padding:34px 38px; border-radius:24px; border:1px solid var(--line);
-  background: linear-gradient(140deg, var(--pastel-lav), #fbfaff 60%, var(--pastel-sky));
-  transition: transform .2s, box-shadow .2s; }
-.lp4-more:hover { transform: translateY(-3px); box-shadow: 0 28px 60px -30px rgba(27,26,46,.3); }
-.lp4-more-h { font-size: clamp(23px,2.7vw,33px); font-weight:800; letter-spacing:-.03em; color: var(--ink); }
-.lp4-more-p { font-size:17px; color: var(--ink2); line-height:1.75; margin-top:11px; max-width:680px; }
-.lp4-more-cta { display:inline-flex; align-items:center; gap:8px; flex:none; font-size:17px; font-weight:700;
-  color:#fff; background: var(--brand); border-radius:12px; padding:14px 24px;
-  box-shadow: 0 10px 24px -12px rgba(91,84,232,.6); }
+/* ── 전체 메뉴 — 그룹 4개 × 메뉴 칩 ──
+   배너 한 장은 앞뒤와 이어지지 않아 겉돌았다. 주요 기능의 칩 언어를 그대로 이어받는다. */
+.lp4-mgrid { display:grid; grid-template-columns:1fr; gap:18px; }
+@media (min-width: 700px){ .lp4-mgrid { grid-template-columns: repeat(2,1fr); } }
+@media (min-width: 1100px){ .lp4-mgrid { grid-template-columns: repeat(4,1fr); gap:20px; } }
+.lp4-mcol-in { display:flex; flex-direction:column; height:100%; padding:28px 26px 24px;
+  border-radius:24px;
+  background: linear-gradient(158deg, rgba(255,255,255,.94), rgba(255,255,255,.74));
+  -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%);
+  border:1px solid var(--g-rim); box-shadow: var(--g-depth);
+  transition: transform .22s, box-shadow .22s; }
+.lp4-mcol-in:hover { transform: translateY(-4px); box-shadow: var(--g-depth-hi); }
+.lp4-mcol-head { display:flex; align-items:baseline; gap:8px; }
+.lp4-mcol-name { font-size:19px; font-weight:800; letter-spacing:-.03em; color: var(--ink); }
+.lp4-mcol-n { font-size:13px; font-weight:800; color: var(--brand); }
+.lp4-mcol-lead { font-size:13px; color: var(--ink3); line-height:1.6; margin-top:8px; }
+.lp4-mcol-chips { flex:1; display:flex; flex-wrap:wrap; align-content:flex-start; gap:6px;
+  margin-top:18px; padding-top:16px; border-top:1px solid var(--g-edge); }
+.lp4-mcol-chip { font-size:13px; font-weight:600; color: var(--ink2);
+  background: rgba(255,255,255,.8); border:1px solid var(--g-rim); border-radius:999px;
+  padding:7px 12px; box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 0 0 1px var(--g-edge); }
+.lp4-mcol-go { display:inline-flex; align-items:center; gap:6px; margin-top:20px;
+  font-size:14px; font-weight:700; color: var(--brand); }
+.lp4-mcol-in:hover .lp4-mcol-go { color: var(--brand-ink); }
 
 /* ── /features — 도구 목록 · 하단 전환 ── */
 .lp4-tool-grid { display:grid; grid-template-columns:1fr; gap:14px; }
@@ -971,7 +984,7 @@
 
 /* ── 큰 표면: 유리판 ── */
 .lp4-card, .lp4-ai-card, .lp4-eng4-card, .lp4-tool, .lp4-price, .lp4-cmp, .lp4-calc,
-.lp4-mega-inner, .lp4-more, .lp4-aiw-shot, .lp4-cat-shot, .lp4-mf-screen,
+.lp4-mega-inner, .lp4-aiw-shot, .lp4-cat-shot, .lp4-mf-screen,
 .lp4-strip-card, .lp4-matrix, .lp4-form {
   background: linear-gradient(158deg, var(--g-surface-strong), var(--g-surface));
   -webkit-backdrop-filter: blur(16px) saturate(140%);
@@ -979,7 +992,7 @@
   border: 1px solid var(--g-rim);
   box-shadow: var(--g-depth);
 }
-.lp4-ai-card:hover, .lp4-eng4-card:hover, .lp4-tool:hover, .lp4-more:hover {
+.lp4-ai-card:hover, .lp4-eng4-card:hover, .lp4-tool:hover {
   transform: translateY(-4px); box-shadow: var(--g-depth-hi);
 }
 
@@ -1029,7 +1042,7 @@
 .lp4-bg-tint::before { opacity:.62; }
 
 /* ── 버튼도 같은 언어로 ── */
-.lp4-btn-brand, .lp4-pill, .lp4-more-cta, .lp4-btn-onink {
+.lp4-btn-brand, .lp4-pill, .lp4-btn-onink {
   box-shadow: 0 1px 0 rgba(255,255,255,.3) inset,
               0 10px 22px -12px rgba(91,84,232,.65),
               0 26px 52px -30px rgba(91,84,232,.5);
@@ -1043,5 +1056,5 @@
 
 /* 움직임을 줄이도록 설정한 사용자에겐 들뜸 효과를 끈다 */
 @media (prefers-reduced-motion: reduce){
-  .lp4-ai-card:hover, .lp4-eng4-card:hover, .lp4-tool:hover, .lp4-more:hover { transform:none; }
+  .lp4-ai-card:hover, .lp4-eng4-card:hover, .lp4-tool:hover, .lp4-mcol-in:hover { transform:none; }
 }
