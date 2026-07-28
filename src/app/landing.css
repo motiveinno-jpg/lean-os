@@ -111,12 +111,14 @@
 .lp4-navdrop-t:hover, .lp4-navdrop-open .lp4-navdrop-t { color: var(--ink); }
 .lp4-navdrop-caret { transition: transform .2s; opacity:.6; }
 .lp4-navdrop-open .lp4-navdrop-caret { transform: rotate(180deg); }
-.lp4-mega { position:absolute; top:100%; left:50%; transform: translateX(-50%) translateY(6px);
-  width: 880px; max-width: calc(100vw - 32px); padding-top:14px;
+/* 메뉴 항목 중심이 아니라 화면 중앙에 건다 — 항목이 좌측에 있어 패널이 화면 밖으로 밀려났었다.
+   .lp4-nav 에 backdrop-filter 가 있어 fixed 의 기준이 네비 자신이 된다(= 화면 폭 기준). */
+.lp4-mega { position:fixed; top:42px; left:50%; transform: translateX(-50%) translateY(6px);
+  width: 1120px; max-width: calc(100vw - 32px); padding-top:21px;
   opacity:0; visibility:hidden; pointer-events:none; transition: opacity .18s ease, transform .18s ease; }
 .lp4-navdrop-open .lp4-mega, .lp4-navdrop:focus-within .lp4-mega {
   opacity:1; visibility:visible; pointer-events:auto; transform: translateX(-50%) translateY(0); }
-.lp4-mega-inner { display:grid; grid-template-columns: 210px 1fr; gap:20px;
+.lp4-mega-inner { display:grid; grid-template-columns: 200px 1fr; gap:24px;
   background:#fff; border:1px solid var(--line); border-radius:22px; padding:18px;
   box-shadow: 0 34px 76px -32px rgba(27,26,46,.36); }
 
@@ -134,15 +136,16 @@
 
 .lp4-mega-main { display:flex; flex-direction:column; padding:6px 6px 4px; text-align:left;
   animation: lp4-rise .2s ease; }
-.lp4-mega-lead { font-size:13px; color: var(--ink3); line-height:1.6; margin-bottom:12px; }
-.lp4-mega-items { display:grid; grid-template-columns: repeat(2, 1fr); gap:2px; }
-.lp4-mega-m { display:flex; flex-direction:column; align-items:flex-start; gap:2px;
-  padding:9px 12px; border-radius:11px; text-align:left;
-  transition: background .15s; }
-.lp4-mega-m:hover { background: var(--canvas2); }
+.lp4-mega-lead { font-size:13.5px; color: var(--ink3); line-height:1.6; margin-bottom:14px; }
+/* 가로로 나열 — 한 줄에 3~4개씩 흐르고 넘치면 다음 줄로 */
+.lp4-mega-items { display:grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap:6px; }
+.lp4-mega-m { display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  padding:12px 14px; border-radius:13px; text-align:left; border:1px solid transparent;
+  transition: background .15s, border-color .15s; }
+.lp4-mega-m:hover { background: var(--canvas2); border-color: var(--line); }
 .lp4-mega-m-n { font-size:14.5px; font-weight:700; color: var(--ink); }
-.lp4-mega-m-d { font-size:11.5px; color: var(--ink3); line-height:1.5;
-  overflow:hidden; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; }
+.lp4-mega-m-d { font-size:12px; color: var(--ink3); line-height:1.55;
+  overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .lp4-mega-all { display:inline-flex; align-items:center; gap:6px; align-self:flex-start;
   margin-top:14px; padding:8px 12px; font-size:13.5px; font-weight:700; color: var(--brand); }
 .lp4-mega-all:hover { color: var(--brand-ink); }
