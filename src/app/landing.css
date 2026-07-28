@@ -8,31 +8,33 @@
    앱과의 정합: 카드 = 반투명 유리 + 윗면 스펙큘러 1px (globals.css .glass-card 와 같은 공식). */
 
 .lp4-root {
-  --ink: #1b1a2e;
-  --ink2: #55546b;
-  --ink3: #918fa6;
-  --line: #ecebf4;
-  --line2: #dedcea;
+  /* 2026-07-28 "탁하다" 지적 반영 — 회색 기가 도는 값을 걷어내고 채도를 살짝 올려 밝게.
+     잉크는 남색 쪽으로, 캔버스·라인은 푸른 기가 도는 밝은 톤으로. */
+  --ink: #16162b;
+  --ink2: #5a5975;
+  --ink3: #9a99b4;
+  --line: #eeeef8;
+  --line2: #e0e0f0;
 
   /* 캔버스 — 흰색 + 아주 옅은 파스텔. 원색을 면으로 칠하지 않는다 */
   --canvas: #ffffff;
-  --canvas2: #f7f7fc;
+  --canvas2: #f8f9ff;
   --paper: #ffffff;
 
   /* 브랜드는 글자·선에만. 면으로 쓸 땐 반드시 파스텔 틴트 */
   --brand: #5b54e8;
-  --brand-soft: #7b74f0;
+  --brand-soft: #8079f5;
   --brand-ink: #4a43cf;
   --brand-dim: rgba(91,84,232,.09);
 
   /* 파스텔 팔레트 */
-  --pastel-lav: #eeecfd;
-  --pastel-sky: #e9f2fd;
-  --pastel-mint: #e7f6f1;
-  --pastel-peach: #fdf0e8;
+  --pastel-lav: #f0eeff;
+  --pastel-sky: #e9f4ff;
+  --pastel-mint: #e6f9f2;
+  --pastel-peach: #fff2e9;
 
-  --warn: #d4703a;
-  --ok: #3f9d84;
+  --warn: #e07a3f;
+  --ok: #35a98a;
 
   --glass: rgba(255,255,255,.66);
   --glass-line: rgba(255,255,255,.9);
@@ -936,4 +938,110 @@
   .lp4-section { padding:104px 0; }
   .lp4-hero-intro { padding:88px 0 76px; }
   .lp4-hero-shot { margin:36px auto -64px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   리퀴드 글래스 · 입체감 (2026-07-28)
+   사장님: "페이지 전체의 리퀴드 글래스 효과 강화, 입체감 강화. 고도의 기술이 들어간
+   IT 솔루션이라는 점이 잘 보이게."
+   원칙 — 색으로 화려하게 만들지 않는다. 재질(반투명 유리)과 깊이(다층 그림자)로만 만든다.
+     · 표면  : 반투명 흰색 + backdrop blur
+     · 테두리: 바깥 1px 헤어라인 + 안쪽 상단 하이라이트(빛 받는 모서리)
+     · 그림자: 접촉(가까운) + 중간 + 앰비언트(먼) 3단
+   ⚠️ 원색 채움 금지. 파스텔은 blur 오브(배경)로만 쓴다.
+   ⚠️ backdrop-filter 는 비용이 크다 — 큰 표면에만 걸고 작은 칩에는 걸지 않는다.
+   ══════════════════════════════════════════════════════════════ */
+.lp4-root {
+  --g-surface: rgba(255,255,255,.72);
+  --g-surface-strong: rgba(255,255,255,.86);
+  --g-rim: rgba(255,255,255,.92);
+  --g-edge: rgba(27,26,46,.055);
+  /* 접촉 → 중간 → 앰비언트 */
+  --g-depth: 0 1px 0 rgba(255,255,255,.95) inset,
+             0 0 0 1px var(--g-edge),
+             0 6px 14px -8px rgba(27,26,46,.18),
+             0 22px 44px -22px rgba(27,26,46,.26),
+             0 54px 100px -50px rgba(27,26,46,.4);
+  --g-depth-hi: 0 1px 0 rgba(255,255,255,.95) inset,
+                0 0 0 1px rgba(27,26,46,.07),
+                0 10px 20px -10px rgba(27,26,46,.22),
+                0 30px 58px -26px rgba(27,26,46,.3),
+                0 70px 128px -54px rgba(27,26,46,.46);
+}
+
+/* ── 큰 표면: 유리판 ── */
+.lp4-card, .lp4-ai-card, .lp4-eng4-card, .lp4-tool, .lp4-price, .lp4-cmp, .lp4-calc,
+.lp4-mega-inner, .lp4-more, .lp4-aiw-shot, .lp4-cat-shot, .lp4-mf-screen,
+.lp4-strip-card, .lp4-matrix, .lp4-form {
+  background: linear-gradient(158deg, var(--g-surface-strong), var(--g-surface));
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--g-rim);
+  box-shadow: var(--g-depth);
+}
+.lp4-ai-card:hover, .lp4-eng4-card:hover, .lp4-tool:hover, .lp4-more:hover {
+  transform: translateY(-4px); box-shadow: var(--g-depth-hi);
+}
+
+/* 화면 캡처는 안이 비쳐선 안 되므로 표면만 불투명하게 두고 깊이는 그대로 */
+.lp4-aiw-shot, .lp4-cat-shot, .lp4-mf-screen, .lp4-strip-card {
+  background: #fff; -webkit-backdrop-filter:none; backdrop-filter:none;
+}
+
+/* ── 작은 표면: 칩·탭·행 (blur 없이 재질만) ── */
+.lp4-cat-tab, .lp4-cat-feat, .lp4-cat-item-on, .lp4-aiw-item-on, .lp4-ax-t,
+.lp4-mf-chip, .lp4-pillar-menu, .lp4-eauto-chip, .lp4-faq, .lp4-mega-side {
+  background: linear-gradient(158deg, rgba(255,255,255,.94), rgba(255,255,255,.74));
+  border: 1px solid var(--g-rim);
+  box-shadow: 0 1px 0 rgba(255,255,255,.95) inset,
+              0 0 0 1px var(--g-edge),
+              0 6px 14px -10px rgba(27,26,46,.2);
+}
+/* 선택된 탭은 브랜드로 채우되 유리 하이라이트를 남긴다 */
+.lp4-cat-tab-on, .lp4-ax-on, .lp4-mf-tab-on {
+  background: linear-gradient(160deg, var(--brand-soft), var(--brand));
+  border-color: transparent;
+  box-shadow: 0 1px 0 rgba(255,255,255,.35) inset,
+              0 10px 22px -12px rgba(91,84,232,.7),
+              0 26px 50px -28px rgba(91,84,232,.5);
+}
+.lp4-faq { border-radius:18px; margin-bottom:10px; padding:0 20px; border-bottom:1px solid var(--g-rim); }
+
+/* ── 상단바: 더 두껍게 비치는 유리 ── */
+.lp4-nav { background: rgba(255,255,255,.62);
+  -webkit-backdrop-filter: saturate(180%) blur(22px); backdrop-filter: saturate(180%) blur(22px); }
+.lp4-nav-on { background: rgba(255,255,255,.78);
+  border-bottom-color: var(--g-edge);
+  box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 10px 30px -22px rgba(27,26,46,.3); }
+.lp4-catbar { background: rgba(255,255,255,.74);
+  -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); }
+
+/* ── 섹션 뒤 앰비언트 오브 — 유리가 비칠 무언가를 깔아준다 ──
+   색을 칠하는 게 아니라 아주 옅게 번지게만 해서 깊이를 만든다. */
+.lp4-section { isolation:isolate; }
+.lp4-section::before {
+  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(760px 520px at 8% 12%, var(--pastel-lav), transparent 62%),
+    radial-gradient(680px 480px at 94% 82%, var(--pastel-sky), transparent 64%);
+  opacity:.5;
+}
+.lp4-bg-tint::before { opacity:.62; }
+
+/* ── 버튼도 같은 언어로 ── */
+.lp4-btn-brand, .lp4-pill, .lp4-more-cta, .lp4-btn-onink {
+  box-shadow: 0 1px 0 rgba(255,255,255,.3) inset,
+              0 10px 22px -12px rgba(91,84,232,.65),
+              0 26px 52px -30px rgba(91,84,232,.5);
+}
+.lp4-btn-line, .lp4-btn-ghost-light {
+  background: linear-gradient(158deg, rgba(255,255,255,.94), rgba(255,255,255,.72));
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border:1px solid var(--g-rim);
+  box-shadow: 0 1px 0 rgba(255,255,255,.95) inset, 0 0 0 1px var(--g-edge),
+              0 8px 18px -12px rgba(27,26,46,.22); }
+
+/* 움직임을 줄이도록 설정한 사용자에겐 들뜸 효과를 끈다 */
+@media (prefers-reduced-motion: reduce){
+  .lp4-ai-card:hover, .lp4-eng4-card:hover, .lp4-tool:hover, .lp4-more:hover { transform:none; }
 }
