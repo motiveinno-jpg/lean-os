@@ -2883,6 +2883,27 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-topbar-logout { @apply hover:text-[var(--danger)] hover:bg-[var(--danger-dim)]; }
 .platform-mobile-nav { @apply md:hidden flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1; }
 .platform-mobile-nav-chip { @apply shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)] whitespace-nowrap; }
+/* 플랫폼 개요 콘솔형 레이아웃 (2026-07-28 전면 재배치) — 히어로 밴드 + 본문/작업레일 2컬럼 */
+.platform-hero { @apply flex flex-col md:flex-row md:items-center justify-between gap-5 rounded-2xl border border-[var(--border)]/60 p-5 md:p-6; }
+.platform-hero-metrics { @apply grid grid-cols-2 md:flex md:items-center gap-4 md:gap-8 shrink-0; }
+.platform-hero-metric { @apply flex flex-col gap-0.5 md:items-end; }
+.platform-grid { @apply grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start; }
+.platform-card-head { @apply flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border)]/60 bg-[var(--bg-surface)]/40; }
+.platform-card-title { @apply text-[13px] font-bold text-[var(--text)]; }
+.platform-stat-strip { @apply grid grid-cols-2 md:grid-cols-4 divide-x divide-[var(--border)]/50; }
+.platform-stat-cell { @apply flex flex-col items-start gap-0.5 px-4 py-4 text-left transition hover:bg-[var(--bg-surface)]/60 cursor-pointer; }
+.platform-stat-cell-active { @apply bg-[var(--primary)]/8 shadow-[inset_0_-2px_0_var(--primary)]; }
+.platform-rail-rows { @apply divide-y divide-[var(--border)]/40; }
+.platform-rail-row { @apply flex items-center gap-2.5 px-4 py-2.5 transition hover:bg-[var(--bg-surface)]/60; }
+.platform-rail-badge { @apply min-w-[22px] text-center px-1.5 py-0.5 rounded-full text-[11px] font-bold tabular-nums bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+.platform-rail-badge-warn { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.platform-rail-badge-danger { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
+.platform-rail-count { @apply px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums bg-[var(--success-dim)] text-[var(--success)]; }
+.platform-rail-count-warn { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.platform-rail-stats { @apply grid grid-cols-3 divide-x divide-[var(--border)]/50; }
+.platform-rail-stats > div { @apply flex flex-col gap-0.5 px-4 py-3.5; }
+.platform-rail-stats > div > span:last-child { @apply text-[10px] text-[var(--text-dim)]; }
+
 /* 가입 퍼널 단계 클릭 → 명단 (2026-07-28) */
 .platform-funnel-step-btn { @apply text-left rounded-xl px-3 py-2 -mx-3 -my-2 transition hover:bg-[var(--bg-surface)] cursor-pointer; }
 .platform-funnel-step-active { @apply bg-[var(--primary)]/8 ring-1 ring-[var(--primary)]/30; }

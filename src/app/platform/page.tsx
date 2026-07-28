@@ -254,206 +254,163 @@ export default function PlatformOverview() {
   const todoTotal = inboxItems.reduce((s, i) => s + i.n, 0);
 
   return (
-    <div className="max-w-6xl space-y-8">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">플랫폼 개요</h1>
-          <p className="text-xs text-[var(--text-dim)] mt-1">{kstDateStr(new Date())} · 지표는 1분마다 갱신됩니다</p>
+    <div className="max-w-[1400px] space-y-6">
+      {/* 히어로 밴드 — 인사·날짜 + 핵심 지표 4개 (2026-07-28 전면 재배치) */}
+      <div className="platform-hero chrome-glass">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)]">{kstDateStr(new Date())} · 1분마다 갱신</div>
+          <h1 className="text-xl md:text-2xl font-extrabold text-[var(--text)] mt-0.5">플랫폼 개요</h1>
+          <span className={`platform-header-live mt-2 inline-block ${todoTotal > 0 ? "platform-header-live-warn" : ""}`}>
+            {todoTotal > 0 ? `처리 대기 ${todoTotal}건` : "모두 처리됨 ✓"}
+          </span>
         </div>
-        <span className={`platform-header-live ${todoTotal > 0 ? "platform-header-live-warn" : ""}`}>
-          {todoTotal > 0 ? `처리 대기 ${todoTotal}건` : "모두 처리됨 ✓"}
-        </span>
-      </div>
-
-      {/* 운영 인박스 — 오늘 봐야 할 것 */}
-      <section className="space-y-3">
-        <h2 className="platform-section-title">오늘 봐야 할 것</h2>
-        <div className="platform-inbox-grid">
-          {inboxItems.map((it) => (
-            <Link key={it.label} href={it.href} className={`platform-inbox-tile glass-card ${it.n > 0 ? (it.danger ? "platform-inbox-danger" : "platform-inbox-attention") : ""}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-base">{it.icon}</span>
-                <span className={`text-[22px] leading-7 font-extrabold mono-number ${it.n === 0 ? "text-[var(--text-dim)]" : it.danger ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{it.n}</span>
-              </div>
-              <span className="text-[12px] font-semibold text-[var(--text-muted)]">{it.label}</span>
-              <span className="platform-inbox-cta">{it.n > 0 ? "처리하러 가기 →" : "완료"}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* 위험 신호 — 매출이 새는 순간·고객이 떠나는 순간 (2026-07-28) */}
-      <section className="space-y-3">
-        <h2 className="platform-section-title">위험 신호</h2>
-        <div className="platform-inbox-grid lg:grid-cols-6">
+        <div className="platform-hero-metrics">
           {[
-            { label: "체험 만료 D-3", n: trialEndingSoon.length },
-            { label: "해지 예약", n: cancelScheduled.length },
-            { label: "결제 실패", n: pastDue.length, danger: true },
-            { label: "합류요청 방치 3일+", n: staleJoinReqs.length },
-            { label: "휴면 위험 고객", n: dormant.length },
-            { label: "메일 발송 실패 30일", n: emailFails, danger: true },
-          ].map((k) => (
-            <div key={k.label} className={`platform-inbox-tile glass-card ${k.n > 0 ? (k.danger ? "platform-inbox-danger" : "platform-inbox-attention") : ""}`}>
-              <span className={`text-[22px] leading-7 font-extrabold mono-number ${k.n === 0 ? "text-[var(--text-dim)]" : k.danger ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{k.n}</span>
-              <span className="text-[11px] font-semibold text-[var(--text-muted)]">{k.label}</span>
+            { label: "MRR", value: fmtW(mrr), accent: true },
+            { label: "총 가입사", value: `${totalCompanies}곳` },
+            { label: "유료 전환율", value: `${conversionRate}%` },
+            { label: "오늘 활동", value: `${usage?.accounts?.dau ?? 0}명` },
+          ].map((m) => (
+            <div key={m.label} className="platform-hero-metric">
+              <span className={`text-[22px] md:text-[26px] leading-8 font-extrabold mono-number ${m.accent ? "text-[var(--primary)]" : "text-[var(--text)]"}`}>{m.value}</span>
+              <span className="text-[11px] font-semibold text-[var(--text-muted)]">{m.label}</span>
             </div>
           ))}
         </div>
-        {riskRows.length > 0 && (
-          <div className="glass-card p-0 overflow-x-auto">
-            <table className="w-full min-w-[560px] text-xs">
-              <thead>
-                <tr className="table-head-row">
-                  <th className="th-cell text-left">유형</th>
-                  <th className="th-cell text-left">대상</th>
-                  <th className="th-cell text-left">상세</th>
-                </tr>
-              </thead>
-              <tbody>
-                {riskRows.map((r, i) => (
-                  <tr key={i} className="border-b border-[var(--border)]/50">
-                    <td className="px-3 py-2"><span className={`platform-badge ${r.cls}`}>{r.type}</span></td>
-                    <td className="px-3 py-2 font-semibold text-[var(--text)]">{r.who}</td>
-                    <td className="px-3 py-2 text-[var(--text-muted)]">{r.detail}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {/* KPI Row 1 */}
-      <h2 className="platform-section-title">고객 현황</h2>
-      <div className="platform-kpi-grid">
-        {[
-          { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const },
-          { label: "이번 달 신규", value: thisMonth, sub: "이번 달 가입", f: "new" as const },
-          { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%`, f: "paid" as const },
-          { label: "체험 중", value: activeSubs - paidSubs, sub: "카드 등록 · 전환 대기", f: "trial" as const },
-        ].map((kpi) => (
-          <button
-            key={kpi.label}
-            type="button"
-            onClick={() => setKpiFilter(kpi.f)}
-            className={`platform-kpi-card glass-card platform-kpi-clickable ${kpiFilter === kpi.f ? "platform-kpi-active" : ""}`}
-          >
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{kpi.label}</span>
-            <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{kpi.value}</span>
-            </div>
-            <div className="text-[11px] text-[var(--text-dim)]">{kpi.sub}</div>
-          </button>
-        ))}
       </div>
 
-      {/* 최근 가입사 (2026-07-28) — 운영자 RLS 정책 추가 전까지 자기 회사 1건만 보이던 자리 */}
-      <RecentCompanies companies={companies as any[]} filter={kpiFilter} onFilter={setKpiFilter} />
-
-      {/* 가입 퍼널 · 회사 미등록 가입자 (2026-07-28) */}
-      <SignupFunnelSection funnel={funnel ?? null} />
-
-      {/* 트래픽·이용 현황 (2026-07-28) */}
-      <TrafficSection usage={usage ?? null} traffic={traffic ?? null} />
-
-      {/* Revenue Row */}
-      <section className="space-y-3">
-        <h2 className="platform-section-title">수익</h2>
-        <div className="platform-revenue-row">
-          <div className="glass-card p-5 flex flex-col gap-3">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR (월간 반복 매출)</span>
-            <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmtW(mrr)}</span>
+      {/* 본문 그리드 — 좌: 고객 데이터 / 우: 작업 레일 */}
+      <div className="platform-grid">
+        {/* ◀ 메인 컬럼 */}
+        <div className="space-y-6 min-w-0">
+          {/* 고객 현황 — 지표 스트립(클릭=아래 가입사 필터) */}
+          <div className="glass-card p-0 overflow-hidden">
+            <div className="platform-card-head">
+              <span className="platform-card-title">고객 현황</span>
+              <span className="text-[11px] text-[var(--text-dim)]">지표를 누르면 아래 목록이 필터링됩니다</span>
             </div>
-            <div className="text-[11px] text-[var(--text-dim)]">ARR: {fmtW(mrr * 12)}</div>
-          </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 누적 매출</span>
-            <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)]">{fmtW(totalRevenue)}</span>
+            <div className="platform-stat-strip">
+              {[
+                { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const },
+                { label: "이번 달 신규", value: thisMonth, sub: "신규 가입", f: "new" as const },
+                { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%`, f: "paid" as const },
+                { label: "체험 중", value: activeSubs - paidSubs, sub: "카드 등록 · 전환 대기", f: "trial" as const },
+              ].map((kpi) => (
+                <button
+                  key={kpi.label}
+                  type="button"
+                  onClick={() => setKpiFilter(kpi.f)}
+                  className={`platform-stat-cell ${kpiFilter === kpi.f ? "platform-stat-cell-active" : ""}`}
+                >
+                  <span className="text-[22px] leading-7 font-extrabold mono-number text-[var(--text)]">{kpi.value}</span>
+                  <span className="text-[12px] font-semibold text-[var(--text-muted)]">{kpi.label}</span>
+                  <span className="text-[10px] text-[var(--text-dim)]">{kpi.sub}</span>
+                </button>
+              ))}
             </div>
-            <div className="text-[11px] text-[var(--text-dim)]">{paidInvoices.length}건 결제</div>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">유료 전환율</span>
-            <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">{conversionRate}%</span>
-            </div>
-            <div className="text-[11px] text-[var(--text-dim)]">유료 {paidSubs}곳 / 전체 {totalCompanies}곳</div>
-          </div>
+
+          {/* 가입사 목록 */}
+          <RecentCompanies companies={companies as any[]} filter={kpiFilter} onFilter={setKpiFilter} />
+
+          {/* 가입 퍼널 */}
+          <SignupFunnelSection funnel={funnel ?? null} />
+
+          {/* 트래픽·이용 현황 */}
+          <TrafficSection usage={usage ?? null} traffic={traffic ?? null} />
         </div>
-      </section>
 
-      {/* 성장 신호 — 영업코드 실적 · 좌석 임박 · 탈퇴 추이 (2026-07-28) */}
-      <section className="space-y-3">
-        <h2 className="platform-section-title">성장 신호</h2>
-        <div className="platform-growth-grid">
-          {/* 영업코드 실적 */}
-          <div className="glass-card p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">영업코드 실적</span>
-              <Link href="/platform/sales-codes" className="text-[11px] text-[var(--primary)] hover:underline">관리 →</Link>
+        {/* ▶ 작업 레일 */}
+        <aside className="space-y-4 min-w-0">
+          {/* 오늘 봐야 할 것 */}
+          <div className="glass-card p-0 overflow-hidden">
+            <div className="platform-card-head">
+              <span className="platform-card-title">오늘 봐야 할 것</span>
+              <span className={`platform-rail-count ${todoTotal > 0 ? "platform-rail-count-warn" : ""}`}>{todoTotal}</span>
             </div>
-            {(opsRisk?.sales_codes?.length ?? 0) === 0 ? (
-              <div className="platform-traffic-empty">발급된 영업코드가 없습니다.<br /><span className="text-[11px]">영업코드 화면에서 발급하면 실적이 여기 집계됩니다.</span></div>
+            <div className="platform-rail-rows">
+              {inboxItems.map((it) => (
+                <Link key={it.label} href={it.href} className="platform-rail-row">
+                  <span className="text-sm shrink-0">{it.icon}</span>
+                  <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)] truncate">{it.label}</span>
+                  <span className={`platform-rail-badge ${it.n === 0 ? "" : it.danger ? "platform-rail-badge-danger" : "platform-rail-badge-warn"}`}>{it.n}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* 위험 신호 */}
+          <div className="glass-card p-0 overflow-hidden">
+            <div className="platform-card-head">
+              <span className="platform-card-title">위험 신호</span>
+              <span className={`platform-rail-count ${riskRows.length > 0 ? "platform-rail-count-warn" : ""}`}>{riskRows.length}</span>
+            </div>
+            {riskRows.length === 0 ? (
+              <div className="px-4 py-5 text-[12px] text-[var(--text-dim)]">위험 신호가 없습니다 — 안정적입니다.</div>
             ) : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="table-head-row">
-                    <th className="th-cell text-left">코드</th>
-                    <th className="th-cell text-left">담당</th>
-                    <th className="th-cell text-center">사용</th>
-                    <th className="th-cell text-center">유료 전환</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {opsRisk!.sales_codes.slice(0, 6).map((sc) => (
-                    <tr key={sc.code} className="border-b border-[var(--border)]/50">
-                      <td className="px-3 py-2 mono-number font-bold text-[var(--text)]">{sc.code}{!sc.active && <span className="text-[10px] text-[var(--text-dim)] ml-1">(비활성)</span>}</td>
-                      <td className="px-3 py-2 text-[var(--text-muted)]">{sc.owner || "—"}</td>
-                      <td className="px-3 py-2 text-center mono-number">{sc.redemptions}</td>
-                      <td className="px-3 py-2 text-center mono-number text-[var(--success)]">{sc.conversions}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="platform-rail-rows">
+                {riskRows.slice(0, 8).map((r, i) => (
+                  <div key={i} className="platform-rail-row cursor-default">
+                    <span className={`platform-badge shrink-0 ${r.cls}`}>{r.type}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-semibold text-[var(--text)] truncate">{r.who}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">{r.detail}</div>
+                    </div>
+                  </div>
+                ))}
+                {riskRows.length > 8 && (
+                  <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {riskRows.length - 8}건</div>
+                )}
+              </div>
             )}
           </div>
 
-          {/* 좌석 임박 + 탈퇴 추이 */}
-          <div className="space-y-4">
-            <div className="glass-card p-5">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">좌석 초과 임박 <span className="text-[11px] text-[var(--text-dim)]">(추가좌석 매출 리드)</span></span>
-              {seatPressure.length === 0 ? (
-                <div className="text-[12px] text-[var(--text-dim)] mt-2">기본 좌석에 여유가 있는 상태입니다.</div>
-              ) : (
-                <ul className="platform-traffic-list mt-3">
-                  {seatPressure.slice(0, 5).map((c: any) => (
-                    <li key={c.id}>
-                      <span className="truncate font-semibold text-[var(--text)]">{c.name}</span>
-                      <span className="mono-number">{c.users?.[0]?.count ?? 0}명 사용 중</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+          {/* 수익 */}
+          <div className="glass-card p-0 overflow-hidden">
+            <div className="platform-card-head">
+              <span className="platform-card-title">수익</span>
+              <Link href="/platform/revenue" className="text-[11px] text-[var(--primary)] hover:underline">상세 →</Link>
             </div>
-            <div className="glass-card p-5 flex items-center justify-between">
-              <div>
-                <span className="text-[13px] font-semibold text-[var(--text-muted)]">탈퇴</span>
-                <div className="text-[11px] text-[var(--text-dim)] mt-0.5">최근 7일 / 30일</div>
-              </div>
-              <div className="text-right">
-                <span className={`text-[24px] leading-7 font-extrabold mono-number ${(opsRisk?.deletions?.d7 ?? 0) > 0 ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>
-                  {opsRisk?.deletions?.d7 ?? 0}
-                </span>
-                <span className="text-[13px] text-[var(--text-dim)] mono-number"> / {opsRisk?.deletions?.d30 ?? 0}</span>
+            <div className="platform-rail-stats">
+              <div><span className="mono-number font-extrabold text-[var(--text)]">{fmtW(mrr)}</span><span>MRR</span></div>
+              <div><span className="mono-number font-extrabold text-[var(--success)]">{fmtW(totalRevenue)}</span><span>누적 매출</span></div>
+              <div><span className="mono-number font-extrabold text-[var(--primary)]">{fmtW(mrr * 12)}</span><span>ARR</span></div>
+            </div>
+          </div>
+
+          {/* 성장 신호 */}
+          <div className="glass-card p-0 overflow-hidden">
+            <div className="platform-card-head">
+              <span className="platform-card-title">성장 신호</span>
+              <Link href="/platform/sales-codes" className="text-[11px] text-[var(--primary)] hover:underline">영업코드 →</Link>
+            </div>
+            <div className="platform-rail-rows">
+              {(opsRisk?.sales_codes ?? []).slice(0, 4).map((sc) => (
+                <div key={sc.code} className="platform-rail-row cursor-default">
+                  <span className="mono-number text-[12px] font-bold text-[var(--text)] shrink-0">{sc.code}</span>
+                  <span className="flex-1 text-[11px] text-[var(--text-dim)] truncate">{sc.owner || "—"}</span>
+                  <span className="text-[11px] mono-number text-[var(--text-muted)]">사용 {sc.redemptions} · 전환 <b className="text-[var(--success)]">{sc.conversions}</b></span>
+                </div>
+              ))}
+              {(opsRisk?.sales_codes?.length ?? 0) === 0 && (
+                <div className="px-4 py-3 text-[12px] text-[var(--text-dim)]">발급된 영업코드가 없습니다.</div>
+              )}
+              {seatPressure.length > 0 && (
+                <div className="platform-rail-row cursor-default">
+                  <span className="text-sm shrink-0">💺</span>
+                  <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)]">좌석 초과 임박</span>
+                  <span className="platform-rail-badge platform-rail-badge-warn">{seatPressure.length}</span>
+                </div>
+              )}
+              <div className="platform-rail-row cursor-default">
+                <span className="text-sm shrink-0">👋</span>
+                <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)]">탈퇴 (7일/30일)</span>
+                <span className="text-[12px] mono-number text-[var(--text-muted)]">{opsRisk?.deletions?.d7 ?? 0} / {opsRisk?.deletions?.d30 ?? 0}</span>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </aside>
+      </div>
     </div>
   );
 }
