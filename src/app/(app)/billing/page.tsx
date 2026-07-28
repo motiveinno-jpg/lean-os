@@ -18,7 +18,7 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase;
 
-type Tab = "plan" | "payment" | "invoices" | "feedback";
+type Tab = "plan" | "payment" | "invoices";
 type BillingCycle = "monthly" | "annual";
 
 // 2026-07-06 4티어 정합(랜딩과 동일) — 허위 항목(SSO/SAML·API·온프레미스) 제거
@@ -146,32 +146,6 @@ export default function BillingPage() {
     enabled: !!companyId,
   });
 
-  // 피드백 제출
-  const [fbCategory, setFbCategory] = useState("feature_request");
-  const [fbTitle, setFbTitle] = useState("");
-  const [fbDesc, setFbDesc] = useState("");
-  const [fbSent, setFbSent] = useState(false);
-
-  const submitFeedback = useMutation({
-    mutationFn: async () => {
-      if (!companyId || !user?.id) throw new Error("No user");
-      const { error } = await db.from("feedback").insert({
-        company_id: companyId,
-        user_id: user.id,
-        category: fbCategory,
-        title: fbTitle,
-        description: fbDesc,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      setFbSent(true);
-      setFbTitle("");
-      setFbDesc("");
-    },
-    onError: (err: any) => toast("피드백 제출 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
-  });
-
   // Handle Stripe checkout callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -291,7 +265,6 @@ export default function BillingPage() {
     { key: "plan", label: "요금제", icon: "💳" },
     { key: "payment", label: "결제 수단", icon: "🏦" },
     { key: "invoices", label: "청구서", icon: "🧾" },
-    { key: "feedback", label: "피드백", icon: "💬" },
   ];
 
   /** 플랜 변경 모달 확인 */
@@ -829,71 +802,6 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               })}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Feedback Tab */}
-      {tab === "feedback" && (
-        <div className="space-y-6">
-          <div className="billing-feedback-card glass-card">
-            <h3 className="text-sm font-bold text-[var(--text)] mb-1">피드백</h3>
-            <p className="text-xs text-[var(--text-muted)] mb-4">OwnerView를 더 좋게 만들어 주세요</p>
-
-            {fbSent ? (
-              <div className="text-center py-6">
-                <div className="text-3xl mb-2">🙏</div>
-                <p className="font-semibold text-[var(--text)]">피드백 감사합니다!</p>
-                <p className="text-xs text-[var(--text-muted)] mt-1">검토 후 반영하겠습니다.</p>
-                <button onClick={() => setFbSent(false)} className="mt-3 text-sm text-[var(--primary)] hover:underline">
-                  추가 피드백
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex gap-2 flex-wrap">
-                  {[
-                    { key: "feature_request", label: "기능 요청" },
-                    { key: "bug_report", label: "버그 제보" },
-                    { key: "ux_improvement", label: "UX 개선" },
-                    { key: "general", label: "일반" },
-                  ].map((c) => (
-                    <button
-                      key={c.key}
-                      onClick={() => setFbCategory(c.key)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                        fbCategory === c.key
-                          ? "bg-[var(--primary)] text-white"
-                          : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={fbTitle}
-                  onChange={(e) => setFbTitle(e.target.value)}
-                  placeholder="제목"
-                  className="w-full px-4 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]"
-                />
-                <textarea
-                  value={fbDesc}
-                  onChange={(e) => setFbDesc(e.target.value)}
-                  placeholder="상세 내용 (선택)"
-                  rows={3}
-                  className="w-full px-4 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] resize-none"
-                />
-                <button
-                  onClick={() => submitFeedback.mutate()}
-                  disabled={!fbTitle.trim() || submitFeedback.isPending}
-                  className="btn-primary"
-                >
-                  {submitFeedback.isPending ? "전송 중..." : "피드백 보내기"}
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       )}
 

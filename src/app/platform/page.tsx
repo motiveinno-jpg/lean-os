@@ -105,14 +105,6 @@ export default function PlatformOverview() {
     },
   });
 
-  const { data: feedback = [] } = useQuery({
-    queryKey: ["p-feedback"],
-    queryFn: async () => {
-      const data = logRead('platform/page:data', await db.from("feedback").select("id, status, category, created_at").order("created_at", { ascending: false }));
-      return data || [];
-    },
-  });
-
   // OP-A: 24h 에러 수 (error_logs 테이블 — 운영 신호)
   const { data: recentErrors = [] } = useQuery({
     queryKey: ["p-errors-24h"],
@@ -213,7 +205,6 @@ export default function PlatformOverview() {
     }, 0);
   const paidInvoices = invoices.filter((i: any) => i.status === "paid");
   const totalRevenue = paidInvoices.reduce((s: number, i: any) => s + (i.total_amount || 0), 0);
-  const pendingFeedback = feedback.filter((f: any) => f.status === "pending").length;
   const conversionRate = totalCompanies > 0 ? ((paidSubs / totalCompanies) * 100).toFixed(1) : "0";
 
   // 이번 달 가입
@@ -278,7 +269,6 @@ export default function PlatformOverview() {
   const inboxItems = [
     { label: "신규 도입문의", n: (newInquiries as any[]).length, href: "/platform/partnership", icon: "📥" },
     { label: "미답변 고객센터", n: (openTickets as any[]).length, href: "/platform/support", icon: "🎧" },
-    { label: "미처리 피드백", n: pendingFeedback, href: "/platform/feedback", icon: "💬" },
     { label: "24시간 에러", n: recentErrors.length, href: "/platform/health", icon: "🚨", danger: recentErrors.length > 50 },
   ];
   const todoTotal = inboxItems.reduce((s, i) => s + i.n, 0);

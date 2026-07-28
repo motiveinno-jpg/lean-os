@@ -38,7 +38,6 @@ const NAV_GROUPS: NavGroup[] = [
     title: "지원",
     items: [
       { href: "/platform/support", label: "고객센터", icon: "headset" },
-      { href: "/platform/feedback", label: "피드백", icon: "message" },
       { href: "/platform/partnership", label: "도입문의", icon: "inbox" },
     ],
   },

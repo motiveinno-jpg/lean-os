@@ -2743,7 +2743,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .billing-payment-method-card { @apply p-6; }
 .billing-payment-info-card { @apply p-6; }
 .billing-invoices-card { @apply overflow-hidden; }
-.billing-feedback-card { @apply p-6; }
 .billing-upgrade-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
 .billing-cancel-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
 
@@ -2769,11 +2768,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-audit-empty { @apply p-8 text-center text-sm text-[var(--text-dim)]; }
 .platform-audit-table { @apply overflow-hidden; }
 .platform-audit-row { @apply border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition; }
-.platform-feedback-header { @apply flex flex-wrap items-center justify-between gap-2; }
-.platform-feedback-status-summary { @apply flex flex-wrap gap-2 text-xs; }
 .platform-feedback-list { @apply overflow-hidden; }
-.platform-feedback-row { @apply p-5 hover:bg-[var(--bg-surface)]/60 transition; }
-.platform-feedback-actions { @apply flex flex-wrap gap-1 shrink-0 justify-end; }
 
 /* 도입·제휴 문의함 (2026-07-27) */
 .platform-partnership-header { @apply flex flex-wrap items-end justify-between gap-4; }

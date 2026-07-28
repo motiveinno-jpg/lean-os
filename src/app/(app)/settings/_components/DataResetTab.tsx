@@ -14,7 +14,7 @@ const DIRECT_DELETE_TABLES = [
   "tax_invoice_queue",
   "expense_approvals",
   "document_notifications",
-  "billing_events", "feedback", "finance_access_logs",
+  "billing_events", "finance_access_logs",
   "audit_logs", "auto_discovery_results",
   "ai_pending_actions", "ai_interactions",
   "growth_targets",
