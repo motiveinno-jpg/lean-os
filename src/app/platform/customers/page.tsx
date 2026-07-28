@@ -70,7 +70,7 @@ export default function CustomersPage() {
             {[
               { key: "all", label: "전체" },
               { key: "paid", label: "유료" },
-              { key: "free", label: "무료" },
+              { key: "free", label: "미구독" },
             ].map((f) => (
               <button
                 key={f.key}
@@ -106,9 +106,13 @@ export default function CustomersPage() {
                 const plan = sub?.subscription_plans;
                 // 체험 만료(게이트에서 차단 중)인데 status 가 trialing 으로 남아 '체험중'으로 보이던 것 정정
                 const trialExpired = sub?.status === "trialing" && sub?.trial_ends_at && new Date(sub.trial_ends_at).getTime() < Date.now();
-                const st = trialExpired
+                // 2026-07-28: 구독이 아예 없는 회사가 폴백 기본값 때문에 '체험중'으로 표시되던 버그 —
+                //   미구독으로 정확히 표기 (무료 vs 체험 혼동의 원인)
+                const st = !sub
+                  ? { bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-dim)]", label: "미구독" }
+                  : trialExpired
                   ? { bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]", label: "체험만료" }
-                  : STATUS_COLORS[sub?.status || "trialing"] || STATUS_COLORS.trialing;
+                  : STATUS_COLORS[sub.status] || { bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-muted)]", label: sub.status };
                 return (
                   <tr
                     key={c.id}

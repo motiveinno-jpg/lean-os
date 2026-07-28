@@ -326,7 +326,7 @@ export default function PlatformOverview() {
           { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const },
           { label: "이번 달 신규", value: thisMonth, sub: "이번 달 가입", f: "new" as const },
           { label: "유료 구독", value: paidSubs, sub: `전환율 ${conversionRate}%`, f: "paid" as const },
-          { label: "체험 중", value: activeSubs - paidSubs, sub: "무료 체험", f: "trial" as const },
+          { label: "체험 중", value: activeSubs - paidSubs, sub: "카드 등록 · 전환 대기", f: "trial" as const },
         ].map((kpi) => (
           <button
             key={kpi.label}
@@ -493,8 +493,8 @@ function TrafficSection({ usage, traffic }: { usage: UsageStats | null; traffic:
           <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-3">이용 형태</div>
           <div className="platform-plan-rows">
             {[
-              { label: "무료", n: plans?.free ?? 0, cls: "platform-plan-free" },
-              { label: "체험 중", n: plans?.trialing ?? 0, cls: "platform-plan-trial" },
+              { label: "미구독 (카드 미등록)", n: plans?.free ?? 0, cls: "platform-plan-free" },
+              { label: "체험 중 (카드 등록)", n: plans?.trialing ?? 0, cls: "platform-plan-trial" },
               { label: "유료", n: plans?.paid ?? 0, cls: "platform-plan-paid" },
             ].map((r) => {
               const total = Math.max(1, (plans?.free ?? 0) + (plans?.trialing ?? 0) + (plans?.paid ?? 0));
@@ -659,14 +659,23 @@ function RecentCompanies({ companies, filter, onFilter }: {
   filter: "all" | "paid" | "trial" | "free" | "new";
   onFilter: (f: "all" | "paid" | "trial" | "free" | "new") => void;
 }) {
-  const planOf = (c: any) => {
+  // 명칭 정리(2026-07-28 사장님): "무료 vs 체험" 구분이 안 됨 → 미구독(카드 미등록) /
+  //   체험 D-n(카드 등록, 남은 일수) / 플랜명. kind 는 필터 매칭용(라벨 문자열 비교 제거).
+  const planOf = (c: any): { kind: "free" | "trial" | "paid"; label: string; cls: string } => {
     const sub = (c.subscriptions || []).find((s: any) => s.status === "active" || s.status === "trialing");
-    if (!sub) return { label: "무료", cls: "platform-badge-free" };
-    if (sub.status === "trialing") return { label: "체험", cls: "platform-badge-trial" };
+    if (!sub) return { kind: "free", label: "미구독", cls: "platform-badge-free" };
+    if (sub.status === "trialing") {
+      const left = sub.trial_ends_at ? Math.ceil((new Date(sub.trial_ends_at).getTime() - Date.now()) / 86400000) : null;
+      return {
+        kind: "trial",
+        label: left === null ? "체험 중" : left >= 0 ? `체험 D-${left}` : "체험 만료",
+        cls: "platform-badge-trial",
+      };
+    }
     const slug = sub.subscription_plans?.slug;
     return slug && slug !== "free"
-      ? { label: sub.subscription_plans?.name || "유료", cls: "platform-badge-paid" }
-      : { label: "무료", cls: "platform-badge-free" };
+      ? { kind: "paid", label: sub.subscription_plans?.name || "유료", cls: "platform-badge-paid" }
+      : { kind: "free", label: "미구독", cls: "platform-badge-free" };
   };
 
   const fmtKst = (iso?: string) =>
@@ -678,10 +687,10 @@ function RecentCompanies({ companies, filter, onFilter }: {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   };
   const matches = (c: any) => {
-    const p = planOf(c).label;
-    if (filter === "paid") return p !== "무료" && p !== "체험";
-    if (filter === "trial") return p === "체험";
-    if (filter === "free") return p === "무료";
+    const k = planOf(c).kind;
+    if (filter === "paid") return k === "paid";
+    if (filter === "trial") return k === "trial";
+    if (filter === "free") return k === "free";
     if (filter === "new") return isThisMonth(c);
     return true;
   };
@@ -691,7 +700,7 @@ function RecentCompanies({ companies, filter, onFilter }: {
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
   const FILTER_LABEL: Record<string, string> = {
-    all: "전체", new: "이번 달 신규", paid: "유료", trial: "체험 중", free: "무료",
+    all: "전체", new: "이번 달 신규", paid: "유료", trial: "체험 중", free: "미구독",
   };
 
   return (
