@@ -266,12 +266,16 @@ export function LeavePanel() {
 }
 
 // ── 세금·증빙 (/tax-invoices) ────────────────────────────────
+//   실제 화면 구조: FinanceTabs(세금계산서 | 현금영수증) + 요약 카드 4장
+//   (조회기간 매출 / 조회기간 매입 / 딜 미연결 건수 / 예상 부가세 납부액)
+//   + 발행 목록 표(액션·거래처·금액·발행일·프로젝트·상태·비고·승인).
+//   ⚠️ 컬럼·카드 라벨은 src/app/(app)/tax-invoices/page.tsx 를 따른다. 임의로 만들지 말 것.
 export function TaxPanel() {
   const rows = [
-    { d: "07-24", p: "(주)하늘건설", t: "매출", s: "₩252,000,000", v: "₩25,200,000", st: "승인", tag: "s" },
-    { d: "07-22", p: "블루윙 스튜디오", t: "매입", s: "₩31,800,000", v: "₩3,180,000", st: "승인", tag: "s" },
-    { d: "07-20", p: "메이커스랩", t: "매출", s: "₩60,000,000", v: "₩6,000,000", st: "승인", tag: "s" },
-    { d: "07-18", p: "한빛 소재", t: "매입", s: "₩12,400,000", v: "₩1,240,000", st: "수집", tag: "n" },
+    { p: "(주)하늘건설", amt: "₩277,200,000", d: "2026-07-24", prj: "사옥 리뉴얼", st: "발행", tag: "s", memo: "2차 기성", ok: "승인" },
+    { p: "메이커스랩", amt: "₩66,000,000", d: "2026-07-20", prj: "앱 개발", st: "발행", tag: "s", memo: "선금", ok: "승인" },
+    { p: "블루윙 스튜디오", amt: "₩34,980,000", d: "2026-07-22", prj: "—", st: "매입", tag: "n", memo: "외주비", ok: "수집" },
+    { p: "한빛 소재", amt: "₩13,640,000", d: "2026-07-18", prj: "—", st: "매입", tag: "n", memo: "자재", ok: "수집" },
   ];
   return (
     <section className="pp glass-card" id="pp-tax">
@@ -281,27 +285,32 @@ export function TaxPanel() {
         sub="매출·매입 내역을 자동으로 수집하고 계약·입금과 대조해요"
         right={<span className="pp-badge pp-badge-p">이번 달 62건</span>}
       />
-      <div className="pp-grid3">
-        <div className="pp-mini"><span>매출세액</span><b>₩31,200,000</b></div>
-        <div className="pp-mini"><span>매입세액</span><b>₩4,420,000</b></div>
-        <div className="pp-mini pp-mini-ok"><span>납부 예상</span><b>₩26,780,000</b></div>
+      <div className="pp-subtabs">
+        <span className="pp-subtab pp-subtab-on">세금계산서</span>
+        <span className="pp-subtab">현금영수증</span>
+      </div>
+      <div className="pp-grid2 pp-mt">
+        <div className="pp-mini"><span>조회기간 매출</span><b>₩343,200,000</b></div>
+        <div className="pp-mini"><span>조회기간 매입</span><b>₩48,620,000</b></div>
+        <div className="pp-mini"><span>딜 미연결 건수</span><b>2건</b></div>
+        <div className="pp-mini pp-mini-ok"><span>예상 부가세 납부액</span><b>₩26,780,000</b></div>
       </div>
       <div className="pp-section-t">세금계산서 <span className="pp-ai">자동 수집</span></div>
       <table className="pp-table">
-        <thead><tr><th>발행일</th><th>거래처</th><th>구분</th><th>공급가액</th><th>세액</th></tr></thead>
+        <thead><tr><th>거래처</th><th>발행일</th><th>프로젝트</th><th>상태</th><th>금액</th></tr></thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={i}>
-              <td>{r.d}</td>
               <td className="pp-strong">{r.p} <span className={`pp-tag pp-tag-${r.tag}`}>{r.st}</span></td>
-              <td>{r.t}</td>
-              <td className="pp-num">{r.s}</td>
-              <td className="pp-num">{r.v}</td>
+              <td>{r.d}</td>
+              <td>{r.prj}</td>
+              <td>{r.ok}</td>
+              <td className="pp-num">{r.amt}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="pp-alert">부가세 신고가 D-4 예요. 지금까지 수집된 내역으로 계산한 납부 예상액은 ₩26,780,000 이에요.</div>
+      <div className="pp-alert">부가세 신고가 D-4 예요. 딜에 연결되지 않은 계산서 2건을 확인해 주세요.</div>
     </section>
   );
 }

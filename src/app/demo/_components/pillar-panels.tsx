@@ -152,6 +152,11 @@ export function AccountPanel() {
         sub="실계좌를 연결하면 거래가 들어오고, AI가 계정과목까지 나눠줘요"
         right={<span className="pp-badge pp-badge-p">AI 분류 94% 자동</span>}
       />
+      {/* 실제 화면의 파이낸스 하위 탭(FinanceTabs) */}
+      <div className="pp-subtabs">
+        <span className="pp-subtab pp-subtab-on">자동 분류</span>
+        <span className="pp-subtab">입금 매칭</span>
+      </div>
 
       <div className="pp-grid3">
         <div className="pp-mini"><span>이번 달 매출</span><b>{won(45_000_000)}</b></div>

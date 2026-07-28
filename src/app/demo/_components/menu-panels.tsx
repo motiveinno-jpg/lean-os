@@ -44,7 +44,12 @@ export function PartnersPanel() {
         sub="프로젝트·계약·매출 이력이 거래처에 자동으로 연결돼요"
         right={<span className="pp-badge pp-badge-p">전체 684곳</span>}
       />
-      <div className="pp-grid3">
+      {/* 실제 화면의 파이낸스 하위 탭(FinanceTabs) */}
+      <div className="pp-subtabs">
+        <span className="pp-subtab pp-subtab-on">거래처 관리</span>
+        <span className="pp-subtab">거래처 원장</span>
+      </div>
+      <div className="pp-grid3 pp-mt">
         <div className="pp-mini"><span>고객사</span><b>412</b></div>
         <div className="pp-mini"><span>공급업체</span><b>272</b></div>
         <div className="pp-mini"><span>90일 무거래</span><b>38</b></div>
