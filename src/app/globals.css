@@ -144,7 +144,10 @@ body {
   background: var(--bg);
   color: var(--text);
   /* Pretendard 우선 — 한글 가독성 ↑ (Inter 는 라틴 fallback) */
-  font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* 2026-07-28 한글 폴백 추가 — Pretendard 가 안 뜨는 환경에서 라틴만 Segoe UI 로 떨어져
+     한 줄 안에서 글씨체가 달라 보이던 문제. 1순위 폰트는 그대로다. */
+  font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.005em;

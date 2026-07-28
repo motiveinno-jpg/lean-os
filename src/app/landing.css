@@ -39,8 +39,17 @@
   --shadow-card: 0 10px 34px -14px rgba(27,26,46,.14), 0 2px 8px -4px rgba(27,26,46,.06);
 
   background: var(--canvas); color: var(--ink); min-height: 100vh;
-  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+  /* ⚠️ 앱 본체(globals.css body)와 같은 스택이어야 한다.
+     'Pretendard Variable' 를 빼고 'Pretendard' 만 적었더니 그 이름이 로드돼 있지 않아
+     라틴은 Segoe UI, 한글은 시스템 한글 폰트로 각각 떨어졌다 — 한 줄 안에서 글씨체가 달라 보였다.
+     (실제 로드되는 이름은 globals.css 의 pretendard variable dynamic-subset 이 정의하는
+      'Pretendard Variable' 이다.) */
+  font-family: 'Pretendard Variable', Pretendard, 'Inter', -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 한글·라틴이 섞인 제목에서 라틴만 커 보이지 않게 */
+  font-synthesis-weight: none;
   /* clip 이어야 한다 — hidden 은 스크롤 컨테이너를 만들어 하위 position:sticky 를 깨뜨린다 */
   overflow-x: clip;
   word-break: keep-all;
@@ -79,10 +88,10 @@
 .lp4-logo { display:flex; align-items:center; gap:9px; font-weight:800; font-size:17px; letter-spacing:-.02em; }
 .lp4-menu { display:none; align-items:center; gap:30px; }
 .lp4-menu a { display:inline-flex; align-items:center; line-height:1;
-  font-size:14.5px; font-weight:500; color: var(--ink2); }
+  font-size:15px; font-weight:500; color: var(--ink2); }
 .lp4-menu a:hover { color: var(--ink); }
 .lp4-nav-right { display:flex; align-items:center; gap:12px; }
-.lp4-login { display:none; font-size:14.5px; font-weight:600; color: var(--ink2); }
+.lp4-login { display:none; font-size:15px; font-weight:600; color: var(--ink2); }
 .lp4-pill { display:inline-flex; align-items:center; gap:6px; color:#fff; font-weight:600; font-size:14px;
   padding:10px 18px; border-radius:11px; background: var(--brand);
   box-shadow: 0 4px 12px -6px rgba(91,84,232,.5); transition: background .15s, transform .15s; }
@@ -108,7 +117,7 @@
    패널을 링크 바로 아래가 아니라 위쪽 padding 으로 이어 둔다 — 사이가 뜼면 hover 가 끊긴다. */
 .lp4-navdrop { position: relative; display:flex; align-items:center; }
 .lp4-navdrop-t { display:inline-flex; align-items:center; gap:4px; line-height:1;
-  font-size:14.5px; font-weight:500; color: var(--ink2); background:none; border:none;
+  font-size:15px; font-weight:500; color: var(--ink2); background:none; border:none;
   padding:0; cursor:pointer; }
 .lp4-navdrop-t:hover, .lp4-navdrop-open .lp4-navdrop-t { color: var(--ink); }
 .lp4-navdrop-caret { transition: transform .2s; opacity:.6; }
@@ -133,23 +142,23 @@
 .lp4-mega-side-b:hover { color: var(--ink); }
 .lp4-mega-side-on { background:#fff; color: var(--ink);
   box-shadow: 0 8px 18px -12px rgba(27,26,46,.4); }
-.lp4-mega-side-c { font-size:11.5px; font-weight:700; color: var(--ink3); }
+.lp4-mega-side-c { font-size:12px; font-weight:700; color: var(--ink3); }
 .lp4-mega-side-on .lp4-mega-side-c { color: var(--brand); }
 
 .lp4-mega-main { display:flex; flex-direction:column; padding:6px 6px 4px; text-align:left;
   animation: lp4-rise .2s ease; }
-.lp4-mega-lead { font-size:13.5px; color: var(--ink3); line-height:1.6; margin-bottom:14px; }
+.lp4-mega-lead { font-size:14px; color: var(--ink3); line-height:1.6; margin-bottom:14px; }
 /* 가로로 나열 — 한 줄에 3~4개씩 흐르고 넘치면 다음 줄로 */
 .lp4-mega-items { display:grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap:6px; }
 .lp4-mega-m { display:flex; flex-direction:column; align-items:flex-start; gap:4px;
   padding:12px 14px; border-radius:13px; text-align:left; border:1px solid transparent;
   transition: background .15s, border-color .15s; }
 .lp4-mega-m:hover { background: var(--canvas2); border-color: var(--line); }
-.lp4-mega-m-n { font-size:14.5px; font-weight:700; color: var(--ink); }
+.lp4-mega-m-n { font-size:15px; font-weight:700; color: var(--ink); }
 .lp4-mega-m-d { font-size:12px; color: var(--ink3); line-height:1.55;
   overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .lp4-mega-all { display:inline-flex; align-items:center; gap:6px; align-self:flex-start;
-  margin-top:14px; padding:8px 12px; font-size:13.5px; font-weight:700; color: var(--brand); }
+  margin-top:14px; padding:8px 12px; font-size:14px; font-weight:700; color: var(--brand); }
 .lp4-mega-all:hover { color: var(--brand-ink); }
 
 /* 모바일 드로우어 — 호버가 없으므로 그룹을 펼쳐 둔다 */
@@ -183,7 +192,7 @@
     radial-gradient(780px 560px at 90% -6%, var(--pastel-sky), transparent 64%); }
 .lp4-hero-grid { display:none; }
 .lp4-hero-inner { position:relative; z-index:2; padding:118px 0 0; text-align:center; }
-.lp4-hero-badge { display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600;
+.lp4-hero-badge { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600;
   color: var(--brand-ink); border:1px solid var(--line2); background: rgba(255,255,255,.78);
   padding:8px 16px; border-radius:999px; }
 .lp4-hero-badge-dot { width:7px; height:7px; border-radius:999px; background: var(--ok); }
@@ -228,7 +237,7 @@
 .lp4-why-label { font-size:14px; font-weight:700; letter-spacing:-.01em; color: var(--ink3); }
 .lp4-why-h { font-size:24px; font-weight:800; letter-spacing:-.035em; line-height:1.35;
   color: var(--ink); margin-top:18px; }
-.lp4-why-d { font-size:15.5px; color: var(--ink2); line-height:1.75; margin-top:12px; }
+.lp4-why-d { font-size:16px; color: var(--ink2); line-height:1.75; margin-top:12px; }
 
 /* 일러스트 바닥판 — 카드 안에 한 단 낮게 파인 유리판 */
 .lp4-art { position:relative; z-index:1; margin:28px -36px 0; padding:26px 36px 32px; min-height:214px;
@@ -257,13 +266,13 @@
 .lp4-art-ai { display:flex; flex-direction:column; gap:9px; }
 .lp4-art-row { display:flex; align-items:center; gap:10px; border-radius:14px; padding:12px 15px; }
 .lp4-art-row-warn { background: linear-gradient(160deg, rgba(255,255,255,.92), var(--pastel-peach)); }
-.lp4-art-date { font-size:11.5px; color: var(--ink3); font-variant-numeric: tabular-nums; flex:none; }
+.lp4-art-date { font-size:12px; color: var(--ink3); font-variant-numeric: tabular-nums; flex:none; }
 .lp4-art-name { flex:1; min-width:0; font-size:13px; font-weight:600; color: var(--ink);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .lp4-art-tag { flex:none; font-size:11px; font-weight:700; color: var(--ink2);
   background: rgba(27,26,46,.05); border-radius:7px; padding:4px 8px; }
 .lp4-art-tag-warn { color: var(--warn); background: rgba(255,255,255,.8); }
-.lp4-art-aibadge { flex:none; font-size:10.5px; font-weight:800; letter-spacing:-.01em;
+.lp4-art-aibadge { flex:none; font-size:11px; font-weight:800; letter-spacing:-.01em;
   color: var(--brand-ink); background: var(--brand-dim); border-radius:7px; padding:5px 8px; }
 
 /* 3) 도구 7개 vs 하나 */
@@ -271,12 +280,12 @@
 @media (min-width: 560px){ .lp4-art-save { grid-template-columns: 1.05fr .95fr; align-items:center; } }
 .lp4-art-bars { display:flex; flex-direction:column; gap:8px; }
 .lp4-art-bar { display:flex; align-items:center; gap:10px; }
-.lp4-art-bar-n { flex:none; width:84px; font-size:11.5px; color: var(--ink3); }
+.lp4-art-bar-n { flex:none; width:84px; font-size:12px; color: var(--ink3); }
 .lp4-art-bar-track { flex:1; height:10px; border-radius:999px; overflow:hidden; }
 .lp4-art-bar-fill { display:block; height:100%; border-radius:999px;
   background: linear-gradient(90deg, rgba(27,26,46,.14), rgba(27,26,46,.26)); }
 .lp4-art-one { border-radius:18px; padding:18px 20px; }
-.lp4-art-one-cap { display:block; font-size:11.5px; font-weight:700; color: var(--brand-ink); }
+.lp4-art-one-cap { display:block; font-size:12px; font-weight:700; color: var(--brand-ink); }
 .lp4-art-one-v { display:block; font-size:25px; font-weight:800; letter-spacing:-.035em; color: var(--ink); margin-top:6px; }
 .lp4-art-one-v i { font-style:normal; font-size:13px; color: var(--ink3); font-weight:700; }
 .lp4-art-one-note { display:block; font-size:11px; color: var(--ink3); margin-top:5px; }
@@ -288,7 +297,7 @@
   color: var(--ok); background: linear-gradient(160deg, rgba(255,255,255,.95), var(--pastel-mint));
   box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 0 0 1px rgba(27,26,46,.05); }
 .lp4-art-step-t { display:flex; flex-direction:column; }
-.lp4-art-step-t b { font-size:14.5px; font-weight:700; color: var(--ink); }
+.lp4-art-step-t b { font-size:15px; font-weight:700; color: var(--ink); }
 .lp4-art-step-t i { font-style:normal; font-size:12px; color: var(--ink3); margin-top:1px; }
 .lp4-art-step-line { position:absolute; left:13.5px; top:38px; width:1px; height:18px; background: rgba(27,26,46,.12); }
 .lp4-art-zero-tag { align-self:flex-start; margin-top:14px; font-size:12px; font-weight:700;
@@ -322,7 +331,7 @@
 .lp4-pain:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -20px rgba(31,38,75,.28), inset 0 1px 0 var(--glass-line); }
 .lp4-pain-badge { display:inline-block; font-size:12px; font-weight:700; color: var(--brand);
   background: var(--brand-dim); padding:5px 11px; border-radius:999px; }
-.lp4-pain-pain { font-size:14.5px; color: var(--ink2); margin-top:15px; line-height:1.55; }
+.lp4-pain-pain { font-size:15px; color: var(--ink2); margin-top:15px; line-height:1.55; }
 .lp4-pain-solve { display:flex; gap:8px; font-size:14px; color: var(--ink); font-weight:600;
   margin-top:14px; padding-top:14px; border-top:1px solid var(--line); line-height:1.55; }
 .lp4-pain-solve b { color: var(--brand); flex-shrink:0; }
@@ -344,13 +353,13 @@
 @media (min-width: 960px){ .lp4-day-row { grid-template-columns: 128px 1fr 44px 1fr; gap:16px; align-items:center; } }
 .lp4-day-time { display:flex; flex-direction:column; }
 .lp4-day-time b { font-size:20px; font-weight:800; letter-spacing:-.03em; color: var(--ink); font-variant-numeric: tabular-nums; }
-.lp4-day-time span { font-size:12.5px; color: var(--ink3); margin-top:2px; }
+.lp4-day-time span { font-size:13px; color: var(--ink3); margin-top:2px; }
 .lp4-day-before, .lp4-day-after { padding:16px 18px; border-radius:16px; }
 .lp4-day-before { background: var(--canvas2); }
 .lp4-day-after { background: var(--pastel-lav); border:1px solid var(--line); }
-.lp4-day-tag { display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:.04em; color: var(--ink3); margin-bottom:7px; }
+.lp4-day-tag { display:inline-block; font-size:11px; font-weight:800; letter-spacing:.04em; color: var(--ink3); margin-bottom:7px; }
 .lp4-day-tag-on { color: var(--brand); }
-.lp4-day-before p { font-size:14.5px; color: var(--ink3); line-height:1.6;
+.lp4-day-before p { font-size:15px; color: var(--ink3); line-height:1.6;
   text-decoration: line-through; text-decoration-color: rgba(27,26,46,.16); text-decoration-thickness:1px; }
 .lp4-day-after p { font-size:15px; color: var(--ink); font-weight:700; line-height:1.6; }
 .lp4-day-arrow { display:none; align-items:center; justify-content:center; color: var(--brand); }
@@ -373,7 +382,7 @@
 
 .lp4-mf-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-top:24px; }
 .lp4-mf-tab { position:relative; overflow:hidden; padding:12px 24px; border-radius:999px;
-  background: var(--canvas2); border:1px solid transparent; font-size:15.5px; font-weight:700;
+  background: var(--canvas2); border:1px solid transparent; font-size:16px; font-weight:700;
   color: var(--ink3); cursor:pointer; transition: all .2s; }
 .lp4-mf-tab:hover { color: var(--ink2); }
 .lp4-mf-tab-on { background: var(--brand); color:#fff; }
@@ -384,7 +393,7 @@
 
 .lp4-mf-body { margin-top:22px; animation: lp4-rise .32s ease; }
 .lp4-mf-t { font-size:22px; font-weight:800; letter-spacing:-.03em; color: var(--ink); }
-.lp4-mf-d { font-size:16.5px; color: var(--ink2); line-height:1.8; margin-top:10px; max-width:500px; }
+.lp4-mf-d { font-size:17px; color: var(--ink2); line-height:1.8; margin-top:10px; max-width:500px; }
 .lp4-mf-menus { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:26px;
   padding-top:22px; border-top:1px solid var(--line); }
 
@@ -400,7 +409,7 @@
   animation: lp4-mf-in .5s cubic-bezier(.2,.7,.3,1); }
 .lp4-mf-screen img { display:block; width:100%; height:auto; }
 @keyframes lp4-mf-in { from { opacity:0; transform: translateY(16px) scale(.985) } to { opacity:1; transform:none } }
-.lp4-mf-chip { position:absolute; z-index:3; font-size:13.5px; font-weight:800; color: var(--ink);
+.lp4-mf-chip { position:absolute; z-index:3; font-size:14px; font-weight:800; color: var(--ink);
   background:#fff; border:1px solid var(--line); border-radius:999px; padding:9px 16px;
   box-shadow: 0 16px 32px -16px rgba(27,26,46,.4); white-space:nowrap;
   animation: lp4-mf-pop .55s .18s backwards cubic-bezier(.2,.9,.3,1.2); }
@@ -409,7 +418,7 @@
 @keyframes lp4-mf-pop { from { opacity:0; transform: scale(.8) translateY(8px) } to { opacity:1; transform:none } }
 @media (max-width: 860px){ .lp4-mf-stage { padding:16px 0; } .lp4-mf-chip { display:none; } }
 
-.lp4-pillar-menu { font-size:14.5px; font-weight:600; color: var(--ink2); background: var(--canvas2);
+.lp4-pillar-menu { font-size:15px; font-weight:600; color: var(--ink2); background: var(--canvas2);
   border:1px solid var(--line); border-radius:999px; padding:9px 17px; }
 
 
@@ -426,8 +435,8 @@
   padding:15px 28px; border-radius:16px; border:1px solid var(--line); background:#fff;
   cursor:pointer; transition: all .2s; text-align:left; }
 .lp4-cat-tab:hover { border-color: var(--line2); transform: translateY(-2px); }
-.lp4-cat-tab-n { font-size:17.5px; font-weight:800; letter-spacing:-.02em; color: var(--ink2); }
-.lp4-cat-tab-c { font-size:12.5px; color: var(--ink3); }
+.lp4-cat-tab-n { font-size:18px; font-weight:800; letter-spacing:-.02em; color: var(--ink2); }
+.lp4-cat-tab-c { font-size:13px; color: var(--ink3); }
 .lp4-cat-tab-on { background: var(--brand); border-color: var(--brand); box-shadow: 0 12px 26px -14px rgba(91,84,232,.6); }
 .lp4-cat-tab-on .lp4-cat-tab-n { color:#fff; }
 .lp4-cat-tab-on .lp4-cat-tab-c { color: rgba(255,255,255,.75); }
@@ -448,7 +457,7 @@
 .lp4-cat-item-txt { display:flex; flex-direction:column; gap:3px; min-width:0; }
 .lp4-cat-item-n { font-size:17px; font-weight:800; letter-spacing:-.02em; color: var(--ink2); }
 .lp4-cat-item-on .lp4-cat-item-n { color: var(--ink); }
-.lp4-cat-item-d { font-size:13.5px; color: var(--ink3); line-height:1.65; }
+.lp4-cat-item-d { font-size:14px; color: var(--ink3); line-height:1.65; }
 .lp4-cat-item:not(.lp4-cat-item-on) .lp4-cat-item-d { display:none; }
 @media (min-width: 1000px){ .lp4-cat-item:not(.lp4-cat-item-on) .lp4-cat-item-d { display:block; } }
 
@@ -457,7 +466,7 @@
   box-shadow: 0 34px 72px -34px rgba(27,26,46,.36); }
 .lp4-cat-shot img { display:block; width:100%; height:auto; }
 .lp4-cat-feats { display:flex; flex-wrap:wrap; gap:9px; margin-top:20px; }
-.lp4-cat-feat { display:inline-flex; align-items:center; gap:8px; font-size:15.5px; font-weight:600;
+.lp4-cat-feat { display:inline-flex; align-items:center; gap:8px; font-size:16px; font-weight:600;
   color: var(--ink2); background:#fff; border:1px solid var(--line); border-radius:999px; padding:10px 18px; }
 .lp4-cat-feat svg { color: var(--brand); }
 
@@ -468,9 +477,9 @@
 .lp4-ai-card { display:flex; flex-direction:column; background:#fff; border:1px solid var(--line);
   border-radius:20px; padding:22px 22px 18px; transition: transform .2s, box-shadow .2s; }
 .lp4-ai-card:hover { transform: translateY(-3px); box-shadow: 0 22px 46px -28px rgba(27,26,46,.28); }
-.lp4-ai-tag { align-self:flex-start; font-size:12.5px; font-weight:800; letter-spacing:-.01em;
+.lp4-ai-tag { align-self:flex-start; font-size:13px; font-weight:800; letter-spacing:-.01em;
   color: var(--brand-ink); background: var(--pastel-lav); border-radius:999px; padding:5px 11px; }
-.lp4-ai-name { font-size:19.5px; font-weight:800; letter-spacing:-.03em; color: var(--ink); margin-top:14px; }
+.lp4-ai-name { font-size:20px; font-weight:800; letter-spacing:-.03em; color: var(--ink); margin-top:14px; }
 .lp4-ai-desc { flex:1; font-size:15px; color: var(--ink2); line-height:1.75; margin-top:9px; }
 .lp4-ai-where { font-size:13px; color: var(--ink3); margin-top:16px; padding-top:12px; border-top:1px solid var(--line); }
 
@@ -487,17 +496,17 @@
 .lp4-eng-chip svg { width:30px; height:30px; }
 .lp4-eng-id { min-width:0; }
 .lp4-eng-name { font-size:24px; font-weight:800; letter-spacing:-.035em; color: var(--ink); line-height:1.2; }
-.lp4-eng-eng { font-size:11.5px; color: var(--ink3); margin-top:4px; letter-spacing:.05em; }
+.lp4-eng-eng { font-size:12px; color: var(--ink3); margin-top:4px; letter-spacing:.05em; }
 .lp4-eng-line { font-size:19px; font-weight:700; color: var(--ink); line-height:1.5; letter-spacing:-.02em; margin-top:0; }
 @media (min-width: 860px){ .lp4-eng-line { margin-top:2px; } }
 .lp4-eng-steps { margin-top:20px; padding-top:0; border:none; display:grid; grid-template-columns:1fr; gap:10px; }
 @media (min-width: 700px){ .lp4-eng-steps { grid-template-columns: repeat(3,1fr); gap:12px; } }
 .lp4-eng-step { display:flex; gap:9px; font-size:13px; color: var(--ink2); line-height:1.55;
   align-items:flex-start; padding:14px 16px; border-radius:14px; background: rgba(255,255,255,.72); border:1px solid var(--line); }
-.lp4-eng-dot { width:18px; height:18px; font-size:10.5px; background: var(--brand-dim); color: var(--brand); }
+.lp4-eng-dot { width:18px; height:18px; font-size:11px; background: var(--brand-dim); color: var(--brand); }
 .lp4-eng-main { min-width:0; }
 .lp4-eng-rep { margin-top:18px; padding-top:0; border:none; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
-.lp4-eng-rep-cap { font-size:12.5px; color: var(--ink3); }
+.lp4-eng-rep-cap { font-size:13px; color: var(--ink3); }
 .lp4-eng-rep-cost { font-size:20px; font-weight:800; color: var(--ok); background:none; padding:0; letter-spacing:-.02em; }
 
 /* ── Compare ───────────────────────────────────────── */
@@ -545,12 +554,12 @@
 @media (min-width: 900px){
   .lp4-price-hl { border:2px solid var(--brand); box-shadow: 0 20px 44px -28px rgba(91,84,232,.32); }
 }
-.lp4-price-best { display:inline-block; align-self:flex-start; font-size:11.5px; font-weight:800; color:#fff;
+.lp4-price-best { display:inline-block; align-self:flex-start; font-size:12px; font-weight:800; color:#fff;
   background: linear-gradient(135deg, var(--brand), var(--brand-soft)); padding:5px 13px; border-radius:999px;
   margin-bottom:14px; letter-spacing:.02em; }
 .lp4-price-name { font-size:17px; font-weight:800; color: var(--ink); }
 .lp4-price-desc { font-size:13px; color: var(--ink3); margin-top:5px; }
-.lp4-price-reg { font-size:13.5px; color: var(--ink3); text-decoration: line-through; margin-top:20px; }
+.lp4-price-reg { font-size:14px; color: var(--ink3); text-decoration: line-through; margin-top:20px; }
 .lp4-price-reg-empty { height:13.5px; margin-top:20px; }
 .lp4-price-off { font-size:11px; font-weight:800; color: var(--warn); background: rgba(234,88,12,.1);
   padding:2px 8px; border-radius:6px; margin-left:6px; text-decoration:none; display:inline-block; }
@@ -561,11 +570,11 @@
 .lp4-price-unit { font-size:14px; color: var(--ink3); font-weight:600; letter-spacing:0; white-space:nowrap; }
 /* "별도 협의" 처럼 숫자가 아닌 값은 40px 이 과하다 */
 .lp4-price-amt-text { font-size:26px; letter-spacing:-.03em; }
-.lp4-price-period { font-size:12.5px; color: var(--ink2); margin-top:10px; line-height:1.5; min-height:36px; }
+.lp4-price-period { font-size:13px; color: var(--ink2); margin-top:10px; line-height:1.5; min-height:36px; }
 .lp4-price-feats { list-style:none; padding:0; margin:22px 0; display:flex; flex-direction:column; gap:11px; flex:1; }
-.lp4-price-feat { display:flex; gap:9px; font-size:13.5px; color: var(--ink2); line-height:1.5; }
+.lp4-price-feat { display:flex; gap:9px; font-size:14px; color: var(--ink2); line-height:1.5; }
 .lp4-price-feat svg { flex-shrink:0; color: var(--brand); margin-top:2px; width:14px; height:14px; }
-.lp4-price-cta { text-align:center; padding:14px; border-radius:14px; font-weight:700; font-size:14.5px; transition: all .15s; }
+.lp4-price-cta { text-align:center; padding:14px; border-radius:14px; font-weight:700; font-size:15px; transition: all .15s; }
 .lp4-price-cta-brand { background: var(--brand); color:#fff; box-shadow: 0 10px 22px -12px rgba(91,84,232,.5); }
 .lp4-price-cta-brand:hover { background: var(--brand-ink); }
 .lp4-price-cta-line { background: var(--canvas2); color: var(--ink); }
@@ -574,7 +583,7 @@
 /* ── FAQ ───────────────────────────────────────────── */
 .lp4-faq { border-bottom:1px solid var(--line); }
 .lp4-faq-btn { width:100%; display:flex; align-items:center; justify-content:space-between; gap:16px;
-  padding:23px 4px; text-align:left; font-size:17.5px; font-weight:600; color: var(--ink); }
+  padding:23px 4px; text-align:left; font-size:18px; font-weight:600; color: var(--ink); }
 .lp4-faq-chev { flex-shrink:0; transition: transform .25s; color: var(--ink3); }
 .lp4-faq-open .lp4-faq-chev { transform: rotate(180deg); color: var(--brand); }
 .lp4-faq-panel { max-height:0; overflow:hidden; transition: max-height .3s ease; }
@@ -583,18 +592,18 @@
 
 
 /* ── 3대 축 — 주요 기능 강조 ── */
-.lp4-pillar-mcap { font-size:12.5px; font-weight:800; letter-spacing:.05em; color: var(--ink3);
+.lp4-pillar-mcap { font-size:13px; font-weight:800; letter-spacing:.05em; color: var(--ink3);
   text-transform:uppercase; margin-right:2px; }
-.lp4-pillar-more { display:inline-flex; align-items:center; gap:5px; font-size:14.5px; font-weight:700;
+.lp4-pillar-more { display:inline-flex; align-items:center; gap:5px; font-size:15px; font-weight:700;
   color: var(--brand); padding:8px 4px; }
 .lp4-pillar-more:hover { color: var(--brand-ink); }
 
 /* ── AI 엔진 — 자동화 요약 칩 (별도 섹션을 여기로 합쳤다) ── */
 .lp4-eauto { margin-top:34px; padding-top:26px; border-top:1px solid var(--line);
   display:flex; flex-direction:column; align-items:center; gap:12px; }
-.lp4-eauto-cap { font-size:13.5px; font-weight:800; letter-spacing:.04em; color: var(--ink3); }
+.lp4-eauto-cap { font-size:14px; font-weight:800; letter-spacing:.04em; color: var(--ink3); }
 .lp4-eauto-chips { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-.lp4-eauto-chip { font-size:14.5px; font-weight:700; color: var(--brand-ink);
+.lp4-eauto-chip { font-size:15px; font-weight:700; color: var(--brand-ink);
   background: var(--pastel-lav); border-radius:999px; padding:8px 15px; }
 
 /* ── 전체 기능으로 보내는 배너 ── */
@@ -604,8 +613,8 @@
   transition: transform .2s, box-shadow .2s; }
 .lp4-more:hover { transform: translateY(-3px); box-shadow: 0 28px 60px -30px rgba(27,26,46,.3); }
 .lp4-more-h { font-size: clamp(23px,2.7vw,33px); font-weight:800; letter-spacing:-.03em; color: var(--ink); }
-.lp4-more-p { font-size:16.5px; color: var(--ink2); line-height:1.75; margin-top:11px; max-width:680px; }
-.lp4-more-cta { display:inline-flex; align-items:center; gap:8px; flex:none; font-size:16.5px; font-weight:700;
+.lp4-more-p { font-size:17px; color: var(--ink2); line-height:1.75; margin-top:11px; max-width:680px; }
+.lp4-more-cta { display:inline-flex; align-items:center; gap:8px; flex:none; font-size:17px; font-weight:700;
   color:#fff; background: var(--brand); border-radius:12px; padding:14px 24px;
   box-shadow: 0 10px 24px -12px rgba(91,84,232,.6); }
 
@@ -614,9 +623,9 @@
 @media (min-width: 720px){ .lp4-tool-grid { grid-template-columns: repeat(2,1fr); } }
 @media (min-width: 1060px){ .lp4-tool-grid { grid-template-columns: repeat(4,1fr); } }
 .lp4-tool { background:#fff; border:1px solid var(--line); border-radius:18px; padding:20px 20px 18px; }
-.lp4-tool-n { font-size:11.5px; font-weight:800; letter-spacing:.03em; color: var(--brand); }
+.lp4-tool-n { font-size:12px; font-weight:800; letter-spacing:.03em; color: var(--brand); }
 .lp4-tool-t { font-size:16px; font-weight:800; letter-spacing:-.02em; color: var(--ink); margin-top:8px; }
-.lp4-tool-d { font-size:13.5px; color: var(--ink2); line-height:1.7; margin-top:7px; }
+.lp4-tool-d { font-size:14px; color: var(--ink2); line-height:1.7; margin-top:7px; }
 .lp4-feat-cta { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:26px; }
 
 /* ── 모바일 섹션 — 스크롤 핀. 좌 대형 카피(둘째 줄은 흐리게) / 우 큰 폰 목업 ── */
@@ -637,7 +646,7 @@
 .lp4-mob-step { margin-top:44px; animation: lp4-rise .38s ease; }
 .lp4-mob-h { font-size: clamp(25px,3.1vw,41px); font-weight:800; letter-spacing:-.04em; line-height:1.25; color: var(--ink); }
 .lp4-mob-h em { font-style:normal; color: var(--ink3); }
-.lp4-mob-d { font-size:17.5px; color: var(--ink2); line-height:1.85; margin-top:20px; }
+.lp4-mob-d { font-size:18px; color: var(--ink2); line-height:1.85; margin-top:20px; }
 .lp4-mob-dots { display:flex; gap:7px; margin-top:34px; }
 .lp4-mob-dot { width:26px; height:4px; border-radius:999px; background: var(--line2); transition: all .3s; }
 .lp4-mob-dot-on { width:46px; background: var(--brand); }
@@ -719,12 +728,12 @@
 .lp4-eng4-card:hover { transform: translateY(-3px); box-shadow: 0 24px 50px -30px rgba(27,26,46,.3); }
 .lp4-eng4-ico { display:grid; place-items:center; width:46px; height:46px; border-radius:14px;
   background: var(--pastel-lav); color: var(--brand); }
-.lp4-eng4-no { font-size:11.5px; font-weight:800; letter-spacing:.08em; color: var(--ink3); margin-top:16px; }
+.lp4-eng4-no { font-size:12px; font-weight:800; letter-spacing:.08em; color: var(--ink3); margin-top:16px; }
 .lp4-eng4-n { font-size:19px; font-weight:800; letter-spacing:-.03em; color: var(--ink); margin-top:5px; }
 .lp4-eng4-d { flex:1; font-size:15px; color: var(--ink2); line-height:1.75; margin-top:9px; }
 .lp4-eng4-f { display:flex; flex-wrap:wrap; gap:6px; margin-top:18px; padding-top:16px;
   border-top:1px solid var(--line); }
-.lp4-eng4-f .lp4-pillar-menu { font-size:12.5px; padding:6px 12px; }
+.lp4-eng4-f .lp4-pillar-menu { font-size:13px; padding:6px 12px; }
 
 /* ── 히어로 화면 띠 — 실제 캡처가 한 줄로 계속 흐른다 ──
    두 줄은 정신산란해 한 줄로 줄였고, 호버로 멈추지도 않는다(2026-07-28). */
@@ -778,10 +787,10 @@
   padding-bottom:26px; border-bottom:1px solid var(--line2); }
 .lp4-footer-sub { font-size:12px; color: var(--ink3); font-weight:400; margin-left:6px; }
 .lp4-footer-bottom { display:flex; flex-wrap:wrap; justify-content:space-between; gap:20px; align-items:flex-end; }
-.lp4-flinks { display:flex; flex-wrap:wrap; gap:20px; font-size:13.5px; }
+.lp4-flinks { display:flex; flex-wrap:wrap; gap:20px; font-size:14px; }
 .lp4-flinks a { color: var(--ink2); }
 .lp4-flinks a:hover { color: var(--ink); }
-.lp4-finfo { font-size:12.5px; color: var(--ink3); line-height:1.8; margin-top:24px; }
+.lp4-finfo { font-size:13px; color: var(--ink3); line-height:1.8; margin-top:24px; }
 
 /* ── 스크롤하면 따라오는 시작 버튼 ──────────────
    모바일은 하단 전체 폭 바, 데스크톱은 하단 가운데 떠 있는 알약. */
@@ -797,7 +806,7 @@
     background:none; -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:none;
     border-top:none; transform: translateX(-50%) translateY(150%); opacity:0; }
   .lp4-sticky-cta-on { transform: translateX(-50%); opacity:1; }
-  .lp4-sticky-cta .lp4-btn-brand { flex:none; padding:15px 30px; font-size:15.5px; border-radius:999px;
+  .lp4-sticky-cta .lp4-btn-brand { flex:none; padding:15px 30px; font-size:16px; border-radius:999px;
     box-shadow: 0 18px 38px -14px rgba(91,84,232,.7); }
 }
 
@@ -837,14 +846,14 @@
 .lp4-tl-time { font-size:20px; font-weight:800; letter-spacing:-.03em; color: var(--ink3);
   font-variant-numeric: tabular-nums; transition: color .25s; }
 .lp4-tl-on .lp4-tl-time { color: var(--ink); }
-.lp4-tl-scene { font-size:13.5px; color: var(--ink3); }
+.lp4-tl-scene { font-size:14px; color: var(--ink3); }
 .lp4-tl-on .lp4-tl-scene { color: var(--brand); font-weight:600; }
 .lp4-tl-panel { display:grid; grid-template-columns:1fr; gap:34px; align-items:center; }
 @media (min-width: 1000px){ .lp4-tl-panel { grid-template-columns: 0.78fr 1.22fr; gap:76px; } }
 .lp4-tl-copy { display:flex; flex-direction:column; gap:12px; animation: lp4-rise .3s ease; }
 .lp4-tl-before, .lp4-tl-after { padding:16px 18px; border-radius:16px; }
 .lp4-tl-before { background: var(--canvas2); }
-.lp4-tl-before p { font-size:15.5px; color: var(--ink3); line-height:1.6; margin-top:6px;
+.lp4-tl-before p { font-size:16px; color: var(--ink3); line-height:1.6; margin-top:6px;
   text-decoration: line-through; text-decoration-color: rgba(27,26,46,.22); }
 .lp4-tl-after { background: var(--pastel-lav); border:1px solid var(--line); }
 .lp4-tl-after p { font-size:17px; color: var(--ink); font-weight:700; line-height:1.6; margin-top:6px; }
@@ -872,18 +881,18 @@
 /* ── AI 엔진 — 탭 + 좌 설명 / 우 화면 (먼데이 레퍼런스) ── */
 .lp4-etabs { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:36px; }
 .lp4-etab { display:inline-flex; align-items:center; gap:9px; padding:14px 24px; border-radius:999px;
-  font-size:14.5px; font-weight:700; color: var(--ink2); background: rgba(255,255,255,.72);
+  font-size:15px; font-weight:700; color: var(--ink2); background: rgba(255,255,255,.72);
   border:1px solid var(--line); transition: all .18s; }
 .lp4-etab svg { width:20px; height:20px; }
 .lp4-etab:hover { border-color: var(--brand); color: var(--brand); }
 .lp4-etab-on { background: var(--brand); border-color: var(--brand); color:#fff; }
 .lp4-epanel { display:grid; grid-template-columns:1fr; gap:40px; align-items:center; animation: lp4-rise .35s ease; }
 @media (min-width: 1000px){ .lp4-epanel { grid-template-columns: 0.86fr 1.14fr; gap:78px; } }
-.lp4-eno { font-size:12.5px; font-weight:800; letter-spacing:.08em; color: var(--ink3); }
+.lp4-eno { font-size:13px; font-weight:800; letter-spacing:.08em; color: var(--ink3); }
 .lp4-eline { font-size: clamp(25px,3vw,36px); font-weight:800; letter-spacing:-.035em; line-height:1.36; margin-top:12px; color: var(--ink); }
-.lp4-eshort { font-size:17.5px; color: var(--ink2); margin-top:16px; line-height:1.75; }
+.lp4-eshort { font-size:18px; color: var(--ink2); margin-top:16px; line-height:1.75; }
 .lp4-esteps { margin-top:22px; display:flex; flex-direction:column; gap:9px; }
-.lp4-estep { display:flex; gap:11px; align-items:flex-start; font-size:15.5px; color: var(--ink2); line-height:1.6;
+.lp4-estep { display:flex; gap:11px; align-items:flex-start; font-size:16px; color: var(--ink2); line-height:1.6;
   background: rgba(255,255,255,.75); border:1px solid var(--line); border-radius:14px; padding:13px 16px; }
 .lp4-edot { flex:none; width:20px; height:20px; border-radius:999px; background: var(--brand-dim); color: var(--brand);
   font-size:11px; font-weight:800; display:grid; place-items:center; }
@@ -896,9 +905,9 @@
 /* ── 요금제 기능 목록 (별도 페이지) ── */
 .lp4-matrix { max-width:1000px; margin:0 auto; border:1px solid var(--line); border-radius:20px; overflow:hidden; background:#fff; }
 .lp4-mx-head, .lp4-mx-row { display:grid; grid-template-columns: 1.6fr 1fr 1.3fr 1.3fr; gap:10px; padding:14px 20px; align-items:center; }
-.lp4-mx-head { background: var(--canvas2); font-size:12.5px; font-weight:800; color: var(--ink2); }
-.lp4-mx-gname { padding:12px 20px 6px; font-size:11.5px; font-weight:800; letter-spacing:.06em; color: var(--brand); text-transform:uppercase; }
-.lp4-mx-row { border-top:1px solid var(--line); font-size:13.5px; }
+.lp4-mx-head { background: var(--canvas2); font-size:13px; font-weight:800; color: var(--ink2); }
+.lp4-mx-gname { padding:12px 20px 6px; font-size:12px; font-weight:800; letter-spacing:.06em; color: var(--brand); text-transform:uppercase; }
+.lp4-mx-row { border-top:1px solid var(--line); font-size:14px; }
 .lp4-mx-name { color: var(--ink); font-weight:600; }
 .lp4-mx-v { color: var(--ink2); }
 .lp4-mx-hl { color: var(--brand-ink); font-weight:700; }
