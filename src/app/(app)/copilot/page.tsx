@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { getCurrentUser } from "@/lib/queries";
+import { checkIn, checkOut } from "@/lib/hr";
+import { createApprovalRequest } from "@/lib/approval-workflow";
+import { friendlyError } from "@/lib/friendly-error";
 
 // AI 참모 — 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리하는 읽기전용 AI.
 //   edge(owner-copilot)는 구조화 JSON(answer.headline/summary/actions/risks/opportunities/evidence) 반환.
@@ -26,7 +29,19 @@ function clean(s?: string): string {
     .replace(/`([^`]+)`/g, "$1")                   // `코드` → 코드
     .trim();
 }
-type AiMsg = { role: "user"; text: string } | { role: "ai"; answer: Answer; model?: string; at: string; asOf?: string | null };
+// 2단계(2026-07-28) — 엣지는 쓰기를 하지 않고 "무엇을 할지"만 돌려준다.
+//   실행은 이 화면이 기존 lib 함수로 한다(결재선·연장근무 게이트 등 업무 로직 재사용 + RLS 유지).
+//   tier=immediate  : 본인 범위·되돌리기 쉬움 → 도착 즉시 실행
+//   tier=confirm    : 결재선을 타는 등 → 확인 카드 노출 후 사용자가 눌러야 실행
+type PendingAction = { tool: string; tier: "immediate" | "confirm"; label: string; args: Record<string, unknown> };
+type ActionState = "pending" | "running" | "done" | "cancelled" | "error";
+
+type AiMsg =
+  | { role: "user"; text: string }
+  | {
+      role: "ai"; answer: Answer; model?: string; at: string; asOf?: string | null;
+      action?: PendingAction | null; actionState?: ActionState; actionResult?: string;
+    };
 
 type Usage = {
   plan_slug: string; plan_name: string | null; monthly_limit: number | null;
@@ -136,6 +151,61 @@ export default function CopilotPage() {
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, loading]);
 
+  // 특정 AI 메시지(인덱스)의 액션 상태만 갱신
+  const setActionState = useCallback((idx: number, state: ActionState, result?: string) => {
+    setMessages((m) => m.map((msg, i) =>
+      i === idx && msg.role === "ai" ? { ...msg, actionState: state, ...(result !== undefined ? { actionResult: result } : {}) } : msg
+    ));
+  }, []);
+
+  /**
+   * 액션 실행 — 기존 lib 함수를 그대로 호출한다.
+   *   엣지에서 service role 로 재구현하지 않는 이유: 결재 정책·결재선 산정,
+   *   연장근무 게이트(work_end_time 이후 출근 차단) 같은 규칙이 이미 여기 있고,
+   *   사용자 권한(RLS)으로 실행돼야 권한 우회가 생기지 않는다.
+   */
+  const runAction = useCallback(async (idx: number, action: PendingAction) => {
+    if (!companyId || !user?.id) { setActionState(idx, "error", "로그인 정보를 확인할 수 없습니다."); return; }
+    setActionState(idx, "running");
+    try {
+      if (action.tool === "clock_in" || action.tool === "clock_out") {
+        // 본인 직원 레코드 — 출퇴근은 employee_id 기준.
+        const { data: emp } = await supabase
+          .from("employees").select("id").eq("company_id", companyId).eq("user_id", user.id).maybeSingle();
+        const employeeId = (emp as { id?: string } | null)?.id;
+        if (!employeeId) throw new Error("본인 직원 정보가 연결돼 있지 않습니다. 관리자에게 문의하세요.");
+        const at = new Date().toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" });
+        if (action.tool === "clock_in") {
+          await checkIn(companyId, employeeId);
+          setActionState(idx, "done", `${at} 출근으로 기록했습니다.`);
+        } else {
+          await checkOut(employeeId, companyId);
+          setActionState(idx, "done", `${at} 퇴근으로 기록했습니다.`);
+        }
+        return;
+      }
+
+      if (action.tool === "create_approval_request") {
+        const a = action.args as { request_type?: string; title?: string; amount?: number; description?: string };
+        if (!a.title) throw new Error("결재 제목이 비어 있습니다.");
+        const req = await createApprovalRequest({
+          companyId,
+          requesterId: user.id,
+          requestType: a.request_type || "approval_doc",
+          title: a.title,
+          amount: Number(a.amount || 0),
+          description: a.description || "",
+        });
+        setActionState(idx, "done", `결재를 상신했습니다. (${req?.title ?? a.title})`);
+        return;
+      }
+
+      throw new Error("지원하지 않는 액션입니다.");
+    } catch (e) {
+      setActionState(idx, "error", friendlyError(e, "실행에 실패했습니다."));
+    }
+  }, [companyId, user?.id, setActionState]);
+
   const ask = useCallback(async (raw: string) => {
     const q = raw.trim();
     if (!q || loading) return;
@@ -155,10 +225,20 @@ export default function CopilotPage() {
         setMessages((m) => m.slice(0, -1)); // 실패한 질문 카드 롤백
         return;
       }
-      const d = data as { answer: Answer; model?: string; as_of?: string | null };
+      const d = data as { answer: Answer; model?: string; as_of?: string | null; action?: PendingAction | null };
       const now = new Date().toISOString();
-      setMessages((m) => [...m, { role: "ai", answer: d.answer, model: d.model, at: now, asOf: d.as_of }]);
+      const act = d.action ?? null;
+      let aiIndex = -1;
+      setMessages((m) => {
+        aiIndex = m.length;
+        return [...m, {
+          role: "ai", answer: d.answer, model: d.model, at: now, asOf: d.as_of,
+          action: act, actionState: act ? "pending" : undefined,
+        }];
+      });
       setConnErr(false);
+      // 위험 낮은 액션(본인 출퇴근)은 확인 없이 바로 실행 — 사장님 요청("출근 찍어줘" 한 번에).
+      if (act && act.tier === "immediate" && aiIndex >= 0) void runAction(aiIndex, act);
       // DB에 대화 기록 저장 (company_id는 서버 트리거가 자동 채움)
       const insertPayload = {
         query: q,
@@ -179,7 +259,7 @@ export default function CopilotPage() {
     } finally {
       setLoading(false);
     }
-  }, [loading, toast, refetchUsage]);
+  }, [loading, toast, refetchUsage, runAction]);
 
   const locked = planLocked || usage?.monthly_limit == null;
   const pct = usage?.usage_percent ?? 0;
@@ -238,7 +318,7 @@ export default function CopilotPage() {
                 m.role === "user" ? (
                   <div key={i} className="copilot2-msg-user"><div className="copilot2-bubble-user">{m.text}</div></div>
                 ) : (
-                  <AnswerCard key={i} msg={m} />
+                  <AnswerCard key={i} msg={m} onRun={() => m.action && runAction(i, m.action)} onCancel={() => setActionState(i, "cancelled")} />
                 ),
               )}
               {loading && <LoadingCard stage={stage} />}
@@ -292,7 +372,64 @@ export default function CopilotPage() {
   );
 }
 
-function AnswerCard({ msg }: { msg: Extract<AiMsg, { role: "ai" }> }) {
+const APPROVAL_TYPE_LABEL: Record<string, string> = {
+  expense_report: "지출결의서", approval_doc: "품의서", travel: "출장신청",
+};
+
+/** 액션 카드 — immediate 는 진행/결과만, confirm 은 내용 확인 후 실행 버튼. */
+function ActionCard({ msg, onRun, onCancel }: {
+  msg: Extract<AiMsg, { role: "ai" }>;
+  onRun?: () => void;
+  onCancel?: () => void;
+}) {
+  const act = msg.action!;
+  const st = msg.actionState ?? "pending";
+  const args = act.args as { request_type?: string; title?: string; amount?: number; description?: string };
+
+  if (st === "done") {
+    return <div className="copilot2-action-result copilot2-action-ok">✅ {msg.actionResult || "완료했습니다."}</div>;
+  }
+  if (st === "error") {
+    return <div className="copilot2-action-result copilot2-action-err">⚠️ {msg.actionResult || "실행에 실패했습니다."}</div>;
+  }
+  if (st === "cancelled") {
+    return <div className="copilot2-action-result copilot2-action-cancel">취소했습니다.</div>;
+  }
+  if (st === "running") {
+    return <div className="copilot2-action-result">{act.label} 처리 중…</div>;
+  }
+  // pending — immediate 는 곧 자동 실행되므로 버튼을 띄우지 않는다.
+  if (act.tier === "immediate") {
+    return <div className="copilot2-action-result">{act.label} 처리 중…</div>;
+  }
+
+  return (
+    <div className="copilot2-action-confirm">
+      <div className="copilot2-action-confirm-head">{act.label} — 아래 내용으로 진행할까요?</div>
+      <dl className="copilot2-action-fields">
+        {act.tool === "create_approval_request" && (
+          <>
+            <div><dt>유형</dt><dd>{APPROVAL_TYPE_LABEL[args.request_type || ""] || args.request_type || "품의서"}</dd></div>
+            <div><dt>제목</dt><dd>{clean(args.title) || "—"}</dd></div>
+            <div><dt>금액</dt><dd>{Number(args.amount || 0) > 0 ? `${fmt(Number(args.amount))}원` : "—"}</dd></div>
+            {args.description && <div><dt>내용</dt><dd className="copilot2-action-desc">{clean(args.description)}</dd></div>}
+          </>
+        )}
+      </dl>
+      <div className="copilot2-action-confirm-btns">
+        <button onClick={onCancel} className="copilot2-action-cancel-btn">취소</button>
+        <button onClick={onRun} className="btn-primary btn-sm">{act.label}</button>
+      </div>
+      <div className="copilot2-action-note">결재선은 회사 결재 정책에 따라 자동으로 정해집니다.</div>
+    </div>
+  );
+}
+
+function AnswerCard({ msg, onRun, onCancel }: {
+  msg: Extract<AiMsg, { role: "ai" }>;
+  onRun?: () => void;
+  onCancel?: () => void;
+}) {
   const a = msg.answer;
   const sevCls = (s: string) => (s === "high" ? "copilot2-sev-high" : s === "medium" ? "copilot2-sev-mid" : "copilot2-sev-low");
   return (
@@ -305,6 +442,8 @@ function AnswerCard({ msg }: { msg: Extract<AiMsg, { role: "ai" }> }) {
       </div>
       {a.headline && <div className="copilot2-sec-headline">{clean(a.headline)}</div>}
       {a.summary && <div className="copilot2-sec-summary">{clean(a.summary)}</div>}
+
+      {msg.action && <ActionCard msg={msg} onRun={onRun} onCancel={onCancel} />}
 
       {a.actions?.length > 0 && (
         <div className="copilot2-sec">
