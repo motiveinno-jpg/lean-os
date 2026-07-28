@@ -89,6 +89,25 @@ export default function PlatformOverview() {
     },
   });
 
+  // 운영 인박스 신호 (2026-07-28) — 아침에 봐야 할 "할 일" 카운트
+  const { data: newInquiries = [] } = useQuery({
+    queryKey: ["p-inbox-partnership"],
+    queryFn: async () => {
+      const { data, error } = await (db as any).rpc("operator_list_partnership_inquiries", { p_status: "new", p_limit: 100 });
+      if (error) return [];
+      return data || [];
+    },
+    refetchInterval: 60_000,
+  });
+  const { data: openTickets = [] } = useQuery({
+    queryKey: ["p-inbox-support"],
+    queryFn: async () => {
+      const data = logRead('platform/page:tickets', await db.from("support_tickets").select("id").eq("status", "open"));
+      return data || [];
+    },
+    refetchInterval: 60_000,
+  });
+
   // 트래픽·사용 지표 (2026-07-28) — auth.users 는 클라에서 못 읽어 운영자 전용 RPC 로 감쌌다.
   //   두 RPC 모두 함수 안에서 is_platform_operator() 를 확인하므로 비운영자는 예외를 받는다.
   const { data: usage } = useQuery<UsageStats | null>({
@@ -149,14 +168,47 @@ export default function PlatformOverview() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
 
+  // 운영 인박스 — 0건이면 초록, 있으면 주의 색으로
+  const inboxItems = [
+    { label: "신규 도입문의", n: (newInquiries as any[]).length, href: "/platform/partnership", icon: "📥" },
+    { label: "미답변 고객센터", n: (openTickets as any[]).length, href: "/platform/support", icon: "🎧" },
+    { label: "미처리 피드백", n: pendingFeedback, href: "/platform/feedback", icon: "💬" },
+    { label: "24시간 에러", n: recentErrors.length, href: "/platform/errors", icon: "🚨", danger: recentErrors.length > 50 },
+  ];
+  const todoTotal = inboxItems.reduce((s, i) => s + i.n, 0);
+
   return (
-    <div className="max-w-6xl space-y-6">
+    <div className="max-w-6xl space-y-8">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">플랫폼 개요</h1>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-extrabold text-[var(--text)]">플랫폼 개요</h1>
+          <p className="text-xs text-[var(--text-dim)] mt-1">{kstDateStr(new Date())} · 지표는 1분마다 갱신됩니다</p>
+        </div>
+        <span className={`platform-header-live ${todoTotal > 0 ? "platform-header-live-warn" : ""}`}>
+          {todoTotal > 0 ? `처리 대기 ${todoTotal}건` : "모두 처리됨 ✓"}
+        </span>
       </div>
 
+      {/* 운영 인박스 — 오늘 봐야 할 것 */}
+      <section className="space-y-3">
+        <h2 className="platform-section-title">오늘 봐야 할 것</h2>
+        <div className="platform-inbox-grid">
+          {inboxItems.map((it) => (
+            <Link key={it.label} href={it.href} className={`platform-inbox-tile glass-card ${it.n > 0 ? (it.danger ? "platform-inbox-danger" : "platform-inbox-attention") : ""}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-base">{it.icon}</span>
+                <span className={`text-[22px] leading-7 font-extrabold mono-number ${it.n === 0 ? "text-[var(--text-dim)]" : it.danger ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{it.n}</span>
+              </div>
+              <span className="text-[12px] font-semibold text-[var(--text-muted)]">{it.label}</span>
+              <span className="platform-inbox-cta">{it.n > 0 ? "처리하러 가기 →" : "완료"}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* KPI Row 1 */}
+      <h2 className="platform-section-title">고객 현황</h2>
       <div className="platform-kpi-grid">
         {[
           { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const },
@@ -189,94 +241,32 @@ export default function PlatformOverview() {
       <TrafficSection usage={usage ?? null} traffic={traffic ?? null} />
 
       {/* Revenue Row */}
-      <div className="platform-revenue-row">
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR (월간 반복 매출)</span>
-          <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmtW(mrr)}</span>
+      <section className="space-y-3">
+        <h2 className="platform-section-title">수익</h2>
+        <div className="platform-revenue-row">
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR (월간 반복 매출)</span>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmtW(mrr)}</span>
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)]">ARR: {fmtW(mrr * 12)}</div>
           </div>
-          <div className="text-[11px] text-[var(--text-dim)]">ARR: {fmtW(mrr * 12)}</div>
-        </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 누적 매출</span>
-          <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)]">{fmtW(totalRevenue)}</span>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">총 누적 매출</span>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--success)]">{fmtW(totalRevenue)}</span>
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)]">{paidInvoices.length}건 결제</div>
           </div>
-          <div className="text-[11px] text-[var(--text-dim)]">{paidInvoices.length}건 결제</div>
-        </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">미처리 피드백</span>
-          <div className="flex items-end gap-2">
-            <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--warning)]">{pendingFeedback}</span>
-          </div>
-          <div className="text-[11px]">
-            <Link href="/platform/feedback" className="text-[var(--primary)] hover:underline">바로가기</Link>
-          </div>
-        </div>
-      </div>
-
-      {/* OP-A: 운영 신호 (24h 에러 + 사고) */}
-      <div className="platform-ops-signal-row">
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">최근 24시간 에러</span>
-            <span className="badge badge-primary uppercase tracking-wider">운영</span>
-          </div>
-          <div className={`text-[26px] leading-8 font-extrabold mono-number ${recentErrors.length > 50 ? "text-[var(--danger)]" : recentErrors.length > 10 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
-            {recentErrors.length}
-          </div>
-          <div className="text-[11px]">
-            <Link href="/platform/errors" className="text-[var(--primary)] hover:underline">상세 해석 보기 →</Link>
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">유료 전환율</span>
+            <div className="flex items-end gap-2">
+              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">{conversionRate}%</span>
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)]">유료 {paidSubs}곳 / 전체 {totalCompanies}곳</div>
           </div>
         </div>
-        <div className="glass-card p-5 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">미해결 사고</span>
-            <span className="badge badge-primary uppercase tracking-wider">운영</span>
-          </div>
-          <div className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text-dim)]">—</div>
-          <div className="text-[11px]">
-            <Link href="/platform/incidents" className="text-[var(--primary)] hover:underline">사고 기록 →</Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent signups */}
-      <div className="platform-recent-signups-card glass-card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-[var(--text)]">최근 가입</h3>
-          <Link href="/platform/customers" className="text-xs text-[var(--primary)] hover:underline">전체 보기</Link>
-        </div>
-        <div className="space-y-2">
-          {companies.slice(0, 8).map((c: any) => {
-            const subs = Array.isArray(c.subscriptions) ? c.subscriptions : [];
-            const sub = subs.length
-              ? [...subs].sort((a: any, b: any) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())[0]
-              : undefined;
-            const plan = sub?.subscription_plans;
-            return (
-              <div key={c.id} className="platform-signup-row">
-                <div className="min-w-0">
-                  <div className="font-semibold text-sm text-[var(--text)] truncate">{c.name}</div>
-                  <div className="text-xs text-[var(--text-dim)]">
-                    {kstDateStr(new Date(c.created_at))}
-                  </div>
-                </div>
-                <span className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                  plan?.slug === "business" || plan?.slug === "pro" ? "bg-[var(--primary-light)] text-[var(--primary)]" :
-                  plan?.slug === "starter" ? "bg-[var(--info-dim)] text-[var(--info)]" :
-                  "bg-[var(--bg-surface)] text-[var(--text-muted)]"
-                }`}>
-                  {plan?.name || c.current_plan || "Free"}
-                </span>
-              </div>
-            );
-          })}
-          {companies.length === 0 && (
-            <div className="text-center py-8 text-sm text-[var(--text-dim)]">아직 가입 고객이 없습니다</div>
-          )}
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

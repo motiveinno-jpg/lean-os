@@ -2817,9 +2817,15 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-traffic-list li { @apply flex items-center justify-between gap-3 text-xs text-[var(--text-muted)]; }
 .platform-kpi-card { @apply p-5 flex flex-col gap-3; }
 .platform-revenue-row { @apply grid grid-cols-2 lg:grid-cols-3 gap-4; }
-.platform-ops-signal-row { @apply grid grid-cols-2 gap-4; }
-.platform-recent-signups-card { @apply p-5; }
-.platform-signup-row { @apply flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)]/60 hover:bg-[var(--bg-surface)] transition; }
+/* 플랫폼 개요 재디자인 (2026-07-28) — 섹션 타이틀·운영 인박스·헤더 상태 pill */
+.platform-section-title { @apply flex items-center gap-2 text-sm font-bold tracking-wide text-[var(--text-muted)] uppercase before:content-[''] before:w-1.5 before:h-1.5 before:rounded-full before:bg-[var(--primary)]; }
+.platform-header-live { @apply px-3 py-1.5 rounded-full text-xs font-bold bg-[var(--success-dim)] text-[var(--success)]; }
+.platform-header-live-warn { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.platform-inbox-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
+.platform-inbox-tile { @apply p-4 flex flex-col gap-1.5 transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]; }
+.platform-inbox-attention { @apply border-[var(--warning)]/40; }
+.platform-inbox-danger { @apply border-[var(--danger)]/50; }
+.platform-inbox-cta { @apply text-[11px] font-semibold text-[var(--primary)]; }
 .platform-company-header { @apply flex items-start justify-between gap-4; }
 .platform-company-plan-badge { @apply px-3 py-1.5 rounded-full text-xs font-bold; }
 .platform-company-kpi-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
