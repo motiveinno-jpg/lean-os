@@ -42,6 +42,9 @@
   display: flex; flex-direction: column; align-items: center;
   overflow: hidden;
   background: var(--canvas);
+  /* ⚠️ 상단바가 fixed 로 무대 위를 덮는다. 이걸 빼지 않으면 가운데 정렬한 내용의 윗부분이
+     상단바에 가려 제목이 잘린다 (실제로 AI 장면 제목이 잘렸다). */
+  padding-top: 74px;
 }
 .lp5-scene-dark .lp5-stage { background: var(--dark); color: #fff; }
 
@@ -108,7 +111,7 @@
 /* ══ 1. 히어로 ══
    문구가 떠오르고, 그 뒤에서 제품 화면이 확대되며 자리를 잡는다.
    화면은 아래 화면 밖으로 흘러나간다(애플식) — 레터박스가 안 생긴다. */
-.lp5-hero { justify-content: flex-start; padding-top: 120px; }
+.lp5-hero { justify-content: flex-start; padding-top: 46px; }  /* .lp5-stage 의 74px + 46px = 기존 120px */
 .lp5-hero-bg {
   position: absolute; inset: -20% -10% auto -10%; height: 90%;
   background:
@@ -203,7 +206,12 @@
   /* ⚠️ 이동량을 p*(n-1) 로 잡으면 활성 카드(=floor(p*n))와 화면 위치가 한 칸씩 어긋난다.
      점 표시와 눈에 보이는 카드가 따로 논다 → 같은 식(p*n)을 쓰고 끝만 막는다. */
   --pos: min(calc(var(--p) * var(--n)), calc(var(--n) - 1));
-  transform: translateX(calc(-1 * var(--pos) * (var(--cw) + var(--gap))));
+  --step: calc(var(--cw) + var(--gap));
+  /* ⚠️ 마지막 카드를 왼쪽 끝까지 밀면 오른쪽이 텅 빈 채로 끝난다.
+     트랙 오른쪽 끝이 보이는 영역의 오른쪽에 닿으면 더는 안 밀리게 막는다. */
+  --view: min(1356px, calc(100vw - 64px));
+  --maxx: max(0px, calc(var(--n) * var(--step) - var(--gap) - var(--view)));
+  transform: translateX(calc(-1 * min(calc(var(--pos) * var(--step)), var(--maxx))));
 }
 .lp5-rail-track.lp5-rail-tall { --cw: min(380px, 68vw); }
 .lp5-rail-card {
@@ -224,7 +232,7 @@
 /* AI 카드 — 세로형. 화면 전체를 축소하지 않고 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
    ⚠️ aspect-ratio 로만 높이를 잡으면 카드가 100vh 무대를 넘어 제목이 위로 잘린다.
       카드 높이를 뷰포트에 묶고 크롭이 남는 높이를 먹게 한다. */
-.lp5-rail-tall .lp5-rail-card { height: min(60vh, 560px); display: flex; flex-direction: column; }
+.lp5-rail-tall .lp5-rail-card { height: min(56vh, 520px); display: flex; flex-direction: column; }
 .lp5-rail-crop { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .lp5-rail-crop img {
   width: 100%; height: 100%; display: block;
@@ -390,6 +398,7 @@
 @media (max-width: 999px) {
   .lp5-scene { height: auto !important; }
   .lp5-stage { position: static; height: auto; padding: 96px 0; overflow: visible; --p: 1; }
+  .lp5-hero { padding-top: 96px; }
   .lp5-hero { padding-top: 96px; }
   .lp5-day-grid, .lp5-ax-grid, .lp5-eng-grid, .lp5-mob-grid { grid-template-columns: 1fr; gap: 34px; }
   .lp5-mob-grid > .lp5-phone { order: -1; }
