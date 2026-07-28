@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const db = supabase;
 
@@ -19,6 +20,11 @@ type UsageStats = {
 type FunnelStats = {
   as_of: string; days: number;
   today: { accounts: number; signed_in: number; companies: number; trials: number };
+  today_detail?: {
+    accounts: { email: string; provider: string; created_at: string; signed_in: boolean; company: string | null }[];
+    companies: { id: string; name: string; created_at: string }[];
+    trials: { company_id: string; company: string; status: string; created_at: string }[];
+  };
   period: { accounts: number; signed_in: number; companies: number; trials: number };
   pending: { email: string; created_at: string; last_sign_in: string | null; provider: string; confirmed: boolean }[];
 };
@@ -573,6 +579,9 @@ function TrafficSection({ usage, traffic }: { usage: UsageStats | null; traffic:
 function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
   const t = funnel?.today;
   const pending = funnel?.pending ?? [];
+  const detail = funnel?.today_detail;
+  // 단계 클릭 → 그 단계에 해당하는 오늘의 명단 (2026-07-28 사장님 요청)
+  const [openStep, setOpenStep] = useState<number | null>(null);
 
   const steps = [
     { label: "계정 생성", n: t?.accounts ?? 0 },
@@ -590,16 +599,46 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
   const fmtKst = (iso?: string | null) =>
     iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
 
+  // 단계별 명단 행 구성 — 계정 단계는 상태(로그인·회사연결)까지 병기
+  const stepRows: { key: string; who: React.ReactNode; sub: string }[] = (() => {
+    if (openStep === null || !detail) return [];
+    if (openStep === 0 || openStep === 1) {
+      const list = openStep === 0 ? detail.accounts : detail.accounts.filter((a) => a.signed_in);
+      return list.map((a) => ({
+        key: a.email,
+        who: <span className="font-semibold text-[var(--text)]">{a.email}</span>,
+        sub: `${a.provider} · ${fmtKst(a.created_at)} · ${a.company ? `회사: ${a.company}` : a.signed_in ? "회사 미등록" : "미로그인"}`,
+      }));
+    }
+    if (openStep === 2) {
+      return detail.companies.map((c) => ({
+        key: c.id,
+        who: <Link href={`/platform/companies/${c.id}`} className="font-semibold text-[var(--primary)] hover:underline">{c.name}</Link>,
+        sub: fmtKst(c.created_at),
+      }));
+    }
+    return detail.trials.map((tr) => ({
+      key: tr.company_id,
+      who: <Link href={`/platform/companies/${tr.company_id}`} className="font-semibold text-[var(--primary)] hover:underline">{tr.company}</Link>,
+      sub: `${tr.status === "trialing" ? "체험" : "유료"} 시작 · ${fmtKst(tr.created_at)}`,
+    }));
+  })();
+
   return (
     <section className="platform-funnel">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-lg font-bold text-[var(--text)]">오늘 가입 퍼널</h2>
-        <span className="text-[11px] text-[var(--text-dim)]">최근 7일: 계정 {funnel?.period.accounts ?? 0} · 회사 {funnel?.period.companies ?? 0}</span>
+        <span className="text-[11px] text-[var(--text-dim)]">최근 7일: 계정 {funnel?.period.accounts ?? 0} · 회사 {funnel?.period.companies ?? 0} · 카드를 누르면 명단이 보입니다</span>
       </div>
 
       <div className="platform-funnel-steps glass-card">
         {steps.map((s, i) => (
-          <div key={s.label} className="platform-funnel-step">
+          <button
+            key={s.label}
+            type="button"
+            onClick={() => setOpenStep(openStep === i ? null : i)}
+            className={`platform-funnel-step platform-funnel-step-btn ${openStep === i ? "platform-funnel-step-active" : ""}`}
+          >
             <span className="text-[11px] text-[var(--text-muted)]">{s.label}</span>
             <span className={`text-[24px] leading-7 font-extrabold mono-number ${i === worstIdx && worstDrop > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
               {s.n}
@@ -607,9 +646,30 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
             {i === worstIdx && worstDrop > 0 && (
               <span className="text-[10px] font-semibold text-[var(--danger)]">-{worstDrop} 이탈</span>
             )}
-          </div>
+          </button>
         ))}
       </div>
+
+      {openStep !== null && (
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-[13px] font-semibold text-[var(--text-muted)]">오늘 · {steps[openStep].label} {stepRows.length}명</span>
+            <button onClick={() => setOpenStep(null)} className="platform-filter-clear">닫기</button>
+          </div>
+          {stepRows.length === 0 ? (
+            <div className="platform-traffic-empty">오늘 해당 단계에 도달한 사람이 없습니다.</div>
+          ) : (
+            <ul className="platform-funnel-people">
+              {stepRows.map((r) => (
+                <li key={r.key}>
+                  {r.who}
+                  <span className="text-[11px] text-[var(--text-dim)]">{r.sub}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="glass-card p-5">
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -659,6 +719,8 @@ function RecentCompanies({ companies, filter, onFilter }: {
   filter: "all" | "paid" | "trial" | "free" | "new";
   onFilter: (f: "all" | "paid" | "trial" | "free" | "new") => void;
 }) {
+  // 행 어디를 눌러도 상세로 — 기존엔 회사명 글자만 링크라 "눌러도 아무것도 안 나온다"는 제보 (2026-07-28)
+  const router = useRouter();
   // 명칭 정리(2026-07-28 사장님): "무료 vs 체험" 구분이 안 됨 → 미구독(카드 미등록) /
   //   체험 D-n(카드 등록, 남은 일수) / 플랜명. kind 는 필터 매칭용(라벨 문자열 비교 제거).
   const planOf = (c: any): { kind: "free" | "trial" | "paid"; label: string; cls: string } => {
@@ -733,11 +795,11 @@ function RecentCompanies({ companies, filter, onFilter }: {
             ) : rows.map((c) => {
               const p = planOf(c);
               return (
-                <tr key={c.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                <tr key={c.id} onClick={() => router.push(`/platform/companies/${c.id}`)} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer">
                   <td className="px-3 py-2">
-                    <Link href={`/platform/companies/${c.id}`} className="font-semibold text-[var(--primary)] hover:underline">
+                    <span className="font-semibold text-[var(--primary)] hover:underline">
                       {c.name || "이름 없음"}
-                    </Link>
+                    </span>
                   </td>
                   <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{c.business_number || "—"}</td>
                   <td className="px-3 py-2 text-center mono-number text-[var(--text-muted)]">{c.users?.[0]?.count ?? 0}</td>

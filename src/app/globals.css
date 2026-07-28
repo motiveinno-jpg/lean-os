@@ -2883,6 +2883,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-topbar-logout { @apply hover:text-[var(--danger)] hover:bg-[var(--danger-dim)]; }
 .platform-mobile-nav { @apply md:hidden flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1; }
 .platform-mobile-nav-chip { @apply shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)] whitespace-nowrap; }
+/* 가입 퍼널 단계 클릭 → 명단 (2026-07-28) */
+.platform-funnel-step-btn { @apply text-left rounded-xl px-3 py-2 -mx-3 -my-2 transition hover:bg-[var(--bg-surface)] cursor-pointer; }
+.platform-funnel-step-active { @apply bg-[var(--primary)]/8 ring-1 ring-[var(--primary)]/30; }
+.platform-funnel-people { @apply space-y-2; }
+.platform-funnel-people li { @apply flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60; }
 .platform-customers-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .platform-customers-table { @apply overflow-hidden; }
 .platform-customer-row { @apply border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition cursor-pointer; }
