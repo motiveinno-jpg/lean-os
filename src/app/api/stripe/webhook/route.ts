@@ -36,6 +36,9 @@ export async function POST(request: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Webhook signature verification failed';
     console.error('Webhook signature error:', message);
+    // 2026-07-28 실사례: 시크릿 불일치로 서명이 거부되면 결제는 됐는데 구독 반영이
+    //   조용히 누락된다 — 이 경로가 무음이라 원인 추적에 시간을 씀. 반드시 적재.
+    await logServerError({ where: 'stripe-webhook', message: `INVALID_SIGNATURE: ${message}` });
     return NextResponse.json(
       { error: { code: 'INVALID_SIGNATURE', message } },
       { status: 400 },
