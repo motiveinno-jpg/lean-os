@@ -111,11 +111,11 @@ export async function generateEmploymentCertificate(params: {
   if (employee.employee_number) {
     personalInfo.push(['사원번호', employee.employee_number]);
   }
+  // 2026-07-29 사장님: 입사일 행 대신 재직기간 = 입사일 ~ 발급일 자동 표기 (근속 병기)
   personalInfo.push(
     ['소    속', employee.department || '-'],
     ['직    위', employee.position || '-'],
-    ['입 사 일', formatKoreanDate(hireDate)],
-    ['재직기간', tenure],
+    ['재직기간', `${formatKoreanDate(hireDate)} ~ ${todayStr} (${tenure})`],
     ['용    도', purpose],
   );
   if (submitTo) {
@@ -148,44 +148,54 @@ export async function generateEmploymentCertificate(params: {
   });
   y = (doc as any).lastAutoTable.finalY + 25;
 
-  // ── 증명 문구 ──
-  doc.setFontSize(14);
+  // ── 증명 문구 — 표준 발급 서식 참고 (2026-07-29 사장님) ──
+  doc.setFontSize(13);
   doc.setTextColor(30, 30, 30);
-  doc.text('위 사실을 증명합니다.', pageW / 2, y, { align: 'center' });
-  y += 20;
+  doc.text('상기인은 현재 재직 중에 있음을 증명합니다.', 20, y);
+  y += 24;
 
   // ── 발행일 ──
   doc.setFontSize(12);
   doc.setTextColor(60, 60, 60);
-  doc.text(todayStr, pageW / 2, y, { align: 'center' });
-  y += 15;
+  const d = today;
+  doc.text(`${d.getFullYear()} 년 ${String(d.getMonth() + 1).padStart(2, '0')} 월 ${String(d.getDate()).padStart(2, '0')} 일`, pageW / 2 + 30, y, { align: 'center' });
+  y += 24;
 
-  // ── 회사 정보 ──
+  // ── 회사 정보 — 라벨 행 형식 (회 사 명 / 회사주소 / 대표이사) ──
+  const labelX = 34;
+  const valueX = 68;
   doc.setFontSize(11);
   doc.setTextColor(50, 50, 50);
-  doc.text(company.name, pageW / 2, y, { align: 'center' });
-  y += 7;
-  if (company.representative) {
-    doc.text(`대표이사  ${company.representative}`, pageW / 2, y, { align: 'center' });
-    y += 7;
-  }
+  doc.text('회 사 명 :', labelX, y);
+  doc.text(company.name, valueX, y);
+  y += 8;
   if (company.business_number) {
-    doc.text(`사업자등록번호: ${company.business_number}`, pageW / 2, y, { align: 'center' });
-    y += 7;
+    doc.text('사업자번호 :', labelX, y);
+    doc.text(company.business_number, valueX, y);
+    y += 8;
   }
   if (company.address) {
-    doc.text(company.address, pageW / 2, y, { align: 'center' });
-    y += 7;
+    doc.text('회사주소 :', labelX, y);
+    const addrLines = doc.splitTextToSize(company.address, pageW - valueX - 24);
+    doc.text(addrLines, valueX, y);
+    y += 8 * addrLines.length;
+  }
+  let repY = y;
+  if (company.representative) {
+    doc.text('대표이사 :', labelX, y);
+    doc.text(`${company.representative}  (인)`, valueX, y);
+    repY = y;
+    y += 8;
   }
 
-  // ── 직인 오버레이 ──
+  // ── 직인 오버레이 — 대표이사 이름 우측에 겹치게 ──
   if (company.seal_url) {
     try {
       const img = await loadImage(company.seal_url);
-      const sealSize = 30;
-      // 대표이사 이름 우측에 직인 배치
-      const sealX = pageW / 2 + 30;
-      const sealY = y - 30;
+      const sealSize = 26;
+      const nameW = company.representative ? doc.getTextWidth(company.representative) : 0;
+      const sealX = valueX + nameW + 4;
+      const sealY = repY - sealSize / 2 - 4;
       doc.addImage(img, 'PNG', sealX, sealY, sealSize, sealSize);
     } catch {
       console.warn('Seal image load failed, skipping stamp overlay');
