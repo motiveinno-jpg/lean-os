@@ -28,21 +28,30 @@ const MATRIX: { group: string; rows: { name: string; free: string; basic: string
     rows: [
       { name: "프로젝트", free: "체험", basic: "무제한", ultra: "무제한" },
       { name: "전자결재", free: "체험", basic: "무제한", ultra: "무제한" },
-      { name: "전자계약(서명)", free: "체험", basic: "월 20건", ultra: "월 20건" },
+      { name: "전자계약(서명)", free: "월 3건", basic: "월 20건", ultra: "무제한" },
       { name: "거래처 · 파트너", free: "체험", basic: "무제한", ultra: "무제한" },
+    ],
+  },
+  {
+    group: "인사 · 급여",
+    rows: [
+      { name: "근태 · 연차 관리", free: "체험", basic: "✓", ultra: "✓" },
+      { name: "급여 · 4대보험 자동 계산 · 명세서 발송", free: "체험", basic: "✓", ultra: "✓" },
+      { name: "근로계약서 전자서명 · 증명서 발급", free: "체험", basic: "✓", ultra: "✓" },
     ],
   },
   {
     group: "회계 · 세무",
     rows: [
       { name: "AI 거래 분류", free: "체험", basic: "무제한", ultra: "무제한" },
-      { name: "세금계산서 국세청 발행", free: "—", basic: "월 10건", ultra: "무제한" },
-      { name: "현금영수증 발행(베타)", free: "—", basic: "✓", ultra: "✓" },
+      { name: "세금계산서 국세청 발행", free: "월 3건", basic: "월 10건", ultra: "무제한" },
+      { name: "현금영수증 발행(베타)", free: "월 3건", basic: "월 10건", ultra: "무제한" },
     ],
   },
   {
     group: "AI · 지원",
     rows: [
+      { name: "AI 대표 참모(질문·업무 지시)", free: "—", basic: "월 50만 토큰", ultra: "월 200만 토큰" },
       { name: "AI 브리핑", free: "—", basic: "—", ultra: "매일 우선순위 액션" },
       { name: "신기능 얼리 액세스", free: "—", basic: "—", ultra: "✓" },
       { name: "우선 지원", free: "—", basic: "—", ultra: "✓" },
