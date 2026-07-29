@@ -53,7 +53,7 @@ function escapeHtml(s: string): string {
 //   좌표계: 페이지 폭 794px(A4@96dpi) 기준 px. 저장 HTML 도 동일 구조라
 //   서명 화면(sanitize 렌더)에서도 그대로 보인다.
 
-type PdfPageText = { t: string; x: number; y: number; fs: number; b?: boolean };
+type PdfPageText = { t: string; x: number; y: number; fs: number; b?: boolean; c?: string };
 
 const PDF_PAGE_W = 794;
 
@@ -64,7 +64,7 @@ function pdfTextSpanStyle(t: PdfPageText, pageH: number): string {
   const left = ((t.x / PDF_PAGE_W) * 100).toFixed(3);
   const top = pageH > 0 ? ((t.y / pageH) * 100).toFixed(3) : "0";
   const fs = ((t.fs / PDF_PAGE_W) * 100).toFixed(3);
-  return `position:absolute;left:${left}%;top:${top}%;font-size:${fs}cqw;${t.b ? "font-weight:700;" : ""}white-space:pre;line-height:1.15;color:#111;`;
+  return `position:absolute;left:${left}%;top:${top}%;font-size:${fs}cqw;${t.b ? "font-weight:700;" : ""}white-space:pre;line-height:1.15;color:${t.c || "#111"};`;
 }
 
 const PdfPage = Node.create({
@@ -174,6 +174,16 @@ const PdfPage = Node.create({
               caret: null as number | null,
               setFontSize: (px: number) => {
                 texts[i].fs = px;
+                sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h) + "outline:none;";
+                commit();
+              },
+              toggleBold: () => {
+                texts[i].b = texts[i].b ? undefined : true;
+                sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h) + "outline:none;";
+                commit();
+              },
+              setColor: (c: string | null) => {
+                texts[i].c = c || undefined;
                 sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h) + "outline:none;";
                 commit();
               },
@@ -636,8 +646,13 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     <div className={`rich-editor ${fillHeight ? "flex flex-col h-full min-h-0" : ""}`}>
       {editable && (
         <div className={`rich-editor-toolbar ${fillHeight ? "shrink-0" : ""}`}>
-          {/* 서식 */}
-          <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={btnCls(editor.isActive("bold"))} title="굵게"><strong>B</strong></button>
+          {/* 서식 — 굵게·색상은 PDF 글자 조각 편집 중이면 그 조각에 적용 */}
+          <button type="button" onClick={() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const pa = (editor.storage as any).pdfActive;
+            if (pa?.el?.isConnected) { pa.toggleBold(); return; }
+            editor.chain().focus().toggleBold().run();
+          }} className={btnCls(editor.isActive("bold"))} title="굵게"><strong>B</strong></button>
           <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={btnCls(editor.isActive("italic"))} title="기울임"><em>I</em></button>
           <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} className={btnCls(editor.isActive("underline"))} title="밑줄"><u>U</u></button>
           <button type="button" onClick={() => editor.chain().focus().toggleStrike().run()} className={btnCls(editor.isActive("strike"))} title="취소선"><s>S</s></button>
@@ -647,10 +662,20 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           {/* 글자 색상 */}
           <div className="rich-editor-color-palette" title="글자 색상">
             {COLORS.map((c) => (
-              <button key={c} type="button" onClick={() => editor.chain().focus().setColor(c).run()}
+              <button key={c} type="button" onClick={() => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const pa = (editor.storage as any).pdfActive;
+                if (pa?.el?.isConnected) { pa.setColor(c); return; }
+                editor.chain().focus().setColor(c).run();
+              }}
                 className="w-4 h-4 rounded-full border border-[var(--border)] hover:scale-110 transition" style={{ background: c }} title={c} />
             ))}
-            <button type="button" onClick={() => editor.chain().focus().unsetColor().run()} className={btnCls(false)} title="색 제거">✕</button>
+            <button type="button" onClick={() => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const pa = (editor.storage as any).pdfActive;
+              if (pa?.el?.isConnected) { pa.setColor(null); return; }
+              editor.chain().focus().unsetColor().run();
+            }} className={btnCls(false)} title="색 제거">✕</button>
           </div>
           <div className="w-px h-5 bg-[var(--border)] mx-1 self-center" />
 
