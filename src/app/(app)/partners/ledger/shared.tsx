@@ -19,6 +19,20 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase;
 
+// .in() 대량 ID 는 GET URL 길이 초과로 400 — 200개씩 청크 조회(2026-07-29 오류로그 실사례)
+async function chunkedIn<T>(
+  fetchChunk: (ids: string[]) => PromiseLike<T[] | null>,
+  ids: string[],
+  size = 200,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += size) {
+    const part = await fetchChunk(ids.slice(i, i + size));
+    if (part) out.push(...part);
+  }
+  return out;
+}
+
 // ── 타입 ──
 export type LedgerRow = {
   partner_id: string | null; type: string; invoice_count: number;
@@ -161,13 +175,13 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     queryKey: ["ledger-sheet-settle", companyId, partnerId, type, yStart, yEnd, invIds.join(",")],
     queryFn: async () => {
       if (invIds.length === 0) return [];
-      const setts = logRead('ledger/shared:setts', await db.from("invoice_settlements")
+      const setts = await chunkedIn((ids) => db.from("invoice_settlements")
         .select("id, tax_invoice_id, amount, match_type, adjustment_reason, bank_transaction_id, created_at")
-        .eq("status", "confirmed").in("tax_invoice_id", invIds));
+        .eq("status", "confirmed").in("tax_invoice_id", ids).then((r: any) => logRead('ledger/shared:setts', r)), invIds);
       const btIds = [...new Set((setts || []).map((s: any) => s.bank_transaction_id).filter(Boolean))];
       const btMap: Record<string, { date: string; cp: string | null }> = {};
       if (btIds.length) {
-        const bts = logRead('ledger/shared:bts', await db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", btIds));
+        const bts = await chunkedIn((ids) => db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", ids).then((r: any) => logRead('ledger/shared:bts', r)), btIds);
         for (const b of (bts || []) as any[]) btMap[b.id] = { date: b.transaction_date, cp: b.counterparty };
       }
       return ((setts || []) as any[]).map((s) => ({
@@ -1103,12 +1117,12 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
     queryKey: ["partner-detail-settle", companyId, partnerId, type, year, invIds.length],
     queryFn: async () => {
       if (invIds.length === 0) return {};
-      const setts = logRead('ledger/shared:setts', await db.from("invoice_settlements")
-        .select("id, tax_invoice_id, amount, status, match_type, adjustment_reason, bank_transaction_id").in("tax_invoice_id", invIds));
+      const setts = await chunkedIn((ids) => db.from("invoice_settlements")
+        .select("id, tax_invoice_id, amount, status, match_type, adjustment_reason, bank_transaction_id").in("tax_invoice_id", ids).then((r: any) => logRead('ledger/shared:setts', r)), invIds);
       const btIds = [...new Set((setts || []).map((s: any) => s.bank_transaction_id).filter(Boolean))];
       const btMap: Record<string, string> = {};
       if (btIds.length) {
-        const bts = logRead('ledger/shared:bts', await db.from("bank_transactions").select("id, transaction_date").in("id", btIds));
+        const bts = await chunkedIn((ids) => db.from("bank_transactions").select("id, transaction_date").in("id", ids).then((r: any) => logRead('ledger/shared:bts', r)), btIds);
         for (const b of (bts || []) as any[]) btMap[b.id] = b.transaction_date;
       }
       const m: Record<string, any[]> = {};

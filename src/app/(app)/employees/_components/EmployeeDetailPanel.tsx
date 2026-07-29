@@ -1506,9 +1506,12 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
 
       // Log
       const certType = type === "employment" ? "재직증명서" : "경력증명서";
-      const currentUser = logRead('_components/EmployeeDetailPanel:currentUser', await supabase.auth.getUser());
-      if (currentUser?.user) {
-        await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: currentUser.user.id, purpose: "제출용" });
+      // ⚠️ issued_by/audit user_id 는 users.id — auth.uid 를 넣으면 초대 합류 직원
+      //   (users.id ≠ auth_id)에게서 FK 409 로 이력 저장이 통째로 실패했다(2026-07-29).
+      const { getCurrentUser } = await import("@/lib/queries");
+      const me = await getCurrentUser();
+      if (me) {
+        await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: me.id, purpose: "제출용" });
       }
       queryClient.invalidateQueries({ queryKey: ["emp-cert-logs", emp.id] });
     } catch (err: any) {

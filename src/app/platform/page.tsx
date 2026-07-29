@@ -97,7 +97,8 @@ export default function PlatformOverview() {
     queryKey: ["p-errors-24h"],
     queryFn: async () => {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-      const data = logRead('platform/page:data', await db.from("error_logs").select("id").gte("created_at", since));
+      // 처리(resolved)된 오류는 제외 — 시스템상태 신호등과 같은 기준(2026-07-29 사장님)
+      const data = logRead('platform/page:data', await db.from("error_logs").select("id").eq("resolved", false).gte("created_at", since));
       return data || [];
     },
   });
