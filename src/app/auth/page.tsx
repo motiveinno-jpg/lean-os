@@ -62,6 +62,19 @@ export default function AuthPage() {
   // 이미 로그인된 상태로 /auth 방문 시 — 로그인 폼 대신 계정 상태에 맞는 화면으로 (2026-07-28).
   //   회사 연결 완료 → 대시보드(redirectTo 존중) / 미완료 → 회사 설정 / 합류 대기 → join-pending.
   //   handleLogin 의 safety-net 과 동일 분기 — 마운트 1회만 검사(가입 폼 흐름엔 세션이 없어 영향 없음).
+  // 소셜 콜백 실패(동의 거부·코드 만료·PKCE 유실)로 ?error= 를 달고 돌아온 경우 —
+  //   지금까지는 아무 안내 없이 로그인 화면만 떠서 사용자가 영문을 몰랐다(2026-07-29).
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("error") === "auth_callback_error") {
+      setError("소셜 로그인이 완료되지 않았습니다. 동의를 거부했거나 링크가 만료됐을 수 있어요. 다시 시도해주세요.");
+      // 새로고침 시 에러가 또 뜨지 않게 주소만 정리 (히스토리 오염 없이)
+      sp.delete("error");
+      const qs = sp.toString();
+      window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
