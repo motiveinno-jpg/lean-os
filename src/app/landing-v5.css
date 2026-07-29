@@ -607,11 +607,16 @@
   .lp5-mob-dots { margin-top: 20px; }
   .lp5-cov-grid { grid-template-columns: repeat(2, 1fr); }
   .lp5-orbit { display: none; }
-  .lp5-hero-copy, .lp5-hero-shot, .lp5-unify-core, .lp5-phone, .lp5-hero-bg { transform: none; opacity: 1; }
-  /* 좁은 화면에선 부채꼴이 서로 겹쳐 아무것도 안 읽힌다 — 가운데 한 장만 남긴다 */
-  .lp5-fan { aspect-ratio: 16 / 10; }
-  .lp5-fan-item { width: 86%; }
-  .lp5-fan-item:not(:nth-child(3)) { display: none; }
+  .lp5-hero-copy, .lp5-hero-shot, .lp5-phone, .lp5-hero-bg { transform: none; opacity: 1; }
+  /* ⚠️ 좁은 화면에서 가운데 한 장만 남기고 부채꼴을 껐었는데, 사장님이 "메인은 웹과 동일하게
+     마름모 형태로" 를 요청했다. 카드만 작게 하고 연출은 그대로 둔다. */
+  .lp5-fan { aspect-ratio: 16 / 9; }
+  .lp5-fan-item { width: 62%; }
+  /* 통합 연출(흩어졌다 모임)도 웹과 같게 — 궤도 반경만 줄인다 */
+  .lp5-orbit { display: block; }
+  .lp5-chip { --r: .28; font-size: 11px; padding: 6px 10px 6px 6px; gap: 6px; border-radius: 11px; }
+  .lp5-chip-ico { width: 20px; height: 20px; border-radius: 7px; }
+  .lp5-unify-core { width: 96vw; }
   .lp5-hero-hint { display: none; }
   .lp5-shot-stack { aspect-ratio: 16 / 11; }
 }
@@ -642,6 +647,10 @@
 /* 아주 좁은 화면 — 여백·칸수를 줄여 내용이 뭉개지지 않게 */
 @media (max-width: 620px) {
   .lp5-wrap { padding: 0 20px; }
+  /* ⚠️ 390px 에서 칩이 좌우로 잘렸다. 기울기(--rot)는 인라인이라 CSS 로 못 덮으므로
+     궤도 반경만으로 맞춘다 — x 최대 ±598px 이라 .17 이어야 화면 안에 들어온다. */
+  .lp5-chip { --r: .17; font-size: 10.5px; }
+  .lp5-fan-item { width: 66%; }
   .lp5-stage { padding: 68px 0; }
   .lp5-cov-grid { grid-template-columns: 1fr; gap: 9px; }
   .lp5-cov-cell { padding: 13px 14px; }

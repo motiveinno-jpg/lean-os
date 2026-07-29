@@ -194,7 +194,7 @@ function Fan({ priority = false }: { priority?: boolean }) {
             {/* ⚠️ sizes 는 "가장 커졌을 때"(가운데 자리) 기준으로 잡는다. 옆자리 기준으로 잡으면
                 클릭해서 가운데로 왔을 때 확대돼 흐려진다. */}
             <Image src={f.src} alt={f.alt} width={2240} height={1400}
-              sizes="(max-width: 999px) 66vw, 880px" priority={priority && i === 2} />
+              sizes="(max-width: 999px) 78vw, 880px" priority={priority && i === 2} />
           </button>
         );
       })}
@@ -204,7 +204,6 @@ function Fan({ priority = false }: { priority?: boolean }) {
 
 // ══════════════════ 1. 히어로 ══════════════════
 function SceneHero() {
-  const narrow = useNarrow();
   return (
     <Scene len={1.5} className="lp5-hero">
       {() => (
@@ -226,9 +225,9 @@ function SceneHero() {
             </div>
           </div>
           <div className="lp5-hero-shot">
-            {narrow
-              ? <PhoneShot src="/product/m-dash-v2.png" alt="휴대폰에서 본 오너뷰 대시보드" priority />
-              : <Fan priority />}
+            {/* ⚠️ 좁은 화면에서 폰 목업으로 바꿔 끼우던 걸 걷어냈다 — 사장님: "메인은 웹과
+                동일하게 마름모 형태로". 카드만 작아지고 연출은 같다. */}
+            <Fan priority />
           </div>
           <div className="lp5-hero-hint"><i />SCROLL</div>
         </>
@@ -286,7 +285,6 @@ function ChipIcon({ n, c }: { n: string; c: string }) {
 }
 
 function SceneUnify() {
-  const narrow = useNarrow();
   return (
     <Scene len={1.9} playOnView pinMobile className="lp5-unify">
       {() => (
@@ -312,9 +310,8 @@ function SceneUnify() {
             </div>
           </div>
           <div className="lp5-unify-core">
-            {narrow
-              ? <PhoneShot src="/product/m-money-v2.png" alt="휴대폰에서 본 오너뷰 경영 요약" />
-              : <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 1000px" />}
+            {/* 좁은 화면에서도 웹과 같은 "흩어졌다 모이는" 연출을 그대로 쓴다 */}
+            <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 1100px" />
           </div>
           </div>
         </>
