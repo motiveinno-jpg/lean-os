@@ -14,12 +14,14 @@ import Image from "next/image";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import "@/app/landing.css";
 import "@/app/landing-v5.css";
+import "@/app/landing-v6.css";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 import { Scene, Rise, useNarrow } from "@/components/landing/scene";
 
 import {
-  HERO, HERO_INTRO, DAY, PILLARS, ENGINES, AI_AUTOMATION, CATALOG, MOBILE, FAQS, FOOTER,
+  HERO, HERO_INTRO, PAINS, DAY, PILLARS, ENGINES, AI_AUTOMATION, CATALOG, MOBILE,
+  PLANS, CASES, CASES_NOTE, FAQS, FOOTER,
 } from "@/components/landing/content";
 
 const Arrow = () => (
@@ -205,7 +207,7 @@ function Fan({ priority = false }: { priority?: boolean }) {
 // ══════════════════ 1. 히어로 ══════════════════
 function SceneHero() {
   return (
-    <Scene len={1.5} className="lp5-hero">
+    <Scene len={1.15} className="lp5-hero">
       {() => (
         <>
           <div className="lp5-hero-bg" />
@@ -286,7 +288,7 @@ function ChipIcon({ n, c }: { n: string; c: string }) {
 
 function SceneUnify() {
   return (
-    <Scene len={1.9} playOnView pinMobile className="lp5-unify">
+    <Scene len={1.6} playOnView pinMobile className="lp5-unify">
       {() => (
         <>
           {/* ⚠️ 궤도는 무대(100vh) 기준이어야 한다. 문구 박스 안에 두면 칩이 제목 위로 겹친다. */}
@@ -320,16 +322,57 @@ function SceneUnify() {
   );
 }
 
+// ══════════════════ 2.5 공감 — 이런 게 힘드셨죠 ══════════════════
+//   ⚠️ 히어로 다음이 바로 "하나로 모여요" 라 방문자가 자기 문제를 확인하는 구간이 없었다.
+//      공감 → 해결 순서가 되면 뒤따르는 기능 설명의 설득력이 달라진다 (경쟁사 비교, 2026-07-29).
+function PainIcon({ n }: { n: string }) {
+  const p = { width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 1.8,
+    viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (n === "scatter") return <svg {...p}><rect x="2.5" y="3" width="8" height="6" rx="1.6"/><rect x="13.5" y="6.5" width="8" height="6" rx="1.6"/><rect x="4.5" y="14" width="8" height="6.5" rx="1.6"/></svg>;
+  if (n === "sort") return <svg {...p}><path d="M4 6.5h16M6.5 12h11M9.5 17.5h5"/></svg>;
+  return <svg {...p}><path d="M3 17.5l5.5-5.5 3.5 3.5L21 6"/><path d="M21 11V6h-5"/></svg>;
+}
+
+function ScenePains() {
+  return (
+    <section className="lp5-sect lp5-sect-tint">
+      <div className="lp5-wrap">
+        <Rise className="lp5-sec-head">
+          <div className="lp5-eyebrow">Before OwnerView</div>
+          <h2 className="lp5-h lp5-h-sm">이런 게 <span className="lp5-grad">힘드셨죠</span></h2>
+          <p className="lp5-lead">대표님들이 실제로 하시는 말이에요. 오너뷰는 여기서 시작했어요.</p>
+        </Rise>
+        <div className="lp5-pain-grid">
+          {PAINS.map((x, i) => (
+            <Rise key={x.icon} delay={i * 70} className="lp5-pain">
+              <span className="lp5-pain-ico"><PainIcon n={x.icon} /></span>
+              <blockquote className="lp5-pain-q">
+                {x.quote.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
+              </blockquote>
+              <p className="lp5-pain-d">{x.detail}</p>
+              <div className="lp5-pain-a">{x.solve}</div>
+            </Rise>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ══════════════════ 3. 하루 ══════════════════
+//   ⚠️ 5구간 → 3구간. 11:00 견적·17:00 입금은 바로 위 기능 그리드와 내용이 겹친다.
+//      아침(대시보드) · 낮(인사) · 밤(액션 플랜) 세 장면이면 하루가 충분히 그려진다.
+const DAY_3 = DAY.filter((d) => ["09:00", "14:00", "23:00"].includes(d.time));
+
 function SceneDay() {
   // ⚠️ len 은 "시간대 하나 넘기는 데 필요한 스크롤"을 정한다.
   //    고정 이동거리 = (len - 1) × 100vh, 구간당 = 그 값 ÷ 5.
   //    2.4 였을 때 구간당 266px = 휠 2.66칸이라 3·3·3·2 로 들쭉날쭉했다(사장님 지적).
   //    2.0 이면 구간당 190px = 휠 2칸 이내로 균일해진다.
   return (
-    <Scene id="day" len={2.0} beats={DAY.length} pinMobile className="lp5-day">
+    <Scene id="day" len={1.6} beats={DAY_3.length} pinMobile className="lp5-day">
       {(beat) => {
-        const d = DAY[beat];
+        const d = DAY_3[beat];
         return (
           <div className="lp5-wrap">
             {/* ⚠️ v5 로 옮기면서 섹션 후킹 문구가 빠졌었다. 장면이 바뀌어도 "이 섹션이 무슨 말을
@@ -355,10 +398,10 @@ function SceneDay() {
                   </div>
                 </div>
               </div>
-              <ShotStack items={DAY.map((x) => ({ src: x.src, alt: x.alt }))} active={beat} />
+              <ShotStack items={DAY_3.map((x) => ({ src: x.src, alt: x.alt }))} active={beat} />
             </div>
             <div className="lp5-day-dots">
-              {DAY.map((x, i) => <span key={x.time} className={`lp5-day-dot ${i === beat ? "lp5-day-dot-on" : ""}`} />)}
+              {DAY_3.map((x, i) => <span key={x.time} className={`lp5-day-dot ${i === beat ? "lp5-day-dot-on" : ""}`} />)}
             </div>
           </div>
         );
@@ -476,18 +519,21 @@ function Rail({ cards, tall = false, wide = false, arrows = false, ms = 4600, la
   );
 }
 
-// ══════════════════ 4. 세 축 — 자동 재생 레일 ══════════════════
-//   사장님: "위에서부터 다 같은 형식이라 느낌이 너무 똑같음. 좌측 제목 + 가로로 움직이는 형태로."
-//   앞뒤 장면이 전부 [좌 문구 / 우 화면] 이라, 여기만 가로 레일로 리듬을 끊는다.
-//   레일은 --p 로 연속 이동한다(구간 단위로 튀지 않게). 점은 현재 구간만 표시.
+// ══════════════════ 4. 주요 기능 — 벤토 그리드 ══════════════════
+//   ⚠️ 캐러셀이었다. 넘겨야만 보이는 구조라 스크롤만 하는 방문자에게 19개 중 2~3개만 전달됐다
+//      (경쟁사 비교 실측, 2026-07-29). 9개를 전부 펼쳐 스크롤만으로 다 보이게 한다.
+//   ⚠️ 3열로 짜면 카드가 440px 이 되어 화면 UI 가 0.45배로 뭉개진다.
+//      2열 + 첫 칸 전폭이 배율(0.68~0.91)과 "한눈에" 를 동시에 만족하는 조합이다.
 function SceneAxes() {
-  // 카드 구조는 하나로 고정한다 — 좌측 상단 기능명, 그 아래 설명, 그 아래 화면.
-  //   ⚠️ 화면을 확대해 일부만 잘라 보여줬더니 설명과 다른 부분이 나왔다. 기능이 있는 자리가
-  //      화면마다 다르기 때문이다(상단 카드 / 가운데 표 / 하단 목록). 이미지마다 손으로 좌표를
-  //      맞추지 않는 한 틀린다 → 화면 위쪽부터 폭 전체를 보여준다. 패널 제목·요약이 카드 설명과
-  //      같은 말을 하고 있어 설명과 화면이 항상 맞는다.
   const cards = PILLARS.flatMap((P) =>
     P.blocks.map((b) => ({ kicker: P.kicker, tab: b.tab, title: b.title, desc: b.desc, src: b.src, alt: b.alt })),
+  );
+  const [lead, ...rest] = cards;
+  const shot = (c: typeof cards[0], wide: boolean) => (
+    <div className="lp5-bt-shot">
+      <Image src={CORE_SHOT[c.src] ?? c.src} alt={c.alt} width={1968} height={984}
+        sizes={wide ? "(max-width: 999px) 92vw, 900px" : "(max-width: 999px) 92vw, 680px"} />
+    </div>
   );
   return (
     <section id="pillars" className="lp5-sect">
@@ -497,44 +543,39 @@ function SceneAxes() {
           <h2 className="lp5-h lp5-h-sm">일은 줄이고, <span className="lp5-grad">효율과 성과는 높여요</span></h2>
           <p className="lp5-lead">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
         </Rise>
-        <Rail wide label="주요 기능 갤러리" cards={cards.map((c) => (
-          <article key={c.src + c.tab} className="lp5-rail-card">
-            <div className="lp5-rail-over">
-              <span className="lp5-rail-kick">{c.kicker} · {c.tab}</span>
-              <h3 className="lp5-rail-title">{c.title}</h3>
-              <p className="lp5-rail-desc">{c.desc}</p>
+
+        <div className="lp5-bento">
+          <Rise className="lp5-bt lp5-bt-lead">
+            <div className="lp5-bt-copy">
+              <span className="lp5-bt-kick">{lead.kicker} · {lead.tab}</span>
+              <h3 className="lp5-bt-title">{lead.title}</h3>
+              <p className="lp5-bt-desc">{lead.desc}</p>
             </div>
-            <div className="lp5-rail-shot">
-              <Image src={CORE_SHOT[c.src] ?? c.src} alt={c.alt} width={1968} height={984}
-                sizes="(max-width: 999px) 86vw, 1040px" />
-            </div>
-          </article>
-        ))} />
+            {shot(lead, true)}
+          </Rise>
+
+          {rest.map((c, i) => (
+            <Rise key={c.src + c.tab} delay={(i % 2) * 60} className="lp5-bt">
+              <div className="lp5-bt-copy">
+                <span className="lp5-bt-kick">{c.kicker} · {c.tab}</span>
+                <h3 className="lp5-bt-title">{c.title}</h3>
+                <p className="lp5-bt-desc">{c.desc}</p>
+              </div>
+              {shot(c, false)}
+            </Rise>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-// ══════════════════ 5. AI — 어두운 장면 + 가로 레일 ══════════════════
-//   사장님: "뒤 배경색은 마음에 들어. 근데 이미지를 더 키우고 설명이 들어가되 가로로 넘어가고,
-//   AI 자동화에 있는 부분을 가져와도 될 것 같아. 이미지는 핵심적인 부분만 보여줘도 좋을 것 같아."
-//   ⚠️ 카드 안의 화면은 전체를 축소해 넣지 않는다 — 세로 카드에 꽉 채우고 좌상단(헤더+핵심 카드가
-//      있는 자리)을 확대해 잘라 보여준다. 전체를 넣으면 아무것도 안 읽힌다.
+// ══════════════════ 5. AI — 엔진 4개 그리드 + 자동화 목록 ══════════════════
+//   ⚠️ 화살표 캐러셀이었다. 10장을 넘겨야 해서 실제로는 2~3장만 전달됐다.
+//      엔진 4개는 한 화면에 펼치고, 자동화는 한 줄씩 목록으로 요약한 뒤 /ai 로 넘긴다.
 function SceneAI() {
-  // 엔진(큰 묶음) + 자동화(세부 기능)를 한 레일에 합친다.
-  //   ⚠️ 예전엔 "같은 캡처를 쓰는가"로 중복을 판정했는데, 엔진과 자동화가 화면만 공유하고
-  //      내용은 다른 경우가 있어 엉뚱한 항목이 빠졌다(AI 거래 분류가 사라지고 휴면 감지가 남았다).
-  //      이제 그림으로 설명하므로 이미지 기준 판정은 의미가 없다 — 내용이 겹치는 것만 이름으로 뺀다.
-  //      "현금 소진 예측"은 엔진 "생존 레이더"가 하는 말 그대로다.
-  // "휴면 감지"는 거래처 자산화와 같은 화면(거래처)에서 일어나는 일이라 카드가 겹친다.
-  const COVERED = new Set(["현금 소진 예측", "휴면 감지"]);
-  const engineCards = ENGINES.map((e) => ({
-    kind: "엔진", name: e.name, tag: e.eng, desc: e.short, where: "", src: e.src, alt: e.alt,
-  }));
-  const autoCards = AI_AUTOMATION.filter((a) => !COVERED.has(a.name)).map((a) => ({
-    kind: "자동화", name: a.name, tag: a.tag, desc: a.desc, where: a.where, src: a.src, alt: a.alt,
-  }));
-  const items = [...engineCards, ...autoCards];
+  const covered = new Set(["현금 소진 예측", "휴면 감지"]);
+  const autos = AI_AUTOMATION.filter((a) => !covered.has(a.name));
   return (
     <section id="engines" className="lp5-sect lp5-sect-dark">
       <div className="lp5-eng-bg" />
@@ -544,98 +585,126 @@ function SceneAI() {
           <h2 className="lp5-h lp5-h-sm lp5-eng-h">반복되던 일,<br /><span className="lp5-grad">이제 AI 몫이에요</span></h2>
           <p className="lp5-lead">
             사람을 대체하는 게 아니라, 매번 되풀이되는 일을 AI가 먼저 처리해 둬요.
-            엔진 {engineCards.length}개와 자동화 {autoCards.length}가지가 나눠서 맡아요.
+            엔진 {ENGINES.length}개와 자동화 {autos.length}가지가 나눠서 맡아요.
           </p>
         </Rise>
-        {/* ⚠️ 손으로 그린 일러스트는 "대충 만든 느낌"이라는 지적을 받았다(사장님).
-            실제 제품이 그 기능을 수행하는 순간을 보여준다 — 코어와 같은 DOM 조각 캡처(a-*.png).
-            어두운 무대 위에 흰 UI 가 떠 있게 놓아 전문적인 인상을 준다. */}
-        <Rail tall arrows label="AI 자동화 갤러리" cards={items.map((a) => (
-          <article key={a.name} className="lp5-rail-cell">
-            <div className="lp5-rail-art">
-              {AI_SHOT[a.name] && (
-                <Image src={AI_SHOT[a.name]} alt={`오너뷰 ${a.name} 화면`} width={1968} height={1000}
-                  sizes="(max-width: 999px) 82vw, 620px" />
-              )}
-            </div>
-            <div className="lp5-rail-note">
-              <b>{a.name}.</b> <span>{a.desc}</span>
-              {a.where && <span className="lp5-rail-where">{a.where}</span>}
-            </div>
-          </article>
-        ))} />
+
+        <div className="lp5-eng-grid2">
+          {ENGINES.map((e, i) => (
+            <Rise key={e.num} delay={(i % 2) * 60} className="lp5-engc">
+              <div className="lp5-engc-copy">
+                <span className="lp5-engc-num">{e.num} · {e.eng}</span>
+                <h3 className="lp5-engc-name">{e.name}</h3>
+                <p className="lp5-engc-desc">{e.short}</p>
+              </div>
+              <div className="lp5-engc-shot">
+                {AI_SHOT[e.name] && (
+                  <Image src={AI_SHOT[e.name]} alt={`오너뷰 ${e.name} 화면`} width={1968} height={1000}
+                    sizes="(max-width: 999px) 92vw, 660px" />
+                )}
+              </div>
+            </Rise>
+          ))}
+        </div>
+
+        <Rise className="lp5-autos">
+          <div className="lp5-autos-h">여기에 자동화 {autos.length}가지가 더 붙어요</div>
+          <ul className="lp5-autos-list">
+            {autos.map((a) => (
+              <li key={a.name}><b>{a.name}</b><span>{a.tag}</span></li>
+            ))}
+          </ul>
+          <Link href="/ai" className="lp5-btn lp5-btn-ghost">자동화 전체 보기 <Arrow /></Link>
+        </Rise>
       </div>
     </section>
   );
 }
 
-// ══════════════════ 6. 커버리지 ══════════════════
-//   메뉴 18개가 스크롤에 따라 하나씩 켜진다. 각각의 설명은 /features 가 맡는다.
-/** 메뉴 아이콘 — 그룹별 색 타일. 글자로 "파이낸스"라고 쓰는 것보다 한눈에 구분된다. */
+// ══════════════════ 6. 커버리지 — 그룹 4개로 요약 ══════════════════
+//   ⚠️ 18칸을 전부 나열했었다. 범위 증명은 "18개"라는 숫자와 그룹 이름으로 충분하고,
+//      18칸 전부는 읽히지 않는다. 그룹별 대표 메뉴만 보이고 나머지는 /features 로 넘긴다.
 const GROUP_COLOR: Record<string, string> = {
   "파이낸스": "#2F6FED", "워크스페이스": "#5B4BE8", "인사관리": "#0E8F6F", "자산관리": "#E08422",
 };
-function MenuIcon({ n, c }: { n: string; c: string }) {
-  const p = { width: 15, height: 15, fill: "none", stroke: "#fff", strokeWidth: 1.9,
-    viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  let g;
-  switch (n) {
-    case "users": case "crm": g = <svg {...p}><path d="M16 20v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V20"/><circle cx="9" cy="7" r="3.4"/><path d="M17 11.5a3.4 3.4 0 000-6.8"/><path d="M22 20v-1.5a4 4 0 00-3-3.8"/></svg>; break;
-    case "user": g = <svg {...p}><path d="M19 20v-1.6a4.4 4.4 0 00-4.4-4.4H9.4A4.4 4.4 0 005 18.4V20"/><circle cx="12" cy="7.5" r="3.7"/></svg>; break;
-    case "receipt": g = <svg {...p}><path d="M5 3.5h14v17l-2.3-1.6-2.4 1.6-2.3-1.6-2.4 1.6L7.3 19 5 20.5v-17z"/><path d="M8.5 8h7M8.5 12h5"/></svg>; break;
-    case "book": g = <svg {...p}><path d="M5 4.5A1.5 1.5 0 016.5 3H19v18H6.5A1.5 1.5 0 015 19.5v-15z"/><path d="M8.5 8h7M8.5 12h5"/></svg>; break;
-    case "chart": g = <svg {...p}><path d="M3 20h18"/><rect x="5" y="11" width="3.4" height="6" rx="1"/><rect x="10.3" y="7" width="3.4" height="10" rx="1"/><rect x="15.6" y="13" width="3.4" height="4" rx="1"/></svg>; break;
-    case "pen": g = <svg {...p}><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.4 3.6z"/></svg>; break;
-    case "calendar": g = <svg {...p}><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8.5 3v4M15.5 3v4"/></svg>; break;
-    case "briefcase": case "pipeline": g = <svg {...p}><rect x="2.5" y="7" width="19" height="13" rx="2.5"/><path d="M9 7V5.2A1.7 1.7 0 0110.7 3.5h2.6A1.7 1.7 0 0115 5.2V7"/></svg>; break;
-    case "approve": case "check": g = <svg {...p}><path d="M20.5 11.2V19a2 2 0 01-2 2h-13a2 2 0 01-2-2V5a2 2 0 012-2h9"/><path d="M8.5 12l3 3 8-8.5"/></svg>; break;
-    case "board": g = <svg {...p}><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M9 9v11"/></svg>; break;
-    case "chat": g = <svg {...p}><path d="M21 11.5a8.4 8.4 0 01-9 8.4 9 9 0 01-3.9-.9L3 21l1.9-4.5A8.4 8.4 0 013 11.5 8.5 8.5 0 0112 3a8.5 8.5 0 019 8.5z"/></svg>; break;
-    case "sign": g = <svg {...p}><path d="M3 18.5c3-1 4.5-3.5 5.5-7C9.4 8 10.8 5 12.5 5c1.5 0 2 1.5 1.3 3.4-.8 2-2.6 3.6-4.8 4.6"/><path d="M13 18.5h8"/></svg>; break;
-    case "hr": g = <svg {...p}><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.2A1.7 1.7 0 0110.2 3.5h3.6A1.7 1.7 0 0115.5 5.2V7"/><path d="M3 12h18"/></svg>; break;
-    case "clock": g = <svg {...p}><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5.2l3.4 2"/></svg>; break;
-    case "file": case "docs": g = <svg {...p}><path d="M14 2.5H7a2 2 0 00-2 2v15a2 2 0 002 2h10a2 2 0 002-2V7.5L14 2.5z"/><path d="M14 2.5v5h5"/></svg>; break;
-    case "folder": g = <svg {...p}><path d="M3 7.5A2 2 0 015 5.5h3.6l2 2H19a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-9z"/></svg>; break;
-    case "wallet": g = <svg {...p}><path d="M21 12V7.5a2 2 0 00-2-2H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V14"/><path d="M16 12h5v4h-5a2 2 0 010-4z"/></svg>; break;
-    case "swap": g = <svg {...p}><path d="M7 8h13l-3.2-3.2M17 16H4l3.2 3.2"/></svg>; break;
-    case "repeat": g = <svg {...p}><path d="M17 2.5l3.5 3.5L17 9.5"/><path d="M3.5 12V9.5a3.5 3.5 0 013.5-3.5h13.5"/><path d="M7 21.5L3.5 18 7 14.5"/><path d="M20.5 12v2.5a3.5 3.5 0 01-3.5 3.5H3.5"/></svg>; break;
-    default: g = <svg {...p}><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 12h8"/></svg>; break;
-  }
-  return <span className="lp5-cov-ico" style={{ background: c }}>{g}</span>;
-}
 
 function SceneCoverage() {
-  const cells = CATALOG.flatMap((g) => g.menus.map((m) => ({ g: g.group, n: m.name, d: m.desc, i: m.icon })));
+  const total = CATALOG.reduce((n, g) => n + g.menus.length, 0);
   return (
-    <Scene id="more" len={1.15} className="lp5-cov">
-      {() => (
-        <div className="lp5-wrap">
-          <div className="lp5-cov-head">
-            <div className="lp5-eyebrow">Coverage</div>
-            <h2 className="lp5-h lp5-h-sm">회사 운영, <span className="lp5-grad">오직 오너뷰 안에서</span></h2>
-            {/* ⚠️ "방금 본 세 축 아래로" 는 앞 섹션을 되짚는 말이라 정작 "더 많다"가 안 들렸다.
-                여기서는 범위가 넓다는 것만 말한다 (사장님 지시). */}
-            <p className="lp5-lead" style={{ margin: "16px auto 0" }}>
-              이게 다가 아니에요. 재무·업무·인사·자산까지 메뉴 {cells.length}개에 30가지가 넘는 기능이 들어 있어요.
-            </p>
-          </div>
-          <div className="lp5-cov-grid">
-            {/* 사장님: "메뉴 생성되는 쪽은 스크롤이 의미없이 많다" — 18칸을 한 칸씩 켜면
-                그만큼의 스크롤을 써야 한다. 진입하면 계단식으로 한 번에 떠오르게 바꿈. */}
-            {cells.map((c, i) => (
-              <Rise key={c.n} delay={i * 34} className="lp5-cov-cell">
-                <MenuIcon n={c.i} c={GROUP_COLOR[c.g] ?? "#5B4BE8"} />
-                <div className="lp5-cov-n">{c.n}</div>
-                <div className="lp5-cov-d">{c.d}</div>
-              </Rise>
-            ))}
-          </div>
-          <div style={{ textAlign: "center", marginTop: 34 }}>
-            <Link href="/features" className="lp5-btn lp5-btn-ghost">메뉴별로 자세히 보기 <Arrow /></Link>
-          </div>
+    <section id="more" className="lp5-sect">
+      <div className="lp5-wrap">
+        <Rise className="lp5-sec-head lp5-sec-head-c">
+          <div className="lp5-eyebrow">Coverage</div>
+          <h2 className="lp5-h lp5-h-sm">회사 운영, <span className="lp5-grad">오직 오너뷰 안에서</span></h2>
+          <p className="lp5-lead lp5-lead-c">
+            이게 다가 아니에요. 재무·업무·인사·자산까지 메뉴 {total}개에 30가지가 넘는 기능이 들어 있어요.
+          </p>
+        </Rise>
+        <div className="lp5-cov4">
+          {CATALOG.map((g, i) => (
+            <Rise key={g.key} delay={i * 60} className="lp5-covg">
+              <span className="lp5-covg-bar" style={{ background: GROUP_COLOR[g.group] ?? "#5B4BE8" }} />
+              <div className="lp5-covg-name">{g.group}</div>
+              <p className="lp5-covg-lead">{g.lead}</p>
+              <ul className="lp5-covg-list">
+                {g.menus.map((m) => <li key={m.name}>{m.name}</li>)}
+              </ul>
+            </Rise>
+          ))}
         </div>
-      )}
-    </Scene>
+        <div className="lp5-cov-more">
+          <Link href="/features" className="lp5-btn lp5-btn-ghost">메뉴별로 자세히 보기 <Arrow /></Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ══════════════════ 6.5 신뢰 — 도입 사례 + 가격 미리보기 ══════════════════
+//   ⚠️ CASES 는 프로덕션 실측 스냅샷이다. "세금계산서 자동 수집"은 발행분이 아니므로
+//      라벨을 바꾸면 거짓이 된다(content.ts 주석 참조).
+//   ⚠️ 가격을 못 찾아 이탈하는 게 흔한 누수다. 메뉴에만 두지 않고 본문에 미리보기를 둔다.
+function SceneProof() {
+  const c = CASES[0];
+  const shown = PLANS.filter((p) => p.slug || p.price === "0").slice(0, 3);
+  return (
+    <section className="lp5-sect lp5-sect-tint">
+      <div className="lp5-wrap">
+        <div className="lp5-proof">
+          <Rise className="lp5-case">
+            <div className="lp5-eyebrow">In Use</div>
+            <h3 className="lp5-case-h">만든 회사가 매일 씁니다</h3>
+            <p className="lp5-case-note">{c.note}</p>
+            <div className="lp5-case-nums">
+              {c.metrics.map((m) => (
+                <div key={m.label}><b>{m.value}</b><span>{m.label}</span></div>
+              ))}
+            </div>
+            <span className="lp5-case-foot">{c.masked} · {c.industry} · {c.size} · {c.plan}<br />{CASES_NOTE}</span>
+          </Rise>
+
+          <Rise delay={90} className="lp5-price">
+            <div className="lp5-eyebrow">Pricing</div>
+            <h3 className="lp5-case-h">인원이 늘어도 그대로예요</h3>
+            <div className="lp5-price-rows">
+              {shown.map((p) => (
+                <div key={p.name} className={`lp5-price-row ${p.hl ? "lp5-price-hl" : ""}`}>
+                  <div>
+                    <b>{p.name}</b>
+                    <span>{p.desc}</span>
+                  </div>
+                  <div className="lp5-price-amt">
+                    {p.price === "0" ? <em>0원</em> : <em>₩{p.price}</em>}
+                    <span>{p.price === "0" ? "14일" : "/월"}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link href="/pricing" className="lp5-btn lp5-btn-ghost">요금제 자세히 보기 <Arrow /></Link>
+          </Rise>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -672,7 +741,7 @@ function SceneMobile() {
 
   const S = MOBILE.steps[i];
   return (
-    <Scene id="mobile" len={1.35} className="lp5-mob">
+    <Scene id="mobile" len={1.05} className="lp5-mob">
       {() => (
         <div className="lp5-wrap lp5-mob-grid" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
           <div className="lp5-mob-copy">
@@ -721,7 +790,7 @@ function SceneMobile() {
 // ══════════════════ 8. 마무리 ══════════════════
 function SceneEnd() {
   return (
-    <Scene len={1.1} tone="dark" className="lp5-end">
+    <Scene len={1.0} tone="dark" className="lp5-end">
       {() => (
         <>
           <div className="lp5-end-bg" />
@@ -754,10 +823,12 @@ export default function LandingPage() {
       <LandingNav />
 
       <SceneHero />
+      <ScenePains />
       <SceneUnify />
       <SceneAxes />
       <SceneAI />
       <SceneCoverage />
+      <SceneProof />
       {/* 사장님: "오너뷰로 하루가 이렇게 달라져요를 모바일 위로" —
           기능을 다 보여준 뒤 "그래서 하루가 이렇게 바뀐다"로 받고, 바로 "밖에서도 된다"로 잇는다 */}
       <SceneDay />

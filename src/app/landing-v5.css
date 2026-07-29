@@ -257,7 +257,7 @@
 /* ── 섹션 후킹 문구 ──
    ⚠️ v5 초안에서 이게 통째로 빠져 있었다. 장면 연출이 아무리 좋아도 "이 섹션이 무슨 말을
       하려는지"가 없으면 그냥 화면 구경이 된다. eyebrow 만으로는 전달되지 않는다. */
-.lp5-sec-head { width: 100%; margin-bottom: clamp(20px, 3vh, 40px); }
+.lp5-sec-head { width: 100%; margin-bottom: clamp(18px, 2.4vh, 32px); }
 .lp5-sec-head .lp5-lead { margin-top: 12px; }
 
 /* ── 문구 교체를 부드럽게 ──
@@ -273,7 +273,8 @@
 /* ── 핀 없는 일반 섹션 ── (세 축 · AI)
    ⚠️ 이 둘은 무대(sticky 100vh)에서 뺐다. 스크롤로 카드를 넘기니 화면이 붙잡히고 음영이
       어색하게 걸렸고, 모바일에서는 넘기기 자체가 어려웠다 (사장님 지적). 이제 자동 재생한다. */
-.lp5-sect { position: relative; padding: clamp(64px, 8vh, 112px) 0; background: var(--canvas); }
+/* ⚠️ 섹션이 늘어나 페이지가 16.9화면까지 갔다. 여백을 조여 9화면대로 되돌린다(2026-07-29) */
+.lp5-sect { position: relative; padding: clamp(52px, 6.2vh, 88px) 0; background: var(--canvas); }
 /* 상단바가 fixed 라 #pillars 같은 앵커로 뛰면 제목이 상단바 밑으로 들어간다 */
 .lp5-sect, .lp5-scene { scroll-margin-top: 84px; }
 .lp5-sect-dark { background: var(--dark); color: #fff; overflow: hidden; }

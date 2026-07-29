@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import "@/app/landing-v6.css";
 import { CATALOG, AI_AUTOMATION, NAV_LINKS, TOUR_HREF } from "@/components/landing/content";
 
 const NAV_AI = 99;   // 드롭다운에서 AI 자동화를 가리키는 값
@@ -146,6 +147,9 @@ export function LandingNav({ solid = false }: { solid?: boolean }) {
 
         <div className="lp4-nav-right">
           <Link href="/auth" className="lp4-login">로그인</Link>
+          {/* ⚠️ 도입 상담 경로가 맨 아래 제휴 폼에만 있어 엔터프라이즈 리드가 거기까지 안 내려간다.
+              준비도별로 셋(바로 시작 / 먼저 보기 / 물어보기)을 나눠 받는다 (2026-07-29). */}
+          <Link href="/#partner" className="lp5-nav-ask">도입 상담</Link>
           <Link href="/auth" className="lp4-pill">무료로 시작하기</Link>
           <button
             type="button"
