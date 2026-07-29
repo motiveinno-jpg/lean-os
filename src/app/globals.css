@@ -2918,6 +2918,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-light { @apply flex items-center gap-2.5 px-3 py-2.5 rounded-xl; }
 .platform-feed-row { @apply flex items-center gap-2.5 px-4 py-2.5 transition hover:bg-[var(--bg-surface)]/60; }
 .platform-feed-danger { @apply bg-[var(--danger-dim)]/40; }
+/* 오류 행 클릭 시 펼쳐지는 비개발자용 상세 설명 (2026-07-29) */
+.platform-feed-error-detail { @apply px-5 py-3 mx-3 mb-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-1.5; }
+.platform-feed-error-detail-item { @apply text-[12px] text-[var(--text-muted)] leading-relaxed; }
+.platform-feed-error-detail-item b { @apply text-[var(--text)] font-bold mr-1; }
+.platform-feed-error-detail-raw { @apply text-[11px] text-[var(--text-dim)] font-mono break-all pt-1 border-t border-[var(--border)]; }
 .platform-detail-links { @apply flex flex-wrap gap-2; }
 .platform-detail-link { @apply px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] transition; }
 

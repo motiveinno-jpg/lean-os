@@ -125,6 +125,8 @@ export default function PlatformHealthPage() {
   // 회사별 필터 (2026-07-28 사장님 요청) — 전 회사 활동이 한데 섞여 회사가 늘면 못 쓰게 되는 문제.
   //   피드에 등장한 회사명으로 드롭다운을 만들고, 선택 시 그 회사 관련 항목만 표시.
   const [companyFilter, setCompanyFilter] = useState("all");
+  // 오류 행 클릭 → 무슨 오류/왜/조치 상세 펼침 (2026-07-29 사장님)
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const feedCompanies = useMemo(() => {
     const set = new Set<string>();
     (data?.feed ?? []).forEach((f) => {
@@ -196,14 +198,38 @@ export default function PlatformHealthPage() {
           <div className="platform-rail-rows">
             {shownFeed.map((f, i) => {
               const l = feedLine(f);
+              const isError = f.kind === "error";
+              const open = isError && expandedIdx === i;
               return (
-                <div key={i} className={`platform-feed-row ${l.tone === "danger" ? "platform-feed-danger" : ""}`}>
-                  <span className="text-sm shrink-0">{l.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-[13px] font-semibold truncate ${l.tone === "danger" ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{l.text}</div>
-                    {l.sub && <div className="text-[11px] text-[var(--text-dim)] truncate">{l.sub}</div>}
+                <div key={i}>
+                  <div
+                    className={`platform-feed-row ${l.tone === "danger" ? "platform-feed-danger" : ""} ${isError ? "cursor-pointer" : ""}`}
+                    onClick={isError ? () => setExpandedIdx(open ? null : i) : undefined}
+                    title={isError ? "클릭하면 무슨 오류인지 자세히 보여드려요" : undefined}
+                  >
+                    <span className="text-sm shrink-0">{l.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-[13px] font-semibold truncate ${l.tone === "danger" ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{l.text}</div>
+                      {l.sub && <div className="text-[11px] text-[var(--text-dim)] truncate">{l.sub}</div>}
+                    </div>
+                    <span className="text-[11px] text-[var(--text-dim)] mono-number shrink-0">{fmtKst(f.at)}</span>
+                    {isError && (
+                      <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    )}
                   </div>
-                  <span className="text-[11px] text-[var(--text-dim)] mono-number shrink-0">{fmtKst(f.at)}</span>
+                  {open && (() => {
+                    const exp = explainError(f.what, f.extra, null);
+                    return (
+                      <div className="platform-feed-error-detail">
+                        <div className="platform-feed-error-detail-item"><b>무슨 오류인가요?</b> {exp.what}</div>
+                        <div className="platform-feed-error-detail-item"><b>왜 났을까요?</b> {exp.why}</div>
+                        <div className="platform-feed-error-detail-item"><b>어떻게 하나요?</b> {exp.fix}</div>
+                        {f.who && <div className="platform-feed-error-detail-item"><b>발생 위치</b> {f.who}</div>}
+                        <div className="platform-feed-error-detail-item"><b>심각도</b> {exp.severity === "critical" ? "매우 높음" : exp.severity === "high" ? "높음" : exp.severity === "medium" ? "중간" : "낮음"} · 분류 {exp.code}</div>
+                        <div className="platform-feed-error-detail-raw">원문: {f.what || "(없음)"}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
