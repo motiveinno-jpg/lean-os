@@ -31,8 +31,8 @@ const GRANS: { key: Gran; label: string; buckets: number }[] = [
 
 type MetricKey = "visitors" | "views" | "guests" | "accounts" | "companies" | "trials";
 const METRICS: { key: MetricKey; label: string; unit: string }[] = [
-  { key: "visitors", label: "방문자", unit: "명" },
-  { key: "guests", label: "비로그인 방문자", unit: "명" },
+  { key: "visitors", label: "방문자(전체)", unit: "명" },
+  { key: "guests", label: "비로그인 방문자(전체에 포함)", unit: "명" },
   { key: "views", label: "페이지뷰", unit: "회" },
   { key: "accounts", label: "신규 가입자", unit: "명" },
   { key: "companies", label: "신규 회사", unit: "곳" },
