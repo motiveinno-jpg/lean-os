@@ -10,7 +10,7 @@
 //     WidthProvider는 마운트 시점에 너비를 1회 측정하는 클래스 컴포넌트라,
 //     창 축소→확대 시 잘못된 너비가 고정되는 버그가 있었음. 직접 측정으로 완전 해결.
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Ico } from "@/components/ui-icon";
 import GridLayout, { type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -36,23 +36,29 @@ function buildDefault(cat: CatalogWidget[]): Layout[] {
   }));
 }
 
-// 컨테이너 너비를 ResizeObserver로 직접 측정하는 훅
-function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number {
+// 컨테이너 너비를 ResizeObserver로 직접 측정하는 훅.
+//   콜백 ref 방식 — 렌더 분기(폴백 grid ↔ RGL)로 컨테이너 DOM 노드가 교체돼도
+//   옵저버가 새 노드에 다시 붙는다. 기존 useRef+useEffect 방식은 최초 노드만 관찰해서,
+//   분기 전환 후 떼어진 옛 노드를 계속 보다가 사이드바 애니메이션 중 좁게 잰 폭에
+//   영영 고정됐다 (2026-07-29 직원 대시보드가 1열 세로 스택으로 짜부된 사고의 원인).
+function useContainerWidth(): [(node: HTMLDivElement | null) => void, number] {
   const [width, setWidth] = useState(0);
+  const roRef = useRef<ResizeObserver | null>(null);
 
-  useEffect(() => {
-    if (!ref.current) return;
-    setWidth(ref.current.offsetWidth);
-
+  const setRef = useCallback((node: HTMLDivElement | null) => {
+    roRef.current?.disconnect();
+    roRef.current = null;
+    if (!node) return;
+    setWidth(node.offsetWidth);
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width ?? 0;
       if (w > 0) setWidth(w);
     });
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, [ref]);
+    ro.observe(node);
+    roRef.current = ro;
+  }, []);
 
-  return width;
+  return [setRef, width];
 }
 
 export function DashboardGrid({
@@ -76,16 +82,21 @@ export function DashboardGrid({
   const catMap = useMemo(() => Object.fromEntries(catalog.map((c) => [c.id, c])), [catalog]);
   const catalogIds = catalog.map((c) => c.id).join(",");
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const containerWidth = useContainerWidth(containerRef);
+  const [containerRef, containerWidth] = useContainerWidth();
   const isMobile = containerWidth > 0 && containerWidth < 768;
   const cols = isMobile ? 1 : 12;
 
-  const isMobileRef = useRef(false);
-  useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
-
   useEffect(() => {
-    try { const raw = JSON.parse(localStorage.getItem(storageKey) || "null"); if (Array.isArray(raw)) setLayout(raw); } catch { /* noop */ }
+    try {
+      const raw = JSON.parse(localStorage.getItem(storageKey) || "null");
+      if (Array.isArray(raw)) {
+        // 오염 저장본 자가 치유 — 과거 버그로 모바일 클램프 배치(전 항목 w≤1·x=0)가
+        //   저장된 계정이 있다 (2026-07-29 직원 대시보드 짜부 사고). 그 시그니처면 폐기하고 기본 배치로.
+        const poisoned = raw.length > 1 && raw.every((l: Layout) => (l?.w ?? 0) <= 1 && (l?.x ?? 0) === 0);
+        if (poisoned) { try { localStorage.removeItem(storageKey); } catch { /* noop */ } }
+        else setLayout(raw);
+      }
+    } catch { /* noop */ }
     try { const rawA = JSON.parse(localStorage.getItem(activeKey) || "null"); if (Array.isArray(rawA)) setActiveIds(rawA); } catch { /* noop */ }
     setMounted(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,7 +120,10 @@ export function DashboardGrid({
   };
 
   const onLayoutChange = (l: Layout[]) => {
-    if (!mounted || isMobileRef.current) return;
+    // 모바일(1열) 렌더 중엔 절대 저장 금지 — RGL이 클램프한 w1·x0 배치가 저장되면
+    //   데스크톱 복귀 후에도 짜부가 영구화된다. isMobileRef(effect 타이밍상 한 렌더 늦음)
+    //   대신 현재 렌더의 값으로 직접 판정 (2026-07-29 사고 원인).
+    if (!mounted || isMobile || cols === 1 || containerWidth < 768) return;
     setLayout((prev) => {
       const map: Record<string, Layout> = Object.fromEntries(prev.map((x) => [x.i, x]));
       for (const it of l) map[it.i] = { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH };
@@ -161,6 +175,10 @@ export function DashboardGrid({
     </div>
   );
 
+  // ⚠️ 측정 컨테이너(ref div)는 아래에서 폴백↔RGL 어느 분기든 항상 같은 노드여야 한다.
+  //   과거엔 분기마다 ref div 가 달라 → 분기 전환 시 ResizeObserver 가 떼어진 옛 노드를
+  //   계속 관찰 → 사이드바 마진 애니메이션 중 좁게 잰 폭(수백px)에 영영 고정 →
+  //   isMobile 오판정으로 데스크톱에서 1열 세로 스택 (2026-07-29 직원 대시보드 짜부 사고).
   if (!mounted || containerWidth === 0) {
     return (
       <div className="dashboard-grid">
@@ -187,6 +205,7 @@ export function DashboardGrid({
       )}
       <div ref={containerRef}>
         <GridLayout
+          key={cols} // cols 1↔12 전환 시 강제 리마운트 — RGL 은 layout prop 이 같으면 cols 변화만으로 내부 클램프 배치를 다시 풀지 않는다 (2026-07-29 짜부 사고)
           width={containerWidth}
           className="layout"
           layout={effective}
