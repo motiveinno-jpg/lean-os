@@ -16,6 +16,16 @@
 /* 부채꼴 펼침 정도 — 숫자로 등록해야 애니메이션으로 0→1 보간된다 */
 @property --sp { syntax: "<number>"; initial-value: 0; inherits: true; }
 
+/* 화면에 들어오면 한 번 재생 — 스크롤 중간에서 얼어붙지 않게 --p 를 애니메이션이 올린다 */
+@keyframes lp5-play-p { from { --p: 0; } to { --p: 1; } }
+.lp5-stage.lp5-play { animation: lp5-play-p 1.9s cubic-bezier(.22,.68,.24,1) both; }
+@media (prefers-reduced-motion: reduce) { .lp5-stage.lp5-play { animation: none; --p: 1; } }
+/* 소개 3줄은 재생이 시작되면 계단식으로 뜬다 */
+.lp5-play .lp5-unify-line { opacity: 1; transform: none; transition: opacity .6s ease, transform .6s ease; }
+.lp5-play .lp5-unify-line:nth-child(1) { transition-delay: .55s; }
+.lp5-play .lp5-unify-line:nth-child(2) { transition-delay: .85s; }
+.lp5-play .lp5-unify-line:nth-child(3) { transition-delay: 1.15s; }
+
 .lp5-root {
   --ink: #0B0B0F;
   --ink2: #4A4A55;
@@ -491,7 +501,21 @@
 .lp5-mob-h em { font-style: normal; color: var(--ink3); }
 .lp5-mob-d { font-size: 15.5px; line-height: 1.75; color: var(--ink2); margin-top: 14px; }
 .lp5-mob-dots { display: flex; gap: 7px; margin-top: 24px; }
-.lp5-mob-dot { width: 26px; height: 3px; border-radius: 99px; background: var(--line); transition: background .3s; }
+.lp5-mob-dot {
+  width: 26px; height: 3px; border-radius: 99px; background: var(--line);
+  border: 0; padding: 0; cursor: pointer; transition: background .3s, width .3s;
+}
+.lp5-mob-dot:hover { background: var(--ink3); }
+/* 이전 화면으로 돌아갈 수 있게 — 자동으로만 넘어가면 지나간 단계를 다시 볼 수 없다 */
+.lp5-mob-nav { display: none; align-items: center; gap: 10px; justify-content: center; margin-top: 16px; }
+.lp5-mob-nav button {
+  width: 38px; height: 38px; border-radius: 99px; border: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(11,11,15,.06); color: var(--ink); transition: background .2s, opacity .2s;
+}
+.lp5-mob-nav button:disabled { opacity: .32; cursor: default; }
+.lp5-mob-nav span { font-size: 12.5px; font-weight: 700; color: var(--ink3); min-width: 42px; text-align: center; }
+@media (max-width: 999px) { .lp5-mob-nav { display: flex; } }
 .lp5-mob-dot-on { background: var(--brand); }
 .lp5-phone {
   /* ⚠️ 340px 고정이라 360px 화면에서 그리드 트랙을 밀어 옆 칸 문구까지 샐지게 했다 */

@@ -258,8 +258,8 @@ function ChipIcon({ n, c }: { n: string; c: string }) {
 function SceneUnify() {
   const narrow = useNarrow();
   return (
-    <Scene len={1.7} beats={HERO_INTRO.length} pinMobile className="lp5-unify">
-      {(beat) => (
+    <Scene len={1.25} playOnView className="lp5-unify">
+      {() => (
         <>
           {/* ⚠️ 궤도는 무대(100vh) 기준이어야 한다. 문구 박스 안에 두면 칩이 제목 위로 겹친다. */}
           <div className="lp5-orbit" aria-hidden>
@@ -277,9 +277,8 @@ function SceneUnify() {
             <div className="lp5-eyebrow">One Place</div>
             <h2 className="lp5-h lp5-h-sm">흩어져 있던 회사 일이<br /><span className="lp5-grad">하나로 모여요</span></h2>
             <div className="lp5-unify-lines">
-              {HERO_INTRO.map((l, i) => (
-                <p key={l} className={`lp5-unify-line ${i <= beat ? "lp5-unify-line-on" : ""}`}>{l}</p>
-              ))}
+              {/* 재생이 시작되면 계단식으로 한 줄씩 뜬다 — beat 대신 CSS 지연으로 처리한다 */}
+              {HERO_INTRO.map((l) => <p key={l} className="lp5-unify-line">{l}</p>)}
             </div>
           </div>
           <div className="lp5-unify-core">
@@ -587,17 +586,38 @@ function SceneCoverage() {
 //   여긴 스크롤이 아니라 시간으로 넘어간다 — 폰 화면은 가만히 두고 봐도 돌아가야 한다.
 function SceneMobile() {
   const [i, setI] = useState(0);
+  // 한 번이라도 손을 대면 자동 넘김을 멈춘다.
+  //   ⚠️ 자동으로만 넘어가면 지나간 단계를 다시 볼 방법이 없다(사장님 지적).
+  //      스와이프·점 클릭으로 앞뒤로 오갈 수 있게 하고, 그때부터는 사용자가 속도를 정한다.
+  const [manual, setManual] = useState(false);
   const n = MOBILE.steps.length;
   useEffect(() => {
+    if (manual) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const t = setInterval(() => setI((v) => (v + 1) % n), 3600);
     return () => clearInterval(t);
-  }, [n]);
+  }, [manual, n]);
+
+  const go = (k: number) => { setManual(true); setI(Math.min(n - 1, Math.max(0, k))); };
+  // 손가락으로 넘기기 — 세로 스크롤은 막지 않는다(가로 이동이 더 클 때만 넘김으로 친다)
+  const touch = useRef<{ x: number; y: number; locked: boolean } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: false };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const t = touch.current; if (!t || t.locked) return;
+    const dx = e.touches[0].clientX - t.x, dy = e.touches[0].clientY - t.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    t.locked = true;
+    go(i + (dx < 0 ? 1 : -1));
+  };
+  const onTouchEnd = () => { touch.current = null; };
+
   const S = MOBILE.steps[i];
   return (
     <Scene id="mobile" len={1.35} className="lp5-mob">
       {() => (
-        <div className="lp5-wrap lp5-mob-grid">
+        <div className="lp5-wrap lp5-mob-grid" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
           <div className="lp5-mob-copy">
             <div className="lp5-eyebrow">{MOBILE.eyebrow}</div>
             <h2 className="lp5-h lp5-h-sm">
@@ -610,9 +630,23 @@ function SceneMobile() {
                 {S.desc.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
               </p>
               <div className="lp5-mob-dots">
-                {MOBILE.steps.map((st, k) => <span key={st.src} className={`lp5-mob-dot ${k === i ? "lp5-mob-dot-on" : ""}`} />)}
+                {MOBILE.steps.map((st, k) => (
+                  <button key={st.src} type="button" onClick={() => go(k)}
+                    className={`lp5-mob-dot ${k === i ? "lp5-mob-dot-on" : ""}`}
+                    aria-label={`${k + 1}번째 화면 보기`} aria-current={k === i} />
+                ))}
               </div>
             </div>
+          </div>
+          {/* 좁은 화면에서는 좌우로 넘기는 걸 알 수 있게 화살표를 같이 둔다 */}
+          <div className="lp5-mob-nav" aria-hidden={false}>
+            <button type="button" onClick={() => go(i - 1)} disabled={i === 0} aria-label="이전 화면">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+            </button>
+            <span>{i + 1} / {n}</span>
+            <button type="button" onClick={() => go(i + 1)} disabled={i >= n - 1} aria-label="다음 화면">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+            </button>
           </div>
           <div className="lp5-phone">
             <div className="lp5-phone-notch" />

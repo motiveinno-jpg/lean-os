@@ -15,7 +15,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  * 트랙(높이 = len × 100vh)이 뷰포트를 지나는 동안 무대는 sticky 로 붙어 있는다.
  * @param beats 1보다 크면 진행률을 등분한 구간 인덱스를 함께 돌려준다(내용 교체용).
  */
-export function useScene(beats = 1) {
+export function useScene(beats = 1, playOnView = false) {
   const trackRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [beat, setBeat] = useState(0);
@@ -23,6 +23,20 @@ export function useScene(beats = 1) {
   useEffect(() => {
     const track = trackRef.current, stage = stageRef.current;
     if (!track || !stage) return;
+
+    // ⚠️ 연출을 스크롤에 묶으면 중간에서 손을 떼는 순간 "칩이 반쯤 사라진 채" 얼어붙는다.
+    //    (사장님: "스크롤하다가 멈추면 이렇게 보인다") 화면에 들어오면 한 번에 재생하고 끝낸다.
+    //    --p 는 CSS 애니메이션이 0→1 로 올리므로 기존 --p 기반 스타일이 그대로 동작한다.
+    if (playOnView) {
+      const io = new IntersectionObserver((es) => {
+        if (!es[0].isIntersecting) return;
+        stage.classList.add("lp5-play");
+        if (beats > 1) setBeat(beats - 1);
+        io.disconnect();
+      }, { threshold: 0.35 });
+      io.observe(stage);
+      return () => io.disconnect();
+    }
 
     // 모션을 줄이고 싶은 사용자에겐 연출을 재생하지 않고 "다 끝난 상태"를 바로 보여준다.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -75,13 +89,13 @@ export function useScene(beats = 1) {
       window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [beats]);
+  }, [beats, playOnView]);
 
   return { trackRef, stageRef, beat };
 }
 
 /** 무대 하나 = 트랙 + sticky 무대. len 이 곧 그 장면의 재생 시간이다. */
-export function Scene({ id, len = 1.6, beats = 1, tone, pinMobile = false, className = "", children }: {
+export function Scene({ id, len = 1.6, beats = 1, tone, pinMobile = false, playOnView = false, className = "", children }: {
   id?: string;
   len?: number;
   beats?: number;
@@ -90,10 +104,12 @@ export function Scene({ id, len = 1.6, beats = 1, tone, pinMobile = false, class
    *  ⚠️ 스크롤로 내용이 넘어가는 장면(하루·통합)은 핀을 풀면 트랙이 내용 높이까지 줄어
    *     한 화면 스크롤에 구간이 전부 지나가 버린다. 웹과 같은 속도로 보이게 핀을 남긴다. */
   pinMobile?: boolean;
+  /** 스크롤이 아니라 "화면에 들어오면 한 번" 재생한다. 중간 상태로 얼어붙지 않는다. */
+  playOnView?: boolean;
   className?: string;
   children: (beat: number) => ReactNode;
 }) {
-  const { trackRef, stageRef, beat } = useScene(beats);
+  const { trackRef, stageRef, beat } = useScene(beats, playOnView);
   return (
     <section
       id={id}
