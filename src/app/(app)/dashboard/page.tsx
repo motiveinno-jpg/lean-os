@@ -2909,6 +2909,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
       await hrCheckIn(companyId, employeeId, attendanceStatus);
       toast("출근 처리 완료", "success");
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
+      queryClient.invalidateQueries({ queryKey: ["my-att-today"] });
     } catch (err: any) {
       toast(`출근 처리 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
     }
@@ -2922,6 +2923,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
       await hrCheckOut(employeeId, companyId);
       toast("퇴근 처리 완료", "success");
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
+      queryClient.invalidateQueries({ queryKey: ["my-att-today"] });
       queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
     } catch (err: any) {
       toast(`퇴근 처리 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
@@ -2936,6 +2938,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
       await hrCancelCheckOut(employeeId, companyId);
       toast("퇴근 취소 완료 — 다시 근무 중입니다", "success");
       queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
+      queryClient.invalidateQueries({ queryKey: ["my-att-today"] });
       queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
     } catch (err: any) {
       toast(`퇴근 취소 실패: ${err.message || ""}`, "error");

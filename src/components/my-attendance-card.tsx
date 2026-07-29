@@ -71,7 +71,12 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
   const isCheckedOut = !!todayAtt?.check_out;
 
   const refresh = () => {
+    // 같은 출퇴근 데이터를 보는 다른 화면들도 함께 갱신 — 위젯에서 출근해도
+    // '오늘 할 일' 카드·근태 화면이 새로고침 없이 바로 반영되게(2026-07-29 사장님).
     qc.invalidateQueries({ queryKey: ["my-att-today"] });
+    qc.invalidateQueries({ queryKey: ["emp-attendance-today"] });
+    qc.invalidateQueries({ queryKey: ["emp-month-summary"] });
+    qc.invalidateQueries({ queryKey: ["attendance-employees"] });
   };
 
   const doCheckIn = async () => {
