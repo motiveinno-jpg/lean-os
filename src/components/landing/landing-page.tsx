@@ -325,8 +325,12 @@ function SceneUnify() {
 
 // ══════════════════ 3. 하루 ══════════════════
 function SceneDay() {
+  // ⚠️ len 은 "시간대 하나 넘기는 데 필요한 스크롤"을 정한다.
+  //    고정 이동거리 = (len - 1) × 100vh, 구간당 = 그 값 ÷ 5.
+  //    2.4 였을 때 구간당 266px = 휠 2.66칸이라 3·3·3·2 로 들쭉날쭉했다(사장님 지적).
+  //    2.0 이면 구간당 190px = 휠 2칸 이내로 균일해진다.
   return (
-    <Scene id="day" len={2.4} beats={DAY.length} pinMobile className="lp5-day">
+    <Scene id="day" len={2.0} beats={DAY.length} pinMobile className="lp5-day">
       {(beat) => {
         const d = DAY[beat];
         return (
