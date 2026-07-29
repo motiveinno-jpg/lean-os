@@ -10,6 +10,9 @@
    ⚠️ 캡처는 이미 각진 사각형이다(패널 라운드를 벗기고 찍었다). 여기서 라운드를 두 번 씌우지 말 것.
    ══════════════════════════════════════════════════════════════ */
 
+/* 문장 하나 = 줄 하나. Sentences 컴포넌트가 마침표에서 끊어 넣는다. */
+.lp5-sent { display: block; }
+
 .lp5-sect-tint { background: linear-gradient(180deg, #F7F8FD 0%, #FFFFFF 100%); }
 .lp5-sec-head-c { text-align: center; }
 .lp5-lead-c { margin-left: auto; margin-right: auto; }
@@ -92,26 +95,33 @@
 }
 .lp5-bt-shot img { width: 100%; height: 100%; object-fit: cover; object-position: left top; display: block; }
 
-/* ══ AI — 엔진 2x2 + 자동화 목록 ══ */
-.lp5-eng-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+/* ══ AI — 엔진 4장 한 줄 + 자동화 목록 ══
+   ⚠️ 2열 두 줄이라 이 구간만 1.52화면이었다(사장님: "AI 몫이에요 부분이 너무 길다").
+      한 줄로 펴면 814px → 약 310px. 카드가 321px 로 좁아지지만, 코어와 같은 방식으로
+      화면을 줄이지 않고 잘라 넣으면 글자 크기는 그대로다(앱의 0.65배). */
+.lp5-eng-grid2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .lp5-engc {
   background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08);
-  border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;
-  padding: clamp(22px, 2vw, 28px) 0 0 clamp(22px, 2vw, 28px);
+  border-radius: 18px; overflow: hidden; display: flex; flex-direction: column;
+  padding: 20px 0 0 20px;
 }
-.lp5-engc-copy { padding-right: clamp(22px, 2vw, 28px); padding-bottom: 18px; }
+.lp5-engc-copy { padding-right: 20px; padding-bottom: 16px; }
 .lp5-engc-num { font-size: 11.5px; font-weight: 800; letter-spacing: .07em; color: var(--brand2); }
 .lp5-engc-name {
-  font-size: clamp(17px, 1.4vw, 21px); font-weight: 800; letter-spacing: -.02em;
+  font-size: clamp(16px, 1.2vw, 18.5px); font-weight: 800; letter-spacing: -.02em;
   margin: 8px 0 0; color: #fff;
 }
-.lp5-engc-desc { font-size: 14px; line-height: 1.7; color: #A9A9B8; margin: 9px 0 0; }
+.lp5-engc-desc { font-size: 13px; line-height: 1.65; color: #A9A9B8; margin: 8px 0 0; }
 .lp5-engc-shot {
-  position: relative; margin-top: auto; overflow: hidden; flex: none; aspect-ratio: 16 / 6.4;
+  position: relative; margin-top: auto; overflow: hidden; flex: none;
+  height: clamp(150px, 12.8vw, 190px);
   border-radius: 12px 0 0 0; background: #fff;
   box-shadow: 0 2px 10px rgba(0,0,0,.4), 0 24px 50px -22px rgba(0,0,0,.8);
 }
-.lp5-engc-shot img { width: 100%; height: 100%; object-fit: cover; object-position: left top; display: block; }
+.lp5-engc-shot img {
+  width: 640px; min-width: 100%; max-width: none; height: 100%;
+  object-fit: cover; object-position: left top; display: block;
+}
 
 .lp5-autos {
   margin-top: 22px; padding: 26px 28px; border-radius: 18px;
@@ -135,8 +145,11 @@
   background: var(--canvas); border: 1px solid var(--line); border-radius: 18px;
   padding: 24px 22px; position: relative; overflow: hidden;
 }
-.lp5-covg-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-.lp5-covg-name { font-size: 16.5px; font-weight: 800; letter-spacing: -.015em; margin-top: 6px; }
+.lp5-covg-name {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 16.5px; font-weight: 800; letter-spacing: -.015em;
+}
+.lp5-covg-dot { width: 7px; height: 7px; border-radius: 99px; flex: none; }
 .lp5-covg-lead { font-size: 13.5px; line-height: 1.65; color: var(--ink3); margin: 8px 0 16px; }
 .lp5-covg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .lp5-covg-list li {
@@ -157,7 +170,9 @@
 }
 .lp5-case-h { font-size: clamp(19px, 1.8vw, 25px); font-weight: 800; letter-spacing: -.025em; margin: 0; }
 .lp5-case-note { font-size: 14.5px; color: var(--ink2); line-height: 1.7; margin: 10px 0 0; }
-.lp5-case-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 24px 0 auto; }
+/* ⚠️ margin-bottom:auto 라 숫자가 카드 위쪽에 몰리고 아래가 크게 비었다.
+   구성원 수를 빼면서 더 두드러져 위아래 auto 로 바꿔 세로 가운데에 둔다. */
+.lp5-case-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: auto 0; }
 .lp5-case-nums b {
   display: block; font-size: clamp(20px, 2vw, 27px); font-weight: 800;
   letter-spacing: -.03em; font-variant-numeric: tabular-nums;
@@ -201,7 +216,8 @@
   box-shadow: 0 1px 2px rgba(11,11,15,.04), 0 30px 70px -46px rgba(11,11,15,.4);
 }
 .lp5-move-phone { display: flex; justify-content: center; }
-.lp5-move .lp5-phone { width: min(300px, 62vw); margin: 0; transform: rotate(-3deg); }
+/* ⚠️ -3deg 로 기울였더니 사장님: "삐뚤게 말고 세로로". 똑바로 세운다. */
+.lp5-move .lp5-phone { width: min(300px, 62vw); margin: 0; transform: none; }
 
 .lp5-move-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .lp5-move-item {
@@ -230,6 +246,8 @@
   transition: background .18s ease, color .18s ease;
 }
 .lp5-nav-ask:hover { background: var(--canvas2); color: var(--ink); }
+
+@media (max-width: 1279px) { .lp5-eng-grid2 { grid-template-columns: repeat(2, 1fr); } }
 
 /* 1024~1279 — 3열은 그대로 두고, 잘라 넣는 폭만 줄인다.
    ⚠️ 여기서 줄을 2단으로 쪼개면 축마다 두 줄이 되어 구간이 오히려 길어진다(실측 2.78화면). */

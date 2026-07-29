@@ -1371,8 +1371,12 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pp-alert { @apply mt-3 px-3.5 py-2.5 rounded-xl text-[11.5px] font-semibold bg-[var(--warning-dim)] text-[var(--warning)]; }
 .pp-mt { @apply mt-4; }
 /* 파이낸스 허브 하위 탭 — 실제 화면(components/finance-tabs.tsx)의 탭 줄 재현 */
-.pp-subtabs { @apply flex items-center gap-1.5 -mt-1 mb-1; }
-.pp-subtab { @apply px-3 py-1.5 rounded-lg text-[11.5px] font-bold text-[var(--text-dim)] bg-[var(--bg-surface)]; }
+/* ⚠️ 390px 에서 탭 7개가 폭에 맞춰 찌그러지며 글자가 한 자씩 세로로 쪼개졌다
+   ("내 결재함" 이 네 줄이 됐다 — 폰 캡처에 그대로 담겼다, 2026-07-29).
+   flex 기본값이 shrink:1 이라 칸이 모자라면 항목을 줄여 버린다. 줄이지 말고 옆으로 넘긴다. */
+.pp-subtabs { @apply flex items-center gap-1.5 -mt-1 mb-1 overflow-x-auto; scrollbar-width: none; }
+.pp-subtabs::-webkit-scrollbar { display: none; }
+.pp-subtab { @apply shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-[11.5px] font-bold text-[var(--text-dim)] bg-[var(--bg-surface)]; }
 .pp-subtab-on { @apply text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
 
 /* 경영 흐름 */

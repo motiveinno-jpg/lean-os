@@ -44,6 +44,21 @@ const Logo = ({ size = 26 }: { size?: number }) => (
   </svg>
 );
 
+/** 문장 단위로 줄을 나눈다.
+ *  ⚠️ 두 문장을 한 덩어리로 흘리면 "…애매한 것만 / 확인해 달라고 해요." 처럼 첫 문장의 끝과
+ *     둘째 문장의 시작이 한 줄에 섞여, 어디서 끊어 읽어야 할지 알 수 없다(사장님 지적).
+ *     마침표에서 줄을 바꾸면 한 줄이 곧 한 문장이 된다.
+ *  ⚠️ 나누는 기준은 "마침표 + 공백" 이다. 그냥 마침표로 자르면 "4.5%" 나 "3.545%" 같은
+ *     소수점까지 문장 끝으로 보고 끊어 버린다(급여 카드에 실제로 들어 있다). */
+function Sentences({ text, className }: { text: string; className?: string }) {
+  const parts = text.split(/\.\s+/).map((s, i, a) => (i < a.length - 1 ? `${s}.` : s)).filter(Boolean);
+  return (
+    <p className={className}>
+      {parts.map((s, i) => <span key={i} className="lp5-sent">{s}</span>)}
+    </p>
+  );
+}
+
 /** 화면 한 장 — 실제 제품 캡처. sizes 를 정확히 줘야 큰 이미지가 과다 다운로드되지 않는다. */
 function Shot({ src, alt, priority = false, sizes = "(max-width: 999px) 92vw, 1120px" }: {
   src: string; alt: string; priority?: boolean; sizes?: string;
@@ -348,7 +363,7 @@ function ScenePains() {
           {/* ⚠️ "대표님들이 실제로 하시는 말이에요" 였다 — 인터뷰 인용이 아니라 우리가 쓴 문장이라
               사실이 아니다(PAINS 주석 참조). 도입 사례를 자사 실측만 실은 것과 같은 기준으로 바꾼다.
               자사가 직접 쓴다는 사실은 아래 도입 사례 구간과도 이어진다. */}
-          <p className="lp5-lead">저희도 똑같이 겪던 일이에요. 오너뷰는 여기서 시작했어요.</p>
+          <Sentences className="lp5-lead" text="저희도 똑같이 겪던 일이에요. 오너뷰는 여기서 시작했어요." />
         </Rise>
         <div className="lp5-pain-grid">
           {PAINS.map((x, i) => (
@@ -357,7 +372,7 @@ function ScenePains() {
               <blockquote className="lp5-pain-q">
                 {x.quote.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
               </blockquote>
-              <p className="lp5-pain-d">{x.detail}</p>
+              <Sentences className="lp5-pain-d" text={x.detail} />
               <div className="lp5-pain-a">{x.solve}</div>
             </Rise>
           ))}
@@ -583,7 +598,7 @@ function SceneAxes() {
                       <div className="lp5-bt-copy">
                         <span className="lp5-bt-kick">{P.kicker} · {b.tab}</span>
                         <h3 className="lp5-bt-title">{b.title}</h3>
-                        <p className="lp5-bt-desc">{b.desc}</p>
+                        <Sentences className="lp5-bt-desc" text={b.desc} />
                       </div>
                       {/* ⚠️ sizes 는 "칸 폭"이 아니라 "화면이 그려지는 폭"으로 준다.
                           잘라 넣기 때문에 칸이 좁아도 이미지는 640px 로 그려진다 —
@@ -621,10 +636,8 @@ function SceneAI() {
           {/* ⚠️ 뒤 문장이 "엔진 4개와 자동화 6가지가 나눠서 맡아요" 였다 — 바로 아래 목록 제목
               ("여기에 자동화 6가지가 더 붙어요")과 같은 숫자를 두 번 말했다. 구성 설명 대신
               "어디까지 AI가 하고 어디부터 사람이 하는지"를 말하게 바꾼다. */}
-          <p className="lp5-lead">
-            사람을 대체하는 게 아니에요. 매번 되풀이되는 일을 AI가 먼저 해두고,
-            판단이 필요한 것만 남겨요.
-          </p>
+          <Sentences className="lp5-lead"
+            text="사람을 대체하는 게 아니에요. 매번 되풀이되는 일을 AI가 먼저 해두고, 판단이 필요한 것만 남겨요." />
         </Rise>
 
         <div className="lp5-eng-grid2 lp5-swipe">
@@ -633,7 +646,7 @@ function SceneAI() {
               <div className="lp5-engc-copy">
                 <span className="lp5-engc-num">{e.num} · {e.eng}</span>
                 <h3 className="lp5-engc-name">{e.name}</h3>
-                <p className="lp5-engc-desc">{e.short}</p>
+                <Sentences className="lp5-engc-desc" text={e.short} />
               </div>
               <div className="lp5-engc-shot">
                 {AI_SHOT[e.name] && (
@@ -647,7 +660,7 @@ function SceneAI() {
         <SwipeHint n={ENGINES.length} />
 
         <Rise className="lp5-autos">
-          <div className="lp5-autos-h">여기에 자동화 {autos.length}가지가 더 붙어요</div>
+          <div className="lp5-autos-h">이 밖에도 AI가 알아서 하는 일 {autos.length}가지</div>
           <ul className="lp5-autos-list">
             {autos.map((a) => (
               <li key={a.name}><b>{a.name}</b><span>{a.tag}</span></li>
@@ -678,16 +691,19 @@ function SceneCoverage() {
               사장님이 원한 건 "이 밖에도 많다"는 이야기였다(그래서 리드가 '이게 다가 아니에요').
               제목도 같은 방향으로 옮기고, 리드는 아래 네 카드를 직접 가리키게 한다. */}
           <h2 className="lp5-h lp5-h-sm">필요한 기능은 <span className="lp5-grad">이미 다 들어 있어요</span></h2>
-          <p className="lp5-lead lp5-lead-c">
-            이게 다가 아니에요. 아래 네 영역에 메뉴 {total}개, 기능 30가지가 있어요. 새로 붙일 도구가 없어요.
-          </p>
+          <Sentences className="lp5-lead lp5-lead-c"
+            text={`이게 다가 아니에요. 아래 네 영역에 메뉴 ${total}개, 기능 30가지가 있어요. 새로 붙일 도구가 없어요.`} />
         </Rise>
         <div className="lp5-cov4 lp5-swipe">
           {CATALOG.map((g, i) => (
             <Rise key={g.key} delay={i * 60} className="lp5-covg">
-              <span className="lp5-covg-bar" style={{ background: GROUP_COLOR[g.group] ?? "#5B4BE8" }} />
-              <div className="lp5-covg-name">{g.group}</div>
-              <p className="lp5-covg-lead">{g.lead}</p>
+              {/* ⚠️ 카드 맨 위에 색 띠를 가로로 깔았었다 — 사장님: "박스 윗줄이 디자인적으로 별로".
+                  구성은 그대로 두고 색만 이름 옆 점으로 옮긴다(코어의 축 라벨과 같은 방식). */}
+              <div className="lp5-covg-name">
+                <span className="lp5-covg-dot" style={{ background: GROUP_COLOR[g.group] ?? "#5B4BE8" }} />
+                {g.group}
+              </div>
+              <Sentences className="lp5-covg-lead" text={g.lead} />
               <ul className="lp5-covg-list">
                 {g.menus.map((m) => <li key={m.name}>{m.name}</li>)}
               </ul>
@@ -718,22 +734,27 @@ function SceneProof() {
         <div className="lp5-proof">
           <Rise className="lp5-case">
             <div className="lp5-eyebrow">In Use</div>
-            <h3 className="lp5-case-h">만든 회사가 매일 씁니다</h3>
-            <p className="lp5-case-note">{c.note}</p>
+            {/* ⚠️ "만든 회사가 매일 씁니다" 였다 — 페이지에서 유일하게 남은 격식체라 톤이 튀었고,
+                사장님이 직접 "만든 회사도 직접 쓰고 있어요" 로 제안. 해요체 규칙과도 맞는다. */}
+            <h3 className="lp5-case-h">만든 회사도 직접 쓰고 있어요</h3>
+            <Sentences className="lp5-case-note" text={c.note} />
             <div className="lp5-case-nums">
               {c.metrics.map((m) => (
                 <div key={m.label}><b>{m.value}</b><span>{m.label}</span></div>
               ))}
             </div>
-            <span className="lp5-case-foot">{c.masked} · {c.industry} · {c.size} · {c.plan}<br />{CASES_NOTE}</span>
+            <span className="lp5-case-foot">{c.masked} · {c.industry} · {c.plan}<br />{CASES_NOTE}</span>
           </Rise>
 
           <Rise delay={90} className="lp5-price">
             <div className="lp5-eyebrow">Pricing</div>
-            {/* ⚠️ "인원이 늘어도 그대로예요" 였다 — 사실이 아니다. 실제 과금은 기본 5명 포함,
-                6명째부터 1인당 ₩10,000/월이 붙는다(PLANS.period). 가격은 계약과 직결되므로
-                랜딩에서 유리하게 뭉뚱그리면 안 된다 — 포함 인원을 제목에 못박고 추가분은 밑에 적는다. */}
-            <h3 className="lp5-case-h">5명까지는 이 가격 그대로예요</h3>
+            {/* ⚠️ 처음엔 "인원이 늘어도 그대로예요" 였는데 사실이 아니라(기본 5명 포함, 6명째부터
+                1인당 ₩10,000/월) "5명까지는 이 가격 그대로예요" 로 고쳤었다. 그랬더니 이번엔
+                사장님: "5명이 강조되면 가입률이 떨어진다. 팩트는 좋지만 가입을 망설이게 하는 건
+                여기서 굳이 앞세우지 말고, 회사 규모·일하는 방식에 맞춰 고른다는 느낌으로."
+                → 거짓말은 하지 않되 인원 조건을 제목에서 내리고, 정확한 조건은 요금제로 보낸다.
+                  (지금 문구는 "그대로" 같은 약속을 하지 않으므로 조건을 숨겨도 오해가 안 생긴다) */}
+            <h3 className="lp5-case-h">회사 규모와 일하는 방식에 맞게</h3>
             <div className="lp5-price-rows">
               {shown.map((p) => (
                 <div key={p.name} className={`lp5-price-row ${p.hl ? "lp5-price-hl" : ""}`}>
@@ -748,7 +769,7 @@ function SceneProof() {
                 </div>
               ))}
             </div>
-            <span className="lp5-price-note">기본 5명 포함 · 추가 1명 ₩10,000/월 · VAT 별도</span>
+            <span className="lp5-price-note">VAT 별도 · 인원과 발행 건수 조건은 요금제에서 확인하세요.</span>
             <Link href="/pricing" className="lp5-btn lp5-btn-ghost">요금제 비교하기 <Arrow /></Link>
           </Rise>
         </div>
@@ -801,7 +822,7 @@ function SceneMobile() {
           <h2 className="lp5-h lp5-h-sm">
             {MOBILE.title.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
           </h2>
-          <p className="lp5-lead lp5-lead-c">{MOBILE.sub}</p>
+          <Sentences className="lp5-lead lp5-lead-c" text={MOBILE.sub} />
         </Rise>
 
         <Rise className="lp5-move" delay={80}>
