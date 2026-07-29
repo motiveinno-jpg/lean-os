@@ -1422,8 +1422,8 @@ function NumberCell({ value, onChange }: { value: any; onChange: (v: any) => voi
 function AddColumnButton({ onAdd }: { onAdd: (type: string) => void }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const TYPES: { t: string; label: string }[] = [
-    { t: "status", label: "🟢 상태" }, { t: "text", label: "🔤 텍스트" }, { t: "person", label: "👤 담당자" },
-    { t: "date", label: "📅 날짜" }, { t: "number", label: "🔢 숫자" },
+    { t: "status", label: "상태" }, { t: "text", label: "텍스트" }, { t: "person", label: "담당자" },
+    { t: "date", label: "날짜" }, { t: "number", label: "숫자" },
   ];
   return (
     <div className="add-column-btn">

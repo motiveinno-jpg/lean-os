@@ -1,5 +1,7 @@
 "use client";
 
+import { Ico } from "@/components/ui-icon";
+
 /**
  * QueryStatus — useQuery 에러/로딩 상태 표시 컴포넌트
  * 각 페이지 상단에 배치하여 네트워크 에러/로딩 상태를 표시
@@ -47,7 +49,7 @@ export function EmptyState({ icon, title, description, action }: {
 }) {
   return (
     <div className="empty-state-block glass-card">
-      <div className="text-4xl mb-3">{icon}</div>
+      <div className="text-4xl mb-3"><Ico e={icon} size={34} /></div>
       <div className="text-base font-bold mb-1">{title}</div>
       {description && <div className="text-xs text-[var(--text-muted)] mb-4">{description}</div>}
       {action && (

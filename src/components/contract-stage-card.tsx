@@ -406,7 +406,7 @@ export function ContractStageCard({
           >
             {templates.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.is_system ? "🔒 [시스템] " : "✏️ [자체] "}{t.name}
+                {t.is_system ? "[시스템] " : "✏️ [자체] "}{t.name}
               </option>
             ))}
           </select>
@@ -492,7 +492,7 @@ export function ContractStageCard({
               disabled={sending || !selectedTemplate}
               className="btn-primary btn-sm whitespace-nowrap"
             >
-              {sending ? "발송 중…" : "📤 거래처에 계약서 발송"}
+              {sending ? "발송 중…" : "거래처에 계약서 발송"}
             </button>
           </div>
           {missingVars.length > 0 && (
@@ -522,7 +522,7 @@ export function ContractStageCard({
               disabled={sending}
               className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold disabled:opacity-50 transition whitespace-nowrap"
             >
-              {sending ? "재발송 중…" : "🔁 재발송"}
+              {sending ? "재발송 중…" : "재발송"}
             </button>
           </div>
         </div>
@@ -659,8 +659,8 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
   const { open: openDocViewer } = useDocumentViewer();
   const method = approval.signature_method || "none";
   const methodLabel = method === "draw" ? "✍️ 손글씨 서명"
-                     : method === "type" ? "🖊 타이핑 서명"
-                     : method === "upload" || method === "seal" ? "🟥 도장/사인"
+                     : method === "type" ? "타이핑 서명"
+                     : method === "upload" || method === "seal" ? "도장/사인"
                      : "서명 없음";
   const signedAt = approval.signed_at_external
     ? new Date(approval.signed_at_external).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })

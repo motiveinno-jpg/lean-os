@@ -1274,7 +1274,7 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
     doc.setTextColor(37, 99, 235);
     const lineHeight = 6;
     params.attachments.forEach((att, i) => {
-      const label = `📎 ${att.name}`;
+      const label = `${att.name}`;
       doc.textWithLink(label, 14, y + i * lineHeight, { url: att.url });
     });
     y += params.attachments.length * lineHeight + 4;

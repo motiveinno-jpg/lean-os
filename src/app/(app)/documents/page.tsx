@@ -687,7 +687,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           <button onClick={() => sendToPartnerMut.mutate()} disabled={sendToPartnerMut.isPending}
             className="btn-primary"
             title="견적서 거래처에게 서명 링크를 바로 이메일로 발송합니다">
-            {sendToPartnerMut.isPending ? "발송 중..." : "📤 거래처에게 발송"}
+            {sendToPartnerMut.isPending ? "발송 중..." : "거래처에게 발송"}
           </button>
           <button onClick={() => setShowSignRequestForm(!showSignRequestForm)}
             className="btn-secondary"
@@ -1402,7 +1402,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 <button onClick={() => saveAndInvoiceMut.mutate()} disabled={saveAndInvoiceMut.isPending}
                   className="btn-secondary whitespace-nowrap"
                   title="견적서를 저장하고, 품목 합계로 매출 세금계산서(초안)를 자동 생성합니다">
-                  {saveAndInvoiceMut.isPending ? "처리 중..." : "💾 저장/전표"}
+                  {saveAndInvoiceMut.isPending ? "처리 중..." : "저장/전표"}
                 </button>
               )}
             </div>

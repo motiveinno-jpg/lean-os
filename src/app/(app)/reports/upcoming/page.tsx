@@ -1,5 +1,6 @@
 "use client";
 import { todayKst } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 예정 지출 — "앞으로 낼 돈은?"에 답하는 대표용 화면(2026-07-08).
@@ -113,7 +114,7 @@ export default function UpcomingPage() {
                 {items.map((it, i) => (
                   <Link key={i} href={it.href || "#"} className="upcoming-item-row"
                     style={{ background: it.danger ? "color-mix(in srgb, var(--danger) 8%, transparent)" : "var(--bg-surface)", border: `1px solid ${it.danger ? "color-mix(in srgb, var(--danger) 25%, transparent)" : "var(--border)"}` }}>
-                    <span className={`text-sm ${it.danger ? "font-semibold text-[var(--danger)]" : "text-[var(--text)]"}`}>{it.icon} {it.title} <span className="text-[var(--text-dim)] text-xs font-normal ml-1">{it.note}</span></span>
+                    <span className={`text-sm ${it.danger ? "font-semibold text-[var(--danger)]" : "text-[var(--text)]"}`}><Ico e={it.icon} /> {it.title} <span className="text-[var(--text-dim)] text-xs font-normal ml-1">{it.note}</span></span>
                     <span className="mono-number font-bold shrink-0" style={{ color: it.danger ? "var(--danger)" : "var(--text)" }}>{fmt(it.amount)}</span>
                   </Link>
                 ))}

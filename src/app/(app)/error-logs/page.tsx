@@ -191,7 +191,7 @@ export default function ErrorLogsPage() {
               disabled={isFetching}
               className="btn-secondary !text-xs"
             >
-              {isFetching ? "갱신 중..." : "🔄 새로고침"}
+              {isFetching ? "갱신 중..." : "새로고침"}
             </button>
             <button
               onClick={async () => { const { ok } = await confirm({ title: "해결됨 비우기", desc: "해결 처리된 로그를 모두 삭제할까요?", danger: true }); if (ok) clearResolved.mutate(); }}

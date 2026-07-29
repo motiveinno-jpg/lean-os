@@ -91,7 +91,7 @@ export function ProgressReportStageCard({
     return () => { cancelled = true; };
   }, [approval?.id, dealId]);
 
-  // v6 사장님 요청: 자동 디바운스 저장 제거 — 명시 "💾 저장하기" 누를 때만 quote_approvals 행 생성.
+  // v6 사장님 요청: 자동 디바운스 저장 제거 — 명시 "저장하기" 누를 때만 quote_approvals 행 생성.
   //   기존 deals.custom_scope.progress_report 단일 객체 패턴은 누적 스택 모델로 폐기.
 
   const [mode, setMode] = useState<"edit" | "preview">(approval ? "preview" : "edit");
@@ -138,7 +138,7 @@ export function ProgressReportStageCard({
     return Math.min(100, top + 10);
   }, [stack]);
 
-  // "💾 저장하기" — quote_approvals draft 새 행 INSERT (sendApproval 안 함)
+  // "저장하기" — quote_approvals draft 새 행 INSERT (sendApproval 안 함)
   async function saveDraft() {
     if (readonly || savingDraft) return;
     if (!reportText.trim()) {
@@ -418,7 +418,7 @@ export function ProgressReportStageCard({
               disabled={savingDraft || !canSend}
               className="flex-1 min-w-[120px] px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold disabled:opacity-50 transition"
             >
-              {savingDraft ? "저장 중…" : "💾 저장하기"}
+              {savingDraft ? "저장 중…" : "저장하기"}
             </button>
             {showSend && (
               <button
@@ -427,7 +427,7 @@ export function ProgressReportStageCard({
                 disabled={sending || !canSend || !recipientEmail.trim()}
                 className="flex-1 min-w-[160px] px-3 py-2 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[11px] font-bold disabled:opacity-50 transition"
               >
-                {sending ? "발송 중…" : "📤 거래처에 발송"}
+                {sending ? "발송 중…" : "거래처에 발송"}
               </button>
             )}
           </div>
@@ -509,7 +509,7 @@ export function ProgressReportStageCard({
               disabled={sending}
               className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold disabled:opacity-50 transition whitespace-nowrap"
             >
-              {sending ? "재발송 중…" : "🔁 재발송"}
+              {sending ? "재발송 중…" : "재발송"}
             </button>
           </div>
         </div>

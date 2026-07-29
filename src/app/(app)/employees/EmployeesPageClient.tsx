@@ -226,7 +226,7 @@ export default function EmployeesPage() {
       {effectiveTab === "employees" && (
         <>
           <div className="employee-view-toggle seg-bar">
-            {([["dir", "👥 디렉토리"], ["manage", "⚙️ 관리 · 추가/수정"]] as const).map(([k, l]) => (
+            {([["dir", "디렉토리"], ["manage", "⚙️ 관리 · 추가/수정"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setEmpView(k)}
                 className={`seg-item ${empView === k ? "seg-item-active" : ""}`}>
                 {l}
@@ -2496,10 +2496,10 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
               {editMode ? (
                 <>
                   <button onClick={loadAllowances} disabled={loadingAllowances} className="px-3 py-2 bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/30 hover:bg-[var(--info)]/20 rounded-xl text-xs font-semibold transition disabled:opacity-50" title="해당 월 근태 산정 수당(야간·연장·당직 등)을 불러와 채웁니다">
-                    {loadingAllowances ? "불러오는 중..." : "📥 수당 불러오기"}
+                    {loadingAllowances ? "불러오는 중..." : "수당 불러오기"}
                   </button>
                   <button onClick={saveEdits} disabled={savingEdit} className="px-3 py-2 bg-[var(--warning)] hover:brightness-110 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
-                    {savingEdit ? "저장 중..." : "💾 편집 저장"}
+                    {savingEdit ? "저장 중..." : "편집 저장"}
                   </button>
                   <button onClick={() => { setEditMode(false); generate(); }} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
                     취소

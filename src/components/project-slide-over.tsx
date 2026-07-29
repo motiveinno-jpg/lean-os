@@ -637,7 +637,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
           className="auto-badge-banner"
           style={{ color: badge.color, backgroundColor: badge.bg, borderColor: badge.bg }}
         >
-          <span>{badge.emoji}</span>
+          <span><Ico e={badge.emoji} /></span>
           <span className="font-semibold">{badge.label}</span>
           {badge.reason && (
             <span className="text-[11px] opacity-80 ml-auto">{badge.reason}</span>
@@ -790,7 +790,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
                 <div className="flex items-center gap-2">
                   <span className="text-[var(--text-dim)] w-16">우선순위</span>
                   <span className={meta.priority.color}>
-                    {meta.priority.emoji} {meta.priority.label}
+                    <Ico e={meta.priority.emoji} /> {meta.priority.label}
                   </span>
                 </div>
               )}
@@ -798,7 +798,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
                 <div className="flex items-center gap-2">
                   <span className="text-[var(--text-dim)] w-16">위험도</span>
                   <span className={meta.risk.color}>
-                    {meta.risk.emoji} {meta.risk.label}
+                    <Ico e={meta.risk.emoji} /> {meta.risk.label}
                   </span>
                 </div>
               )}
@@ -1890,7 +1890,7 @@ function DeleteProjectModal({
             disabled={!canDelete || del.isPending}
             className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {del.isPending ? "삭제 중…" : "🗑 삭제"}
+            {del.isPending ? "삭제 중…" : "삭제"}
           </button>
         </div>
       </div>

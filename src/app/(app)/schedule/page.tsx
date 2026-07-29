@@ -49,7 +49,7 @@ export default function SchedulePage() {
       {/* Tabs — 라운드6.5: 타이틀 제거, 필형 탭만 스티키 툴바로 */}
       <div className="schedule-tabbar page-sticky-header">
         <div className="seg-bar">
-          {([["calendar", "📅 캘린더"], ["todo", "✓ 할 일"]] as [Tab, string][]).map(([k, label]) => (
+          {([["calendar", "캘린더"], ["todo", "✓ 할 일"]] as [Tab, string][]).map(([k, label]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
@@ -205,9 +205,9 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
           <div className="seg-bar">
             {/* v4 S1: 3 모드 — 전체공유 / 개인 / 통합(both) */}
             {([
-              ["shared", "🏢 전체공유"],
-              ["personal", "🙋 개인"],
-              ["both", "🪟 통합"],
+              ["shared", "전체공유"],
+              ["personal", "개인"],
+              ["both", "통합"],
             ] as [ScheduleScope, string][]).map(([k, label]) => (
               <button
                 key={k}
@@ -235,10 +235,10 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       {/* 현재 보기 안내 */}
       <p className="caption">
         {scope === "shared"
-          ? "🏢 전체공유 일정 — 회사 모든 구성원에게 보입니다."
+          ? "전체공유 일정 — 회사 모든 구성원에게 보입니다."
           : scope === "personal"
-            ? "🙋 개인 일정 — 본인에게만 보입니다 (다른 직원에게 노출되지 않음)."
-            : "🪟 통합 보기 — 🏢 전체공유와 🙋 본인 개인 일정을 함께 표시합니다 (이벤트 좌측 아이콘으로 구분)."}
+            ? "개인 일정 — 본인에게만 보입니다 (다른 직원에게 노출되지 않음)."
+            : "통합 보기 — 🏢 전체공유와 🙋 본인 개인 일정을 함께 표시합니다 (이벤트 좌측 아이콘으로 구분)."}
       </p>
 
       {/* Calendar Grid */}
@@ -741,7 +741,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
                       <span className={`px-1.5 py-0.5 rounded font-semibold ${pri.color} bg-[var(--bg-surface)]`}>{pri.label}</span>
                       {t.due_date && (
                         <span className={overdue ? "text-red-400 font-semibold" : "text-[var(--text-dim)]"}>
-                          {overdue ? "⚠ " : "📅 "}{t.due_date}
+                          {overdue ? "⚠ " : ""}{t.due_date}
                         </span>
                       )}
                     </div>

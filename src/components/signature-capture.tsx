@@ -136,7 +136,7 @@ export function SignatureCapture({ onChange }: Props) {
       <div className="signature-mode-tabs">
         {[
           { v: "draw" as const, label: "✍️ 손글씨" },
-          { v: "upload" as const, label: "🟥 도장 업로드" },
+          { v: "upload" as const, label: "도장 업로드" },
         ].map((opt) => (
           <button
             key={opt.v}

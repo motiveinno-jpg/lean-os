@@ -935,7 +935,7 @@ export default function ProjectHubDetailPage() {
         {projectType === "margin" ? (
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
         ) : (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]">{typeCfg.icon} {typeCfg.label}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"><Ico e={typeCfg.icon} /> {typeCfg.label}</span>
         )}
         {editingName ? (
           <input
@@ -1072,7 +1072,7 @@ export default function ProjectHubDetailPage() {
       {pipelineDir && (
         <div className="pipeline-direction-header glass-card">
           <div className="pipeline-direction-toolbar">
-            <h3 className="text-sm font-bold text-[var(--text)]">{pipelineDir === "sales" ? "📤 수주(매출) 파이프라인" : "📥 발주(매입) 파이프라인"}</h3>
+            <h3 className="text-sm font-bold text-[var(--text)]">{pipelineDir === "sales" ? "수주(매출) 파이프라인" : "발주(매입) 파이프라인"}</h3>
             <span className="text-[11px] text-[var(--text-dim)]">{pipelineDir === "sales" ? "고객 견적 발송 → 승인 → 계약 생성 → 서명 → 정산" : "협력사 견적 등록 → 발주 계약 → 서명 → 검수 → 정산"}</span>
           </div>
           <div className="pipeline-steps">
@@ -1112,7 +1112,7 @@ export default function ProjectHubDetailPage() {
               <button onClick={() => setShowColSettings((v) => !v)}
                 className="btn-secondary text-xs"><Ico e="⚙" /> 열 설정</button>
               <button onClick={pipelineDir === "purchase" ? createInboundQuote : createQuoteInstant} disabled={creatingQuote}
-                className="btn-primary text-xs hover:opacity-90">{creatingQuote ? "생성 중..." : pipelineDir === "purchase" ? "📥 협력사 견적 등록" : "+ 견적서 작성"}</button>
+                className="btn-primary text-xs hover:opacity-90">{creatingQuote ? "생성 중..." : pipelineDir === "purchase" ? "협력사 견적 등록" : "+ 견적서 작성"}</button>
               {showColSettings && (
                 <>
                   <div className="fixed inset-0 z-[60]" onClick={() => setShowColSettings(false)} />
@@ -1172,7 +1172,7 @@ export default function ProjectHubDetailPage() {
                               disabled={creatingContractFrom === doc.id}
                               className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap"
                               title="이 견적서 내용으로 계약서를 생성합니다">
-                              {creatingContractFrom === doc.id ? "생성 중…" : "📄 계약 생성"}
+                              {creatingContractFrom === doc.id ? "생성 중…" : "계약 생성"}
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); router.push(`/documents?id=${doc.id}`); }}
                               className="text-[11px] px-2 py-1 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition" title="견적서 수정">수정</button>
@@ -1238,7 +1238,7 @@ export default function ProjectHubDetailPage() {
                     <button onClick={() => openInvoiceModal(doc)} disabled={issuingInvoiceFrom === doc.id}
                       className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap shrink-0"
                       title="이 계약금액으로 매출 세금계산서를 발행합니다(전액 또는 선금/잔금 분할)">
-                      {issuingInvoiceFrom === doc.id ? "발행 중…" : "🧾 계산서 발행"}
+                      {issuingInvoiceFrom === doc.id ? "발행 중…" : "계산서 발행"}
                     </button>
                   )}
                   <Link href={`/documents?id=${doc.id}&print=1`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline shrink-0">인쇄</Link>

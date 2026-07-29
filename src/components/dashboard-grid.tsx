@@ -137,7 +137,7 @@ export function DashboardGrid({
       </div>
       <div className="flex items-center gap-1.5 shrink-0 relative">
         {edit && <button onClick={() => setPicking((v) => !v)} className="btn-secondary btn-sm no-drag">{picking ? "닫기" : `＋ 위젯 추가${addable.length ? ` (${addable.length})` : ""}`}</button>}
-        {edit && <button onClick={copyLayout} className="btn-secondary btn-sm no-drag">{copied ? "복사됨!" : "📋 배치 복사"}</button>}
+        {edit && <button onClick={copyLayout} className="btn-secondary btn-sm no-drag">{copied ? "복사됨!" : "배치 복사"}</button>}
         {edit && <button onClick={reset} className="btn-secondary btn-sm no-drag">기본값</button>}
         <button onClick={() => { setEdit((v) => !v); setPicking(false); }} className={`btn-sm no-drag ${edit ? "btn-primary" : "btn-secondary"}`}>{edit ? "✓ 편집 완료" : "⠿ 위젯 편집"}</button>
         {edit && picking && (
@@ -180,7 +180,7 @@ export function DashboardGrid({
           <span className="text-[var(--text-dim)]"><Ico e="💡" /> 지금 유용한 위젯:</span>
           {recAddable.map((c) => (
             <button key={c.id} onClick={() => addWidget(c.id)} className="no-drag inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition">
-              {c.icon} {c.name} 추가 ＋
+              <Ico e={c.icon ?? ""} /> {c.name} 추가 ＋
             </button>
           ))}
         </div>

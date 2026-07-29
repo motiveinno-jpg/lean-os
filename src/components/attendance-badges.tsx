@@ -115,7 +115,7 @@ export function AttendanceBadges({
           className={`attendance-badge-type ${pad}`}
           title={`근무 형태: ${typeMeta.label}`}
         >
-          {typeMeta.emoji} {typeMeta.label}
+          <Ico e={typeMeta.emoji} /> {typeMeta.label}
         </span>
       )}
     </>

@@ -1911,7 +1911,7 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
             <div className="text-sm text-[var(--success)] font-semibold mb-2">마감 완료</div>
             <button onClick={() => lockMut.mutate()} disabled={lockMut.isPending}
               className="px-3 py-1.5 text-[10px] bg-[var(--warning)]/10 text-[var(--warning)] rounded-lg hover:bg-[var(--warning)]/20 transition disabled:opacity-50">
-              {lockMut.isPending ? '잠금 중...' : '🔒 마감 잠금'}
+              {lockMut.isPending ? '잠금 중...' : '마감 잠금'}
             </button>
           </div>
         ) : (
@@ -1951,7 +1951,7 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
                 disabled={autoVerifyMut.isPending}
                 className="flex-1 py-2 bg-[var(--bg-surface)] text-[var(--text)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-elevated)] transition disabled:opacity-50"
               >
-                {autoVerifyMut.isPending ? '검증 중...' : '🔍 자동 검증'}
+                {autoVerifyMut.isPending ? '검증 중...' : '자동 검증'}
               </button>
               <button
                 onClick={() => autoCloseMut.mutate()}
@@ -3383,7 +3383,7 @@ function PartnerDashboard({ companyId, userId }: {
             className="glass-card p-5 md:p-6 hover:border-[var(--primary)] active:scale-[0.98] transition group flex items-center gap-4 md:flex-col md:items-start md:gap-0 touch-card"
           >
             <div className="text-3xl md:mb-3 shrink-0 relative">
-              {card.icon}
+              <Ico e={card.icon} />
               {card.count > 0 && (
                 <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">
                   {card.count > 99 ? "99+" : card.count}

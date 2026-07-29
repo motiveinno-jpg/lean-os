@@ -69,7 +69,7 @@ export function MenuGuideDrawer() {
         {/* 헤더 */}
         <div className="guide-head">
           <div className="flex items-start gap-2.5 min-w-0">
-            <span className="text-2xl leading-none mt-0.5">{guide?.icon ?? "❓"}</span>
+            <span className="text-2xl leading-none mt-0.5"><Ico e={guide?.icon ?? ""} size={26} /></span>
             <div className="min-w-0">
               <div className="text-[10px] font-bold tracking-wide text-[var(--primary)] uppercase">메뉴 가이드</div>
               <div className="text-[17px] font-extrabold text-[var(--text)] leading-6 truncate">{guide?.title ?? "도움말"}</div>

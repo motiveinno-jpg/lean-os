@@ -113,9 +113,9 @@ export function ProjectScheduleTab({ dealId }: { dealId: string }) {
       {/* 뷰 토글 */}
       <div className="schedule-view-toggle">
         {([
-          { k: "checklist", l: "📋 체크리스트" },
-          { k: "gantt", l: "📊 간트" },
-          { k: "calendar", l: "📅 캘린더" },
+          { k: "checklist", l: "체크리스트" },
+          { k: "gantt", l: "간트" },
+          { k: "calendar", l: "캘린더" },
         ] as { k: View; l: string }[]).map((v) => (
           <button
             key={v.k}

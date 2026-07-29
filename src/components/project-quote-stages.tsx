@@ -446,7 +446,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
           )}
           {!readonly && mode === "edit" && (
             <button onClick={save} disabled={saving} className="quote-stages-save-btn">
-              {saving ? "저장 중…" : "💾 저장"}
+              {saving ? "저장 중…" : "저장"}
             </button>
           )}
         </div>
@@ -856,7 +856,7 @@ function SendBar({
           disabled={sending || itemsCount === 0}
           className="px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[11px] font-bold disabled:opacity-50 transition whitespace-nowrap"
         >
-          {sending ? "발송 중…" : `📤 거래처에 ${stageLabel} 발송`}
+          {sending ? "발송 중…" : `거래처에 ${stageLabel} 발송`}
         </button>
       </div>
       {itemsCount === 0 && (
@@ -915,7 +915,7 @@ function ResendBar({
           disabled={sending}
           className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold disabled:opacity-50 transition whitespace-nowrap"
         >
-          {sending ? "재발송 중…" : "🔁 재발송"}
+          {sending ? "재발송 중…" : "재발송"}
         </button>
       </div>
     </div>

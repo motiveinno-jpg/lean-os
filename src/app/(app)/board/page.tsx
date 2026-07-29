@@ -650,10 +650,10 @@ export default function BoardPage() {
           {(
             [
               ["all", `전체 ${posts.length}`],
-              ["pinned", "📌 고정"],
-              ["event", "📅 일정"],
-              ["poll", "🗳️ 투표"],
-              ["file", "📎 첨부"],
+              ["pinned", "고정"],
+              ["event", "일정"],
+              ["poll", "투표"],
+              ["file", "첨부"],
               ["mine", "내 글"],
             ] as const
           ).map(([k, label]) => (
@@ -1094,7 +1094,7 @@ export default function BoardPage() {
                           onClick={() => togglePin.mutate(p)}
                           className="text-xs px-3 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] transition"
                         >
-                          {p.pinned ? "고정 해제" : "📌 상단 고정"}
+                          {p.pinned ? "고정 해제" : "상단 고정"}
                         </button>
                       )}
                       {(isMine || canPin) && (

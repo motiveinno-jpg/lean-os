@@ -592,7 +592,7 @@ export default function ProjectHubPage() {
         <div>
           {lens && (
             <button onClick={() => setLens(null)} className="ph-filter-pill">
-              {lens === "risk" ? "🔴 위험·지연" : lens === "due" ? "⏰ 이번 주 마감" : lens === "progress" ? "🔵 진행중" : lens === "goalBehind" ? "🎯 달성 저조" : lens === "delayed" ? "💤 지연 과제" : "💸 미수금"}{" "}
+              {lens === "risk" ? "위험·지연" : lens === "due" ? "⏰ 이번 주 마감" : lens === "progress" ? "진행중" : lens === "goalBehind" ? "달성 저조" : lens === "delayed" ? "지연 과제" : "미수금"}{" "}
               {lens === "receivable" ? `${lensCounts.receivableCount}건만` : `${rows.length}건만`} 보는 중 · 해제 ✕
             </button>
           )}
@@ -634,7 +634,7 @@ export default function ProjectHubPage() {
               <div key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
                 className={`project-card glass-card ${risk ? "!border-[var(--danger)]/40" : ""}`}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap">{tc.icon} {tc.label}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap"><Ico e={tc.icon} /> {tc.label}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
                 </div>
                 <div className="text-sm font-bold text-[var(--text)] leading-snug">
@@ -816,7 +816,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="project-form-modal-header">
           <div className="text-sm font-bold text-[var(--text)]">
-            {isEdit ? "프로젝트 수정" : step === 1 ? "+ 프로젝트 생성 · 유형 선택" : `+ ${cfg.icon} ${cfg.label} 프로젝트`}
+            {isEdit ? "프로젝트 수정" : step === 1 ? "+ 프로젝트 생성 · 유형 선택" : `+ ${cfg.label} 프로젝트`}
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
@@ -856,7 +856,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               {!isEdit && (
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-[var(--text-dim)]">유형:</span>
-                  <span className="font-semibold text-[var(--text)]">{cfg.icon} {cfg.label}</span>
+                  <span className="font-semibold text-[var(--text)]"><Ico e={cfg.icon} /> {cfg.label}</span>
                   <button onClick={() => setStep(1)} className="text-[var(--primary)] hover:underline">변경</button>
                 </div>
               )}

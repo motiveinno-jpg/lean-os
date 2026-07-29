@@ -405,12 +405,12 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 //   - code 별 다음 액션 버튼: 인증서 재등록 / 카드 비밀번호 재등록 / 다시 시도
 function codefAction(code?: string): { label: string; tab?: string; retry?: boolean } | null {
   if (!code) return { label: "다시 시도", retry: true };
-  if (code === "CF-00401") return { label: "🔑 인증서 다시 등록", tab: "certificate" };
-  if (code === "CF-12838" || code === "CF-12839") return { label: "🔁 ConnectedID 재등록", tab: "bank" };
+  if (code === "CF-00401") return { label: "인증서 다시 등록", tab: "certificate" };
+  if (code === "CF-12838" || code === "CF-12839") return { label: "ConnectedID 재등록", tab: "bank" };
   if (code === "CF-13021") return { label: "다시 시도", retry: true }; // 외부(은행) 처리 필요 — UI에서 할 일 없음
-  if (code === "NO_DEMAND_DEPOSIT") return { label: "🔁 다시 시도", retry: true };
-  if (code === "CHUNK_FAIL") return { label: "🔁 다시 시도", retry: true };
-  return { label: "🔁 다시 시도", retry: true };
+  if (code === "NO_DEMAND_DEPOSIT") return { label: "다시 시도", retry: true };
+  if (code === "CHUNK_FAIL") return { label: "다시 시도", retry: true };
+  return { label: "다시 시도", retry: true };
 }
 
 function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () => void; retrying: boolean }) {

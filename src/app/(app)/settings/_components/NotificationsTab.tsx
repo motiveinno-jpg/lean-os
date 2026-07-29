@@ -224,7 +224,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
 
       {/* Email Channel */}
       <ChannelSection
-        title="📧 이메일"
+        title="이메일"
         desc="가장 중요한 알림 — 결재/세금계산서/주간 리포트에 권장"
         enabled={prefs.email.enabled}
         onToggle={(v) => setPrefs((p) => ({ ...p, email: { ...p.email, enabled: v } }))}
@@ -251,7 +251,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
 
       {/* Push Channel */}
       <ChannelSection
-        title="🔔 브라우저 푸시"
+        title="브라우저 푸시"
         desc="실시간 데스크톱 알림 — 채팅 멘션/긴급 알림에 적합"
         enabled={prefs.push.enabled}
         onToggle={(v) => (v ? enablePush() : disablePush())}

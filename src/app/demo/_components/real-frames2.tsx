@@ -36,9 +36,9 @@ const D = "—";
 export function ProjectHubPanel({ before = false }: { before?: boolean }) {
   const v = (x: string) => (before ? D : x);
   const rows = [
-    { t: "💰 수익형", st: "진행", n: "하늘건설 사옥 리뉴얼", c: "🏢 (주)하늘건설" },
-    { t: "🎯 목표형", st: "진행", n: "26년 상반기 매출 목표", c: "🏢 사내" },
-    { t: "✅ 실행형", st: "검토", n: "오너뷰 개발 프로젝트", c: "🏢 사내" },
+    { t: "수익형", st: "진행", n: "하늘건설 사옥 리뉴얼", c: "(주)하늘건설" },
+    { t: "목표형", st: "진행", n: "26년 상반기 매출 목표", c: "사내" },
+    { t: "✅ 실행형", st: "검토", n: "오너뷰 개발 프로젝트", c: "사내" },
   ];
   return (
     <section className="pp glass-card" id={before ? "pp-hub-b" : "pp-hub"}>

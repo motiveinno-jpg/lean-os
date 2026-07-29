@@ -372,7 +372,7 @@ export default function PartnerLedgerPage() {
                   }}
                   className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
                   style={{ background: pal.main }}>
-                  {exporting ? "내보내는 중…" : "📊 엑셀 내보내기"}
+                  {exporting ? "내보내는 중…" : "엑셀 내보내기"}
                 </button>
               </div>
             )}

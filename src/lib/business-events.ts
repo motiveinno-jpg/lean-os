@@ -32,18 +32,18 @@ interface BusinessEventParams {
 }
 
 const EVENT_MESSAGES: Record<BusinessEventType, (summary: Record<string, any>) => string> = {
-  contract_executed: (s) => `📝 계약이 체결되었습니다. ${s.title || ''}`,
-  payment_received: (s) => `💰 입금이 확인되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
-  milestone_completed: (s) => `🎯 마일스톤 완료: ${s.title || s.name || ''}`,
+  contract_executed: (s) => `계약이 체결되었습니다. ${s.title || ''}`,
+  payment_received: (s) => `입금이 확인되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
+  milestone_completed: (s) => `마일스톤 완료: ${s.title || s.name || ''}`,
   document_approved: (s) => `✅ 문서가 승인되었습니다: ${s.title || ''}`,
-  document_locked: (s) => `🔒 문서가 잠금되었습니다: ${s.title || ''}`,
-  deal_status_changed: (s) => `📊 프로젝트 상태 변경: ${s.from || ''} → ${s.to || ''}`,
-  cost_approved: (s) => `💳 비용이 승인되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
-  invoice_issued: (s) => `📋 세금계산서가 발행되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
-  quote_approved: (s) => `📄 견적서가 승인되었습니다 → 계약서 자동 생성. ${s.title || ''}`,
+  document_locked: (s) => `문서가 잠금되었습니다: ${s.title || ''}`,
+  deal_status_changed: (s) => `프로젝트 상태 변경: ${s.from || ''} → ${s.to || ''}`,
+  cost_approved: (s) => `비용이 승인되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
+  invoice_issued: (s) => `세금계산서가 발행되었습니다. ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''}`,
+  quote_approved: (s) => `견적서가 승인되었습니다 → 계약서 자동 생성. ${s.title || ''}`,
   contract_signed: (s) => `✍️ 계약서가 서명되었습니다. ${s.title || ''}`,
-  payment_schedule_created: (s) => `📅 매출 스케줄이 생성되었습니다. 선금 ${s.advance ? Number(s.advance).toLocaleString() + '원' : ''} / 잔금 ${s.balance ? Number(s.balance).toLocaleString() + '원' : ''}`,
-  revenue_received: (s) => `💰 매출 입금: ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''} (${s.progress || 0}%)`,
+  payment_schedule_created: (s) => `매출 스케줄이 생성되었습니다. 선금 ${s.advance ? Number(s.advance).toLocaleString() + '원' : ''} / 잔금 ${s.balance ? Number(s.balance).toLocaleString() + '원' : ''}`,
+  revenue_received: (s) => `매출 입금: ${s.amount ? Number(s.amount).toLocaleString() + '원' : ''} (${s.progress || 0}%)`,
 };
 
 const EVENT_CARD_TYPES: Record<BusinessEventType, string> = {

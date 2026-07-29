@@ -1030,7 +1030,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
               ) : bankCd.disabled ? (
                 `⏳ ${bankCd.label}`
               ) : (
-                '🏦 최근 거래 불러오기'
+                '최근 거래 불러오기'
               )}
             </button>
           )}
@@ -1125,7 +1125,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="btn-secondary rounded-lg text-xs whitespace-nowrap">
-            {uploading ? "업로드 중..." : "📥 CSV 업로드"}
+            {uploading ? "업로드 중..." : "CSV 업로드"}
           </button>
           </div>
           )}
@@ -1625,7 +1625,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                       <button onClick={runAiSuggest} disabled={aiSugLoading}
                         className="ai-suggest-btn btn-primary btn-sm"
                         title="미분류 지출(최대 20건)에 AI 계정과목 추천 — 확정은 직접">
-                        {aiSugLoading ? "AI 추천 중…" : "🤖 AI 추천 받기"}
+                        {aiSugLoading ? "AI 추천 중…" : "AI 추천 받기"}
                       </button>
                     </div>
                   )}

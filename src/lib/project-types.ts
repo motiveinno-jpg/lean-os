@@ -180,7 +180,7 @@ export function getPaceWarning(input: PaceInput): PaceWarning {
   const target = Number(input.targetAmount || 0);
   const actual = Number(input.actualAmount || 0);
   if (target <= 0) return { status: "none", requiredDaily: null, currentDaily: null, projected: null, message: "목표값이 없습니다", tone: "ok" };
-  if (actual >= target) return { status: "done", requiredDaily: 0, currentDaily: null, projected: actual, message: "🎉 목표 달성", tone: "ok" };
+  if (actual >= target) return { status: "done", requiredDaily: 0, currentDaily: null, projected: actual, message: "목표 달성", tone: "ok" };
 
   const todayStr = input.today ? String(input.today).slice(0, 10) : todayKst();
   const startStr = input.startDate ? String(input.startDate).slice(0, 10) : null;
@@ -188,7 +188,7 @@ export function getPaceWarning(input: PaceInput): PaceWarning {
 
   // 정체 우선: 최근 증가분이 0이면 정체.
   if (input.recentGain != null && input.recentGain <= 0 && actual > 0) {
-    return { status: "stalled", requiredDaily: null, currentDaily: null, projected: null, message: "📉 최근 실적 정체 — 추이를 확인하세요", tone: "warn" };
+    return { status: "stalled", requiredDaily: null, currentDaily: null, projected: null, message: "최근 실적 정체 — 추이를 확인하세요", tone: "warn" };
   }
 
   // 영업일평균(필요/현재) — '하루 얼마씩' 표기에 사용

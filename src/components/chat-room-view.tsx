@@ -126,7 +126,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
                     ) : isVideo(f) ? (
                       <span className="text-4xl">🎬</span>
                     ) : (
-                      <span className="text-4xl">{fileIcon(f)}</span>
+                      <span className="text-4xl"><Ico e={fileIcon(f)} size={34} /></span>
                     )}
                     {isPdf(f) && (
                       <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 text-white text-[9px] rounded">
@@ -157,7 +157,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={f.file_url} alt="" className="w-10 h-10 object-cover rounded border border-[var(--border)]" />
                     ) : (
-                      <span className="text-xl w-10 text-center">{fileIcon(f)}</span>
+                      <span className="text-xl w-10 text-center"><Ico e={fileIcon(f)} /></span>
                     )}
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">{f.file_name}</div>

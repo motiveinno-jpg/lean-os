@@ -62,7 +62,7 @@ export interface SyncCooldown {
  *   const cd = useSyncCooldown(companyId, "bank");
  *   <button disabled={busy || cd.disabled} onClick={() => cd.run(handleSync)}
  *           className={cd.disabled ? "opacity-40 cursor-not-allowed" : ""}>
- *     {cd.disabled ? `⏳ ${cd.label}` : "🏦 최근 거래 불러오기"}
+ *     {cd.disabled ? `⏳ ${cd.label}` : "최근 거래 불러오기"}
  *   </button>
  */
 export function useSyncCooldown(companyId: string | null | undefined, type: SyncType): SyncCooldown {

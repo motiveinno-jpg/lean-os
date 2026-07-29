@@ -693,7 +693,7 @@ export default function CardsPage() {
                     <div key={tx.id} className="card-tx-list-item glass-card">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
-                          {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
+                          <Ico e={categoryEmoji(classificationLabel(tx.classification) || tx.category)} />
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-sm text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</p>
@@ -839,7 +839,7 @@ export default function CardsPage() {
                         <td className="px-6 py-3.5">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
-                              {categoryEmoji(classificationLabel(tx.classification) || tx.category)}
+                              <Ico e={categoryEmoji(classificationLabel(tx.classification) || tx.category)} />
                             </div>
                             <span className="font-medium text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</span>
                           </div>

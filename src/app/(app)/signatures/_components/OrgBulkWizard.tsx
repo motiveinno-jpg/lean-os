@@ -919,7 +919,7 @@ export function OrgBulkWizard({
                 disabled={submitting || selectedPartners.length === 0}
                 className="btn-primary"
               >
-                {submitting ? "발송 중..." : `🚀 ${selectedPartners.length}곳 일괄 발송`}
+                {submitting ? "발송 중..." : `${selectedPartners.length}곳 일괄 발송`}
               </button>
             )}
           </div>

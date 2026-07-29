@@ -79,7 +79,7 @@ export function AccessDenied({
                 href={m.href}
                 className="access-denied-recommend-link"
               >
-                <span>{m.emoji}</span>
+                <span><Ico e={m.emoji} /></span>
                 {m.label}
               </Link>
             ))}

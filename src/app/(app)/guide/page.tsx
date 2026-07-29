@@ -284,7 +284,7 @@ function FeatureCard({
             marginTop: '2px',
           }}
         >
-          {feature.icon}
+          <Ico e={feature.icon} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>

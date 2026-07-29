@@ -6,6 +6,7 @@
 //   카드 안에서 쓰면 <EmptyState .../> 만, 단독이면 <EmptyState card .../> 로 glass-card 래핑.
 
 import type { ReactNode } from "react";
+import { Ico } from "@/components/ui-icon";
 
 export function EmptyState({
   icon,
@@ -25,7 +26,7 @@ export function EmptyState({
 }) {
   const body = (
     <div className="empty-state">
-      {icon != null && <div className="empty-state-icon">{icon}</div>}
+      {icon != null && <div className="empty-state-icon">{typeof icon === "string" ? <Ico e={icon} size={34} /> : icon}</div>}
       <div className="empty-state-title">{title}</div>
       {desc && <div className="empty-state-desc">{desc}</div>}
       {action}

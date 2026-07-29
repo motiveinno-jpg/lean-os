@@ -1519,7 +1519,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
   }
   return (
     <button onClick={issue} disabled={issuing} className="flex-1 py-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
-      {issuing ? "생성 중..." : `📄 ${label} 발급`}
+      {issuing ? "생성 중..." : `${label} 발급`}
     </button>
   );
 }
@@ -1588,7 +1588,7 @@ function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
                 <button key={t.route} disabled={locked || busy === t.route} onClick={() => { if (!locked) toggle(t.route, !on); }}
                   title={locked ? "대표 — 전체 접근" : ""}
                   className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold border transition ${locked ? "opacity-90 cursor-default" : "disabled:opacity-50"} ${on ? "bg-[var(--primary)]/10 border-[var(--primary)]/40 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-                  <span className="truncate">{locked && "🔒 "}{t.label}</span>
+                  <span className="truncate">{locked && ""}{t.label}</span>
                   <span className={`shrink-0 w-7 h-4 rounded-full relative transition ${on ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>
                     <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${on ? "left-[14px]" : "left-0.5"}`} />
                   </span>

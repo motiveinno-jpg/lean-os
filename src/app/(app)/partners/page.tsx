@@ -1197,7 +1197,7 @@ export default function PartnersPage() {
                               <div className={`absolute -left-[22px] top-2 w-3 h-3 rounded-full ${palette.dot} ring-2 ring-[var(--bg-card)]`} />
                               <div className="bg-[var(--bg-surface)] rounded-xl p-3 border border-[var(--border)]/50">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${palette.tag}`}>{palette.icon} {palette.label}</span>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${palette.tag}`}><Ico e={palette.icon} /> {palette.label}</span>
                                   <span className="text-xs text-[var(--text-dim)]">{(t.date || '').slice(0, 10)}</span>
                                 </div>
                                 <div className="text-sm font-medium">{t.title}</div>
@@ -1749,7 +1749,7 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
                 copied ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30" : "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]"
               }`}
             >
-              {copied ? "복사됨 ✓" : "📋 복사"}
+              {copied ? "복사됨 ✓" : "복사"}
             </button>
           </div>
           <ul className="text-[11px] text-[var(--text-dim)] space-y-1 leading-relaxed">
@@ -1763,7 +1763,7 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
             닫기
           </button>
           <button onClick={copy} className="btn-primary">
-            {copied ? "복사됨 ✓" : "📋 복사하기"}
+            {copied ? "복사됨 ✓" : "복사하기"}
           </button>
         </div>
       </div>

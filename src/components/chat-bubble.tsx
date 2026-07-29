@@ -227,7 +227,7 @@ export function ChatBubble({
                     ? 'bg-[var(--primary)]/15 border border-[var(--primary)]/30'
                     : 'bg-[var(--bg-surface)] hover:bg-[var(--bg-surface)]/80'
                 }`}>
-                <span>{r.emoji}</span>
+                <span><Ico e={r.emoji} /></span>
                 <span className="text-[9px] font-medium">{r.count}</span>
               </button>
             ))}

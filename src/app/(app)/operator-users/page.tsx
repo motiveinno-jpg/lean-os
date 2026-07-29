@@ -198,7 +198,7 @@ export default function OperatorUsersPage() {
                   <Info label="auth 가입일" value={result.auth?.created_at ? new Date(result.auth.created_at).toLocaleString("ko-KR") : "-"} />
                   <Info label="이메일 인증" value={result.auth?.email_confirmed_at ? `완료 (${new Date(result.auth.email_confirmed_at).toLocaleString("ko-KR")})` : "미완료"} />
                   {result.auth?.banned_until && (
-                    <Info label="🚫 정지 상태" value={`정지됨 (해제: ${new Date(result.auth.banned_until).toLocaleString("ko-KR")})`} />
+                    <Info label="정지 상태" value={`정지됨 (해제: ${new Date(result.auth.banned_until).toLocaleString("ko-KR")})`} />
                   )}
                 </div>
               </div>

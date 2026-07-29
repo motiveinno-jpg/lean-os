@@ -231,7 +231,7 @@ export function ScheduleRealPanel({ before = false }: { before?: boolean }) {
         crumb="워크스페이스 › 일정 / 할 일"
         title="회사 일정과 내 할 일을 한 화면에서"
         sub="전체공유 일정은 회사 모든 구성원에게 보이고, 개인 일정은 나만 봐요."
-        tabs={["📅 캘린더", "✓ 할 일"]}
+        tabs={["캘린더", "✓ 할 일"]}
       />
       <div className="pp-filter pp-mt">
         <span className="pp-chip-off">‹</span>
@@ -258,10 +258,10 @@ export function ScheduleRealPanel({ before = false }: { before?: boolean }) {
 //   실제 필터: 전체 N | 📌 고정 | 📅 일정 | 🗳️ 투표 | 📎 첨부 | 내 글 · + 글쓰기
 export function BoardRealPanel({ before = false }: { before?: boolean }) {
   const rows = [
-    { t: "7월 급여 지급일 안내", by: "김대표", d: "2026. 7. 24.", att: "📎 1", pin: true },
-    { t: "하계 휴가 신청 받습니다", by: "최민아", d: "2026. 7. 22.", att: "🗳️ 투표", pin: true },
-    { t: "사무실 정기 방역 (7/27 토)", by: "최민아", d: "2026. 7. 20.", att: "📎 2", pin: false },
-    { t: "2분기 실적 공유", by: "김대표", d: "2026. 7. 8.", att: "📎 4", pin: false },
+    { t: "7월 급여 지급일 안내", by: "김대표", d: "2026. 7. 24.", att: "1", pin: true },
+    { t: "하계 휴가 신청 받습니다", by: "최민아", d: "2026. 7. 22.", att: "투표", pin: true },
+    { t: "사무실 정기 방역 (7/27 토)", by: "최민아", d: "2026. 7. 20.", att: "2", pin: false },
+    { t: "2분기 실적 공유", by: "김대표", d: "2026. 7. 8.", att: "4", pin: false },
   ];
   return (
     <section className="pp glass-card" id={before ? "pp-boardr-b" : "pp-boardr"}>
