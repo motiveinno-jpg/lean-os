@@ -65,7 +65,8 @@ export async function getAuditLogs(params: {
 }) {
   let query = supabase
     .from('audit_logs')
-    .select('*, profiles:user_id(email, display_name)')
+    .select('*, profiles:user_id(email, name)') // users 에 display_name 없음 — 임베드 스윕(2026-07-29)에서 400 확인.
+    //   ⚠️ 이 모듈은 현재 임포트 0곳(고아) — 실사용 감사 조회는 lib/audit.ts. 가져다 쓸 땐 그쪽 우선 검토.
     .eq('company_id', params.companyId)
     .order('created_at', { ascending: false });
 
