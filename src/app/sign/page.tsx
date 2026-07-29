@@ -852,7 +852,7 @@ function SignContent() {
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
           const signerEmail = pkg.employees?.email || '';
           if (supabaseUrl && signerEmail) {
-            await fetch(`${supabaseUrl}/functions/v1/send-contract-email`, {
+            const mailRes = await fetch(`${supabaseUrl}/functions/v1/send-contract-email`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -861,9 +861,19 @@ function SignContent() {
               // 수신자·회사명·링크는 서버가 sign_token 으로 파생 — 여기선 토큰만 전달(오픈 릴레이 차단)
               body: JSON.stringify({ token }),
             });
+            // 완료 메일 실패는 서명 자체엔 영향 없지만, 무음이면 회사가 영영 모른다 → 운영자 로그로(2026-07-29)
+            if (!mailRes.ok) {
+              const body = await mailRes.text().catch(() => '');
+              import('@/lib/error-logger').then(({ logError }) => {
+                logError({ source: 'manual', message: `[전자계약] 서명 완료 메일 발송 실패: HTTP ${mailRes.status} ${body.slice(0, 200)}`, context: { step: 'completion_email' } });
+              }).catch(() => {});
+            }
           }
         } catch (e) {
           console.error('Completion email failed:', e);
+          import('@/lib/error-logger').then(({ logError }) => {
+            logError({ source: 'manual', message: `[전자계약] 서명 완료 메일 발송 예외: ${(e as Error)?.message || e}`, context: { step: 'completion_email' } });
+          }).catch(() => {});
         }
       }
       // partially_signed 상태는 Edge Function 이 이미 처리.

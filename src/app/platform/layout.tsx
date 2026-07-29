@@ -86,6 +86,18 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
   const pathname = usePathname();
   const [status, setStatus] = useState<"loading" | "ready" | "denied">("loading");
   const [userName, setUserName] = useState("");
+  // 저장/수정 실패 배너 — 앱 셸과 동일. 운영자 콘솔은 별도 레이아웃이라 글로벌
+  // MutationCache 오류 이벤트를 아무도 안 받아 완전 무음이었다(2026-07-29 결함류 소탕).
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  useEffect(() => {
+    function handler(e: Event) {
+      const msg = (e as CustomEvent).detail as string;
+      setMutationError(msg);
+      setTimeout(() => setMutationError(null), 5000);
+    }
+    window.addEventListener("ownerview:mutation-error", handler);
+    return () => window.removeEventListener("ownerview:mutation-error", handler);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -246,6 +258,11 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           })}
         </nav>
 
+        {mutationError && (
+          <div role="alert" style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: "#dc2626", color: "#fff", padding: "10px 16px", borderRadius: 10, fontSize: 13, maxWidth: 560, boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>
+            저장에 실패했습니다 — {mutationError}
+          </div>
+        )}
         {children}
       </main>
       <GlobalConfirmHost />
