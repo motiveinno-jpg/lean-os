@@ -17,7 +17,7 @@ import "@/app/landing-v5.css";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 import { Scene, Rise, useNarrow } from "@/components/landing/scene";
-import { AiArt, AI_ART } from "@/components/landing/ai-art";
+
 import {
   HERO, HERO_INTRO, DAY, PILLARS, ENGINES, AI_AUTOMATION, CATALOG, MOBILE, FAQS, FOOTER,
 } from "@/components/landing/content";
@@ -101,6 +101,20 @@ const MOBILE_OF: Record<string, string> = {
  *      반드시 설명과 어긋났고, 카드 제목과 캡처 안 패널 제목이 같은 말을 두 번 했다.
  *      → 좌표가 아니라 DOM 으로 자른다(.pp-head 를 숨기고 패널을 찍는다). cap 스크립트 참고.
  *   /features 는 계속 전체 화면(f-*.png)을 쓰므로 파일을 따로 둔다. */
+/** AI 카드 — 그 기능이 실제로 동작하는 화면 조각. 코어와 같은 방식으로 .pp-head 를 빼고 찍었다. */
+const AI_SHOT: Record<string, string> = {
+  "생존 레이더": "/product/a-radar.png",
+  "원클릭 파이프라인": "/product/a-pipeline.png",
+  "AI 인사/총무팀": "/product/a-payroll.png",
+  "거래처 자산화": "/product/a-crm.png",
+  "AI 참모": "/product/a-copilot.png",
+  "AI 거래 분류": "/product/a-classify.png",
+  "AI 브리핑": "/product/a-brief.png",
+  "3-Way 자동 매칭": "/product/a-match.png",
+  "영수증 OCR": "/product/a-ocr.png",
+  "계약 갱신 알림": "/product/a-renew.png",
+};
+
 const CORE_SHOT: Record<string, string> = {
   "/product/f-projects-v1.png":   "/product/c-projects.png",
   "/product/f-estimate-v1.png":   "/product/c-estimate.png",
@@ -440,7 +454,8 @@ function SceneAI() {
   //      내용은 다른 경우가 있어 엉뚱한 항목이 빠졌다(AI 거래 분류가 사라지고 휴면 감지가 남았다).
   //      이제 그림으로 설명하므로 이미지 기준 판정은 의미가 없다 — 내용이 겹치는 것만 이름으로 뺀다.
   //      "현금 소진 예측"은 엔진 "생존 레이더"가 하는 말 그대로다.
-  const COVERED = new Set(["현금 소진 예측"]);
+  // "휴면 감지"는 거래처 자산화와 같은 화면(거래처)에서 일어나는 일이라 카드가 겹친다.
+  const COVERED = new Set(["현금 소진 예측", "휴면 감지"]);
   const engineCards = ENGINES.map((e) => ({
     kind: "엔진", name: e.name, tag: e.eng, desc: e.short, where: "", src: e.src, alt: e.alt,
   }));
@@ -460,12 +475,17 @@ function SceneAI() {
             엔진 {engineCards.length}개와 자동화 {autoCards.length}가지가 나눠서 맡아요.
           </p>
         </Rise>
-        {/* ⚠️ 실제 캡처를 확대해 잘라 쓰던 방식은 버렸다 — 기능이 있는 자리가 화면마다 달라
-            어디를 잘라도 설명과 어긋났다. 대신 그 기능만 그린 설명 그림을 쓴다.
-            설명은 카드 밖 아래에 둔다(참고 이미지 구조). */}
+        {/* ⚠️ 손으로 그린 일러스트는 "대충 만든 느낌"이라는 지적을 받았다(사장님).
+            실제 제품이 그 기능을 수행하는 순간을 보여준다 — 코어와 같은 DOM 조각 캡처(a-*.png).
+            어두운 무대 위에 흰 UI 가 떠 있게 놓아 전문적인 인상을 준다. */}
         <Rail tall arrows cards={items.map((a) => (
           <article key={a.name} className="lp5-rail-cell">
-            <div className="lp5-rail-art">{AI_ART[a.name] ? <AiArt kind={AI_ART[a.name]} /> : null}</div>
+            <div className="lp5-rail-art">
+              {AI_SHOT[a.name] && (
+                <Image src={AI_SHOT[a.name]} alt={`오너뷰 ${a.name} 화면`} width={1968} height={1000}
+                  sizes="(max-width: 999px) 82vw, 620px" />
+              )}
+            </div>
             <div className="lp5-rail-note">
               <b>{a.name}.</b> <span>{a.desc}</span>
               {a.where && <span className="lp5-rail-where">{a.where}</span>}
