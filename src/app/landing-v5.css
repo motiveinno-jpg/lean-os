@@ -13,6 +13,8 @@
 
 /* --p 를 숫자로 등록해 두면 브라우저가 보간을 안전하게 처리한다 */
 @property --p { syntax: "<number>"; initial-value: 0; inherits: true; }
+/* 부채꼴 펼침 정도 — 숫자로 등록해야 애니메이션으로 0→1 보간된다 */
+@property --sp { syntax: "<number>"; initial-value: 0; inherits: true; }
 
 .lp5-root {
   --ink: #0B0B0F;
@@ -111,7 +113,7 @@
 /* ══ 1. 히어로 ══
    문구가 떠오르고, 그 뒤에서 제품 화면이 확대되며 자리를 잡는다.
    화면은 아래 화면 밖으로 흘러나간다(애플식) — 레터박스가 안 생긴다. */
-.lp5-hero { justify-content: flex-start; padding-top: 46px; }  /* .lp5-stage 의 74px + 46px = 기존 120px */
+.lp5-hero { justify-content: flex-start; padding-top: 26px; }  /* .lp5-stage 의 74px + 26px */
 .lp5-hero-bg {
   position: absolute; inset: -20% -10% auto -10%; height: 90%;
   background:
@@ -130,10 +132,10 @@
 .lp5-hero-sub { font-size: clamp(15px, calc(11px + .82vw), 23px); color: var(--ink2); margin-top: clamp(12px, 1.5vw, 20px); }
 .lp5-hero-cta { display: flex; gap: 10px; justify-content: center; margin-top: clamp(22px, 2.6vw, 34px); flex-wrap: wrap; }
 .lp5-hero-shot {
-  position: relative; z-index: 1; width: min(1120px, 88vw); margin: 46px auto 0;
-  transform: scale(calc(.9 + clamp(0, calc(var(--p) / .5), 1) * .1))
-             translateY(calc((1 - clamp(0, calc(var(--p) / .5), 1)) * 60px));
-  opacity: clamp(0, calc(var(--p) / .18 + .25), 1);
+  position: relative; z-index: 1; width: min(1300px, 95vw); margin: 20px auto 0;
+  /* ⚠️ 예전엔 스크롤(--p)로 opacity 를 0.25 → 1 로 올렸다. 부채꼴이 로드 시 퍼지는 지금은
+     첫 화면에서 흐리게 깔려 있는 꼴이 된다 — 처음부터 또렷하게 두고 살짝만 따라 움직인다. */
+  transform: translateY(calc(var(--p) * -34px));
 }
 .lp5-hero-hint {
   position: absolute; z-index: 3; bottom: 26px; left: 50%; transform: translateX(-50%);
@@ -185,10 +187,14 @@
    ⚠️ 히어로와 같은 대시보드 한 장을 또 쓰면 단조롭다 — 여기선 서로 다른 메뉴 화면을 쓴다. */
 /* ⚠️ fx 는 "자기 폭 기준" 퍼센트다(translate 규칙). 92%/52% 로 뒀더니 양 끝 장이 좌우로 넘쳤고,
    transform-origin: center bottom 이라 기울면서 아래로도 밀려 잘렸다. 폭·각도·기준점을 줄인다. */
-.lp5-fan { position: relative; width: 100%; aspect-ratio: 16 / 7.6; margin: 0 auto; }
+.lp5-fan { position: relative; width: 100%; aspect-ratio: 16 / 7.4; margin: 0 auto; }
+/* ⚠️ 스크롤(--p)이 아니라 페이지 로드 시 퍼진다. 최상단 연출이라 스크롤을 기다리면 아무도 못 본다. */
+.lp5-fan-in { animation: lp5-fan-spread 1.5s cubic-bezier(.2,.72,.24,1) .35s both; }
+@keyframes lp5-fan-spread { from { --sp: 0; } to { --sp: 1; } }
+@media (prefers-reduced-motion: reduce) { .lp5-fan-in { animation: none; --sp: 1; } }
+
 .lp5-fan-item {
   position: absolute; top: 50%; left: 50%; width: 42%;
-  --sp: clamp(0, calc((var(--p) - .34) / .38), 1);
   transform: translate(-50%, -50%)
              translateX(calc(var(--fx) * var(--sp)))
              rotate(calc(var(--fr) * var(--sp)))

@@ -105,6 +105,35 @@ function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; p
   );
 }
 
+/** 화면 다섯 장이 부채꼴로 펼쳐지는 묶음 — 페이지 최상단.
+ *  ⚠️ 스크롤이 아니라 "페이지가 열리면" 퍼진다. 첫 화면에서 바로 보여야 하는 연출이라
+ *     스크롤을 기다리게 하면 아무도 못 본다. --sp 를 CSS 애니메이션이 0→1 로 올린다.
+ *  fx/fr/fs = 다 펼쳐졌을 때의 가로 위치·기울기·크기. 처음엔 가운데 겹쳐 있다.
+ *  ⚠️ fx 의 % 는 자기 폭 기준이다(translate 규칙). 크게 잡으면 양 끝 장이 화면 밖으로 나간다. */
+const FAN = [
+  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-66%", fr: "-11deg", fs: 0.76, z: 1 },
+  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-36%", fr: "-6deg",  fs: 0.88, z: 2 },
+  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",   fr: "0deg",   fs: 1,    z: 3 },
+  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "36%",  fr: "6deg",   fs: 0.88, z: 2 },
+  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "66%",  fr: "11deg",  fs: 0.76, z: 1 },
+];
+
+function Fan({ priority = false }: { priority?: boolean }) {
+  return (
+    <div className="lp5-fan lp5-fan-in">
+      {FAN.map((f, i) => (
+        <div key={f.src} className="lp5-fan-item" style={{
+          ["--fx" as string]: f.fx, ["--fr" as string]: f.fr,
+          ["--fs" as string]: f.fs, zIndex: f.z,
+        }}>
+          <Image src={f.src} alt={f.alt} width={2288} height={1802}
+            sizes="(max-width: 999px) 60vw, 520px" priority={priority && i === 2} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ══════════════════ 1. 히어로 ══════════════════
 function SceneHero() {
   const narrow = useNarrow();
@@ -131,7 +160,7 @@ function SceneHero() {
           <div className="lp5-hero-shot">
             {narrow
               ? <PhoneShot src="/product/m-dash-v2.png" alt="휴대폰에서 본 오너뷰 대시보드" priority />
-              : <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" priority sizes="(max-width: 999px) 92vw, 1120px" />}
+              : <Fan priority />}
           </div>
           <div className="lp5-hero-hint"><i />SCROLL</div>
         </>
@@ -188,33 +217,6 @@ function ChipIcon({ n, c }: { n: string; c: string }) {
   return <span className="lp5-chip-ico" style={{ background: c }}>{g}</span>;
 }
 
-/** 화면 다섯 장이 부채꼴로 펼쳐지는 묶음.
- *  ⚠️ 히어로와 여기가 둘 다 대시보드 한 장이라 "위 이미지랑 똑같아 단조롭다"는 지적을 받았다.
- *     여기서는 서로 다른 메뉴 화면을 겹쳐 보여줘 "여러 일이 한 제품 안에 있다"를 그림으로 말한다.
- *  fx/fr/fs = 다 펼쳐졌을 때의 가로 위치·기울기·크기. 처음엔 가운데 겹쳐 있다가 --p 에 따라 벌어진다. */
-const FAN = [
-  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-66%", fr: "-11deg", fs: 0.76, z: 1 },
-  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-36%", fr: "-6deg",  fs: 0.88, z: 2 },
-  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",   fr: "0deg",   fs: 1,    z: 3 },
-  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "36%",  fr: "6deg",   fs: 0.88, z: 2 },
-  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "66%",  fr: "11deg",  fs: 0.76, z: 1 },
-];
-
-function Fan() {
-  return (
-    <div className="lp5-fan">
-      {FAN.map((f) => (
-        <div key={f.src} className="lp5-fan-item" style={{
-          ["--fx" as string]: f.fx, ["--fr" as string]: f.fr,
-          ["--fs" as string]: f.fs, zIndex: f.z,
-        }}>
-          <Image src={f.src} alt={f.alt} width={1968} height={1320} sizes="(max-width: 999px) 60vw, 520px" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function SceneUnify() {
   const narrow = useNarrow();
   return (
@@ -245,7 +247,7 @@ function SceneUnify() {
           <div className="lp5-unify-core">
             {narrow
               ? <PhoneShot src="/product/m-money-v2.png" alt="휴대폰에서 본 오너뷰 경영 요약" />
-              : <Fan />}
+              : <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 1000px" />}
           </div>
           </div>
         </>
