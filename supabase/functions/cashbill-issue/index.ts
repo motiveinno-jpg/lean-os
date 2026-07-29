@@ -214,15 +214,26 @@ serve(withSentry("cashbill-issue", async (req) => {
         }, 409);
       }
 
-      // 팝빌 제휴사 회원가입 (멱등 — 이미 가입이면 무시하고 진행. 가이드: "제휴사 회원가입 절차가 최초 한번 필요")
+      // 발급사업자(제휴사) 회원가입 — 최초 1회 필요, 멱등(기가입이면 그대로 진행).
+      //   2026-07-30 사장님: 자동 가입 실패가 조용히 삼켜져 발행 실패의 원인을 알 수 없었고
+      //   수동 등록으로 우회해야 했다 → 실패 사유를 기억해 발행 실패 시 안내에 병기한다.
+      let joinFailMsg = "";
       try {
-        await codefRequest(token, JOIN_PATH, {
+        const joinRes = await codefRequest(token, JOIN_PATH, {
           corpNum, CEOName: corpCEOName, corpName, corpAddress,
           bizType: company.business_type || "", bizClass: company.business_category || "",
           contactName: corpCEOName || "담당자", contactTEL: company.phone || "",
           contactEmail: company.automation_settings?.invoicer_email || userRow.email || "", contactFAX: "",
         });
-      } catch { /* 가입 실패해도 발행 시도 — 기가입이면 발행은 성공 */ }
+        const jc = joinRes?.result?.code;
+        const jMsg = String(joinRes?.data?.message || joinRes?.result?.message || "");
+        // 성공 또는 "이미 가입" 계열 응답은 정상 취급
+        if (jc !== "CF-00000" && !/이미|기가입|가입된|already/i.test(jMsg)) {
+          joinFailMsg = `${jc || ""} ${jMsg}`.trim() || "알 수 없는 오류";
+        }
+      } catch (e) {
+        joinFailMsg = (e as Error)?.message || "네트워크 오류";
+      }
 
       // 공식 가이드 입력부 그대로 — 명시된 키 외에는 아무것도 보내지 않는다 (여분 필드가 CF-05001 유발한 전례 있음)
       const payload: Record<string, unknown> = {
@@ -258,7 +269,11 @@ serve(withSentry("cashbill-issue", async (req) => {
             automation_settings: { ...(company.automation_settings || {}), cashbill_failed_attempts: next },
           }).eq("id", companyId);
         }
-        return json({ error: `현금영수증 발행 실패: ${msg}`, code: rc, hint: codefErrorHint(rc, msg), raw: resp?.data ?? resp?.result }, 400);
+        // 자동 가입이 실패한 상태의 발행 실패 = 등록 문제일 가능성이 높다 — 사유를 함께 안내
+        const joinHint = joinFailMsg
+          ? `발급사업자 등록(최초 1회 자동 진행)이 완료되지 않았을 수 있습니다 — 등록 응답: ${joinFailMsg}. 설정 → 회사 정보의 상호·대표자·주소·전화·업태·종목을 채운 뒤 다시 발행해 주세요. 계속 실패하면 고객센터로 문의해 주세요.`
+          : codefErrorHint(rc, msg);
+        return json({ error: `현금영수증 발행 실패: ${msg}`, code: rc, hint: joinHint, raw: resp?.data ?? resp?.result }, 400);
       }
       if (dataCode && dataCode !== "1") {
         return json({ error: `현금영수증 발행 실패: ${resp?.data?.message || "팝빌 오류"} (code ${dataCode})`, raw: resp?.data }, 400);
