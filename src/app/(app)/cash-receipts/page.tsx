@@ -1127,7 +1127,7 @@ export default function CashReceiptsPage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">발행 즉시 효력이 생기며, 당일 밤 24시에 국세청으로 일괄 전송됩니다. 승인번호는 전송 후 부여됩니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">발행 즉시 효력이 생기며, 당일 밤 24시에 국세청으로 일괄 전송됩니다. 승인번호는 전송 후 부여됩니다. 홈택스에서 현금영수증 가맹점 신청을 따로 하지 않았어도 괜찮습니다 — 최초 발행 시 공인 발급사업자를 통해 등록·가맹 처리가 자동으로 진행됩니다.</div>
             </div>
             <div className="p-5 space-y-3">
               <div className="flex gap-2">
