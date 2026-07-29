@@ -229,6 +229,8 @@
    ⚠️ 이 둘은 무대(sticky 100vh)에서 뺐다. 스크롤로 카드를 넘기니 화면이 붙잡히고 음영이
       어색하게 걸렸고, 모바일에서는 넘기기 자체가 어려웠다 (사장님 지적). 이제 자동 재생한다. */
 .lp5-sect { position: relative; padding: clamp(84px, 11vh, 150px) 0; background: var(--canvas); }
+/* 상단바가 fixed 라 #pillars 같은 앵커로 뛰면 제목이 상단바 밑으로 들어간다 */
+.lp5-sect, .lp5-scene { scroll-margin-top: 84px; }
 .lp5-sect-dark { background: var(--dark); color: #fff; overflow: hidden; }
 .lp5-sect-dark .lp5-eyebrow { color: var(--brand2); }
 .lp5-sect-dark .lp5-lead { color: #B9B9C6; }
@@ -243,6 +245,15 @@
    ⚠️ 이동은 beat(구간)가 아니라 --p(연속값)로 한다. 구간 단위로 옮기면 카드가 툭툭 튄다. */
 .lp5-rail { justify-content: center; }
 .lp5-rail-view { width: 100%; overflow: hidden; }
+/* 풀블리드 레일 — 카드가 화면 폭을 꽉 채우고 옆 카드가 살짝 보인다.
+   첫 카드의 왼쪽은 본문(.lp5-wrap) 왼쪽선과 맞추고, 오른쪽은 화면 밖으로 흘려보낸다. */
+.lp5-rail-view-full {
+  --pad: max(32px, calc((100vw - 1420px) / 2 + 32px));
+  width: 100vw; margin-left: calc(50% - 50vw); padding-left: var(--pad);
+}
+/* ⚠️ .lp5-rail-wide 는 .lp5-rail-track 과 같은 특이도(클래스 1개)인데 track 규칙이 뒤에 있어
+   --cw 가 도로 720px 로 덮였다. 카드가 1040px 로 안 커지던 원인. 특이도를 올려 고정한다. */
+.lp5-rail-track.lp5-rail-wide { --cw: min(1040px, 78vw); --gap: 20px; --view: calc(100vw - var(--pad)); }
 .lp5-rail-track {
   --cw: min(720px, 74vw);
   --gap: 22px;
@@ -258,26 +269,45 @@
   transform: translateX(calc(-1 * min(calc(var(--i) * var(--step)), var(--maxx))));
   transition: transform .72s cubic-bezier(.22,.68,.24,1);
 }
-.lp5-rail-track.lp5-rail-tall { --cw: min(380px, 68vw); }
+.lp5-rail-track.lp5-rail-tall { --cw: min(440px, 72vw); }
 .lp5-rail-card {
   flex: 0 0 var(--cw); width: var(--cw);
-  border-radius: 20px; overflow: hidden; background: var(--canvas2);
+  border-radius: 26px; overflow: hidden; background: var(--canvas2);
   border: 1px solid var(--line);
   /* ⚠️ 비활성 카드를 흐리게(opacity .5) 두니 "음영 처리가 어색하다"는 지적이 나왔다.
      자동 재생으로 바뀐 지금은 다 또렷하게 두고, 현재 칸은 점으로만 알린다. */
 }
 .lp5-scene-dark .lp5-rail-card { background: rgba(255,255,255,.045); border-color: rgba(255,255,255,.09); }
 
-.lp5-rail-cap { padding: 20px 22px 14px; }
-.lp5-rail-kick { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; color: var(--brand); }
-.lp5-rail-title { font-size: clamp(16px, calc(12px + .85vw), 22px); font-weight: 800; letter-spacing: -.02em; margin-top: 7px; line-height: 1.4; }
-.lp5-rail-shot { position: relative; aspect-ratio: 16 / 10; max-height: 46vh; overflow: hidden; margin: 0 14px 14px; border-radius: 13px; }
-.lp5-rail-shot img { width: 100%; height: 100%; object-fit: cover; object-position: left top; display: block; }
+.lp5-rail-kick { font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--brand); }
+.lp5-rail-title {
+  font-size: clamp(18px, calc(12px + 1.15vw), 30px); font-weight: 800;
+  letter-spacing: -.025em; margin-top: 8px; line-height: 1.32; max-width: 15em;
+}
+
+/* ── 카드 안 설명 띠 ──
+   ⚠️ 처음엔 애플처럼 화면 위에 글씨를 얹었는데, 애플은 어두운 사진이고 우리는 정보가 빽빽한
+      밝은 UI 라 표·숫자를 덮어 둘 다 안 읽혔다. 이미지를 가리지 않는 별도 띠로 두되,
+      띠의 위치(위/아래)와 정렬(왼쪽/가운데)을 카드마다 바꿔 단조로움을 없앤다.
+      (사장님: "설명들이 다 동일한 위치가 아니라 이미지 성격에 맞게, 단조롭지 않게") */
+.lp5-rail-card { display: flex; flex-direction: column; }
+.lp5-rail-over { padding: 22px 26px 20px; }
+.lp5-cap-tl .lp5-rail-over,
+.lp5-cap-tc .lp5-rail-over { order: -1; }
+.lp5-cap-tc .lp5-rail-over,
+.lp5-cap-bc .lp5-rail-over { text-align: center; }
+.lp5-cap-tc .lp5-rail-title,
+.lp5-cap-bc .lp5-rail-title { margin-left: auto; margin-right: auto; }
+.lp5-rail-shot { position: relative; aspect-ratio: 16 / 9.4; overflow: hidden; flex: none;
+  border-radius: 0; margin: 0 14px 14px; border-radius: 16px; }
+.lp5-cap-tl .lp5-rail-shot, .lp5-cap-tc .lp5-rail-shot { margin: 0 14px 16px; }
+.lp5-cap-bl .lp5-rail-shot, .lp5-cap-bc .lp5-rail-shot { margin: 14px 14px 0; }
+.lp5-rail-shot img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
 
 /* AI 카드 — 세로형. 화면 전체를 축소하지 않고 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
    ⚠️ aspect-ratio 로만 높이를 잡으면 카드가 100vh 무대를 넘어 제목이 위로 잘린다.
       카드 높이를 뷰포트에 묶고 크롭이 남는 높이를 먹게 한다. */
-.lp5-rail-tall .lp5-rail-card { height: min(56vh, 520px); display: flex; flex-direction: column; }
+.lp5-rail-tall .lp5-rail-card { height: min(64vh, 620px); display: flex; flex-direction: column; }
 .lp5-rail-crop { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .lp5-rail-crop img {
   width: 100%; height: 100%; display: block;
@@ -496,6 +526,10 @@
 @media (max-width: 700px) {
   .lp5-rail-shot { aspect-ratio: 4 / 3; }
   .lp5-rail-shot img { object-position: left top; transform: scale(1.75); transform-origin: left top; }
+  /* 좁은 화면에선 위치 변주를 접고 전부 아래·왼쪽으로 통일한다 — 칸이 좁아 변주가 안 읽힌다 */
+  .lp5-rail-over { order: 0 !important; text-align: left !important; padding: 14px 16px 18px; }
+  .lp5-rail-title { margin-left: 0 !important; margin-right: 0 !important; }
+  .lp5-rail-track.lp5-rail-wide { --cw: min(1040px, 86vw); }
 }
 
 /* 아주 좁은 화면 — 여백·칸수를 줄여 내용이 뭉개지지 않게 */

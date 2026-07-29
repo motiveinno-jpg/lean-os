@@ -302,7 +302,7 @@ function SceneDay() {
  *   밑에 자동재생·일시정지 버튼과 왼쪽 순서 기능, 점을 누르면 바로 그 페이지로."
  *  ⚠️ 화면에 들어와 있을 때만 돈다. 안 보이는 레일이 계속 타이머를 돌리면 배터리만 먹는다.
  *  ⚠️ 마지막 칸에서 트랙 오른쪽 끝이 화면 오른쪽에 닿으면 더 안 민다 — 안 그러면 오른쪽이 텅 빈다. */
-function Rail({ cards, tall = false, ms = 4600 }: { cards: ReactNode[]; tall?: boolean; ms?: number }) {
+function Rail({ cards, tall = false, wide = false, ms = 4600 }: { cards: ReactNode[]; tall?: boolean; wide?: boolean; ms?: number }) {
   const n = cards.length;
   const [i, setI] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -325,8 +325,8 @@ function Rail({ cards, tall = false, ms = 4600 }: { cards: ReactNode[]; tall?: b
 
   return (
     <div ref={ref}>
-      <div className="lp5-rail-view">
-        <div className={`lp5-rail-track ${tall ? "lp5-rail-tall" : ""}`}
+      <div className={`lp5-rail-view ${wide ? "lp5-rail-view-full" : ""}`}>
+        <div className={`lp5-rail-track ${tall ? "lp5-rail-tall" : ""} ${wide ? "lp5-rail-wide" : ""}`}
           style={{ ["--n" as string]: n, ["--i" as string]: i }}>
           {cards}
         </div>
@@ -356,9 +356,13 @@ function Rail({ cards, tall = false, ms = 4600 }: { cards: ReactNode[]; tall?: b
 //   앞뒤 장면이 전부 [좌 문구 / 우 화면] 이라, 여기만 가로 레일로 리듬을 끊는다.
 //   레일은 --p 로 연속 이동한다(구간 단위로 튀지 않게). 점은 현재 구간만 표시.
 function SceneAxes() {
+  // ⚠️ 설명 위치를 카드마다 바꾼다. 전부 같은 자리에 두면 9장이 같은 판박이로 보인다
+  //    (사장님: "설명들이 다 동일한 위치가 아니라 이미지 성격에 맞게 — 단조롭지 않게").
+  //    tl=위·왼쪽 · tc=위·가운데 · bl=아래·왼쪽 · bc=아래·가운데
+  const CAPS = ["bl", "tc", "bc", "tl", "bl", "tc", "tl", "bc", "bl"];
   const cards = PILLARS.flatMap((P) =>
     P.blocks.map((b) => ({ kicker: P.kicker, tab: b.tab, title: b.title, desc: b.desc, src: b.src, alt: b.alt })),
-  );
+  ).map((c, i) => ({ ...c, cap: CAPS[i % CAPS.length] }));
   return (
     <section id="pillars" className="lp5-sect">
       <div className="lp5-wrap">
@@ -367,14 +371,15 @@ function SceneAxes() {
           <h2 className="lp5-h lp5-h-sm">일은 줄이고, <span className="lp5-grad">효율과 성과는 높여요</span></h2>
           <p className="lp5-lead">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
         </Rise>
-        <Rail cards={cards.map((c) => (
-          <article key={c.src + c.tab} className="lp5-rail-card">
-            <div className="lp5-rail-cap">
+        <Rail wide cards={cards.map((c) => (
+          <article key={c.src + c.tab} className={`lp5-rail-card lp5-cap-${c.cap}`}>
+            <div className="lp5-rail-shot">
+              <Image src={c.src} alt={c.alt} width={2288} height={1802}
+                sizes="(max-width: 999px) 86vw, 1040px" />
+            </div>
+            <div className="lp5-rail-over">
               <span className="lp5-rail-kick">{c.kicker} · {c.tab}</span>
               <h3 className="lp5-rail-title">{c.title}</h3>
-            </div>
-            <div className="lp5-rail-shot">
-              <Image src={c.src} alt={c.alt} width={1968} height={1320} sizes="(max-width: 999px) 84vw, 760px" />
             </div>
           </article>
         ))} />
@@ -416,7 +421,7 @@ function SceneAI() {
         <Rail tall cards={items.map((a) => (
           <article key={a.name} className="lp5-rail-card">
             <div className="lp5-rail-crop">
-              <Image src={a.src} alt={a.alt} width={1968} height={1320} sizes="(max-width: 999px) 74vw, 380px" />
+              <Image src={a.src} alt={a.alt} width={2288} height={1802} sizes="(max-width: 999px) 74vw, 440px" />
             </div>
             <div className="lp5-rail-note">
               <span className={`lp5-rail-kind ${a.kind === "엔진" ? "lp5-rail-kind-e" : ""}`}>{a.kind}</span>
