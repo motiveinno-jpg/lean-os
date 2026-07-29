@@ -96,6 +96,23 @@ const MOBILE_OF: Record<string, string> = {
   "/product/f-bank-v1.png":      "/product/m-bank.png",
 };
 
+/** 코어 카드 전용 조각 — 패널 헤더를 뺀 "그 기능 블록"만 잘라 둔 캡처.
+ *   ⚠️ 예전엔 전체 화면 캡처를 좌표로 확대·크롭해 썼다. 기능이 있는 자리가 화면마다 달라
+ *      반드시 설명과 어긋났고, 카드 제목과 캡처 안 패널 제목이 같은 말을 두 번 했다.
+ *      → 좌표가 아니라 DOM 으로 자른다(.pp-head 를 숨기고 패널을 찍는다). cap 스크립트 참고.
+ *   /features 는 계속 전체 화면(f-*.png)을 쓰므로 파일을 따로 둔다. */
+const CORE_SHOT: Record<string, string> = {
+  "/product/f-projects-v1.png":   "/product/c-projects.png",
+  "/product/f-estimate-v1.png":   "/product/c-estimate.png",
+  "/product/f-settlement-v1.png": "/product/c-settlement.png",
+  "/product/f-acct-v1.png":       "/product/c-acct.png",
+  "/product/f-bank-v1.png":       "/product/c-bank.png",
+  "/product/f-tax-v1.png":        "/product/c-tax.png",
+  "/product/f-hr-v1.png":         "/product/c-hr.png",
+  "/product/f-members-v1.png":    "/product/c-members.png",
+  "/product/f-leave-v1.png":      "/product/c-leave.png",
+};
+
 /** 폰 목업 한 대 — 좁은 화면에서 데스크톱 캡처 대신 들어간다. */
 function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
   return (
@@ -402,7 +419,7 @@ function SceneAxes() {
               <p className="lp5-rail-desc">{c.desc}</p>
             </div>
             <div className="lp5-rail-shot">
-              <Image src={c.src} alt={c.alt} width={2288} height={1802}
+              <Image src={CORE_SHOT[c.src] ?? c.src} alt={c.alt} width={1968} height={984}
                 sizes="(max-width: 999px) 86vw, 1040px" />
             </div>
           </article>
