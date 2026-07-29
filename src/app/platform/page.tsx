@@ -196,8 +196,9 @@ export default function PlatformOverview() {
   );
   const paidSubs = kindCounts.paid;
   const activeSubs = kindCounts.paid + kindCounts.trial;
+  // 실결제 구독만 — stripe 미연동(내부 부여) 구독이 MRR 을 부풀리던 것 제외 (2026-07-29)
   const mrr = subscriptions
-    .filter((s: any) => s.status === "active")
+    .filter((s: any) => s.status === "active" && s.stripe_subscription_id)
     .reduce((sum: number, s: any) => {
       const plan = s.subscription_plans;
       if (!plan) return sum;

@@ -38,8 +38,19 @@ export default function RevenuePage() {
     refetchInterval: 60_000,
   });
 
+  // MRR = 실제 돈이 들어오는 구독만 (2026-07-29 사장님: "수익 0인데 왜 금액이 찍혀있어").
+  //   stripe_subscription_id 없는 구독은 내부 부여(자사·수동)라 과금이 없고,
+  //   trialing 은 아직 결제 전 — 둘 다 제외해야 실매출과 일치한다.
   const mrr = subscriptions
-    .filter((s: any) => s.status === "active")
+    .filter((s: any) => s.status === "active" && s.stripe_subscription_id)
+    .reduce((sum: number, s: any) => {
+      const plan = s.subscription_plans;
+      if (!plan) return sum;
+      return sum + (plan.base_price || 0) + (plan.per_seat_price || 0) * (s.seat_count || 1);
+    }, 0);
+  // 무료체험 중인 구독이 전부 유료 전환될 경우의 예상 월 매출 (참고 지표)
+  const trialMrr = subscriptions
+    .filter((s: any) => s.status === "trialing" && s.stripe_subscription_id)
     .reduce((sum: number, s: any) => {
       const plan = s.subscription_plans;
       if (!plan) return sum;
@@ -86,12 +97,14 @@ export default function RevenuePage() {
       {/* Revenue KPI */}
       <div className="platform-revenue-kpi-grid">
         <div className="platform-revenue-kpi-card glass-card">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR</span>
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">MRR · 월 반복 매출</span>
           <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">{fmtW(mrr)}</span>
+          <span className="platform-revenue-kpi-hint">매달 실제 결제되는 구독료 합계 (무료체험·내부 계정 제외)</span>
         </div>
         <div className="platform-revenue-kpi-card glass-card">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">ARR</span>
+          <span className="text-[13px] font-semibold text-[var(--text-muted)]">ARR · 연 환산 매출</span>
           <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{fmtW(mrr * 12)}</span>
+          <span className="platform-revenue-kpi-hint">지금 MRR이 1년 유지될 때 매출 (MRR × 12){trialMrr > 0 ? ` · 체험 전환 시 월 +${fmtW(trialMrr)}` : ""}</span>
         </div>
         <div className="platform-revenue-kpi-card glass-card">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">누적 매출</span>

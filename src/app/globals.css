@@ -2937,6 +2937,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-revenue-header { @apply flex flex-wrap items-center justify-between gap-2; }
 .platform-revenue-kpi-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
 .platform-revenue-kpi-card { @apply p-5 flex flex-col gap-3; }
+/* KPI 카드 하단 비개발자용 지표 설명 (2026-07-29) */
+.platform-revenue-kpi-hint { @apply text-[11px] text-[var(--text-dim)] leading-snug; }
 .platform-revenue-invoice-list { @apply overflow-hidden; }
 .platform-revenue-invoice-row { @apply flex items-center justify-between p-4 hover:bg-[var(--bg-surface)]/60 transition; }
 
