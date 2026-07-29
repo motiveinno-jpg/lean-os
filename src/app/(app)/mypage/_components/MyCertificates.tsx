@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
+import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import {
   generateEmploymentCertificate,
   generateCareerCertificate,
@@ -29,6 +30,7 @@ export function MyCertificates({
   const qc = useQueryClient();
   const [certType, setCertType] = useState<"employment" | "career">("employment");
   const [purpose, setPurpose] = useState("");
+  const [submitTo, setSubmitTo] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
   const { data: company } = useQuery({
@@ -74,7 +76,7 @@ export function MyCertificates({
 
       const result =
         certType === "employment"
-          ? await generateEmploymentCertificate({ employee: empData, company: companyData, purpose: purpose || undefined })
+          ? await generateEmploymentCertificate({ employee: empData, company: companyData, purpose: purpose || undefined, submitTo: submitTo || undefined })
           : await generateCareerCertificate({ employee: empData, company: companyData });
 
       const url = URL.createObjectURL(result.pdf);
@@ -93,11 +95,13 @@ export function MyCertificates({
           certificateNumber: result.certificateNumber,
           issuedBy: userId,
           purpose: purpose || undefined,
+          submitTo: submitTo || undefined,
         });
         qc.invalidateQueries({ queryKey: ["mypage-cert-logs"] });
       } catch { /* 이력 저장 실패는 무시 */ }
 
       setPurpose("");
+      setSubmitTo("");
       toast(`증명서가 발급되었습니다.\n증명서번호: ${result.certificateNumber}`, "success");
     } catch (err: any) {
       toast("증명서 발급 실패: " + (err?.message || err), "error");
@@ -113,7 +117,7 @@ export function MyCertificates({
         {myLogs.length > 0 && <span className="badge badge-muted">발급 {myLogs.length}건</span>}
       </div>
       <p className="text-xs text-[var(--text-muted)] mb-4">재직·경력 증명서를 직접 발급받아 PDF로 내려받을 수 있습니다.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1.2fr_auto] gap-3 items-end">
         <div>
           <label className="block text-xs text-[var(--text-muted)] mb-1">증명서 유형</label>
           <select value={certType} onChange={(e) => setCertType(e.target.value as any)} className="field-input">
@@ -121,10 +125,8 @@ export function MyCertificates({
             <option value="career">경력증명서</option>
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">용도 (선택)</label>
-          <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="제출용, 은행, 비자 등" className="field-input" />
-        </div>
+        <CertChoiceField label="용도" options={CERT_PURPOSE_OPTIONS} value={purpose} onChange={setPurpose} />
+        <CertChoiceField label="제출처" options={CERT_SUBMIT_TO_OPTIONS} value={submitTo} onChange={setSubmitTo} />
         <button onClick={handleIssue} disabled={!employee?.id || isGenerating} className="btn-primary sm:w-auto w-full disabled:opacity-50">
           {isGenerating ? "발급 중..." : "발급 · 다운로드"}
         </button>

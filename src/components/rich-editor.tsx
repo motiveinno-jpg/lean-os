@@ -31,6 +31,9 @@ interface RichEditorProps {
   maxHeight?: string;
   // 2026-07-23 지정 시 부모 높이를 꽉 채움(flex-col h-full). 큰 팝업 편집기에서 본문 영역을 넓게.
   fillHeight?: boolean;
+  // 2026-07-29 문서형 편집(계약 서식 등): 본문 폭을 A4(794px)로 고정해 PDF 불러오기 시
+  //   줄바꿈 위치가 원본과 일치하게. 지정 시 본문이 가운데 정렬된 페이지처럼 보임.
+  contentMaxWidth?: string;
 }
 
 function escapeHtml(s: string): string {
@@ -55,7 +58,7 @@ const FONT_FAMILIES = [
 ];
 
 export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function RichEditor(
-  { content = "", onChange, placeholder = "내용을 입력하세요...", editable = true, onUploadImage, maxHeight, fillHeight },
+  { content = "", onChange, placeholder = "내용을 입력하세요...", editable = true, onUploadImage, maxHeight, fillHeight, contentMaxWidth },
   ref
 ) {
   const { toast } = useToast();
@@ -182,7 +185,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
         return;
       }
 
-      type Run = { text: string; x0: number; x1: number; h: number };
+      type Run = { text: string; x0: number; x1: number; h: number; b: boolean };
       type VLine = { y: number; h: number; runs: Run[] };
 
       for (let i = 1; i <= total; i++) {
@@ -190,14 +193,29 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
         const page = await pdf.getPage(i);
         const pageW = page.getViewport({ scale: 1.0 }).width;
 
-        // 1) 텍스트 아이템 수집 (x·y·폭·글자크기)
-        const rawItems: { str: string; x: number; y: number; w: number; h: number }[] = [];
+        // 1) 텍스트 아이템 수집 (x·y·폭·글자크기·굵기)
+        //    굵기: getOperatorList 로 폰트가 로드된 뒤 commonObjs 에서 실제 폰트명(…-Bold 등) 조회
+        try { await page.getOperatorList(); } catch { /* 폰트 로딩 실패는 무시 */ }
+        const boldFontCache = new Map<string, boolean>();
+        const isBoldFont = (fontName: string): boolean => {
+          if (!fontName) return false;
+          const hit = boldFontCache.get(fontName);
+          if (hit !== undefined) return hit;
+          let bold = false;
+          try {
+            const fontObj: any = page.commonObjs.has(fontName) ? page.commonObjs.get(fontName) : null;
+            bold = /bold|black|heavy|extrab|semib/i.test(String(fontObj?.name || ""));
+          } catch { /* 미해석 폰트는 일반 취급 */ }
+          boldFontCache.set(fontName, bold);
+          return bold;
+        };
+        const rawItems: { str: string; x: number; y: number; w: number; h: number; b: boolean }[] = [];
         try {
           const tc = await page.getTextContent();
           for (const it of tc.items as any[]) {
             if (typeof it.str !== "string" || !Array.isArray(it.transform)) continue;
             const h = Math.hypot(it.transform[2] || 0, it.transform[3] || 0) || 10;
-            rawItems.push({ str: it.str, x: it.transform[4] || 0, y: it.transform[5] || 0, w: it.width || 0, h });
+            rawItems.push({ str: it.str, x: it.transform[4] || 0, y: it.transform[5] || 0, w: it.width || 0, h, b: isBoldFont(it.fontName) });
           }
         } catch { /* 텍스트 레이어 없는 페이지 */ }
 
@@ -207,10 +225,10 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
         for (const it of rawItems) {
           const last = vlines[vlines.length - 1];
           if (last && Math.abs(last.y - it.y) <= Math.max(2.5, last.h * 0.5)) {
-            last.runs.push({ text: it.str, x0: it.x, x1: it.x + it.w, h: it.h });
+            last.runs.push({ text: it.str, x0: it.x, x1: it.x + it.w, h: it.h, b: it.b });
             last.h = Math.max(last.h, it.h);
           } else {
-            vlines.push({ y: it.y, h: it.h, runs: [{ text: it.str, x0: it.x, x1: it.x + it.w, h: it.h }] });
+            vlines.push({ y: it.y, h: it.h, runs: [{ text: it.str, x0: it.x, x1: it.x + it.w, h: it.h, b: it.b }] });
           }
         }
         // run 병합: 좁은 간격은 같은 덩어리(공백 복원), 넓은 간격은 열 구분으로 유지
@@ -234,7 +252,10 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
         const totalChars = textLines.reduce((s, l) => s + l.runs.reduce((a, r) => a + r.text.length, 0), 0);
 
         const pxOf = (h: number) => Math.min(72, Math.max(6, Math.round((h * 4) / 3)));
-        const spanOf = (r: Run) => `<span style="font-size: ${pxOf(r.h)}px">${escapeHtml(r.text.trim())}</span>`;
+        const spanOf = (r: Run) => {
+          const inner = `<span style="font-size: ${pxOf(r.h)}px">${escapeHtml(r.text.trim())}</span>`;
+          return r.b ? `<strong>${inner}</strong>` : inner;
+        };
         const alignOf = (l: VLine): "left" | "center" | "right" => {
           const x0 = Math.min(...l.runs.map((r) => r.x0));
           const x1 = Math.max(...l.runs.map((r) => r.x1));
@@ -285,7 +306,14 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
               }
               return `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
             });
-            pageHtml.push(`<table><tbody>${rows.join("")}</tbody></table>`);
+            // 열 너비를 원본 x좌표 비율대로 — 표 모양이 PDF 와 최대한 같게
+            const bandRight = Math.max(...band.flatMap((bl) => bl.runs.map((r) => r.x1)));
+            const bounds = [...cols.slice(1), bandRight + 8];
+            const totalW = bounds[bounds.length - 1] - cols[0] || 1;
+            const colgroup = `<colgroup>${cols.map((c, idx) =>
+              `<col style="width: ${Math.max(5, Math.round(((bounds[idx] - c) / totalW) * 100))}%">`
+            ).join("")}</colgroup>`;
+            pageHtml.push(`<table>${colgroup}<tbody>${rows.join("")}</tbody></table>`);
             tablesBuilt++;
             prevY = band[band.length - 1].y;
             prevH = band[band.length - 1].h;
@@ -458,6 +486,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
         style={fillHeight ? { overflowY: "auto" } : maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
         <EditorContent
           editor={editor}
+          style={contentMaxWidth ? { maxWidth: contentMaxWidth, margin: "0 auto" } : undefined}
           className={`prose prose-sm max-w-none px-4 py-3 focus:outline-none [&_.tiptap]:outline-none [&_.tiptap_img]:max-w-full ${fillHeight ? "h-full [&_.tiptap]:min-h-full" : "min-h-[200px] [&_.tiptap]:min-h-[180px]"} [&_.tiptap_img]:rounded-lg [&_.tiptap_img]:my-2 [&_.tiptap_table]:border-collapse [&_.tiptap_table]:w-full [&_.tiptap_table]:my-2 [&_.tiptap_td]:border [&_.tiptap_td]:border-[var(--border)] [&_.tiptap_td]:p-2 [&_.tiptap_th]:border [&_.tiptap_th]:border-[var(--border)] [&_.tiptap_th]:p-2 [&_.tiptap_th]:bg-[var(--bg-surface)] [&_.tiptap_th]:font-bold [&_.is-editor-empty:first-child::before]:text-[var(--text-dim)] [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:pointer-events-none`}
         />
       </div>

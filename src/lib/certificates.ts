@@ -66,9 +66,11 @@ export async function generateEmploymentCertificate(params: {
   employee: CertificateEmployee;
   company: CertificateCompany;
   purpose?: string;
+  submitTo?: string; // 제출처 (2026-07-29 사장님: 용도·제출처 입력 지원)
 }): Promise<CertificateResult> {
   const { employee, company } = params;
   const purpose = params.purpose || '제출용';
+  const submitTo = params.submitTo || '';
   const certNumber = await generateCertificateNumber('CERT-EMP');
   const today = new Date();
   const todayStr = formatKoreanDate(today);
@@ -116,6 +118,9 @@ export async function generateEmploymentCertificate(params: {
     ['재직기간', tenure],
     ['용    도', purpose],
   );
+  if (submitTo) {
+    personalInfo.push(['제 출 처', submitTo]);
+  }
 
   autoTable(doc, {
     startY: y,
@@ -397,15 +402,19 @@ export async function saveCertificateLog(params: {
   certificateNumber: string;
   issuedBy: string;
   purpose?: string;
+  submitTo?: string;
   pdfUrl?: string;
 }): Promise<void> {
+  // 제출처는 별도 컬럼 없이 용도에 병기 — 이력 화면·감사로그에 그대로 노출
+  const purposeWithSubmitTo = [params.purpose, params.submitTo ? `제출처: ${params.submitTo}` : '']
+    .filter(Boolean).join(' · ') || null;
   const { error } = await db.from('certificate_logs').insert({
     company_id: params.companyId,
     employee_id: params.employeeId,
     certificate_type: params.certificateType,
     certificate_number: params.certificateNumber,
     issued_by: params.issuedBy,
-    purpose: params.purpose || null,
+    purpose: purposeWithSubmitTo,
     pdf_url: params.pdfUrl || null,
   });
 

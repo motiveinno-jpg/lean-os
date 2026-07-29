@@ -44,6 +44,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
+import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, resendEmployeeInvitationByEmail, addExistingMemberAsEmployee } from "@/lib/invitations";
 import {
@@ -4040,6 +4041,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [certType, setCertType] = useState<"employment" | "career">("employment");
   const [purpose, setPurpose] = useState("");
+  const [submitTo, setSubmitTo] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
   const db = supabase;
@@ -4101,6 +4103,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
           employee: empData,
           company: companyData,
           purpose: purpose || undefined,
+          submitTo: submitTo || undefined,
         });
       } else {
         result = await generateCareerCertificate({
@@ -4125,10 +4128,12 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         certificateNumber: result.certificateNumber,
         issuedBy: userId,
         purpose: purpose || undefined,
+        submitTo: submitTo || undefined,
       });
 
       queryClient.invalidateQueries({ queryKey: ["certificate-logs"] });
       setPurpose("");
+      setSubmitTo("");
       toast(`증명서가 발급되었습니다.\n증명서번호: ${result.certificateNumber}`, "success");
     } catch (err: any) {
       toast("증명서 발급 실패: " + (err?.message || err), "error");
@@ -4170,15 +4175,8 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">용도</label>
-            <input
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              placeholder="제출용, 은행, 비자 등"
-              className="field-input"
-            />
-          </div>
+          <CertChoiceField label="용도" options={CERT_PURPOSE_OPTIONS} value={purpose} onChange={setPurpose} />
+          <CertChoiceField label="제출처" options={CERT_SUBMIT_TO_OPTIONS} value={submitTo} onChange={setSubmitTo} />
           <div className="flex items-end">
             <button
               onClick={handleIssue}

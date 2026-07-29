@@ -238,7 +238,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
           <div className="contract-template-editor-body flex-1 flex gap-4 px-6 min-h-0">
             <div className="flex-1 flex flex-col min-h-0">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">서식 내용 *</label>
-              <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다. 📎 PDF 그대로 버튼으로 PDF 서식을 원본 모양 그대로 가져올 수 있습니다." maxHeight="calc(80vh - 220px)"
+              <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다. 📎 PDF 그대로 버튼으로 PDF 서식을 원본 모양 그대로 가져올 수 있습니다." maxHeight="calc(80vh - 220px)" contentMaxWidth="794px"
                 onUploadImage={async (file) => {
                   // PDF 페이지 이미지를 DB(content_json)가 아닌 스토리지에 — 여러 페이지도 서식이 가벼움
                   const u = await getCurrentUser();
