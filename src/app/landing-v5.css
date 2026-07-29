@@ -151,19 +151,27 @@
 .lp5-orbit { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .lp5-chip {
   position: absolute; left: 50%; top: 50%;
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 11px 17px; border-radius: 14px; white-space: nowrap;
-  font-size: 14px; font-weight: 700; color: var(--ink2);
-  background: rgba(255,255,255,.86); border: 1px solid var(--line);
-  box-shadow: 0 12px 30px -14px rgba(11,11,15,.3);
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 9px 15px 9px 9px; border-radius: 15px; white-space: nowrap;
+  font-size: 14px; font-weight: 700; color: var(--ink);
+  background: rgba(255,255,255,.94); border: 1px solid rgba(11,11,15,.07);
+  box-shadow: 0 1px 2px rgba(11,11,15,.05), 0 16px 34px -16px rgba(11,11,15,.34);
   /* --x/--y 만큼 밖에 있다가 진행률에 따라 가운데로 모이며 사라진다.
      ⚠️ 칩이 다 사라지기 전에 화면이 떠오르면 칩이 화면 위에 얹혀 지저분해진다.
-        칩은 .40 에서 끝내고 화면은 .34 부터 시작 — 겹치는 구간을 최소로 둔다. */
-  --k: calc(1 - clamp(0, calc(var(--p) / .4), 1));
+        칩은 .40 에서 끝내고 화면은 .34 부터 시작 — 겹치는 구간을 최소로 둔다.
+     ⚠️ --d(칩마다 다른 출발 시점) 덕에 한 덩어리로 움직이지 않고 따로따로 빨려들어간다.
+        전부 같은 식으로 움직이면 "흩어진" 게 아니라 "정렬된" 것으로 보인다. */
+  --k: calc(1 - clamp(0, calc((var(--p) - var(--d, 0)) / .34), 1));
   transform: translate(-50%, -50%)
              translate(calc(var(--x) * var(--k) * var(--r, 1)), calc(var(--y) * var(--k) * var(--r, 1)))
-             scale(calc(.55 + var(--k) * .45));
+             rotate(calc(var(--rot, 0deg) * var(--k)))
+             scale(calc(.55 + var(--k) * var(--sc, 1) * .45));
   opacity: calc(var(--k) * var(--k) * 1.4);
+}
+.lp5-chip-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 27px; height: 27px; border-radius: 9px; flex: none;
+  box-shadow: 0 2px 6px -1px rgba(11,11,15,.32);
 }
 .lp5-unify-core {
   position: relative; z-index: 2; width: min(760px, 82vw);
@@ -412,9 +420,12 @@
 @media (max-width: 1200px) and (min-width: 1000px) {
   .lp5-cov-grid { grid-template-columns: repeat(4, 1fr); }
   .lp5-day-grid, .lp5-ax-grid, .lp5-eng-grid { grid-template-columns: 320px 1fr; gap: 40px; }
-  /* ⚠️ 칩 궤도(±500px)가 1024px 화면 밖으로 나간다 — 반경을 같이 줄인다 */
-  .lp5-chip { --r: .68; font-size: 12.5px; padding: 9px 13px; }
+  /* ⚠️ 칩 궤도(±650px)가 1024px 화면 밖으로 나간다 — 반경을 같이 줄인다 */
+  .lp5-chip { --r: .64; font-size: 12.5px; padding: 7px 12px 7px 7px; }
+  .lp5-chip-ico { width: 23px; height: 23px; border-radius: 8px; }
 }
+/* ⚠️ 1201~1440 구간에도 축소가 필요하다 — 1280px 에서 "카드사 앱"·"수기 장부"가 화면 밖으로 나갔다 */
+@media (max-width: 1440px) and (min-width: 1201px) { .lp5-chip { --r: .82; } }
 /* 좁은 화면에서 히어로·통합에 들어가는 폰 목업 (데스크톱 캡처 대체) */
 .lp5-phone-solo { width: min(300px, 66vw); transform: none; margin-top: 8px; }
 .lp5-phone-solo img { opacity: 1; }

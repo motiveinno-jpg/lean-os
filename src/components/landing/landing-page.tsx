@@ -142,41 +142,50 @@ function SceneHero() {
 
 // ══════════════════ 2. 통합 ══════════════════
 //   흩어져 있던 도구들이 스크롤에 따라 가운데로 모이며 사라지고, 그 자리에 오너뷰가 남는다.
-// ⚠️ 좌표는 무대 중앙 기준이다. 가운데(±360 x ±150)는 문구가 차지하므로 그 박스를 피해 둔다 —
-//    예전엔 "급여 대장"이 (-90,-268)에 있어 제목 뒤로 들어가 잘려 보였다.
+// 흩어진 도구들 — 무대 중앙(0,0) 기준 좌표.
+//   ⚠️ 사장님: "되도록 흩어져 있는 라인 위로는 배치를 안 하는 게 좋을 듯" →
+//      문구 아래(y >= -20)에만 둔다. 제목 위로는 하나도 올리지 않는다.
+//   ⚠️ "너무 일정하게 배치되어 있어서 흩어진 느낌이 덜하다" →
+//      x·y 를 격자에서 일부러 어긋내고, 기울기(rot)·크기(sc)·모이는 시점(d)까지 제각각으로 둔다.
+//      d 가 다르면 칩들이 한 덩어리로 움직이지 않고 따로따로 빨려들어간다.
+//   ⚠️ 아이콘은 실제 서비스 로고를 쓰지 않는다 — 남의 상표를 "불편하다"는 맥락에 쓰면
+//      분쟁 소지가 있다. 색·형태만으로 무엇인지 알아보게 만든다.
 const SCATTER = [
-  { t: "엑셀 견적서",   i: "sheet",  x: "-560px", y: "-235px" },
-  { t: "카톡 결재",     i: "chat",   x: "560px",  y: "-245px" },
-  { t: "통장 앱",       i: "bank",   x: "-625px", y: "-60px" },
-  { t: "카드사 앱",     i: "card",   x: "630px",  y: "-70px" },
-  { t: "수기 장부",     i: "book",   x: "-545px", y: "115px" },
-  { t: "메일 계약서",   i: "mail",   x: "545px",  y: "110px" },
-  { t: "급여 대장",     i: "won",    x: "-435px", y: "270px" },
-  { t: "세무 자료 폴더", i: "folder", x: "440px",  y: "280px" },
-  { t: "종이 근태표",   i: "clock",  x: "-330px", y: "-380px" },
-  { t: "드라이브 서류함", i: "drive", x: "340px",  y: "-385px" },
-  { t: "달력 일정",     i: "cal",    x: "-195px", y: "340px" },
-  { t: "문자 알림",     i: "bell",   x: "205px",  y: "345px" },
+  { t: "엑셀 견적서",    i: "sheet",  c: "#1D8A54", x: "-598px", y: "18px",   rot: "-7deg",  sc: 1.06, d: 0.00 },
+  { t: "카톡 결재",      i: "chat",   c: "#E5B800", x: "512px",  y: "-8px",   rot: "6deg",   sc: 1.02, d: 0.06 },
+  { t: "통장 앱",        i: "bank",   c: "#2F6FED", x: "-352px", y: "148px",  rot: "4deg",   sc: 0.93, d: 0.11 },
+  { t: "카드사 앱",      i: "card",   c: "#5B4BE8", x: "643px",  y: "176px",  rot: "-5deg",  sc: 0.97, d: 0.03 },
+  { t: "수기 장부",      i: "book",   c: "#B4762A", x: "-655px", y: "232px",  rot: "8deg",   sc: 1.09, d: 0.14 },
+  { t: "메일 계약서",    i: "mail",   c: "#D94A3D", x: "266px",  y: "104px",  rot: "-3deg",  sc: 0.9,  d: 0.09 },
+  { t: "급여 대장",      i: "won",    c: "#0E8F6F", x: "-142px", y: "268px",  rot: "-9deg",  sc: 1.04, d: 0.17 },
+  { t: "세무 자료 폴더", i: "folder", c: "#E08422", x: "398px",  y: "312px",  rot: "5deg",   sc: 0.95, d: 0.05 },
+  { t: "종이 근태표",    i: "clock",  c: "#5B6472", x: "-480px", y: "372px",  rot: "-4deg",  sc: 0.88, d: 0.2 },
+  // ⚠️ 원래 (620,-26) 이라 "카톡 결재"(512,-8) 와 가로 108px 밖에 안 떨어져 겹쳤다
+  { t: "드라이브 서류함", i: "drive", c: "#2C9C63", x: "318px",  y: "-34px",  rot: "9deg",   sc: 0.91, d: 0.13 },
+  { t: "달력 일정",      i: "cal",    c: "#C93B3B", x: "96px",   y: "382px",  rot: "7deg",   sc: 1.0,  d: 0.08 },
+  { t: "문자 알림",      i: "bell",   c: "#3AA35C", x: "-268px", y: "56px",   rot: "3deg",   sc: 0.86, d: 0.16 },
 ];
 
-/** 칩 아이콘 — 무슨 도구인지 글자 없이도 읽히게. */
-function ChipIcon({ n }: { n: string }) {
-  const p = { width: 15, height: 15, fill: "none", stroke: "currentColor", strokeWidth: 1.9,
+/** 칩 아이콘 — 색 있는 타일. 로고가 아니라 "무슨 도구인지" 알아보게 하는 형태다. */
+function ChipIcon({ n, c }: { n: string; c: string }) {
+  const p = { width: 15, height: 15, fill: "none", stroke: "#fff", strokeWidth: 2,
     viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  let g;
   switch (n) {
-    case "sheet":  return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>;
-    case "chat":   return <svg {...p}><path d="M21 11.5a8.4 8.4 0 01-9 8.4 9 9 0 01-3.9-.9L3 21l1.9-4.5A8.4 8.4 0 013 11.5 8.5 8.5 0 0112 3a8.5 8.5 0 019 8.5z"/></svg>;
-    case "bank":   return <svg {...p}><path d="M3 10l9-6 9 6"/><path d="M5 10v9M19 10v9M9 10v9M15 10v9M3 21h18"/></svg>;
-    case "card":   return <svg {...p}><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>;
-    case "book":   return <svg {...p}><path d="M4 4a2 2 0 012-2h13v18H6a2 2 0 00-2 2V4z"/><path d="M8 7h8M8 11h6"/></svg>;
-    case "mail":   return <svg {...p}><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>;
-    case "won":    return <svg {...p}><path d="M3 7l3.5 10L10 9l3.5 8L17 7"/><path d="M2 11h19"/></svg>;
-    case "folder": return <svg {...p}><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>;
-    case "clock":  return <svg {...p}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>;
-    case "drive":  return <svg {...p}><path d="M12 3l7 12H5L12 3z"/><path d="M5 15l-2 4h18l-2-4"/></svg>;
-    case "cal":    return <svg {...p}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>;
-    default:       return <svg {...p}><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>;
+    case "sheet":  g = <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9.5h18M3 15h18M9.5 3v18"/></svg>; break;
+    case "chat":   g = <svg {...p}><path d="M12 4c4.7 0 8.5 2.9 8.5 6.5S16.7 17 12 17c-.8 0-1.6-.1-2.3-.3L5 19l1.2-3.2C4.6 14.6 3.5 12.7 3.5 10.5 3.5 6.9 7.3 4 12 4z"/></svg>; break;
+    case "bank":   g = <svg {...p}><path d="M3.5 10L12 4.5 20.5 10"/><path d="M6 10.5v8M18 10.5v8M10 10.5v8M14 10.5v8M3 19h18"/></svg>; break;
+    case "card":   g = <svg {...p}><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19"/></svg>; break;
+    case "book":   g = <svg {...p}><path d="M5 4.5A1.5 1.5 0 016.5 3H19v18H6.5A1.5 1.5 0 015 19.5v-15z"/><path d="M8.5 8h7M8.5 12h5"/></svg>; break;
+    case "mail":   g = <svg {...p}><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 8l9 6 9-6"/></svg>; break;
+    case "won":    g = <svg {...p}><path d="M4 7.5l3 9 3-7 3 7 3-9"/><path d="M2.5 11.5h19"/></svg>; break;
+    case "folder": g = <svg {...p}><path d="M3 7.5A2 2 0 015 5.5h3.6l2 2H19a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-9z"/></svg>; break;
+    case "clock":  g = <svg {...p}><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5.2l3.4 2"/></svg>; break;
+    case "drive":  g = <svg {...p}><path d="M12 3.5l6.5 11h-13l6.5-11z"/><path d="M5.5 14.5L3 19h18l-2.5-4.5"/></svg>; break;
+    case "cal":    g = <svg {...p}><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8.5 3v4M15.5 3v4"/></svg>; break;
+    default:       g = <svg {...p}><path d="M18 8.5A6 6 0 006 8.5c0 6.5-2.8 8.5-2.8 8.5h17.6S18 15 18 8.5z"/><path d="M13.6 20.5a2 2 0 01-3.2 0"/></svg>; break;
   }
+  return <span className="lp5-chip-ico" style={{ background: c }}>{g}</span>;
 }
 
 function SceneUnify() {
@@ -188,8 +197,11 @@ function SceneUnify() {
           {/* ⚠️ 궤도는 무대(100vh) 기준이어야 한다. 문구 박스 안에 두면 칩이 제목 위로 겹친다. */}
           <div className="lp5-orbit" aria-hidden>
             {SCATTER.map((s) => (
-              <span key={s.t} className="lp5-chip" style={{ ["--x" as string]: s.x, ["--y" as string]: s.y }}>
-                <ChipIcon n={s.i} />{s.t}
+              <span key={s.t} className="lp5-chip" style={{
+                ["--x" as string]: s.x, ["--y" as string]: s.y,
+                ["--rot" as string]: s.rot, ["--sc" as string]: s.sc, ["--d" as string]: s.d,
+              }}>
+                <ChipIcon n={s.i} c={s.c} />{s.t}
               </span>
             ))}
           </div>
