@@ -202,6 +202,19 @@
 .lp5-swap { animation: lp5-swap-in .62s cubic-bezier(.2,.7,.25,1) both; }
 @media (prefers-reduced-motion: reduce) { .lp5-swap { animation: none; } }
 
+/* ── 핀 없는 일반 섹션 ── (세 축 · AI)
+   ⚠️ 이 둘은 무대(sticky 100vh)에서 뺐다. 스크롤로 카드를 넘기니 화면이 붙잡히고 음영이
+      어색하게 걸렸고, 모바일에서는 넘기기 자체가 어려웠다 (사장님 지적). 이제 자동 재생한다. */
+.lp5-sect { position: relative; padding: clamp(84px, 11vh, 150px) 0; background: var(--canvas); }
+.lp5-sect-dark { background: var(--dark); color: #fff; overflow: hidden; }
+.lp5-sect-dark .lp5-eyebrow { color: var(--brand2); }
+.lp5-sect-dark .lp5-lead { color: #B9B9C6; }
+.lp5-sect-dark .lp5-rail-card { background: rgba(255,255,255,.045); border-color: rgba(255,255,255,.09); }
+.lp5-sect-dark .lp5-rail-dot { background: rgba(255,255,255,.2); }
+.lp5-sect-dark .lp5-rail-dot-on { background: var(--brand2); }
+.lp5-sect-dark .lp5-rail-play { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.16); }
+.lp5-sect-dark .lp5-rail-count { color: #7B7B8A; }
+
 /* ══ 가로 레일 ══ (세 축 · AI)
    사장님: "위에서부터 다 같은 형식이라 느낌이 너무 똑같음" → 좌측 제목 + 가로 이동으로 리듬을 끊는다.
    ⚠️ 이동은 beat(구간)가 아니라 --p(연속값)로 한다. 구간 단위로 옮기면 카드가 툭툭 튄다. */
@@ -213,22 +226,23 @@
   display: flex; gap: var(--gap); will-change: transform;
   /* ⚠️ 이동량을 p*(n-1) 로 잡으면 활성 카드(=floor(p*n))와 화면 위치가 한 칸씩 어긋난다.
      점 표시와 눈에 보이는 카드가 따로 논다 → 같은 식(p*n)을 쓰고 끝만 막는다. */
-  --pos: min(calc(var(--p) * var(--n)), calc(var(--n) - 1));
+  /* 스크롤(--p)이 아니라 현재 칸(--i)으로 옮긴다 */
   --step: calc(var(--cw) + var(--gap));
   /* ⚠️ 마지막 카드를 왼쪽 끝까지 밀면 오른쪽이 텅 빈 채로 끝난다.
      트랙 오른쪽 끝이 보이는 영역의 오른쪽에 닿으면 더는 안 밀리게 막는다. */
   --view: min(1356px, calc(100vw - 64px));
   --maxx: max(0px, calc(var(--n) * var(--step) - var(--gap) - var(--view)));
-  transform: translateX(calc(-1 * min(calc(var(--pos) * var(--step)), var(--maxx))));
+  transform: translateX(calc(-1 * min(calc(var(--i) * var(--step)), var(--maxx))));
+  transition: transform .72s cubic-bezier(.22,.68,.24,1);
 }
 .lp5-rail-track.lp5-rail-tall { --cw: min(380px, 68vw); }
 .lp5-rail-card {
   flex: 0 0 var(--cw); width: var(--cw);
   border-radius: 20px; overflow: hidden; background: var(--canvas2);
   border: 1px solid var(--line);
-  opacity: .5; transition: opacity .45s ease, transform .45s ease;
+  /* ⚠️ 비활성 카드를 흐리게(opacity .5) 두니 "음영 처리가 어색하다"는 지적이 나왔다.
+     자동 재생으로 바뀐 지금은 다 또렷하게 두고, 현재 칸은 점으로만 알린다. */
 }
-.lp5-rail-card-on { opacity: 1; }
 .lp5-scene-dark .lp5-rail-card { background: rgba(255,255,255,.045); border-color: rgba(255,255,255,.09); }
 
 .lp5-rail-cap { padding: 20px 22px 14px; }
@@ -259,11 +273,28 @@
 .lp5-rail-note p { font-size: 13.5px; line-height: 1.7; color: #A9A9B8; margin-top: 8px; }
 .lp5-rail-where { display: block; font-size: 11.5px; color: #7B7B8A; margin-top: 9px; }
 
-.lp5-rail-bar { display: flex; align-items: center; gap: 16px; margin-top: 22px; }
-.lp5-rail-dots { display: flex; gap: 6px; }
-.lp5-rail-dot { width: 22px; height: 3px; border-radius: 99px; background: var(--line); transition: background .3s; }
+/* 컨트롤 — 점(누르면 그 칸으로) + 자동재생/일시정지 */
+.lp5-rail-bar { display: flex; align-items: center; gap: 14px; margin-top: 26px; }
+.lp5-rail-dots {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(11,11,15,.05); border-radius: 99px; padding: 9px 14px;
+}
+.lp5-sect-dark .lp5-rail-dots { background: rgba(255,255,255,.07); }
+.lp5-rail-dot {
+  width: 7px; height: 7px; border-radius: 99px; background: var(--line);
+  border: 0; padding: 0; cursor: pointer;
+  transition: width .3s cubic-bezier(.22,.68,.24,1), background .3s;
+}
+.lp5-rail-dot:hover { background: var(--ink3); }
+.lp5-rail-play {
+  width: 38px; height: 38px; border-radius: 99px; flex: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(11,11,15,.05); color: var(--ink); border: 1px solid transparent;
+  transition: background .2s;
+}
+.lp5-rail-play:hover { background: rgba(11,11,15,.1); }
 .lp5-scene-dark .lp5-rail-dot { background: rgba(255,255,255,.18); }
-.lp5-rail-dot-on { background: var(--brand) !important; }
+.lp5-rail-dot-on { width: 26px; background: var(--brand) !important; }
 .lp5-scene-dark .lp5-rail-dot-on { background: var(--brand2) !important; }
 .lp5-rail-count { font-size: 12.5px; font-weight: 700; color: var(--ink3); }
 
@@ -431,6 +462,14 @@
 .lp5-phone-solo img { opacity: 1; }
 /* ⚠️ 폰은 세로가 길다(1170x2400). 무대 높이를 넘지 않게 천장을 둔다 */
 .lp5-phone-solo { max-height: 52vh; aspect-ratio: 1170 / 2400; }
+
+/* ⚠️ 좁은 화면에서 세 축 카드 안의 데스크톱 캡처를 통째로 줄이면 아무것도 안 읽힌다.
+   AI 카드와 같은 방식으로 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
+   (이 9장은 모바일 대응본이 다 있지는 않아 폰으로 바꿔 끼울 수 없다 — 섞이면 더 이상해진다) */
+@media (max-width: 700px) {
+  .lp5-rail-shot { aspect-ratio: 4 / 3; }
+  .lp5-rail-shot img { object-position: left top; transform: scale(1.75); transform-origin: left top; }
+}
 
 /* 아주 좁은 화면 — 여백·칸수를 줄여 내용이 뭉개지지 않게 */
 @media (max-width: 620px) {

@@ -11,7 +11,7 @@
 //     FAQ·제휴폼·푸터·상단바는 lp4-(landing.css) 를 그대로 재사용한다 — 잘 도는 걸 다시 만들지 않는다.
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import "@/app/landing.css";
 import "@/app/landing-v5.css";
 import { LandingNav } from "@/components/landing/landing-nav";
@@ -270,7 +270,61 @@ function SceneDay() {
   );
 }
 
-// ══════════════════ 4. 세 축 — 가로 레일 ══════════════════
+/** 자동 재생 레일 — 스크롤이 아니라 시간으로 넘어간다.
+ *  사장님: "스크롤에 따라 화면 넘기기 삭제 (모바일에서 보기가 힘듦).
+ *   밑에 자동재생·일시정지 버튼과 왼쪽 순서 기능, 점을 누르면 바로 그 페이지로."
+ *  ⚠️ 화면에 들어와 있을 때만 돈다. 안 보이는 레일이 계속 타이머를 돌리면 배터리만 먹는다.
+ *  ⚠️ 마지막 칸에서 트랙 오른쪽 끝이 화면 오른쪽에 닿으면 더 안 민다 — 안 그러면 오른쪽이 텅 빈다. */
+function Rail({ cards, tall = false, ms = 4600 }: { cards: ReactNode[]; tall?: boolean; ms?: number }) {
+  const n = cards.length;
+  const [i, setI] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [live, setLive] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const io = new IntersectionObserver((es) => setLive(es[0].isIntersecting), { threshold: 0.2 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!playing || !live) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setI((v) => (v + 1) % n), ms);
+    return () => clearInterval(t);
+  }, [playing, live, n, ms]);
+
+  return (
+    <div ref={ref}>
+      <div className="lp5-rail-view">
+        <div className={`lp5-rail-track ${tall ? "lp5-rail-tall" : ""}`}
+          style={{ ["--n" as string]: n, ["--i" as string]: i }}>
+          {cards}
+        </div>
+      </div>
+      <div className="lp5-rail-bar">
+        <div className="lp5-rail-dots">
+          {cards.map((_, k) => (
+            <button key={k} type="button" onClick={() => setI(k)}
+              className={`lp5-rail-dot ${k === i ? "lp5-rail-dot-on" : ""}`}
+              aria-label={`${k + 1}번째 보기`} aria-current={k === i} />
+          ))}
+        </div>
+        <button type="button" className="lp5-rail-play" onClick={() => setPlaying((v) => !v)}
+          aria-label={playing ? "자동 재생 멈춤" : "자동 재생"}>
+          {playing
+            ? <svg width="13" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1.2"/><rect x="14" y="4" width="4" height="16" rx="1.2"/></svg>
+            : <svg width="13" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.8v14.4c0 .9 1 1.4 1.7.9l10.7-7.2c.6-.4.6-1.4 0-1.8L8.7 3.9c-.7-.5-1.7 0-1.7.9z"/></svg>}
+        </button>
+        <span className="lp5-rail-count">{i + 1} / {n}</span>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════ 4. 세 축 — 자동 재생 레일 ══════════════════
 //   사장님: "위에서부터 다 같은 형식이라 느낌이 너무 똑같음. 좌측 제목 + 가로로 움직이는 형태로."
 //   앞뒤 장면이 전부 [좌 문구 / 우 화면] 이라, 여기만 가로 레일로 리듬을 끊는다.
 //   레일은 --p 로 연속 이동한다(구간 단위로 튀지 않게). 점은 현재 구간만 표시.
@@ -279,38 +333,26 @@ function SceneAxes() {
     P.blocks.map((b) => ({ kicker: P.kicker, tab: b.tab, title: b.title, desc: b.desc, src: b.src, alt: b.alt })),
   );
   return (
-    <Scene id="pillars" len={3.6} beats={cards.length} className="lp5-rail">
-      {(beat) => (
-        <div className="lp5-wrap">
-          <div className="lp5-sec-head">
-            <div className="lp5-eyebrow">Core</div>
-            <h2 className="lp5-h lp5-h-sm">일은 줄이고, <span className="lp5-grad">효율과 성과는 높여요</span></h2>
-            <p className="lp5-lead">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요. 옆으로 넘기며 살펴보세요.</p>
-          </div>
-          <div className="lp5-rail-view">
-            <div className="lp5-rail-track" style={{ ["--n" as string]: cards.length }}>
-              {cards.map((c, i) => (
-                <article key={c.src + c.tab} className={`lp5-rail-card ${i === beat ? "lp5-rail-card-on" : ""}`}>
-                  <div className="lp5-rail-cap">
-                    <span className="lp5-rail-kick">{c.kicker} · {c.tab}</span>
-                    <h3 className="lp5-rail-title">{c.title}</h3>
-                  </div>
-                  <div className="lp5-rail-shot">
-                    <Image src={c.src} alt={c.alt} width={1968} height={1320} sizes="(max-width: 999px) 84vw, 760px" />
-                  </div>
-                </article>
-              ))}
+    <section id="pillars" className="lp5-sect">
+      <div className="lp5-wrap">
+        <Rise className="lp5-sec-head">
+          <div className="lp5-eyebrow">Core</div>
+          <h2 className="lp5-h lp5-h-sm">일은 줄이고, <span className="lp5-grad">효율과 성과는 높여요</span></h2>
+          <p className="lp5-lead">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
+        </Rise>
+        <Rail cards={cards.map((c) => (
+          <article key={c.src + c.tab} className="lp5-rail-card">
+            <div className="lp5-rail-cap">
+              <span className="lp5-rail-kick">{c.kicker} · {c.tab}</span>
+              <h3 className="lp5-rail-title">{c.title}</h3>
             </div>
-          </div>
-          <div className="lp5-rail-bar">
-            <div className="lp5-rail-dots">
-              {cards.map((c, i) => <span key={c.src + c.tab} className={`lp5-rail-dot ${i === beat ? "lp5-rail-dot-on" : ""}`} />)}
+            <div className="lp5-rail-shot">
+              <Image src={c.src} alt={c.alt} width={1968} height={1320} sizes="(max-width: 999px) 84vw, 760px" />
             </div>
-            <span className="lp5-rail-count">{beat + 1} / {cards.length}</span>
-          </div>
-        </div>
-      )}
-    </Scene>
+          </article>
+        ))} />
+      </div>
+    </section>
   );
 }
 
@@ -333,46 +375,32 @@ function SceneAI() {
   }));
   const items = [...engineCards, ...autoCards];
   return (
-    <Scene id="engines" len={3.4} beats={items.length} tone="dark" className="lp5-rail">
-      {(beat) => (
-        <>
-          <div className="lp5-eng-bg" />
-          <div className="lp5-wrap" style={{ position: "relative", zIndex: 1 }}>
-            <div className="lp5-sec-head">
-              <div className="lp5-eyebrow">AI Automation</div>
-              <h2 className="lp5-h lp5-h-sm lp5-eng-h">반복되던 일,<br /><span className="lp5-grad">이제 AI 몫이에요</span></h2>
-              <p className="lp5-lead">
-                사람을 대체하는 게 아니라, 매번 되풀이되는 일을 AI가 먼저 처리해 둬요.
-                엔진 {engineCards.length}개와 자동화 {autoCards.length}가지가 나눠서 맡아요.
-              </p>
+    <section id="engines" className="lp5-sect lp5-sect-dark">
+      <div className="lp5-eng-bg" />
+      <div className="lp5-wrap" style={{ position: "relative", zIndex: 1 }}>
+        <Rise className="lp5-sec-head">
+          <div className="lp5-eyebrow">AI Automation</div>
+          <h2 className="lp5-h lp5-h-sm lp5-eng-h">반복되던 일,<br /><span className="lp5-grad">이제 AI 몫이에요</span></h2>
+          <p className="lp5-lead">
+            사람을 대체하는 게 아니라, 매번 되풀이되는 일을 AI가 먼저 처리해 둬요.
+            엔진 {engineCards.length}개와 자동화 {autoCards.length}가지가 나눠서 맡아요.
+          </p>
+        </Rise>
+        <Rail tall cards={items.map((a) => (
+          <article key={a.name} className="lp5-rail-card">
+            <div className="lp5-rail-crop">
+              <Image src={a.src} alt={a.alt} width={1968} height={1320} sizes="(max-width: 999px) 74vw, 380px" />
             </div>
-            <div className="lp5-rail-view">
-              <div className="lp5-rail-track lp5-rail-tall" style={{ ["--n" as string]: items.length }}>
-                {items.map((a, i) => (
-                  <article key={a.name} className={`lp5-rail-card ${i === beat ? "lp5-rail-card-on" : ""}`}>
-                    <div className="lp5-rail-crop">
-                      <Image src={a.src} alt={a.alt} width={1968} height={1320} sizes="(max-width: 999px) 74vw, 380px" />
-                    </div>
-                    <div className="lp5-rail-note">
-                      <span className={`lp5-rail-kind ${a.kind === "엔진" ? "lp5-rail-kind-e" : ""}`}>{a.kind}</span>
-                      <b>{a.name}</b> <span className="lp5-rail-tag">{a.tag}</span>
-                      <p>{a.desc}</p>
-                      {a.where && <span className="lp5-rail-where">{a.where}</span>}
-                    </div>
-                  </article>
-                ))}
-              </div>
+            <div className="lp5-rail-note">
+              <span className={`lp5-rail-kind ${a.kind === "엔진" ? "lp5-rail-kind-e" : ""}`}>{a.kind}</span>
+              <b>{a.name}</b> <span className="lp5-rail-tag">{a.tag}</span>
+              <p>{a.desc}</p>
+              {a.where && <span className="lp5-rail-where">{a.where}</span>}
             </div>
-            <div className="lp5-rail-bar">
-              <div className="lp5-rail-dots">
-                {items.map((a, i) => <span key={a.name} className={`lp5-rail-dot ${i === beat ? "lp5-rail-dot-on" : ""}`} />)}
-              </div>
-              <span className="lp5-rail-count">{beat + 1} / {items.length}</span>
-            </div>
-          </div>
-        </>
-      )}
-    </Scene>
+          </article>
+        ))} />
+      </div>
+    </section>
   );
 }
 
@@ -492,10 +520,12 @@ export default function LandingPage() {
 
       <SceneHero />
       <SceneUnify />
-      <SceneDay />
       <SceneAxes />
       <SceneAI />
       <SceneCoverage />
+      {/* 사장님: "오너뷰로 하루가 이렇게 달라져요를 모바일 위로" —
+          기능을 다 보여준 뒤 "그래서 하루가 이렇게 바뀐다"로 받고, 바로 "밖에서도 된다"로 잇는다 */}
+      <SceneDay />
       <SceneMobile />
       <SceneEnd />
 
