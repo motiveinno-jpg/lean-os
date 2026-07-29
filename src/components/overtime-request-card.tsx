@@ -165,6 +165,10 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
       toast("연장근무 신청이 접수되었습니다", "success");
       setReason(""); setApproverId("");
       qc.invalidateQueries({ queryKey: ["ot-my-history"] });
+      // 같은 근태 화면의 승인함·연장 통계도 즉시 반영 (2026-07-29 동기화 결함류 소탕)
+      qc.invalidateQueries({ queryKey: ["overtime-pending"] });
+      qc.invalidateQueries({ queryKey: ["overtime-pending-count"] });
+      qc.invalidateQueries({ queryKey: ["overtime-stats"] });
       refetchHistory();
       // 회사 admin/owner 알림 — 실패해도 신청 자체는 성공이라 fire-and-forget.
       void notifyOvertimeRequest({
@@ -204,6 +208,10 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
     onSuccess: () => {
       toast("신청을 취소했습니다", "success");
       qc.invalidateQueries({ queryKey: ["ot-my-history"] });
+      // 같은 근태 화면의 승인함·연장 통계도 즉시 반영 (2026-07-29 동기화 결함류 소탕)
+      qc.invalidateQueries({ queryKey: ["overtime-pending"] });
+      qc.invalidateQueries({ queryKey: ["overtime-pending-count"] });
+      qc.invalidateQueries({ queryKey: ["overtime-stats"] });
       refetchHistory();
     },
     onError: (err: any) => {

@@ -156,6 +156,9 @@ export default function BankPage() {
       toast("매핑 완료", "success");
       setMapOpenId(null);
       queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
+      // 분류는 같은 화면의 경영흐름·변동 집계에 바로 반영돼야 한다 (2026-07-29 동기화 결함류 소탕)
+      queryClient.invalidateQueries({ queryKey: ["bank-page-flow-v2"] });
+      queryClient.invalidateQueries({ queryKey: ["bank-page-changes"] });
     },
     onError: (err: any) => toast(friendlyError(err, "매핑 실패"), "error"),
   });

@@ -185,7 +185,11 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       const { error } = await (supabase).from('bank_transactions').update({ is_fixed_cost: value }).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bank-transactions'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-tx-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-tx-monthly'] });
+    },
     onError: (e: any) => toast(`고정비 변경 실패: ${e.message}`, 'error'),
   });
 
