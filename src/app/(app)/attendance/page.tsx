@@ -30,7 +30,7 @@ export default function AttendancePage() {
   const ATT_EMP_COLS = "id,name,department,position,user_id,email,hire_date,status";
   const isEmployee = role === "employee";
   const isManager = role !== "employee";
-  // 플렉스 스타일 워크보드(주간 52h·타임라인) ↔ 기존 기록 상세 토글.
+  // 보드 스타일 워크보드(주간 52h·타임라인) ↔ 기존 기록 상세 토글.
   //   관리자 기본 = 워크보드(조망), 직원 기본 = 기록 상세(본인 출퇴근/수정 동선 유지).
   const [attView, setAttView] = useState<"work" | "records">(isEmployee ? "records" : "work");
   // 상위 섹션: 근무현황 / 연장근무. 휴가 신청·승인은 전자결재로, 연차 설정은 인사관리로 이관(2026-07-15).
@@ -82,7 +82,7 @@ export default function AttendancePage() {
 
       {section === "work" && (
         <>
-          {/* 플렉스 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
+          {/* 보드 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
           <div className="attendance-view-tabbar seg-bar">
             {([["work", "워크보드 (주간)"], ["records", "기록 상세"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setAttView(k)}

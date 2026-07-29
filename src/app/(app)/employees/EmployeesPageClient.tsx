@@ -125,7 +125,7 @@ export default function EmployeesPage() {
 
   // V1: 급여이력(SalaryTab/salary-history) 제거 — '급여' 탭은 명세만.
 
-  // 플렉스 스타일: 인력관리 탭 = [디렉토리](카드·프로필 패널) 기본 / [관리·수정](기존 EmployeeTab) 토글
+  // 보드 스타일: 인력관리 탭 = [디렉토리](카드·프로필 패널) 기본 / [관리·수정](기존 EmployeeTab) 토글
   const [empView, setEmpView] = useState<"dir" | "manage">("dir");
 
   // ── Expenses ──
@@ -222,7 +222,7 @@ export default function EmployeesPage() {
       )}
 
       {/* Tab Content — S-1: effectiveTab 으로 직원 비허용 탭 컴포넌트 미마운트 */}
-      {/* 플렉스 스타일(2026-06-12): 디렉토리(카드 그리드+프로필 슬라이드) 기본, 추가/수정은 관리 모드 */}
+      {/* 보드 스타일(2026-06-12): 디렉토리(카드 그리드+프로필 슬라이드) 기본, 추가/수정은 관리 모드 */}
       {effectiveTab === "employees" && (
         <>
           <div className="employee-view-toggle seg-bar">
@@ -243,7 +243,7 @@ export default function EmployeesPage() {
 
       {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭 */}
       {/* V1: '급여이력' 세그먼트 제거 — 급여 탭은 명세만 (이력 진입 0) */}
-      {/* 플렉스 스타일(2026-06-12): 세부탭마다 모듈 히어로(실데이터 지표 칩) + flex-skin (탭 본체 무수정) */}
+      {/* 보드 스타일(2026-06-12): 세부탭마다 모듈 히어로(실데이터 지표 칩) + flex-skin (탭 본체 무수정) */}
       {effectiveTab === "salary" && (
         <>
           {!isEmployee && <PayrollHero employees={employees} />}
@@ -3498,7 +3498,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             </div>
           </div>
 
-          {/* Flex 스타일 결재 패널 — 참조 + N단계 승인 */}
+          {/* 보드 스타일 결재 패널 — 참조 + N단계 승인 */}
           {(() => {
             // 이미 선택된(승인자·참조) user id 집합
             const usedStepIds = new Set(form.approverSteps.filter(Boolean));

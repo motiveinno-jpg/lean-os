@@ -1220,7 +1220,7 @@ export default function TaxInvoicesPage() {
           )}
           {/* 등록 영역 — 엑셀 업로드·내보내기·등록을 한 곳에 모음(2026-07-14 UI 정리) */}
           <div className="ml-auto self-center flex items-center gap-2 flex-wrap">
-            {/* 엑셀 일괄발행 — 양식 다운로드→검증→국세청 전자발행까지 (2026-07-30 위하고식) */}
+            {/* 엑셀 일괄발행 — 양식 다운로드→검증→국세청 전자발행까지 (2026-07-30) */}
             <button onClick={() => setShowBulkIssue(true)} className="btn-primary" title="엑셀 양식으로 여러 건을 한 번에 국세청 전자발행합니다">
               엑셀 일괄발행
             </button>
@@ -1235,7 +1235,7 @@ export default function TaxInvoicesPage() {
               엑셀 업로드
               <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} className="hidden" />
             </label>
-            {/* Export — 엑셀 내보내기 (더존 Smart-A 양식 CSV) — 매출·매입 목록에 데이터 있을 때만 */}
+            {/* Export — 엑셀 내보내기 (회계 프로그램 호환 양식 CSV) — 매출·매입 목록에 데이터 있을 때만 */}
             {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
               <button
                 onClick={async () => {

@@ -625,7 +625,7 @@ export default function BoardPage() {
     return { expired: false, label: `마감 ${Math.max(1, mins)}분 전` };
   }
 
-  // 플렉스식 필터 + 검색
+  // HR 서비스식 필터 + 검색
   const q = search.trim().toLowerCase();
   const filteredPosts = posts.filter((p) => {
     if (filter === "pinned" && !p.pinned) return false;

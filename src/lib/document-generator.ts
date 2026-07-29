@@ -187,7 +187,7 @@ export async function generateDocumentPDF(params: {
 
   y = (doc as any).lastAutoTable.finalY + 15;
 
-  // ── 서명 블록 (Flex 스타일 가로 5열) ──
+  // ── 서명 블록 (보드 스타일 가로 5열) ──
   if (params.signatures && params.signatures.length > 0) {
     let sealImg: string | null = null;
     if (params.sealUrl) {

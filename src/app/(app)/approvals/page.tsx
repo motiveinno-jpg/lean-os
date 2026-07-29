@@ -196,7 +196,7 @@ function AttachmentList({ attachments }: { attachments?: string[] }) {
   );
 }
 
-// Flex 스타일 구조화 필드 행 — 타입별 아이콘 + 라벨 + 값
+// 보드 스타일 구조화 필드 행 — 타입별 아이콘 + 라벨 + 값
 function fieldTypeIcon(type: string) {
   if (type === "date") {
     return <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
@@ -3399,7 +3399,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                     placeholder="단계 이름"
                     className="flex-1 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
                   />
-                  {/* 승인자 유형: 역할 / 특정 인물(플렉스식) */}
+                  {/* 승인자 유형: 역할 / 특정 인물(HR 서비스식) */}
                   <select
                     value={stage.approver_id ? "person" : "role"}
                     onChange={(e) => {
@@ -3687,7 +3687,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
   );
 }
 
-// 분할 패널 우측 — 플렉스 스타일 "승인·참조" 사이드바 (담당자별 단계·상태 요약)
+// 분할 패널 우측 — 보드 스타일 "승인·참조" 사이드바 (담당자별 단계·상태 요약)
 function ApprovalStageSidebar({ requestId, referenceUsers }: { requestId: string; referenceUsers?: { id: string; name: string }[] }) {
   const { data: steps = [] } = useQuery({
     queryKey: ["activity-timeline", requestId],

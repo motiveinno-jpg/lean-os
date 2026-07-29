@@ -1,8 +1,8 @@
 import { todayKst } from '@/lib/kst';
-// 더존(Douzone) Smart-A / 위하고 양식 export — Granter 의 더존 export 벤치마킹
-// 거래내역 / 세금계산서 / 카드내역 → 더존 양식 CSV 다운로드
+// 회계 프로그램(Douzone) 호환양식 / 타사 세무 서비스 양식 export — Granter 의 회계 프로그램 export 벤치마킹
+// 거래내역 / 세금계산서 / 카드내역 → 회계 프로그램 양식 CSV 다운로드
 //
-// 더존 양식 표준:
+// 회계 프로그램 양식 표준:
 // - euc-kr 인코딩 (한국 회계 SW 호환). 단 브라우저 다운로드라 BOM+UTF-8 도 안전.
 // - 콤마 구분, 큰따옴표 escape.
 // - 날짜는 YYYY-MM-DD 또는 YYYYMMDD.
@@ -29,7 +29,7 @@ function downloadCsv(filename: string, lines: string[]) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// ── 1. 통장 거래내역 export (더존 분개 양식 호환) ──
+// ── 1. 통장 거래내역 export (회계 프로그램 분개 양식 호환) ──
 export interface BankTxExport {
   transaction_date: string;
   amount: number | string;
@@ -64,7 +64,7 @@ export function exportBankTransactionsDouzone(rows: BankTxExport[], periodLabel?
   downloadCsv(fname, lines);
 }
 
-// ── 2. 세금계산서 export (더존 매출/매입처원장) ──
+// ── 2. 세금계산서 export (회계 프로그램 매출/매입처원장) ──
 export interface TaxInvoiceExport {
   issue_date: string;
   nts_confirm_no?: string | null;

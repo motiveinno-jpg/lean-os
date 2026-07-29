@@ -6,7 +6,7 @@ import { logRead } from "@/lib/log-read";
 // 거래처 원장 — 매출처(받을 돈)/매입처(줄 돈) 잔액 조회 (2026-06-12 메뉴 분리 핸드오프).
 //   대사 작업(확인 큐/수동 매칭/확정 내역)은 /partners/reconciliation (거래 대사)로 분리.
 //   UX(§4): 세그먼트 탭(매출처=파랑 var(--info) / 매입처=주황 var(--warning), 빨강은 연체·마이너스 전용) +
-//   요약 카드 + 좌 거래처 목록 / 우 위하고식 원장 시트. 탭 상태는 URL ?type= 에 반영.
+//   요약 카드 + 좌 거래처 목록 / 우 타사 세무 서비스식 원장 시트. 탭 상태는 URL ?type= 에 반영.
 
 import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";

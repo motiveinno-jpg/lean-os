@@ -42,7 +42,7 @@ export function exportDrillDownItems(
   exportToExcel(rows, month, `재무상세_${month}`);
 }
 
-// 회계 프로그램 업로드용 거래내역 엑셀 (xlsx). 더존 CSV 와 컬럼 동일.
+// 회계 프로그램 업로드용 거래내역 엑셀 (xlsx). 회계 프로그램 CSV 와 컬럼 동일.
 export interface BankTxExcelRow {
   transaction_date: string;
   amount: number | string;

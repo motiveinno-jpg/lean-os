@@ -59,7 +59,7 @@ let K = 1;
 const AR_AP_CODES = new Set(["108", "251"]);
 const MEMO_KEY = "voucher-recent-memos";
 
-// 저장 라인의 §3-3-A 구분 표기 — 출금/입금 전표는 더존처럼 1.출금/2.입금
+// 저장 라인의 §3-3-A 구분 표기 — 출금/입금 전표는 회계 프로그램처럼 1.출금/2.입금
 const savedGubun = (vt: string | null, debit: number): Gubun =>
   vt === "cash_out" ? (debit > 0 ? "1" : "4") : vt === "cash_in" ? (debit > 0 ? "3" : "2") : debit > 0 ? "3" : "4";
 

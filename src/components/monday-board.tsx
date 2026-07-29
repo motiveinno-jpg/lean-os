@@ -6,8 +6,8 @@ import { logRead } from "@/lib/log-read";
 
 // 2026-06-11 프로젝트 Monday.com 클론 보드 (사장님: "진짜 아예 똑같다 싶을 정도로").
 //   데이터 로직은 Phase 1·2 그대로(행=deals, 컬럼=board_columns, 셀=deals.column_values, 그룹=board_groups).
-//   이번 라운드는 비주얼·UX를 먼데이 시그니처로 재현:
-//   · 먼데이 정확 팔레트(#00C875 done / #FDAB3D working / #E2445C stuck / #0073EA primary)
+//   이번 라운드는 비주얼·UX를 보드형 툴 시그니처로 재현:
+//   · 보드형 툴 정확 팔레트(#00C875 done / #FDAB3D working / #E2445C stuck / #0073EA primary)
 //   · 그룹 컬러 좌측 스트립 + 그룹명 그룹색 + 접기 caret
 //   · 상태 셀 = 셀 전체 채움(라운드 없음, 흰 글씨), 클릭 풀폭 드롭다운
 //   · 행 체크박스 + 하단 플로팅 선택바(그룹 이동)
@@ -34,7 +34,7 @@ type Deal = { id: string; name: string; board_group_id: string | null; column_va
 type SubItem = { id: string; deal_id: string; name: string; column_values: Record<string, any>; position: number };
 type Person = { id: string; name: string | null; email: string };
 
-// ── 먼데이 정확 팔레트 ──
+// ── 보드형 툴 정확 팔레트 ──
 const MONDAY = {
   green: "#00C875", orange: "#FDAB3D", red: "#E2445C", blue: "#579BFC",
   purple: "#A25DDC", primary: "#0073EA", lime: "#9CD326", pink: "#FF158A",
@@ -69,7 +69,7 @@ const DEFAULT_COLUMNS: { name: string; type: string; settings: any }[] = [
 //   (보드 계약금액이 비어 보이는데 상단 총 계약금액엔 합산되던 불일치 해소, 2026-06-12)
 const isContractCol = (c: Col) => c.settings?.bind === "contract_total" || (c.type === "number" && String(c.name || "").replace(/\s/g, "") === "계약금액");
 
-// 아바타 색 — userId 해시 → 먼데이 팔레트
+// 아바타 색 — userId 해시 → 보드형 툴 팔레트
 function avatarColor(id: string): string {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
@@ -85,7 +85,7 @@ function initials(name: string): string {
 }
 
 const STRIP_W = 6; // 그룹 컬러 스트립 폭(px)
-const ROW_H = 36; // 먼데이 행 높이
+const ROW_H = 36; // 보드형 툴 행 높이
 
 export function MondayBoard({ companyId, users = [] }: { companyId: string; users?: Person[] }) {
   const { toast } = useToast();
@@ -98,7 +98,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [personFilter, setPersonFilter] = useState<string>("");
-  // 먼데이 말풍선: 아이템 업데이트(히스토리) 패널 대상
+  // 보드형 툴 말풍선: 아이템 업데이트(히스토리) 패널 대상
   const [updatesDeal, setUpdatesDeal] = useState<Deal | null>(null);
   // 푸터 분포 바 클릭 → 텍스트 내역 팝오버
   const [distPop, setDistPop] = useState<{ anchor: DOMRect; title: string; rows: { label: string; color: string; n: number }[]; total: number; empty: number } | null>(null);
@@ -285,7 +285,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
     } finally { creatingRef.current = false; }
   };
 
-  // ── 선택 (먼데이 플로팅 선택바) ──
+  // ── 선택 (보드형 툴 플로팅 선택바) ──
   const toggleSelect = (id: string) => {
     setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   };
@@ -380,7 +380,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
 
   return (
     <div className="board-root">
-      {/* ── 먼데이 툴바: 파란 새 항목 + 검색 + 담당자 필터 ── */}
+      {/* ── 보드형 툴 툴바: 파란 새 항목 + 검색 + 담당자 필터 ── */}
       <div className="monday-board-toolbar">
         <button
           onClick={() => addItem(firstGroupId)}
@@ -506,7 +506,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                             <div className="flex items-center justify-between gap-1.5">
                               <EditableText value={d.name} onSave={(v) => setName(d, v.trim() || d.name)} className="text-[14px] text-[var(--text)]" placeholder="업체명" />
                               <span className="flex items-center gap-1 shrink-0">
-                                {/* 먼데이 말풍선 — 업데이트(히스토리). 글 있으면 카운트와 함께 상시 노출, 없으면 호버 시 + 말풍선 */}
+                                {/* 보드형 툴 말풍선 — 업데이트(히스토리). 글 있으면 카운트와 함께 상시 노출, 없으면 호버 시 + 말풍선 */}
                                 {(() => {
                                   const n = updateCounts?.get(d.id) ?? 0;
                                   return (
@@ -561,7 +561,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                         <td colSpan={listColumns.length + 1} className="border border-[var(--border)]" />
                       </tr>
 
-                      {/* 그룹 푸터: 상태 분포 바 + 숫자 합계 (먼데이 시그니처) */}
+                      {/* 그룹 푸터: 상태 분포 바 + 숫자 합계 (보드형 툴 시그니처) */}
                       {rows.length > 0 && (
                         <tr className="board-footer-row">
                           <td style={{ width: STRIP_W, position: "sticky", left: 0, zIndex: 5, background: "var(--bg-card)" }} />
@@ -622,7 +622,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
         })}
       </div>
 
-      {/* ── 맨 아래: + 새 그룹 추가 (먼데이 위치) ── */}
+      {/* ── 맨 아래: + 새 그룹 추가 (보드형 툴 위치) ── */}
       <button
         onClick={addGroup}
         className="board-add-group-btn"
@@ -630,7 +630,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
         <span className="text-base leading-none">+</span> 새 그룹 추가
       </button>
 
-      {/* ── 플로팅 선택바 (먼데이 하단 블루바) ── */}
+      {/* ── 플로팅 선택바 (보드형 툴 하단 블루바) ── */}
       {selected.size > 0 && (
         <div className="board-selection-bar">
           <div className="flex items-center justify-center w-12 self-stretch text-white text-lg font-bold" style={{ background: "var(--primary)" }}>
@@ -686,7 +686,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
         </DropMenu>
       )}
 
-      {/* 먼데이 말풍선 — 아이템 업데이트 패널 */}
+      {/* 보드형 툴 말풍선 — 아이템 업데이트 패널 */}
       {updatesDeal && (
         <ItemUpdatesPanel
           companyId={companyId}
@@ -698,7 +698,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   );
 }
 
-// ── 먼데이 말풍선: 아이템 업데이트(히스토리) 우측 드로어 ──
+// ── 보드형 툴 말풍선: 아이템 업데이트(히스토리) 우측 드로어 ──
 //   board_item_updates 테이블(회사격리 RLS). 작성·목록·본인 글 삭제.
 //   subitem 전달 시 = 해당 서브아이템 전용 피드 (subitem_id), 없으면 프로젝트 레벨(subitem_id null).
 function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: string; deal: Deal; subitem?: { id: string; name: string } | null; onClose: () => void }) {
@@ -764,7 +764,7 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
           </div>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none shrink-0">✕</button>
         </div>
-        {/* 작성 박스 (먼데이처럼 상단) */}
+        {/* 작성 박스 (보드형 툴처럼 상단) */}
         <div className="panel-compose-box">
           <textarea
             value={body}
@@ -904,7 +904,7 @@ function MoveToGroupButton({ groups, onMove }: { groups: Grp[]; onMove: (gid: st
   );
 }
 
-// ── 프로젝트 상세 = 먼데이 서브아이템 표 (리스트에서 전환).
+// ── 프로젝트 상세 = 보드형 툴 서브아이템 표 (리스트에서 전환).
 //   헤더 첫 줄 = 컬럼(옆으로 추가/⚙설정), 아래 = 항목 행(밑으로 추가, 같은 컬럼 공유). ──
 function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onOpenUpdates, onBack, onSetName, onAddColumn, onConfigColumn, onMoveColumn }: {
   companyId: string;
@@ -922,7 +922,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
   const qc = useQueryClient();
   const [name, setNameLocal] = useState(deal.name);
   const [dragCol, setDragCol] = useState<string | null>(null);
-  const SUB_COLOR = MONDAY.blue; // 먼데이 서브아이템 시그니처 블루 스트립
+  const SUB_COLOR = MONDAY.blue; // 보드형 툴 서브아이템 시그니처 블루 스트립
 
   const { data: items = [] } = useQuery<SubItem[]>({
     queryKey: ["project-subitems", deal.id],
@@ -1000,7 +1000,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
         </button>
       </div>
 
-      {/* 프로젝트명 (먼데이 아이템 페이지 타이틀) + 말풍선 업데이트 */}
+      {/* 프로젝트명 (보드형 툴 아이템 페이지 타이틀) + 말풍선 업데이트 */}
       <div className="detail-title-row">
         <input
           value={name}
@@ -1293,7 +1293,7 @@ function DropMenu({ anchor, width, onClose, children, pad = "p-2" }: {
   );
 }
 
-// ── 상태 셀: 먼데이 시그니처 — 셀 전체 채움(라운드 0) + 포털 드롭다운(잘림 없음) ──
+// ── 상태 셀: 보드형 툴 시그니처 — 셀 전체 채움(라운드 0) + 포털 드롭다운(잘림 없음) ──
 function StatusCell({ options, current, onPick }: { options: { id: string; label: string; color: string }[]; current?: { id: string; label: string; color: string }; onPick: (id: string) => void }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   return (
@@ -1325,7 +1325,7 @@ function StatusCell({ options, current, onPick }: { options: { id: string; label
   );
 }
 
-// ── 담당자 셀: 이니셜 아바타 (먼데이 person 셀) — 포털 드롭다운 ──
+// ── 담당자 셀: 이니셜 아바타 (보드형 툴 person 셀) — 포털 드롭다운 ──
 function PersonCell({ users, value, onChange }: { users: Person[]; value: any; onChange: (v: any) => void }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const cur = users.find((u) => u.id === value);

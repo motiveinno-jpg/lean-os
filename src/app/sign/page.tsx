@@ -169,7 +169,7 @@ function renderSignerBody(
   return parse(styled, options);
 }
 
-// 본문 끝의 서명 텍스트 블록 제거 — Flex 스타일 footer 로 별도 렌더하기 위해
+// 본문 끝의 서명 텍스트 블록 제거 — 보드 스타일 footer 로 별도 렌더하기 위해
 // 매칭: "{{contract_date}}" / 한국어 날짜 / 서명(인) / {{employee_seal}} 등 마커가 있는 마지막 섹션
 function stripSignatureBlock(body: string): string {
   if (!body) return body;
@@ -192,7 +192,7 @@ function stripSignatureBlock(body: string): string {
   return body.slice(0, cutAt).replace(/\s+$/, "");
 }
 
-// Flex 스타일 5열 서명 푸터 — 화면 렌더용 React 컴포넌트
+// 보드 스타일 5열 서명 푸터 — 화면 렌더용 React 컴포넌트
 // 2026-05-22 내부 /contracts/signed 와 동일한 갑/을 서명 박스 푸터.
 //   갑(회사) = 회사명·사업자번호·대표자 + 직인 이미지 / 을(서명자) = 성명·생년월일 + 서명 이미지.
 function ContractSignatureFooter(props: {
@@ -1051,7 +1051,7 @@ function SignContent() {
                     </div>
                   )
                 )}
-                {/* Flex 스타일 서명/직인 푸터 */}
+                {/* 보드 스타일 서명/직인 푸터 */}
                 {sig && signedAt && (
                   <ContractSignatureFooter
                     contractDate={pkg.contract_meta?.["계약일"] || pkg.contract_meta?.["contract_date"] || signedAt}
@@ -1210,7 +1210,7 @@ function SignContent() {
                 </div>
               )
             )}
-            {/* Flex 스타일 서명 푸터 */}
+            {/* 보드 스타일 서명 푸터 */}
             {(currentItem as any).signature_data && (
               <ContractSignatureFooter
                 contractDate={pkg.contract_meta?.["계약일"] || pkg.contract_meta?.["contract_date"] || (currentItem as any).signed_at}

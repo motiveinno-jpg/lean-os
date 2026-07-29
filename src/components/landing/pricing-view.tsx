@@ -1,7 +1,7 @@
 "use client";
 
 // /pricing — 요금제 전용 화면 (2026-07-27).
-//   사장님: "스크롤에서는 가격을 안 보이고, 먼데이처럼 '가격'을 눌렀을 때 요금제를 보여주자.
+//   사장님: "스크롤에서는 가격을 안 보이고, 보드형 툴처럼 '가격'을 눌렀을 때 요금제를 보여주자.
 //   밑에 기능 목록으로 표시해줘."
 //   랜딩 본문에서 가격·비교 섹션을 떼어내 이 페이지로 옮겼다. 스타일은 랜딩과 같은 lp4- 네임스페이스.
 
@@ -13,7 +13,7 @@ import { PLANS, COMPETITORS, FEATURES, FAQS, FOOTER } from "@/components/landing
 
 const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
 
-// 플랜별 포함 여부 — 하단 기능 목록(먼데이식 비교표)
+// 플랜별 포함 여부 — 하단 기능 목록(보드형 비교표)
 const MATRIX: { group: string; rows: { name: string; free: string; basic: string; ultra: string }[] }[] = [
   {
     group: "기본",

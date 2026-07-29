@@ -2,7 +2,7 @@
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
-// 결재 양식 관리 + 빌더 (2026-07-01, 플렉스식) — approvals '양식 관리' 탭에서 사용.
+// 결재 양식 관리 + 빌더 (2026-07-01, HR 서비스식) — approvals '양식 관리' 탭에서 사용.
 //   양식 목록 + '새 양식 추가' → 빌더(이름·분류·설명·커스텀 필드·내용 템플릿·결재선 단계·옵션).
 //   저장은 approval_forms. 새 요청에서 이 양식을 선택하면 필드/템플릿/결재선이 적용된다.
 

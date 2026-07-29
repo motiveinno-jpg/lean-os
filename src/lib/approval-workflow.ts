@@ -53,7 +53,7 @@ export interface ApprovalStageConfig {
   name: string;
   approver_role: string; // e.g. 'manager', 'director', 'ceo'
   required_count?: number; // how many approvers needed (default 1)
-  approver_id?: string;    // 특정 인물 지정(플렉스식) — 설정 시 role 대신 이 사용자가 승인자
+  approver_id?: string;    // 특정 인물 지정(HR 서비스식) — 설정 시 role 대신 이 사용자가 승인자
   approver_name?: string;  // 표시용(특정 인물 이름)
 }
 
@@ -331,7 +331,7 @@ export async function createApprovalRequest(params: {
     }
   } else {
     for (const stageConfig of stages) {
-      // 특정 인물 지정(플렉스식) — approver_id 가 있으면 role 해석을 건너뛰고 그 사용자로 단계 생성.
+      // 특정 인물 지정(HR 서비스식) — approver_id 가 있으면 role 해석을 건너뛰고 그 사용자로 단계 생성.
       if (stageConfig.approver_id) {
         await db.from('approval_steps').insert({
           request_id: request.id,

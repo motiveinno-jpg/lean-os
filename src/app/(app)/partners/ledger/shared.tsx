@@ -47,7 +47,7 @@ export const AR_AP = {
 } as const;
 export const palette = (type: string) => (type === "sales" ? AR_AP.sales : AR_AP.purchase);
 
-// ── 위하고식 그리드 공통 셀 클래스 ──
+// ── 타사 세무 서비스식 그리드 공통 셀 클래스 ──
 export const GRID_TH = "px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide whitespace-nowrap";
 export const GRID_TD = "px-3 py-2.5 whitespace-nowrap overflow-hidden text-ellipsis";
 
@@ -119,7 +119,7 @@ export function ResizableTh({ k, colIndex, widths, onResize, tableRef, className
   );
 }
 
-// ── 위하고식 거래처원장 시트: 일자 | 적요 | 차변 | 대변 | 잔액 + 전기이월/월계/합계 행 ──
+// ── 타사 세무 서비스식 거래처원장 시트: 일자 | 적요 | 차변 | 대변 | 잔액 + 전기이월/월계/합계 행 ──
 //   매출처(외상매출금): 차변=발생(세금계산서), 대변=회수(입금·차액마감). 잔액 = 이월 + 차변 - 대변.
 //   매입처(외상매입금): 차변=지급(출금·차액마감), 대변=발생(세금계산서). 잔액 = 이월 + 대변 - 차변.
 type SheetEntry = { date: string; desc: string; debit: number; credit: number; isAdj?: boolean; sid?: string; isVoucher?: boolean; vid?: string };

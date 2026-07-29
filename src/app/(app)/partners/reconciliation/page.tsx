@@ -664,7 +664,7 @@ export default function ReconciliationPage() {
                 </div>
               </div>
               <p className="text-[11px] text-[var(--text-dim)] px-1">확정하면 정산(미수금·미지급 차감)과 <b className="text-[var(--text-muted)]">분개 전표가 함께 장부에 자동 기록</b>됩니다 · 정리 내역에서 되돌리면 정산·전표 둘 다 원복</p>
-              {/* 위하고식 그리드: 통장거래 | 세금계산서 | 정산액(+자동분개) | 유형 | 신뢰도 | 처리 */}
+              {/* 타사 세무 서비스식 그리드: 통장거래 | 세금계산서 | 정산액(+자동분개) | 유형 | 신뢰도 | 처리 */}
               <div className="partner-queue-table glass-card">
                 <div className="overflow-auto max-h-[600px]">
                   <table ref={queueTableRef} className="w-full min-w-[1020px] text-xs border-collapse table-fixed">

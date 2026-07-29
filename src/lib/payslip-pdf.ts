@@ -21,7 +21,7 @@ export interface PayslipParams {
   department?: string;
   position?: string;
   paymentDate?: string;
-  /** 사원코드 — 더존 Smart-A 양식의 좌상단 사원코드 */
+  /** 사원코드 — 회계 프로그램 호환 양식의 좌상단 사원코드 */
   employeeCode?: string;
   /** 생년월일 YYYY-MM-DD */
   birthDate?: string;
@@ -73,7 +73,7 @@ function formatPaymentDate(d: string | undefined): string {
   return d.replace(/-/g, '.');
 }
 
-// 더존 Smart-A 양식 색상
+// 회계 프로그램 호환 양식 색상
 const COLOR_HEADER_BG: [number, number, number] = [248, 248, 248];      // #f8f8f8 라이트 헤더
 const COLOR_LABEL_BG: [number, number, number] = [206, 223, 247];       // #cedff7 좌측 라벨 (지급내역/공제내역)
 const COLOR_BORDER: [number, number, number] = [234, 234, 234];          // #eaeaea
