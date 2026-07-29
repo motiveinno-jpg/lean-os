@@ -157,6 +157,34 @@ const PdfPage = Node.create({
           sp.contentEditable = "true";
           sp.spellcheck = false;
           sp.style.outline = "none";
+          // 겹침 방지 — 조각은 절대좌표라 글자를 추가해도 옆 조각이 밀려나지 않고
+          //   겹쳤다(2026-07-29 사장님). 편집 시작 시 폭과 같은 줄 오른쪽 조각들의
+          //   원래 x 를 기억해 두고, 폭 변화량만큼 그 조각들을 함께 밀어준다
+          //   (간격 유지). 커밋 시 새 x 가 저장돼 다음 편집의 기준이 된다.
+          let editBase: { w: number; peers: { j: number; x0: number }[] } | null = null;
+          const captureBase = () => {
+            editBase = {
+              w: sp.offsetWidth,
+              peers: texts
+                .map((t2, j) => ({ t2, j }))
+                .filter(({ t2, j }) =>
+                  j !== i && t2.x > texts[i].x &&
+                  Math.abs(t2.y - texts[i].y) < Math.max(texts[i].fs, t2.fs) * 0.6)
+                .map(({ j }) => ({ j, x0: texts[j].x })),
+            };
+          };
+          const reposition = () => {
+            if (!editBase) return;
+            // 편집 모드 페이지 폭은 원크기(w) 고정이라 offsetWidth 차이 = 모델 px 차이
+            const delta = sp.offsetWidth - editBase.w;
+            for (const p of editBase.peers) {
+              const nx = Math.max(0, Math.round(p.x0 + delta));
+              texts[p.j].x = nx;
+              const el = spanEls[p.j];
+              if (el) el.style.left = `${((nx / (cur.attrs.w || PDF_PAGE_W)) * 100).toFixed(3)}%`;
+            }
+          };
+          sp.addEventListener("input", reposition);
           // 마지막으로 포커스한 글자 조각을 editor.storage 에 등록 — 툴바 글자크기·
           //   변수 삽입 버튼이 PM 본문이 아니라 이 조각에 적용되게 (2026-07-29 사장님:
           //   "크기 변경이 안 되고 변수가 새 페이지에 생긴다").
@@ -168,25 +196,19 @@ const PdfPage = Node.create({
           };
           sp.addEventListener("focus", () => {
             sp.style.background = "rgba(59,130,246,0.12)";
+            captureBase();
+            // 크기·굵기 변경도 폭이 변하므로 다음 프레임에 같은 줄 조각을 재배치 후 저장
+            const restyleAndCommit = () => {
+              sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h) + "outline:none;";
+              requestAnimationFrame(() => { reposition(); commit(); });
+            };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (editor.storage as any).pdfActive = {
               el: sp,
               caret: null as number | null,
-              setFontSize: (px: number) => {
-                texts[i].fs = px;
-                sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h) + "outline:none;";
-                commit();
-              },
-              toggleBold: () => {
-                texts[i].b = texts[i].b ? undefined : true;
-                sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h) + "outline:none;";
-                commit();
-              },
-              setColor: (c: string | null) => {
-                texts[i].c = c || undefined;
-                sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h) + "outline:none;";
-                commit();
-              },
+              setFontSize: (px: number) => { texts[i].fs = px; restyleAndCommit(); },
+              toggleBold: () => { texts[i].b = texts[i].b ? undefined : true; restyleAndCommit(); },
+              setColor: (c: string | null) => { texts[i].c = c || undefined; restyleAndCommit(); },
               insertText: (text: string) => {
                 sp.focus();
                 const sel = document.getSelection();
@@ -204,6 +226,7 @@ const PdfPage = Node.create({
                 let ok = false;
                 try { ok = document.execCommand("insertText", false, text); } catch { ok = false; }
                 if (!ok) sp.textContent = (sp.textContent || "") + text;
+                reposition();
                 commit();
               },
             };
