@@ -410,6 +410,9 @@ export function Sidebar() {
           : null;
         let docQ = db.from("doc_approvals").select("id", { count: "exact", head: true })
           .eq("approver_id", u.id).eq("status", "pending");
+        // 지급 대기(payment_queue)는 회사 전체 건이라 본인 필터가 없음 — 승인 권한 있는
+        // 대표/관리자만 카운트. 직원은 결재자도 참조자도 아닌 건이 배지에 잡히던 버그(2026-07-29).
+        const canApprovePayments = u.role === "owner" || u.role === "admin";
         let payQ = db.from("payment_queue").select("id", { count: "exact", head: true })
           .eq("company_id", u.company_id).eq("status", "pending");
         let stepQ = db.from("approval_steps")
@@ -423,11 +426,15 @@ export function Sidebar() {
           payQ = payQ.gt("created_at", dismissedAt);
           stepQ = stepQ.gt("created_at", dismissedAt);
         }
-        const [{ count: docCount }, { count: payCount }, { data: pendingSteps }] = await Promise.all([docQ, payQ, stepQ]);
+        const [{ count: docCount }, payRes, { data: pendingSteps }] = await Promise.all([
+          docQ,
+          canApprovePayments ? payQ : Promise.resolve({ count: 0 }),
+          stepQ,
+        ]);
         const myStepCount = (pendingSteps || []).filter(
           (s: any) => s.stage === s.approval_requests?.current_stage
         ).length;
-        setApprovalsPending((docCount ?? 0) + (payCount ?? 0) + myStepCount);
+        setApprovalsPending((docCount ?? 0) + (payRes.count ?? 0) + myStepCount);
       } catch {}
       // notifications unread count — 모든 역할(대표/관리자/직원) 공통
       try {
