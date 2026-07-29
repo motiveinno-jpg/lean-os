@@ -9,6 +9,7 @@ import { TextStyle, Color, FontSize, FontFamily } from "@tiptap/extension-text-s
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
+import { Node, mergeAttributes } from "@tiptap/core";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
 
@@ -44,6 +45,118 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+// ── PDF 페이지 노드 (2026-07-29 사장님: "이미지로 정확하게 불러오되 수정 가능하게") ──
+//   페이지 이미지(글자 지운 배경)를 깔고, 그 위에 PDF 원좌표대로 글자 span 을 얹는다.
+//   보기는 원본과 동일, span 은 contentEditable 이라 클릭해서 글자 수정 가능.
+//   좌표계: 페이지 폭 794px(A4@96dpi) 기준 px. 저장 HTML 도 동일 구조라
+//   서명 화면(sanitize 렌더)에서도 그대로 보인다.
+
+type PdfPageText = { t: string; x: number; y: number; fs: number; b?: boolean };
+
+const PDF_PAGE_W = 794;
+
+function pdfTextSpanStyle(t: PdfPageText): string {
+  return `position:absolute;left:${t.x}px;top:${t.y}px;font-size:${t.fs}px;${t.b ? "font-weight:700;" : ""}white-space:pre;line-height:1.15;color:#111;`;
+}
+
+const PdfPage = Node.create({
+  name: "pdfPage",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: false,
+
+  addAttributes() {
+    return {
+      src: { default: "" },
+      w: { default: PDF_PAGE_W },
+      h: { default: 1123 },
+      texts: {
+        default: [] as PdfPageText[],
+        parseHTML: (el: HTMLElement) => {
+          try { return JSON.parse(el.getAttribute("data-texts") || "[]"); } catch { return []; }
+        },
+        renderHTML: (attrs: { texts?: PdfPageText[] }) => ({ "data-texts": JSON.stringify(attrs.texts || []) }),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-pdf-page]" }];
+  },
+
+  renderHTML({ node }) {
+    const a = node.attrs as { src: string; w: number; h: number; texts: PdfPageText[] };
+    const spans = (a.texts || []).map((t) => ["span", { style: pdfTextSpanStyle(t) }, t.t] as const);
+    return [
+      "div",
+      mergeAttributes({
+        "data-pdf-page": "1",
+        style: `position:relative;width:${a.w}px;max-width:100%;margin:12px auto;background:#fff;`,
+      }),
+      ["img", { src: a.src, style: "width:100%;display:block;", draggable: "false" }],
+      ...spans as any,
+    ];
+  },
+
+  addNodeView() {
+    return ({ node, editor, getPos }) => {
+      let cur = node;
+      const dom = document.createElement("div");
+      dom.setAttribute("data-pdf-page", "1");
+      dom.style.cssText = `position:relative;width:${cur.attrs.w}px;max-width:100%;margin:12px auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.12);`;
+
+      const img = document.createElement("img");
+      img.src = cur.attrs.src;
+      img.style.cssText = "width:100%;display:block;pointer-events:none;";
+      img.draggable = false;
+      dom.appendChild(img);
+
+      const spanEls: HTMLSpanElement[] = [];
+      const texts: PdfPageText[] = (cur.attrs.texts || []).map((t: PdfPageText) => ({ ...t }));
+
+      const commit = () => {
+        spanEls.forEach((el, i) => { texts[i].t = el.textContent || ""; });
+        const pos = typeof getPos === "function" ? getPos() : null;
+        if (pos == null) return;
+        editor.view.dispatch(
+          editor.view.state.tr.setNodeMarkup(pos, undefined, { ...cur.attrs, texts: texts.map((t) => ({ ...t })) })
+        );
+      };
+
+      texts.forEach((t) => {
+        const sp = document.createElement("span");
+        sp.textContent = t.t;
+        sp.style.cssText = pdfTextSpanStyle(t);
+        if (editor.isEditable) {
+          sp.contentEditable = "true";
+          sp.spellcheck = false;
+          sp.style.outline = "none";
+          sp.addEventListener("focus", () => { sp.style.background = "rgba(59,130,246,0.12)"; });
+          sp.addEventListener("blur", () => { sp.style.background = "transparent"; commit(); });
+        }
+        spanEls.push(sp);
+        dom.appendChild(sp);
+      });
+
+      return {
+        dom,
+        // span 안 편집 이벤트는 ProseMirror 가 가로채지 않게
+        stopEvent: (e: Event) => {
+          const t = e.target as HTMLElement | null;
+          return !!t && t.tagName === "SPAN" && dom.contains(t);
+        },
+        ignoreMutation: () => true,
+        update: (n) => {
+          if (n.type.name !== "pdfPage") return false;
+          cur = n;
+          return true; // DOM 재구성 없이 유지 (타이핑 중 캐럿 보존)
+        },
+      };
+    };
+  },
+});
 
 // 글자 색상 팔레트
 const COLORS = ["#000000", "#374151", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff"];
@@ -83,6 +196,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       Highlight.configure({ multicolor: true }),
       Image.configure({ inline: false, allowBase64: true }),
       TableKit.configure({ table: { resizable: true } }),
+      PdfPage,
     ],
     content,
     editable,
@@ -151,18 +265,62 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       // 페이지별로 HTML 조각을 누적 → 마지막에 한 번에 삽입 (전체 페이지 보장 = 마지막장만 나오던 버그 해소).
       const parts: string[] = [];
 
-      // ── "PDF 그대로" 모드 — 모든 페이지를 고해상도 이미지로 (원본과 100% 동일) ──
+      // ── "PDF 그대로" 모드 (2026-07-29 사장님: 원본 모양 그대로 + 글자 수정 가능) ──
+      //   ① 페이지를 고해상도로 렌더 → 글자 영역만 흰색으로 지운 배경 이미지 생성
+      //   ② 글자들은 PDF 원좌표(794px 페이지 기준)대로 편집 가능한 span 으로 얹음 (PdfPage 노드)
+      //   → 보기는 원본과 동일, 글자는 클릭해서 바로 수정.
       if (pdfModeRef.current === "exact") {
+        const Util = pdfjs.Util;
+        const nodes: any[] = [];
         for (let i = 1; i <= total; i++) {
           setPdfProgress(`${total}페이지 중 ${i}페이지 변환 중...`);
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 2.5 });
+          const vp1 = page.getViewport({ scale: 1.0 });
+          const factor = 794 / vp1.width;           // 페이지 → 화면(794px) 배율
+          const S = 2.5;                             // 배경 이미지 해상도 배율
+          const vpImg = page.getViewport({ scale: S });
+
           const canvas = document.createElement("canvas");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
+          canvas.width = vpImg.width;
+          canvas.height = vpImg.height;
           const ctx = canvas.getContext("2d");
           if (!ctx) continue;
-          await page.render({ canvasContext: ctx, viewport }).promise;
+          await page.render({ canvasContext: ctx, viewport: vpImg }).promise;
+
+          // 글자 수집 + 배경에서 글자 지우기 (흰 사각형 — 계약서류는 흰 배경이라 안전)
+          const texts: { t: string; x: number; y: number; fs: number; b?: boolean }[] = [];
+          try {
+            try { await page.getOperatorList(); } catch { /* 폰트 로딩 실패 무시 */ }
+            const boldCache = new Map<string, boolean>();
+            const isBold = (fn: string): boolean => {
+              if (!fn) return false;
+              if (boldCache.has(fn)) return boldCache.get(fn)!;
+              let b = false;
+              try {
+                const fo: any = (page as any).commonObjs.has(fn) ? (page as any).commonObjs.get(fn) : null;
+                b = /bold|black|heavy|extrab|semib/i.test(String(fo?.name || ""));
+              } catch { /* ignore */ }
+              boldCache.set(fn, b);
+              return b;
+            };
+            const tc = await page.getTextContent();
+            for (const it of tc.items as any[]) {
+              if (typeof it.str !== "string" || !Array.isArray(it.transform)) continue;
+              const fh = Math.hypot(it.transform[2] || 0, it.transform[3] || 0) || 10;
+              // 페이지 좌표 → 화면 px (vp1.transform 적용 후 factor 배)
+              const [dx, dy] = Util.applyTransform([it.transform[4], it.transform[5]], vp1.transform);
+              const fs = Math.max(6, Math.round(fh * factor * 10) / 10);
+              if (it.str.trim().length > 0) {
+                texts.push({ t: it.str, x: Math.round(dx * factor), y: Math.round(dy * factor - fs * 0.83), fs, b: isBold(it.fontName) || undefined });
+              }
+              // 배경 이미지에서 이 글자 영역을 흰색으로 (테두리·표 괘선은 보존)
+              const ex = dx * S, ey = dy * S;
+              const ew = (it.width || 0) * S, eh = fh * S;
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(ex - 1, ey - eh * 1.06, Math.max(0, ew + 2), eh * 1.32);
+            }
+          } catch { /* 텍스트 레이어 없으면 이미지만 */ }
+
           let src: string;
           if (onUploadImage) {
             const blob: Blob | null = await new Promise((res) => canvas.toBlob((b) => res(b), "image/png"));
@@ -177,10 +335,14 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           } else {
             src = canvas.toDataURL("image/png");
           }
-          parts.push(`<img src="${src}" alt="PDF ${i}페이지" />`);
+
+          nodes.push({
+            type: "pdfPage",
+            attrs: { src, w: 794, h: Math.round(vp1.height * factor), texts },
+          });
         }
         setPdfProgress("본문에 삽입 중...");
-        editor.chain().focus().insertContent(parts.join("")).run();
+        editor.chain().focus().insertContent(nodes).run();
         setPdfProgress(null);
         return;
       }
