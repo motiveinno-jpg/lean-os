@@ -91,7 +91,8 @@ export async function pdfToEditableHtml(
     const pageDiv = document.createElement("div");
     pageDiv.setAttribute("data-pdf-page", "1");
     pageDiv.setAttribute("data-texts", JSON.stringify(texts));
-    pageDiv.style.cssText = `position:relative;width:${PAGE_W}px;max-width:100%;margin:12px auto;background:#fff;`;
+    pageDiv.setAttribute("data-h", String(Math.round(vp1.height * factor)));
+    pageDiv.style.cssText = `position:relative;width:${PAGE_W}px;max-width:100%;margin:12px auto;background:#fff;container-type:inline-size;`;
     const img = document.createElement("img");
     img.src = src;
     img.style.cssText = "width:100%;display:block;";
@@ -99,7 +100,8 @@ export async function pdfToEditableHtml(
     for (const t of texts) {
       const sp = document.createElement("span");
       sp.textContent = t.t;
-      sp.style.cssText = `position:absolute;left:${t.x}px;top:${t.y}px;font-size:${t.fs}px;${t.b ? "font-weight:700;" : ""}white-space:pre;line-height:1.15;color:#111;`;
+      const pageHpx = Math.round(vp1.height * factor);
+      sp.style.cssText = `position:absolute;left:${((t.x / PAGE_W) * 100).toFixed(3)}%;top:${pageHpx > 0 ? ((t.y / pageHpx) * 100).toFixed(3) : 0}%;font-size:${((t.fs / PAGE_W) * 100).toFixed(3)}cqw;${t.b ? "font-weight:700;" : ""}white-space:pre;line-height:1.15;color:#111;`;
       pageDiv.appendChild(sp);
     }
     container.appendChild(pageDiv);

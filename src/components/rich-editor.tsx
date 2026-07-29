@@ -57,8 +57,14 @@ type PdfPageText = { t: string; x: number; y: number; fs: number; b?: boolean };
 
 const PDF_PAGE_W = 794;
 
-function pdfTextSpanStyle(t: PdfPageText): string {
-  return `position:absolute;left:${t.x}px;top:${t.y}px;font-size:${t.fs}px;${t.b ? "font-weight:700;" : ""}white-space:pre;line-height:1.15;color:#111;`;
+// 좌표·글자크기를 페이지 폭 대비 비율로 — 편집 패널·미리보기·서명 화면 어디서든
+// 컨테이너 폭에 맞춰 이미지와 함께 스케일된다(px 고정 시 좁은 패널에서 전부 겹치던 버그).
+// cqw = 컨테이너 폭의 1% (부모 div 에 container-type:inline-size 필요).
+function pdfTextSpanStyle(t: PdfPageText, pageH: number): string {
+  const left = ((t.x / PDF_PAGE_W) * 100).toFixed(3);
+  const top = pageH > 0 ? ((t.y / pageH) * 100).toFixed(3) : "0";
+  const fs = ((t.fs / PDF_PAGE_W) * 100).toFixed(3);
+  return `position:absolute;left:${left}%;top:${top}%;font-size:${fs}cqw;${t.b ? "font-weight:700;" : ""}white-space:pre;line-height:1.15;color:#111;`;
 }
 
 const PdfPage = Node.create({
@@ -70,9 +76,22 @@ const PdfPage = Node.create({
 
   addAttributes() {
     return {
-      src: { default: "" },
-      w: { default: PDF_PAGE_W },
-      h: { default: 1123 },
+      // 재편집 시 저장 HTML 에서 복원 — src 는 자식 img, w/h 는 data-* (없으면 A4 기본)
+      src: {
+        default: "",
+        parseHTML: (el: HTMLElement) => el.querySelector("img")?.getAttribute("src") || "",
+        renderHTML: () => ({}),
+      },
+      w: {
+        default: PDF_PAGE_W,
+        parseHTML: (el: HTMLElement) => Number(el.getAttribute("data-w")) || PDF_PAGE_W,
+        renderHTML: (attrs: { w?: number }) => ({ "data-w": String(attrs.w ?? PDF_PAGE_W) }),
+      },
+      h: {
+        default: 1123,
+        parseHTML: (el: HTMLElement) => Number(el.getAttribute("data-h")) || 1123,
+        renderHTML: (attrs: { h?: number }) => ({ "data-h": String(attrs.h ?? 1123) }),
+      },
       texts: {
         default: [] as PdfPageText[],
         parseHTML: (el: HTMLElement) => {
@@ -89,12 +108,12 @@ const PdfPage = Node.create({
 
   renderHTML({ node }) {
     const a = node.attrs as { src: string; w: number; h: number; texts: PdfPageText[] };
-    const spans = (a.texts || []).map((t) => ["span", { style: pdfTextSpanStyle(t) }, t.t] as const);
+    const spans = (a.texts || []).map((t) => ["span", { style: pdfTextSpanStyle(t, a.h) }, t.t] as const);
     return [
       "div",
       mergeAttributes({
         "data-pdf-page": "1",
-        style: `position:relative;width:${a.w}px;max-width:100%;margin:12px auto;background:#fff;`,
+        style: `position:relative;width:${a.w}px;max-width:100%;margin:12px auto;background:#fff;container-type:inline-size;`,
       }),
       ["img", { src: a.src, style: "width:100%;display:block;", draggable: "false" }],
       ...spans as any,
@@ -106,7 +125,7 @@ const PdfPage = Node.create({
       let cur = node;
       const dom = document.createElement("div");
       dom.setAttribute("data-pdf-page", "1");
-      dom.style.cssText = `position:relative;width:${cur.attrs.w}px;max-width:100%;margin:12px auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.12);`;
+      dom.style.cssText = `position:relative;width:${cur.attrs.w}px;max-width:100%;margin:12px auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.12);container-type:inline-size;`;
 
       const img = document.createElement("img");
       img.src = cur.attrs.src;
@@ -129,7 +148,7 @@ const PdfPage = Node.create({
       texts.forEach((t) => {
         const sp = document.createElement("span");
         sp.textContent = t.t;
-        sp.style.cssText = pdfTextSpanStyle(t);
+        sp.style.cssText = pdfTextSpanStyle(t, cur.attrs.h);
         if (editor.isEditable) {
           sp.contentEditable = "true";
           sp.spellcheck = false;
