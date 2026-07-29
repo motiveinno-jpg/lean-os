@@ -2977,15 +2977,17 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
     <div className="employee-dashboard-root">
       {/* 내 업무 — 관리자와 동일한 위젯 추가/삭제 기능. 재무 등 권한 밖 위젯은 카탈로그에서 제외(2026-07-15). */}
       {companyId && userId && (() => {
-        const P = DEFAULT_WIDGET_POS;
+        // 직원 전용 기본 배치 — 사장님용 DEFAULT_WIDGET_POS 는 직원 위젯 4개가 전부
+        //   왼쪽 열(x0~4)에 몰려 있어 오른쪽 2/3 이 통째로 비었다(2026-07-29 사장님 제보).
+        //   12칸을 3열로 나눠 화면을 꽉 채운다: [근태+할일 | 캘린더 | 담당업무+공지]
         const catalog: CatalogWidget[] = [
-          { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", ...P["work-tasks"], render: () => <MyTasksCard userId={userId} /> },
-          { id: "calendar", name: "일정·캘린더", icon: "📅", desc: "이번 달 일정·할 일", category: "개인", ...P.calendar, render: () => <DashboardCalendar userId={userId} companyId={companyId} /> },
-          { id: "attendance", name: "내 근태", icon: "🕘", desc: "출퇴근 상태", category: "개인", ...P.attendance, render: () => <MyAttendanceCard companyId={companyId} userId={userId} compact /> },
-          { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 5, render: () => <MyTodosWidget userId={userId} companyId={companyId} /> },
-          { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", w: 4, h: 4, render: () => <AnnouncementsCard /> },
+          { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", x: 8, y: 0, w: 4, h: 4, render: () => <MyTasksCard userId={userId} /> },
+          { id: "calendar", name: "일정·캘린더", icon: "📅", desc: "이번 달 일정·할 일", category: "개인", x: 4, y: 0, w: 4, h: 9, render: () => <DashboardCalendar userId={userId} companyId={companyId} /> },
+          { id: "attendance", name: "내 근태", icon: "🕘", desc: "출퇴근 상태", category: "개인", x: 0, y: 0, w: 4, h: 2, render: () => <MyAttendanceCard companyId={companyId} userId={userId} compact /> },
+          { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", x: 0, y: 2, w: 4, h: 7, render: () => <MyTodosWidget userId={userId} companyId={companyId} /> },
+          { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", x: 8, y: 4, w: 4, h: 5, render: () => <AnnouncementsCard /> },
         ];
-        const defaultActiveIds = ["work-tasks", "calendar", "attendance", "todos"];
+        const defaultActiveIds = ["work-tasks", "calendar", "attendance", "todos", "announcements"];
         return <DashboardGrid storageKey={`dashboard-grid-emp-${userId}`} catalog={catalog} defaultActiveIds={defaultActiveIds} />;
       })()}
       {/* 인사말 히어로 제거(라운드6.5) — 고정 헤더바가 인사·프로필을 대체. 근무 상태 칩은 아래 카드에 동일 표시 */}
