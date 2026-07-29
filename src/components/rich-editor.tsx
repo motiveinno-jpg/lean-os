@@ -161,27 +161,42 @@ const PdfPage = Node.create({
           //   겹쳤다(2026-07-29 사장님). 편집 시작 시 폭과 같은 줄 오른쪽 조각들의
           //   원래 x 를 기억해 두고, 폭 변화량만큼 그 조각들을 함께 밀어준다
           //   (간격 유지). 커밋 시 새 x 가 저장돼 다음 편집의 기준이 된다.
-          let editBase: { w: number; peers: { j: number; x0: number }[] } | null = null;
+          let editBase: { w: number; h: number; peers: { j: number; x0: number }[]; below: { j: number; y0: number }[] } | null = null;
           const captureBase = () => {
+            const lineTol = (j: number) => Math.max(texts[i].fs, texts[j].fs) * 0.6;
             editBase = {
               w: sp.offsetWidth,
+              h: sp.offsetHeight,
               peers: texts
                 .map((t2, j) => ({ t2, j }))
                 .filter(({ t2, j }) =>
-                  j !== i && t2.x > texts[i].x &&
-                  Math.abs(t2.y - texts[i].y) < Math.max(texts[i].fs, t2.fs) * 0.6)
+                  j !== i && t2.x > texts[i].x && Math.abs(t2.y - texts[i].y) < lineTol(j))
                 .map(({ j }) => ({ j, x0: texts[j].x })),
+              // 행간 유지 — 아래 줄 전체(같은 줄 제외). 높이가 변하면(크기 확대·줄 추가)
+              //   변화량만큼 같이 내려가/올라와 겹치지 않는다 (2026-07-29 사장님).
+              below: texts
+                .map((t2, j) => ({ t2, j }))
+                .filter(({ t2, j }) => j !== i && t2.y - texts[i].y >= lineTol(j))
+                .map(({ j }) => ({ j, y0: texts[j].y })),
             };
           };
           const reposition = () => {
             if (!editBase) return;
-            // 편집 모드 페이지 폭은 원크기(w) 고정이라 offsetWidth 차이 = 모델 px 차이
-            const delta = sp.offsetWidth - editBase.w;
+            // 편집 모드 페이지 폭은 원크기(w) 고정이라 offset 차이 = 모델 px 차이
+            const deltaW = sp.offsetWidth - editBase.w;
+            const deltaH = sp.offsetHeight - editBase.h;
+            const pageH = cur.attrs.h || 1;
             for (const p of editBase.peers) {
-              const nx = Math.max(0, Math.round(p.x0 + delta));
+              const nx = Math.max(0, Math.round(p.x0 + deltaW));
               texts[p.j].x = nx;
               const el = spanEls[p.j];
               if (el) el.style.left = `${((nx / (cur.attrs.w || PDF_PAGE_W)) * 100).toFixed(3)}%`;
+            }
+            for (const p of editBase.below) {
+              const ny = Math.max(0, Math.round(p.y0 + deltaH));
+              texts[p.j].y = ny;
+              const el = spanEls[p.j];
+              if (el) el.style.top = `${((ny / pageH) * 100).toFixed(3)}%`;
             }
           };
           sp.addEventListener("input", reposition);
