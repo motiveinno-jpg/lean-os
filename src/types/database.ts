@@ -12400,6 +12400,8 @@ export type Database = {
         Returns: number
       }
       advance_deal_stages: { Args: { p_deal_id?: string }; Returns: number }
+      // 2026-07-29 통장 예금주명 백필 — 은행이 이름을 안 준 거래를 상대계좌·거래처명 매칭으로 채움
+      backfill_bank_counterparty: { Args: { p_company_id: string }; Returns: number }
       ai_tokens_used_this_month: {
         Args: { p_company_id: string }
         Returns: number

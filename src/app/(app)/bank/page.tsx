@@ -185,6 +185,9 @@ export default function BankPage() {
       }
       try { localStorage.setItem(`codef-connected-${companyId}`, "1"); } catch { /* ignore */ }
       const synced = result.bankSynced ?? 0;
+      // 예금주명 백필 — 은행이 desc1에 채널명만 주고 이름을 안 준 거래를
+      //   상대계좌번호·거래처명 매칭으로 채운다 (실패해도 동기화 결과엔 영향 없음)
+      try { await db.rpc("backfill_bank_counterparty", { p_company_id: companyId }); } catch { /* best-effort */ }
       const balResult = await syncBankBalances(companyId);
       // 통장·거래·잔액 모두 새로 받아오기
       queryClient.invalidateQueries({ queryKey: ["bank-page-accounts-distinct"] });
