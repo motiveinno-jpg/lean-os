@@ -6,6 +6,7 @@ import { logError } from "@/lib/error-logger";
 import { markConsentPending } from "@/lib/legal";
 import { useRouter } from "next/navigation";
 import { RollingBrandText } from "@/components/brand-logo";
+import { formatPhone, isValidMobile } from "@/lib/phone";
 import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, provisionCompanyForUser, createCompanyWithOwner, assertBizNoOwnerValid } from "@/lib/company-signup";
 
 import Link from "next/link";
@@ -43,6 +44,7 @@ export default function AuthPage() {
   const [bizNo, setBizNo] = useState(""); // 사업자번호 — 1사업자=1회사 원칙의 키
   // 대표자 인증 (2026-07-06) — 국세청 진위확인(번호+대표자성명+개업일자)으로 선점 방지
   const [ownerName, setOwnerName] = useState("");
+  const [phone, setPhone] = useState(""); // 휴대전화 — 알림톡 발송 대상(2026-07-29)
   const [openDate, setOpenDate] = useState(""); // YYYY-MM-DD (input date)
   // 사업자번호가 이미 등록된 회사와 일치할 때 — 합류 요청 전환 안내 (마스킹된 회사명)
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
@@ -156,6 +158,8 @@ export default function AuthPage() {
     e.preventDefault();
     if (!agreed) return setError("이용약관 및 개인정보처리방침에 동의해주세요.");
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError("유효한 이메일 주소를 입력해주세요.");
+    // 알림톡 발송 대상이라 형식이 어긋나면 가입 후 발송이 통째로 실패한다 — 입구에서 막는다.
+    if (!isValidMobile(phone)) return setError("휴대전화 번호를 010-1234-5678 형식으로 입력해주세요.");
     if (password.length < 8) return setError("비밀번호는 8자 이상이어야 합니다.");
     if (!/[a-zA-Z]/.test(password)) return setError("비밀번호에 영문자를 포함해주세요.");
     if (!/[0-9]/.test(password)) return setError("비밀번호에 숫자를 포함해주세요.");
@@ -202,8 +206,8 @@ export default function AuthPage() {
       options: {
         emailRedirectTo: "https://www.owner-view.com/auth/verify",
         data: join
-          ? { display_name: email.split("@")[0], join_business_number: digits }
-          : { company_name: companyName.trim(), display_name: email.split("@")[0], business_number: digits },
+          ? { display_name: email.split("@")[0], join_business_number: digits, phone }
+          : { company_name: companyName.trim(), display_name: email.split("@")[0], business_number: digits, phone },
       },
     });
 
@@ -250,7 +254,7 @@ export default function AuthPage() {
 
   // 회사 개설(+owner·스냅샷·14일 트라이얼) — company-signup 공용 함수 사용 (company-setup 페이지와 단일 구현)
   async function createCompanyAndUser(authId: string, userEmail: string, name: string, bizDigits: string): Promise<boolean> {
-    const r = await createCompanyWithOwner(authId, userEmail, name, userEmail.split("@")[0], bizDigits);
+    const r = await createCompanyWithOwner(authId, userEmail, name, userEmail.split("@")[0], bizDigits, phone);
     if (r.ok) return true;
     if (r.duplicate) {
       // 유니크 충돌(동시 가입 레이스) — 그 사이 같은 사업자번호 회사가 생김 → 합류 요청으로 전환
@@ -617,6 +621,26 @@ export default function AuthPage() {
                 required
               />
             </div>
+            {mode === "signup" && (
+              <div className="signup-phone-field">
+                <label htmlFor="auth-phone" className="field-label">휴대전화</label>
+                <input
+                  id="auth-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  placeholder="010-1234-5678"
+                  autoComplete="tel"
+                  className="field-input"
+                  required
+                />
+                {phone && !isValidMobile(phone) && (
+                  <p className="text-[11px] text-[var(--danger)] mt-1">휴대전화 번호 형식이 올바르지 않습니다.</p>
+                )}
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">결재·계약 알림을 카카오톡으로 받는 데 사용됩니다.</p>
+              </div>
+            )}
             <div className="password-field">
               <label htmlFor="auth-password" className="field-label">비밀번호</label>
               <div className="relative">

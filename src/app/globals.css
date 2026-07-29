@@ -1157,6 +1157,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .email-result-list { @apply space-y-2; }
 .name-field { @apply mb-4; }
 .phone-field { @apply mb-6; }
+/* 가입 폼 중간에 들어가는 휴대전화 칸 — 위 이메일 칸(mb-4)과 간격을 맞춘다.
+   기존 .phone-field(mb-6)는 find-email 화면의 마지막 필드용이라 건드리지 않는다. */
+.signup-phone-field { @apply mb-4; }
 .find-email-back-link { @apply text-center mt-6; }
 .reset-page { @apply min-h-screen flex items-center justify-center px-4; }
 .reset-logo { @apply text-center mb-8; }

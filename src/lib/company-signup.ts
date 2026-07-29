@@ -84,6 +84,7 @@ export type ProvisionResult = "exists" | "created" | "join_pending" | "needs_com
 //   companies.business_number 유니크 충돌(동시 가입 레이스)은 duplicate 로 반환 → 호출부가 합류 요청으로 전환.
 export async function createCompanyWithOwner(
   authId: string, email: string, companyName: string, displayName: string, bizDigits: string,
+  phone?: string | null,   // 가입 시 입력한 휴대전화 — 알림톡 발송 대상(2026-07-29)
 ): Promise<{ ok: boolean; duplicate?: boolean; error?: string }> {
   const companyId = crypto.randomUUID();
   const { error: compErr } = await db.from("companies").insert({
@@ -129,6 +130,8 @@ export async function createCompanyWithOwner(
   await db.from("employees").insert({
     company_id: companyId, user_id: authId, name: displayName, email,
     position: "대표", hire_date: todayKst(), status: "joined",
+    // 가입 폼에서 받은 번호를 그대로 직원 레코드에 심는다 — 안 하면 알림톡 대상이 0명이 된다.
+    ...(phone ? { phone } : {}),
   });
 
   await db.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });
@@ -165,7 +168,7 @@ export async function provisionCompanyForUser(user: {
 
   const companyName = meta.company_name || user.email?.split("@")[0] || "내 회사";
   const displayName = meta.display_name || user.email?.split("@")[0] || "사용자";
-  const r = await createCompanyWithOwner(user.id, user.email || "", companyName, displayName, bizDigits);
+  const r = await createCompanyWithOwner(user.id, user.email || "", companyName, displayName, bizDigits, meta.phone || null);
   if (r.ok) return "created";
   if (r.duplicate) {
     // 유니크 충돌 = 그 사이 같은 사업자번호로 회사가 생김 → 합류 요청으로 전환

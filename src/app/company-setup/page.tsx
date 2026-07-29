@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, createCompanyWithOwner, assertBizNoOwnerValid } from "@/lib/company-signup";
+import { formatPhone, isValidMobile } from "@/lib/phone";
 
 export default function CompanySetupPage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function CompanySetupPage() {
   const [bizNo, setBizNo] = useState("");
   // 대표자 인증 (2026-07-06) — 국세청 진위확인(번호+대표자성명+개업일자)으로 선점 방지
   const [ownerName, setOwnerName] = useState("");
+  const [phone, setPhone] = useState(""); // 휴대전화 — 알림톡 대상(2026-07-29). 소셜 가입자는 메타에 없어 여기서 받는다.
   const [openDate, setOpenDate] = useState(""); // YYYY-MM-DD
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -85,7 +87,9 @@ export default function CompanySetupPage() {
       }
       // ③ 회사 개설 (+owner 연결, 14일 트라이얼) — 유니크 충돌 시 합류 전환
       const displayName = authUser.user_metadata?.display_name || authUser.user_metadata?.name || authUser.email?.split("@")[0] || "사용자";
-      const r = await createCompanyWithOwner(authUser.id, authUser.email || "", companyName.trim(), displayName, bizNoDigits(bizNo));
+      // 소셜 가입은 메타에 phone 이 없을 수 있어 이 화면에서 받은 값을 우선 사용한다.
+      const phoneToSave = isValidMobile(phone) ? phone : (authUser.user_metadata?.phone || null);
+      const r = await createCompanyWithOwner(authUser.id, authUser.email || "", companyName.trim(), displayName, bizNoDigits(bizNo), phoneToSave);
       if (r.ok) { router.push("/onboarding"); return; }
       if (r.duplicate) { setJoinPrompt("등록된 회사"); return; }
       setError(r.error || "회사 생성에 실패했습니다. 다시 시도해주세요.");
@@ -157,6 +161,17 @@ export default function CompanySetupPage() {
                 <input id="setup-company-name" type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="(주)모티브이노베이션" maxLength={50} autoComplete="organization"
                   className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="setup-phone" className="field-label">휴대전화</label>
+                <input id="setup-phone" type="tel" inputMode="numeric" value={phone}
+                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  placeholder="010-1234-5678" autoComplete="tel"
+                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
+                {phone && !isValidMobile(phone) && (
+                  <p className="text-[11px] text-[var(--danger)] mt-1">휴대전화 번호 형식이 올바르지 않습니다.</p>
+                )}
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">결재·계약 알림을 카카오톡으로 받는 데 사용됩니다.</p>
               </div>
               <div className="mb-4 grid grid-cols-2 gap-3">
                 <div>
