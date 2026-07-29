@@ -21,8 +21,23 @@ const db = supabase as any;
 
 const VISITOR_KEY = "ownerview_visitor_key";
 
-// 경로 자체가 비밀이거나(서명·공유 토큰) 수집 의미가 없는 곳
-const SKIP_PREFIXES = ["/sign/", "/share/", "/api/", "/_next"];
+// 경로 자체가 비밀이거나(서명·공유 토큰) 수집 의미가 없는 곳.
+//   /platform = 운영자 콘솔 — 운영자가 콘솔을 돌아다니는 건 고객 트래픽이 아니다(2026-07-29 사장님).
+const SKIP_PREFIXES = ["/sign/", "/share/", "/api/", "/_next", "/platform"];
+
+// 자동화·봇 제외 (2026-07-29 사장님: "실제 사람이 화면을 본 것만 카운팅").
+//   - navigator.webdriver: Playwright·Selenium·agent-browser 등 자동화 브라우저가 전부 true
+//   - UA 의 봇 시그니처: 헤드리스 크롬·크롤러·라이트하우스 등 (UA 는 판별에만 쓰고 저장 안 함)
+//   - document.prerendering: 크롬이 미리 렌더만 해둔 화면 — 사람이 본 게 아님
+function isAutomated(): boolean {
+  try {
+    if ((navigator as unknown as { webdriver?: boolean }).webdriver) return true;
+    const ua = navigator.userAgent || "";
+    if (/bot|crawler|spider|headless|lighthouse|prerender|scanner|monitor|pingdom|uptime/i.test(ua)) return true;
+    if ((document as unknown as { prerendering?: boolean }).prerendering) return true;
+  } catch { /* 판별 실패 시 사람으로 취급 */ }
+  return false;
+}
 
 function getVisitorKey(): string | null {
   try {
@@ -54,6 +69,7 @@ export function PageViewBeacon() {
   useEffect(() => {
     if (!pathname) return;
     if (SKIP_PREFIXES.some((p) => pathname.startsWith(p))) return;
+    if (isAutomated()) return;
 
     const visitorKey = getVisitorKey();
     if (!visitorKey) return;
