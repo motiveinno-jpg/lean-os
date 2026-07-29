@@ -188,6 +188,33 @@ function ChipIcon({ n, c }: { n: string; c: string }) {
   return <span className="lp5-chip-ico" style={{ background: c }}>{g}</span>;
 }
 
+/** 화면 다섯 장이 부채꼴로 펼쳐지는 묶음.
+ *  ⚠️ 히어로와 여기가 둘 다 대시보드 한 장이라 "위 이미지랑 똑같아 단조롭다"는 지적을 받았다.
+ *     여기서는 서로 다른 메뉴 화면을 겹쳐 보여줘 "여러 일이 한 제품 안에 있다"를 그림으로 말한다.
+ *  fx/fr/fs = 다 펼쳐졌을 때의 가로 위치·기울기·크기. 처음엔 가운데 겹쳐 있다가 --p 에 따라 벌어진다. */
+const FAN = [
+  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-66%", fr: "-11deg", fs: 0.76, z: 1 },
+  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-36%", fr: "-6deg",  fs: 0.88, z: 2 },
+  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",   fr: "0deg",   fs: 1,    z: 3 },
+  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "36%",  fr: "6deg",   fs: 0.88, z: 2 },
+  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "66%",  fr: "11deg",  fs: 0.76, z: 1 },
+];
+
+function Fan() {
+  return (
+    <div className="lp5-fan">
+      {FAN.map((f) => (
+        <div key={f.src} className="lp5-fan-item" style={{
+          ["--fx" as string]: f.fx, ["--fr" as string]: f.fr,
+          ["--fs" as string]: f.fs, zIndex: f.z,
+        }}>
+          <Image src={f.src} alt={f.alt} width={1968} height={1320} sizes="(max-width: 999px) 60vw, 520px" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SceneUnify() {
   const narrow = useNarrow();
   return (
@@ -218,7 +245,7 @@ function SceneUnify() {
           <div className="lp5-unify-core">
             {narrow
               ? <PhoneShot src="/product/m-money-v2.png" alt="휴대폰에서 본 오너뷰 경영 요약" />
-              : <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 820px" />}
+              : <Fan />}
           </div>
           </div>
         </>

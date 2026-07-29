@@ -122,9 +122,9 @@
 }
 .lp5-hero-copy {
   text-align: center; position: relative; z-index: 2;
-  /* 0 → .38 구간에서 위로 빠져나간다 — 화면에 자리를 내준다 */
-  transform: translateY(calc(var(--p) * -74px));
-  opacity: calc(1 - clamp(0, calc((var(--p) - .42) / .3), 1));
+  /* ⚠️ 예전엔 화면이 올라올 때 제목을 0 까지 페이드아웃시켰다 — 페이지에서 가장 중요한 한 줄이
+     스크롤 조금에 사라졌다. 이제 안 지운다. 살짝 위로 밀려 화면에 자리만 내준다. */
+  transform: translateY(calc(var(--p) * -40px));
 }
 .lp5-hero-h { font-size: clamp(30px, calc(10px + 5.4vw), 88px); font-weight: 800; line-height: 1.12; letter-spacing: -.04em; }
 .lp5-hero-sub { font-size: clamp(15px, calc(11px + .82vw), 23px); color: var(--ink2); margin-top: clamp(12px, 1.5vw, 20px); }
@@ -174,10 +174,33 @@
   box-shadow: 0 2px 6px -1px rgba(11,11,15,.32);
 }
 .lp5-unify-core {
-  position: relative; z-index: 2; width: min(760px, 82vw);
+  /* ⚠️ 760px 로 두면 그 안의 부채꼴(1000px)이 부모보다 넓어 margin:auto 가 안 먹고
+     오른쪽으로 밀린다. 부채꼴을 담을 만큼 넓혀 두고 크기는 .lp5-fan 이 정한다. */
+  position: relative; z-index: 2; width: min(1040px, 92vw);
   transform: scale(calc(.88 + clamp(0, calc((var(--p) - .34) / .46), 1) * .12));
   opacity: clamp(0, calc((var(--p) - .34) / .26), 1);
 }
+/* ── 화면 다섯 장이 부채꼴로 펼쳐지는 묶음 ──
+   처음엔 가운데 겹쳐 있다가 --p 에 따라 좌우로 벌어진다.
+   ⚠️ 히어로와 같은 대시보드 한 장을 또 쓰면 단조롭다 — 여기선 서로 다른 메뉴 화면을 쓴다. */
+/* ⚠️ fx 는 "자기 폭 기준" 퍼센트다(translate 규칙). 92%/52% 로 뒀더니 양 끝 장이 좌우로 넘쳤고,
+   transform-origin: center bottom 이라 기울면서 아래로도 밀려 잘렸다. 폭·각도·기준점을 줄인다. */
+.lp5-fan { position: relative; width: 100%; aspect-ratio: 16 / 7.6; margin: 0 auto; }
+.lp5-fan-item {
+  position: absolute; top: 50%; left: 50%; width: 42%;
+  --sp: clamp(0, calc((var(--p) - .34) / .38), 1);
+  transform: translate(-50%, -50%)
+             translateX(calc(var(--fx) * var(--sp)))
+             rotate(calc(var(--fr) * var(--sp)))
+             scale(calc(1 - (1 - var(--fs)) * var(--sp)));
+  transform-origin: center center;
+}
+.lp5-fan-item img {
+  display: block; width: 100%; height: auto; border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.8);
+  box-shadow: 0 2px 8px rgba(11,11,15,.06), 0 30px 70px -26px rgba(79,70,229,.42);
+}
+
 .lp5-unify-copy { position: relative; z-index: 3; margin-bottom: 34px; }
 .lp5-unify-lines { margin-top: 16px; min-height: 96px; }
 .lp5-unify-line {
@@ -445,6 +468,10 @@
   .lp5-cov-grid { grid-template-columns: repeat(2, 1fr); }
   .lp5-orbit { display: none; }
   .lp5-hero-copy, .lp5-hero-shot, .lp5-unify-core, .lp5-phone, .lp5-hero-bg { transform: none; opacity: 1; }
+  /* 좁은 화면에선 부채꼴이 서로 겹쳐 아무것도 안 읽힌다 — 가운데 한 장만 남긴다 */
+  .lp5-fan { aspect-ratio: 16 / 10; }
+  .lp5-fan-item { width: 86%; }
+  .lp5-fan-item:not(:nth-child(3)) { display: none; }
   .lp5-hero-hint { display: none; }
   .lp5-shot-stack { aspect-ratio: 16 / 11; }
 }
