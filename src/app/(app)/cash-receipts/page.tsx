@@ -3,7 +3,7 @@ import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -165,6 +165,33 @@ export default function CashReceiptsPage() {
       }),
     enabled: !!companyId && tab !== "register",
   });
+
+  // 승인번호 자동 채움 (2026-07-30 사장님 — 홈택스엔 올라갔는데 앱엔 승인번호가 비던 건):
+  //   국세청 승인번호는 발행 당일 밤 일괄 전송 후 부여되는데, 사용자가 '승인번호 조회'를
+  //   안 누르면 영영 빈 채로 남았다. 페이지 진입 시 어제 이전 발행분 중 승인번호 없는
+  //   실발행 건(document_key 보유)을 자동 조회해 채운다 (최대 5건, 순차 — 과호출 방지).
+  const autoRefreshDone = useRef(false);
+  useEffect(() => {
+    if (autoRefreshDone.current || !receipts.length) return;
+    const today = todayKst();
+    const targets = (receipts as CashReceipt[]).filter(
+      (r) => r.document_key && !r.approval_number && r.status === "issued" && r.issue_date < today,
+    ).slice(0, 5);
+    if (targets.length === 0) return;
+    autoRefreshDone.current = true;
+    (async () => {
+      let filled = 0;
+      for (const r of targets) {
+        try { await refreshCashReceiptNts(r.id); filled++; } catch { /* 개별 실패 무시 */ }
+      }
+      if (filled > 0) {
+        queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
+        toast(`국세청 승인번호 ${filled}건을 자동으로 불러왔습니다`, "success");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receipts]);
+
 
   // 헤더 클릭 정렬 (표시용)
   type CrSortKey = "issue_date" | "counterparty_name" | "amount" | "supply_amount" | "tax_amount" | "purpose" | "status";
