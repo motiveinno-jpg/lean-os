@@ -326,7 +326,7 @@ export async function syncIncome(companyId: string, month?: string): Promise<Syn
     // Check for incoming payments (transactions with type = income this month)
     const { data: incomeTransactions, error: txErr } = await db
       .from('transactions')
-      .select('id, amount, description, deal_id')
+      .select('id, amount, description') // transactions 에 deal_id 없음(스키마 스윕 2026-07-29) — 있던 시절이 없어 아래 딜 매칭은 원래부터 0건 동작
       .eq('company_id', companyId)
       .eq('type', 'income')
       .gte('created_at', start)

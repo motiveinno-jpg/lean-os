@@ -99,7 +99,7 @@ export function useMyWorkCards(companyId: string, userId: string): MyWorkCard[] 
         db.from("project_tasks").select("id, title, due_date, status, deal_id, deals(name)")
           .eq("assignee_id", userId).is("archived_at", null).neq("status", "done").order("due_date", { ascending: true, nullsFirst: false }).limit(50),
         db.from("deals").select("id, name, stage, contract_total")
-          .eq("company_id", companyId).eq("internal_manager_id", userId).is("archived_at", null).order("updated_at", { ascending: false }).limit(50),
+          .eq("company_id", companyId).eq("internal_manager_id", userId).is("archived_at", null).order("created_at", { ascending: false }).limit(50), // deals 에 updated_at 없음(스키마 스윕 2026-07-29) — 이 컴포넌트는 현재 임포트 0곳(고아)
         db.from("doc_approvals").select("id, created_at, document_id, documents(content_type, contract_amount)")
           .eq("company_id", companyId).eq("approver_id", userId).eq("status", "pending").order("created_at", { ascending: false }).limit(50),
         db.from("notifications").select("*").eq("user_id", userId).eq("is_read", false).in("entity_type", MENTION_ENTITIES).order("created_at", { ascending: false }).limit(50),

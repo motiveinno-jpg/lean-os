@@ -69,6 +69,9 @@ Deno.serve(withSentry("process-invoice-queue", async (req: Request) => {
             .single();
 
           if (deal?.partner_id) {
+            // ⚠️ partners 에 metadata 컬럼이 없어 이 조회는 항상 42703 → partner null →
+            //    거래처 희망일 기능은 한 번도 동작한 적 없음(스키마 스윕 2026-07-29).
+            //    살리려면 partners.metadata jsonb 신설 + 설정 UI 부터 필요 — 별건 결정.
             const { data: partner } = await supabase
               .from("partners")
               .select("metadata")
