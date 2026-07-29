@@ -45,7 +45,7 @@ const MATRIX: { group: string; rows: { name: string; free: string; basic: string
     rows: [
       { name: "AI 거래 분류", free: "체험", basic: "무제한", ultra: "무제한" },
       { name: "세금계산서 국세청 발행", free: "월 3건", basic: "월 10건", ultra: "무제한" },
-      { name: "현금영수증 발행(베타)", free: "월 3건", basic: "월 10건", ultra: "무제한" },
+      { name: "현금영수증 발행", free: "월 3건", basic: "월 10건", ultra: "무제한" },
     ],
   },
   {
