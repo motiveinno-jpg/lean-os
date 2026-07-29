@@ -127,7 +127,10 @@ function Fan({ priority = false }: { priority?: boolean }) {
     <div className="lp5-fan lp5-fan-in">
       {FAN.map((f, i) => (
         <div key={f.src} className="lp5-fan-item" style={{
-          ["--fx" as string]: f.fx, ["--fs" as string]: f.fs, ["--ar" as string]: f.ar, zIndex: f.z,
+          ["--fx" as string]: f.fx, ["--fs" as string]: f.fs, ["--ar" as string]: f.ar,
+          // ⚠️ transform: scale() 이 테두리 굵기까지 줄인다. 1/fs 로 미리 부풀려 넘겨야
+          //    축소된 카드도 화면에서 1px 로 보인다. (CSS calc(1px / var(--fs)) 는 안 먹었다)
+          ["--bw" as string]: `${(1 / f.fs).toFixed(2)}px`, zIndex: f.z,
         }}>
           <Image src={f.src} alt={f.alt} width={2288} height={1802}
             sizes="(max-width: 999px) 60vw, 520px" priority={priority && i === 2} />
