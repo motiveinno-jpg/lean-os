@@ -163,12 +163,14 @@
         칩은 .40 에서 끝내고 화면은 .34 부터 시작 — 겹치는 구간을 최소로 둔다.
      ⚠️ --d(칩마다 다른 출발 시점) 덕에 한 덩어리로 움직이지 않고 따로따로 빨려들어간다.
         전부 같은 식으로 움직이면 "흩어진" 게 아니라 "정렬된" 것으로 보인다. */
-  --k: calc(1 - clamp(0, calc((var(--p) - var(--d, 0)) / .34), 1));
+  /* ⚠️ 구간을 .34 로 짧게 잡아 칩이 순식간에 사라졌다. .46 으로 늘려 여유를 준다. */
+  --k: calc(1 - clamp(0, calc((var(--p) - var(--d, 0)) / .46), 1));
   transform: translate(-50%, -50%)
              translate(calc(var(--x) * var(--k) * var(--r, 1)), calc(var(--y) * var(--k) * var(--r, 1)))
              rotate(calc(var(--rot, 0deg) * var(--k)))
              scale(calc(.55 + var(--k) * var(--sc, 1) * .45));
-  opacity: calc(var(--k) * var(--k) * 1.4);
+  /* ⚠️ k 제곱은 끝에서 급격히 0 으로 떨어져 "툭" 꺼지는 느낌을 준다 — 완만하게. */
+  opacity: calc(var(--k) * 1.25);
 }
 .lp5-chip-ico {
   display: inline-flex; align-items: center; justify-content: center;
@@ -179,8 +181,10 @@
   /* ⚠️ 760px 로 두면 그 안의 부채꼴(1000px)이 부모보다 넓어 margin:auto 가 안 먹고
      오른쪽으로 밀린다. 부채꼴을 담을 만큼 넓혀 두고 크기는 .lp5-fan 이 정한다. */
   position: relative; z-index: 2; width: min(1040px, 92vw);
-  transform: scale(calc(.88 + clamp(0, calc((var(--p) - .34) / .46), 1) * .12));
-  opacity: clamp(0, calc((var(--p) - .34) / .26), 1);
+  /* ⚠️ 칩이 다 사라진 뒤에 화면이 시작하면 중간에 빈 구간이 생겨 끊겨 보인다.
+     칩이 옅어지는 동안 화면이 겹쳐 올라오게 시작점을 앞당기고 구간을 늘린다. */
+  transform: scale(calc(.9 + clamp(0, calc((var(--p) - .26) / .5), 1) * .1));
+  opacity: clamp(0, calc((var(--p) - .26) / .4), 1);
 }
 /* ── 화면 다섯 장이 부채꼴로 펼쳐지는 묶음 ──
    처음엔 가운데 겹쳐 있다가 --p 에 따라 좌우로 벌어진다.

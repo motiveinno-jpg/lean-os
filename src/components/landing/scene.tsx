@@ -33,20 +33,41 @@ export function useScene(beats = 1) {
       return;
     }
 
-    let raf = 0, lastBeat = -1;
-    const tick = () => {
-      raf = 0;
+    // ⚠️ 스크롤 값을 그대로 --p 에 꽂으면 연출이 뚝뚝 끊긴다.
+    //    마우스 휠은 한 번에 100px 안팎씩 "점프"하므로 --p 도 계단처럼 튄다(사장님 지적).
+    //    목표값(target)만 스크롤에서 받고, 화면에 꽂는 값(cur)은 매 프레임 목표를 향해
+    //    조금씩 따라가게 한다. 휠 한 칸이 여러 프레임에 걸쳐 풀려 매끄러워진다.
+    //    다 따라잡으면 루프를 멈춘다 — 가만히 있을 때 rAF 를 계속 돌리지 않는다.
+    const EASE = 0.16;      // 클수록 즉각적, 작을수록 부드럽고 늦다
+    let target = 0, cur = 0, raf = 0, running = false, lastBeat = -1;
+
+    const read = () => {
       const r = track.getBoundingClientRect();
       const total = r.height - window.innerHeight;
-      const p = total <= 0 ? 1 : Math.min(1, Math.max(0, -r.top / total));
-      stage.style.setProperty("--p", p.toFixed(4));
+      return total <= 0 ? 1 : Math.min(1, Math.max(0, -r.top / total));
+    };
+    const paint = (v: number) => {
+      stage.style.setProperty("--p", v.toFixed(4));
       if (beats > 1) {
-        const b = Math.min(beats - 1, Math.floor(p * beats));
+        const b = Math.min(beats - 1, Math.floor(v * beats));
         if (b !== lastBeat) { lastBeat = b; setBeat(b); }
       }
     };
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(tick); };
-    tick();
+    const loop = () => {
+      const d = target - cur;
+      // 차이가 아주 작아지면 목표에 붙이고 멈춘다(무한 rAF 방지)
+      if (Math.abs(d) < 0.0004) { cur = target; running = false; paint(cur); return; }
+      cur += d * EASE;
+      paint(cur);
+      raf = requestAnimationFrame(loop);
+    };
+    const onScroll = () => {
+      target = read();
+      if (!running) { running = true; raf = requestAnimationFrame(loop); }
+    };
+
+    target = cur = read();
+    paint(cur);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => {
