@@ -37,10 +37,40 @@
 }
 .lp5-pain-a::before { content: "\2192"; flex: none; opacity: .7; }
 
-/* ══ 주요 기능 — 벤토 그리드 ══
-   ⚠️ 3열로 짜면 카드가 440px 이 되어 안의 화면이 0.45배로 뭉개진다.
-      2열 + 첫 칸 전폭이 배율(0.68~0.91)과 "한눈에" 를 동시에 만족한다. */
-.lp5-bento { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+/* ══ 주요 기능 — 축마다 한 줄, 넓은 칸이 지그재그로 ══
+   프로젝트 · 회계 · 인사가 각각 한 줄을 갖고, 줄마다 넓은 칸의 자리가
+   왼쪽 → 가운데 → 오른쪽으로 옮겨 다닌다. 세 축이라는 구조가 배치로 읽힌다.
+
+   ⚠️ 2열 + 첫 칸 전폭이었다(2026-07-29 오전). 화질은 좋았지만 절반짜리가 네 줄
+      내려가 이 구간만 2.17화면을 먹었다 → 3열 세 줄로 1.27화면.
+   ⚠️ 3열이면 좁은 칸이 323px 이다. 화면을 그 폭에 맞춰 "줄이면" 0.33배로 뭉개진다.
+      대신 이미지 CSS 폭을 못박고 칸이 잘라내게 한다 — 글자 크기가 아홉 칸 모두 같아지고,
+      잘린 왼쪽이 그 화면의 핵심이다. 넓은 칸만 화면 전체를 넣으면 오히려 0.60배가 되어
+      좁은 칸(0.68배)보다 글자가 작아진다 — 위계가 뒤집히므로 배율은 하나로 맞춘다.
+   ⚠️ 화면 높이는 줄 단위로 고정한다. 비율로 주면 넓은 칸의 화면만 커져서 그 줄 전체가
+      늘어나고, 좁은 칸은 글 밑에 빈 공간이 크게 뜬다. */
+.lp5-axrows { display: flex; flex-direction: column; gap: 24px; }
+.lp5-axtag { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.lp5-axtag-dot { width: 7px; height: 7px; border-radius: 99px; flex: none; }
+.lp5-axtag b { font-size: 13.5px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.lp5-axtag i { flex: 1; height: 1px; background: var(--line); }
+
+.lp5-axrow { display: grid; gap: 14px; align-items: stretch; }
+.lp5-axrow-1 { grid-template-columns: 1.75fr 1fr 1fr; }
+.lp5-axrow-2 { grid-template-columns: 1fr 1.75fr 1fr; }
+.lp5-axrow-3 { grid-template-columns: 1fr 1fr 1.75fr; }
+.lp5-axrow .lp5-bt-shot { aspect-ratio: auto; height: clamp(198px, 16.4vw, 252px); }
+/* 640px = 앱 화면을 0.65배로 그리는 폭. 개편 전 벤토에서 검증된 값이다.
+   ⚠️ min-width 는 안전장치다. 칸이 이 폭보다 넓어지는 구간(넓은 칸이 줄 전체를 먹는 태블릿)에서
+      이미지가 칸보다 좁아지면 오른쪽에 흰 띠가 남는다(실측 900px 에서 131% 보임). */
+.lp5-axrow .lp5-bt-shot img { width: 640px; min-width: 100%; max-width: none; }
+
+/* 좁은 칸은 글자도 한 단계 줄인다 — 넓은 칸과 같은 크기로 두면 세 줄로 넘어간다 */
+.lp5-bt-sm { padding: 20px 0 0 20px; }
+.lp5-bt-sm .lp5-bt-copy { padding-right: 20px; padding-bottom: 14px; }
+.lp5-bt-sm .lp5-bt-title { font-size: clamp(15px, 1.24vw, 17.5px); }
+.lp5-bt-sm .lp5-bt-desc { font-size: 12.5px; line-height: 1.6; }
+
 .lp5-bt {
   background: linear-gradient(168deg, #F4F5FA 0%, #EDEFF8 100%);
   border: 1px solid rgba(11,11,15,.06); border-radius: 20px; overflow: hidden;
@@ -61,12 +91,6 @@
   box-shadow: 0 2px 10px rgba(11,11,15,.05), 0 22px 50px -24px rgba(11,11,15,.3);
 }
 .lp5-bt-shot img { width: 100%; height: 100%; object-fit: cover; object-position: left top; display: block; }
-.lp5-bt-lead {
-  grid-column: span 2; flex-direction: row; align-items: center;
-  gap: clamp(20px, 3vw, 44px); padding-bottom: 0;
-}
-.lp5-bt-lead .lp5-bt-copy { flex: 0 0 34%; padding-bottom: 0; }
-.lp5-bt-lead .lp5-bt-shot { flex: 1 1 auto; margin-top: 26px; aspect-ratio: 16 / 7.4; }
 
 /* ══ AI — 엔진 2x2 + 자동화 목록 ══ */
 .lp5-eng-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
@@ -165,15 +189,41 @@
 }
 .lp5-nav-ask:hover { background: var(--canvas2); color: var(--ink); }
 
+/* 1024~1279 — 3열은 그대로 두고, 잘라 넣는 폭만 줄인다.
+   ⚠️ 여기서 줄을 2단으로 쪼개면 축마다 두 줄이 되어 구간이 오히려 길어진다(실측 2.78화면). */
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .lp5-axrow .lp5-bt-shot { height: clamp(180px, 17.6vw, 212px); }
+  .lp5-axrow .lp5-bt-shot img { width: 560px; }
+}
+
+/* 721~1023 — 3열이면 칸이 240px 밑으로 떨어져 잘린 화면이 무슨 화면인지 안 보인다.
+   넓은 칸을 줄 위로 올리고 좁은 칸 둘이 아래에 나란히 선다.
+   ⚠️ span 규칙은 반드시 이 구간 안에만 둔다. 밖에 두면 1열 구간까지 흘러들어가
+      1열 그리드에 span 2 가 걸리며 카드 폭이 1px 로 찌그러진다(실측). */
+@media (max-width: 1023px) and (min-width: 721px) {
+  .lp5-axrow { grid-template-columns: 1fr 1fr; }
+  .lp5-axrow-1 > *:nth-child(1),
+  .lp5-axrow-2 > *:nth-child(2),
+  .lp5-axrow-3 > *:nth-child(3) { grid-column: span 2; order: -1; }
+  .lp5-axrow .lp5-bt-shot { height: 200px; }
+  .lp5-axrow .lp5-bt-shot img { width: 830px; }
+}
+
 @media (max-width: 999px) {
-  .lp5-pain-grid, .lp5-bento, .lp5-eng-grid2, .lp5-proof { grid-template-columns: 1fr; }
-  .lp5-bt-lead { grid-column: span 1; flex-direction: column; align-items: stretch; }
-  .lp5-bt-lead .lp5-bt-copy { flex: none; padding-bottom: 18px; }
-  .lp5-bt-lead .lp5-bt-shot { margin-top: 0; }
+  .lp5-pain-grid, .lp5-eng-grid2, .lp5-proof { grid-template-columns: 1fr; }
   .lp5-cov4 { grid-template-columns: repeat(2, 1fr); }
   .lp5-autos-list { grid-template-columns: repeat(2, 1fr); }
   .lp5-nav-ask { display: none; }
 }
+
+@media (max-width: 720px) {
+  /* ⚠️ 폰에선 카드가 한 줄에 하나뿐이라 340px 안팎이다. 여기선 넓은 칸도 화면을 통째로 넣으면
+        0.35배가 되어 글자가 안 읽힌다 — 넓든 좁든 전부 잘라서 넣는다(560px = 0.57배). */
+  .lp5-axrow { grid-template-columns: 1fr; }
+  .lp5-axrow .lp5-bt-shot { height: 172px; }
+  .lp5-axrow .lp5-bt-shot img { width: 560px; }
+}
+
 @media (max-width: 620px) {
   .lp5-cov4, .lp5-autos-list { grid-template-columns: 1fr; }
   .lp5-case-nums { grid-template-columns: repeat(2, 1fr); }

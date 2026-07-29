@@ -524,22 +524,24 @@ function Rail({ cards, tall = false, wide = false, arrows = false, ms = 4600, la
   );
 }
 
-// ══════════════════ 4. 주요 기능 — 벤토 그리드 ══════════════════
+// ══════════════════ 4. 주요 기능 — 축마다 한 줄 ══════════════════
 //   ⚠️ 캐러셀이었다. 넘겨야만 보이는 구조라 스크롤만 하는 방문자에게 19개 중 2~3개만 전달됐다
 //      (경쟁사 비교 실측, 2026-07-29). 9개를 전부 펼쳐 스크롤만으로 다 보이게 한다.
-//   ⚠️ 3열로 짜면 카드가 440px 이 되어 화면 UI 가 0.45배로 뭉개진다.
-//      2열 + 첫 칸 전폭이 배율(0.68~0.91)과 "한눈에" 를 동시에 만족하는 조합이다.
+//   ⚠️ 처음엔 2열 + 첫 칸 전폭이었다. 화질은 좋았지만 절반짜리가 네 줄 내려가 이 구간 하나가
+//      2.17화면을 먹었다(사장님: "9개가 길어지다 보니 페이지가 엄청 길어진다").
+//      → 축마다 한 줄(3열)로 바꿔 1.27화면. 줄마다 넓은 칸의 자리가 왼쪽→가운데→오른쪽으로
+//      옮겨 다녀(wide = j === r) 눈이 지그재그로 따라가고, 세 축 구조가 배치로 읽힌다.
+//   ⚠️ 3열이면 좁은 칸이 323px 이라 화면을 칸 폭에 맞춰 "줄이면" 0.33배로 뭉개진다.
+//      그래서 아홉 칸 모두 화면을 줄이지 않고 "잘라서" 넣는다 — 이미지 CSS 폭을 640px 로
+//      못박고 칸이 잘라내게 한다(landing-v6.css). 넓은 칸은 92%, 좁은 칸은 50% 가 보이고
+//      글자 크기는 아홉 장이 전부 같다(앱의 0.65배 — 개편 전 벤토와 같은 값).
+//   ⚠️ 넓은 칸만 화면 전체를 넣어 봤더니 0.60배로 그려져 좁은 칸(0.68배)보다 글자가 작았다.
+//      크기 위계가 뒤집혀 보이므로 배율은 반드시 아홉 칸을 하나로 맞춘다.
+const AXIS_COLOR: Record<string, string> = {
+  "프로젝트": "#5B4BE8", "회계": "#2F6FED", "인사": "#0E8F6F",
+};
+
 function SceneAxes() {
-  const cards = PILLARS.flatMap((P) =>
-    P.blocks.map((b) => ({ kicker: P.kicker, tab: b.tab, title: b.title, desc: b.desc, src: b.src, alt: b.alt })),
-  );
-  const [lead, ...rest] = cards;
-  const shot = (c: typeof cards[0], wide: boolean) => (
-    <div className="lp5-bt-shot">
-      <Image src={CORE_SHOT[c.src] ?? c.src} alt={c.alt} width={1968} height={984}
-        sizes={wide ? "(max-width: 999px) 92vw, 900px" : "(max-width: 999px) 92vw, 680px"} />
-    </div>
-  );
   return (
     <section id="pillars" className="lp5-sect">
       <div className="lp5-wrap">
@@ -551,24 +553,35 @@ function SceneAxes() {
           <p className="lp5-lead">프로젝트·회계·인사가 하나의 데이터 위에서 같이 움직여요.</p>
         </Rise>
 
-        <div className="lp5-bento">
-          <Rise className="lp5-bt lp5-bt-lead">
-            <div className="lp5-bt-copy">
-              <span className="lp5-bt-kick">{lead.kicker} · {lead.tab}</span>
-              <h3 className="lp5-bt-title">{lead.title}</h3>
-              <p className="lp5-bt-desc">{lead.desc}</p>
-            </div>
-            {shot(lead, true)}
-          </Rise>
-
-          {rest.map((c, i) => (
-            <Rise key={c.src + c.tab} delay={(i % 2) * 60} className="lp5-bt">
-              <div className="lp5-bt-copy">
-                <span className="lp5-bt-kick">{c.kicker} · {c.tab}</span>
-                <h3 className="lp5-bt-title">{c.title}</h3>
-                <p className="lp5-bt-desc">{c.desc}</p>
+        <div className="lp5-axrows">
+          {PILLARS.map((P, r) => (
+            <Rise key={P.kicker} delay={r * 70}>
+              <div className="lp5-axtag">
+                <span className="lp5-axtag-dot" style={{ background: AXIS_COLOR[P.kicker] ?? "#5B4BE8" }} />
+                <b>{P.kicker}</b>
+                <i />
               </div>
-              {shot(c, false)}
+              <div className={`lp5-axrow lp5-axrow-${r + 1}`}>
+                {P.blocks.map((b, j) => {
+                  const wide = j === r;
+                  return (
+                    <div key={b.tab} className={`lp5-bt ${wide ? "" : "lp5-bt-sm"}`}>
+                      <div className="lp5-bt-copy">
+                        <span className="lp5-bt-kick">{P.kicker} · {b.tab}</span>
+                        <h3 className="lp5-bt-title">{b.title}</h3>
+                        <p className="lp5-bt-desc">{b.desc}</p>
+                      </div>
+                      {/* ⚠️ sizes 는 "칸 폭"이 아니라 "화면이 그려지는 폭"으로 준다.
+                          잘라 넣기 때문에 칸이 좁아도 이미지는 640px 로 그려진다 —
+                          칸 폭으로 주면 750px 짜리가 내려와 잘린 화면이 흐려진다(실측). */}
+                      <div className="lp5-bt-shot">
+                        <Image src={CORE_SHOT[b.src] ?? b.src} alt={b.alt} width={1968} height={984}
+                          sizes="(max-width: 720px) 580px, 660px" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </Rise>
           ))}
         </div>
