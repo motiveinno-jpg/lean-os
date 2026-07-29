@@ -110,14 +110,16 @@ function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; p
  *     스크롤을 기다리게 하면 아무도 못 본다. --sp 를 CSS 애니메이션이 0→1 로 올린다.
  *  ⚠️ 마름모 실루엣이 되게 배열한다 — 가운데가 가장 크고, 옆으로 갈수록 작아진다.
  *     세로 중심은 다섯 장 모두 같다. 크기만 줄어드니 위아래가 동시에 좁아져 마름모가 된다.
+ *     가운데를 더 강조하려고 칸 비율까지 달리 준다 — 가운데 4:3(세로가 길다), 옆 16:10, 바깥 16:9.
+ *     크기(fs)와 비율(ar)이 같이 줄어드니 마름모가 더 뾰족해진다.
  *     (옆 장을 아래로 내렸더니 "메인만 혼자 위에 있는" 꼴이 됐다 — fy 를 없앴다.)
  *  fx = 자기 폭 기준 가로 이동(%), fs = 최종 크기. 회전은 넣지 않는다. */
 const FAN = [
-  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-98%", fs: 0.56, z: 1 },
-  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-58%", fs: 0.76, z: 2 },
-  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",   fs: 1,    z: 3 },
-  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "58%",  fs: 0.76, z: 2 },
-  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "98%",  fs: 0.56, z: 1 },
+  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-112%", fs: 0.52, ar: "16 / 9",  z: 1 },
+  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-71%",  fs: 0.74, ar: "16 / 10", z: 2 },
+  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",    fs: 1.10, ar: "4 / 3",   z: 3 },
+  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "71%",   fs: 0.74, ar: "16 / 10", z: 2 },
+  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "112%",  fs: 0.52, ar: "16 / 9",  z: 1 },
 ];
 
 function Fan({ priority = false }: { priority?: boolean }) {
@@ -125,7 +127,7 @@ function Fan({ priority = false }: { priority?: boolean }) {
     <div className="lp5-fan lp5-fan-in">
       {FAN.map((f, i) => (
         <div key={f.src} className="lp5-fan-item" style={{
-          ["--fx" as string]: f.fx, ["--fs" as string]: f.fs, zIndex: f.z,
+          ["--fx" as string]: f.fx, ["--fs" as string]: f.fs, ["--ar" as string]: f.ar, zIndex: f.z,
         }}>
           <Image src={f.src} alt={f.alt} width={2288} height={1802}
             sizes="(max-width: 999px) 60vw, 520px" priority={priority && i === 2} />
@@ -443,8 +445,41 @@ function SceneAI() {
 
 // ══════════════════ 6. 커버리지 ══════════════════
 //   메뉴 18개가 스크롤에 따라 하나씩 켜진다. 각각의 설명은 /features 가 맡는다.
+/** 메뉴 아이콘 — 그룹별 색 타일. 글자로 "파이낸스"라고 쓰는 것보다 한눈에 구분된다. */
+const GROUP_COLOR: Record<string, string> = {
+  "파이낸스": "#2F6FED", "워크스페이스": "#5B4BE8", "인사관리": "#0E8F6F", "자산관리": "#E08422",
+};
+function MenuIcon({ n, c }: { n: string; c: string }) {
+  const p = { width: 15, height: 15, fill: "none", stroke: "#fff", strokeWidth: 1.9,
+    viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  let g;
+  switch (n) {
+    case "users": case "crm": g = <svg {...p}><path d="M16 20v-1.5a4 4 0 00-4-4H6a4 4 0 00-4 4V20"/><circle cx="9" cy="7" r="3.4"/><path d="M17 11.5a3.4 3.4 0 000-6.8"/><path d="M22 20v-1.5a4 4 0 00-3-3.8"/></svg>; break;
+    case "user": g = <svg {...p}><path d="M19 20v-1.6a4.4 4.4 0 00-4.4-4.4H9.4A4.4 4.4 0 005 18.4V20"/><circle cx="12" cy="7.5" r="3.7"/></svg>; break;
+    case "receipt": g = <svg {...p}><path d="M5 3.5h14v17l-2.3-1.6-2.4 1.6-2.3-1.6-2.4 1.6L7.3 19 5 20.5v-17z"/><path d="M8.5 8h7M8.5 12h5"/></svg>; break;
+    case "book": g = <svg {...p}><path d="M5 4.5A1.5 1.5 0 016.5 3H19v18H6.5A1.5 1.5 0 015 19.5v-15z"/><path d="M8.5 8h7M8.5 12h5"/></svg>; break;
+    case "chart": g = <svg {...p}><path d="M3 20h18"/><rect x="5" y="11" width="3.4" height="6" rx="1"/><rect x="10.3" y="7" width="3.4" height="10" rx="1"/><rect x="15.6" y="13" width="3.4" height="4" rx="1"/></svg>; break;
+    case "pen": g = <svg {...p}><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.4 3.6z"/></svg>; break;
+    case "calendar": g = <svg {...p}><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8.5 3v4M15.5 3v4"/></svg>; break;
+    case "briefcase": case "pipeline": g = <svg {...p}><rect x="2.5" y="7" width="19" height="13" rx="2.5"/><path d="M9 7V5.2A1.7 1.7 0 0110.7 3.5h2.6A1.7 1.7 0 0115 5.2V7"/></svg>; break;
+    case "approve": case "check": g = <svg {...p}><path d="M20.5 11.2V19a2 2 0 01-2 2h-13a2 2 0 01-2-2V5a2 2 0 012-2h9"/><path d="M8.5 12l3 3 8-8.5"/></svg>; break;
+    case "board": g = <svg {...p}><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M9 9v11"/></svg>; break;
+    case "chat": g = <svg {...p}><path d="M21 11.5a8.4 8.4 0 01-9 8.4 9 9 0 01-3.9-.9L3 21l1.9-4.5A8.4 8.4 0 013 11.5 8.5 8.5 0 0112 3a8.5 8.5 0 019 8.5z"/></svg>; break;
+    case "sign": g = <svg {...p}><path d="M3 18.5c3-1 4.5-3.5 5.5-7C9.4 8 10.8 5 12.5 5c1.5 0 2 1.5 1.3 3.4-.8 2-2.6 3.6-4.8 4.6"/><path d="M13 18.5h8"/></svg>; break;
+    case "hr": g = <svg {...p}><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.2A1.7 1.7 0 0110.2 3.5h3.6A1.7 1.7 0 0115.5 5.2V7"/><path d="M3 12h18"/></svg>; break;
+    case "clock": g = <svg {...p}><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5.2l3.4 2"/></svg>; break;
+    case "file": case "docs": g = <svg {...p}><path d="M14 2.5H7a2 2 0 00-2 2v15a2 2 0 002 2h10a2 2 0 002-2V7.5L14 2.5z"/><path d="M14 2.5v5h5"/></svg>; break;
+    case "folder": g = <svg {...p}><path d="M3 7.5A2 2 0 015 5.5h3.6l2 2H19a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-9z"/></svg>; break;
+    case "wallet": g = <svg {...p}><path d="M21 12V7.5a2 2 0 00-2-2H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V14"/><path d="M16 12h5v4h-5a2 2 0 010-4z"/></svg>; break;
+    case "swap": g = <svg {...p}><path d="M7 8h13l-3.2-3.2M17 16H4l3.2 3.2"/></svg>; break;
+    case "repeat": g = <svg {...p}><path d="M17 2.5l3.5 3.5L17 9.5"/><path d="M3.5 12V9.5a3.5 3.5 0 013.5-3.5h13.5"/><path d="M7 21.5L3.5 18 7 14.5"/><path d="M20.5 12v2.5a3.5 3.5 0 01-3.5 3.5H3.5"/></svg>; break;
+    default: g = <svg {...p}><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 12h8"/></svg>; break;
+  }
+  return <span className="lp5-cov-ico" style={{ background: c }}>{g}</span>;
+}
+
 function SceneCoverage() {
-  const cells = CATALOG.flatMap((g) => g.menus.map((m) => ({ g: g.group, n: m.name, d: m.desc })));
+  const cells = CATALOG.flatMap((g) => g.menus.map((m) => ({ g: g.group, n: m.name, d: m.desc, i: m.icon })));
   return (
     <Scene id="more" len={1.15} className="lp5-cov">
       {() => (
@@ -452,8 +487,10 @@ function SceneCoverage() {
           <div className="lp5-cov-head">
             <div className="lp5-eyebrow">Coverage</div>
             <h2 className="lp5-h lp5-h-sm">회사 운영, <span className="lp5-grad">오직 오너뷰 안에서</span></h2>
+            {/* ⚠️ "방금 본 세 축 아래로" 는 앞 섹션을 되짚는 말이라 정작 "더 많다"가 안 들렸다.
+                여기서는 범위가 넓다는 것만 말한다 (사장님 지시). */}
             <p className="lp5-lead" style={{ margin: "16px auto 0" }}>
-              방금 본 세 축 아래로 메뉴 {cells.length}개가 이어져요. 재무부터 자산까지, 밖에서 따로 처리할 일이 없어요.
+              이게 다가 아니에요. 재무·업무·인사·자산까지 메뉴 {cells.length}개에 30가지가 넘는 기능이 들어 있어요.
             </p>
           </div>
           <div className="lp5-cov-grid">
@@ -461,7 +498,7 @@ function SceneCoverage() {
                 그만큼의 스크롤을 써야 한다. 진입하면 계단식으로 한 번에 떠오르게 바꿈. */}
             {cells.map((c, i) => (
               <Rise key={c.n} delay={i * 34} className="lp5-cov-cell">
-                <div className="lp5-cov-g">{c.g}</div>
+                <MenuIcon n={c.i} c={GROUP_COLOR[c.g] ?? "#5B4BE8"} />
                 <div className="lp5-cov-n">{c.n}</div>
                 <div className="lp5-cov-d">{c.d}</div>
               </Rise>

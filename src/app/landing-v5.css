@@ -195,13 +195,15 @@
 
 .lp5-fan-item {
   position: absolute; top: 50%; left: 50%; width: 42%;
+  aspect-ratio: var(--ar, 16 / 10); overflow: hidden; border-radius: 16px;
   transform: translate(-50%, -50%)
              translateX(calc(var(--fx) * var(--sp)))
              scale(calc(1 - (1 - var(--fs)) * var(--sp)));
   transform-origin: center center;
 }
 .lp5-fan-item img {
-  display: block; width: 100%; height: auto; border-radius: 16px;
+  display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top;
+  border-radius: 16px;
   border: 1px solid rgba(255,255,255,.8);
   box-shadow: 0 2px 8px rgba(11,11,15,.06), 0 30px 70px -26px rgba(79,70,229,.42);
 }
@@ -447,7 +449,11 @@
 }
 /* 등장은 .lp5-rise(계단식 delay)가 맡는다 — 한 칸씩 켜던 on/off 클래스는 걷어냈다 */
 .lp5-cov-cell.lp5-rise-on { border-color: rgba(79,70,229,.28); box-shadow: 0 14px 30px -22px rgba(79,70,229,.42); }
-.lp5-cov-g { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--brand); }
+.lp5-cov-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 10px; margin-bottom: 10px;
+  box-shadow: 0 3px 8px -2px rgba(11,11,15,.3);
+}
 .lp5-cov-n { font-size: 14.5px; font-weight: 700; margin-top: 6px; letter-spacing: -.01em; }
 .lp5-cov-d { font-size: 12px; line-height: 1.55; color: var(--ink3); margin-top: 5px; }
 
