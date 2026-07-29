@@ -573,7 +573,7 @@ export async function sendPayslipEmails(
   // Get company name + representative
   const company = logRead('lib/payment-batch:company', await db
     .from('companies')
-    .select('name, representative')
+    .select('name, representative, business_number, address, seal_url')
     .eq('id', companyId)
     .single());
 
@@ -650,6 +650,9 @@ export async function sendPayslipEmails(
         item, // ← previewPayroll 산출 item (화면과 동일). extras 는 PDF 가 직접 분해.
         companyName: company?.name || '',
         representative: (company as any)?.representative || undefined,
+        businessNumber: (company as any)?.business_number || undefined,
+        companyAddress: (company as any)?.address || undefined,
+        sealUrl: (company as any)?.seal_url || undefined,
         periodLabel: monthLabel,
         department: emp.department || undefined,
         position: emp.position || undefined,

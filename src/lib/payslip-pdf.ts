@@ -13,6 +13,10 @@ export interface PayslipParams {
   item: PayrollItem;
   companyName: string;
   representative?: string;
+  /** 표준 발급 서식 하단 블록용 (2026-07-29 사장님 — 증명서와 동일 서식) */
+  businessNumber?: string;
+  companyAddress?: string;
+  sealUrl?: string;
   periodLabel: string;
   department?: string;
   position?: string;
@@ -36,6 +40,18 @@ export interface PayslipParams {
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
+
+/** 직인 이미지 URL → dataURL (certificates.ts 와 동일 패턴) */
+async function loadImage(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 /** YYYY-MM-DD → YYYYMMDD (직원 생년월일을 PDF 비밀번호로 변환) */
 export function birthDateToPassword(birthDate: string | null | undefined): string | undefined {
@@ -68,7 +84,8 @@ const COLOR_BLUE: [number, number, number] = [28, 144, 251];             // #1c9
 
 export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> {
   const {
-    item, companyName, periodLabel, department, position, paymentDate,
+    item, companyName, representative, businessNumber, companyAddress, sealUrl,
+    periodLabel, department, position, paymentDate,
     employeeCode, birthDate, payGrade,
     overtimeHours, nightHours, holidayHours, hourlyWage,
     password,
@@ -360,11 +377,63 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
     y = (doc as any).lastAutoTable.finalY + 6;
   }
 
-  // ── 8) 하단 글 ──
+  // ── 8) 하단 — 표준 발급 서식 (증명서와 동일: 발행일 + 회사 정보 라벨 + 직인) ──
+  y += 5;
+  const pageH = doc.internal.pageSize.getHeight();
+  // 하단 블록(~55mm)이 안 들어가면 다음 장으로
+  if (y > pageH - 60) { doc.addPage(); y = 24; }
+
   doc.setFontSize(10);
   setKoreanFont(doc, 'normal');
   doc.setTextColor(...COLOR_TEXT);
-  doc.text('귀하의 노고에 감사드립니다.', pageW / 2, y + 5, { align: 'center' });
+  doc.text('귀하의 노고에 감사드립니다.', pageW / 2, y, { align: 'center' });
+  y += 14;
+
+  // 발행일
+  const issued = new Date();
+  doc.setFontSize(11);
+  doc.setTextColor(...COLOR_TEXT_DIM);
+  doc.text(`${issued.getFullYear()} 년 ${String(issued.getMonth() + 1).padStart(2, '0')} 월 ${String(issued.getDate()).padStart(2, '0')} 일`, pageW / 2 + 30, y, { align: 'center' });
+  y += 14;
+
+  // 회사 정보 라벨 블록
+  const labelX = 34;
+  const valueX = 68;
+  doc.setFontSize(10);
+  doc.setTextColor(...COLOR_TEXT_DIM);
+  doc.text('회 사 명 :', labelX, y);
+  doc.text(companyName, valueX, y);
+  y += 7;
+  if (businessNumber) {
+    doc.text('사업자번호 :', labelX, y);
+    doc.text(businessNumber, valueX, y);
+    y += 7;
+  }
+  if (companyAddress) {
+    doc.text('회사주소 :', labelX, y);
+    const addrLines = doc.splitTextToSize(companyAddress, pageW - valueX - 24);
+    doc.text(addrLines, valueX, y);
+    y += 7 * addrLines.length;
+  }
+  let repY = y;
+  if (representative) {
+    doc.text('대표이사 :', labelX, y);
+    doc.text(`${representative}  (인)`, valueX, y);
+    repY = y;
+    y += 7;
+  }
+
+  // 직인 — 대표이사 이름 우측에 겹치게
+  if (sealUrl) {
+    try {
+      const img = await loadImage(sealUrl);
+      const sealSize = 22;
+      const nameW = representative ? doc.getTextWidth(representative) : 0;
+      doc.addImage(img, 'PNG', valueX + nameW + 4, repY - sealSize / 2 - 3, sealSize, sealSize);
+    } catch {
+      console.warn('Seal image load failed, skipping stamp overlay');
+    }
+  }
 
   return doc;
 }

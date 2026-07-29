@@ -2242,8 +2242,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const { data: companyMeta } = useQuery({
     queryKey: ["company-meta-payroll", companyId],
     queryFn: async () => {
-      const data = logRead('employees/page:data', await supabase.from("companies").select("name, representative").eq("id", companyId!).maybeSingle());
-      return data as { name: string; representative: string | null } | null;
+      const data = logRead('employees/page:data', await supabase.from("companies").select("name, representative, business_number, address, seal_url").eq("id", companyId!).maybeSingle());
+      return data as { name: string; representative: string | null; business_number: string | null; address: string | null; seal_url: string | null } | null;
     },
     enabled: !!companyId,
   });
@@ -2333,6 +2333,9 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         item,
         companyName: companyMeta?.name || "회사",
         representative: companyMeta?.representative || undefined,
+        businessNumber: companyMeta?.business_number || undefined,
+        companyAddress: companyMeta?.address || undefined,
+        sealUrl: companyMeta?.seal_url || undefined,
         periodLabel,
         department: meta.department || undefined,
         position: meta.position || undefined,
