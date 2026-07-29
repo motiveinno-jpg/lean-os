@@ -1,5 +1,5 @@
-import { Ico } from "@/components/ui-icon";
 "use client";
+import { Ico } from "@/components/ui-icon";
 
 // /demo — 실화면 대조 후 재작성한 패널 2차 (2026-07-28).
 //   ⚠️ 프로덕션 실계정으로 각 라우트를 직접 열어 상단 탭·필터·요약 카드·표 컬럼을 그대로 옮겼다.

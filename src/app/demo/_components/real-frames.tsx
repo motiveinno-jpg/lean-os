@@ -1,5 +1,5 @@
-import { Ico } from "@/components/ui-icon";
 "use client";
+import { Ico } from "@/components/ui-icon";
 
 // /demo — 실화면 대조 후 재작성한 패널 (2026-07-28).
 //   ⚠️ 아래 4개는 프로덕션 실화면(관리자 계정)을 직접 열어 구조를 대조하고 다시 만든 것이다.

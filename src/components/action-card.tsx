@@ -1,5 +1,5 @@
-import { Ico } from "@/components/ui-icon";
 "use client";
+import { Ico } from "@/components/ui-icon";
 
 interface ActionCardProps {
   cardType: string; // quote | document | approval | payment | milestone
