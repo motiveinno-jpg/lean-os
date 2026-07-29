@@ -18,13 +18,16 @@
 
 /* 화면에 들어오면 한 번 재생 — 스크롤 중간에서 얼어붙지 않게 --p 를 애니메이션이 올린다 */
 @keyframes lp5-play-p { from { --p: 0; } to { --p: 1; } }
-.lp5-stage.lp5-play { animation: lp5-play-p 1.9s cubic-bezier(.22,.68,.24,1) .45s both; }
+/* ⚠️ 흩어진 칩을 읽기도 전에 모여 버렸다(사장님). 재생 전 정지 구간을 1.1초로 늘리고
+   전체 길이도 1.9s → 2.9s 로 늘려 "흩어짐 → 모임"이 또렷하게 나뉘도록 한다.
+   실측: 시작 후 약 2.0초 동안 칩이 멈춰 있고(지연 1.5s + 구간 .18), 그 뒤 1.5초에 걸쳐 모인다. */
+.lp5-stage.lp5-play { animation: lp5-play-p 2.9s cubic-bezier(.28,.62,.24,1) 1.5s both; }
 @media (prefers-reduced-motion: reduce) { .lp5-stage.lp5-play { animation: none; --p: 1; } }
 /* 소개 3줄은 재생이 시작되면 계단식으로 뜬다 */
 .lp5-play .lp5-unify-line { opacity: 1; transform: none; transition: opacity .6s ease, transform .6s ease; }
-.lp5-play .lp5-unify-line:nth-child(1) { transition-delay: .55s; }
-.lp5-play .lp5-unify-line:nth-child(2) { transition-delay: .85s; }
-.lp5-play .lp5-unify-line:nth-child(3) { transition-delay: 1.15s; }
+.lp5-play .lp5-unify-line:nth-child(1) { transition-delay: 2.2s; }
+.lp5-play .lp5-unify-line:nth-child(2) { transition-delay: 2.5s; }
+.lp5-play .lp5-unify-line:nth-child(3) { transition-delay: 2.8s; }
 
 .lp5-root {
   --ink: #0B0B0F;
@@ -177,7 +180,9 @@
      ⚠️ --d(칩마다 다른 출발 시점) 덕에 한 덩어리로 움직이지 않고 따로따로 빨려들어간다.
         전부 같은 식으로 움직이면 "흩어진" 게 아니라 "정렬된" 것으로 보인다. */
   /* ⚠️ 구간을 .34 로 짧게 잡아 칩이 순식간에 사라졌다. .46 으로 늘려 여유를 준다. */
-  --k: calc(1 - clamp(0, calc((var(--p) - var(--d, 0)) / .46), 1));
+  /* ⚠️ p 0 부터 바로 모이면 흩어진 상태를 볼 시간이 없다. .18 까지는 멈춰 있게 하고
+     그 뒤 .5 구간에 걸쳐 모인다. --d 로 칩마다 출발 시점을 다르게 둔다. */
+  --k: calc(1 - clamp(0, calc((var(--p) - .18 - var(--d, 0)) / .5), 1));
   transform: translate(-50%, -50%)
              translate(calc(var(--x) * var(--k) * var(--r, 1)), calc(var(--y) * var(--k) * var(--r, 1)))
              rotate(calc(var(--rot, 0deg) * var(--k)))
@@ -196,22 +201,23 @@
   position: relative; z-index: 2; width: min(1040px, 92vw);
   /* ⚠️ 칩이 다 사라진 뒤에 화면이 시작하면 중간에 빈 구간이 생겨 끊겨 보인다.
      칩이 옅어지는 동안 화면이 겹쳐 올라오게 시작점을 앞당기고 구간을 늘린다. */
-  transform: scale(calc(.9 + clamp(0, calc((var(--p) - .26) / .5), 1) * .1));
-  opacity: clamp(0, calc((var(--p) - .26) / .4), 1);
+  transform: scale(calc(.9 + clamp(0, calc((var(--p) - .46) / .44), 1) * .1));
+  opacity: clamp(0, calc((var(--p) - .46) / .34), 1);
 }
 /* ── 화면 다섯 장이 부채꼴로 펼쳐지는 묶음 ──
    처음엔 가운데 겹쳐 있다가 --p 에 따라 좌우로 벌어진다.
    ⚠️ 히어로와 같은 대시보드 한 장을 또 쓰면 단조롭다 — 여기선 서로 다른 메뉴 화면을 쓴다. */
 /* ⚠️ fx 는 "자기 폭 기준" 퍼센트다(translate 규칙). 92%/52% 로 뒀더니 양 끝 장이 좌우로 넘쳤고,
    transform-origin: center bottom 이라 기울면서 아래로도 밀려 잘렸다. 폭·각도·기준점을 줄인다. */
-.lp5-fan { position: relative; width: 100%; aspect-ratio: 16 / 7.4; margin: 0 auto; }
+.lp5-fan { position: relative; width: 100%; aspect-ratio: 16 / 7.8; margin: 0 auto; }
 /* ⚠️ 스크롤(--p)이 아니라 페이지 로드 시 퍼진다. 최상단 연출이라 스크롤을 기다리면 아무도 못 본다. */
 .lp5-fan-in { animation: lp5-fan-spread 1.5s cubic-bezier(.2,.72,.24,1) .35s both; }
 @keyframes lp5-fan-spread { from { --sp: 0; } to { --sp: 1; } }
 @media (prefers-reduced-motion: reduce) { .lp5-fan-in { animation: none; --sp: 1; } }
 
 .lp5-fan-item {
-  position: absolute; top: 50%; left: 50%; width: 42%;
+  /* ⚠️ 카드가 작으면 안에 든 앱 UI 도 같이 줄어 글자가 뭉개진다 — 캡처 폭(1120)에 가깝게 키운다 */
+  position: absolute; top: 50%; left: 50%; width: 47%;
   /* ⚠️ 슬롯마다 비율을 달리 주면 자리를 바꿀 때 높이가 튄다 — 비율은 하나로 두고 크기로만 마름모를 만든다 */
   aspect-ratio: 16 / 10; overflow: hidden; border-radius: 16px; background: #fff;
   padding: 0; border: 0; cursor: pointer;
@@ -283,12 +289,23 @@
    사장님: "위에서부터 다 같은 형식이라 느낌이 너무 똑같음" → 좌측 제목 + 가로 이동으로 리듬을 끊는다.
    ⚠️ 이동은 beat(구간)가 아니라 --p(연속값)로 한다. 구간 단위로 옮기면 카드가 툭툭 튄다. */
 .lp5-rail { justify-content: center; }
-.lp5-rail-view { width: 100%; overflow: hidden; }
+/* ⚠️ 트랙을 transform 으로 밀면 사용자가 직접 넘길 방법이 화살표뿐이다 —
+   트랙패드 가로 스크롤·드래그·관성이 전부 죽는다. 애플 갤러리처럼 네이티브 스크롤 + 스냅으로 둔다.
+   (애플 실측: .gallery 에 overflow hidden + scroll-snap-type: x mandatory) */
+.lp5-rail-view {
+  width: 100%; overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scroll-behavior: smooth;
+  scrollbar-width: none; -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+.lp5-rail-view::-webkit-scrollbar { display: none; }
+.lp5-rail-view:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; border-radius: 8px; }
 /* 풀블리드 레일 — 카드가 화면 폭을 꽉 채우고 옆 카드가 살짝 보인다.
    첫 카드의 왼쪽은 본문(.lp5-wrap) 왼쪽선과 맞추고, 오른쪽은 화면 밖으로 흘려보낸다. */
 .lp5-rail-view-full {
   --pad: max(32px, calc((100vw - 1420px) / 2 + 32px));
   width: 100vw; margin-left: calc(50% - 50vw); padding-left: var(--pad);
+  scroll-padding-left: var(--pad);
 }
 /* ⚠️ .lp5-rail-wide 는 .lp5-rail-track 과 같은 특이도(클래스 1개)인데 track 규칙이 뒤에 있어
    --cw 가 도로 720px 로 덮였다. 카드가 1040px 로 안 커지던 원인. 특이도를 올려 고정한다. */
@@ -297,21 +314,14 @@
 .lp5-rail-track {
   --cw: min(720px, 74vw);
   --gap: 22px;
-  display: flex; gap: var(--gap); will-change: transform;
-  /* ⚠️ 이동량을 p*(n-1) 로 잡으면 활성 카드(=floor(p*n))와 화면 위치가 한 칸씩 어긋난다.
-     점 표시와 눈에 보이는 카드가 따로 논다 → 같은 식(p*n)을 쓰고 끝만 막는다. */
-  /* 스크롤(--p)이 아니라 현재 칸(--i)으로 옮긴다 */
-  --step: calc(var(--cw) + var(--gap));
-  /* ⚠️ 마지막 카드를 왼쪽 끝까지 밀면 오른쪽이 텅 빈 채로 끝난다.
-     트랙 오른쪽 끝이 보이는 영역의 오른쪽에 닿으면 더는 안 밀리게 막는다. */
-  --view: min(1356px, calc(100vw - 64px));
-  --maxx: max(0px, calc(var(--n) * var(--step) - var(--gap) - var(--view)));
-  transform: translateX(calc(-1 * min(calc(var(--i) * var(--step)), var(--maxx))));
-  transition: transform .72s cubic-bezier(.22,.68,.24,1);
+  display: flex; gap: var(--gap); list-style: none; margin: 0; padding: 0;
 }
+.lp5-rail-slot { flex: 0 0 var(--cw); width: var(--cw); scroll-snap-align: start; list-style: none; }
+/* 마지막 카드도 왼쪽 끝까지 올 수 있게 뒤에 여백을 둔다 */
+.lp5-rail-track::after { content: ""; flex: 0 0 calc(100vw - var(--pad, 32px) - var(--cw)); }
 .lp5-rail-track.lp5-rail-tall { --cw: min(700px, 86vw); }
 .lp5-rail-card {
-  flex: 0 0 var(--cw); width: var(--cw);
+  width: 100%;
   border-radius: 26px; overflow: hidden; background: var(--canvas2);
   border: 1px solid var(--line);
   /* ⚠️ 비활성 카드를 흐리게(opacity .5) 두니 "음영 처리가 어색하다"는 지적이 나왔다.
@@ -362,22 +372,20 @@
 /* ══ AI 카드 — 어두운 무대 위에 실제 UI 조각이 떠 있다 ══
    ⚠️ 손으로 그린 일러스트는 "대충 만든 느낌"이라 걷어냈다. 실제 제품 화면을 쓰되
       어두운 무대 + 그림자로 띄워 전문적인 인상을 만든다(참고 이미지 구조). */
-.lp5-rail-cell { flex: 0 0 var(--cw); width: var(--cw); }
+.lp5-rail-cell { width: 100%; }
 .lp5-rail-art {
-  /* ⚠️ 조각은 가로가 길다(비율 2.25~2.89). 16:11 타일에 넣으니 흰 UI 가 어두운 여백
-     한가운데 떠 있는 꼴이 됐다(사장님 지적). 타일 비율을 조각에 맞추고 여백을 줄인다. */
-  aspect-ratio: 12 / 5; border-radius: 20px; overflow: hidden; position: relative;
-  display: flex; align-items: center; justify-content: center; padding: 3.6%;
-  background:
-    radial-gradient(120% 90% at 22% 0%, rgba(124,107,255,.26), transparent 62%),
-    radial-gradient(110% 80% at 88% 100%, rgba(79,70,229,.22), transparent 60%),
-    linear-gradient(162deg, #16162A 0%, #0C0C18 100%);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.07);
+  /* ⚠️ 어두운 타일 위에 흰 UI 를 얹었더니 검은 배경에 검은 박스가 겹쳐 경계가 안 보이고,
+     조각 비율이 제각각이라 어떤 카드는 틀이 보이고 어떤 카드는 이미지만 있는 것처럼 보였다
+     (사장님 지적). 카드 자체를 흰 판으로 통일한다 — 어두운 섹션 위에서 대비가 확실하고,
+     비율이 달라도 contain 여백까지 흰색이라 열 장이 전부 같은 모양으로 보인다. */
+  aspect-ratio: 12 / 5; border-radius: 18px; overflow: hidden; position: relative;
+  display: flex; align-items: center; justify-content: center; padding: 14px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3), 0 26px 60px -22px rgba(0,0,0,.7);
 }
 .lp5-rail-art img {
-  width: 100%; height: auto; max-height: 100%; object-fit: contain;
-  border-radius: 12px; display: block;
-  box-shadow: 0 2px 10px rgba(0,0,0,.4), 0 30px 70px -24px rgba(0,0,0,.85);
+  width: 100%; height: 100%; object-fit: contain; object-position: center;
+  border-radius: 8px; display: block;
 }
 .lp5-rail-note { padding: 16px 2px 0; }
 .lp5-rail-note b { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }

@@ -148,11 +148,11 @@ function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; p
  *     그 카드가 가운데 자리로 온다. 슬롯마다 비율(aspect)을 달리 주면 전환이 튀므로
  *     비율은 하나로 통일하고 크기(scale)로만 마름모를 만든다. */
 const FAN = [
-  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브" },
-  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인" },
-  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드" },
-  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부" },
-  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치" },
+  { src: "/product/hero-appr.png", alt: "오너뷰 결재 허브" },
+  { src: "/product/hero-hub.png",  alt: "오너뷰 프로젝트 파이프라인" },
+  { src: "/product/hero-dash.png", alt: "오너뷰 대시보드" },
+  { src: "/product/hero-bank.png", alt: "오너뷰 거래 장부" },
+  { src: "/product/hero-hr.png",   alt: "오너뷰 급여 배치" },
 ];
 /** 자리 5개 — 왼쪽 끝부터. fx = 자기 폭 기준 가로 이동, fs = 크기. */
 const FAN_SLOTS = [
@@ -191,8 +191,10 @@ function Fan({ priority = false }: { priority?: boolean }) {
               zIndex: 3 - Math.abs(slot - 2),
             }}
           >
-            <Image src={f.src} alt={f.alt} width={2288} height={1802}
-              sizes="(max-width: 999px) 60vw, 620px" priority={priority && i === 2} />
+            {/* ⚠️ sizes 는 "가장 커졌을 때"(가운데 자리) 기준으로 잡는다. 옆자리 기준으로 잡으면
+                클릭해서 가운데로 왔을 때 확대돼 흐려진다. */}
+            <Image src={f.src} alt={f.alt} width={2240} height={1400}
+              sizes="(max-width: 999px) 66vw, 880px" priority={priority && i === 2} />
           </button>
         );
       })}
@@ -286,7 +288,7 @@ function ChipIcon({ n, c }: { n: string; c: string }) {
 function SceneUnify() {
   const narrow = useNarrow();
   return (
-    <Scene len={1.25} playOnView className="lp5-unify">
+    <Scene len={1.9} playOnView pinMobile className="lp5-unify">
       {() => (
         <>
           {/* ⚠️ 궤도는 무대(100vh) 기준이어야 한다. 문구 박스 안에 두면 칩이 제목 위로 겹친다. */}
@@ -369,12 +371,15 @@ function SceneDay() {
  *   밑에 자동재생·일시정지 버튼과 왼쪽 순서 기능, 점을 누르면 바로 그 페이지로."
  *  ⚠️ 화면에 들어와 있을 때만 돈다. 안 보이는 레일이 계속 타이머를 돌리면 배터리만 먹는다.
  *  ⚠️ 마지막 칸에서 트랙 오른쪽 끝이 화면 오른쪽에 닿으면 더 안 민다 — 안 그러면 오른쪽이 텅 빈다. */
-function Rail({ cards, tall = false, wide = false, arrows = false, ms = 4600 }: { cards: ReactNode[]; tall?: boolean; wide?: boolean; arrows?: boolean; ms?: number }) {
+function Rail({ cards, tall = false, wide = false, arrows = false, ms = 4600, label = "갤러리" }: {
+  cards: ReactNode[]; tall?: boolean; wide?: boolean; arrows?: boolean; ms?: number; label?: string;
+}) {
   const n = cards.length;
   const [i, setI] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [live, setLive] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = ref.current; if (!el) return;
@@ -383,55 +388,77 @@ function Rail({ cards, tall = false, wide = false, arrows = false, ms = 4600 }: 
     return () => io.disconnect();
   }, []);
 
+  // ⚠️ 예전엔 트랙을 transform 으로 밀었다. 그러면 사용자가 직접 넘길 방법이 화살표뿐이라
+  //    트랙패드 가로 스크롤·드래그·관성이 전부 죽는다. 애플 갤러리처럼 네이티브 스크롤 +
+  //    scroll-snap 으로 바꿨다 — 브라우저가 스냅·관성·접근성을 알아서 처리한다.
+  const goTo = (k: number, smooth = true) => {
+    const v = viewRef.current; if (!v) return;
+    const card = v.firstElementChild?.children[k] as HTMLElement | undefined;
+    if (!card) return;
+    v.scrollTo({ left: card.offsetLeft - (v.firstElementChild as HTMLElement).offsetLeft, behavior: smooth ? "smooth" : "auto" });
+  };
+  // 스크롤이 멈추면 가장 가까운 카드를 현재 항목으로 삼는다(직접 스크롤해도 표시가 따라온다)
+  useEffect(() => {
+    const v = viewRef.current; if (!v) return;
+    let t = 0;
+    const onScroll = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        const kids = [...(v.firstElementChild?.children ?? [])] as HTMLElement[];
+        const base = (v.firstElementChild as HTMLElement).offsetLeft;
+        let best = 0, bd = Infinity;
+        kids.forEach((c, k) => { const d = Math.abs(c.offsetLeft - base - v.scrollLeft); if (d < bd) { bd = d; best = k; } });
+        setI(best);
+        setPlaying(false);   // 직접 넘기면 자동 재생은 멈춘다
+      }, 120);
+    };
+    v.addEventListener("scroll", onScroll, { passive: true });
+    return () => { v.removeEventListener("scroll", onScroll); window.clearTimeout(t); };
+  }, []);
+
   useEffect(() => {
     if (arrows || !playing || !live) return;   // 화살표 모드는 자동 재생하지 않는다
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = setInterval(() => setI((v) => (v + 1) % n), ms);
+    const t = setInterval(() => setI((v) => { const k = (v + 1) % n; goTo(k); return k; }), ms);
     return () => clearInterval(t);
   }, [arrows, playing, live, n, ms]);
 
-  // 손가락으로 옆으로 넘기기 — 모바일에서 화살표만으로는 불편하다(사장님: "스와이프도 가능할지").
-  //   ⚠️ 세로 스크롤을 막지 않는다. 가로 이동이 세로보다 클 때만 넘김으로 친다.
-  const touch = useRef<{ x: number; y: number; locked: boolean } | null>(null);
-  const onTouchStart = (e: React.TouchEvent) => {
-    touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: false };
+  // 키보드 ← → 로도 넘긴다 (애플 갤러리와 동일)
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const k = Math.min(n - 1, Math.max(0, i + (e.key === "ArrowRight" ? 1 : -1)));
+    setI(k); setPlaying(false); goTo(k);
   };
-  const onTouchMove = (e: React.TouchEvent) => {
-    const t = touch.current; if (!t || t.locked) return;
-    const dx = e.touches[0].clientX - t.x, dy = e.touches[0].clientY - t.y;
-    if (Math.abs(dx) < 44 || Math.abs(dx) < Math.abs(dy)) return;
-    t.locked = true;
-    setPlaying(false);                       // 손으로 넘기면 자동 재생은 멈춘다
-    setI((v) => Math.min(n - 1, Math.max(0, v + (dx < 0 ? 1 : -1))));
-  };
-  const onTouchEnd = () => { touch.current = null; };
+  const move = (k: number) => { const c = Math.min(n - 1, Math.max(0, k)); setI(c); setPlaying(false); goTo(c); };
 
   return (
-    <div ref={ref} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      <div className={`lp5-rail-view ${wide ? "lp5-rail-view-full" : ""}`}>
-        <div className={`lp5-rail-track ${tall ? "lp5-rail-tall" : ""} ${wide ? "lp5-rail-wide" : ""}`}
-          style={{ ["--n" as string]: n, ["--i" as string]: i }}>
-          {cards}
-        </div>
+    <div ref={ref}>
+      <div ref={viewRef} className={`lp5-rail-view ${wide ? "lp5-rail-view-full" : ""}`}
+        role="group" aria-roledescription="갤러리" aria-label={label}
+        tabIndex={0} onKeyDown={onKeyDown}>
+        <ul className={`lp5-rail-track ${tall ? "lp5-rail-tall" : ""} ${wide ? "lp5-rail-wide" : ""}`}
+          style={{ ["--n" as string]: n }}>
+          {cards.map((c, k) => <li key={k} className="lp5-rail-slot">{c}</li>)}
+        </ul>
       </div>
       <div className="lp5-rail-bar">
         {arrows ? (
           // 사장님: "자동 재생이 아니라 화살표로 움직이고" — 읽는 속도를 사용자가 정한다
           <div className="lp5-rail-arrows">
-            <button type="button" aria-label="이전" disabled={i === 0} onClick={() => setI((v) => Math.max(0, v - 1))}>
+            <button type="button" aria-label={`${label} 내 이전 항목`} disabled={i === 0} onClick={() => move(i - 1)}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
             </button>
-            <button type="button" aria-label="다음" disabled={i >= n - 1} onClick={() => setI((v) => Math.min(n - 1, v + 1))}>
+            <button type="button" aria-label={`${label} 내 다음 항목`} disabled={i >= n - 1} onClick={() => move(i + 1)}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
             </button>
-            <span className="lp5-rail-count">{i + 1} / {n}</span>
           </div>
         ) : (
         <div className="lp5-rail-dots">
           {cards.map((_, k) => (
-            <button key={k} type="button" onClick={() => setI(k)}
+            <button key={k} type="button" onClick={() => move(k)}
               className={`lp5-rail-dot ${k === i ? "lp5-rail-dot-on" : ""}`}
-              aria-label={`${k + 1}번째 보기`} aria-current={k === i} />
+              aria-label={`${label} ${k + 1}번째 항목`} aria-current={k === i} />
           ))}
         </div>)}
         {!arrows && (
@@ -441,7 +468,8 @@ function Rail({ cards, tall = false, wide = false, arrows = false, ms = 4600 }: 
             ? <svg width="13" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1.2"/><rect x="14" y="4" width="4" height="16" rx="1.2"/></svg>
             : <svg width="13" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.8v14.4c0 .9 1 1.4 1.7.9l10.7-7.2c.6-.4.6-1.4 0-1.8L8.7 3.9c-.7-.5-1.7 0-1.7.9z"/></svg>}
         </button>)}
-        {!arrows && <span className="lp5-rail-count">{i + 1} / {n}</span>}
+        {/* 위치를 소리로도 알린다 — 애플 갤러리와 동일 */}
+        <span className="lp5-rail-count" aria-live="polite">{i + 1} / {n}</span>
       </div>
     </div>
   );
@@ -468,7 +496,7 @@ function SceneAxes() {
           <h2 className="lp5-h lp5-h-sm">일은 줄이고, <span className="lp5-grad">효율과 성과는 높여요</span></h2>
           <p className="lp5-lead">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
         </Rise>
-        <Rail wide cards={cards.map((c) => (
+        <Rail wide label="주요 기능 갤러리" cards={cards.map((c) => (
           <article key={c.src + c.tab} className="lp5-rail-card">
             <div className="lp5-rail-over">
               <span className="lp5-rail-kick">{c.kicker} · {c.tab}</span>
@@ -521,7 +549,7 @@ function SceneAI() {
         {/* ⚠️ 손으로 그린 일러스트는 "대충 만든 느낌"이라는 지적을 받았다(사장님).
             실제 제품이 그 기능을 수행하는 순간을 보여준다 — 코어와 같은 DOM 조각 캡처(a-*.png).
             어두운 무대 위에 흰 UI 가 떠 있게 놓아 전문적인 인상을 준다. */}
-        <Rail tall arrows cards={items.map((a) => (
+        <Rail tall arrows label="AI 자동화 갤러리" cards={items.map((a) => (
           <article key={a.name} className="lp5-rail-cell">
             <div className="lp5-rail-art">
               {AI_SHOT[a.name] && (
