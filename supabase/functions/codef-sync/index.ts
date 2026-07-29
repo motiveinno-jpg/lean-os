@@ -484,7 +484,11 @@ async function syncBankTransactions(
         //   descs 예: [예금주명, 거래구분(타행이체·인터넷 등), 거래내용]. 사용자는 '거래내용'만 원함(직원 QA).
         //   → counterparty(예금주명)와 거래구분 토큰을 제외한 나머지만 description 으로. raw_data 에 원본 보존.
         const TR_TYPES = ["타행이체", "당행이체", "인터넷", "자동이체", "대체", "펌뱅킹", "펌뱅크", "CD", "ATM", "체크카드", "급여", "이자", "스마트뱅킹", "폰뱅킹", "창구", "지로", "전자금융", "모바일뱅킹", "모바일", "송금", "이체", "출금", "입금", "카드", "공과금"];
-        const counterparty = tx.resAccountDesc1 || tx.resAccountDesc3 || tx.resAccountDesc || "";
+        // 예금주명은 desc1 에만 온다 — desc1 이 비었으면(채널·적요만 온 거래) 예금주 없음.
+        //   기존 `desc1 || desc3` 폴백이 적요를 예금주 칸에 밀어넣고 거래내용을 비웠다
+        //   (2026-07-29 사장님: "예금주명에 거래내용이 불러와지고 거래내용은 공백").
+        const _d1 = tx.resAccountDesc1 == null ? "" : String(tx.resAccountDesc1).trim();
+        const counterparty = _d1 && !TR_TYPES.includes(_d1) ? _d1 : "";
         const _descs = [tx.resAccountDesc1, tx.resAccountDesc2, tx.resAccountDesc3, tx.resAccountDesc4]
           .map((d: any) => (d == null ? "" : String(d).trim())).filter(Boolean);
         const memo = _descs.filter((d) => d !== counterparty && !TR_TYPES.includes(d)).join(" ");

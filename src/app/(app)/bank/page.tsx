@@ -401,6 +401,7 @@ export default function BankPage() {
         case "transaction_date": return tx.transaction_date || "";
         case "amount": return Math.abs(Number(tx.amount || 0));
         case "counterparty": return tx.counterparty || tx.description || "";
+        case "description": return tx.description || tx.counterparty || "";
         case "classification": return tx.classification || tx.category || "";
         case "type": return tx.mapping_status || "";
         default: return "";
@@ -732,6 +733,7 @@ export default function BankPage() {
             options={[
               { key: "transaction_date", label: "날짜" },
               { key: "counterparty", label: "거래처" },
+              { key: "description", label: "거래내용" },
               { key: "amount", label: "금액" },
               { key: "type", label: "상태" },
             ]}
@@ -756,7 +758,7 @@ export default function BankPage() {
                     />
                   </th>
                   <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">예금주명{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th className="text-left px-6 py-3.5 font-semibold select-none">거래내용</th>
+                  <th onDoubleClick={() => onSortTx("description")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">거래내용{sortKey === "description" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-right px-6 py-3.5 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   <th className="text-right px-6 py-3.5 font-semibold select-none">잔액</th>
