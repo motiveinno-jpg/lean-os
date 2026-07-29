@@ -33,7 +33,11 @@ export function useScene(beats = 1, playOnView = false) {
         stage.classList.add("lp5-play");
         if (beats > 1) setBeat(beats - 1);
         io.disconnect();
-      }, { threshold: 0.35 });
+        // ⚠️ 0.35 에서는 무대가 화면에 반도 안 들어왔는데 재생이 시작돼,
+        //    흩어진 칩을 보기도 전에 화면이 떠 있었다(사장님 지적).
+        //    무대가 거의 다 들어온 뒤(85%) 시작한다. 시작 직후 잠깐은 칩만 보이게
+        //    CSS 쪽에서 재생을 조금 늦춘다(animation-delay).
+      }, { threshold: 0.85 });
       io.observe(stage);
       return () => io.disconnect();
     }

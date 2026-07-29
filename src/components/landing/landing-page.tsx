@@ -139,37 +139,63 @@ function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; p
   );
 }
 
-/** 화면 다섯 장이 부채꼴로 펼쳐지는 묶음 — 페이지 최상단.
+/** 화면 다섯 장이 마름모로 펼쳐지는 묶음 — 페이지 최상단.
  *  ⚠️ 스크롤이 아니라 "페이지가 열리면" 퍼진다. 첫 화면에서 바로 보여야 하는 연출이라
  *     스크롤을 기다리게 하면 아무도 못 본다. --sp 를 CSS 애니메이션이 0→1 로 올린다.
- *  ⚠️ 마름모 실루엣이 되게 배열한다 — 가운데가 가장 크고, 옆으로 갈수록 작아진다.
- *     세로 중심은 다섯 장 모두 같다. 크기만 줄어드니 위아래가 동시에 좁아져 마름모가 된다.
- *     가운데를 더 강조하려고 칸 비율까지 달리 준다 — 가운데 4:3(세로가 길다), 옆 16:10, 바깥 16:9.
- *     크기(fs)와 비율(ar)이 같이 줄어드니 마름모가 더 뾰족해진다.
- *     (옆 장을 아래로 내렸더니 "메인만 혼자 위에 있는" 꼴이 됐다 — fy 를 없앴다.)
- *  fx = 자기 폭 기준 가로 이동(%), fs = 최종 크기. 회전은 넣지 않는다. */
+ *  ⚠️ 가운데가 가장 크고 옆으로 갈수록 작아진다. 세로 중심은 다섯 장 모두 같아서
+ *     크기만 줄어도 위아래가 동시에 좁아져 마름모가 된다.
+ *  ⚠️ 자리(슬롯)는 고정이고 어떤 화면이 어느 자리에 앉을지만 바뀐다 — 옆 카드를 누르면
+ *     그 카드가 가운데 자리로 온다. 슬롯마다 비율(aspect)을 달리 주면 전환이 튀므로
+ *     비율은 하나로 통일하고 크기(scale)로만 마름모를 만든다. */
 const FAN = [
-  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-112%", fs: 0.52, ar: "16 / 9",  z: 1 },
-  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-71%",  fs: 0.74, ar: "16 / 10", z: 2 },
-  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",    fs: 1.10, ar: "4 / 3",   z: 3 },
-  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "71%",   fs: 0.74, ar: "16 / 10", z: 2 },
-  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "112%",  fs: 0.52, ar: "16 / 9",  z: 1 },
+  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브" },
+  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인" },
+  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드" },
+  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부" },
+  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치" },
+];
+/** 자리 5개 — 왼쪽 끝부터. fx = 자기 폭 기준 가로 이동, fs = 크기. */
+const FAN_SLOTS = [
+  { fx: "-114%", fs: 0.52 },
+  { fx: "-66%",  fs: 0.80 },
+  { fx: "0%",    fs: 1.34 },
+  { fx: "66%",   fs: 0.80 },
+  { fx: "114%",  fs: 0.52 },
 ];
 
 function Fan({ priority = false }: { priority?: boolean }) {
+  const [active, setActive] = useState(2);   // 가운데 자리에 앉을 화면
+  const [ready, setReady] = useState(false); // 펼침 애니메이션이 끝나야 전환을 켠다
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 1900);
+    return () => clearTimeout(t);
+  }, []);
+  const n = FAN.length;
   return (
-    <div className="lp5-fan lp5-fan-in">
-      {FAN.map((f, i) => (
-        <div key={f.src} className="lp5-fan-item" style={{
-          ["--fx" as string]: f.fx, ["--fs" as string]: f.fs, ["--ar" as string]: f.ar,
-          // ⚠️ transform: scale() 이 테두리 굵기까지 줄인다. 1/fs 로 미리 부풀려 넘겨야
-          //    축소된 카드도 화면에서 1px 로 보인다. (CSS calc(1px / var(--fs)) 는 안 먹었다)
-          ["--bw" as string]: `${(1 / f.fs).toFixed(2)}px`, zIndex: f.z,
-        }}>
-          <Image src={f.src} alt={f.alt} width={2288} height={1802}
-            sizes="(max-width: 999px) 60vw, 520px" priority={priority && i === 2} />
-        </div>
-      ))}
+    <div className={`lp5-fan lp5-fan-in ${ready ? "lp5-fan-ready" : ""}`}>
+      {FAN.map((f, i) => {
+        // 가운데(2번 자리)에 active 가 오도록 회전시킨다
+        const slot = (i - active + 2 + n) % n;
+        const S = FAN_SLOTS[slot];
+        const center = slot === 2;
+        return (
+          <button
+            key={f.src} type="button"
+            className={`lp5-fan-item ${center ? "lp5-fan-center" : ""}`}
+            onClick={() => setActive(i)}
+            aria-label={`${f.alt} 크게 보기`} aria-current={center}
+            style={{
+              ["--fx" as string]: S.fx, ["--fs" as string]: S.fs,
+              // ⚠️ transform: scale() 이 테두리 굵기까지 줄인다. 1/fs 로 미리 부풀려 넘긴다.
+              ["--bw" as string]: `${(1 / S.fs).toFixed(2)}px`,
+              zIndex: 3 - Math.abs(slot - 2),
+            }}
+          >
+            <Image src={f.src} alt={f.alt} width={2288} height={1802}
+              sizes="(max-width: 999px) 60vw, 620px" priority={priority && i === 2} />
+          </button>
+        );
+      })}
     </div>
   );
 }

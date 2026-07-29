@@ -18,7 +18,7 @@
 
 /* 화면에 들어오면 한 번 재생 — 스크롤 중간에서 얼어붙지 않게 --p 를 애니메이션이 올린다 */
 @keyframes lp5-play-p { from { --p: 0; } to { --p: 1; } }
-.lp5-stage.lp5-play { animation: lp5-play-p 1.9s cubic-bezier(.22,.68,.24,1) both; }
+.lp5-stage.lp5-play { animation: lp5-play-p 1.9s cubic-bezier(.22,.68,.24,1) .45s both; }
 @media (prefers-reduced-motion: reduce) { .lp5-stage.lp5-play { animation: none; --p: 1; } }
 /* 소개 3줄은 재생이 시작되면 계단식으로 뜬다 */
 .lp5-play .lp5-unify-line { opacity: 1; transform: none; transition: opacity .6s ease, transform .6s ease; }
@@ -212,7 +212,9 @@
 
 .lp5-fan-item {
   position: absolute; top: 50%; left: 50%; width: 42%;
-  aspect-ratio: var(--ar, 16 / 10); overflow: hidden; border-radius: 16px; background: #fff;
+  /* ⚠️ 슬롯마다 비율을 달리 주면 자리를 바꿀 때 높이가 튄다 — 비율은 하나로 두고 크기로만 마름모를 만든다 */
+  aspect-ratio: 16 / 10; overflow: hidden; border-radius: 16px; background: #fff;
+  padding: 0; border: 0; cursor: pointer;
   /* ⚠️ 앱 카드가 흰색이 되면서 옅은 배경 위에서 카드 경계가 사라졌다 — 외곽선을 준다.
      transform: scale() 이 테두리 굵기까지 줄이므로 1/fs 로 나눠 두면 축소된 카드도
      화면에서는 같은 1px 로 보인다 (바깥 카드는 fs .52 → 실제 1.9px 를 그려 0.99px 로 보인다). */
@@ -226,6 +228,13 @@
              scale(calc(1 - (1 - var(--fs)) * var(--sp)));
   transform-origin: center center;
 }
+/* 펼침 애니메이션이 끝난 뒤에만 전환을 켠다 — 재생 중에 켜면 두 움직임이 서로 끌어당긴다 */
+.lp5-fan-ready .lp5-fan-item {
+  transition: transform .72s cubic-bezier(.22,.68,.24,1), box-shadow .3s ease, opacity .3s ease;
+}
+.lp5-fan-item:not(.lp5-fan-center) { opacity: .88; }
+.lp5-fan-ready .lp5-fan-item:not(.lp5-fan-center):hover { opacity: 1; }
+.lp5-fan-center { cursor: default; }
 /* 테두리·그림자는 위 박스가 갖는다. 이미지는 안을 채우기만 한다. */
 .lp5-fan-item img {
   display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top;
