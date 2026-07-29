@@ -38,6 +38,7 @@ import { getTaxInvoiceIssuanceStatus } from "@/lib/billing";
 import type { PeriodType } from "@/lib/tax-invoice";
 import { getCardDeductionSummary } from "@/lib/card-transactions";
 import * as XLSX from "xlsx";
+import { TaxInvoiceBulkIssueModal } from "@/components/tax-invoice-bulk-issue";
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
@@ -869,6 +870,8 @@ export default function TaxInvoicesPage() {
   const isHometaxConnected = !!hometaxConnection?.connected;
 
   // Excel import handler
+  const [showBulkIssue, setShowBulkIssue] = useState(false);
+
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !companyId) return;
@@ -1217,6 +1220,10 @@ export default function TaxInvoicesPage() {
           )}
           {/* 등록 영역 — 엑셀 업로드·내보내기·등록을 한 곳에 모음(2026-07-14 UI 정리) */}
           <div className="ml-auto self-center flex items-center gap-2 flex-wrap">
+            {/* 엑셀 일괄발행 — 양식 다운로드→검증→국세청 전자발행까지 (2026-07-30 위하고식) */}
+            <button onClick={() => setShowBulkIssue(true)} className="btn-primary" title="엑셀 양식으로 여러 건을 한 번에 국세청 전자발행합니다">
+              엑셀 일괄발행
+            </button>
             {/* Excel import */}
             <label className="btn-secondary cursor-pointer" title="엑셀/CSV로 세금계산서를 일괄 등록합니다">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -1618,6 +1625,9 @@ export default function TaxInvoicesPage() {
       {/* 조회기간 컨트롤은 상단(헤더 아래)으로 이동 — 20260701 기간설정 위치 통일 */}
 
       {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
+      {showBulkIssue && companyId && (
+        <TaxInvoiceBulkIssueModal companyId={companyId} onClose={() => setShowBulkIssue(false)} />
+      )}
       {showForm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
         <div className="tax-invoice-registration-modal" onClick={(e) => e.stopPropagation()}>
