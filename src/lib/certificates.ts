@@ -408,12 +408,25 @@ export async function saveCertificateLog(params: {
   // 제출처는 별도 컬럼 없이 용도에 병기 — 이력 화면·감사로그에 그대로 노출
   const purposeWithSubmitTo = [params.purpose, params.submitTo ? `제출처: ${params.submitTo}` : '']
     .filter(Boolean).join(' · ') || null;
+
+  // issued_by FK 는 users.id 를 본다. 호출부 3곳이 전부 auth uid 를 넘기는데, 대부분의
+  //   계정은 users.id == auth_id 라 우연히 통과했고, 레거시 계정(id ≠ auth_id, 예:
+  //   ekwjd5926@) 만 409 FK 위반으로 발급이 막혔다(2026-07-29 에러 2건).
+  //   여기서 auth uid → users.id 로 해석해 호출부가 어느 쪽을 넘겨도 안전하게 한다.
+  let issuedByUserId = params.issuedBy;
+  {
+    const { data: u } = await db.from('users').select('id')
+      .or(`id.eq.${params.issuedBy},auth_id.eq.${params.issuedBy}`)
+      .limit(1).maybeSingle();
+    if (u?.id) issuedByUserId = u.id;
+  }
+
   const { error } = await db.from('certificate_logs').insert({
     company_id: params.companyId,
     employee_id: params.employeeId,
     certificate_type: params.certificateType,
     certificate_number: params.certificateNumber,
-    issued_by: params.issuedBy,
+    issued_by: issuedByUserId,
     purpose: purposeWithSubmitTo,
     pdf_url: params.pdfUrl || null,
   });
