@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, createCompanyWithOwner, assertBizNoOwnerValid } from "@/lib/company-signup";
+import { logError } from "@/lib/error-logger";
 import { formatPhone, isValidMobile } from "@/lib/phone";
 
 export default function CompanySetupPage() {
@@ -83,6 +84,8 @@ export default function CompanySetupPage() {
       // ② 국세청 진위확인 + 상태 — 대표자성명·개업일자까지 일치해야 개설(선점 방지).
       const gate = await assertBizNoOwnerValid(bizNo, ownerName, openDate);
       if (!gate.ok) {
+        // 진위확인 불일치도 로그 — 여기서 이탈하는 가입자가 얼마나 되는지 운영자가 봐야 한다(2026-07-29)
+        try { logError({ source: "manual", message: `[간편가입] 국세청 확인 통과 실패: ${gate.error || "사유 미상"}`, context: { step: "nts_gate", biz: bizNoDigits(bizNo).slice(0, 3) + "-**-*****" } }); } catch { /* 무시 */ }
         return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
       }
       // ③ 회사 개설 (+owner 연결, 14일 트라이얼) — 유니크 충돌 시 합류 전환
@@ -94,6 +97,7 @@ export default function CompanySetupPage() {
       if (r.duplicate) { setJoinPrompt("등록된 회사"); return; }
       setError(r.error || "회사 생성에 실패했습니다. 다시 시도해주세요.");
     } catch (err: any) {
+      try { logError({ source: "manual", message: `[간편가입] 회사 개설 처리 예외: ${err?.message || err}`, context: { step: "submit_exception" } }); } catch { /* 무시 */ }
       setError(err?.message || "처리 중 오류가 발생했습니다.");
     } finally { setLoading(false); }
   };

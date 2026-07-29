@@ -7,6 +7,16 @@ import { logRead } from "@/lib/log-read";
 
 import { supabase } from "./supabase";
 import { verifyBusinessNumber, validateBusinessOwnership } from "./business-verification";
+import { logError } from "./error-logger";
+
+// 간편가입 관문 실패는 화면 토스트로만 사라져 "이탈인지 오류인지" 구분이 불가했다(2026-07-29 사장님).
+//   실패 지점마다 운영자 오류 로그를 남긴다 — 사업자번호는 앞 3자리만(개인정보 최소화).
+const bizMask = (digits: string) => (digits ? `${digits.slice(0, 3)}-**-*****` : "(없음)");
+function logSignupIssue(step: string, message: string, extra?: Record<string, unknown>) {
+  try {
+    logError({ source: "manual", message: `[간편가입] ${step}: ${message}`, context: { step, ...extra } });
+  } catch { /* 로깅 실패가 가입을 막으면 안 됨 */ }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -23,7 +33,11 @@ export async function checkBusinessNumberRegistered(bizNo: string): Promise<{ re
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ businessNumber: bizNoDigits(bizNo) }),
   });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || "사업자번호 확인 실패");
+  if (!res.ok) {
+    const msg = (await res.json().catch(() => ({})))?.error || `사업자번호 확인 실패 (HTTP ${res.status})`;
+    logSignupIssue("사업자번호 중복확인 실패", msg, { biz: bizMask(bizNoDigits(bizNo)) });
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -74,7 +88,10 @@ export async function submitJoinRequest(bizNo: string, name?: string): Promise<{
     body: JSON.stringify({ businessNumber: bizNoDigits(bizNo), name: name || undefined }),
   });
   const j = await res.json().catch(() => ({}));
-  if (!res.ok) return { ok: false, error: j?.error || "합류 요청 실패" };
+  if (!res.ok) {
+    logSignupIssue("합류 요청 실패", j?.error || `HTTP ${res.status}`, { biz: bizMask(bizNoDigits(bizNo)) });
+    return { ok: false, error: j?.error || "합류 요청 실패" };
+  }
   return { ok: true, status: j?.status };
 }
 
@@ -96,6 +113,7 @@ export async function createCompanyWithOwner(
     if (bizDigits.length === 10 && (compErr.code === "23505" || /business_number/i.test(compErr.message || ""))) {
       return { ok: false, duplicate: true };
     }
+    logSignupIssue("회사 생성 실패", compErr.message, { code: compErr.code, biz: bizMask(bizDigits) });
     return { ok: false, error: compErr.message };
   }
 
@@ -116,6 +134,7 @@ export async function createCompanyWithOwner(
     userErr = updErr || (updated && updated.length > 0 ? null : { message: "기존 계정 정보를 갱신하지 못했습니다. 고객센터로 문의해주세요." });
   }
   if (userErr) {
+    logSignupIssue("대표 계정 연결 실패", userErr.message, { code: userErr.code, biz: bizMask(bizDigits) });
     // 고아 회사 정리 — 직접 delete 는 소속 없는 사용자의 RLS 에 조용히 막힌다(0행 매칭).
     //   2026-07-28 실사례: 정리 실패로 유령 회사가 남아 그 사업자번호가 영구 잠김.
     //   소속 0명 회사만 지우는 SECURITY DEFINER RPC 로 정리.
