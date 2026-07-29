@@ -114,11 +114,14 @@
 /* 크로스페이드용 — 같은 자리에 겹쳐 두고 활성만 보인다 */
 .lp5-shot-stack { position: relative; width: 100%; }
 .lp5-shot-stack > .lp5-shot { position: absolute; inset: 0; opacity: 0; transition: opacity .7s ease; }
-.lp5-shot-stack > .lp5-shot img { height: 100%; object-fit: cover; object-position: top center; }
+/* ⚠️ 하루 섹션 화면들은 비율이 제각각이다(1.60 ~ 2.86). cover 로 채우면 가로로 긴 화면은
+   양옆이 잘려 글자가 끊긴다(AI 액션 플랜에서 실제로 잘렸다). contain 으로 전부 보여준다. */
+.lp5-shot-stack > .lp5-shot { background: #fff; }
+.lp5-shot-stack > .lp5-shot img { height: 100%; object-fit: contain; object-position: center; }
 .lp5-shot-on { opacity: 1 !important; }
 /* 스택은 높이를 잡아 줄 기준이 필요하다 — 16:10 무대.
    ⚠️ 100vh 무대 안이라 max-height 로 천장을 막지 않으면 세로가 긴 화면에서 상단바를 뚫는다. */
-.lp5-shot-stack { aspect-ratio: 16 / 10; max-height: 76vh; }
+.lp5-shot-stack { aspect-ratio: 16 / 9; max-height: 74vh; }
 
 /* ══ 1. 히어로 ══
    문구가 떠오르고, 그 뒤에서 제품 화면이 확대되며 자리를 잡는다.

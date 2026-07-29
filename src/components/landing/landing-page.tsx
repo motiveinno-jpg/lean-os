@@ -94,6 +94,8 @@ const MOBILE_OF: Record<string, string> = {
   "/product/f-projects-v1.png":  "/product/m-hub.png",
   "/product/f-acct-v1.png":      "/product/m-analytics.png",
   "/product/f-bank-v1.png":      "/product/m-bank.png",
+  "/product/f-leave-v1.png":     "/product/m-leave.png",
+  "/product/f-ai-brief-v1.png":  "/product/m-brief.png",
 };
 
 /** 코어 카드 전용 조각 — 패널 헤더를 뺀 "그 기능 블록"만 잘라 둔 캡처.
@@ -315,11 +317,11 @@ function SceneDay() {
                 <div className="lp5-day-scene">{d.scene}</div>
                 <div className="lp5-day-ba">
                   <div className="lp5-day-row">
-                    <span className="lp5-day-tag lp5-day-tag-b">전</span>
+                    <span className="lp5-day-tag lp5-day-tag-b">비포</span>
                     <span className="lp5-day-b">{d.before}</span>
                   </div>
                   <div className="lp5-day-row">
-                    <span className="lp5-day-tag lp5-day-tag-a">후</span>
+                    <span className="lp5-day-tag lp5-day-tag-a">애프터</span>
                     <span className="lp5-day-a">{d.after}</span>
                   </div>
                 </div>
