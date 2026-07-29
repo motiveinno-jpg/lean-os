@@ -2810,6 +2810,56 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-badge-paid { @apply bg-[var(--success-dim)] text-[var(--success)]; }
 .platform-badge-expired { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
 
+/* 운영자 대시보드 — 성장 분석 섹션 (2026-07-29 리디자인) */
+.pa-section { @apply space-y-4; }
+.pa-head { @apply flex items-end justify-between gap-3 flex-wrap; }
+.pa-title { @apply text-lg font-bold text-[var(--text)]; }
+.pa-subtitle { @apply text-[11px] text-[var(--text-dim)] mt-0.5; }
+.pa-tiles { @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3; }
+.pa-tile { @apply flex flex-col gap-1 p-4 text-left cursor-pointer transition hover:border-[var(--primary)]/40; }
+.pa-tile-active { @apply ring-2 ring-inset ring-[var(--primary)]; }
+.pa-tile-label { @apply text-[12px] font-semibold text-[var(--text-muted)]; }
+.pa-tile-value { @apply text-[24px] leading-8 font-extrabold text-[var(--text)]; }
+.pa-tile-unit { @apply text-[12px] font-semibold text-[var(--text-dim)] ml-0.5; }
+.pa-tile-foot { @apply text-[10.5px] leading-4; }
+.pa-delta-up { @apply text-[var(--success)] font-semibold; }
+.pa-delta-down { @apply text-[var(--danger)] font-semibold; }
+.pa-delta-flat { @apply text-[var(--text-dim)]; }
+.pa-grid { @apply grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start; }
+.pa-main { @apply lg:col-span-2 space-y-4 min-w-0; }
+.pa-chart-card { @apply p-5; }
+.pa-chart-head { @apply flex items-center justify-between gap-2 flex-wrap mb-3; }
+.pa-chart-title { @apply text-[13px] font-bold text-[var(--text)]; }
+.pa-chart-range { @apply text-[11px] font-normal text-[var(--text-dim)] ml-1; }
+.pa-chart-cur { @apply text-[12px] text-[var(--text-muted)]; }
+.pa-chart-wrap { @apply relative; }
+.pa-svg { @apply w-full h-auto block; }
+.pa-gridline { stroke: var(--border); stroke-width: 1; }
+.pa-axis-text { fill: var(--text-dim); font-size: 10px; }
+.pa-bar { fill: var(--primary); transition: opacity .12s; }
+.pa-bar-dim { opacity: .35; }
+.pa-hit { fill: transparent; }
+.pa-tooltip { @apply absolute top-0 -translate-x-1/2 z-10 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg px-3 py-2 pointer-events-none min-w-[150px]; }
+.pa-tooltip-title { @apply text-[11px] font-bold text-[var(--text)] mb-1; }
+.pa-tooltip-row { @apply flex items-center justify-between gap-4 text-[11px] text-[var(--text-muted)]; }
+.pa-tooltip-row-active { @apply text-[var(--text)] font-bold; }
+.pa-empty { @apply min-h-[220px] flex flex-col items-center justify-center text-sm text-[var(--text-dim)] text-center leading-6; }
+.pa-empty-sub { @apply text-[11px]; }
+.pa-side { @apply space-y-4; }
+.pa-side-title { @apply text-[12px] font-bold text-[var(--text-muted)] mb-2; }
+.pa-side-foot { @apply text-[10.5px] text-[var(--text-dim)] mt-2; }
+.pa-side-empty { @apply text-[11px] text-[var(--text-dim)] py-2; }
+.pa-active-row { @apply grid grid-cols-3 gap-2; }
+.pa-active-cell { @apply flex flex-col items-center rounded-xl bg-[var(--bg-surface)] py-2.5; }
+.pa-active-num { @apply text-[18px] font-extrabold text-[var(--text)]; }
+.pa-active-label { @apply text-[10px] text-[var(--text-dim)]; }
+.pa-table-scroll { @apply overflow-auto max-h-[400px] relative; }
+.pa-table { @apply w-full min-w-[640px] text-xs; }
+.pa-table-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]; }
+.pa-table-row-current { @apply bg-[var(--primary)]/5; }
+.pa-td { @apply px-3.5 py-2 text-right text-[var(--text-muted)]; }
+.pa-now-badge { @apply ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-[var(--primary)]/10 text-[var(--primary)]; }
+
 /* 운영자 대시보드 — 가입 퍼널 (2026-07-28) */
 .platform-funnel { @apply space-y-4; }
 .platform-funnel-steps { @apply grid grid-cols-2 lg:grid-cols-4 gap-3 p-5; }

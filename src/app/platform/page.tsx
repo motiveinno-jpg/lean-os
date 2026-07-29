@@ -1,6 +1,8 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { planOf, countPlanKinds, type PlanKind as PK } from "./_components/plan-kind";
+import { AnalyticsSection } from "./_components/analytics-section";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -52,25 +54,9 @@ function fmtW(n: number): string {
   return `${sign}₩${abs.toLocaleString()}`;
 }
 
-// 회사의 이용 등급 판정 — 카드 숫자·목록·배지가 모두 이 함수 하나만 쓴다.
-//   2026-07-28: 카드는 status 로, 목록은 trial_ends_at 로 따로 세다가 "체험 중 1개인데
-//   눌러도 아무것도 안 나온다"가 났다. 판정을 한 곳으로 모아 재발을 막는다.
-//   기준은 차단 판정(get_company_entitlement)과 동일 — status 는 만료 후에도
-//   trialing 으로 남으므로 trial_ends_at 을 함께 본다.
-export type PlanKind = "free" | "trial" | "expired" | "paid";
-function planOf(c: any): { kind: PlanKind; label: string; cls: string } {
-  const sub = (c.subscriptions || []).find((s: any) => s.status === "active" || s.status === "trialing");
-  if (!sub) return { kind: "free", label: "미구독", cls: "platform-badge-free" };
-  if (sub.status === "trialing") {
-    const left = sub.trial_ends_at ? Math.ceil((new Date(sub.trial_ends_at).getTime() - Date.now()) / 86400000) : null;
-    if (left !== null && left < 0) return { kind: "expired", label: "체험 만료", cls: "platform-badge-expired" };
-    return { kind: "trial", label: left === null ? "체험 중" : `체험 D-${left}`, cls: "platform-badge-trial" };
-  }
-  const slug = sub.subscription_plans?.slug;
-  return slug && slug !== "free"
-    ? { kind: "paid", label: sub.subscription_plans?.name || "유료", cls: "platform-badge-paid" }
-    : { kind: "free", label: "미구독", cls: "platform-badge-free" };
-}
+// 이용 등급 판정은 _components/plan-kind.ts 로 추출(2026-07-29 분석 섹션과 공유).
+//   같은 판정이 두 벌 생기면 "카드 1개인데 목록 0" 사고가 재발한다 — 반드시 이것만 쓸 것.
+export type { PlanKind } from "./_components/plan-kind";
 
 export default function PlatformOverview() {
   const { data: companies = [] } = useQuery({
@@ -190,10 +176,7 @@ export default function PlatformOverview() {
   const totalUsers = users.length;
   // ⚠️ subscriptions 배열이 아니라 companies 기준 planOf 로 센다 — 목록 필터와 같은 함수라
   //    "카드 숫자 1인데 눌러도 목록 0" 같은 어긋남이 원천적으로 안 생긴다.
-  const kindCounts = (companies as any[]).reduce(
-    (acc: Record<PlanKind, number>, c: any) => { acc[planOf(c).kind] += 1; return acc; },
-    { free: 0, trial: 0, expired: 0, paid: 0 } as Record<PlanKind, number>,
-  );
+  const kindCounts = countPlanKinds(companies as any[]);
   const paidSubs = kindCounts.paid;
   const activeSubs = kindCounts.paid + kindCounts.trial;
   // 실결제 구독만 — stripe 미연동(내부 부여) 구독이 MRR 을 부풀리던 것 제외 (2026-07-29)
@@ -347,7 +330,7 @@ export default function PlatformOverview() {
           <SignupFunnelSection funnel={funnel ?? null} />
 
           {/* 트래픽·이용 현황 */}
-          <TrafficSection usage={usage ?? null} traffic={traffic ?? null} companies={companies as any[]} />
+          <AnalyticsSection usage={usage ?? null} traffic={traffic ?? null} companies={companies as any[]} />
         </div>
 
         {/* ▶ 작업 레일 */}
@@ -442,128 +425,6 @@ export default function PlatformOverview() {
         </aside>
       </div>
     </div>
-  );
-}
-
-// ── 트래픽·이용 현황 ─────────────────────────────────────────────────────────
-//   방문자·페이지뷰는 2026-07-28 부터 수집 시작 — 그 이전 기간은 데이터가 없다.
-function TrafficSection({ usage, traffic, companies }: {
-  usage: UsageStats | null; traffic: TrafficStats | null; companies: any[];
-}) {
-  const kinds = (companies || []).reduce(
-    (acc: Record<PlanKind, number>, c: any) => { acc[planOf(c).kind] += 1; return acc; },
-    { free: 0, trial: 0, expired: 0, paid: 0 } as Record<PlanKind, number>,
-  );
-  const acc = usage?.accounts;
-  const t = traffic?.totals;
-
-  const daily = traffic?.daily ?? [];
-  const maxViews = Math.max(1, ...daily.map((d) => d.views));
-  const noTraffic = !t || t.views === 0;
-
-  return (
-    <section className="platform-traffic">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-bold text-[var(--text)]">트래픽 · 이용 현황</h2>
-        <span className="text-[11px] text-[var(--text-dim)]">로그인 지표는 실시간 · 방문자는 2026-07-28부터 수집</span>
-      </div>
-
-      <div className="platform-kpi-grid">
-        {[
-          { label: "오늘 방문자", value: t?.visitors_today ?? 0, sub: `페이지뷰 ${(t?.views_today ?? 0).toLocaleString()}` },
-          { label: "14일 방문자", value: t?.visitors ?? 0, sub: `비로그인 ${(t?.guest_visitors ?? 0).toLocaleString()}` },
-          { label: "오늘 활동 사용자", value: acc?.dau ?? 0, sub: `주간 ${acc?.wau ?? 0} · 월간 ${acc?.mau ?? 0}` },
-          { label: "미로그인 계정", value: acc?.never_signed_in ?? 0, sub: `전체 계정 ${acc?.total ?? 0}` },
-        ].map((k) => (
-          <div key={k.label} className="platform-kpi-card glass-card">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{k.label}</span>
-            <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{k.value.toLocaleString()}</span>
-            </div>
-            <div className="text-[11px] text-[var(--text-dim)]">{k.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="platform-traffic-grid">
-        {/* 요금제 분포 */}
-        <div className="glass-card p-5">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-3">이용 형태</div>
-          <div className="platform-plan-rows">
-            {[
-              // 위 KPI 카드·아래 가입사 목록과 같은 planOf 로 센다(RPC 집계와 이중화하지 않는다).
-              { label: "미구독 (카드 미등록)", n: kinds.free, cls: "platform-plan-free" },
-              { label: "체험 중 (카드 등록)", n: kinds.trial, cls: "platform-plan-trial" },
-              { label: "체험 만료", n: kinds.expired, cls: "platform-plan-expired" },
-              { label: "유료", n: kinds.paid, cls: "platform-plan-paid" },
-            ].map((r) => {
-              const total = Math.max(1, kinds.free + kinds.trial + kinds.expired + kinds.paid);
-              return (
-                <div key={r.label}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-[var(--text-muted)]">{r.label}</span>
-                    <span className="mono-number font-bold text-[var(--text)]">{r.n}곳</span>
-                  </div>
-                  <div className="platform-plan-bar">
-                    <div className={`platform-plan-fill ${r.cls}`} style={{ width: `${(r.n / total) * 100}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 일별 방문 추이 */}
-        <div className="glass-card p-5">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-3">일별 방문 (14일)</div>
-          {noTraffic ? (
-            <div className="platform-traffic-empty">
-              아직 수집된 방문 기록이 없습니다.<br />
-              <span className="text-[11px]">배포 후 방문이 발생하면 이 자리에 그래프가 나타납니다.</span>
-            </div>
-          ) : (
-            <div className="platform-traffic-bars">
-              {daily.map((d) => (
-                <div key={d.date} className="platform-traffic-bar-col" title={`${d.date} · 방문자 ${d.visitors} · 페이지뷰 ${d.views}`}>
-                  <div className="platform-traffic-bar" style={{ height: `${Math.max(4, (d.views / maxViews) * 100)}%` }} />
-                  <span className="platform-traffic-bar-label mono-number">{d.date.slice(8)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 인기 페이지 · 유입 */}
-        <div className="glass-card p-5">
-          <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-3">많이 본 페이지</div>
-          {(traffic?.top_paths?.length ?? 0) === 0 ? (
-            <div className="platform-traffic-empty">수집 대기 중</div>
-          ) : (
-            <ul className="platform-traffic-list">
-              {traffic!.top_paths.slice(0, 6).map((p) => (
-                <li key={p.path}>
-                  <span className="truncate">{p.path}</span>
-                  <span className="mono-number">{p.views.toLocaleString()}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="text-[13px] font-semibold text-[var(--text-muted)] mt-4 mb-2">유입 경로</div>
-          {(traffic?.top_referrers?.length ?? 0) === 0 ? (
-            <div className="platform-traffic-empty">수집 대기 중</div>
-          ) : (
-            <ul className="platform-traffic-list">
-              {traffic!.top_referrers.slice(0, 5).map((r) => (
-                <li key={r.host}>
-                  <span className="truncate">{r.host}</span>
-                  <span className="mono-number">{r.visitors.toLocaleString()}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </section>
   );
 }
 
