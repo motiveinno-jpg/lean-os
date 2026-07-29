@@ -2821,7 +2821,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pa-head { @apply flex items-end justify-between gap-3 flex-wrap; }
 .pa-title { @apply text-lg font-bold text-[var(--text)]; }
 .pa-subtitle { @apply text-[11px] text-[var(--text-dim)] mt-0.5; }
-.pa-tiles { @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3; }
+.pa-tiles { @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3; }
 .pa-tile { @apply flex flex-col gap-1 p-4 text-left cursor-pointer transition hover:border-[var(--primary)]/40; }
 .pa-tile-active { @apply ring-2 ring-inset ring-[var(--primary)]; }
 .pa-tile-label { @apply text-[12px] font-semibold text-[var(--text-muted)]; }

@@ -29,9 +29,10 @@ const GRANS: { key: Gran; label: string; buckets: number }[] = [
   { key: "year", label: "연간", buckets: 3 },
 ];
 
-type MetricKey = "visitors" | "views" | "accounts" | "companies" | "trials";
+type MetricKey = "visitors" | "views" | "guests" | "accounts" | "companies" | "trials";
 const METRICS: { key: MetricKey; label: string; unit: string }[] = [
   { key: "visitors", label: "방문자", unit: "명" },
+  { key: "guests", label: "비로그인 방문자", unit: "명" },
   { key: "views", label: "페이지뷰", unit: "회" },
   { key: "accounts", label: "신규 가입자", unit: "명" },
   { key: "companies", label: "신규 회사", unit: "곳" },
@@ -174,7 +175,7 @@ export function AnalyticsSection({ usage, traffic, companies, testData }: {
           ) : allZero ? (
             <div className="pa-empty">
               이 기간에는 {metricMeta.label} 기록이 없습니다.
-              {(metric === "visitors" || metric === "views") && <><br /><span className="pa-empty-sub">방문 수집은 2026-07-28에 시작됐습니다.</span></>}
+              {(metric === "visitors" || metric === "views" || metric === "guests") && <><br /><span className="pa-empty-sub">방문 수집은 2026-07-28에 시작됐습니다.</span></>}
             </div>
           ) : (
             <div className="pa-chart-wrap" onMouseLeave={() => setHover(null)}>
