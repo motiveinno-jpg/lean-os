@@ -340,7 +340,10 @@ function ScenePains() {
         <Rise className="lp5-sec-head">
           <div className="lp5-eyebrow">Before OwnerView</div>
           <h2 className="lp5-h lp5-h-sm">이런 게 <span className="lp5-grad">힘드셨죠</span></h2>
-          <p className="lp5-lead">대표님들이 실제로 하시는 말이에요. 오너뷰는 여기서 시작했어요.</p>
+          {/* ⚠️ "대표님들이 실제로 하시는 말이에요" 였다 — 인터뷰 인용이 아니라 우리가 쓴 문장이라
+              사실이 아니다(PAINS 주석 참조). 도입 사례를 자사 실측만 실은 것과 같은 기준으로 바꾼다.
+              자사가 직접 쓴다는 사실은 아래 도입 사례 구간과도 이어진다. */}
+          <p className="lp5-lead">저희도 똑같이 겪던 일이에요. 오너뷰는 여기서 시작했어요.</p>
         </Rise>
         <div className="lp5-pain-grid">
           {PAINS.map((x, i) => (
@@ -380,7 +383,9 @@ function SceneDay() {
             <div className="lp5-sec-head">
               <div className="lp5-eyebrow">Before &amp; After</div>
               <h2 className="lp5-h lp5-h-sm">오너뷰로 <span className="lp5-grad">달라지는 하루를 보여드려요</span></h2>
-              <p className="lp5-lead">어떻게 달라지는지, 시간대별로 보여드릴게요.</p>
+              {/* ⚠️ "어떻게 달라지는지, 시간대별로 보여드릴게요" 였다 — 제목의 '달라지'·'보여드리'를
+                  두 번씩 되풀이해 리드가 아무 정보도 더하지 못했다. 비포/애프터 구조를 설명하게 바꾼다. */}
+              <p className="lp5-lead">지금 방식과 오너뷰를 시간대별로 나란히 놨어요.</p>
             </div>
             <div className="lp5-day-grid">
               {/* key 를 붙여 구간이 바뀔 때마다 다시 마운트 → 문구가 툭 갈리지 않고 스르륵 바뀐다 */}
@@ -541,7 +546,9 @@ function SceneAxes() {
         <Rise className="lp5-sec-head">
           <div className="lp5-eyebrow">Core</div>
           <h2 className="lp5-h lp5-h-sm">일은 줄이고, <span className="lp5-grad">효율과 성과는 높여요</span></h2>
-          <p className="lp5-lead">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
+          {/* ⚠️ "회사 운영의 세 축이…" 였다 — 히어로("회사 운영의 모든 것")·마무리와 '회사 운영'이
+              세 번 겹쳐 들렸다. 축 이름을 직접 부르면 아래 카드 kicker(프로젝트·회계·인사)와도 맞는다. */}
+          <p className="lp5-lead">프로젝트·회계·인사가 하나의 데이터 위에서 같이 움직여요.</p>
         </Rise>
 
         <div className="lp5-bento">
@@ -583,9 +590,12 @@ function SceneAI() {
         <Rise className="lp5-sec-head">
           <div className="lp5-eyebrow">AI Automation</div>
           <h2 className="lp5-h lp5-h-sm lp5-eng-h">반복되던 일,<br /><span className="lp5-grad">이제 AI 몫이에요</span></h2>
+          {/* ⚠️ 뒤 문장이 "엔진 4개와 자동화 6가지가 나눠서 맡아요" 였다 — 바로 아래 목록 제목
+              ("여기에 자동화 6가지가 더 붙어요")과 같은 숫자를 두 번 말했다. 구성 설명 대신
+              "어디까지 AI가 하고 어디부터 사람이 하는지"를 말하게 바꾼다. */}
           <p className="lp5-lead">
-            사람을 대체하는 게 아니라, 매번 되풀이되는 일을 AI가 먼저 처리해 둬요.
-            엔진 {ENGINES.length}개와 자동화 {autos.length}가지가 나눠서 맡아요.
+            사람을 대체하는 게 아니에요. 매번 되풀이되는 일을 AI가 먼저 해두고,
+            판단이 필요한 것만 남겨요.
           </p>
         </Rise>
 
@@ -635,9 +645,12 @@ function SceneCoverage() {
       <div className="lp5-wrap">
         <Rise className="lp5-sec-head lp5-sec-head-c">
           <div className="lp5-eyebrow">Coverage</div>
-          <h2 className="lp5-h lp5-h-sm">회사 운영, <span className="lp5-grad">오직 오너뷰 안에서</span></h2>
+          {/* ⚠️ 제목이 "회사 운영, 오직 오너뷰 안에서" 였다 — 히어로·마무리와 '회사 운영'이 겹쳤고,
+              사장님이 원한 건 "이 밖에도 많다"는 이야기였다(그래서 리드가 '이게 다가 아니에요').
+              제목도 같은 방향으로 옮기고, 리드는 아래 네 카드를 직접 가리키게 한다. */}
+          <h2 className="lp5-h lp5-h-sm">필요한 기능은 <span className="lp5-grad">이미 다 들어 있어요</span></h2>
           <p className="lp5-lead lp5-lead-c">
-            이게 다가 아니에요. 재무·업무·인사·자산까지 메뉴 {total}개에 30가지가 넘는 기능이 들어 있어요.
+            이게 다가 아니에요. 아래 네 영역에 메뉴 {total}개, 기능 30가지가 있어요. 새로 붙일 도구가 없어요.
           </p>
         </Rise>
         <div className="lp5-cov4">
@@ -653,7 +666,9 @@ function SceneCoverage() {
           ))}
         </div>
         <div className="lp5-cov-more">
-          <Link href="/features" className="lp5-btn lp5-btn-ghost">메뉴별로 자세히 보기 <Arrow /></Link>
+          {/* ⚠️ CTA 이름 정리 — "자세히 보기"가 여기와 요금제 두 곳에 있어 뭐가 다른지 알 수 없었다.
+              목적지가 다르면 이름도 달라야 한다: 목록은 "전부 보기", 요금제는 "비교하기". */}
+          <Link href="/features" className="lp5-btn lp5-btn-ghost">메뉴 {total}개 전부 보기 <Arrow /></Link>
         </div>
       </div>
     </section>
@@ -700,7 +715,7 @@ function SceneProof() {
                 </div>
               ))}
             </div>
-            <Link href="/pricing" className="lp5-btn lp5-btn-ghost">요금제 자세히 보기 <Arrow /></Link>
+            <Link href="/pricing" className="lp5-btn lp5-btn-ghost">요금제 비교하기 <Arrow /></Link>
           </Rise>
         </div>
       </div>
@@ -795,16 +810,21 @@ function SceneEnd() {
         <>
           <div className="lp5-end-bg" />
           <div className="lp5-wrap lp5-end-in">
-            <Rise as="h2" className="lp5-h">회사 운영, <span className="lp5-grad">오늘부터 달라져요</span></Rise>
+            {/* ⚠️ "회사 운영, 오늘부터 달라져요" 였다 — 히어로·커버리지와 '회사 운영'이 세 번 겹쳤다.
+                바로 위 하루 구간이 09:00 로 시작하므로 "내일 아침"으로 받으면 그 장면과 이어진다. */}
+            <Rise as="h2" className="lp5-h">내일 아침부터 <span className="lp5-grad">달라져요</span></Rise>
             <Rise delay={90}>
+              {/* ⚠️ "가입하면 바로 씁니다" — 페이지에서 유일한 격식체라 톤이 튀었다(content.ts 규칙). */}
               <p className="lp5-lead" style={{ margin: "20px auto 0", textAlign: "center" }}>
-                가입하면 바로 씁니다. 구축도, 교육도 필요 없어요.
+                가입하고 계좌만 연결하면 끝이에요. 구축도, 교육도 없어요.
               </p>
             </Rise>
             <Rise delay={170}>
+              {/* ⚠️ 두 번째 버튼이 "가격 보기"(/pricing) 였다 — 바로 앞 구간의 "요금제 비교하기"와
+                  목적지가 같아 같은 걸 두 번 권하는 꼴이었다. 마지막은 "시작 / 물어보기" 두 갈래로 나눈다. */}
               <div className="lp5-hero-cta">
                 <Link href="/auth" className="lp5-btn lp5-btn-brand">무료로 시작하기 <Arrow /></Link>
-                <Link href="/pricing" className="lp5-btn lp5-btn-ghost">가격 보기</Link>
+                <Link href="/#partner" className="lp5-btn lp5-btn-ghost">도입 상담하기</Link>
               </div>
             </Rise>
           </div>
@@ -828,11 +848,14 @@ export default function LandingPage() {
       <SceneAxes />
       <SceneAI />
       <SceneCoverage />
-      <SceneProof />
       {/* 사장님: "오너뷰로 하루가 이렇게 달라져요를 모바일 위로" —
           기능을 다 보여준 뒤 "그래서 하루가 이렇게 바뀐다"로 받고, 바로 "밖에서도 된다"로 잇는다 */}
       <SceneDay />
       <SceneMobile />
+      {/* ⚠️ 사례·가격을 커버리지 뒤에 뒀더니 "증거·결정"이 "설명"을 앞질렀다.
+          가격을 본 사람이 다시 기능 설명으로 되돌아가면 결정이 흐려진다.
+          기(제품) → 승(문제) → 전(해결·범위·하루·어디서든) → 결(증거·가격 → 시작) 순으로 되돌린다. */}
+      <SceneProof />
       <SceneEnd />
 
       {/* ══ 꼬리 — 장면 연출이 필요 없는 실무 구간. lp4- 를 그대로 쓴다 ══ */}
