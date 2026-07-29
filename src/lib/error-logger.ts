@@ -260,6 +260,13 @@ export async function logError(params: {
     const message = (params.message || "").toString().slice(0, 2000);
     if (!message) return;
     if (/aborted/i.test(message)) return; // 취소성 에러는 적재 안 함
+    // 무해 브라우저 소음 — 운영자 타임라인을 가짜 "오류"로 채우던 것들 (2026-07-29)
+    //   · auth-token Lock: Supabase auth-js 가 여러 탭/새 창에서 같은 세션 락을 다툴 때 나는 소리.
+    //     자동 복구되며 사용자 영향 없음 (사이드바 새 창 팝업 도입 후 빈발).
+    //   · ResizeObserver loop: 브라우저 렌더 타이밍 경고. 기능 영향 없음.
+    if (/lock:sb-.+-auth-token/i.test(message)) return;
+    if (/Navigator LockManager/i.test(message)) return;
+    if (/ResizeObserver loop/i.test(message)) return;
 
     const sig = `${params.source}|${message.slice(0, 120)}`;
     const now = Date.now();
