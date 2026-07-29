@@ -181,6 +181,48 @@
 .lp5-price-amt span { font-size: 12px; color: var(--ink3); margin-left: 3px; }
 .lp5-price .lp5-btn { margin-top: 22px; align-self: flex-start; }
 
+.lp5-price-note {
+  display: block; margin-top: 14px; font-size: 11.5px; line-height: 1.65; color: var(--ink3);
+}
+
+/* 스와이프 안내는 폰에서만 — 넓은 화면에선 옆으로 넘길 게 없다(전부 펼쳐져 있다) */
+.lp5-swipe-hint { display: none; }
+
+/* ══ 자리에 없어도 — 결재·승인 ══
+   ⚠️ 이 구간만 핀 고정 장면(Scene)이라 앞뒤와 층위가 달라 붕 떠 보였다(사장님).
+      다른 구간과 같은 "틴트 섹션 + 가운데 제목 + 카드" 로 맞춘다.
+   ⚠️ .lp5-phone 의 기본 transform 은 무대 진행률(--p)을 쓴다. 여긴 무대가 아니라
+      --p 가 없어 선언이 통째로 무효가 된다 — 기울기를 여기서 직접 준다. */
+.lp5-move {
+  display: grid; grid-template-columns: 320px 1fr; gap: clamp(26px, 4vw, 58px);
+  align-items: center;
+  background: var(--canvas); border: 1px solid var(--line); border-radius: 24px;
+  padding: clamp(26px, 3vw, 44px);
+  box-shadow: 0 1px 2px rgba(11,11,15,.04), 0 30px 70px -46px rgba(11,11,15,.4);
+}
+.lp5-move-phone { display: flex; justify-content: center; }
+.lp5-move .lp5-phone { width: min(300px, 62vw); margin: 0; transform: rotate(-3deg); }
+
+.lp5-move-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.lp5-move-item {
+  display: flex; gap: 16px; width: 100%; text-align: left; cursor: pointer;
+  background: none; border: 0; font-family: inherit; padding: 15px 18px; border-radius: 14px;
+  transition: background .22s ease;
+}
+.lp5-move-item:hover { background: var(--canvas2); }
+.lp5-move-item-on { background: var(--canvas2); }
+.lp5-move-n {
+  flex: none; padding-top: 3px; font-size: 11.5px; font-weight: 800;
+  letter-spacing: .06em; color: var(--ink3); font-variant-numeric: tabular-nums;
+}
+.lp5-move-item-on .lp5-move-n { color: var(--brand); }
+.lp5-move-tx { display: block; font-size: 13.5px; line-height: 1.7; color: var(--ink3); }
+.lp5-move-tx b {
+  display: block; margin-bottom: 5px; font-size: 16px; font-weight: 800;
+  letter-spacing: -.015em; color: var(--ink);
+}
+.lp5-move-tx b em { font-style: normal; font-weight: 700; color: var(--ink3); }
+
 /* 상단바 — 도입 상담 */
 .lp5-nav-ask {
   font-size: 14px; font-weight: 700; color: var(--ink2);
@@ -216,12 +258,41 @@
   .lp5-nav-ask { display: none; }
 }
 
+/* ══ 폰 — 세로로 쌓지 않고 옆으로 넘긴다 ══
+   사장님(2026-07-29): "모바일에서는 옆으로 스와이프를 기본으로. 코어는 프로젝트·회계·인사를
+   각각 하나씩 두고, AI 오토메이션도 커버리지도 스와이프되게."
+   ⚠️ 세로로 쌓으면 코어만 3.9화면이었다. 축마다 레일 하나(카드 3장)로 바꾸면 세 줄로 끝난다.
+   ⚠️ JS 캐러셀을 새로 붙이지 않는다 — 브라우저 기본 스크롤 스냅이 관성·고무줄까지 공짜로
+      따라오고, 손을 대지 않아도 세로 스크롤을 막지 않는다.
+   ⚠️ 다음 카드가 살짝 걸치게(카드폭 84vw) 둬야 "옆에 더 있다"가 설명 없이 보인다.
+   ⚠️ 레일은 화면 끝까지 흘러야 자연스럽다 — 좌우 여백만큼 음수 마진으로 빼내고
+      같은 값을 padding 으로 되돌려 첫 카드가 본문과 같은 선에서 시작하게 한다. */
 @media (max-width: 720px) {
-  /* ⚠️ 폰에선 카드가 한 줄에 하나뿐이라 340px 안팎이다. 여기선 넓은 칸도 화면을 통째로 넣으면
-        0.35배가 되어 글자가 안 읽힌다 — 넓든 좁든 전부 잘라서 넣는다(560px = 0.57배). */
-  .lp5-axrow { grid-template-columns: 1fr; }
+  .lp5-swipe {
+    display: flex; gap: 12px;
+    overflow-x: auto; overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+    margin-inline: -20px; padding: 2px 20px 8px;
+    scrollbar-width: none;
+  }
+  .lp5-swipe::-webkit-scrollbar { display: none; }
+  .lp5-swipe > * { flex: 0 0 84vw; scroll-snap-align: center; }
+
+  .lp5-swipe-hint {
+    display: flex; align-items: center; gap: 6px; margin-top: 10px;
+    font-size: 12px; font-weight: 700; color: var(--ink3);
+  }
+  .lp5-sect-dark .lp5-swipe-hint { color: #8B8B9E; }
+
+  /* 코어 — 축마다 레일 하나. 넓은 칸/좁은 칸 구분은 폰에서 의미가 없다(다 같은 폭). */
   .lp5-axrow .lp5-bt-shot { height: 172px; }
   .lp5-axrow .lp5-bt-shot img { width: 560px; }
+
+  /* 자리에 없어도 — 폰과 목록을 위아래로 */
+  .lp5-move { grid-template-columns: 1fr; gap: 24px; padding: 22px 16px; }
+  .lp5-move-item { padding: 13px 14px; gap: 13px; }
+  .lp5-move-tx { font-size: 13px; }
+  .lp5-move-tx b { font-size: 15px; }
 }
 
 @media (max-width: 620px) {

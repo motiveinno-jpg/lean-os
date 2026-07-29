@@ -287,6 +287,9 @@ function ChipIcon({ n, c }: { n: string; c: string }) {
 }
 
 function SceneUnify() {
+  // ⚠️ 좁은 화면에서 데스크톱 대시보드(1968px)를 96vw 로 욱여넣어 0.19배가 됐다 —
+  //    "하나로 모인 결과"가 정작 아무것도 안 읽히는 회색 판이었다. 폰 캡처로 바꿔 끼운다.
+  const narrow = useNarrow();
   return (
     <Scene len={1.6} playOnView pinMobile className="lp5-unify">
       {() => (
@@ -312,8 +315,10 @@ function SceneUnify() {
             </div>
           </div>
           <div className="lp5-unify-core">
-            {/* 좁은 화면에서도 웹과 같은 "흩어졌다 모이는" 연출을 그대로 쓴다 */}
-            <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 1100px" />
+            {/* 좁은 화면에서도 웹과 같은 "흩어졌다 모이는" 연출을 그대로 쓴다 — 담기는 화면만 바꾼다 */}
+            {narrow
+              ? <PhoneShot src={MOBILE_OF["/product/dashboard-v5.png"]} alt="휴대폰에서 본 오너뷰 대시보드" />
+              : <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 1100px" />}
           </div>
           </div>
         </>
@@ -541,6 +546,15 @@ const AXIS_COLOR: Record<string, string> = {
   "프로젝트": "#5B4BE8", "회계": "#2F6FED", "인사": "#0E8F6F",
 };
 
+/** 폰에서만 보이는 "옆으로 넘겨보세요" 안내. 넓은 화면에선 CSS 가 숨긴다. */
+const SwipeHint = ({ n }: { n: number }) => (
+  <div className="lp5-swipe-hint" aria-hidden>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+    옆으로 넘겨서 {n}개 다 보기
+  </div>
+);
+
 function SceneAxes() {
   return (
     <section id="pillars" className="lp5-sect">
@@ -561,7 +575,7 @@ function SceneAxes() {
                 <b>{P.kicker}</b>
                 <i />
               </div>
-              <div className={`lp5-axrow lp5-axrow-${r + 1}`}>
+              <div className={`lp5-axrow lp5-axrow-${r + 1} lp5-swipe`}>
                 {P.blocks.map((b, j) => {
                   const wide = j === r;
                   return (
@@ -582,6 +596,7 @@ function SceneAxes() {
                   );
                 })}
               </div>
+              <SwipeHint n={P.blocks.length} />
             </Rise>
           ))}
         </div>
@@ -612,7 +627,7 @@ function SceneAI() {
           </p>
         </Rise>
 
-        <div className="lp5-eng-grid2">
+        <div className="lp5-eng-grid2 lp5-swipe">
           {ENGINES.map((e, i) => (
             <Rise key={e.num} delay={(i % 2) * 60} className="lp5-engc">
               <div className="lp5-engc-copy">
@@ -629,6 +644,7 @@ function SceneAI() {
             </Rise>
           ))}
         </div>
+        <SwipeHint n={ENGINES.length} />
 
         <Rise className="lp5-autos">
           <div className="lp5-autos-h">여기에 자동화 {autos.length}가지가 더 붙어요</div>
@@ -666,7 +682,7 @@ function SceneCoverage() {
             이게 다가 아니에요. 아래 네 영역에 메뉴 {total}개, 기능 30가지가 있어요. 새로 붙일 도구가 없어요.
           </p>
         </Rise>
-        <div className="lp5-cov4">
+        <div className="lp5-cov4 lp5-swipe">
           {CATALOG.map((g, i) => (
             <Rise key={g.key} delay={i * 60} className="lp5-covg">
               <span className="lp5-covg-bar" style={{ background: GROUP_COLOR[g.group] ?? "#5B4BE8" }} />
@@ -678,6 +694,7 @@ function SceneCoverage() {
             </Rise>
           ))}
         </div>
+        <SwipeHint n={CATALOG.length} />
         <div className="lp5-cov-more">
           {/* ⚠️ CTA 이름 정리 — "자세히 보기"가 여기와 요금제 두 곳에 있어 뭐가 다른지 알 수 없었다.
               목적지가 다르면 이름도 달라야 한다: 목록은 "전부 보기", 요금제는 "비교하기". */}
@@ -713,7 +730,10 @@ function SceneProof() {
 
           <Rise delay={90} className="lp5-price">
             <div className="lp5-eyebrow">Pricing</div>
-            <h3 className="lp5-case-h">인원이 늘어도 그대로예요</h3>
+            {/* ⚠️ "인원이 늘어도 그대로예요" 였다 — 사실이 아니다. 실제 과금은 기본 5명 포함,
+                6명째부터 1인당 ₩10,000/월이 붙는다(PLANS.period). 가격은 계약과 직결되므로
+                랜딩에서 유리하게 뭉뚱그리면 안 된다 — 포함 인원을 제목에 못박고 추가분은 밑에 적는다. */}
+            <h3 className="lp5-case-h">5명까지는 이 가격 그대로예요</h3>
             <div className="lp5-price-rows">
               {shown.map((p) => (
                 <div key={p.name} className={`lp5-price-row ${p.hl ? "lp5-price-hl" : ""}`}>
@@ -728,6 +748,7 @@ function SceneProof() {
                 </div>
               ))}
             </div>
+            <span className="lp5-price-note">기본 5명 포함 · 추가 1명 ₩10,000/월 · VAT 별도</span>
             <Link href="/pricing" className="lp5-btn lp5-btn-ghost">요금제 비교하기 <Arrow /></Link>
           </Rise>
         </div>
@@ -736,7 +757,12 @@ function SceneProof() {
   );
 }
 
-// ══════════════════ 7. 모바일 ══════════════════
+// ══════════════════ 7. 자리에 없어도 — 결재·승인 ══════════════════
+//   ⚠️ "회사 밖에서도 PC에서 보던 화면 그대로" 였다. 사장님: "위쪽 분위기랑 동떨어진다."
+//      그건 반응형이 된다는 기술 얘기라 혼자만 층위가 달랐다 → 밖에서 실제로 멈추는 건
+//      화면이 아니라 결정이다. 결재·승인으로 다시 잡았다(content.ts MOBILE 주석 참조).
+//   ⚠️ 시각 언어도 주변에 맞춘다. 핀 고정 장면(Scene)을 걷어내고 다른 구간과 같은
+//      "틴트 섹션 + 가운데 제목 + 카드" 로 바꾼다 — 이 구간만 무대처럼 떠 있어 더 붕 떴다.
 //   여긴 스크롤이 아니라 시간으로 넘어간다 — 폰 화면은 가만히 두고 봐도 돌아가야 한다.
 function SceneMobile() {
   const [i, setI] = useState(0);
@@ -767,51 +793,47 @@ function SceneMobile() {
   };
   const onTouchEnd = () => { touch.current = null; };
 
-  const S = MOBILE.steps[i];
   return (
-    <Scene id="mobile" len={1.05} className="lp5-mob">
-      {() => (
-        <div className="lp5-wrap lp5-mob-grid" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-          <div className="lp5-mob-copy">
-            <div className="lp5-eyebrow">{MOBILE.eyebrow}</div>
-            <h2 className="lp5-h lp5-h-sm">
-              {MOBILE.title.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
-            </h2>
-            <p className="lp5-lead">{MOBILE.sub}</p>
-            <div className="lp5-mob-step">
-              <div className="lp5-mob-h">{S.head}<br /><em>{S.muted}</em></div>
-              <p className="lp5-mob-d">
-                {S.desc.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
-              </p>
-              <div className="lp5-mob-dots">
-                {MOBILE.steps.map((st, k) => (
-                  <button key={st.src} type="button" onClick={() => go(k)}
-                    className={`lp5-mob-dot ${k === i ? "lp5-mob-dot-on" : ""}`}
-                    aria-label={`${k + 1}번째 화면 보기`} aria-current={k === i} />
-                ))}
-              </div>
+    <section id="mobile" className="lp5-sect lp5-sect-tint">
+      <div className="lp5-wrap">
+        <Rise className="lp5-sec-head lp5-sec-head-c">
+          <div className="lp5-eyebrow">{MOBILE.eyebrow}</div>
+          <h2 className="lp5-h lp5-h-sm">
+            {MOBILE.title.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
+          </h2>
+          <p className="lp5-lead lp5-lead-c">{MOBILE.sub}</p>
+        </Rise>
+
+        <Rise className="lp5-move" delay={80}>
+          <div className="lp5-move-phone" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+            <div className="lp5-phone">
+              <div className="lp5-phone-notch" />
+              {MOBILE.steps.map((st, k) => (
+                <Image key={st.src} src={st.src} alt={st.alt} width={1170} height={2400}
+                  sizes="(max-width: 720px) 62vw, 320px" className={k === i ? "lp5-phone-on" : ""} />
+              ))}
             </div>
           </div>
-          {/* 좁은 화면에서는 좌우로 넘기는 걸 알 수 있게 화살표를 같이 둔다 */}
-          <div className="lp5-mob-nav" aria-hidden={false}>
-            <button type="button" onClick={() => go(i - 1)} disabled={i === 0} aria-label="이전 화면">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
-            </button>
-            <span>{i + 1} / {n}</span>
-            <button type="button" onClick={() => go(i + 1)} disabled={i >= n - 1} aria-label="다음 화면">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
-          <div className="lp5-phone">
-            <div className="lp5-phone-notch" />
+
+          {/* 폰으로 오는 것들을 목록으로 세워 둔다 — 지금 보이는 화면이 어느 항목인지 표시.
+              한 장씩 자동으로 넘어가지만, 누르면 그때부터 사용자가 고른다. */}
+          <ul className="lp5-move-list">
             {MOBILE.steps.map((st, k) => (
-              <Image key={st.src} src={st.src} alt={st.alt} width={1170} height={2400}
-                sizes="(max-width: 999px) 78vw, 340px" className={k === i ? "lp5-phone-on" : ""} />
+              <li key={st.src}>
+                <button type="button" onClick={() => go(k)} aria-current={k === i}
+                  className={`lp5-move-item ${k === i ? "lp5-move-item-on" : ""}`}>
+                  <span className="lp5-move-n">{String(k + 1).padStart(2, "0")}</span>
+                  <span className="lp5-move-tx">
+                    <b>{st.head} <em>{st.muted}</em></b>
+                    {st.desc.split("\n").map((l, j) => <span key={j}>{l}<br /></span>)}
+                  </span>
+                </button>
+              </li>
             ))}
-          </div>
-        </div>
-      )}
-    </Scene>
+          </ul>
+        </Rise>
+      </div>
+    </section>
   );
 }
 
