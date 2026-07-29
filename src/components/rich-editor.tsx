@@ -125,7 +125,11 @@ const PdfPage = Node.create({
       let cur = node;
       const dom = document.createElement("div");
       dom.setAttribute("data-pdf-page", "1");
-      dom.style.cssText = `position:relative;width:${cur.attrs.w}px;max-width:100%;margin:12px auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.12);container-type:inline-size;`;
+      // 편집 모드는 페이지를 원래 크기(794px)로 고정 — max-width:100% 로 좁은 패널에
+      //   맞춰 축소하면 글자가 읽기 힘들 만큼 작아진다(2026-07-29 사장님). 좁으면
+      //   본문 영역이 가로 스크롤. 저장 HTML(renderHTML)은 max-width:100% 유지라
+      //   서명·미리보기 화면은 기존처럼 반응형.
+      dom.style.cssText = `position:relative;width:${cur.attrs.w}px;${editor.isEditable ? "" : "max-width:100%;"}margin:12px auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.12);container-type:inline-size;`;
 
       const img = document.createElement("img");
       img.src = cur.attrs.src;
@@ -145,7 +149,7 @@ const PdfPage = Node.create({
         );
       };
 
-      texts.forEach((t) => {
+      texts.forEach((t, i) => {
         const sp = document.createElement("span");
         sp.textContent = t.t;
         sp.style.cssText = pdfTextSpanStyle(t, cur.attrs.h);
@@ -153,7 +157,49 @@ const PdfPage = Node.create({
           sp.contentEditable = "true";
           sp.spellcheck = false;
           sp.style.outline = "none";
-          sp.addEventListener("focus", () => { sp.style.background = "rgba(59,130,246,0.12)"; });
+          // 마지막으로 포커스한 글자 조각을 editor.storage 에 등록 — 툴바 글자크기·
+          //   변수 삽입 버튼이 PM 본문이 아니라 이 조각에 적용되게 (2026-07-29 사장님:
+          //   "크기 변경이 안 되고 변수가 새 페이지에 생긴다").
+          const saveCaret = () => {
+            const sel = document.getSelection();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const pa = (editor.storage as any).pdfActive;
+            if (pa?.el === sp && sel?.anchorNode && sp.contains(sel.anchorNode)) pa.caret = sel.anchorOffset;
+          };
+          sp.addEventListener("focus", () => {
+            sp.style.background = "rgba(59,130,246,0.12)";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (editor.storage as any).pdfActive = {
+              el: sp,
+              caret: null as number | null,
+              setFontSize: (px: number) => {
+                texts[i].fs = px;
+                sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h) + "outline:none;";
+                commit();
+              },
+              insertText: (text: string) => {
+                sp.focus();
+                const sel = document.getSelection();
+                const node = sp.firstChild;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const saved = (editor.storage as any).pdfActive?.caret;
+                if (sel && node && node.nodeType === 3) {
+                  const off = Math.min(saved ?? (node.textContent?.length || 0), node.textContent?.length || 0);
+                  const range = document.createRange();
+                  range.setStart(node, off);
+                  range.collapse(true);
+                  sel.removeAllRanges();
+                  sel.addRange(range);
+                }
+                let ok = false;
+                try { ok = document.execCommand("insertText", false, text); } catch { ok = false; }
+                if (!ok) sp.textContent = (sp.textContent || "") + text;
+                commit();
+              },
+            };
+          });
+          sp.addEventListener("keyup", saveCaret);
+          sp.addEventListener("mouseup", saveCaret);
           sp.addEventListener("blur", () => { sp.style.background = "transparent"; commit(); });
         }
         spanEls.push(sp);
@@ -224,11 +270,21 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     onUpdate: ({ editor }) => {
       onChange?.(editor.getHTML());
     },
+    // PM 본문에 포커스가 돌아오면 PDF 조각 타깃 해제 — 툴바가 다시 일반 본문에 적용
+    onFocus: ({ editor }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (editor.storage as any).pdfActive = null;
+    },
   });
 
   useImperativeHandle(ref, () => ({
     insertText(text: string) {
       if (!editor) return;
+      // PDF 글자 조각을 편집 중이면 그 조각의 커서 위치에 삽입 — PM 본문에 넣으면
+      //   페이지 밖(아래)에 새 문단으로 생겨 "새 페이지에 생성"으로 보였다(2026-07-29).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pa = (editor.storage as any).pdfActive;
+      if (pa?.el?.isConnected) { pa.insertText(text); return; }
       editor.chain().focus().insertContent(text).run();
     },
     setContent(c: string) {
@@ -598,8 +654,14 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           </div>
           <div className="w-px h-5 bg-[var(--border)] mx-1 self-center" />
 
-          {/* 글자 크기 */}
-          <select onChange={(e) => { const v = e.target.value; if (v) editor.chain().focus().setFontSize(v).run(); else editor.chain().focus().unsetFontSize().run(); }}
+          {/* 글자 크기 — PDF 글자 조각 편집 중이면 그 조각에 적용 */}
+          <select onChange={(e) => {
+            const v = e.target.value;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const pa = (editor.storage as any).pdfActive;
+            if (v && pa?.el?.isConnected) { pa.setFontSize(parseInt(v, 10)); e.target.value = ""; return; }
+            if (v) editor.chain().focus().setFontSize(v).run(); else editor.chain().focus().unsetFontSize().run();
+          }}
             defaultValue="" className="px-1.5 py-1 rounded text-xs bg-[var(--bg)] border border-[var(--border)] text-[var(--text-muted)]" title="글자 크기">
             <option value="">크기</option>
             {FONT_SIZES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -665,7 +727,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
         </div>
       )}
       <div className={`rich-editor-body ${fillHeight ? "flex-1 min-h-0" : ""}`}
-        style={fillHeight ? { overflowY: "auto" } : maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
+        style={fillHeight ? { overflowY: "auto", overflowX: "auto" } : maxHeight ? { maxHeight, overflowY: "auto", overflowX: "auto" } : { overflowX: "auto" }}>
         <EditorContent
           editor={editor}
           style={contentMaxWidth ? { maxWidth: contentMaxWidth, margin: "0 auto" } : undefined}
