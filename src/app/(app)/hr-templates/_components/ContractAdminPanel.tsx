@@ -11,6 +11,8 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
 import { CONTRACT_TYPES } from "@/lib/hr";
 import { getContractPackages, sendContractPackage, getContractTemplates, cancelContractPackage, PACKAGE_STATUS } from "@/lib/hr-contracts";
+import { getCurrentUser } from "@/lib/queries";
+import { uploadFile } from "@/lib/file-storage";
 import type { RichEditorRef } from "@/components/rich-editor";
 
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
@@ -236,7 +238,14 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
           <div className="contract-template-editor-body flex-1 flex gap-4 px-6 min-h-0">
             <div className="flex-1 flex flex-col min-h-0">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">서식 내용 *</label>
-              <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다." maxHeight="calc(80vh - 220px)" />
+              <RichEditor ref={editorRef} content={newTemplateBody} onChange={setNewTemplateBody} placeholder="계약서 내용을 입력하세요... {{직원명}}, {{부서}} 등의 변수를 사용할 수 있습니다. 📎 PDF 그대로 버튼으로 PDF 서식을 원본 모양 그대로 가져올 수 있습니다." maxHeight="calc(80vh - 220px)"
+                onUploadImage={async (file) => {
+                  // PDF 페이지 이미지를 DB(content_json)가 아닌 스토리지에 — 여러 페이지도 서식이 가벼움
+                  const u = await getCurrentUser();
+                  if (!u) throw new Error("로그인 정보를 확인할 수 없습니다");
+                  const res = await uploadFile({ companyId, bucket: "company-assets", file, userId: u.id });
+                  return res.fileUrl;
+                }} />
             </div>
             <div className="contract-template-variable-panel w-52 shrink-0 flex flex-col min-h-0">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">변수 삽입</label>

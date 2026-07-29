@@ -62,6 +62,10 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [pdfProgress, setPdfProgress] = useState<string | null>(null);
+  // PDF 삽입 모드 (2026-07-29 사장님: "아예 pdf를 그대로 똑같이 불러와야돼")
+  //   exact = 페이지를 고해상도 이미지로 — 표·서식·줄바꿈 원본과 100% 동일 (기본값)
+  //   text  = 글자를 편집 가능한 텍스트로 추출 — 모양은 달라질 수 있음
+  const pdfModeRef = useRef<"exact" | "text">("exact");
 
   const editor = useEditor({
     extensions: [
@@ -143,6 +147,40 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
 
       // 페이지별로 HTML 조각을 누적 → 마지막에 한 번에 삽입 (전체 페이지 보장 = 마지막장만 나오던 버그 해소).
       const parts: string[] = [];
+
+      // ── "PDF 그대로" 모드 — 모든 페이지를 고해상도 이미지로 (원본과 100% 동일) ──
+      if (pdfModeRef.current === "exact") {
+        for (let i = 1; i <= total; i++) {
+          setPdfProgress(`${total}페이지 중 ${i}페이지 변환 중...`);
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 2.5 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) continue;
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          let src: string;
+          if (onUploadImage) {
+            const blob: Blob | null = await new Promise((res) => canvas.toBlob((b) => res(b), "image/png"));
+            try {
+              src = blob
+                ? await onUploadImage(new File([blob], `${file.name.replace(/\.pdf$/i, "")}-p${i}.png`, { type: "image/png" }))
+                : canvas.toDataURL("image/png");
+            } catch {
+              // 스토리지 업로드 실패해도 삽입은 계속 — 인라인 dataURL 폴백
+              src = canvas.toDataURL("image/png");
+            }
+          } else {
+            src = canvas.toDataURL("image/png");
+          }
+          parts.push(`<img src="${src}" alt="PDF ${i}페이지" />`);
+        }
+        setPdfProgress("본문에 삽입 중...");
+        editor.chain().focus().insertContent(parts.join("")).run();
+        setPdfProgress(null);
+        return;
+      }
 
       type Run = { text: string; x0: number; x1: number; h: number };
       type VLine = { y: number; h: number; runs: Run[] };
@@ -391,7 +429,8 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           <button type="button" onClick={() => editor.chain().focus().setHorizontalRule().run()} className={btnCls(false)} title="구분선">─</button>
           <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnCls(editor.isActive("blockquote"))} title="인용">" 인용</button>
           <button type="button" onClick={() => imgInputRef.current?.click()} className={btnCls(false)} title="이미지/그래프 삽입 (그래프 이미지를 넣으세요)">🖼 이미지</button>
-          <button type="button" onClick={() => pdfInputRef.current?.click()} className={btnCls(false)} title="PDF 내용 삽입 (글자+표+그래프)">📎 PDF</button>
+          <button type="button" onClick={() => { pdfModeRef.current = "exact"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF 원본 모양 그대로 삽입 — 표·서식·줄바꿈이 PDF와 100% 동일 (이미지로 들어가 글자 수정은 불가)">📎 PDF 그대로</button>
+          <button type="button" onClick={() => { pdfModeRef.current = "text"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF 글자를 편집 가능한 텍스트·표로 추출 — 내용 수정이 필요할 때 (모양은 원본과 달라질 수 있음)">📝 PDF 글자만</button>
           <div className="w-px h-5 bg-[var(--border)] mx-1 self-center" />
 
           {/* 표 */}
