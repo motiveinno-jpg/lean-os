@@ -20,7 +20,7 @@ import {
   type OverlayField, type PdfFormTemplate,
 } from "@/lib/form-templates";
 import { useModalKeys } from "@/hooks/use-modal-keys";
-import { pdfToEditableHtml } from "@/lib/pdf-editable";
+import { pdfToFlowHtml } from "@/lib/pdf-flow";
 import { uploadFile } from "@/lib/file-storage";
 import { getCurrentUser } from "@/lib/queries";
 
@@ -97,8 +97,9 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
     } finally { setBusy(false); }
   };
 
-  // "원본 그대로·수정 가능" 업로드 (2026-07-29 사장님) — 페이지 이미지(글자 지운 배경) 위에
-  //   원좌표 글자 span 을 얹은 HTML 로 변환 → 리치에디터에서 글자 클릭 수정 + {{변수}} 삽입.
+  // 워드/한글식 업로드 (2026-07-29 사장님: "영역 말고 아예 워드처럼") — 글자크기·줄바꿈·
+  //   정렬·표를 원본대로 복원한 흐름 문서로 변환 → 자유롭게 수정(지우면 당겨짐) + {{변수}} 삽입.
+  //   (이전의 절대좌표 조각 방식(pdfToEditableHtml)은 조각 영역이 불편하다는 피드백으로 교체)
   const onFileExact = async (file: File) => {
     if (!companyId) return;
     if (!name.trim()) { toast("양식 이름을 먼저 입력하세요", "error"); return; }
@@ -107,13 +108,13 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
     setBusy(true);
     try {
       const u = await getCurrentUser();
-      const html = await pdfToEditableHtml(file, u ? async (f) => {
+      const html = await pdfToFlowHtml(file, u ? async (f) => {
         const res = await uploadFile({ companyId, bucket: "company-assets", file: f, userId: u.id });
         return res.fileUrl;
       } : undefined);
       const filePath = await uploadTemplateFile(companyId, file);
       setTextEditing({ filePath, pageCount: 1, initialHtml: html });
-      toast("원본 모양 그대로 불러왔습니다 — 글자를 클릭하면 바로 수정되고, {{변수}}도 넣을 수 있어요", "info");
+      toast("문서로 불러왔습니다 — 워드처럼 자유롭게 수정하고 {{변수}}를 넣으세요", "info");
     } catch (e: any) { toast("PDF 변환 실패: " + (e?.message || ""), "error"); }
     finally { setBusy(false); }
   };
