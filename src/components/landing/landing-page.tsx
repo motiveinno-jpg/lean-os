@@ -258,7 +258,7 @@ function ChipIcon({ n, c }: { n: string; c: string }) {
 function SceneUnify() {
   const narrow = useNarrow();
   return (
-    <Scene len={1.7} beats={HERO_INTRO.length} className="lp5-unify">
+    <Scene len={1.7} beats={HERO_INTRO.length} pinMobile className="lp5-unify">
       {(beat) => (
         <>
           {/* ⚠️ 궤도는 무대(100vh) 기준이어야 한다. 문구 박스 안에 두면 칩이 제목 위로 겹친다. */}
@@ -297,7 +297,7 @@ function SceneUnify() {
 // ══════════════════ 3. 하루 ══════════════════
 function SceneDay() {
   return (
-    <Scene id="day" len={2.4} beats={DAY.length} className="lp5-day">
+    <Scene id="day" len={2.4} beats={DAY.length} pinMobile className="lp5-day">
       {(beat) => {
         const d = DAY[beat];
         return (
@@ -306,7 +306,7 @@ function SceneDay() {
                 하려는지"는 남아 있어야 한다 — eyebrow 만으로는 전달되지 않는다. */}
             <div className="lp5-sec-head">
               <div className="lp5-eyebrow">Before &amp; After</div>
-              <h2 className="lp5-h lp5-h-sm">오너뷰로 하루가 <span className="lp5-grad">이렇게 달라져요</span></h2>
+              <h2 className="lp5-h lp5-h-sm">오너뷰로 <span className="lp5-grad">달라지는 하루를 보여드려요</span></h2>
               <p className="lp5-lead">어떻게 달라지는지, 시간대별로 보여드릴게요.</p>
             </div>
             <div className="lp5-day-grid">
@@ -363,8 +363,24 @@ function Rail({ cards, tall = false, wide = false, arrows = false, ms = 4600 }: 
     return () => clearInterval(t);
   }, [arrows, playing, live, n, ms]);
 
+  // 손가락으로 옆으로 넘기기 — 모바일에서 화살표만으로는 불편하다(사장님: "스와이프도 가능할지").
+  //   ⚠️ 세로 스크롤을 막지 않는다. 가로 이동이 세로보다 클 때만 넘김으로 친다.
+  const touch = useRef<{ x: number; y: number; locked: boolean } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: false };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const t = touch.current; if (!t || t.locked) return;
+    const dx = e.touches[0].clientX - t.x, dy = e.touches[0].clientY - t.y;
+    if (Math.abs(dx) < 44 || Math.abs(dx) < Math.abs(dy)) return;
+    t.locked = true;
+    setPlaying(false);                       // 손으로 넘기면 자동 재생은 멈춘다
+    setI((v) => Math.min(n - 1, Math.max(0, v + (dx < 0 ? 1 : -1))));
+  };
+  const onTouchEnd = () => { touch.current = null; };
+
   return (
-    <div ref={ref}>
+    <div ref={ref} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
       <div className={`lp5-rail-view ${wide ? "lp5-rail-view-full" : ""}`}>
         <div className={`lp5-rail-track ${tall ? "lp5-rail-tall" : ""} ${wide ? "lp5-rail-wide" : ""}`}
           style={{ ["--n" as string]: n, ["--i" as string]: i }}>

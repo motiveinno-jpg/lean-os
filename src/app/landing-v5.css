@@ -542,11 +542,23 @@
 @media (max-width: 999px) {
   .lp5-scene { height: auto !important; }
   .lp5-stage { position: static; height: auto; padding: 96px 0; overflow: visible; --p: 1; }
+  /* ⚠️ 스크롤로 내용이 넘어가는 장면(하루·통합)은 핀을 풀면 트랙이 내용 높이까지 줄어
+     한 화면 스크롤에 구간이 전부 지나간다. 이 둘만 핀을 남겨 웹과 같은 속도로 보이게 한다.
+     100svh 를 쓴다 — 모바일 주소창이 접혔다 펴질 때 100vh 는 화면이 튄다. */
+  .lp5-scene-pinm { height: calc(var(--len, 1.6) * 78svh) !important; }
+  .lp5-scene-pinm > .lp5-stage {
+    position: sticky; top: 0; height: 100svh; padding: 74px 0 24px; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center;
+  }
   .lp5-hero { padding-top: 96px; }
   .lp5-hero { padding-top: 96px; }
   .lp5-day-grid, .lp5-ax-grid, .lp5-eng-grid, .lp5-mob-grid { grid-template-columns: 1fr; gap: 34px; }
   .lp5-mob-grid > .lp5-phone { order: -1; }
-  .lp5-mob-step { margin-top: 0; padding-top: 22px; }
+  /* ⚠️ 좁은 화면에서 제목·설명과 단계 문구가 붙어 답답했다(사장님). 사이를 벌린다. */
+  .lp5-mob-step { margin-top: 0; padding-top: 34px; margin-top: 10px; border-top: 1px solid var(--line); }
+  .lp5-mob-copy .lp5-lead { margin-bottom: 6px; }
+  .lp5-mob-d { margin-top: 10px; }
+  .lp5-mob-dots { margin-top: 20px; }
   .lp5-cov-grid { grid-template-columns: repeat(2, 1fr); }
   .lp5-orbit { display: none; }
   .lp5-hero-copy, .lp5-hero-shot, .lp5-unify-core, .lp5-phone, .lp5-hero-bg { transform: none; opacity: 1; }

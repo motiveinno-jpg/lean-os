@@ -81,11 +81,15 @@ export function useScene(beats = 1) {
 }
 
 /** 무대 하나 = 트랙 + sticky 무대. len 이 곧 그 장면의 재생 시간이다. */
-export function Scene({ id, len = 1.6, beats = 1, tone, className = "", children }: {
+export function Scene({ id, len = 1.6, beats = 1, tone, pinMobile = false, className = "", children }: {
   id?: string;
   len?: number;
   beats?: number;
   tone?: "dark";
+  /** 좁은 화면에서도 핀을 유지한다.
+   *  ⚠️ 스크롤로 내용이 넘어가는 장면(하루·통합)은 핀을 풀면 트랙이 내용 높이까지 줄어
+   *     한 화면 스크롤에 구간이 전부 지나가 버린다. 웹과 같은 속도로 보이게 핀을 남긴다. */
+  pinMobile?: boolean;
   className?: string;
   children: (beat: number) => ReactNode;
 }) {
@@ -94,7 +98,7 @@ export function Scene({ id, len = 1.6, beats = 1, tone, className = "", children
     <section
       id={id}
       ref={trackRef}
-      className={`lp5-scene ${tone === "dark" ? "lp5-scene-dark" : ""}`}
+      className={`lp5-scene ${tone === "dark" ? "lp5-scene-dark" : ""} ${pinMobile ? "lp5-scene-pinm" : ""}`}
       style={{ ["--len" as string]: len }}
     >
       <div ref={stageRef} className={`lp5-stage ${className}`}>{children(beat)}</div>
