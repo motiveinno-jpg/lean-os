@@ -8,6 +8,26 @@ import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
+// 기본 내용(템플릿)에도 표·서식 지원 (2026-07-29 사장님) — 저장은 HTML, 상세 화면이 sanitize 렌더.
+const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => ({ default: m.RichEditor })), {
+  ssr: false,
+  loading: () => <div className="h-32 bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
+});
+
+/** 평문 템플릿 → RichEditor 초기 HTML (이미 HTML 이면 그대로) */
+function tplToHtml(text: string): string {
+  if (!text) return "";
+  if (/^\s*</.test(text)) return text;
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text.split("\n").map((l) => (l.trim() === "" ? "<p><br/></p>" : `<p>${esc(l)}</p>`)).join("");
+}
+/** RichEditor 빈 문서 판별 — 표·이미지 없고 텍스트도 없으면 빈 값으로 저장 */
+function htmlOrEmpty(html: string): string {
+  if (!html) return "";
+  if (/<(img|table)/i.test(html)) return html;
+  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "" ? "" : html;
+}
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -331,12 +351,13 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               )}
             </div>
 
-            {/* 내용 템플릿 */}
+            {/* 내용 템플릿 — 표·서식 지원 */}
             <div className="content-template-section">
-              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿)</label>
-              <textarea value={editing.content_template || ""} onChange={(e) => patch({ content_template: e.target.value })} rows={3}
-                placeholder={"작성 시 상세 내용에 기본으로 채워집니다.\n예: 1. 지출 항목\n2. 사유"}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm resize-y" />
+              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿) — 표·서식 사용 가능</label>
+              <RichEditor key={editing.id || "new-form"} content={tplToHtml(editing.content_template || "")}
+                onChange={(html) => patch({ content_template: htmlOrEmpty(html) })}
+                placeholder={"작성 시 상세 내용에 기본으로 채워집니다. 예: 1. 지출 항목 / 2. 사유"}
+                maxHeight="260px" />
             </div>
 
             {/* 결재선 단계 */}
@@ -507,12 +528,13 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               )}
             </div>
 
-            {/* 내용 템플릿 — 이 유형 선택 시 상세 내용에 기본으로 채워짐 */}
+            {/* 내용 템플릿 — 이 유형 선택 시 상세 내용에 기본으로 채워짐 · 표·서식 지원 */}
             <div className="content-template-section">
-              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿)</label>
-              <textarea value={defaultForm.descriptionTemplate} onChange={(e) => setDefaultForm((s) => ({ ...s, descriptionTemplate: e.target.value }))} rows={3}
-                placeholder={"작성 시 상세 내용에 기본으로 채워집니다.\n예: 1. 지출 항목\n2. 사유"}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm resize-y" />
+              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿) — 표·서식 사용 가능</label>
+              <RichEditor key={editingDefaultKey || "default-form"} content={tplToHtml(defaultForm.descriptionTemplate)}
+                onChange={(html) => setDefaultForm((s) => ({ ...s, descriptionTemplate: htmlOrEmpty(html) }))}
+                placeholder={"작성 시 상세 내용에 기본으로 채워집니다. 예: 1. 지출 항목 / 2. 사유"}
+                maxHeight="260px" />
             </div>
 
             {/* 결재선 단계 — 역할 또는 특정 인물 지정 (빌더와 동일 UX) */}

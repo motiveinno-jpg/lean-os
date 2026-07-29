@@ -3343,13 +3343,15 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">설명 템플릿 (선택)</label>
-              <textarea
-                value={form.descriptionTemplate}
-                onChange={(e) => setForm({ ...form, descriptionTemplate: e.target.value })}
+              <label className="block text-xs text-[var(--text-muted)] mb-1">설명 템플릿 (선택) — 표·서식 사용 가능</label>
+              {/* 2026-07-29 사장님: 기본형식 입력에도 표·서식 — textarea → RichEditor.
+                  저장은 HTML, 기존 평문 템플릿은 plainToHtml 로 초기 표시(HTML 이면 그대로). */}
+              <RichEditor
+                key={editingPolicy?.id ?? "new-policy"}
+                content={plainToHtml(form.descriptionTemplate)}
+                onChange={(html) => setForm({ ...form, descriptionTemplate: isEmptyHtml(html) ? "" : html })}
                 placeholder="이 양식 선택 시 요청 설명란에 자동 입력될 내용"
-                rows={3}
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-y"
+                maxHeight="260px"
               />
             </div>
             {/* 요청자별 정책 + 승인라인 변경 허용 (2026-07-10) */}
