@@ -108,17 +108,16 @@ function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; p
 /** 화면 다섯 장이 부채꼴로 펼쳐지는 묶음 — 페이지 최상단.
  *  ⚠️ 스크롤이 아니라 "페이지가 열리면" 퍼진다. 첫 화면에서 바로 보여야 하는 연출이라
  *     스크롤을 기다리게 하면 아무도 못 본다. --sp 를 CSS 애니메이션이 0→1 로 올린다.
- *  ⚠️ 가운데가 크고 옆으로 갈수록 작아지며 뒤로 겹쳐 들어가는 형태다.
- *     처음엔 회전을 넣고 넓게 벌렸는데 "매우 별로"라는 지적을 받았다 — 회전을 빼고,
- *     크기 낙차를 크게(1 → .78 → .60) 주고, 서로 겹치도록 간격을 좁혔다.
- *     바깥일수록 아래로 조금 내려 가운데 장이 우뚝 서 보이게 한다.
- *  fx = 자기 폭 기준 가로 이동(%), fy = 자기 높이 기준 세로 이동(%), fs = 최종 크기. */
+ *  ⚠️ 마름모 실루엣이 되게 배열한다 — 가운데가 가장 크고, 옆으로 갈수록 작아진다.
+ *     세로 중심은 다섯 장 모두 같다. 크기만 줄어드니 위아래가 동시에 좁아져 마름모가 된다.
+ *     (옆 장을 아래로 내렸더니 "메인만 혼자 위에 있는" 꼴이 됐다 — fy 를 없앴다.)
+ *  fx = 자기 폭 기준 가로 이동(%), fs = 최종 크기. 회전은 넣지 않는다. */
 const FAN = [
-  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-95%", fy: "12%", fs: 0.60, z: 1 },
-  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-56%", fy: "6%",  fs: 0.78, z: 2 },
-  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",   fy: "0%",  fs: 1,    z: 3 },
-  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "56%",  fy: "6%",  fs: 0.78, z: 2 },
-  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "95%",  fy: "12%", fs: 0.60, z: 1 },
+  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-98%", fs: 0.56, z: 1 },
+  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-58%", fs: 0.76, z: 2 },
+  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",   fs: 1,    z: 3 },
+  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "58%",  fs: 0.76, z: 2 },
+  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "98%",  fs: 0.56, z: 1 },
 ];
 
 function Fan({ priority = false }: { priority?: boolean }) {
@@ -126,8 +125,7 @@ function Fan({ priority = false }: { priority?: boolean }) {
     <div className="lp5-fan lp5-fan-in">
       {FAN.map((f, i) => (
         <div key={f.src} className="lp5-fan-item" style={{
-          ["--fx" as string]: f.fx, ["--fy" as string]: f.fy,
-          ["--fs" as string]: f.fs, zIndex: f.z,
+          ["--fx" as string]: f.fx, ["--fs" as string]: f.fs, zIndex: f.z,
         }}>
           <Image src={f.src} alt={f.alt} width={2288} height={1802}
             sizes="(max-width: 999px) 60vw, 520px" priority={priority && i === 2} />

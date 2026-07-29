@@ -196,7 +196,7 @@
 .lp5-fan-item {
   position: absolute; top: 50%; left: 50%; width: 42%;
   transform: translate(-50%, -50%)
-             translate(calc(var(--fx) * var(--sp)), calc(var(--fy) * var(--sp)))
+             translateX(calc(var(--fx) * var(--sp)))
              scale(calc(1 - (1 - var(--fs)) * var(--sp)));
   transform-origin: center center;
 }
