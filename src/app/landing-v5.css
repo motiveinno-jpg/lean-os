@@ -283,7 +283,7 @@
   transform: translateX(calc(-1 * min(calc(var(--i) * var(--step)), var(--maxx))));
   transition: transform .72s cubic-bezier(.22,.68,.24,1);
 }
-.lp5-rail-track.lp5-rail-tall { --cw: min(440px, 72vw); }
+.lp5-rail-track.lp5-rail-tall { --cw: min(420px, 74vw); }
 .lp5-rail-card {
   flex: 0 0 var(--cw); width: var(--cw);
   border-radius: 26px; overflow: hidden; background: var(--canvas2);
@@ -333,29 +333,99 @@
    패널 자체의 제목·요약이 카드 설명과 같은 말을 하고 있어 항상 맞아떨어진다. */
 .lp5-rail-shot img { object-position: left top; }
 
-/* AI 카드 — 세로형. 화면 전체를 축소하지 않고 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
-   ⚠️ aspect-ratio 로만 높이를 잡으면 카드가 100vh 무대를 넘어 제목이 위로 잘린다.
-      카드 높이를 뷰포트에 묶고 크롭이 남는 높이를 먹게 한다. */
-.lp5-rail-tall .lp5-rail-card { height: min(64vh, 620px); display: flex; flex-direction: column; }
-.lp5-rail-crop { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-.lp5-rail-crop img {
-  width: 100%; height: 100%; display: block;
-  object-fit: cover; object-position: left top; transform: scale(1.55); transform-origin: left top;
+/* ══ AI 카드 — 설명 그림 + 카드 밖 아래 설명 ══
+   ⚠️ 실제 캡처를 확대해 잘라 쓰던 방식은 버렸다(기능 위치가 화면마다 달라 설명과 어긋났다).
+      그림은 그 기능만 정확히 보여주고, 크롭 좌표를 맞출 일이 없다. */
+.lp5-rail-cell { flex: 0 0 var(--cw); width: var(--cw); }
+.lp5-rail-art {
+  /* ⚠️ 3/4 · 1:1.16 은 내용에 비해 너무 길어 가운데가 텅 비었다 */
+  aspect-ratio: 1 / 0.95; border-radius: 22px; overflow: hidden; position: relative;
+  background: linear-gradient(158deg, #EEF0FE 0%, #E6EAFD 44%, #DFE9FB 100%);
+  box-shadow: inset 0 0 0 1px rgba(17,20,45,.06);
 }
-.lp5-rail-tall .lp5-rail-note { flex: 0 0 auto; }
-.lp5-rail-note { padding: 16px 18px 20px; }
-.lp5-rail-kind {
-  display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
-  padding: 3px 8px; border-radius: 99px; margin-bottom: 9px;
-  background: rgba(124,107,255,.16); color: var(--brand2);
-}
-.lp5-rail-kind-e { background: rgba(255,255,255,.12); color: #fff; }
-.lp5-rail-note b { font-size: 15.5px; font-weight: 800; letter-spacing: -.01em; }
-.lp5-rail-tag { font-size: 12px; color: var(--brand2); font-weight: 700; margin-left: 6px; }
-.lp5-rail-note p { font-size: 13.5px; line-height: 1.7; color: #A9A9B8; margin-top: 8px; }
-.lp5-rail-where { display: block; font-size: 11.5px; color: #7B7B8A; margin-top: 9px; }
+.lp5-sect-dark .lp5-rail-art { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.lp5-rail-note { padding: 16px 2px 0; }
+.lp5-rail-note b { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }
+.lp5-rail-note span { font-size: 14px; line-height: 1.72; color: var(--ink2); }
+.lp5-sect-dark .lp5-rail-note b { color: #fff; }
+.lp5-sect-dark .lp5-rail-note span { color: #A9A9B8; }
+.lp5-rail-where { display: block; font-size: 12px; color: var(--ink3) !important; margin-top: 7px; }
 
-/* 컨트롤 — 점(누르면 그 칸으로) + 자동재생/일시정지 */
+/* ── 그림 내부 ── 값은 전부 제품에 실재하는 것만 쓴다 ── */
+.lp5-art { position: absolute; inset: 0; padding: 26px 24px; display: flex; flex-direction: column; color: #1E2050; }
+.lp5-art-head b { display: block; font-size: 19px; font-weight: 800; line-height: 1.36; letter-spacing: -.02em; color: #2A2C6B; }
+.lp5-art-head p { font-size: 12.5px; line-height: 1.6; color: #5E63A8; margin-top: 8px; }
+.lp5-art-card {
+  background: #fff; border-radius: 14px; padding: 13px 14px; margin-top: auto;
+  box-shadow: 0 2px 6px rgba(20,22,60,.06), 0 14px 30px -14px rgba(20,22,60,.3);
+}
+.lp5-art-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 12.5px; }
+.lp5-art-row span { color: #6B6F9A; } .lp5-art-row b { font-weight: 800; letter-spacing: -.01em; }
+.lp5-art-row-total { border-top: 1px solid #EDEFF8; margin-top: 4px; padding-top: 9px; }
+.lp5-art-row-total b { color: #0E8F6F; }
+.lp5-art-row-mute b { color: #8A8FBF; font-weight: 700; }
+.lp5-art-flag {
+  display: inline-block; margin-top: 10px; font-size: 11px; font-weight: 700;
+  padding: 5px 9px; border-radius: 8px; background: rgba(79,70,229,.1); color: #4F46E5;
+}
+.lp5-art-flag-ok { background: #D1FAE5; color: #0E8F6F; }
+.lp5-art-flag-warn { background: #FEF3C7; color: #B45309; }
+.lp5-art-line { width: 100%; height: 60px; margin-top: 6px; display: block; }
+.lp5-art-dday { color: #D97706 !important; }
+
+.lp5-art-steps { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+.lp5-art-step {
+  background: rgba(255,255,255,.72); border-radius: 12px; padding: 11px 13px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.lp5-art-step b { font-size: 13.5px; font-weight: 800; }
+.lp5-art-step span { font-size: 11.5px; color: #6B6F9A; }
+.lp5-art-step-on { background: #fff; box-shadow: 0 10px 24px -12px rgba(20,22,60,.34); }
+
+.lp5-art-stack { margin-top: auto; position: relative; padding-top: 42px; }
+.lp5-art-chip, .lp5-art-band {
+  position: absolute; left: 12px; right: 12px; border-radius: 12px; padding: 8px 12px;
+  font-size: 11.5px; font-weight: 700;
+}
+.lp5-art-chip:nth-of-type(1), .lp5-art-band-a { top: 0; background: #E5E9FB; color: #5E63A8; }
+.lp5-art-chip:nth-of-type(2), .lp5-art-band-b { top: 20px; left: 6px; right: 6px; background: #DDE3FA; color: #4F46E5; }
+.lp5-art-front { position: relative; margin-top: 0; }
+
+.lp5-art-ask {
+  align-self: flex-end; margin-top: auto; background: #4F46E5; color: #fff;
+  font-size: 12.5px; font-weight: 700; padding: 9px 13px; border-radius: 14px 14px 4px 14px;
+}
+.lp5-art-answer { margin-top: 10px; }
+.lp5-art-answer b { font-size: 13.5px; font-weight: 800; display: block; }
+.lp5-art-answer p { font-size: 12px; color: #6B6F9A; margin-top: 5px; line-height: 1.6; }
+
+.lp5-art-rank { display: flex; align-items: center; gap: 9px; padding: 7px 0; font-size: 12.5px; }
+.lp5-art-rank i {
+  flex: none; width: 19px; height: 19px; border-radius: 6px; background: #EEF0FE; color: #4F46E5;
+  font-size: 11px; font-weight: 800; font-style: normal; display: inline-flex; align-items: center; justify-content: center;
+}
+.lp5-art-three { margin-top: auto; display: flex; flex-direction: column; gap: 7px; }
+.lp5-art-mini {
+  background: #fff; border-radius: 11px; padding: 9px 12px; display: flex;
+  align-items: baseline; justify-content: space-between; gap: 8px;
+  box-shadow: 0 1px 4px rgba(20,22,60,.06);
+}
+.lp5-art-mini span { font-size: 11.5px; color: #6B6F9A; }
+.lp5-art-mini b { font-size: 12.5px; font-weight: 800; }
+
+/* 화살표 내비 */
+.lp5-rail-arrows { display: flex; align-items: center; gap: 9px; }
+.lp5-rail-arrows button {
+  width: 40px; height: 40px; border-radius: 99px; cursor: pointer; border: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(11,11,15,.06); color: var(--ink); transition: background .2s, opacity .2s;
+}
+.lp5-sect-dark .lp5-rail-arrows button { background: rgba(255,255,255,.1); color: #fff; }
+.lp5-rail-arrows button:hover:not(:disabled) { background: rgba(11,11,15,.12); }
+.lp5-sect-dark .lp5-rail-arrows button:hover:not(:disabled) { background: rgba(255,255,255,.18); }
+.lp5-rail-arrows button:disabled { opacity: .32; cursor: default; }
+.lp5-rail-arrows .lp5-rail-count { margin-left: 4px; }
+
 .lp5-rail-bar { display: flex; align-items: center; gap: 14px; margin-top: 26px; }
 .lp5-rail-dots {
   display: flex; align-items: center; gap: 7px;

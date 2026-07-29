@@ -17,6 +17,7 @@ import "@/app/landing-v5.css";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 import { Scene, Rise, useNarrow } from "@/components/landing/scene";
+import { AiArt, AI_ART } from "@/components/landing/ai-art";
 import {
   HERO, HERO_INTRO, DAY, PILLARS, ENGINES, AI_AUTOMATION, CATALOG, MOBILE, FAQS, FOOTER,
 } from "@/components/landing/content";
@@ -310,7 +311,7 @@ function SceneDay() {
  *   밑에 자동재생·일시정지 버튼과 왼쪽 순서 기능, 점을 누르면 바로 그 페이지로."
  *  ⚠️ 화면에 들어와 있을 때만 돈다. 안 보이는 레일이 계속 타이머를 돌리면 배터리만 먹는다.
  *  ⚠️ 마지막 칸에서 트랙 오른쪽 끝이 화면 오른쪽에 닿으면 더 안 민다 — 안 그러면 오른쪽이 텅 빈다. */
-function Rail({ cards, tall = false, wide = false, ms = 4600 }: { cards: ReactNode[]; tall?: boolean; wide?: boolean; ms?: number }) {
+function Rail({ cards, tall = false, wide = false, arrows = false, ms = 4600 }: { cards: ReactNode[]; tall?: boolean; wide?: boolean; arrows?: boolean; ms?: number }) {
   const n = cards.length;
   const [i, setI] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -325,11 +326,11 @@ function Rail({ cards, tall = false, wide = false, ms = 4600 }: { cards: ReactNo
   }, []);
 
   useEffect(() => {
-    if (!playing || !live) return;
+    if (arrows || !playing || !live) return;   // 화살표 모드는 자동 재생하지 않는다
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const t = setInterval(() => setI((v) => (v + 1) % n), ms);
     return () => clearInterval(t);
-  }, [playing, live, n, ms]);
+  }, [arrows, playing, live, n, ms]);
 
   return (
     <div ref={ref}>
@@ -340,20 +341,33 @@ function Rail({ cards, tall = false, wide = false, ms = 4600 }: { cards: ReactNo
         </div>
       </div>
       <div className="lp5-rail-bar">
+        {arrows ? (
+          // 사장님: "자동 재생이 아니라 화살표로 움직이고" — 읽는 속도를 사용자가 정한다
+          <div className="lp5-rail-arrows">
+            <button type="button" aria-label="이전" disabled={i === 0} onClick={() => setI((v) => Math.max(0, v - 1))}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+            </button>
+            <button type="button" aria-label="다음" disabled={i >= n - 1} onClick={() => setI((v) => Math.min(n - 1, v + 1))}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+            </button>
+            <span className="lp5-rail-count">{i + 1} / {n}</span>
+          </div>
+        ) : (
         <div className="lp5-rail-dots">
           {cards.map((_, k) => (
             <button key={k} type="button" onClick={() => setI(k)}
               className={`lp5-rail-dot ${k === i ? "lp5-rail-dot-on" : ""}`}
               aria-label={`${k + 1}번째 보기`} aria-current={k === i} />
           ))}
-        </div>
+        </div>)}
+        {!arrows && (
         <button type="button" className="lp5-rail-play" onClick={() => setPlaying((v) => !v)}
           aria-label={playing ? "자동 재생 멈춤" : "자동 재생"}>
           {playing
             ? <svg width="13" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1.2"/><rect x="14" y="4" width="4" height="16" rx="1.2"/></svg>
             : <svg width="13" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.8v14.4c0 .9 1 1.4 1.7.9l10.7-7.2c.6-.4.6-1.4 0-1.8L8.7 3.9c-.7-.5-1.7 0-1.7.9z"/></svg>}
-        </button>
-        <span className="lp5-rail-count">{i + 1} / {n}</span>
+        </button>)}
+        {!arrows && <span className="lp5-rail-count">{i + 1} / {n}</span>}
       </div>
     </div>
   );
@@ -405,14 +419,15 @@ function SceneAxes() {
 //      있는 자리)을 확대해 잘라 보여준다. 전체를 넣으면 아무것도 안 읽힌다.
 function SceneAI() {
   // 엔진(큰 묶음) + 자동화(세부 기능)를 한 레일에 합친다.
-  //   ⚠️ 중복 판정 기준은 "같은 화면을 쓰는가" 다 — 생존 레이더/현금 소진 예측,
-  //      거래처 자산화/휴면 감지처럼 같은 화면을 가리키면 같은 이야기를 두 번 하는 셈이라
-  //      더 큰 묶음인 엔진 쪽만 남긴다. (사장님: "중복되는 내용은 한 개만 노출")
+  //   ⚠️ 예전엔 "같은 캡처를 쓰는가"로 중복을 판정했는데, 엔진과 자동화가 화면만 공유하고
+  //      내용은 다른 경우가 있어 엉뚱한 항목이 빠졌다(AI 거래 분류가 사라지고 휴면 감지가 남았다).
+  //      이제 그림으로 설명하므로 이미지 기준 판정은 의미가 없다 — 내용이 겹치는 것만 이름으로 뺀다.
+  //      "현금 소진 예측"은 엔진 "생존 레이더"가 하는 말 그대로다.
+  const COVERED = new Set(["현금 소진 예측"]);
   const engineCards = ENGINES.map((e) => ({
     kind: "엔진", name: e.name, tag: e.eng, desc: e.short, where: "", src: e.src, alt: e.alt,
   }));
-  const used = new Set(engineCards.map((e) => e.src));
-  const autoCards = AI_AUTOMATION.filter((a) => !used.has(a.src)).map((a) => ({
+  const autoCards = AI_AUTOMATION.filter((a) => !COVERED.has(a.name)).map((a) => ({
     kind: "자동화", name: a.name, tag: a.tag, desc: a.desc, where: a.where, src: a.src, alt: a.alt,
   }));
   const items = [...engineCards, ...autoCards];
@@ -428,15 +443,14 @@ function SceneAI() {
             엔진 {engineCards.length}개와 자동화 {autoCards.length}가지가 나눠서 맡아요.
           </p>
         </Rise>
-        <Rail tall cards={items.map((a) => (
-          <article key={a.name} className="lp5-rail-card">
-            <div className="lp5-rail-crop">
-              <Image src={a.src} alt={a.alt} width={2288} height={1802} sizes="(max-width: 999px) 74vw, 440px" />
-            </div>
+        {/* ⚠️ 실제 캡처를 확대해 잘라 쓰던 방식은 버렸다 — 기능이 있는 자리가 화면마다 달라
+            어디를 잘라도 설명과 어긋났다. 대신 그 기능만 그린 설명 그림을 쓴다.
+            설명은 카드 밖 아래에 둔다(참고 이미지 구조). */}
+        <Rail tall arrows cards={items.map((a) => (
+          <article key={a.name} className="lp5-rail-cell">
+            <div className="lp5-rail-art">{AI_ART[a.name] ? <AiArt kind={AI_ART[a.name]} /> : null}</div>
             <div className="lp5-rail-note">
-              <span className={`lp5-rail-kind ${a.kind === "엔진" ? "lp5-rail-kind-e" : ""}`}>{a.kind}</span>
-              <b>{a.name}</b> <span className="lp5-rail-tag">{a.tag}</span>
-              <p>{a.desc}</p>
+              <b>{a.name}.</b> <span>{a.desc}</span>
               {a.where && <span className="lp5-rail-where">{a.where}</span>}
             </div>
           </article>
