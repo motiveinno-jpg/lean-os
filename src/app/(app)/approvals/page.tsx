@@ -3454,8 +3454,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
 
           <div className="flex gap-2">
             <button
-              onClick={() => form.name.trim() && upsertMut.mutate()}
-              disabled={!form.name.trim() || form.stages.some((s) => !s.name.trim()) || upsertMut.isPending}
+              onClick={() => (form.name || "").trim() && upsertMut.mutate()}
+              disabled={!(form.name || "").trim() || form.stages.some((s) => !(s.name || "").trim()) || upsertMut.isPending}
               className="btn-primary disabled:opacity-50"
             >
               {upsertMut.isPending ? "저장 중..." : editingPolicy ? "수정" : "저장"}

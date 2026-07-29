@@ -17,7 +17,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
           onError: (error, variables, _ctx, mutation) => {
             console.error("[Mutation Error]", error);
             // 글로벌 에러 표시 — 개별 onError가 없는 mutation을 커버
-            const msg = error instanceof Error ? error.message : "알 수 없는 오류";
+            //   Supabase/PostgREST 는 Error 가 아닌 플레인 객체({message,code,details,hint})를
+            //   throw 하는 경우가 있어, instanceof Error 만 보면 전부 "알 수 없는 오류"로
+            //   뭉개져 error_logs 에 원인이 하나도 안 남았다(2026-07-29, 누적 22건 진단 불가).
+            const eo = (error && typeof error === "object" ? error : {}) as Record<string, unknown>;
+            const parts = [
+              typeof eo.code === "string" ? `[${eo.code}]` : null,
+              error instanceof Error ? error.message : typeof eo.message === "string" ? eo.message : null,
+              typeof eo.details === "string" ? eo.details : null,
+              typeof eo.hint === "string" ? eo.hint : null,
+            ].filter(Boolean);
+            let msg: string;
+            if (parts.length) {
+              msg = parts.join(" ");
+            } else {
+              try { msg = `알 수 없는 오류: ${JSON.stringify(error).slice(0, 300)}`; }
+              catch { msg = "알 수 없는 오류"; }
+            }
             if (typeof window !== "undefined" && !msg.includes("aborted")) {
               const event = new CustomEvent("ownerview:mutation-error", { detail: msg });
               window.dispatchEvent(event);
