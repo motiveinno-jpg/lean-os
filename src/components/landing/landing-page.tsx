@@ -360,13 +360,13 @@ function Rail({ cards, tall = false, wide = false, ms = 4600 }: { cards: ReactNo
 //   레일은 --p 로 연속 이동한다(구간 단위로 튀지 않게). 점은 현재 구간만 표시.
 function SceneAxes() {
   // 카드 구조는 하나로 고정한다 — 좌측 상단 기능명, 그 아래 설명, 그 아래 화면.
-  //   ⚠️ 단조로움은 "설명 위치"가 아니라 "화면을 어떻게 보여주는가"로 푼다 (사장님:
-  //      "화면을 보여줘도 되고, 기능일 때는 특정 기능적인 부분만 강조해서 보여줘도").
-  //      full=화면 전체 · tl/tr/c=그 방향 기능 영역을 확대해서 잘라 보여준다.
-  const VIEWS = ["full", "tl", "c", "tr", "full", "tl", "c", "full", "tr"];
+  //   ⚠️ 화면을 확대해 일부만 잘라 보여줬더니 설명과 다른 부분이 나왔다. 기능이 있는 자리가
+  //      화면마다 다르기 때문이다(상단 카드 / 가운데 표 / 하단 목록). 이미지마다 손으로 좌표를
+  //      맞추지 않는 한 틀린다 → 화면 위쪽부터 폭 전체를 보여준다. 패널 제목·요약이 카드 설명과
+  //      같은 말을 하고 있어 설명과 화면이 항상 맞는다.
   const cards = PILLARS.flatMap((P) =>
     P.blocks.map((b) => ({ kicker: P.kicker, tab: b.tab, title: b.title, desc: b.desc, src: b.src, alt: b.alt })),
-  ).map((c, i) => ({ ...c, view: VIEWS[i % VIEWS.length] }));
+  );
   return (
     <section id="pillars" className="lp5-sect">
       <div className="lp5-wrap">
@@ -382,7 +382,7 @@ function SceneAxes() {
               <h3 className="lp5-rail-title">{c.title}</h3>
               <p className="lp5-rail-desc">{c.desc}</p>
             </div>
-            <div className={`lp5-rail-shot lp5-view-${c.view}`}>
+            <div className="lp5-rail-shot">
               <Image src={c.src} alt={c.alt} width={2288} height={1802}
                 sizes="(max-width: 999px) 86vw, 1040px" />
             </div>

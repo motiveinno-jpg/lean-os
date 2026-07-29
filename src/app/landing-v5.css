@@ -318,14 +318,12 @@
 }
 .lp5-rail-shot img { width: 100%; height: 100%; display: block; object-fit: cover; }
 
-/* 화면을 어떻게 보여줄지 — 전체 / 기능 영역 확대.
-   ⚠️ 기준점을 가운데·오른쪽으로 두면 화면 왼쪽 글자가 중간에서 잘린다("…입금을 맞춰봐요").
-      기준점은 좌상단으로 통일하고, 변주는 "얼마나 확대하느냐"로만 준다. */
-.lp5-view-full img,
-.lp5-view-tl img, .lp5-view-tr img, .lp5-view-c img { object-position: left top; transform-origin: left top; }
-.lp5-view-c  img { transform: scale(1.2); }
-.lp5-view-tl img { transform: scale(1.38); }
-.lp5-view-tr img { transform: scale(1.6); }
+/* ⚠️ 확대 크롭을 넣었다가 걷어냈다.
+   화면마다 그 기능이 있는 자리가 다른데(어떤 건 상단 카드, 어떤 건 가운데 표) 전부 같은
+   좌상단을 확대하니 설명과 다른 부분이 보였다. 자리를 이미지마다 손으로 맞추지 않는 한
+   틀릴 수밖에 없다 — 지금은 화면 위쪽부터 폭 전체를 보여준다.
+   패널 자체의 제목·요약이 카드 설명과 같은 말을 하고 있어 항상 맞아떨어진다. */
+.lp5-rail-shot img { object-position: left top; }
 
 /* AI 카드 — 세로형. 화면 전체를 축소하지 않고 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
    ⚠️ aspect-ratio 로만 높이를 잡으면 카드가 100vh 무대를 넘어 제목이 위로 잘린다.
@@ -547,11 +545,8 @@
    AI 카드와 같은 방식으로 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
    (이 9장은 모바일 대응본이 다 있지는 않아 폰으로 바꿔 끼울 수 없다 — 섞이면 더 이상해진다) */
 @media (max-width: 700px) {
-  /* 좁은 화면 — 확대 크롭을 더 세게(작은 칸에서 전체 화면은 안 읽힌다) */
   .lp5-rail-wide .lp5-rail-card { height: min(72vh, 560px); padding: 20px 0 0 20px; }
   .lp5-rail-over { padding: 0 20px 16px 0; }
-  .lp5-view-full img { transform: scale(1.5); transform-origin: left top; }
-  .lp5-view-c img { transform: scale(1.6); }
   .lp5-rail-track.lp5-rail-wide { --cw: min(1040px, 86vw); }
 }
 
