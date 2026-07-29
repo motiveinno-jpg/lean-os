@@ -108,14 +108,17 @@ function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; p
 /** 화면 다섯 장이 부채꼴로 펼쳐지는 묶음 — 페이지 최상단.
  *  ⚠️ 스크롤이 아니라 "페이지가 열리면" 퍼진다. 첫 화면에서 바로 보여야 하는 연출이라
  *     스크롤을 기다리게 하면 아무도 못 본다. --sp 를 CSS 애니메이션이 0→1 로 올린다.
- *  fx/fr/fs = 다 펼쳐졌을 때의 가로 위치·기울기·크기. 처음엔 가운데 겹쳐 있다.
- *  ⚠️ fx 의 % 는 자기 폭 기준이다(translate 규칙). 크게 잡으면 양 끝 장이 화면 밖으로 나간다. */
+ *  ⚠️ 가운데가 크고 옆으로 갈수록 작아지며 뒤로 겹쳐 들어가는 형태다.
+ *     처음엔 회전을 넣고 넓게 벌렸는데 "매우 별로"라는 지적을 받았다 — 회전을 빼고,
+ *     크기 낙차를 크게(1 → .78 → .60) 주고, 서로 겹치도록 간격을 좁혔다.
+ *     바깥일수록 아래로 조금 내려 가운데 장이 우뚝 서 보이게 한다.
+ *  fx = 자기 폭 기준 가로 이동(%), fy = 자기 높이 기준 세로 이동(%), fs = 최종 크기. */
 const FAN = [
-  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-66%", fr: "-11deg", fs: 0.76, z: 1 },
-  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-36%", fr: "-6deg",  fs: 0.88, z: 2 },
-  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",   fr: "0deg",   fs: 1,    z: 3 },
-  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "36%",  fr: "6deg",   fs: 0.88, z: 2 },
-  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "66%",  fr: "11deg",  fs: 0.76, z: 1 },
+  { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브",         fx: "-95%", fy: "12%", fs: 0.60, z: 1 },
+  { src: "/product/f-projects-v1.png",  alt: "오너뷰 프로젝트 파이프라인", fx: "-56%", fy: "6%",  fs: 0.78, z: 2 },
+  { src: "/product/dashboard-v5.png",   alt: "오너뷰 대시보드",           fx: "0%",   fy: "0%",  fs: 1,    z: 3 },
+  { src: "/product/f-bank-v1.png",      alt: "오너뷰 거래 장부",          fx: "56%",  fy: "6%",  fs: 0.78, z: 2 },
+  { src: "/product/f-hr-v1.png",        alt: "오너뷰 급여 배치",          fx: "95%",  fy: "12%", fs: 0.60, z: 1 },
 ];
 
 function Fan({ priority = false }: { priority?: boolean }) {
@@ -123,7 +126,7 @@ function Fan({ priority = false }: { priority?: boolean }) {
     <div className="lp5-fan lp5-fan-in">
       {FAN.map((f, i) => (
         <div key={f.src} className="lp5-fan-item" style={{
-          ["--fx" as string]: f.fx, ["--fr" as string]: f.fr,
+          ["--fx" as string]: f.fx, ["--fy" as string]: f.fy,
           ["--fs" as string]: f.fs, zIndex: f.z,
         }}>
           <Image src={f.src} alt={f.alt} width={2288} height={1802}
@@ -358,13 +361,14 @@ function Rail({ cards, tall = false, wide = false, ms = 4600 }: { cards: ReactNo
 //   앞뒤 장면이 전부 [좌 문구 / 우 화면] 이라, 여기만 가로 레일로 리듬을 끊는다.
 //   레일은 --p 로 연속 이동한다(구간 단위로 튀지 않게). 점은 현재 구간만 표시.
 function SceneAxes() {
-  // ⚠️ 설명 위치를 카드마다 바꾼다. 전부 같은 자리에 두면 9장이 같은 판박이로 보인다
-  //    (사장님: "설명들이 다 동일한 위치가 아니라 이미지 성격에 맞게 — 단조롭지 않게").
-  //    tl=위·왼쪽 · tc=위·가운데 · bl=아래·왼쪽 · bc=아래·가운데
-  const CAPS = ["bl", "tc", "bc", "tl", "bl", "tc", "tl", "bc", "bl"];
+  // 카드 구조는 하나로 고정한다 — 좌측 상단 기능명, 그 아래 설명, 그 아래 화면.
+  //   ⚠️ 단조로움은 "설명 위치"가 아니라 "화면을 어떻게 보여주는가"로 푼다 (사장님:
+  //      "화면을 보여줘도 되고, 기능일 때는 특정 기능적인 부분만 강조해서 보여줘도").
+  //      full=화면 전체 · tl/tr/c=그 방향 기능 영역을 확대해서 잘라 보여준다.
+  const VIEWS = ["full", "tl", "c", "tr", "full", "tl", "c", "full", "tr"];
   const cards = PILLARS.flatMap((P) =>
     P.blocks.map((b) => ({ kicker: P.kicker, tab: b.tab, title: b.title, desc: b.desc, src: b.src, alt: b.alt })),
-  ).map((c, i) => ({ ...c, cap: CAPS[i % CAPS.length] }));
+  ).map((c, i) => ({ ...c, view: VIEWS[i % VIEWS.length] }));
   return (
     <section id="pillars" className="lp5-sect">
       <div className="lp5-wrap">
@@ -374,14 +378,15 @@ function SceneAxes() {
           <p className="lp5-lead">회사 운영의 세 축이 하나의 데이터 위에서 같이 움직여요.</p>
         </Rise>
         <Rail wide cards={cards.map((c) => (
-          <article key={c.src + c.tab} className={`lp5-rail-card lp5-cap-${c.cap}`}>
-            <div className="lp5-rail-shot">
-              <Image src={c.src} alt={c.alt} width={2288} height={1802}
-                sizes="(max-width: 999px) 86vw, 1040px" />
-            </div>
+          <article key={c.src + c.tab} className="lp5-rail-card">
             <div className="lp5-rail-over">
               <span className="lp5-rail-kick">{c.kicker} · {c.tab}</span>
               <h3 className="lp5-rail-title">{c.title}</h3>
+              <p className="lp5-rail-desc">{c.desc}</p>
+            </div>
+            <div className={`lp5-rail-shot lp5-view-${c.view}`}>
+              <Image src={c.src} alt={c.alt} width={2288} height={1802}
+                sizes="(max-width: 999px) 86vw, 1040px" />
             </div>
           </article>
         ))} />

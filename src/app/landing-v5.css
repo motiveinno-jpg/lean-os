@@ -196,8 +196,7 @@
 .lp5-fan-item {
   position: absolute; top: 50%; left: 50%; width: 42%;
   transform: translate(-50%, -50%)
-             translateX(calc(var(--fx) * var(--sp)))
-             rotate(calc(var(--fr) * var(--sp)))
+             translate(calc(var(--fx) * var(--sp)), calc(var(--fy) * var(--sp)))
              scale(calc(1 - (1 - var(--fs)) * var(--sp)));
   transform-origin: center center;
 }
@@ -234,7 +233,7 @@
 /* ── 핀 없는 일반 섹션 ── (세 축 · AI)
    ⚠️ 이 둘은 무대(sticky 100vh)에서 뺐다. 스크롤로 카드를 넘기니 화면이 붙잡히고 음영이
       어색하게 걸렸고, 모바일에서는 넘기기 자체가 어려웠다 (사장님 지적). 이제 자동 재생한다. */
-.lp5-sect { position: relative; padding: clamp(84px, 11vh, 150px) 0; background: var(--canvas); }
+.lp5-sect { position: relative; padding: clamp(64px, 8vh, 112px) 0; background: var(--canvas); }
 /* 상단바가 fixed 라 #pillars 같은 앵커로 뛰면 제목이 상단바 밑으로 들어간다 */
 .lp5-sect, .lp5-scene { scroll-margin-top: 84px; }
 .lp5-sect-dark { background: var(--dark); color: #fff; overflow: hidden; }
@@ -260,6 +259,7 @@
 /* ⚠️ .lp5-rail-wide 는 .lp5-rail-track 과 같은 특이도(클래스 1개)인데 track 규칙이 뒤에 있어
    --cw 가 도로 720px 로 덮였다. 카드가 1040px 로 안 커지던 원인. 특이도를 올려 고정한다. */
 .lp5-rail-track.lp5-rail-wide { --cw: min(1040px, 78vw); --gap: 20px; --view: calc(100vw - var(--pad)); }
+.lp5-rail-wide .lp5-rail-card { height: min(62vh, 560px); }
 .lp5-rail-track {
   --cw: min(720px, 74vw);
   --gap: 22px;
@@ -291,24 +291,41 @@
   letter-spacing: -.025em; margin-top: 8px; line-height: 1.32; max-width: 15em;
 }
 
-/* ── 카드 안 설명 띠 ──
-   ⚠️ 처음엔 애플처럼 화면 위에 글씨를 얹었는데, 애플은 어두운 사진이고 우리는 정보가 빽빽한
-      밝은 UI 라 표·숫자를 덮어 둘 다 안 읽혔다. 이미지를 가리지 않는 별도 띠로 두되,
-      띠의 위치(위/아래)와 정렬(왼쪽/가운데)을 카드마다 바꿔 단조로움을 없앤다.
-      (사장님: "설명들이 다 동일한 위치가 아니라 이미지 성격에 맞게, 단조롭지 않게") */
-.lp5-rail-card { display: flex; flex-direction: column; }
-.lp5-rail-over { padding: 22px 26px 20px; }
-.lp5-cap-tl .lp5-rail-over,
-.lp5-cap-tc .lp5-rail-over { order: -1; }
-.lp5-cap-tc .lp5-rail-over,
-.lp5-cap-bc .lp5-rail-over { text-align: center; }
-.lp5-cap-tc .lp5-rail-title,
-.lp5-cap-bc .lp5-rail-title { margin-left: auto; margin-right: auto; }
-.lp5-rail-shot { position: relative; aspect-ratio: 16 / 9.4; overflow: hidden; flex: none;
-  border-radius: 0; margin: 0 14px 14px; border-radius: 16px; }
-.lp5-cap-tl .lp5-rail-shot, .lp5-cap-tc .lp5-rail-shot { margin: 0 14px 16px; }
-.lp5-cap-bl .lp5-rail-shot, .lp5-cap-bc .lp5-rail-shot { margin: 14px 14px 0; }
-.lp5-rail-shot img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+/* ── 코어 카드 ── 회색 판 위에 흰 화면이 떠 있는 구조
+   ⚠️ 카드 배경이 흰색이라 안에 든 오너뷰 화면(역시 흰색)과 경계가 사라져 설명이 묻혔다
+      (사장님: "박스와 오너뷰의 색깔이 똑같아서 구분이 안 된다"). 카드는 틴트, 화면은 흰색 + 그림자.
+   구조는 하나로 고정한다 — 좌측 상단 기능명 → 설명 → 화면.
+   화면은 카드 아래·오른쪽으로 흘려보내 "이어진다"는 느낌을 준다. */
+.lp5-rail-card {
+  display: flex; flex-direction: column;
+  background: linear-gradient(168deg, #F4F5FA 0%, #EDEFF8 100%);
+  border: 1px solid rgba(11,11,15,.06);
+  padding: clamp(26px, 2.6vw, 40px) 0 0 clamp(26px, 2.6vw, 40px);
+}
+.lp5-sect-dark .lp5-rail-card { background: rgba(255,255,255,.045); }
+.lp5-rail-over { padding: 0 clamp(26px, 2.6vw, 40px) clamp(20px, 2vw, 28px) 0; max-width: 40em; }
+.lp5-rail-desc {
+  font-size: clamp(14px, calc(11px + .5vw), 17px); line-height: 1.7;
+  color: var(--ink2); margin-top: 10px; max-width: 34em;
+}
+
+/* 화면 — 카드 안에서 떠 있고, 아래·오른쪽으로 흘러나간다 */
+.lp5-rail-shot {
+  position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden;
+  border-radius: 16px 0 0 0; background: #fff;
+  box-shadow: 0 2px 10px rgba(11,11,15,.06), 0 26px 60px -24px rgba(11,11,15,.34);
+  border: 1px solid rgba(11,11,15,.06); border-right: 0; border-bottom: 0;
+}
+.lp5-rail-shot img { width: 100%; height: 100%; display: block; object-fit: cover; }
+
+/* 화면을 어떻게 보여줄지 — 전체 / 기능 영역 확대.
+   ⚠️ 기준점을 가운데·오른쪽으로 두면 화면 왼쪽 글자가 중간에서 잘린다("…입금을 맞춰봐요").
+      기준점은 좌상단으로 통일하고, 변주는 "얼마나 확대하느냐"로만 준다. */
+.lp5-view-full img,
+.lp5-view-tl img, .lp5-view-tr img, .lp5-view-c img { object-position: left top; transform-origin: left top; }
+.lp5-view-c  img { transform: scale(1.2); }
+.lp5-view-tl img { transform: scale(1.38); }
+.lp5-view-tr img { transform: scale(1.6); }
 
 /* AI 카드 — 세로형. 화면 전체를 축소하지 않고 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
    ⚠️ aspect-ratio 로만 높이를 잡으면 카드가 100vh 무대를 넘어 제목이 위로 잘린다.
@@ -530,11 +547,11 @@
    AI 카드와 같은 방식으로 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
    (이 9장은 모바일 대응본이 다 있지는 않아 폰으로 바꿔 끼울 수 없다 — 섞이면 더 이상해진다) */
 @media (max-width: 700px) {
-  .lp5-rail-shot { aspect-ratio: 4 / 3; }
-  .lp5-rail-shot img { object-position: left top; transform: scale(1.75); transform-origin: left top; }
-  /* 좁은 화면에선 위치 변주를 접고 전부 아래·왼쪽으로 통일한다 — 칸이 좁아 변주가 안 읽힌다 */
-  .lp5-rail-over { order: 0 !important; text-align: left !important; padding: 14px 16px 18px; }
-  .lp5-rail-title { margin-left: 0 !important; margin-right: 0 !important; }
+  /* 좁은 화면 — 확대 크롭을 더 세게(작은 칸에서 전체 화면은 안 읽힌다) */
+  .lp5-rail-wide .lp5-rail-card { height: min(72vh, 560px); padding: 20px 0 0 20px; }
+  .lp5-rail-over { padding: 0 20px 16px 0; }
+  .lp5-view-full img { transform: scale(1.5); transform-origin: left top; }
+  .lp5-view-c img { transform: scale(1.6); }
   .lp5-rail-track.lp5-rail-wide { --cw: min(1040px, 86vw); }
 }
 
