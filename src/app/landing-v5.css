@@ -309,7 +309,7 @@
   transform: translateX(calc(-1 * min(calc(var(--i) * var(--step)), var(--maxx))));
   transition: transform .72s cubic-bezier(.22,.68,.24,1);
 }
-.lp5-rail-track.lp5-rail-tall { --cw: min(620px, 82vw); }
+.lp5-rail-track.lp5-rail-tall { --cw: min(700px, 86vw); }
 .lp5-rail-card {
   flex: 0 0 var(--cw); width: var(--cw);
   border-radius: 26px; overflow: hidden; background: var(--canvas2);
@@ -364,8 +364,10 @@
       어두운 무대 + 그림자로 띄워 전문적인 인상을 만든다(참고 이미지 구조). */
 .lp5-rail-cell { flex: 0 0 var(--cw); width: var(--cw); }
 .lp5-rail-art {
-  aspect-ratio: 16 / 11; border-radius: 22px; overflow: hidden; position: relative;
-  display: flex; align-items: center; justify-content: center; padding: 7%;
+  /* ⚠️ 조각은 가로가 길다(비율 2.25~2.89). 16:11 타일에 넣으니 흰 UI 가 어두운 여백
+     한가운데 떠 있는 꼴이 됐다(사장님 지적). 타일 비율을 조각에 맞추고 여백을 줄인다. */
+  aspect-ratio: 12 / 5; border-radius: 20px; overflow: hidden; position: relative;
+  display: flex; align-items: center; justify-content: center; padding: 3.6%;
   background:
     radial-gradient(120% 90% at 22% 0%, rgba(124,107,255,.26), transparent 62%),
     radial-gradient(110% 80% at 88% 100%, rgba(79,70,229,.22), transparent 60%),
