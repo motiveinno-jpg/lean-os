@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ico } from "@/components/ui-icon";
 import { useEffect, useState } from "react";
 import { ProjectFlow } from "./_components/project-flow";
 import { WidgetBoard } from "./_components/widget-board";
@@ -659,7 +660,7 @@ export default function DemoPage() {
                   className={`risk-item-card glass-card ${risk.count > 0 ? "risk-item-card-hot" : ""}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm">{risk.icon}</span>
+                    <span className="text-sm"><Ico e={risk.icon} /></span>
                     <span
                       className="text-[11px] font-bold"
                       style={{ color: "var(--text)" }}
@@ -883,7 +884,7 @@ export default function DemoPage() {
                   key={link.label}
                   className="quick-link-card glass-card"
                 >
-                  <div className="text-xl mb-1.5">{link.icon}</div>
+                  <div className="text-xl mb-1.5"><Ico e={link.icon} /></div>
                   <div
                     className="text-xs font-bold"
                     style={{ color: "var(--text)" }}

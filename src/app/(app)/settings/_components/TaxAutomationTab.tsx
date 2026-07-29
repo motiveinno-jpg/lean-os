@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { useEffect, useState } from "react";
@@ -88,7 +89,7 @@ export function TaxAutomationTab({ companyId }: { companyId: string | null }) {
       </div>
       <div className="tax-hometax-link-card glass-card">
         <div className="flex items-center gap-3 mb-3">
-          <span className="kpi-icon success text-lg">🏛️</span>
+          <span className="kpi-icon success text-lg"><Ico e="🏛" /></span>
           <div>
             <h2 className="text-sm font-bold">홈택스 연동</h2>
             <p className="text-xs text-[var(--text-dim)]">국세청 홈택스와 연동하여 세금계산서 자동 조회</p>

@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -338,9 +339,9 @@ function PanelBody({
                 </div>
                 <h1 className="project-title-page">{deal.name || "(이름 없음)"}</h1>
                 <div className="project-meta-row">
-                  <span>📅 {formatRange(deal.start_date, deal.end_date)}</span>
+                  <span><Ico e="📅" /> {formatRange(deal.start_date, deal.end_date)}</span>
                   {!isEmployeeLimited && deal.contract_total != null && (
-                    <span>💰 {Number(deal.contract_total).toLocaleString()}원</span>
+                    <span><Ico e="💰" /> {Number(deal.contract_total).toLocaleString()}원</span>
                   )}
                 </div>
               </div>
@@ -618,7 +619,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-base shrink-0">{action.icon}</span>
+            <span className="text-base shrink-0"><Ico e={action.icon ?? ""} /></span>
             <span className="text-sm font-semibold truncate">{action.text}</span>
           </div>
           <span className="text-[10px] uppercase tracking-wider opacity-70 shrink-0">
@@ -815,7 +816,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
       {/* 위험 영역 — owner/admin 만 노출 */}
       {canDelete && (
         <div className="danger-zone">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-red-500 mb-1">⚠ 위험 영역</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-red-500 mb-1"><Ico e="⚠" /> 위험 영역</div>
           <div className="text-[11px] text-[var(--text-muted)] mb-3">
             프로젝트를 삭제하면 칸반·리스트·활동 어디에서도 보이지 않게 됩니다.
             회계 데이터(매출·비용·정산서·계약서)는 보존됩니다.
@@ -825,7 +826,7 @@ function OverviewTab({ data, stage, isEmployeeLimited = false, onClose }: { data
             onClick={() => setDeleteOpen(true)}
             className="delete-project-btn"
           >
-            🗑 프로젝트 삭제
+            <Ico e="🗑" /> 프로젝트 삭제
           </button>
         </div>
       )}
@@ -1661,7 +1662,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                 className="file-list-item-signed"
               >
                 <button onClick={() => openDocViewer({ type: 'contract', id: f.id })} className="flex items-center gap-2 min-w-0 hover:underline flex-1 text-left">
-                  <span>{f.icon}</span>
+                  <span><Ico e={f.icon} /></span>
                   <span className="text-[var(--text)] truncate">{f.name}</span>
                 </button>
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">
@@ -1678,7 +1679,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                 className="file-list-item-doc"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[var(--text-dim)]">📄</span>
+                  <span className="text-[var(--text-dim)]"><Ico e="📄" /></span>
                   <span className="text-[var(--text)] truncate">{d.name || "(이름 없음)"}</span>
                 </div>
                 <span className="text-[10px] text-[var(--text-dim)] shrink-0">
@@ -1715,7 +1716,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
                 key={e.key}
                 className="activity-log-item"
               >
-                <span className="shrink-0">{e.icon}</span>
+                <span className="shrink-0"><Ico e={e.icon} /></span>
                 <div className="flex-1 min-w-0">
                   <div className="text-[var(--text)]">
                     <span className="font-semibold">{e.action}</span>
@@ -1840,7 +1841,7 @@ function DeleteProjectModal({
         className="delete-modal-panel"
       >
         <div className="delete-modal-header">
-          <div className="text-sm font-bold text-red-500">⚠️ 프로젝트 삭제</div>
+          <div className="text-sm font-bold text-red-500"><Ico e="⚠" /> 프로젝트 삭제</div>
           <button
             type="button"
             onClick={onClose}

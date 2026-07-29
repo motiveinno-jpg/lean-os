@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Ico } from "@/components/ui-icon";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -88,7 +89,7 @@ export default function PlatformAveragesPage() {
       {/* 표본 안내 */}
       {sampleSize > 0 && sampleSize < 10 && (
         <div className="platform-sample-size-warning kpi-callout warning">
-          ⚠ 표본 <b>{sampleSize}개</b> — 평균/중앙값의 통계적 의미는 제한적입니다. 회사가 늘어날수록 신뢰도가 올라갑니다.
+          <Ico e="⚠" /> 표본 <b>{sampleSize}개</b> — 평균/중앙값의 통계적 의미는 제한적입니다. 회사가 늘어날수록 신뢰도가 올라갑니다.
         </div>
       )}
 

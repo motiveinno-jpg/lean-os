@@ -5,6 +5,7 @@
 //   ⚠️ CODEF 호출 없음(비용 0) — '동기화' 버튼이 쓰는 organize 티어만 재사용. 미분류 0건이면 표시 안 함.
 
 import { useState } from "react";
+import { Ico } from "@/components/ui-icon";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -55,7 +56,7 @@ export function UnclassifiedPrompt({ companyId }: { companyId: string }) {
 
   return (
     <div className="unclassified-prompt" style={{ background: "color-mix(in srgb, var(--warning) 8%, transparent)", borderColor: "color-mix(in srgb, var(--warning) 22%, transparent)" }}>
-      <span className="text-base shrink-0">🗂️</span>
+      <span className="text-base shrink-0"><Ico e="🗂" /></span>
       <div className="prompt-text">
         <div className="text-[12px] font-bold text-[var(--text)]">미분류 거래 {count.toLocaleString()}건</div>
         <div className="text-[11px] text-[var(--text-dim)] truncate">계정과목이 지정되지 않은 통장·카드 거래입니다. 자동 정리하거나 직접 분류하세요.</div>

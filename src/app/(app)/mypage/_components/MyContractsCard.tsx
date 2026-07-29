@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo } from "react";
@@ -53,7 +54,7 @@ export function MyContractsCard({ employeeId }: { employeeId: string | null }) {
         <div className="mypage-record-loading">불러오는 중...</div>
       ) : packages.length === 0 ? (
         <div className="mypage-record-empty">
-          <div className="text-3xl mb-2">📄</div>
+          <div className="text-3xl mb-2"><Ico e="📄" /></div>
           <div className="text-sm font-semibold text-[var(--text-muted)]">받은 계약서가 없습니다</div>
           <div className="text-xs text-[var(--text-dim)] mt-1">회사에서 계약서를 발송하면 이곳에 표시됩니다.</div>
         </div>

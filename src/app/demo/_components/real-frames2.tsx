@@ -1,3 +1,4 @@
+import { Ico } from "@/components/ui-icon";
 "use client";
 
 // /demo — 실화면 대조 후 재작성한 패널 2차 (2026-07-28).
@@ -49,9 +50,9 @@ export function ProjectHubPanel({ before = false }: { before?: boolean }) {
       />
       <div className="pp-filter pp-mt">
         <span className="pp-chip-on">전체 {v("3")}</span>
-        <span className="pp-chip-off">💰 수익형 {v("1")}</span>
-        <span className="pp-chip-off">🎯 목표형 {v("1")}</span>
-        <span className="pp-chip-off">✅ 실행형 {v("1")}</span>
+        <span className="pp-chip-off"><Ico e="💰" /> 수익형 {v("1")}</span>
+        <span className="pp-chip-off"><Ico e="🎯" /> 목표형 {v("1")}</span>
+        <span className="pp-chip-off"><Ico e="✅" /> 실행형 {v("1")}</span>
         <span className="pp-btn pp-btn-ai">+ 프로젝트 생성</span>
       </div>
 
@@ -64,7 +65,7 @@ export function ProjectHubPanel({ before = false }: { before?: boolean }) {
       </div>
 
       <div className="pp-notice">
-        <span>💸 <b>회사 전체 미수금</b> — 계산서는 발행했지만 아직 통장에 입금 안 된 금액 (매칭 기준)</span>
+        <span><Ico e="💸" /> <b>회사 전체 미수금</b> — 계산서는 발행했지만 아직 통장에 입금 안 된 금액 (매칭 기준)</span>
         <b>{v("₩44,002,200")}</b>
       </div>
 
@@ -200,7 +201,7 @@ export function EmployeesRealPanel({ before = false }: { before?: boolean }) {
         <span className="pp-chip-off">디자인팀</span>
         <span className="pp-chip-off">개발팀</span>
         <span className="pp-chip-off">경영지원팀</span>
-        <span className="pp-btn pp-btn-ai">⚙️ 관리 · 추가/수정</span>
+        <span className="pp-btn pp-btn-ai"><Ico e="⚙" /> 관리 · 추가/수정</span>
       </div>
       <table className="pp-table">
         <thead><tr><th>이름</th><th>직급 · 팀</th><th>입사일</th><th>근속</th><th>상태</th></tr></thead>
@@ -411,7 +412,7 @@ export function CopilotRealPanel({ before = false }: { before?: boolean }) {
         <span className="pp-inner-tab">이번 달 매출 흐름을 봐줘</span>
       </div>
       <div className="pp-sub-card">
-        <div className="pp-sub-t">✦ AI 분석 결과 <i className="pp-dim">Sonnet · 7월 28일 오후 02:03</i></div>
+        <div className="pp-sub-t"><Ico e="✦" /> AI 분석 결과 <i className="pp-dim">Sonnet · 7월 28일 오후 02:03</i></div>
         <div className="pp-state-line">
           {before ? "분석 중이에요…" : "미수금 4,400만원 — 지금 회수 우선순위를 정해 행동하세요"}
         </div>

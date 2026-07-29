@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Ico } from "@/components/ui-icon";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -50,7 +51,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
       <div className="quick-approval-grid">
         <Link href="/approvals?new=expense"
           className="quick-approval-item-expense">
-          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-emerald-500/10 text-base leading-none">💳</span>
+          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-emerald-500/10 text-base leading-none"><Ico e="💳" /></span>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">경비 청구</div>
             <div className="text-[10px] text-[var(--text-dim)] leading-tight mt-0.5 truncate">영수증 첨부 + 승인</div>
@@ -58,7 +59,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
         </Link>
         <Link href="/approvals?new=payment"
           className="quick-approval-item-payment">
-          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-blue-500/10 text-base leading-none">📝</span>
+          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-blue-500/10 text-base leading-none"><Ico e="📝" /></span>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">지출 결의서</div>
             <div className="text-[10px] text-[var(--text-dim)] leading-tight mt-0.5 truncate">자금 집행 결재</div>
@@ -66,7 +67,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
         </Link>
         <Link href="/leave?new=1"
           className="quick-approval-item-leave">
-          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-orange-500/10 text-base leading-none">🏖</span>
+          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-orange-500/10 text-base leading-none"><Ico e="🏖" /></span>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">연차 신청</div>
             <div className="text-[10px] text-[var(--text-dim)] leading-tight mt-0.5 truncate">휴가 · 반차 · 특별휴가</div>
@@ -74,7 +75,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
         </Link>
         <Link href="/approvals?new=general"
           className="quick-approval-item-general">
-          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-violet-500/10 text-base leading-none">📋</span>
+          <span className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-violet-500/10 text-base leading-none"><Ico e="📋" /></span>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-[var(--text)] leading-tight truncate">일반 결재</div>
             <div className="text-[10px] text-[var(--text-dim)] leading-tight mt-0.5 truncate">사유서 · 품의서 등</div>
@@ -83,7 +84,7 @@ export function QuickApprovalCard({ companyId, userId }: { companyId: string; us
       </div>
 
       <div className="quick-approval-footer">
-        💡 항목 클릭 → 결재 페이지에서 양식 작성 → 승인자 지정 → 결재 요청 발송
+        <Ico e="💡" /> 항목 클릭 → 결재 페이지에서 양식 작성 → 승인자 지정 → 결재 요청 발송
       </div>
     </div>
   );

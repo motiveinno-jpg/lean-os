@@ -1,5 +1,6 @@
 "use client";
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 프로젝트 상세 (라이프사이클 탭) — 기존 deal 데이터 재사용. 2026-06-17 핸드오프 v2.
@@ -990,7 +991,7 @@ export default function ProjectHubDetailPage() {
           <MoneyFlow pipe={pipe} contractTotal={ownContract} revenue={salesSoT} revenueBasis={revenueBasis} actualCost={totalCost} onOpen={setTab} />
           {confirmedRevenue > 0 && planRevenue > 0 && Math.abs(confirmedRevenue - planRevenue) > Math.max(1000, planRevenue * 0.01) && (
             <div className="amount-mismatch-warning glass-card">
-              <span className="shrink-0">⚠</span>
+              <span className="shrink-0"><Ico e="⚠" /></span>
               <span>계약·약정 매출 <b className="mono-number">{won(planRevenue)}</b> 과 계산서 발행액 <b className="mono-number">{won(confirmedRevenue)}</b> 이 다릅니다. 중간에 금액이 바뀌었다면 계약 금액 또는 발행 계산서를 확인·수정하세요.</span>
             </div>
           )}
@@ -1107,9 +1108,9 @@ export default function ProjectHubDetailPage() {
           <div className="quote-list-toolbar">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
             <div className="quote-list-actions">
-              {companyId && <button onClick={() => setTplManagerKind("quote")} className="btn-secondary text-xs">📄 양식 관리</button>}
+              {companyId && <button onClick={() => setTplManagerKind("quote")} className="btn-secondary text-xs"><Ico e="📄" /> 양식 관리</button>}
               <button onClick={() => setShowColSettings((v) => !v)}
-                className="btn-secondary text-xs">⚙ 열 설정</button>
+                className="btn-secondary text-xs"><Ico e="⚙" /> 열 설정</button>
               <button onClick={pipelineDir === "purchase" ? createInboundQuote : createQuoteInstant} disabled={creatingQuote}
                 className="btn-primary text-xs hover:opacity-90">{creatingQuote ? "생성 중..." : pipelineDir === "purchase" ? "📥 협력사 견적 등록" : "+ 견적서 작성"}</button>
               {showColSettings && (
@@ -1203,10 +1204,10 @@ export default function ProjectHubDetailPage() {
           <div className="contract-list-toolbar">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
             <div className="contract-list-actions">
-              {companyId && <button onClick={() => setTplManagerKind("contract")} className="btn-secondary text-xs">📄 양식 관리</button>}
+              {companyId && <button onClick={() => setTplManagerKind("contract")} className="btn-secondary text-xs"><Ico e="📄" /> 양식 관리</button>}
               <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setPayMode("full"); setPayAdv(30); setPayMid(30); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
                 className="btn-primary text-xs hover:opacity-90">+ 계약서 작성</button>
-              <Link href="/signatures?bulk=1" className="btn-secondary text-xs">📤 단체 일괄 발송</Link>
+              <Link href="/signatures?bulk=1" className="btn-secondary text-xs"><Ico e="📤" /> 단체 일괄 발송</Link>
               <Link href="/signatures" className="btn-secondary text-xs">전자계약 메뉴 →</Link>
             </div>
           </div>
@@ -1557,7 +1558,7 @@ export default function ProjectHubDetailPage() {
               )}
               {preview.length > 0 && <p className="text-[11px] text-[var(--text-dim)] mt-2">첫 회차(선금)만 즉시 발행되고, 이후 회차는 <b className="text-[var(--text-muted)]">초안</b>으로 생성됩니다. 입금 확인 후 세금계산서 메뉴에서 발행하세요.</p>}
               {existingCount > 0 && (
-                <p className="text-[11px] text-[var(--warning)] mt-3">⚠ 이 프로젝트에 이미 발행된 매출 계산서가 {existingCount}건 있습니다. 중복 발행 시 매출이 이중 계상될 수 있습니다.</p>
+                <p className="text-[11px] text-[var(--warning)] mt-3"><Ico e="⚠" /> 이 프로젝트에 이미 발행된 매출 계산서가 {existingCount}건 있습니다. 중복 발행 시 매출이 이중 계상될 수 있습니다.</p>
               )}
               <div className="flex items-center justify-end gap-2.5 mt-5">
                 <button onClick={() => setInvoiceModal(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
@@ -1817,7 +1818,7 @@ function MoneyFlow({ pipe, contractTotal, revenue, revenueBasis, actualCost, onO
         </div>
         <div className="flex flex-col gap-1.5 mt-4 pt-3 border-t border-[var(--border)]">
           {actualCost === 0 && <div className="text-[11.5px] text-[var(--text-dim)]">비용을 태그하면 <b className="text-[var(--text-muted)]">확정 마진</b>이 채워집니다.</div>}
-          {revenue > 0 && actualCost > 0 && margin < 0 && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--danger)]/8 text-[var(--danger)] font-semibold">⚠ 비용이 매출 초과 — 적자</div>}
+          {revenue > 0 && actualCost > 0 && margin < 0 && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--danger)]/8 text-[var(--danger)] font-semibold"><Ico e="⚠" /> 비용이 매출 초과 — 적자</div>}
           {flagMissBill && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--warning)]/8 text-[var(--warning)] font-semibold">계약 대비 미발행 {won(contractTotal - billedAmt)}</div>}
           {outstanding > 1 && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--danger)]/8 text-[var(--danger)] font-semibold">미수금 {won(outstanding)}</div>}
           {actualCost > 0 && margin >= 0 && !flagMissBill && outstanding <= 1 && <div className="text-[11.5px] text-[var(--text-dim)] flex items-center gap-1.5"><span style={{ color: "var(--viz-pos)" }}>✓</span> 특이사항 없음</div>}
@@ -2033,7 +2034,7 @@ function Info({ label, value }: { label: string; value: string }) {
 function Empty({ text }: { text: string }) {
   return (
     <div className="list-empty-state glass-card">
-      <div className="text-4xl">📂</div>
+      <div className="text-4xl"><Ico e="📂" /></div>
       <div className="text-sm font-semibold text-[var(--text)]">{text}</div>
       <div className="text-xs text-[var(--text-dim)]">추가하면 이 목록에 바로 나타납니다.</div>
     </div>

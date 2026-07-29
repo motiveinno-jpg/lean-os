@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -206,7 +207,7 @@ export default function ErrorLogsPage() {
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
         <div className="error-log-empty-state glass-card">
-          <div className="text-4xl mb-3">✅</div>
+          <div className="text-4xl mb-3"><Ico e="✅" /></div>
           <div className="text-sm text-[var(--text-muted)]">
             {filter === "unresolved" ? "미해결 에러가 없습니다" : "에러 로그가 없습니다"}
           </div>
@@ -281,13 +282,13 @@ export default function ErrorLogsPage() {
                   <div className="error-log-detail">
                     {/* 한국어 설명 */}
                     <div className="error-log-explain">
-                      <div className="text-xs font-semibold text-[var(--text)] mb-1">🔎 무슨 에러인가요?</div>
+                      <div className="text-xs font-semibold text-[var(--text)] mb-1"><Ico e="🔎" /> 무슨 에러인가요?</div>
                       <div className="text-xs text-[var(--text-muted)] leading-relaxed">{ex.detail}</div>
                       <div className="text-[11px] text-[var(--text-dim)] mt-1.5">원인 요약: {ex.hint}</div>
                     </div>
                     {/* 어떻게 고치나요 */}
                     <div className="error-log-fix">
-                      <div className="text-xs font-semibold text-[var(--primary)] mb-1.5">🛠 어떻게 고치나요?</div>
+                      <div className="text-xs font-semibold text-[var(--primary)] mb-1.5"><Ico e="🛠" /> 어떻게 고치나요?</div>
                       <ol className="text-xs text-[var(--text-muted)] leading-relaxed list-decimal pl-4 space-y-1">
                         {ex.fix.map((step, i) => <li key={i}>{step}</li>)}
                       </ol>

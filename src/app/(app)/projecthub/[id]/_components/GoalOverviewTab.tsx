@@ -1,5 +1,6 @@
 "use client";
 import { todayKst } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 목표형 '개요' = 성과 콕핏 (그래프 대시보드). project_type==='goal' overview 에서만 렌더.
@@ -184,7 +185,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   if (kpiList.length === 0) {
     return (
       <div className="glass-card p-10 text-center">
-        <div className="text-4xl mb-3">📊</div>
+        <div className="text-4xl mb-3"><Ico e="📊" /></div>
         <div className="text-sm font-semibold text-[var(--text)]">아직 KPI가 없습니다</div>
         <div className="text-xs text-[var(--text-muted)] mt-1">‘성과’ 탭에서 KPI를 추가하면 목표·실적·달성률이 그래프로 표시됩니다.</div>
       </div>
@@ -384,8 +385,8 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
               {latestUpdate && (latestUpdate.did || latestUpdate.issues || latestUpdate.next_plan) && (
                 <div className="goal-overview-checkin-note">
                   <div className="text-[10px] text-[var(--text-dim)]">최근 체크인 · {nameOf(latestUpdate.created_by)} · {String(latestUpdate.update_date || "").slice(0, 10)}</div>
-                  {latestUpdate.did && <div>✅ {latestUpdate.did}</div>}
-                  {latestUpdate.issues && <div className="text-amber-600">🚧 {latestUpdate.issues}</div>}
+                  {latestUpdate.did && <div><Ico e="✅" /> {latestUpdate.did}</div>}
+                  {latestUpdate.issues && <div className="text-amber-600"><Ico e="🚧" /> {latestUpdate.issues}</div>}
                   {latestUpdate.next_plan && <div>➡️ {latestUpdate.next_plan}</div>}
                 </div>
               )}

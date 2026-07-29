@@ -1,6 +1,7 @@
 "use client";
 
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";

@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { friendlyError } from "@/lib/friendly-error";
@@ -181,7 +182,7 @@ function GuestChatView({ token }: { token: string }) {
     return (
       <div className="flex items-center justify-center h-screen bg-[var(--bg)]">
         <div className="glass-card p-10 text-center max-w-md">
-          <div className="text-3xl mb-4">🔒</div>
+          <div className="text-3xl mb-4"><Ico e="🔒" /></div>
           <div className="text-sm font-bold mb-2 text-[var(--danger)]">접근 불가</div>
           <div className="text-sm text-[var(--text-muted)]">{error}</div>
         </div>
@@ -224,7 +225,7 @@ function GuestChatView({ token }: { token: string }) {
         <div className={`chat-guest-messages-panel ${guestRtStatus === 'SUBSCRIBED' ? 'rounded-t-2xl' : ''}`}>
           {messages.length === 0 ? (
             <div className="text-center py-20">
-              <div className="text-4xl mb-3">💬</div>
+              <div className="text-4xl mb-3"><Ico e="💬" /></div>
               <div className="text-sm font-semibold text-[var(--text)]">첫 메시지를 보내세요</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-1.5">아래 입력창에서 대화를 시작할 수 있습니다.</div>
             </div>
@@ -453,7 +454,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
         ) : (
           <div className="flex-1 flex items-center justify-center text-center p-8">
             <div>
-              <div className="text-5xl mb-4">💬</div>
+              <div className="text-5xl mb-4"><Ico e="💬" /></div>
               <div className="text-sm font-semibold text-[var(--text)]">채널을 선택하세요</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">왼쪽에서 대화를 선택하거나 새 채널을 만드세요</div>
             </div>

@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
@@ -42,7 +43,7 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
         <div className="mypage-record-loading">불러오는 중...</div>
       ) : payslips.length === 0 ? (
         <div className="mypage-record-empty">
-          <div className="text-3xl mb-2">💳</div>
+          <div className="text-3xl mb-2"><Ico e="💳" /></div>
           <div className="text-sm font-semibold text-[var(--text-muted)]">발급된 급여명세서가 없습니다</div>
           <div className="text-xs text-[var(--text-dim)] mt-1">급여가 지급되면 월별 명세서가 이곳에 표시됩니다.</div>
         </div>

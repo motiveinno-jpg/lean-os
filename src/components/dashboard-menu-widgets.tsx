@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // 대시보드 카탈로그용 메뉴 위젯 — 각 메뉴의 실제 데이터 미리보기(2026-07-15).
 //   공용 셸 ActivityCard 재사용(제목 + 전체보기 → / 표 행). 쿼리는 코드베이스 검증 패턴만 사용.
@@ -177,7 +178,7 @@ export function AnnouncementsCard() {
     <ActivityCard title="공지사항" href="/announcements" empty={data.length === 0}>
       {data.map((a) => (
         <Link key={a.id} href="/announcements" className="dash-announcement-row">
-          {a.pinned && <span className="text-[11px] shrink-0">📌</span>}
+          {a.pinned && <span className="text-[11px] shrink-0"><Ico e="📌" /></span>}
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{a.title || "-"}</span>
           <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(a.created_at)}</span>
         </Link>

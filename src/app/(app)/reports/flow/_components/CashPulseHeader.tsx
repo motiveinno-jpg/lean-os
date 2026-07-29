@@ -5,6 +5,7 @@
 //   현재 잔액 · 런웨이 · 펄스 점수 · 미래 잔액 추이(AreaTrend) · 자금부족 경고.
 
 import { useQuery } from "@tanstack/react-query";
+import { Ico } from "@/components/ui-icon";
 import { getCashPulseData } from "@/lib/queries";
 import { buildCashPulse, getPulseLevel, type CashPulseResult } from "@/lib/cash-pulse";
 import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
@@ -92,7 +93,7 @@ export function CashPulseHeader({ companyId, userId }: { companyId: string; user
       {/* 자금부족 경고 */}
       {shortfall && (
         <div className="cash-pulse-shortfall kpi-callout danger">
-          ⚠ {shortfall.label} 시점 현금 부족 예상 (<b>₩{won(shortfall.balance)}</b>) — 입금 일정·지출 조정이 필요합니다
+          <Ico e="⚠" /> {shortfall.label} 시점 현금 부족 예상 (<b>₩{won(shortfall.balance)}</b>) — 입금 일정·지출 조정이 필요합니다
         </div>
       )}
 

@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
@@ -375,7 +376,7 @@ export default function SignaturesDashboardPage() {
           title="최근 7일간 이메일 발송에 실패한 건을 확인하고 재발송하세요"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <span className="shrink-0 w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center text-lg">⚠️</span>
+            <span className="shrink-0 w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center text-lg"><Ico e="⚠" /></span>
             <div className="min-w-0">
               <div className="text-xs font-semibold">최근 7일 발송 실패</div>
               <div className="text-[11px] opacity-80 truncate">
@@ -478,7 +479,7 @@ export default function SignaturesDashboardPage() {
           <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : filtered.length === 0 ? (
           <div className="signature-empty-state glass-card">
-            <div className="text-5xl mb-4">✍️</div>
+            <div className="text-5xl mb-4"><Ico e="✍" /></div>
             <div className="text-base font-bold text-[var(--text)]">문서에 서명을 요청해보세요</div>
             <div className="text-xs text-[var(--text-muted)] mt-1.5">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
             <button onClick={() => setShowInviteModal(true)} className="btn-primary mt-5">+ 새 계약 요청</button>
@@ -503,7 +504,7 @@ export default function SignaturesDashboardPage() {
                         </span>
                         {r.batch_id && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)]" title={`묶음 발송 #${r.batch_seq ?? "?"}`}>
-                            📦 묶음{r.batch_seq ? ` #${r.batch_seq}` : ""}
+                            <Ico e="📦" /> 묶음{r.batch_seq ? ` #${r.batch_seq}` : ""}
                           </span>
                         )}
                       </div>
@@ -513,20 +514,20 @@ export default function SignaturesDashboardPage() {
                     </div>
                     <div className="signature-request-actions">
                       {canRemind && (
-                        <button onClick={() => reminderMut.mutate(r.id)} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송">🔔</button>
+                        <button onClick={() => reminderMut.mutate(r.id)} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송"><Ico e="🔔" /></button>
                       )}
                       {r.sign_token && r.status !== 'signed' && (
-                        <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명 링크 열기" title="서명 링크">🔗</a>
+                        <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명 링크 열기" title="서명 링크"><Ico e="🔗" /></a>
                       )}
-                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="계약서 보기 / PDF 다운로드" title="이 계약서 보기 / PDF 다운로드">📄</button>
+                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="계약서 보기 / PDF 다운로드" title="이 계약서 보기 / PDF 다운로드"><Ico e="📄" /></button>
                       {r.status === 'signed' && (
-                        <button onClick={async () => { const proof = await getSignatureProof(r.id); setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: proof.signature_data, title: r.title, signer_inputs: proof.signer_inputs }); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명본 보기" title="서명본 보기">✅</button>
+                        <button onClick={async () => { const proof = await getSignatureProof(r.id); setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: proof.signature_data, title: r.title, signer_inputs: proof.signer_inputs }); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명본 보기" title="서명본 보기"><Ico e="✅" /></button>
                       )}
                       {canRemind && (
                         <button onClick={async () => { if (await appConfirm("이 계약 요청을 취소하시겠습니까?", { danger: true, confirmLabel: "취소 처리" })) cancelMut.mutate(r.id); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition" aria-label="계약 요청 취소" title="취소(만료 처리)">✕</button>
                       )}
                       {isManager && (
-                        <button onClick={async () => { if (await appConfirm("이 계약 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.", { danger: true })) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제">🗑</button>
+                        <button onClick={async () => { if (await appConfirm("이 계약 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.", { danger: true })) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제"><Ico e="🗑" /></button>
                       )}
                     </div>
                   </div>
@@ -548,7 +549,7 @@ export default function SignaturesDashboardPage() {
                         complained: { t: "스팸신고", c: "bg-red-500/10 text-red-500" },
                         delayed: { t: "전달지연", c: "bg-amber-500/10 text-amber-500" },
                       } as any)[r.delivery_status];
-                      return m ? <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${m.c}`} title={r.delivery_detail || (r.delivery_at ? new Date(r.delivery_at).toLocaleString("ko-KR") : "")}>✉ {m.t}</span> : null;
+                      return m ? <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${m.c}`} title={r.delivery_detail || (r.delivery_at ? new Date(r.delivery_at).toLocaleString("ko-KR") : "")}><Ico e="✉" /> {m.t}</span> : null;
                     })()}
                   </div>
                 </div>
@@ -624,7 +625,7 @@ export default function SignaturesDashboardPage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div>
-                <div className="text-sm font-bold">✅ 서명본</div>
+                <div className="text-sm font-bold"><Ico e="✅" /> 서명본</div>
                 <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{viewSignedRow.title}</div>
               </div>
               <button onClick={() => setViewSignedRow(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
@@ -697,7 +698,7 @@ export default function SignaturesDashboardPage() {
                     rel="noopener noreferrer"
                     className="px-4 py-1.5 text-xs bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-lg"
                   >
-                    🔗 외부 보기
+                    <Ico e="🔗" /> 외부 보기
                   </a>
                 ) : null;
               })()}

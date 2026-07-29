@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
@@ -712,7 +713,7 @@ export default function BoardPage() {
           {/* ① 일정 */}
           <div className="rounded-xl border border-[var(--border)] p-3">
             <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
-              📅 일정 (선택)
+              <Ico e="📅" /> 일정 (선택)
             </div>
             <DateField
               value={eventDate}
@@ -724,7 +725,7 @@ export default function BoardPage() {
           {/* ② 투표 */}
           <div className="rounded-xl border border-[var(--border)] p-3">
             <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
-              🗳️ 투표 (선택)
+              <Ico e="🗳" /> 투표 (선택)
             </div>
             <input
               value={pollQuestion}
@@ -798,7 +799,7 @@ export default function BoardPage() {
           {/* ③ 사진 첨부 */}
           <div className="rounded-xl border border-[var(--border)] p-3">
             <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
-              🖼️ 사진 첨부 (선택)
+              <Ico e="🖼" /> 사진 첨부 (선택)
             </div>
             <FileUploadMulti
               onFilesSelect={setPhotoFiles}
@@ -813,7 +814,7 @@ export default function BoardPage() {
           {/* ④ 파일 첨부 */}
           <div className="rounded-xl border border-[var(--border)] p-3">
             <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
-              📎 파일 첨부 (선택)
+              <Ico e="📎" /> 파일 첨부 (선택)
             </div>
             <FileUploadMulti
               onFilesSelect={setDocFiles}
@@ -861,7 +862,7 @@ export default function BoardPage() {
         </div>
       ) : filteredPosts.length === 0 ? (
         <div className="board-empty-state glass-card">
-          <div className="text-4xl mb-3">📝</div>
+          <div className="text-4xl mb-3"><Ico e="📝" /></div>
           <div className="text-sm font-semibold text-[var(--text)]">
             {posts.length === 0
               ? "등록된 글이 없습니다. 첫 글을 작성해보세요."
@@ -911,22 +912,22 @@ export default function BoardPage() {
                     <div className="board-post-badges">
                       {p.pinned && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
-                          📌 고정
+                          <Ico e="📌" /> 고정
                         </span>
                       )}
                       {p.event_date && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--info-dim)] text-[var(--info)] font-semibold">
-                          📅 {kstDateStr(new Date(p.event_date))}
+                          <Ico e="📅" /> {kstDateStr(new Date(p.event_date))}
                         </span>
                       )}
                       {p.poll_question && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
-                          🗳️ 투표
+                          <Ico e="🗳" /> 투표
                         </span>
                       )}
                       {(p.attachments?.length ?? 0) > 0 && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">
-                          📎 {p.attachments!.length}
+                          <Ico e="📎" /> {p.attachments!.length}
                         </span>
                       )}
                       <span className="text-sm font-bold text-[var(--text)] truncate">
@@ -960,7 +961,7 @@ export default function BoardPage() {
                     {/* 일정 표시 */}
                     {p.event_date && (
                       <div className="mt-3 flex items-center gap-2 text-xs px-3 py-2 rounded-lg bg-[var(--info-dim)] text-[var(--info)]">
-                        <span>📅</span>
+                        <span><Ico e="📅" /></span>
                         <span className="font-semibold">
                           일정: {kstDateStr(new Date(p.event_date))}
                         </span>
@@ -973,7 +974,7 @@ export default function BoardPage() {
                       return (
                       <div className="board-poll-block">
                         <div className="text-sm font-semibold text-[var(--text)] mb-2 flex items-center gap-2 flex-wrap">
-                          <span>🗳️ {p.poll_question}</span>
+                          <span><Ico e="🗳" /> {p.poll_question}</span>
                           {label && (
                             <span
                               className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
@@ -1076,7 +1077,7 @@ export default function BoardPage() {
                                 rel="noreferrer"
                                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] hover:border-[var(--primary)]/40 transition"
                               >
-                                <span>📎</span>
+                                <span><Ico e="📎" /></span>
                                 <span className="max-w-[160px] truncate">
                                   {a.name}
                                 </span>
@@ -1281,7 +1282,7 @@ export default function BoardPage() {
                         })}
                         {rootComments.length === 0 && (
                           <div className="text-center py-4 text-xs text-[var(--text-dim)]">
-                            💬 <span className="font-medium">첫 댓글을 남겨보세요.</span>
+                            <Ico e="💬" /> <span className="font-medium">첫 댓글을 남겨보세요.</span>
                           </div>
                         )}
                       </div>
@@ -1328,7 +1329,7 @@ export default function BoardPage() {
                         </div>
                         <label title="사진 첨부"
                           className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] cursor-pointer hover:border-[var(--primary)] ${commentUploadingKey === p.id ? "opacity-50 pointer-events-none" : ""}`}>
-                          <span className="text-base">🖼️</span>
+                          <span className="text-base"><Ico e="🖼" /></span>
                           <input type="file" accept="image/*" multiple className="hidden"
                             onChange={async (e) => {
                               const files = Array.from(e.target.files || []).filter((f) => isImage(f.type));

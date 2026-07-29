@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
@@ -479,7 +480,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                           >
                             <button onClick={() => setConfigCol(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
                               {c.name}
-                              <span className="text-[10px] opacity-0 group-hover/th:opacity-50 transition">⚙</span>
+                              <span className="text-[10px] opacity-0 group-hover/th:opacity-50 transition"><Ico e="⚙" /></span>
                             </button>
                           </th>
                         ))}
@@ -786,7 +787,7 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
         <div className="panel-feed">
           {updates.length === 0 ? (
             <div className="panel-feed-empty">
-              <div className="text-3xl mb-2">💬</div>
+              <div className="text-3xl mb-2"><Ico e="💬" /></div>
               아직 업데이트가 없습니다.<br />첫 메모를 남겨보세요.
             </div>
           ) : updates.map((u) => (
@@ -1049,7 +1050,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
                   style={{ height: ROW_H }}>
                   <button onClick={() => onConfigColumn(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
                     {c.name}
-                    <span className="text-[10px] opacity-0 group-hover/th:opacity-50 transition">⚙</span>
+                    <span className="text-[10px] opacity-0 group-hover/th:opacity-50 transition"><Ico e="⚙" /></span>
                   </button>
                 </th>
               ))}

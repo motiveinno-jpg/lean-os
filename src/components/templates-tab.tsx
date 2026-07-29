@@ -1,6 +1,7 @@
 "use client";
 
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { RichEditorRef } from "@/components/rich-editor";
@@ -408,7 +409,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
       <div className="templates-list glass-card">
         {scopedTemplates.length === 0 ? (
           <div className="templates-list-empty">
-            <div className="text-4xl mb-4">📝</div>
+            <div className="text-4xl mb-4"><Ico e="📝" /></div>
             <div className="text-lg font-bold mb-2">등록된 양식이 없습니다</div>
             <div className="text-sm text-[var(--text-muted)] mb-4">
               {scope === "hr"

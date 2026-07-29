@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { Ico } from "@/components/ui-icon";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocTemplates } from "@/lib/queries";
@@ -79,12 +80,12 @@ export default function HrTemplatesPage() {
                       <div className="absolute right-0 mt-1.5 z-20 w-72 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1.5">
                         <button onClick={() => { setPdfSignal((n) => n + 1); setChooserOpen(false); }}
                           className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
-                          <div className="text-sm font-semibold text-[var(--text)]">📄 PDF 업로드 <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/12 text-[var(--primary)]">권장</span></div>
+                          <div className="text-sm font-semibold text-[var(--text)]"><Ico e="📄" /> PDF 업로드 <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/12 text-[var(--primary)]">권장</span></div>
                           <div className="text-[11px] text-[var(--text-muted)] mt-0.5">쓰던 회사 양식 PDF를 올려 바로 사용</div>
                         </button>
                         <button onClick={() => { setTextSignal((n) => n + 1); setChooserOpen(false); }}
                           className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
-                          <div className="text-sm font-semibold text-[var(--text)]">✍️ 직접 작성</div>
+                          <div className="text-sm font-semibold text-[var(--text)]"><Ico e="✍" /> 직접 작성</div>
                           <div className="text-[11px] text-[var(--text-muted)] mt-0.5">변수로 자동 채우는 서식을 새로 만들기</div>
                         </button>
                       </div>

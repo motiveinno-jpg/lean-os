@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import React, { useEffect, useState, useRef } from "react";
@@ -539,7 +540,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       {/* 공동인증서 파일 업로드 — 위치 자동 탐색 */}
       <div className="certificate-upload-card glass-card">
         <div className="flex items-center gap-3 mb-4">
-          <span className="kpi-icon text-lg">📜</span>
+          <span className="kpi-icon text-lg"><Ico e="📜" /></span>
           <div>
             <div className="text-sm font-bold">공동인증서 (NPKI)</div>
             <div className="text-[11px] text-[var(--text-dim)]">홈택스, 은행 자동화에 필요한 공동인증서 파일</div>
@@ -560,7 +561,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       <div className="bank-credentials-card glass-card">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <span className="kpi-icon info text-lg">🏦</span>
+            <span className="kpi-icon info text-lg"><Ico e="🏦" /></span>
             <div>
               <div className="text-sm font-bold">은행 계좌</div>
               <div className="text-[11px] text-[var(--text-dim)]">거래내역 자동 수집 + 홈택스 세금계산서</div>
@@ -589,11 +590,11 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
                 <div className="flex gap-2 mb-2">
                   <button onClick={() => { const arr = [...banks]; (arr[i] as any).login_method = "certificate"; setBanks(arr); }}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${bankLoginMethod === "certificate" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-                    📜 공동인증서
+                    <Ico e="📜" /> 공동인증서
                   </button>
                   <button onClick={() => { const arr = [...banks]; (arr[i] as any).login_method = "id_pw"; setBanks(arr); }}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${bankLoginMethod === "id_pw" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-                    🔑 아이디/비밀번호
+                    <Ico e="🔑" /> 아이디/비밀번호
                   </button>
                 </div>
                 {bankLoginMethod === "certificate" ? (
@@ -630,25 +631,25 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       {/* 홈택스 (레거시 — 신규 등록은 위의 "금융기관 연결" 섹션에서 "홈택스" 선택) */}
       <div className="hometax-legacy-card glass-card">
         <div className="flex items-center gap-3 mb-2">
-          <span className="kpi-icon success text-lg">🏛️</span>
+          <span className="kpi-icon success text-lg"><Ico e="🏛" /></span>
           <div>
             <div className="text-sm font-bold">홈택스 (레거시 입력)</div>
             <div className="text-[11px] text-[var(--text-dim)]">세금계산서 자동 조회 · 인증서 또는 ID/PW 선택</div>
           </div>
         </div>
         <div className="mb-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700">
-          ⚠️ 이 입력은 더 이상 동기화에 사용되지 않습니다. 홈택스 연동은 <b>'은행연동' 탭 → 금융기관 연결 → 홈택스</b> 버튼으로 등록하세요.
+          <Ico e="⚠" /> 이 입력은 더 이상 동기화에 사용되지 않습니다. 홈택스 연동은 <b>'은행연동' 탭 → 금융기관 연결 → 홈택스</b> 버튼으로 등록하세요.
         </div>
         <div className="mb-3">
           <div className="text-[10px] text-[var(--text-dim)] font-semibold mb-2">로그인 방식</div>
           <div className="flex gap-2">
             <button onClick={() => setHometaxMethod("certificate")}
               className={`flex-1 py-2.5 rounded-lg text-xs font-semibold border transition ${hometaxMethod === "certificate" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-              📜 공동인증서
+              <Ico e="📜" /> 공동인증서
             </button>
             <button onClick={() => setHometaxMethod("id_pw")}
               className={`flex-1 py-2.5 rounded-lg text-xs font-semibold border transition ${hometaxMethod === "id_pw" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-              🔑 아이디/비밀번호
+              <Ico e="🔑" /> 아이디/비밀번호
             </button>
           </div>
         </div>
@@ -680,7 +681,7 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
       <div className="card-credentials-card glass-card">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <span className="kpi-icon danger text-lg">💳</span>
+            <span className="kpi-icon danger text-lg"><Ico e="💳" /></span>
             <div>
               <div className="text-sm font-bold">법인카드</div>
               <div className="text-[11px] text-[var(--text-dim)]">카드 이용내역 자동 수집</div>
@@ -709,11 +710,11 @@ export function CertificateManagementTab({ companyId }: { companyId: string | nu
                 <div className="flex gap-2 mb-2">
                   <button onClick={() => { const arr = [...cards]; (arr[i] as any).login_method = "certificate"; setCards(arr); }}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${cardLoginMethod === "certificate" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-                    📜 공동인증서
+                    <Ico e="📜" /> 공동인증서
                   </button>
                   <button onClick={() => { const arr = [...cards]; (arr[i] as any).login_method = "id_pw"; setCards(arr); }}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${cardLoginMethod === "id_pw" ? "bg-[var(--primary-light)] border-[var(--primary)]/50 text-[var(--primary)]" : "bg-[var(--bg)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-                    🔑 아이디/비밀번호
+                    <Ico e="🔑" /> 아이디/비밀번호
                   </button>
                 </div>
                 {cardLoginMethod === "certificate" ? (

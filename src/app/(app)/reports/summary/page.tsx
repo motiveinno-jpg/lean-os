@@ -1,5 +1,6 @@
 "use client";
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 경영 요약 — "지금 우리 회사 괜찮나?"에 한 화면으로 답하는 대표용 진입 화면(2026-07-08).
@@ -207,18 +208,18 @@ export default function ManagementSummaryPage() {
               <div className="summary-upcoming-list">
                 {nextVat && vatDday !== null && (
                   <Link href="/tax-invoices" className="flex items-center justify-between px-3.5 py-3 rounded-xl bg-[var(--bg-surface)] no-underline hover:ring-1 hover:ring-[var(--primary)]/30 transition">
-                    <span className="text-sm text-[var(--text)]">🧾 부가세 납부 <span className="text-[var(--text-dim)] text-xs">D-{Math.max(0, vatDday)}</span></span>
+                    <span className="text-sm text-[var(--text)]"><Ico e="🧾" /> 부가세 납부 <span className="text-[var(--text-dim)] text-xs">D-{Math.max(0, vatDday)}</span></span>
                     <span className="mono-number font-bold text-[var(--text)]">{fmt(Math.abs(nextVat.netVAT))}</span>
                   </Link>
                 )}
                 <div className="flex items-center justify-between px-3.5 py-3 rounded-xl bg-[var(--bg-surface)]">
-                  <span className="text-sm text-[var(--text)]">🔁 월 고정비</span>
+                  <span className="text-sm text-[var(--text)]"><Ico e="🔁" /> 월 고정비</span>
                   <span className="mono-number font-bold text-[var(--text)]">{fmt(mBudget?.fixedCosts ?? 0)}</span>
                 </div>
                 {(receivable?.over30 ?? 0) > 0 && (
                   <Link href="/partners/ledger" className="flex items-center justify-between px-3.5 py-3 rounded-xl no-underline transition hover:opacity-90"
                     style={{ background: "color-mix(in srgb, var(--danger) 8%, transparent)" }}>
-                    <span className="text-sm font-semibold text-[var(--danger)]">💰 30일+ 미수금</span>
+                    <span className="text-sm font-semibold text-[var(--danger)]"><Ico e="💰" /> 30일+ 미수금</span>
                     <span className="mono-number font-bold text-[var(--danger)]">{fmt(receivable!.over30)}</span>
                   </Link>
                 )}

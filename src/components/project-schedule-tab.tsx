@@ -6,6 +6,7 @@
 //   start_date 컬럼은 20260521090000 마이그에서 추가, NULL 허용.
 
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -244,7 +245,7 @@ function ChecklistView({
                       </div>
                       {m.due_date && (
                         <div className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5 mt-0.5">
-                          <span>📅 {m.due_date}</span>
+                          <span><Ico e="📅" /> {m.due_date}</span>
                           {dLabel && (
                             <span
                               className={`font-bold ${
@@ -912,7 +913,7 @@ function CalendarView({ milestones }: { milestones: Milestone[] }) {
       {selectedDate && selectedItems.length > 0 && (
         <div className="calendar-selected-popover">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs font-bold text-[var(--text)]">📅 {selectedDate}</div>
+            <div className="text-xs font-bold text-[var(--text)]"><Ico e="📅" /> {selectedDate}</div>
             <button
               type="button"
               onClick={() => setSelectedDate(null)}

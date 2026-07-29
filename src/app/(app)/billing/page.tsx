@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useState, useEffect } from "react";
@@ -342,7 +343,7 @@ export default function BillingPage() {
                 onClick={() => setTab(t.key)}
                 className={`seg-item inline-flex items-center gap-1.5 ${tab === t.key ? "seg-item-active" : ""}`}
               >
-                <span>{t.icon}</span> {t.label}
+                <span><Ico e={t.icon} /></span> {t.label}
               </button>
             ))}
           </div>
@@ -572,7 +573,7 @@ export default function BillingPage() {
                     </div>
                   )}
                   <div className="text-center mb-4">
-                    <div className="text-2xl mb-2">{meta.icon}</div>
+                    <div className="text-2xl mb-2"><Ico e={meta.icon} /></div>
                     <div className="text-lg font-extrabold text-[var(--text)]">{plan.name}</div>
                     <div className="mt-2">
                       {slug === "enterprise" ? (
@@ -685,7 +686,7 @@ export default function BillingPage() {
             {hasStripeSubscription ? (
               <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[var(--info-dim)] flex items-center justify-center text-[var(--info)] text-lg">💳</div>
+                  <div className="w-10 h-10 rounded-lg bg-[var(--info-dim)] flex items-center justify-center text-[var(--info)] text-lg"><Ico e="💳" /></div>
                   <div>
                     <div className="font-semibold text-sm text-[var(--text)]">Stripe 구독 결제</div>
                     <div className="text-xs text-[var(--text-muted)]">등록된 카드로 자동 결제됩니다</div>
@@ -701,7 +702,7 @@ export default function BillingPage() {
               </div>
             ) : (
               <div className="text-center py-12">
-                <div className="text-4xl mb-3">💳</div>
+                <div className="text-4xl mb-3"><Ico e="💳" /></div>
                 <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">등록된 결제 수단이 없습니다</p>
                 <p className="text-xs text-[var(--text-dim)]">유료 플랜 결제 시 Stripe를 통해 카드가 등록됩니다</p>
                 <button onClick={() => setTab("plan")} className="btn-secondary btn-sm mt-4">플랜 선택하고 등록하기</button>
@@ -734,7 +735,7 @@ export default function BillingPage() {
             <div className="text-center py-14 text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : (invoices || []).length === 0 ? (
             <div className="text-center py-14">
-              <div className="text-4xl mb-3">🧾</div>
+              <div className="text-4xl mb-3"><Ico e="🧾" /></div>
               <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">청구서 내역이 없습니다</p>
               <p className="text-xs text-[var(--text-dim)]">유료 플랜을 시작하면 청구서가 이곳에 표시됩니다</p>
               <button onClick={() => setTab("plan")} className="btn-secondary btn-sm mt-4">유료 플랜 보러가기</button>

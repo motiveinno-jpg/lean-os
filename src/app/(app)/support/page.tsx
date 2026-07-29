@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 고객센터 — 사용자가 문의를 등록하고, 내가 보낸 문의·운영자 답변을 확인하는 화면.
@@ -170,7 +171,7 @@ export default function SupportPage() {
             <div className="text-sm text-[var(--text-muted)] py-8 text-center">불러오는 중…</div>
           ) : tickets.length === 0 ? (
             <div className="text-center py-14">
-              <div className="text-4xl mb-3">💬</div>
+              <div className="text-4xl mb-3"><Ico e="💬" /></div>
               <div className="text-sm font-semibold text-[var(--text)]">아직 등록한 문의가 없습니다.</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-1.5">왼쪽에서 첫 문의를 남겨보세요.</div>
             </div>

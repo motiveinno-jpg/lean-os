@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -176,7 +177,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
                       )}
                       {t.due_date && <span className={`text-[10px] mono-number ${isDelayed(t) ? "text-red-500 font-semibold" : "text-[var(--text-dim)]"}`}>~{String(t.due_date).slice(5, 10)}</span>}
                       {isDelayed(t) && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-semibold">지연</span>}
-                      {Array.isArray(t.attachments) && t.attachments.length > 0 && <span className="text-[10px] text-[var(--text-dim)]">📎 {t.attachments.length}</span>}
+                      {Array.isArray(t.attachments) && t.attachments.length > 0 && <span className="text-[10px] text-[var(--text-dim)]"><Ico e="📎" /> {t.attachments.length}</span>}
                     </div>
                   </div>
                 ))}
@@ -355,7 +356,7 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
 
   return (
     <div className="task-comments-block">
-      <div className="text-xs text-[var(--text-muted)] mb-1">💬 댓글{comments.length > 0 ? ` ${comments.length}` : ""} <span className="font-normal text-[var(--text-dim)]">— 답글에 계속 답글을 달 수 있습니다</span></div>
+      <div className="text-xs text-[var(--text-muted)] mb-1"><Ico e="💬" /> 댓글{comments.length > 0 ? ` ${comments.length}` : ""} <span className="font-normal text-[var(--text-dim)]">— 답글에 계속 답글을 달 수 있습니다</span></div>
       <div className="task-comments-thread">
         {(children["root"] || []).length === 0 ? (
           <div className="py-3 text-xs text-[var(--text-dim)]">아직 댓글이 없습니다. 아래에 첫 댓글을 남겨보세요.</div>
@@ -572,7 +573,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
                           // eslint-disable-next-line @next/next/no-img-element
                           <button type="button" onClick={() => setLightbox(urls[a.path])} className="block w-full"><img src={urls[a.path]} alt={a.name} className="w-full h-20 object-cover cursor-zoom-in" /></button>
                         ) : (
-                          <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`} className="w-full h-20 flex items-center justify-center text-2xl hover:bg-[var(--bg-card)] transition">📄</button>
+                          <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`} className="w-full h-20 flex items-center justify-center text-2xl hover:bg-[var(--bg-card)] transition"><Ico e="📄" /></button>
                         )}
                         <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`}
                           className="block w-full px-1.5 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline truncate text-left">{a.name}</button>
@@ -712,7 +713,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
                       // eslint-disable-next-line @next/next/no-img-element
                       <button type="button" onClick={() => setLightbox(urls[a.path])} className="block w-full"><img src={urls[a.path]} alt={a.name} className="w-full h-16 object-cover cursor-zoom-in" /></button>
                     ) : (
-                      <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`} className="w-full h-16 flex items-center justify-center text-2xl hover:bg-[var(--bg-card)] transition">📄</button>
+                      <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`} className="w-full h-16 flex items-center justify-center text-2xl hover:bg-[var(--bg-card)] transition"><Ico e="📄" /></button>
                     )}
                     <button type="button" onClick={() => downloadAtt(a)} title={`${a.name} 다운로드`}
                       className="block w-full px-1.5 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline truncate text-left">{a.name}</button>

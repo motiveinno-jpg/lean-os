@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Ico } from "@/components/ui-icon";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -330,7 +331,7 @@ export default function CopilotPage() {
         <div className="copilot2-hero-orb copilot2-hero-orb-a" aria-hidden />
         <div className="copilot2-hero-orb copilot2-hero-orb-b" aria-hidden />
         <div className="copilot2-hero-content">
-          <div className="copilot2-hero-badge"><span className="copilot2-hero-spark" aria-hidden>✦</span> AI 참모</div>
+          <div className="copilot2-hero-badge"><span className="copilot2-hero-spark" aria-hidden><Ico e="✦" /></span> AI 참모</div>
           <h1 className="copilot2-hero-title">회사 데이터를 읽고, 대표가 지금 해야 할 일을 정리합니다</h1>
           <div className="copilot2-hero-meta">
             <span className={`copilot2-conn ${connErr ? "copilot2-conn-err" : "copilot2-conn-ok"}`}>
@@ -353,7 +354,7 @@ export default function CopilotPage() {
 
       {locked ? (
         <div className="copilot2-lock-card">
-          <div className="text-3xl mb-2" aria-hidden>🔒</div>
+          <div className="text-3xl mb-2" aria-hidden><Ico e="🔒" /></div>
           <div className="copilot2-lock-title">AI 참모는 프로 이상 플랜에서 이용할 수 있습니다</div>
           <p className="copilot2-lock-desc">회사 데이터를 실시간으로 읽고 오늘 챙길 것을 정리해 드립니다. 플랜을 올리면 바로 사용할 수 있어요.</p>
           <a href="/billing" className="btn-primary btn-sm">플랜 보기 · 업그레이드</a>
@@ -365,7 +366,7 @@ export default function CopilotPage() {
             <div className="copilot2-conv" ref={scrollRef}>
               {messages.length === 0 && !loading && (
                 <div className="copilot2-empty">
-                  <div className="copilot2-empty-icon" aria-hidden>✦</div>
+                  <div className="copilot2-empty-icon" aria-hidden><Ico e="✦" /></div>
                   <div className="copilot2-empty-title">무엇이든 물어보세요</div>
                   <div className="copilot2-empty-desc">아래 빠른 질문을 누르거나 직접 입력하면, 회사 데이터를 근거로 답합니다.</div>
                 </div>
@@ -392,7 +393,7 @@ export default function CopilotPage() {
                 <div className="copilot2-quick-grid">
                   {QUICK.map((qq) => (
                     <button key={qq.label} type="button" disabled={loading} onClick={() => ask(qq.q)} className="copilot2-quick-card">
-                      <span className="copilot2-quick-icon" aria-hidden>{qq.icon}</span>
+                      <span className="copilot2-quick-icon" aria-hidden><Ico e={qq.icon} /></span>
                       <span className="copilot2-quick-label">{qq.label}</span>
                     </button>
                   ))}
@@ -400,7 +401,7 @@ export default function CopilotPage() {
 
                 {/* 입력창 */}
                 <div className="copilot2-input-row">
-                  <span className="copilot2-input-spark" aria-hidden>✦</span>
+                  <span className="copilot2-input-spark" aria-hidden><Ico e="✦" /></span>
                   <textarea
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
@@ -443,10 +444,10 @@ function ActionCard({ msg, onRun, onCancel }: {
   const args = act.args as { request_type?: string; title?: string; amount?: number; description?: string };
 
   if (st === "done") {
-    return <div className="copilot2-action-result copilot2-action-ok">✅ {msg.actionResult || "완료했습니다."}</div>;
+    return <div className="copilot2-action-result copilot2-action-ok"><Ico e="✅" /> {msg.actionResult || "완료했습니다."}</div>;
   }
   if (st === "error") {
-    return <div className="copilot2-action-result copilot2-action-err">⚠️ {msg.actionResult || "실행에 실패했습니다."}</div>;
+    return <div className="copilot2-action-result copilot2-action-err"><Ico e="⚠" /> {msg.actionResult || "실행에 실패했습니다."}</div>;
   }
   if (st === "cancelled") {
     return <div className="copilot2-action-result copilot2-action-cancel">취소했습니다.</div>;
@@ -523,7 +524,7 @@ function AnswerCard({ msg, onRun, onCancel }: {
   return (
     <div className="copilot2-answer">
       <div className="copilot2-answer-head">
-        <span className="copilot2-answer-spark" aria-hidden>✦</span>
+        <span className="copilot2-answer-spark" aria-hidden><Ico e="✦" /></span>
         <span className="copilot2-answer-title">AI 분석 결과</span>
         {msg.model && <span className="copilot2-answer-model">{msg.model.includes("opus") ? "Opus" : msg.model.includes("haiku") ? "Haiku" : "Sonnet"}</span>}
         <span className="copilot2-answer-time">{kstDate(msg.at)}</span>
@@ -564,7 +565,7 @@ function AnswerCard({ msg, onRun, onCancel }: {
         <div className="copilot2-sec">
           <div className="copilot2-sec-label">기회</div>
           {a.opportunities.map((x, i) => (
-            <div key={i} className="copilot2-opp"><span aria-hidden>💡</span><div><div className="copilot2-risk-title">{clean(x.title)}</div><div className="copilot2-action-detail">{clean(x.detail)}</div></div></div>
+            <div key={i} className="copilot2-opp"><span aria-hidden><Ico e="💡" /></span><div><div className="copilot2-risk-title">{clean(x.title)}</div><div className="copilot2-action-detail">{clean(x.detail)}</div></div></div>
           ))}
         </div>
       )}
@@ -588,7 +589,7 @@ function LoadingCard({ stage }: { stage: number }) {
   return (
     <div className="copilot2-answer copilot2-answer-loading">
       <div className="copilot2-answer-head">
-        <span className="copilot2-answer-spark" aria-hidden>✦</span>
+        <span className="copilot2-answer-spark" aria-hidden><Ico e="✦" /></span>
         <span className="copilot2-answer-title">AI 분석 결과</span>
         <span className="copilot2-thinking" aria-hidden><i /><i /><i /></span>
       </div>

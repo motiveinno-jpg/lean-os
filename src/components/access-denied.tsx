@@ -4,6 +4,7 @@
 //   기존 곳곳의 "접근 권한이 없습니다 / 관리자에게 문의하세요" 텍스트만 있어
 //   복귀 링크 0이던 패턴을 일괄 교체. 메시지 + 홈복귀 + 역할별 추천 메뉴.
 import Link from "next/link";
+import { Ico } from "@/components/ui-icon";
 import { useUser, type UserRole } from "@/components/user-context";
 
 type RecMenu = { href: string; label: string; emoji: string };
@@ -52,7 +53,7 @@ export function AccessDenied({
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-6">
       <div className="access-denied-panel glass-card">
-        <div className="text-4xl mb-3">🔒</div>
+        <div className="text-4xl mb-3"><Ico e="🔒" /></div>
         <h1 className="text-2xl font-extrabold text-[var(--text)] mb-2">{title}</h1>
         <p className="text-sm text-[var(--text-muted)] mb-1">
           현재 <strong>{roleLabel}</strong> 권한으로는 이 화면을 열 수 없습니다.

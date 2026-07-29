@@ -4,6 +4,7 @@
 //   있었나(사람 언어 타임라인) ③ 뭘 해야 하나(문제 항목에 색·안내).
 //   30초 자동 갱신. 원본 상세(에러·사고·감사·의존성)는 하단 링크로 유지.
 import { useQuery } from "@tanstack/react-query";
+import { Ico } from "@/components/ui-icon";
 import { supabase } from "@/lib/supabase";
 import { explainError } from "@/lib/operator-error-explain";
 import Link from "next/link";
@@ -151,7 +152,7 @@ export default function PlatformHealthPage() {
 
       {feedError && (
         <div className="platform-check-failed-banner">
-          <span className="font-bold">⚠️ 데이터를 불러오지 못했습니다.</span>{" "}
+          <span className="font-bold"><Ico e="⚠" /> 데이터를 불러오지 못했습니다.</span>{" "}
           {/forbidden|운영자/i.test((feedError as any)?.message || "")
             ? "권한 없음 — 플랫폼 운영자 계정(creative@mo-tive.com)만 조회할 수 있습니다."
             : `조회 실패 — ${(feedError as any)?.message || "네트워크 또는 서버 오류"}`}
@@ -207,7 +208,7 @@ export default function PlatformHealthPage() {
                     onClick={isError ? () => setExpandedIdx(open ? null : i) : undefined}
                     title={isError ? "클릭하면 무슨 오류인지 자세히 보여드려요" : undefined}
                   >
-                    <span className="text-sm shrink-0">{l.icon}</span>
+                    <span className="text-sm shrink-0"><Ico e={l.icon} /></span>
                     <div className="flex-1 min-w-0">
                       <div className={`text-[13px] font-semibold truncate ${l.tone === "danger" ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{l.text}</div>
                       {l.sub && <div className="text-[11px] text-[var(--text-dim)] truncate">{l.sub}</div>}

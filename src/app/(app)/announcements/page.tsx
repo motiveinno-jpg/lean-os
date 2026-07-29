@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
@@ -194,7 +195,7 @@ export default function AnnouncementsPage() {
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
         <div className="announcement-empty glass-card">
-          <div className="text-4xl mb-3">📢</div>
+          <div className="text-4xl mb-3"><Ico e="📢" /></div>
           <div className="text-sm font-semibold text-[var(--text)]">등록된 공지가 없습니다</div>
           <div className="text-[11px] text-[var(--text-dim)] mt-1.5">서비스 공지·업데이트 소식이 등록되면 여기에 표시됩니다.</div>
         </div>
@@ -214,7 +215,7 @@ export default function AnnouncementsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {a.pinned && <span className="text-[10px]">📌</span>}
+                      {a.pinned && <span className="text-[10px]"><Ico e="📌" /></span>}
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${cat.color}`}>{cat.label}</span>
                       <span className="text-sm font-bold text-[var(--text)] truncate">{a.title}</span>
                     </div>

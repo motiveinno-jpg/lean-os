@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 import { useEffect, useMemo, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
@@ -424,7 +425,7 @@ export function OrgBulkWizard({
               기존 문서 또는 "양식 관리"에 등록된 양식 중에서 고르세요. 양식을 고르면 자동으로 문서로 만들어 발송합니다.
               <br />
               <span className="caption">
-                💡 변수 토큰 <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> / <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> / <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> / <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 는 거래처별 자동 치환됩니다. <code className="text-[var(--primary)]">{`{{갑_*}}`}</code> 는 회사 공통값.
+                <Ico e="💡" /> 변수 토큰 <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> / <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> / <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> / <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 는 거래처별 자동 치환됩니다. <code className="text-[var(--primary)]">{`{{갑_*}}`}</code> 는 회사 공통값.
               </span>
             </div>
             <div className="bulk-wizard-doc-list">
@@ -581,7 +582,7 @@ export function OrgBulkWizard({
                                 className="text-yellow-500 hover:underline"
                                 title="이메일을 먼저 등록하세요"
                               >
-                                ⚠ 이메일 등록 필요
+                                <Ico e="⚠" /> 이메일 등록 필요
                               </Link>
                             )}
                           </td>
@@ -851,14 +852,14 @@ export function OrgBulkWizard({
 
                 {/* 발송 예측 (504 인시던트 3차 후속 — 대량 발송 사전 안내) */}
                 <div className="mt-3 px-4 py-3 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/30 text-[var(--info)] text-xs">
-                  <div className="font-semibold mb-1">📊 발송 예측</div>
+                  <div className="font-semibold mb-1"><Ico e="📊" /> 발송 예측</div>
                   <ul className="space-y-0.5">
                     <li>· 거래처: {selectedPartners.length}개 (이메일 미등록 자동 스킵 후 실 발송 기준)</li>
                     <li>· 예상 소요: 약 {estimateMinutes(selectedPartners.length)}분</li>
                     <li>· chunk: {chunkSizeFor(selectedPartners.length)}건 동시 × 간격 {intervalSecFor(selectedPartners.length)}초</li>
                     <li>· 이메일 발송 한도(Resend 등): 시간당 한도 초과 시 일부 지연 가능</li>
                     {selectedPartners.length > 200 && (
-                      <li className="text-[var(--warning)]">⚠️ 200개 초과 — 분할(예: 150 + 150) 발송 권장</li>
+                      <li className="text-[var(--warning)]"><Ico e="⚠" /> 200개 초과 — 분할(예: 150 + 150) 발송 권장</li>
                     )}
                   </ul>
                 </div>

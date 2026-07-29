@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -759,7 +760,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
           <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : (
           <>
-            {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold">🔒 마감(잠금)된 회계기간 — 읽기 전용 (일자를 미마감 월로 바꾸면 편집 가능)</div>}
+            {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold"><Ico e="🔒" /> 마감(잠금)된 회계기간 — 읽기 전용 (일자를 미마감 월로 바꾸면 편집 가능)</div>}
             <div className="px-5 pt-3 text-[10px] text-[var(--text-dim)]">적요는 아래 각 줄에 입력하세요 — 거래처 원장에 그대로 표시됩니다.</div>
             <div className="voucher-edit-table">
               <table className="w-full text-xs border-collapse min-w-[560px]">
@@ -823,7 +824,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                               }}
                               placeholder="—" className={IN} />
                             {l.asset && <span className="pr-1 text-[8px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">{l.asset.kind === "bank" ? "통장" : "카드"}</span>}
-                            {arApWarn && !l.asset && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
+                            {arApWarn && !l.asset && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다"><Ico e="⚠" /></span>}
                           </div>
                           {picker?.kind === "pt" && picker.key === l.key && (
                             <CellDropdown anchor={picker.anchor} width={224} maxHeight={196}>
@@ -897,8 +898,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
             <div className="voucher-edit-footer">
               <span className="text-[11px] font-bold">
                 {totalD === 0 ? <span className="text-[var(--text-dim)] font-semibold">금액을 입력하세요</span>
-                  : diff === 0 ? <span className="text-emerald-500">✅ 차대일치</span>
-                  : <span className="text-red-500">⚠️ 차액 {won(Math.abs(diff))} — 저장 불가</span>}
+                  : diff === 0 ? <span className="text-emerald-500"><Ico e="✅" /> 차대일치</span>
+                  : <span className="text-red-500"><Ico e="⚠" /> 차액 {won(Math.abs(diff))} — 저장 불가</span>}
                 {missingAcct && <span className="text-amber-500 ml-2">· 계정과목 미지정</span>}
               </span>
               <div className="flex items-center gap-2">
@@ -1321,7 +1322,7 @@ function CloseBalanceModal({ invoice, remaining, onClose, onDone, onError }: {
           </div>
           {reason === "discount" && (
             <div className="px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 leading-relaxed">
-              ⚠️ 할인·에누리로 실제 거래금액이 계산서와 달라진 경우, 부가세 과세표준이 바뀌므로 <b>수정세금계산서 발행</b>을 권장합니다. 마감은 장부 정리일 뿐 신고 금액을 바꾸지 않습니다.
+              <Ico e="⚠" /> 할인·에누리로 실제 거래금액이 계산서와 달라진 경우, 부가세 과세표준이 바뀌므로 <b>수정세금계산서 발행</b>을 권장합니다. 마감은 장부 정리일 뿐 신고 금액을 바꾸지 않습니다.
             </div>
           )}
         </div>

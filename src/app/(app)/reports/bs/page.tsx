@@ -1,6 +1,7 @@
 "use client";
 
 import { todayKst } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { useEffect, useState, useCallback } from "react";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
@@ -622,7 +623,7 @@ export default function BalanceSheetPage() {
   if (!data) {
     return (
       <div className="p-16 text-center">
-        <div className="text-4xl mb-3">📋</div>
+        <div className="text-4xl mb-3"><Ico e="📋" /></div>
         <div className="text-sm font-medium text-[var(--text)]">거래 데이터가 쌓이면 재무상태표가 자동 생성됩니다</div>
         <div className="text-xs text-[var(--text-muted)] mt-1">거래내역과 계좌 정보를 먼저 등록해주세요</div>
       </div>
@@ -824,7 +825,7 @@ export default function BalanceSheetPage() {
         {/* 균형 여부 표시 — 회계 정합성 */}
         {Math.abs(data.totalAssets - (data.totalLiabilities + data.totalEquity)) > 1 && (
           <div className="md:col-span-2 px-3 py-1.5 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/30 text-[10px] text-[var(--warning)]">
-            ⚠ 차변(자산) - 대변(부채+자본) 차이 ₩{Math.round(data.totalAssets - (data.totalLiabilities + data.totalEquity)).toLocaleString("ko-KR")} — 자본금 / 이익잉여금 데이터 확인 필요
+            <Ico e="⚠" /> 차변(자산) - 대변(부채+자본) 차이 ₩{Math.round(data.totalAssets - (data.totalLiabilities + data.totalEquity)).toLocaleString("ko-KR")} — 자본금 / 이익잉여금 데이터 확인 필요
           </div>
         )}
       </div>
@@ -1183,7 +1184,7 @@ function DetailModalView({ modal, isCompareMode, onClose }: {
         <div style={{ overflow: 'auto', flex: 1 }}>
           {sortedRows.length === 0 ? (
             <div className="py-12 text-center">
-              <div className="text-3xl mb-2">🗂️</div>
+              <div className="text-3xl mb-2"><Ico e="🗂" /></div>
               <div className="text-[13px] font-semibold text-[var(--text)]">세부 항목이 없습니다.</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-1">해당 항목에 집계된 내역이 아직 없어요</div>
             </div>

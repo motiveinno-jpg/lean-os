@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 견적서 — 프로젝트와 별개의 독립 견적서 메뉴(프로젝트 토글 하위). 프로젝트의 견적서 탭과 동일 데이터(documents+deal_id).
@@ -64,7 +65,7 @@ export default function QuotesPage() {
           <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : quotes.length === 0 ? (
           <div className="quotes-empty-state">
-            <div className="text-4xl mb-1">🧾</div>
+            <div className="text-4xl mb-1"><Ico e="🧾" /></div>
             <div className="text-sm font-semibold text-[var(--text)]">아직 견적서가 없습니다</div>
             <div className="text-xs text-[var(--text-muted)]">“+ 견적서 작성”으로 첫 견적서를 만들어 보세요.</div>
             <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 견적서 작성</button>

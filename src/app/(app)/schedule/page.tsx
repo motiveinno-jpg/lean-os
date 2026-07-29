@@ -1,6 +1,7 @@
 "use client";
 
 import { todayKst } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -319,7 +320,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                             className="opacity-0 group-hover/ev:opacity-100 shrink-0 px-0.5 text-[var(--text-dim)] hover:text-[var(--text)] transition"
                             title="수정"
                           >
-                            ✎
+                            <Ico e="✎" />
                           </button>
                         )}
                       </div>
@@ -379,7 +380,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                 onClick={() => { const ev = actionEvent; setActionEvent(null); setEditingEvent(ev); }}
                 className="w-full px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition"
               >
-                ✎ 수정
+                <Ico e="✎" /> 수정
               </button>
               <button
                 onClick={() => { toggleDoneMut.mutate({ id: actionEvent.id, completed: !actionEvent.completed }); setActionEvent(null); }}
@@ -533,7 +534,7 @@ function EventModal({
               )}
             </div>
             {dateError ? (
-              <p className="text-[10px] text-red-400 mt-1">⚠ {dateError}</p>
+              <p className="text-[10px] text-red-400 mt-1"><Ico e="⚠" /> {dateError}</p>
             ) : rangePreview ? (
               <p className="text-[10px] text-[var(--text-muted)] mt-1">
                 일정 기간: <span className="font-semibold text-[var(--text)]">{rangePreview}</span>
@@ -646,7 +647,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
         <div className="stat-tile">
           <div className="flex items-center justify-between">
             <span className="stat-tile-label">할 일</span>
-            <span className="kpi-icon">📝</span>
+            <span className="kpi-icon"><Ico e="📝" /></span>
           </div>
           <div className="flex items-end gap-2">
             <span className="stat-tile-value mono-number">{undoneCount}건</span>
@@ -666,7 +667,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
         <div className="stat-tile">
           <div className="flex items-center justify-between">
             <span className="stat-tile-label">지연</span>
-            <span className="kpi-icon danger">⚠️</span>
+            <span className="kpi-icon danger"><Ico e="⚠" /></span>
           </div>
           <div className="flex items-end gap-2">
             <span className="stat-tile-value mono-number text-[var(--danger)]">

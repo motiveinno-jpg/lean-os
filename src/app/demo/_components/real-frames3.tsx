@@ -12,6 +12,7 @@
 //     AI 브리핑 → /dashboard (AI 액션 플랜)  영수증 OCR → /approvals
 
 import { AreaTrend } from "@/app/(app)/reports/flow/_components/AreaTrend";
+import { Ico } from "@/components/ui-icon";
 
 function Head({ crumb, title, sub, tabs, active = 0 }: { crumb: string; title: string; sub: string; tabs: string[]; active?: number }) {
   return (
@@ -236,8 +237,8 @@ export function ScheduleRealPanel({ before = false }: { before?: boolean }) {
         <span className="pp-chip-off">‹</span>
         <span className="pp-chip-on">2026년 7월</span>
         <span className="pp-chip-off">›</span>
-        <span className="pp-chip-off">🏢 전체공유</span>
-        <span className="pp-chip-off">🙋 개인</span>
+        <span className="pp-chip-off"><Ico e="🏢" /> 전체공유</span>
+        <span className="pp-chip-off"><Ico e="🙋" /> 개인</span>
         <span className="pp-btn pp-btn-ai">+ 일정 추가</span>
       </div>
       <div className="pp-cal7">
@@ -272,10 +273,10 @@ export function BoardRealPanel({ before = false }: { before?: boolean }) {
       />
       <div className="pp-filter pp-mt">
         <span className="pp-chip-on">전체 {before ? "…" : "11"}</span>
-        <span className="pp-chip-off">📌 고정</span>
-        <span className="pp-chip-off">📅 일정</span>
-        <span className="pp-chip-off">🗳️ 투표</span>
-        <span className="pp-chip-off">📎 첨부</span>
+        <span className="pp-chip-off"><Ico e="📌" /> 고정</span>
+        <span className="pp-chip-off"><Ico e="📅" /> 일정</span>
+        <span className="pp-chip-off"><Ico e="🗳" /> 투표</span>
+        <span className="pp-chip-off"><Ico e="📎" /> 첨부</span>
         <span className="pp-chip-off">내 글</span>
         <span className="pp-btn pp-btn-ai">+ 글쓰기</span>
       </div>
@@ -284,7 +285,7 @@ export function BoardRealPanel({ before = false }: { before?: boolean }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.t}>
-              <td className="pp-strong">{r.pin && <span className="pp-tag pp-tag-s">📌 고정</span>} {r.t}</td>
+              <td className="pp-strong">{r.pin && <span className="pp-tag pp-tag-s"><Ico e="📌" /> 고정</span>} {r.t}</td>
               <td>{before ? D : r.by}</td>
               <td>{before ? D : r.att}</td>
               <td>{before ? D : r.d}</td>

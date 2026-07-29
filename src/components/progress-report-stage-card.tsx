@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // B 핸드오프: stage='progress_report' 전용 본 폼.
@@ -304,7 +305,7 @@ export function ProgressReportStageCard({
   return (
     <div className="progress-report-stage-card">
       <div className="progress-report-header">
-        <h3 className="text-xs font-bold text-[var(--text-muted)]">📊 진척 보고서</h3>
+        <h3 className="text-xs font-bold text-[var(--text-muted)]"><Ico e="📊" /> 진척 보고서</h3>
         <div className="flex items-center gap-2">
           {approval && mode === "preview" && (
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusTone(status)}`}>
@@ -336,7 +337,7 @@ export function ProgressReportStageCard({
       {/* 거절 사유 — rejected 일 때만 */}
       {status === "rejected" && approval?.decision_note && (
         <div className="progress-report-rejection-notice">
-          <div className="text-[10px] font-bold text-red-400 mb-1">❌ 거래처가 거절했습니다</div>
+          <div className="text-[10px] font-bold text-red-400 mb-1"><Ico e="❌" /> 거래처가 거절했습니다</div>
           <div className="text-xs text-[var(--text)] whitespace-pre-wrap">{approval.decision_note}</div>
           <button
             type="button"
@@ -440,7 +441,7 @@ export function ProgressReportStageCard({
                 className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-[11px] focus:outline-none focus:border-[var(--primary)]"
               />
               <div className="caption">
-                💾 저장 = 우리 쪽 박제만 · 📤 발송 = 거래처 승인 요청 (만료 14일)
+                <Ico e="💾" /> 저장 = 우리 쪽 박제만 · 📤 발송 = 거래처 승인 요청 (만료 14일)
               </div>
             </>
           )}
@@ -560,7 +561,7 @@ function ProgressDetailModal({
         <div className="progress-detail-modal-header">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className="text-sm font-bold text-[var(--text)]">📊 진척 보고서 상세</span>
+              <span className="text-sm font-bold text-[var(--text)]"><Ico e="📊" /> 진척 보고서 상세</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusTone(item.status)}`}>
                 {statusLabel}
               </span>

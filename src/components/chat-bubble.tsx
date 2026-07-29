@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Ico } from "@/components/ui-icon";
 import { ActionCard } from "./action-card";
 
 interface Reaction {
@@ -177,7 +178,7 @@ export function ChatBubble({
                 ) : (
                   <a href={metadata.file_url} target="_blank" rel="noopener noreferrer"
                     className="chat-bubble-file-link">
-                    <span className="text-lg">📎</span>
+                    <span className="text-lg"><Ico e="📎" /></span>
                     <div>
                       <div className="text-xs font-medium">{metadata.file_name}</div>
                       <div className="text-[10px] opacity-70">

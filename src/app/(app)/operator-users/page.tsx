@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Ico } from "@/components/ui-icon";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
@@ -219,7 +220,7 @@ export default function OperatorUsersPage() {
                   <div className="text-center py-6 text-sm text-[var(--text-muted)]">에러 로그 조회 중...</div>
                 ) : !errors || errors.logs.length === 0 ? (
                   <div className="text-center py-6 text-sm text-[var(--text-muted)]">
-                    🎉 이 회원이 일으킨 에러가 없습니다
+                    <Ico e="🎉" /> 이 회원이 일으킨 에러가 없습니다
                   </div>
                 ) : (
                   <>
@@ -249,9 +250,9 @@ export default function OperatorUsersPage() {
                           <div className="text-xs text-[var(--text-muted)] truncate" title={l.message}>{l.message}</div>
                           {(l.url || l.context?.action || l.context?.page) && (
                             <div className="text-[10px] text-[var(--text-dim)] mt-1 truncate">
-                              {l.context?.action && <span>🛠 {String(l.context.action)} </span>}
+                              {l.context?.action && <span><Ico e="🛠" /> {String(l.context.action)} </span>}
                               {(l.context?.page || l.url) && (
-                                <span>📄 {l.context?.page || (() => { try { return new URL(l.url).pathname; } catch { return l.url; } })()}</span>
+                                <span><Ico e="📄" /> {l.context?.page || (() => { try { return new URL(l.url).pathname; } catch { return l.url; } })()}</span>
                               )}
                             </div>
                           )}

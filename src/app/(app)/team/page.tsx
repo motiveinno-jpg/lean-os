@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Ico } from "@/components/ui-icon";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -72,7 +73,7 @@ export default function TeamPage() {
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
         <div className="glass-card py-16 text-center">
-          <div className="text-4xl mb-3">👥</div>
+          <div className="text-4xl mb-3"><Ico e="👥" /></div>
           <div className="text-sm font-semibold text-[var(--text)]">
             {search ? "검색 결과가 없습니다" : "등록된 구성원이 없습니다"}
           </div>
@@ -107,12 +108,12 @@ export default function TeamPage() {
                         </div>
                         {e.email && (
                           <div className="text-[11px] text-[var(--text-dim)] truncate mt-1.5">
-                            ✉️ {e.email}
+                            <Ico e="✉" /> {e.email}
                           </div>
                         )}
                         {e.phone && (
                           <div className="text-[11px] text-[var(--text-dim)] truncate">
-                            📞 {e.phone}
+                            <Ico e="📞" /> {e.phone}
                           </div>
                         )}
                       </div>

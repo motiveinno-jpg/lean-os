@@ -1,5 +1,6 @@
 "use client";
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo } from "react";
@@ -917,7 +918,7 @@ export default function CashReceiptsPage() {
             </div>
           ) : receipts.length === 0 ? (
             <div className="py-16 px-6 text-center">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center text-3xl mb-4">🧾</div>
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center text-3xl mb-4"><Ico e="🧾" /></div>
               <div className="text-base font-semibold text-[var(--text)]">
                 {tab === "income"
                   ? "매출 현금영수증이 없습니다"

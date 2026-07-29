@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // 견적서 품목 입력 테이블 — 회사별 컬럼 커스터마이징(수량·단가·부가세·적요·비고 등 자유 추가/삭제) + 자동계산.
 //   컬럼 설정은 company_settings.settings.quote_columns(jsonb)에 회사별 저장.
@@ -121,9 +122,9 @@ export function QuoteItemsTable({
         <span className="text-xs text-[var(--text-dim)] font-medium">품목 목록</span>
         {editable && (
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowHistory(true)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)] rounded px-2 py-0.5">📋 거래내역 불러오기</button>
+            <button onClick={() => setShowHistory(true)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)] rounded px-2 py-0.5"><Ico e="📋" /> 거래내역 불러오기</button>
             <button onClick={() => setShowMyItems(true)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)] rounded px-2 py-0.5">⭐ My품목</button>
-            <button onClick={() => setShowEditor(true)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)] rounded px-2 py-0.5">⚙️ 열 편집</button>
+            <button onClick={() => setShowEditor(true)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)] rounded px-2 py-0.5"><Ico e="⚙" /> 열 편집</button>
             <button onClick={addRow} className="text-xs text-[var(--primary)] hover:underline">+ 품목 추가</button>
           </div>
         )}

@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -412,7 +413,7 @@ export default function VoucherEntryPage() {
               else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setPicker(null); }
             }}
             placeholder="—" className={IN} />
-          {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다">⚠</span>}
+          {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다"><Ico e="⚠" /></span>}
         </div>
         {picker?.kind === "pt" && picker.rowId === rowId && (
           <CellDropdown anchor={picker.anchor} width={240} maxHeight={196}>
@@ -522,7 +523,7 @@ export default function VoucherEntryPage() {
 
       {acctFetched && !dbReady && (
         <div className="px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/25 text-xs text-amber-600 font-semibold shadow-sm">
-          ⚠️ 전표 시스템 DB(계정과목 마스터)가 아직 적용되지 않았습니다 — 적용 후 사용할 수 있습니다.
+          <Ico e="⚠" /> 전표 시스템 DB(계정과목 마스터)가 아직 적용되지 않았습니다 — 적용 후 사용할 수 있습니다.
         </div>
       )}
 
@@ -618,7 +619,7 @@ export default function VoucherEntryPage() {
             ) : pendBalanced ? (
               <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치 — 저장 가능</span>
             ) : (
-              <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold">⚠️ 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}) — 저장 불가</span>
+              <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold"><Ico e="⚠" /> 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}) — 저장 불가</span>
             )}
           </div>
         </div>

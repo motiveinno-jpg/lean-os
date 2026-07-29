@@ -4,6 +4,7 @@
 //   너무 심플하던 3신호에서 이번 달 매출·비용 breakdown 추가. 카드 클릭 시 전체 경영 요약(/reports/summary).
 
 import Link from "next/link";
+import { Ico } from "@/components/ui-icon";
 
 function won(n: number): string {
   const a = Math.abs(n);
@@ -55,7 +56,7 @@ export function DashboardBizSummary({ monthRevenue, expense, balance, runwayMont
       {/* 상세 분석·추이 보기 — 기존 대시보드 하단 단독 링크를 경영 요약 위젯 안으로 통합(2026-07-15).
           위젯 하단 남는 여백의 세로 중앙에 배치(flex-1) — 위 매출·비용과 겹쳐 보이지 않게 간격 확보. */}
       <div className="dashboard-biz-summary-cta">
-        <span className="text-[11px] font-semibold text-[var(--primary)]">📊 상세 분석·추이 보기 →</span>
+        <span className="text-[11px] font-semibold text-[var(--primary)]"><Ico e="📊" /> 상세 분석·추이 보기 →</span>
       </div>
     </Link>
   );

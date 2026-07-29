@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
@@ -123,7 +124,7 @@ export default function MyContractsPage() {
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : filtered.length === 0 ? (
         <div className="mycontracts-empty glass-card">
-          <div className="text-4xl mb-4">✍️</div>
+          <div className="text-4xl mb-4"><Ico e="✍" /></div>
           <div className="text-sm font-bold">
             {filter === "pending"
               ? "대기 중인 서명 요청이 없습니다"
@@ -159,7 +160,7 @@ export default function MyContractsPage() {
                       </span>
                     </div>
                     <div className="text-xs text-[var(--text-muted)] space-y-0.5">
-                      <div>📄 문서 {totalCount}건 · 서명 {signedCount}/{totalCount}</div>
+                      <div><Ico e="📄" /> 문서 {totalCount}건 · 서명 {signedCount}/{totalCount}</div>
                       <div>📨 발송일 {sentDate} · 만료일 {expDate}</div>
                     </div>
                   </div>

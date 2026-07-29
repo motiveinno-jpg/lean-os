@@ -1,3 +1,4 @@
+import { Ico } from "@/components/ui-icon";
 "use client";
 
 // /demo — 실화면 대조 후 재작성한 패널 (2026-07-28).
@@ -104,7 +105,7 @@ export function LedgerPanel({ before = false }: { before?: boolean }) {
       </div>
 
       <div className="pp-notice">
-        <span>💡 입금 건은 여기서 분류하기보다 <b>거래 매칭</b>에서 세금계산서와 정산하면 미수금 차감·회계 전표가 자동 처리됩니다.</span>
+        <span><Ico e="💡" /> 입금 건은 여기서 분류하기보다 <b>거래 매칭</b>에서 세금계산서와 정산하면 미수금 차감·회계 전표가 자동 처리됩니다.</span>
         <span className="pp-btn">거래 매칭에서 정산 →</span>
       </div>
 
@@ -112,7 +113,7 @@ export function LedgerPanel({ before = false }: { before?: boolean }) {
         <span className="pp-chip-on">날짜순 ↓</span>
         <span className="pp-chip-off">거래처순</span>
         <span className="pp-chip-input">거래처 검색</span>
-        <span className="pp-btn pp-btn-ai">✦ AI 추천 받기</span>
+        <span className="pp-btn pp-btn-ai"><Ico e="✦" /> AI 추천 받기</span>
       </div>
 
       <div className="pp-txlist">
@@ -173,7 +174,7 @@ export function TaxRealPanel({ before = false }: { before?: boolean }) {
       </div>
 
       <div className="pp-sub-card pp-mt">
-        <div className="pp-sub-t">🔎 점검 리포트</div>
+        <div className="pp-sub-t"><Ico e="🔎" /> 점검 리포트</div>
         <div className="pp-payroll">
           <div className="pp-pay-row"><span>딜 미연결 <i className="pp-dim">거래/입금 매칭 필요</i></span><b>{v("2건")}</b></div>
         </div>

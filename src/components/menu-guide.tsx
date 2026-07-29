@@ -7,6 +7,7 @@
 //   데스크톱: 콘텐츠가 밀려 드로어와 나란히 보임. 모바일: 전체 오버레이 + 백드롭.
 
 import { useEffect } from "react";
+import { Ico } from "@/components/ui-icon";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { findMenuGuide } from "@/lib/menu-guides";
@@ -127,7 +128,7 @@ export function MenuGuideDrawer() {
                   <h3 className="guide-section-title">알아두면 좋아요</h3>
                   {guide.tips.map((tip, i) => (
                     <div key={i} className="guide-tip-item">
-                      <span className="shrink-0">💡</span>
+                      <span className="shrink-0"><Ico e="💡" /></span>
                       <span>{tip}</span>
                     </div>
                   ))}
@@ -163,7 +164,7 @@ export function MenuGuideDrawer() {
             onClick={closeGuide}
             className="flex items-center justify-center gap-1.5 text-[12.5px] font-semibold text-[var(--primary)] hover:underline"
           >
-            📖 전체 사용 가이드 보기 →
+            <Ico e="📖" /> 전체 사용 가이드 보기 →
           </Link>
         </div>
       </aside>

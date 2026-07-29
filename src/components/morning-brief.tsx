@@ -13,6 +13,7 @@
 // Pure display component — 데이터는 부모가 넘겨준다.
 
 import { todayKst } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -350,7 +351,7 @@ export function MorningBrief({
           /* ── AI 브리핑 2.0: 오늘의 액션 플랜 ── */
           <div className="brief-plan">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]">✦ AI 액션 플랜</span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]"><Ico e="✦" /> AI 액션 플랜</span>
               <button type="button" onClick={regenerateBrief} disabled={regenerating}
                 className="text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] font-semibold disabled:opacity-50"
                 title="지금 데이터로 브리핑을 다시 생성합니다">
@@ -386,7 +387,7 @@ export function MorningBrief({
               <div className="mt-3 flex flex-col gap-1">
                 {briefPlan.risks.slice(0, 3).map((r, i) => (
                   <p key={`r${i}`} className="text-[11px] sm:text-[12px] text-[var(--text-muted)] leading-relaxed">
-                    <span className="font-bold text-[var(--danger)]">⚠ </span>{renderTagged(r)}
+                    <span className="font-bold text-[var(--danger)]"><Ico e="⚠" /> </span>{renderTagged(r)}
                   </p>
                 ))}
                 {briefPlan.wins.slice(0, 2).map((w, i) => (
@@ -400,7 +401,7 @@ export function MorningBrief({
         ) : aiBrief ? (
           /* 구버전 캐시(평문 단락) 호환 */
           <>
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]">✦ AI 브리핑</span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]"><Ico e="✦" /> AI 브리핑</span>
             {aiBrief.split(/\n+/).map((s) => s.trim()).filter(Boolean).map((s, i) => (
               <p key={i}>{renderTagged(s)}</p>
             ))}
@@ -500,7 +501,7 @@ export function MorningBrief({
 
         {!aiBrief && !aiBriefingEnabled && (
           <p className="morning-brief-upsell">
-            ✦ 매일 아침 AI가 오늘의 우선순위를 액션 플랜으로 정리해 드리는 <b>AI 브리핑</b>은 울트라 요금제 전용입니다.{" "}
+            <Ico e="✦" /> 매일 아침 AI가 오늘의 우선순위를 액션 플랜으로 정리해 드리는 <b>AI 브리핑</b>은 울트라 요금제 전용입니다.{" "}
             <Link href="/billing" className="text-[var(--primary)] font-semibold hover:underline">업그레이드 →</Link>
           </p>
         )}

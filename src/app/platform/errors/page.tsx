@@ -1,5 +1,6 @@
 "use client";
 import { SystemTabs } from "../_components/system-tabs";
+import { Ico } from "@/components/ui-icon";
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -142,7 +143,7 @@ export default function PlatformErrorsPage() {
       {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
       {!isLoading && errors.length === 0 && (
         <div className="platform-error-empty glass-card">
-          🎉 이 기간에 에러 없음.
+          <Ico e="🎉" /> 이 기간에 에러 없음.
         </div>
       )}
 

@@ -4,6 +4,7 @@
 // 동일한 채팅방 뷰를 공유하기 위해 ChatRoomView + 의존 헬퍼(파일갤러리/미리보기/인라인편집)를 분리.
 // 동작 무변경: 코드 이동만, 로직 수정 없음.
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -304,7 +305,7 @@ function FilePreviewModal({
             <video src={file.file_url} controls autoPlay className="max-h-[82vh] max-w-full rounded shadow-2xl bg-black" />
           ) : isAudio(file) ? (
             <div className="bg-[var(--bg-card)] rounded-2xl p-8 min-w-[280px] sm:min-w-[420px] text-center">
-              <div className="text-5xl mb-4">🎵</div>
+              <div className="text-5xl mb-4"><Ico e="🎵" /></div>
               <div className="text-sm font-semibold mb-4 text-[var(--text)]">{file.file_name}</div>
               <audio src={file.file_url} controls autoPlay className="w-full" />
             </div>
@@ -782,7 +783,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
             onClick={() => setShowPinnedAll(v => !v)}
             className="flex items-center justify-between w-full text-[10px] font-semibold text-yellow-400 mb-1"
           >
-            <span>📌 고정 메시지 ({pinnedMessages.length})</span>
+            <span><Ico e="📌" /> 고정 메시지 ({pinnedMessages.length})</span>
             <span className="text-[var(--text-dim)]">{showPinnedAll ? '접기 ▴' : '펼치기 ▾'}</span>
           </button>
           {!showPinnedAll ? (

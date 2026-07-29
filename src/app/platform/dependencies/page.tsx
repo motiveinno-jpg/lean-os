@@ -1,5 +1,6 @@
 "use client";
 import { SystemTabs } from "../_components/system-tabs";
+import { Ico } from "@/components/ui-icon";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -127,7 +128,7 @@ export default function PlatformDependenciesPage() {
       <SystemTabs />
       {failReason && (
         <div className="platform-check-failed-banner">
-          <span className="font-bold">⚠️ 서비스 상태를 판정하지 못했습니다.</span> {failReason}
+          <span className="font-bold"><Ico e="⚠" /> 서비스 상태를 판정하지 못했습니다.</span> {failReason}
           <span className="block mt-1 text-[11px] opacity-80">이것은 외부 서비스 장애 판정이 아닙니다 — 실제 장애 여부는 시스템 상태 화면의 신호등·타임라인에서 확인하세요.</span>
         </div>
       )}
@@ -158,7 +159,7 @@ export default function PlatformDependenciesPage() {
             <div className="text-xs text-[var(--text-muted)] mb-3">{c.desc}</div>
             {c.warning && (
               <div className="text-[11px] text-[var(--warning)] bg-[var(--warning-dim)] rounded-lg p-2 mb-2">
-                ⚠ {c.warning}
+                <Ico e="⚠" /> {c.warning}
               </div>
             )}
             <div className="text-[10px] text-[var(--text-dim)] mb-2">

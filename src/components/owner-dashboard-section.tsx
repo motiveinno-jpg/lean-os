@@ -14,6 +14,7 @@
 //   RPC 자체도 is_company_admin() 가드 — 이중 안전.
 
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
@@ -220,7 +221,7 @@ function ProjectTrendSection({ fallback }: { fallback: QTrend[] }) {
   return (
     <div className="project-trend-section">
       <div className="flex items-end justify-between mb-3 gap-2 flex-wrap">
-        <h2 className="text-lg font-extrabold text-[var(--text)]">📈 프로젝트 추이</h2>
+        <h2 className="text-lg font-extrabold text-[var(--text)]"><Ico e="📈" /> 프로젝트 추이</h2>
         <div className="flex items-center gap-2 flex-wrap">
           {/* 기간 단위 토글 */}
           <div className="trend-period-toggle">
@@ -335,7 +336,7 @@ function InProgressListSection({ data }: { data: InProgress[] }) {
   if (data.length === 0) {
     return (
       <div className="in-progress-list-section">
-        <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">🔄 진행 중 프로젝트</h2>
+        <h2 className="text-lg font-extrabold text-[var(--text)] mb-3"><Ico e="🔄" /> 진행 중 프로젝트</h2>
         <div className="in-progress-empty rounded-2xl bg-[var(--bg-card)]">
           진행 중 프로젝트가 없습니다
         </div>
@@ -345,7 +346,7 @@ function InProgressListSection({ data }: { data: InProgress[] }) {
   return (
     <div className="in-progress-list-section">
       <div className="flex items-end justify-between mb-3 gap-2">
-        <h2 className="text-lg font-extrabold text-[var(--text)]">🔄 진행 중 프로젝트 ({data.length})</h2>
+        <h2 className="text-lg font-extrabold text-[var(--text)]"><Ico e="🔄" /> 진행 중 프로젝트 ({data.length})</h2>
         <Link href="/projects" className="text-xs text-[var(--primary)] hover:underline">전체 칸반 →</Link>
       </div>
       <div className="in-progress-list rounded-2xl bg-[var(--bg-card)]">
@@ -463,7 +464,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                               className="text-[10px] px-2 py-1 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20"
                               title="정산서 보기"
                             >
-                              📄 정산서
+                              <Ico e="📄" /> 정산서
                             </button>
                           )}
                           {r.completion_id && (
@@ -472,7 +473,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                               className="text-[10px] px-2 py-1 rounded bg-[var(--success)]/10 text-[var(--success)] font-semibold hover:bg-[var(--success)]/20"
                               title="완료확인서 보기"
                             >
-                              📄 완료
+                              <Ico e="📄" /> 완료
                             </button>
                           )}
                           {!r.settlement_id && !r.completion_id && (

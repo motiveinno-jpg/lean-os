@@ -1,6 +1,7 @@
 "use client";
 
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TileIcon } from "@/components/ui/icon-tile";
@@ -296,7 +297,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
       </div>
 
       <div className="card-billing-info-banner">
-        💡 CODEF 는 카드 종류(신용/체크) 정보를 안 줘서 자동 등록은 모두 <span className="text-[var(--primary)] font-semibold">신용</span> 으로 들어옵니다.
+        <Ico e="💡" /> CODEF 는 카드 종류(신용/체크) 정보를 안 줘서 자동 등록은 모두 <span className="text-[var(--primary)] font-semibold">신용</span> 으로 들어옵니다.
         체크/직불이면 아래 카드 옆 <span className="font-mono">신용▾</span> 클릭해 변경 → 즉시 청구서에서 사라집니다.
       </div>
       <div className="card-billing-rows">
@@ -410,7 +411,7 @@ function BillingDetailModal({
         {/* 헤더 */}
         <div className="billing-detail-modal-header">
           <div className="min-w-0">
-            <div className="text-sm font-bold text-[var(--text)] truncate">🧾 {billing.cardName} 청구서</div>
+            <div className="text-sm font-bold text-[var(--text)] truncate"><Ico e="🧾" /> {billing.cardName} 청구서</div>
             <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{billing.cardCompany}</div>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg shrink-0">✕</button>
@@ -682,7 +683,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
                 className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[var(--warning-dim)] text-[var(--warning)] hover:bg-[var(--warning)]/25 transition shrink-0"
                 title="청구 마감일이 설정되지 않아 청구 사이클이 부정확합니다. 클릭해 설정하세요."
               >
-                ⚠ 마감일 설정
+                <Ico e="⚠" /> 마감일 설정
               </button>
             )}
           </div>
@@ -700,7 +701,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
           <button onClick={() => { onShowDetail?.(); onSelectCard?.(b.cardId); }}
             className="px-2 py-0.5 text-[9px] font-semibold rounded bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30 transition"
             title="청구 명세 보기 (사이클 거래·합계)"
-          >📄 청구서</button>
+          ><Ico e="📄" /> 청구서</button>
           {card && (
             <button onClick={() => setEditing(v => !v)}
               className={`px-2 py-0.5 text-[9px] font-semibold rounded border transition ${
@@ -709,7 +710,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
                   : 'bg-[var(--bg-card)] hover:bg-[var(--primary)]/10 text-[var(--text-muted)] hover:text-[var(--primary)] border-[var(--border)]'
               }`}
               title="결제일·마감일 변경"
-            >⚙ 결제일</button>
+            ><Ico e="⚙" /> 결제일</button>
           )}
         </div>
       </div>

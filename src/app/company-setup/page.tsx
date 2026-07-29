@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // 회사 설정 단계 — 카카오/구글 소셜 가입 등 사업자번호 없이 계정만 생긴 사용자의 필수 관문.
 //   이메일 가입과 동일한 규칙: 사업자번호 필수 → 형식/중복/국세청 3중 검증 →
@@ -122,7 +123,7 @@ export default function CompanySetupPage() {
     <div className="company-setup-page">
       <div className="w-full max-w-md">
         <div className="company-setup-header">
-          <div className="text-4xl mb-3" aria-hidden>🏢</div>
+          <div className="text-4xl mb-3" aria-hidden><Ico e="🏢" /></div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">회사 정보를 설정해주세요</h1>
           <p className="text-[var(--text-muted)] text-sm mt-1.5 leading-relaxed">
             오너뷰는 회사(사업자번호)마다 하나의 전용 공간을 사용합니다.<br />

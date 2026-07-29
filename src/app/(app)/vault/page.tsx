@@ -1,6 +1,7 @@
 "use client";
 
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState } from "react";
 import { DateField } from "@/components/date-field";
@@ -496,7 +497,7 @@ export default function VaultPage() {
             }`}>
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-base">🔔</span>
+                  <span className="text-base"><Ico e="🔔" /></span>
                   <div>
                     <div className="text-sm font-bold">
                       갱신/만료 예정 {visibleAlerts.length}건
@@ -577,7 +578,7 @@ export default function VaultPage() {
           {duplicateGroups.length > 0 && (
             <div className="vault-duplicate-alert">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-base">🔍</span>
+                <span className="text-base"><Ico e="🔍" /></span>
                 <div>
                   <div className="text-sm font-bold">중복 구독 의심 {duplicateGroups.length}건</div>
                   <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
@@ -616,7 +617,7 @@ export default function VaultPage() {
           onClick={() => setShowAlerts(true)}
           className="mb-4 text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] transition flex items-center gap-1"
         >
-          🔔 알림 {visibleAlerts.length + duplicateGroups.length}건 펼치기
+          <Ico e="🔔" /> 알림 {visibleAlerts.length + duplicateGroups.length}건 펼치기
         </button>
       )}
 
@@ -625,7 +626,7 @@ export default function VaultPage() {
         <div className="vault-unused-warning">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <span className="text-base">💤</span>
+              <span className="text-base"><Ico e="💤" /></span>
               <div>
                 <div className="text-sm font-bold">{UNUSED_DAYS}일 이상 미사용 구독 {unusedAccounts.length}건</div>
                 <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
@@ -784,7 +785,7 @@ export default function VaultPage() {
               <label className="block text-xs text-[var(--text-muted)] mb-1">증빙 문서 (영수증·계약서 등)</label>
               {assetForm.attachmentUrl ? (
                 <div className="flex items-center gap-2">
-                  <a href={assetForm.attachmentUrl} target="_blank" rel="noreferrer" className="text-xs text-[var(--primary)] hover:underline truncate flex-1">📎 첨부된 문서 보기</a>
+                  <a href={assetForm.attachmentUrl} target="_blank" rel="noreferrer" className="text-xs text-[var(--primary)] hover:underline truncate flex-1"><Ico e="📎" /> 첨부된 문서 보기</a>
                   <button type="button" onClick={() => setAssetForm({ ...assetForm, attachmentUrl: "" })} className="text-[10px] text-red-400 hover:underline">제거</button>
                 </div>
               ) : (
@@ -893,7 +894,7 @@ export default function VaultPage() {
         <div className="vault-accounts-panel glass-card">
           {!vault?.accounts?.length ? (
             <div className="py-16 px-6 text-center">
-              <div className="text-5xl mb-4">🔐</div>
+              <div className="text-5xl mb-4"><Ico e="🔐" /></div>
               <div className="text-base font-bold text-[var(--text)]">구독 서비스와 공용 계정을 등록하세요</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">SaaS 구독, 서비스 계정을 등록하여 비용을 관리하세요</div>
               <button onClick={() => { setTab("accounts"); setShowForm(true); }} className="btn-primary mt-5">+ 계정 추가</button>
@@ -987,7 +988,7 @@ export default function VaultPage() {
                           {st.label}
                         </span>
                         {isUnused && (
-                          <div className="text-[10px] text-orange-400 mt-1">💤 미사용</div>
+                          <div className="text-[10px] text-orange-400 mt-1"><Ico e="💤" /> 미사용</div>
                         )}
                       </td>
                       <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -1065,7 +1066,7 @@ export default function VaultPage() {
           <div className="vault-assets-panel glass-card">
           {!vault?.assets?.length ? (
             <div className="py-16 px-6 text-center">
-              <div className="text-5xl mb-4">📦</div>
+              <div className="text-5xl mb-4"><Ico e="📦" /></div>
               <div className="text-base font-bold mb-1.5">자산이 없습니다</div>
               <div className="text-xs text-[var(--text-muted)]">유형/무형 자산을 등록하면 감가상각 장부가를 자동으로 계산해 드립니다</div>
               <button onClick={() => { setShowForm(true); setEditingId(null); setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); }} className="btn-primary mt-5">+ 자산 추가</button>
@@ -1091,7 +1092,7 @@ export default function VaultPage() {
                       <div className="font-semibold flex items-center gap-1.5">
                         {a.name}
                         {a.attachment_url && (
-                          <button type="button" onClick={(e) => { e.stopPropagation(); openStoredFile(a.attachment_url); }} className="text-[10px] text-[var(--primary)] hover:underline" title="증빙 문서">📎</button>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); openStoredFile(a.attachment_url); }} className="text-[10px] text-[var(--primary)] hover:underline" title="증빙 문서"><Ico e="📎" /></button>
                         )}
                       </div>
                       {a.notes && <div className="caption">{a.notes}</div>}
@@ -1135,7 +1136,7 @@ export default function VaultPage() {
         <div className="vault-docs-panel glass-card">
           {!vault?.docs?.length ? (
             <div className="py-16 px-6 text-center">
-              <div className="text-5xl mb-4">📄</div>
+              <div className="text-5xl mb-4"><Ico e="📄" /></div>
               <div className="text-base font-bold mb-1.5">보관 문서가 없습니다</div>
               <div className="text-xs text-[var(--text-muted)]">중요 문서를 안전하게 보관하세요</div>
             </div>
@@ -1199,7 +1200,7 @@ export default function VaultPage() {
         <div className="vault-discovery-panel glass-card">
           {!vault?.pendingDiscoveries?.length && !(vault as any)?.discovery?.length ? (
             <div className="py-16 px-6 text-center">
-              <div className="text-5xl mb-4">🔍</div>
+              <div className="text-5xl mb-4"><Ico e="🔍" /></div>
               <div className="text-base font-bold mb-1.5">탐지된 패턴이 없습니다</div>
               <div className="text-xs text-[var(--text-muted)] mb-5">
                 거래내역에서 반복 결제 패턴을 자동으로 찾아드립니다
@@ -1218,7 +1219,7 @@ export default function VaultPage() {
                 <div key={d.id} className="p-5 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <span className="kpi-icon">
-                      <span className="text-sm">🔍</span>
+                      <span className="text-sm"><Ico e="🔍" /></span>
                     </span>
                     <div>
                       <div className="font-semibold text-sm">{d.name}</div>

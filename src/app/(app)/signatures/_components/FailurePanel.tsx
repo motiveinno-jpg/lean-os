@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Ico } from "@/components/ui-icon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -46,7 +47,7 @@ export function FailurePanel({
       >
         <div className="sticky top-0 z-10 px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-card)]/95 backdrop-blur flex items-center justify-between">
           <div>
-            <div className="text-sm font-bold text-[var(--text)]">⚠️ 최근 7일 발송 실패 ({total}건)</div>
+            <div className="text-sm font-bold text-[var(--text)]"><Ico e="⚠" /> 최근 7일 발송 실패 ({total}건)</div>
             <div className="text-[11px] text-[var(--text-muted)] mt-0.5">사유별로 묶어 표시 · 펼치면 수신자별 상세 + 재발송</div>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
@@ -177,7 +178,7 @@ function FailureGroupRow({
                     className="shrink-0 px-2.5 py-1.5 text-[11px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 disabled:opacity-50"
                     title="이 요청에 리마인더 발송 + 재시도 처리"
                   >
-                    🔄 재발송
+                    <Ico e="🔄" /> 재발송
                   </button>
                 ) : (
                   <span className="shrink-0 text-[10px] text-[var(--text-dim)]">요청 없음</span>

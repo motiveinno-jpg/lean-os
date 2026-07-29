@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 거래 원장 — 한 프로젝트(deal)의 매출·매입 항목을 부호 기반 단일 리스트로 관리(2026-07 개편).
@@ -208,7 +209,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40">
                     <button onClick={() => startEdit(s)} className="text-[var(--text)] font-medium hover:text-[var(--primary)] hover:underline text-left">{s.name}</button>
                     {s.parent_deal_id !== dealId && (
-                      <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap" title="세부 프로젝트(캠페인) 소속 항목">📁 {childNameById[s.parent_deal_id] || "캠페인"}</span>
+                      <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap" title="세부 프로젝트(캠페인) 소속 항목"><Ico e="📁" /> {childNameById[s.parent_deal_id] || "캠페인"}</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text-muted)] truncate">{partnerName(s.partner_id)}</td>

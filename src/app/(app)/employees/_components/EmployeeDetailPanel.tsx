@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -957,7 +958,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               {/* 헤더 — 흰 카드 + 레드 포인트 아이콘 (라운드6: 그라데이션 제거) */}
               <div className="relative px-5 py-4 border-b border-[var(--border)] shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="kpi-icon danger shrink-0">🗂️</div>
+                  <div className="kpi-icon danger shrink-0"><Ico e="🗂" /></div>
                   <div className="min-w-0">
                     <div className="text-sm font-extrabold text-[var(--text)]">퇴사 처리</div>
                     <div className="text-[11px] text-[var(--text-muted)] truncate">{emp.name} · {emp.department || ""} {emp.position || ""}</div>

@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // PR3.5: 견적 품목 + 결제 단계 인라인 편집 컴포넌트.
 //   슬라이드 패널 돈 탭에 임베드. saveQuoteAndPayment 와 동일한 데이터 모델
@@ -681,7 +682,7 @@ function RejectedCard({ note, onEdit }: { note: string; onEdit: () => void }) {
   return (
     <div className="rejected-card">
       <div className="rejected-card-header">
-        <span className="text-[11px] font-bold text-red-400">❌ 거래처가 거절했습니다</span>
+        <span className="text-[11px] font-bold text-red-400"><Ico e="❌" /> 거래처가 거절했습니다</span>
         <button
           type="button"
           onClick={onEdit}

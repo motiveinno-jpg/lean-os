@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { Ico } from "@/components/ui-icon";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { MonthField } from "@/components/month-field";
 import Link from "next/link";
@@ -567,7 +568,7 @@ export default function PnlPage() {
   if (!data || !computed) {
     return (
       <div className="p-16 text-center">
-        <div className="text-4xl mb-3">📊</div>
+        <div className="text-4xl mb-3"><Ico e="📊" /></div>
         <div className="text-sm font-medium text-[var(--text)]">거래 데이터가 쌓이면 손익계산서가 자동 생성됩니다</div>
         <div className="text-xs text-[var(--text-muted)] mt-1">거래내역 페이지에서 매출/비용을 먼저 등록해주세요</div>
       </div>
@@ -647,7 +648,7 @@ export default function PnlPage() {
       {/* 미분류 출금 경고 — 판관비 과소계상(영업이익 과대) 오해 방지 */}
       {data.uncategorizedCount > 0 && (
         <div className="pnl-uncategorized-warning kpi-callout warning">
-          <span className="text-base leading-none mt-0.5">⚠️</span>
+          <span className="text-base leading-none mt-0.5"><Ico e="⚠" /></span>
           <div className="leading-relaxed">
             분류되지 않은 통장 출금 <b>{data.uncategorizedCount.toLocaleString()}건</b>(약 <b>₩{Math.round(data.uncategorizedAmount).toLocaleString()}</b>)이
             판매관리비에 <b>반영되지 않았습니다</b> — 실제보다 영업이익이 크게 보일 수 있습니다.

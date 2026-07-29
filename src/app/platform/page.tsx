@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 import { planOf, countPlanKinds, type PlanKind as PK } from "./_components/plan-kind";
 import { AnalyticsSection } from "./_components/analytics-section";
@@ -272,7 +273,7 @@ export default function PlatformOverview() {
           </span>
           {(usageErr || trafficErr || funnelErr || opsRiskErr) && (
             <span className="platform-header-live platform-header-live-warn mt-2 ml-2 inline-block" title="일부 지표 RPC 호출이 실패했습니다 — 표시된 0은 실제 0이 아닐 수 있습니다">
-              ⚠️ 일부 데이터 로드 실패
+              <Ico e="⚠" /> 일부 데이터 로드 실패
             </span>
           )}
         </div>
@@ -344,7 +345,7 @@ export default function PlatformOverview() {
             <div className="platform-rail-rows">
               {inboxItems.map((it) => (
                 <Link key={it.label} href={it.href} className="platform-rail-row">
-                  <span className="text-sm shrink-0">{it.icon}</span>
+                  <span className="text-sm shrink-0"><Ico e={it.icon} /></span>
                   <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)] truncate">{it.label}</span>
                   <span className={`platform-rail-badge ${it.n === 0 ? "" : it.danger ? "platform-rail-badge-danger" : "platform-rail-badge-warn"}`}>{it.n}</span>
                 </Link>

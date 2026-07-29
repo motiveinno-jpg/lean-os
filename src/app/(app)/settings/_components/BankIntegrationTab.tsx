@@ -2,6 +2,7 @@
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { useEffect, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery } from "@tanstack/react-query";
@@ -732,7 +733,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                   className="px-3 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-xs font-semibold transition disabled:opacity-50 border border-[var(--border)]"
                   title="원하는 기간으로 과거 거래 다시 가져오기 (누락분 채워넣기)"
                 >
-                  📅 기간 선택 sync
+                  <Ico e="📅" /> 기간 선택 sync
                 </button>
               )}
               <button onClick={handleSync} disabled={syncing} className="btn-primary btn-sm">
@@ -747,7 +748,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
           <div className="bank-integration-range-sync-panel">
             <div className="flex items-center justify-between mb-2">
               <div>
-                <div className="text-xs font-bold text-[var(--text)]">📅 기간 선택해서 다시 동기화</div>
+                <div className="text-xs font-bold text-[var(--text)]"><Ico e="📅" /> 기간 선택해서 다시 동기화</div>
                 <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                   CODEF default 는 최근 3개월만 가져옵니다. 과거 누락분이 있으면 시작일/종료일을 지정해 다시 sync 하세요.
                 </div>
@@ -791,9 +792,9 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
               </div>
             )}
             <div className="text-[10px] text-[var(--text-dim)] mt-2">
-              ⚠ 3개월씩 분할 호출 (Edge Function 150초 timeout 회피). 1년 = 4번, 2년 = 8번 호출.
+              <Ico e="⚠" /> 3개월씩 분할 호출 (Edge Function 150초 timeout 회피). 1년 = 4번, 2년 = 8번 호출.
               <br />
-              ⚠ 한국 은행 API 는 등록일 이전 거래를 못 가져올 수 있습니다. 누락분이 계속 있으면 은행 거래내역서를 CSV 로 직접 업로드하세요.
+              <Ico e="⚠" /> 한국 은행 API 는 등록일 이전 거래를 못 가져올 수 있습니다. 누락분이 계속 있으면 은행 거래내역서를 CSV 로 직접 업로드하세요.
             </div>
           </div>
         )}
@@ -886,7 +887,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                 {syncResult.notes && syncResult.notes.length > 0 && (
                   <div className="mt-3 p-2.5 rounded-xl bg-blue-500/8 border border-blue-500/15 shadow-sm">
                     <div className="text-xs font-semibold text-blue-600 dark:text-blue-300 mb-1.5">
-                      💡 CODEF 설정 안내 {syncResult.notes.length}건
+                      <Ico e="💡" /> CODEF 설정 안내 {syncResult.notes.length}건
                     </div>
                     <ul className="space-y-1.5 text-[11px] font-normal text-[var(--text-muted)]">
                       {syncResult.notes.map((n: any, idx: number) => (

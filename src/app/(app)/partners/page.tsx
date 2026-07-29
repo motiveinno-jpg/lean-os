@@ -1,5 +1,6 @@
 "use client";
 import { todayKst } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -743,12 +744,12 @@ export default function PartnersPage() {
             {detecting ? "감지 중..." : "휴면 감지"}
           </button>
           <MoreMenu>
-            <button onClick={downloadCSVTemplate} className={MORE_ITEM_CLS} role="menuitem">📄 CSV 템플릿</button>
-            <label className={MORE_ITEM_CLS}>📥 CSV 임포트
+            <button onClick={downloadCSVTemplate} className={MORE_ITEM_CLS} role="menuitem"><Ico e="📄" /> CSV 템플릿</button>
+            <label className={MORE_ITEM_CLS}><Ico e="📥" /> CSV 임포트
               <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
             </label>
-            <button onClick={handleExport} className={MORE_ITEM_CLS} role="menuitem">📤 Excel 내보내기</button>
+            <button onClick={handleExport} className={MORE_ITEM_CLS} role="menuitem"><Ico e="📤" /> Excel 내보내기</button>
           </MoreMenu>
           <button onClick={openCreate} className="btn-primary btn-sm whitespace-nowrap">+ 새 거래처</button>
         </div>
@@ -834,7 +835,7 @@ export default function PartnersPage() {
                 disabled={bulkDeleteMut.isPending}
                 className="px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition disabled:opacity-50"
               >
-                🗑 {bulkDeleteMut.isPending ? '삭제 중...' : '일괄삭제'}
+                <Ico e="🗑" /> {bulkDeleteMut.isPending ? '삭제 중...' : '일괄삭제'}
               </button>
               <button onClick={() => setSelectedIds(new Set())} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">
                 선택 해제
@@ -896,7 +897,7 @@ export default function PartnersPage() {
                         <span className="inline-flex items-center gap-1.5">
                           {p.name}
                           {p.is_dormant && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title="6개월 이상 거래·연락 없음 — 휴면">💤 휴면</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title="6개월 이상 거래·연락 없음 — 휴면"><Ico e="💤" /> 휴면</span>
                           )}
                         </span>
                       </td>
@@ -1038,7 +1039,7 @@ export default function PartnersPage() {
                     </span>
                     {detailPartner.is_dormant && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title={detailPartner.dormancy_detected_at ? `${String(detailPartner.dormancy_detected_at).slice(0,10)} 휴면 감지` : "6개월 이상 거래·연락 없음"}>
-                        💤 휴면
+                        <Ico e="💤" /> 휴면
                       </span>
                     )}
                     {detailPartner.business_number && (
@@ -1088,20 +1089,20 @@ export default function PartnersPage() {
                   }}
                   className="px-3 py-1.5 text-xs bg-violet-500/10 border border-violet-500/30 text-violet-400 rounded-lg hover:bg-violet-500/20 transition flex items-center gap-1"
                   title="로그인 없이 견적·계약을 확인할 수 있는 포털 링크를 발급·복사합니다">
-                  🔗 포털 링크
+                  <Ico e="🔗" /> 포털 링크
                 </button>
                 {detailPartner.contact_email && (
                   <a href={`mailto:${detailPartner.contact_email}`}
                     className="px-3 py-1.5 text-xs bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition flex items-center gap-1"
                     title={detailPartner.contact_email}>
-                    ✉️ 이메일
+                    <Ico e="✉" /> 이메일
                   </a>
                 )}
                 {detailPartner.contact_phone && (
                   <a href={`tel:${detailPartner.contact_phone}`}
                     className="px-3 py-1.5 text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition flex items-center gap-1"
                     title={detailPartner.contact_phone}>
-                    📞 전화
+                    <Ico e="📞" /> 전화
                   </a>
                 )}
                 <button onClick={() => { openEdit(detailPartner); setDetailPartner(null); }}
@@ -1219,7 +1220,7 @@ export default function PartnersPage() {
                 <div className="partner-deals-tab">
                   {partnerDeals.length === 0 ? (
                     <div className="py-14 text-center">
-                      <div className="text-4xl mb-3">📋</div>
+                      <div className="text-4xl mb-3"><Ico e="📋" /></div>
                       <div className="text-sm font-semibold text-[var(--text)]">연결된 프로젝트가 없습니다</div>
                       <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트에서 이 거래처를 지정하면 여기에 표시됩니다</div>
                     </div>
@@ -1274,7 +1275,7 @@ export default function PartnersPage() {
                 <div className="partner-payments-tab">
                   {partnerPayments.length === 0 ? (
                     <div className="py-14 text-center">
-                      <div className="text-4xl mb-3">💰</div>
+                      <div className="text-4xl mb-3"><Ico e="💰" /></div>
                       <div className="text-sm font-semibold text-[var(--text)]">결제 이력이 없습니다</div>
                       <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트 수금 일정이 생기면 여기에 표시됩니다</div>
                     </div>
@@ -1314,7 +1315,7 @@ export default function PartnersPage() {
                 <div className="partner-docs-tab">
                   {partnerDocs.length === 0 ? (
                     <div className="py-14 text-center">
-                      <div className="text-4xl mb-3">📄</div>
+                      <div className="text-4xl mb-3"><Ico e="📄" /></div>
                       <div className="text-sm font-semibold text-[var(--text)]">연결된 문서가 없습니다</div>
                       <div className="text-xs text-[var(--text-muted)] mt-1">견적·계약 문서가 프로젝트에 연결되면 표시됩니다</div>
                     </div>
@@ -1407,7 +1408,7 @@ export default function PartnersPage() {
 
                   {partnerComms.length === 0 ? (
                     <div className="py-14 text-center">
-                      <div className="text-4xl mb-3">💬</div>
+                      <div className="text-4xl mb-3"><Ico e="💬" /></div>
                       <div className="text-sm font-semibold text-[var(--text)]">커뮤니케이션 기록이 없습니다</div>
                       <div className="text-xs text-[var(--text-muted)] mt-1">전화·이메일·미팅 내용을 기록해 관계 이력을 남겨보세요</div>
                     </div>

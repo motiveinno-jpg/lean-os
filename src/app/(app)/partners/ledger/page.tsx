@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 거래처 원장 — 매출처(받을 돈)/매입처(줄 돈) 잔액 조회 (2026-06-12 메뉴 분리 핸드오프).
@@ -284,7 +285,7 @@ export default function PartnerLedgerPage() {
           <Link href="/partners/reconciliation"
             className="btn-primary text-xs"
             title="입금·계산서 자동 매칭 (확인 큐 / 수동 매칭 / 확정 내역)">
-            ⚙️ 거래 매칭 →
+            <Ico e="⚙" /> 거래 매칭 →
           </Link>
         </div>
       </div>

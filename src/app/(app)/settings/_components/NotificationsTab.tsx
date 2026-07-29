@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import React, { useEffect, useState } from "react";
@@ -263,7 +264,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         )}
         {iosNeedsA2HS && (
           <div className="text-xs text-[var(--warning)] mb-3 leading-relaxed">
-            📱 아이폰/아이패드는 Safari <b>공유 → &lsquo;홈 화면에 추가&rsquo;</b> 후, 홈 화면의 오너뷰 앱에서 켜야
+            <Ico e="📱" /> 아이폰/아이패드는 Safari <b>공유 → &lsquo;홈 화면에 추가&rsquo;</b> 후, 홈 화면의 오너뷰 앱에서 켜야
             창을 닫아도 알림이 옵니다 (iOS 정책).
           </div>
         )}
@@ -446,7 +447,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
-            💰 자금일보 카카오 알림톡
+            <Ico e="💰" /> 자금일보 카카오 알림톡
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">신규</span>
           </h3>
           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">매일 정해진 시간에 전일 자금 요약을 카톡으로 발송 (Solapi 검수 통과 후 활성화).</p>

@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
@@ -336,8 +337,8 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                       : 'bg-[var(--bg-surface)] border-[var(--border)]'
                   }`}>
                     <button onClick={() => startEditTemplate(t)} className="text-xs text-[var(--text)] hover:text-[var(--primary)] transition" title={t.is_builtin ? "내장 서식 — 복제 후 편집" : t.is_active === false ? "임시저장" : "수정"}>
-                      {t.is_builtin && <span className="text-[9px] text-amber-500 mr-1">🔒</span>}
-                      {t.is_active === false && <span className="text-[9px] text-amber-500 mr-1">📝</span>}
+                      {t.is_builtin && <span className="text-[9px] text-amber-500 mr-1"><Ico e="🔒" /></span>}
+                      {t.is_active === false && <span className="text-[9px] text-amber-500 mr-1"><Ico e="📝" /></span>}
                       {t.name}
                     </button>
                     {!t.is_builtin && (
@@ -346,7 +347,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">🔒 내장 · 📝 임시저장 · 클릭하면 에디터에 로드</p>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1"><Ico e="🔒" /> 내장 · 📝 임시저장 · 클릭하면 에디터에 로드</p>
             </div>
           )}
           <div className="contract-template-editor-footer shrink-0 border-t border-[var(--border)] px-6 py-4 flex items-center gap-3 bg-[var(--bg-card)] rounded-b-2xl">

@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // 목표형 전용 관리자 성과 대시보드 — 4뷰 토글.
 //   ① 이번주 브리핑: 목표 프로젝트 한 줄(담당·상태·평균달성률·성과 1줄·이슈 1줄)
@@ -332,7 +333,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   return (
     <div className="perf-dashboard-panel glass-card">
       <div className="perf-dashboard-header">
-        <h3 className="text-sm font-bold text-[var(--text)]">🎯 성과 대시보드 <span className="text-xs font-normal text-[var(--text-dim)]">목표형 {goalDeals.length}건</span></h3>
+        <h3 className="text-sm font-bold text-[var(--text)]"><Ico e="🎯" /> 성과 대시보드 <span className="text-xs font-normal text-[var(--text-dim)]">목표형 {goalDeals.length}건</span></h3>
         <button onClick={onClose} className="btn-ghost text-xs">닫기 ✕</button>
       </div>
 
@@ -374,8 +375,8 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
                       {u ? (
                         <div className="space-y-0.5">
                           {(u.did || u.issues) ? (<>
-                            {u.did && <div className="truncate">✅ {u.did}</div>}
-                            {u.issues && <div className="truncate text-amber-600">🚧 {u.issues}</div>}
+                            {u.did && <div className="truncate"><Ico e="✅" /> {u.did}</div>}
+                            {u.issues && <div className="truncate text-amber-600"><Ico e="🚧" /> {u.issues}</div>}
                           </>) : <div className="truncate">{u.next_plan || "—"}</div>}
                         </div>
                       ) : <span className="text-[var(--text-dim)]">체크인 없음</span>}

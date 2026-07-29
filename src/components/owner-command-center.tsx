@@ -7,6 +7,7 @@
 //   전부 기존 lib·데이터 재사용(가짜 metric 0). 디자인: 흰 라운드 카드(TeamHub 라운드) + 토큰 표면.
 
 import { useMemo, useState } from "react";
+import { Ico } from "@/components/ui-icon";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -154,7 +155,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
         <div className="pending-approval-list">
           {topActions.length === 0 ? (
             <div className="pending-approval-empty">
-              <span className="text-2xl">🎉</span>
+              <span className="text-2xl"><Ico e="🎉" /></span>
               <div>
                 <div className="text-sm font-bold text-[var(--text)]">대기 중인 결재가 없습니다</div>
                 <div className="text-[11px] text-[var(--text-dim)]">새 결재가 올라오면 여기에 바로 표시됩니다</div>
@@ -166,7 +167,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
                 const meta = ACTION_META[a.type] || ACTION_META.approval;
                 return (
                   <div key={`${a.type}-${a.id}`} className="pending-approval-row">
-                    <span className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 bg-[var(--bg-surface)]">{meta.icon}</span>
+                    <span className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 bg-[var(--bg-surface)]"><Ico e={meta.icon} /></span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[13px] font-semibold text-[var(--text)] truncate">{a.title}</span>

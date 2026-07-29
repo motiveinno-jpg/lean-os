@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -117,7 +118,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
         <div className="mypage-record-loading">불러오는 중...</div>
       ) : records.length === 0 ? (
         <div className="mypage-record-empty">
-          <div className="text-3xl mb-2">🕘</div>
+          <div className="text-3xl mb-2"><Ico e="🕘" /></div>
           <div className="text-sm font-semibold text-[var(--text-muted)]">이 달의 출퇴근 기록이 없습니다</div>
           <div className="text-xs text-[var(--text-dim)] mt-1">출근을 기록하면 이곳에 일자별로 쌓입니다.</div>
         </div>

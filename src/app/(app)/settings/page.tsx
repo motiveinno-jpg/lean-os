@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { friendlyError } from "@/lib/friendly-error";
@@ -303,7 +304,7 @@ export default function SettingsPage() {
               <div className="p-4 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <div className="text-[11px] font-semibold text-[var(--primary)] uppercase tracking-wider">🔗 연동 통장 합산</div>
+                    <div className="text-[11px] font-semibold text-[var(--primary)] uppercase tracking-wider"><Ico e="🔗" /> 연동 통장 합산</div>
                     <div className="text-xs text-[var(--text-dim)] mt-0.5">통장관리에서 동기화한 모든 계좌 잔액 합산</div>
                   </div>
                   <div className="text-xl font-black mono-number">₩{totalBankBalance.toLocaleString()}</div>
@@ -327,7 +328,7 @@ export default function SettingsPage() {
               {/* 총 가용 현금 합계 */}
               <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs text-[var(--text-muted)]">💰 총 가용 현금 (대시보드 반영)</div>
+                  <div className="text-xs text-[var(--text-muted)]"><Ico e="💰" /> 총 가용 현금 (대시보드 반영)</div>
                   <div className="text-2xl font-black mono-number text-[var(--primary)]">
                     ₩{(totalBankBalance + (Number(balance) || 0)).toLocaleString()}
                   </div>
@@ -467,7 +468,7 @@ export default function SettingsPage() {
 
             {bankAccounts.length === 0 ? (
               <div className="text-center py-12">
-                <div className="text-3xl mb-3">🏦</div>
+                <div className="text-3xl mb-3"><Ico e="🏦" /></div>
                 <div className="text-sm font-semibold text-[var(--text-muted)]">등록된 통장이 없습니다</div>
                 <div className="text-xs text-[var(--text-dim)] mt-1">우측 상단 &quot;+ 통장 추가&quot;로 첫 계좌를 등록하세요.</div>
               </div>

@@ -7,6 +7,7 @@
 //   권한: owner/admin 만 (RLS DB 측 admin only, UI 측 친절 안내).
 
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { useMemo, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { RichEditorRef } from "@/components/rich-editor";
@@ -88,12 +89,12 @@ export default function ContractTemplatesManager({ companyId }: Props) {
               <div className="absolute right-0 mt-1.5 z-20 w-72 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1.5">
                 <button onClick={() => startAdd("html")}
                   className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
-                  <div className="text-sm font-semibold text-[var(--text)]">✍️ 직접 작성</div>
+                  <div className="text-sm font-semibold text-[var(--text)]"><Ico e="✍" /> 직접 작성</div>
                   <div className="text-[11px] text-[var(--text-muted)] mt-0.5">편집기에서 계약서를 작성 (표준 계약서에서 시작 가능)</div>
                 </button>
                 <button onClick={() => startAdd("pdf")}
                   className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
-                  <div className="text-sm font-semibold text-[var(--text)]">📄 PDF 업로드</div>
+                  <div className="text-sm font-semibold text-[var(--text)]"><Ico e="📄" /> PDF 업로드</div>
                   <div className="text-[11px] text-[var(--text-muted)] mt-0.5">완성된 PDF 계약서를 올려 그대로 사용</div>
                 </button>
               </div>
@@ -343,7 +344,7 @@ function TemplateEditorModal({
                   <div className="mt-2 text-[11px] text-[var(--text-muted)]">업로드됨: <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">미리보기</a></div>
                 )}
                 {uploading && <div className="mt-2 text-[11px] text-[var(--text-dim)]">업로드 중…</div>}
-                <p className="mt-2 text-[10px] text-amber-400">⚠ PDF 양식은 변수 자동 치환이 불가능합니다. 발송 시 PDF 그대로 전송.</p>
+                <p className="mt-2 text-[10px] text-amber-400"><Ico e="⚠" /> PDF 양식은 변수 자동 치환이 불가능합니다. 발송 시 PDF 그대로 전송.</p>
               </div>
             )}
           </aside>

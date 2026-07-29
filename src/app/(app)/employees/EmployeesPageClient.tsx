@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr, kstDateTimeLocal, kstLocalToIso } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -181,7 +182,7 @@ export default function EmployeesPage() {
           <div className="stat-tile">
             <div className="flex items-center justify-between">
               <span className="stat-tile-label">재직 인원</span>
-              <span className="kpi-icon">👥</span>
+              <span className="kpi-icon"><Ico e="👥" /></span>
             </div>
             <div className="flex items-end gap-2">
               <span className="stat-tile-value mono-number">{activeCount}명</span>
@@ -190,7 +191,7 @@ export default function EmployeesPage() {
           <div className="stat-tile">
             <div className="flex items-center justify-between">
               <span className="stat-tile-label">연 인건비</span>
-              <span className="kpi-icon danger">💸</span>
+              <span className="kpi-icon danger"><Ico e="💸" /></span>
             </div>
             <div className="flex items-end gap-2">
               <span className="stat-tile-value mono-number">₩{(totalSalary * 12).toLocaleString()}</span>
@@ -200,7 +201,7 @@ export default function EmployeesPage() {
           <div className="stat-tile">
             <div className="flex items-center justify-between">
               <span className="stat-tile-label">퇴직충당금</span>
-              <span className="kpi-icon warning">🏦</span>
+              <span className="kpi-icon warning"><Ico e="🏦" /></span>
             </div>
             <div className="flex items-end gap-2">
               <span className="stat-tile-value mono-number">₩{totalRetirement.toLocaleString()}</span>
@@ -209,7 +210,7 @@ export default function EmployeesPage() {
           <div className="stat-tile">
             <div className="flex items-center justify-between">
               <span className="stat-tile-label">미결 경비</span>
-              <span className="kpi-icon warning">🧾</span>
+              <span className="kpi-icon warning"><Ico e="🧾" /></span>
             </div>
             <div className="flex items-end gap-2">
               <span className="stat-tile-value mono-number">
@@ -611,7 +612,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
       /* ── 직원 목록 뷰 ── */
       <div className="employee-list-table glass-card">
         {employees.length === 0 ? (
-          <div className="p-16 text-center"><div className="text-4xl mb-4">👥</div><div className="text-sm font-medium text-[var(--text)]">직원을 등록하면 급여 자동계산, 4대보험이 시작됩니다</div><div className="text-xs text-[var(--text-muted)] mt-1">근태, 휴가, 증명서 발급까지 한번에 관리하세요</div><button onClick={() => setShowForm(true)} className="btn-primary mt-4">+ 직원 등록</button></div>
+          <div className="p-16 text-center"><div className="text-4xl mb-4"><Ico e="👥" /></div><div className="text-sm font-medium text-[var(--text)]">직원을 등록하면 급여 자동계산, 4대보험이 시작됩니다</div><div className="text-xs text-[var(--text-muted)] mt-1">근태, 휴가, 증명서 발급까지 한번에 관리하세요</div><button onClick={() => setShowForm(true)} className="btn-primary mt-4">+ 직원 등록</button></div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead className="sticky-bar"><tr className="table-head-row">
@@ -758,7 +759,7 @@ function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id:
   if (active.length === 0) {
     return (
       <div className="glass-card p-16 text-center">
-        <div className="text-4xl mb-4">🏢</div>
+        <div className="text-4xl mb-4"><Ico e="🏢" /></div>
         <div className="text-sm text-[var(--text-muted)]">등록된 직원이 없어 조직도를 표시할 수 없습니다</div>
       </div>
     );
@@ -805,7 +806,7 @@ function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id:
       <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
         <div className="text-xs text-[var(--text-muted)]">총 {active.length}명 · {deptEntries.length}개 부서</div>
         <button onClick={downloadSvg} className="text-xs px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg)] border border-[var(--border)] rounded-lg font-semibold transition">
-          ⬇ SVG 다운로드
+          <Ico e="⬇" /> SVG 다운로드
         </button>
       </div>
       {/* 화면 폭에 맞춰 자동 축소(가로 스크롤 없이 항상 한눈에). 자연 크기(svgW)보다 넓은 컨테이너에서는
@@ -943,7 +944,7 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
 
       {!selectedEmpId ? (
         <div className="glass-card p-16 text-center">
-          <div className="text-4xl mb-4">💰</div>
+          <div className="text-4xl mb-4"><Ico e="💰" /></div>
           <div className="text-sm text-[var(--text-muted)]">직원을 선택하면 급여이력이 표시됩니다</div>
         </div>
       ) : (
@@ -1138,7 +1139,7 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
 
       <div className="expense-list-table glass-card">
         {expenses.length === 0 ? (
-          <div className="p-16 text-center"><div className="text-4xl mb-4">🧾</div><div className="text-sm text-[var(--text-muted)]">경비 청구 내역이 없습니다</div></div>
+          <div className="p-16 text-center"><div className="text-4xl mb-4"><Ico e="🧾" /></div><div className="text-sm text-[var(--text-muted)]">경비 청구 내역이 없습니다</div></div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead className="sticky-bar"><tr className="table-head-row">
@@ -1678,7 +1679,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         <div className="attendance-records-table glass-card">
           {records.length === 0 ? (
             <div className="p-16 text-center">
-              <div className="text-4xl mb-4">📊</div>
+              <div className="text-4xl mb-4"><Ico e="📊" /></div>
               <div className="text-sm text-[var(--text-muted)]">해당 월에 근태 기록이 없습니다</div>
             </div>
           ) : (
@@ -2087,7 +2088,7 @@ function MissingCheckOutModal({
       >
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <div>
-            <div className="text-sm font-bold">📝 퇴근 미입력 일괄 보정</div>
+            <div className="text-sm font-bold"><Ico e="📝" /> 퇴근 미입력 일괄 보정</div>
             <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
               {selectedMonth} 누락 {missingRows.length}건 — 저장 시 자동으로 연장·야간·휴일 분이 산정됩니다.
             </div>
@@ -2525,7 +2526,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 
       {!preview ? (
         <div className="glass-card p-16 text-center">
-          <div className="text-4xl mb-4">📋</div>
+          <div className="text-4xl mb-4"><Ico e="📋" /></div>
           <div className="text-sm text-[var(--text-muted)]">"급여 명세 미리보기" 버튼을 클릭하면 이번 달 급여 명세를 확인할 수 있습니다</div>
         </div>
       ) : preview.items.length === 0 ? (
@@ -2630,12 +2631,12 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => downloadOne(item)} title="급여명세서 PDF 다운로드" className="px-2 py-1 text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg transition">
-                          ⬇ PDF
+                          <Ico e="⬇" /> PDF
                         </button>
                         <button onClick={() => handleSendPayslips([item.employeeId])} disabled={sending}
                           title="이 직원에게만 메일로 명세서 발송 (비밀번호=생년월일)"
                           className="px-2 py-1 text-[10px] font-semibold bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 rounded-lg transition disabled:opacity-50">
-                          ✉ 발송
+                          <Ico e="✉" /> 발송
                         </button>
                       </div>
                     </td>
@@ -3657,7 +3658,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       <div className="leave-requests-table glass-card">
         {visibleRequests.length === 0 ? (
           <div className="p-16 text-center">
-            <div className="text-4xl mb-4">🏖</div>
+            <div className="text-4xl mb-4"><Ico e="🏖" /></div>
             <div className="text-sm text-[var(--text-muted)]">휴가 신청 내역이 없습니다</div>
           </div>
         ) : (
@@ -4199,7 +4200,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         </div>
         {certLogs.length === 0 ? (
           <div className="p-16 text-center">
-            <div className="text-4xl mb-4">📜</div>
+            <div className="text-4xl mb-4"><Ico e="📜" /></div>
             <div className="text-sm text-[var(--text-muted)]">발급된 증명서가 없습니다</div>
             <div className="text-xs text-[var(--text-dim)] mt-1">직원을 선택하고 증명서를 발급하세요</div>
           </div>
@@ -4321,7 +4322,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h3 className="text-sm font-bold flex items-center gap-2">
-            🧾 연말정산 간소화 자료 수집
+            <Ico e="🧾" /> 연말정산 간소화 자료 수집
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{year}년</span>
           </h3>
           <p className="text-xs text-[var(--text-muted)] mt-1">홈택스 간소화 자료 제출 현황을 직원별로 추적합니다</p>
@@ -4405,7 +4406,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
       )}
 
       <div className="mt-4 p-3 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)]/50">
-        <div className="text-[10px] font-semibold text-[var(--text-muted)] mb-1.5">📌 안내</div>
+        <div className="text-[10px] font-semibold text-[var(--text-muted)] mb-1.5"><Ico e="📌" /> 안내</div>
         <ul className="text-[11px] text-[var(--text-muted)] leading-relaxed space-y-0.5">
           <li>• 홈택스 일정: 매년 1월 15일부터 간소화 자료 일괄제공</li>
           <li>• 부양가족 자료는 부양가족 본인이 자료제공 동의 후 조회 가능</li>

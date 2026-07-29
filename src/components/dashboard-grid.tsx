@@ -11,6 +11,7 @@
 //     창 축소→확대 시 잘못된 너비가 고정되는 버그가 있었음. 직접 측정으로 완전 해결.
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { Ico } from "@/components/ui-icon";
 import GridLayout, { type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -176,7 +177,7 @@ export function DashboardGrid({
       {Header}
       {edit && recAddable.length > 0 && (
         <div className="recommended-widgets-row">
-          <span className="text-[var(--text-dim)]">💡 지금 유용한 위젯:</span>
+          <span className="text-[var(--text-dim)]"><Ico e="💡" /> 지금 유용한 위젯:</span>
           {recAddable.map((c) => (
             <button key={c.id} onClick={() => addWidget(c.id)} className="no-drag inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition">
               {c.icon} {c.name} 추가 ＋

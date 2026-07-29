@@ -1,5 +1,6 @@
 "use client";
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
@@ -424,7 +425,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       <div className="payment-queue-table glass-card">
         {filtered.length === 0 ? (
           <div className="py-16 px-6 text-center">
-            <div className="text-5xl mb-4">💳</div>
+            <div className="text-5xl mb-4"><Ico e="💳" /></div>
             <div className="text-lg font-bold mb-2">결제 큐가 비어있습니다</div>
             <div className="text-sm text-[var(--text-muted)] mb-5">프로젝트 비용 스케줄에서 자동 생성되거나 수동으로 등록하세요</div>
             <button onClick={() => setShowForm(true)} className="btn-secondary">+ 수동 결제 등록</button>
@@ -661,7 +662,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
       <div className="fixed-cost-batch-table glass-card">
         {batches.length === 0 ? (
           <div className="py-14 px-6 text-center">
-            <div className="text-5xl mb-4">🏢</div>
+            <div className="text-5xl mb-4"><Ico e="🏢" /></div>
             <div className="text-base font-bold mb-1.5">고정비 배치 없음</div>
             <div className="text-sm text-[var(--text-muted)]">반복결제를 먼저 설정하고 배치를 생성하세요</div>
           </div>
@@ -1251,7 +1252,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       <div className="recurring-payments-table glass-card">
         {recurring.length === 0 ? (
           <div className="py-14 px-6 text-center">
-            <div className="text-5xl mb-4">🔄</div>
+            <div className="text-5xl mb-4"><Ico e="🔄" /></div>
             <div className="text-base font-bold mb-1.5">반복결제가 없습니다</div>
             <div className="text-sm text-[var(--text-muted)] mb-5">임대료, 보험, 구독 등 매월 고정 지출을 등록하세요</div>
             <button onClick={() => setShowForm(true)} className="btn-secondary">+ 반복결제 추가</button>
@@ -1963,7 +1964,7 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
       <div className="expense-requests-table glass-card">
         {expenses.length === 0 ? (
           <div className="py-16 px-6 text-center">
-            <div className="text-5xl mb-4">📄</div>
+            <div className="text-5xl mb-4"><Ico e="📄" /></div>
             <div className="text-lg font-bold mb-2">지출결의서/품의서가 없습니다</div>
             <div className="text-sm text-[var(--text-muted)] mb-5">프로젝트 외 지출이나 구매가 필요할 때 작성하세요</div>
             <button onClick={() => setShowForm(true)} className="btn-secondary">+ 지출결의/품의 작성</button>

@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // L 계약: stage='contract' 전용 양식 선택·변수 치환·발송 카드
 //
@@ -287,7 +288,7 @@ export function ContractStageCard({
 
       {approval?.status === "rejected" && approval.decision_note && (
         <div className="contract-rejection-notice">
-          <div className="text-[11px] font-bold text-red-400 mb-1">❌ 거래처가 계약서를 거절했습니다</div>
+          <div className="text-[11px] font-bold text-red-400 mb-1"><Ico e="❌" /> 거래처가 계약서를 거절했습니다</div>
           <div className="text-[11px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed">{approval.decision_note}</div>
         </div>
       )}
@@ -333,7 +334,7 @@ export function ContractStageCard({
                               : "도장/사인";
               const signedAt = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
               const ourBlock = `\n\n<div style="margin-top:16px;padding:20px;border:2px solid #16a34a;border-radius:12px;background:#f0fdf4">
-  <div style="font-size:11px;color:#15803d;margin-bottom:8px;font-weight:bold">✍️ 우리(갑) 서명 / 날인</div>
+  <div style="font-size:11px;color:#15803d;margin-bottom:8px;font-weight:bold"><Ico e="✍" /> 우리(갑) 서명 / 날인</div>
   <div style="display:flex;align-items:center;gap:16px">
     <div style="flex:1">
       <div style="font-size:13px;font-weight:bold;color:#111827">${companyInfo.name || "회사"}</div>
@@ -457,7 +458,7 @@ export function ContractStageCard({
           <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1.5">미리보기</div>
           {selectedTemplate.file_type === "pdf" ? (
             <div className="bg-white rounded p-3 text-[11px] text-gray-700 border border-[var(--border)]">
-              📎 PDF 양식 — 발송 시 거래처에게 그대로 전송됩니다.{" "}
+              <Ico e="📎" /> PDF 양식 — 발송 시 거래처에게 그대로 전송됩니다.{" "}
               {selectedTemplate.file_url && (
                 <a href={selectedTemplate.file_url} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline">PDF 열기</a>
               )}
@@ -495,7 +496,7 @@ export function ContractStageCard({
             </button>
           </div>
           {missingVars.length > 0 && (
-            <div className="mt-1.5 text-[10px] text-amber-400">⚠ {missingVars.length}개 변수가 비어있습니다 — 본문에 {"{변수명}"} 그대로 노출됩니다.</div>
+            <div className="mt-1.5 text-[10px] text-amber-400"><Ico e="⚠" /> {missingVars.length}개 변수가 비어있습니다 — 본문에 {"{변수명}"} 그대로 노출됩니다.</div>
           )}
           <div className="mt-1.5 text-[10px] text-[var(--text-dim)]">
             만료: 14일 · 거래처가 승인하면 자동으로 진행 중 단계로 전환됩니다
@@ -555,7 +556,7 @@ function PendingOurSignatureCard({ approval, onClick }: { approval: ApprovalLite
     : "—";
   return (
     <div className="pending-our-signature-card">
-      <div className="text-[12px] font-bold text-orange-400">✍️ 거래처 서명 완료 — 우리(갑) 서명 대기</div>
+      <div className="text-[12px] font-bold text-orange-400"><Ico e="✍" /> 거래처 서명 완료 — 우리(갑) 서명 대기</div>
       <div className="text-[11px] text-[var(--text)]">
         거래처가 {partnerMethodLabel}으로 승인했습니다 ({signedAt} KST).
         이제 우리 측 서명·도장 후 계약이 최종 성립됩니다.
@@ -565,7 +566,7 @@ function PendingOurSignatureCard({ approval, onClick }: { approval: ApprovalLite
         onClick={onClick}
         className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold transition"
       >
-        📝 우리 서명·도장 추가
+        <Ico e="📝" /> 우리 서명·도장 추가
       </button>
     </div>
   );
@@ -672,7 +673,7 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
   return (
     <div className="signed-contract-card">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[11px] font-bold text-emerald-400">✅ 계약 승인 완료 — 서명·날인 회수됨</div>
+        <div className="text-[11px] font-bold text-emerald-400"><Ico e="✅" /> 계약 승인 완료 — 서명·날인 회수됨</div>
       </div>
       <div className="text-[11px] text-[var(--text)] space-y-0.5">
         <div>{methodLabel}{approval.recipient_name ? ` · ${approval.recipient_name}` : ""}</div>
@@ -684,7 +685,7 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
             onClick={() => openDocViewer({ type: 'contract', id: approval.id })}
             className="btn-primary btn-sm"
           >
-            📄 서명된 계약서 보기
+            <Ico e="📄" /> 서명된 계약서 보기
           </button>
         )}
         {hasPdfUrl && (
@@ -694,7 +695,7 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
             rel="noopener noreferrer"
             className="px-3 py-1.5 rounded bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg-card)] text-[11px] font-semibold transition"
           >
-            📎 PDF 다운로드
+            <Ico e="📎" /> PDF 다운로드
           </a>
         )}
         {!hasHtml && !hasPdfUrl && (

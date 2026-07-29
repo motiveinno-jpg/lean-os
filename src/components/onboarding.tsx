@@ -1,5 +1,6 @@
 "use client";
 import { todayKst } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -757,7 +758,7 @@ function StepFirstDeal({ dealName, setDealName, dealType, setDealType, dealAmoun
                   borderColor: dealType === opt.value ? "var(--primary)" : "var(--border)",
                 }}
               >
-                <div className="text-lg font-bold">{opt.icon}</div>
+                <div className="text-lg font-bold"><Ico e={opt.icon} /></div>
                 <div className="text-xs font-semibold mt-0.5">{opt.label}</div>
               </button>
             ))}

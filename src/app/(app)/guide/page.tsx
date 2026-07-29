@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
+import { Ico } from "@/components/ui-icon";
 import Link from 'next/link';
 import { resetOnboardingDismiss } from '@/components/onboarding';
 
@@ -592,7 +593,7 @@ function WorkflowGuides() {
                   color: 'var(--text)',
                 }}
               >
-                <span style={{ fontSize: '22px', flexShrink: 0 }}>{wf.icon}</span>
+                <span style={{ fontSize: '22px', flexShrink: 0 }}><Ico e={wf.icon} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '14px', fontWeight: 700 }}>{wf.title}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{wf.description}</div>
@@ -908,7 +909,7 @@ export default function GuidePage() {
               padding: '64px 16px',
             }}
           >
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔍</div>
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}><Ico e="🔍" /></div>
             <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', margin: '0 0 4px' }}>
               검색 결과가 없습니다
             </p>
@@ -954,7 +955,7 @@ export default function GuidePage() {
                 href={f.route}
                 className="flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-[var(--text)] rounded-lg border border-[var(--border)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-light)]"
               >
-                <span style={{ fontSize: '16px' }}>{f.icon}</span>
+                <span style={{ fontSize: '16px' }}><Ico e={f.icon} /></span>
                 {f.title}
               </Link>
             ))}

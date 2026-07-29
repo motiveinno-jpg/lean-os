@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
@@ -220,7 +221,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
       </div>
       {/* R15: 사용법 안내 (직원 "어떻게 사용하는것?") — 기능 변경 없이 설명만 */}
       <p className="text-[11px] text-[var(--text-dim)] mb-3 leading-relaxed bg-[var(--bg-surface)] rounded-lg px-3 py-2">
-        💡 매달 반복 결제(구독·임대료·통신비 등)를 한눈에 보는 화면입니다. 거래내역 페이지에서 해당 거래를
+        <Ico e="💡" /> 매달 반복 결제(구독·임대료·통신비 등)를 한눈에 보는 화면입니다. 거래내역 페이지에서 해당 거래를
         <strong className="text-[var(--text-muted)]"> &quot;고정비&quot;</strong>로 체크하면 이번 달 분이 자동 집계됩니다.
       </p>
       {items.length === 0 ? (

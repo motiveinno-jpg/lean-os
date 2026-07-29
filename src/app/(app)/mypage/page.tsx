@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -466,7 +467,7 @@ export default function MyPage() {
             <MyAttendance employeeId={employee.id} />
           ) : (
             <div className="glass-card p-6 text-center">
-              <div className="text-3xl mb-2">🕘</div>
+              <div className="text-3xl mb-2"><Ico e="🕘" /></div>
               <div className="text-sm font-semibold text-[var(--text-muted)]">구성원 정보와 연결되지 않았습니다</div>
               <div className="text-xs text-[var(--text-dim)] mt-1">인사관리에서 내 계정이 구성원으로 등록되면 출퇴근 기록이 표시됩니다.</div>
             </div>
@@ -544,7 +545,7 @@ export default function MyPage() {
                 <div className="py-10 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
               ) : !ledgerBalance ? (
                 <div className="py-10 text-center">
-                  <div className="text-3xl mb-2">🗓️</div>
+                  <div className="text-3xl mb-2"><Ico e="🗓" /></div>
                   <div className="text-sm font-semibold text-[var(--text-muted)]">{ledgerYear}년 연차 정보가 없습니다</div>
                   <div className="text-xs text-[var(--text-dim)] mt-1">관리자가 연차를 설정하면 이곳에 표시됩니다.</div>
                 </div>

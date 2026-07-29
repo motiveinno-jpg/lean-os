@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -733,7 +734,7 @@ function QuickNavWidget() {
             href={l.href}
             className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--primary)]/40 hover:bg-[var(--bg-elevated)] transition"
           >
-            <span className="text-xl leading-none">{l.icon}</span>
+            <span className="text-xl leading-none"><Ico e={l.icon} /></span>
             <span className="text-[10px] font-semibold text-[var(--text)] truncate w-full text-center">{l.label}</span>
           </Link>
         ))}
@@ -922,7 +923,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
             if (it.kind === "event") {
               return (
                 <Link key={`ev-${it.id}`} href="/schedule" className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--primary)]/5 border border-[var(--primary)]/15 hover:bg-[var(--primary)]/10 transition">
-                  <span className="w-4 h-4 flex items-center justify-center text-[11px] flex-shrink-0">📅</span>
+                  <span className="w-4 h-4 flex items-center justify-center text-[11px] flex-shrink-0"><Ico e="📅" /></span>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-[var(--text)] truncate">{it.title}</div>
                     {d && <div className="text-[10px] text-[var(--text-dim)]">{kstDateStr(d)}{it.raw.all_day ? "" : ` ${d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}</div>}
@@ -1097,7 +1098,7 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
   return (
     <div className="dashboard-overdue-receivables-widget rounded-2xl bg-[var(--bg-card)]">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-base">💰</span>
+        <span className="text-base"><Ico e="💰" /></span>
         <h3 className="text-sm font-bold text-[var(--text)]">미수금 현황</h3>
         {overdue.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-[var(--danger)] font-bold">{overdue.length}건 연체</span>}
       </div>
@@ -1161,7 +1162,7 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
   return (
     <div className="dashboard-burn-rate-trend-widget rounded-2xl bg-[var(--bg-card)]">
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-base">📊</span>
+        <span className="text-base"><Ico e="📊" /></span>
         <h3 className="text-sm font-bold text-[var(--text)]">번레이트 추이</h3>
         <span className="text-[10px] text-[var(--text-muted)]">최근 6개월</span>
       </div>
@@ -1209,7 +1210,7 @@ function RiskCard({ label, items, count }: { label: RiskLabel; items: RiskItem[]
     }`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-base">{cfg.icon}</span>
+          <span className="text-base"><Ico e={cfg.icon} /></span>
           <span className="text-xs font-bold text-[var(--text)]">{cfg.title}</span>
         </div>
         <span className={`text-lg font-black mono-number ${hasDanger ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
@@ -1889,7 +1890,7 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
         {reportUrl && (
           <a href={reportUrl} target="_blank" rel="noopener noreferrer"
             className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition text-[11px] text-[var(--text)]">
-            <span>📄</span>
+            <span><Ico e="📄" /></span>
             <span className="flex-1">{month} 손익 리포트 PDF</span>
             <span className="text-[9px] text-[var(--text-dim)]">다운로드</span>
           </a>
@@ -1897,7 +1898,7 @@ function ClosingChecklistWidget({ companyId, userId }: { companyId: string | nul
 
         {checklist.status === 'locked' ? (
           <div className="text-center py-3">
-            <div className="text-sm text-[var(--text-dim)] font-semibold mb-2">🔒 마감 잠금됨</div>
+            <div className="text-sm text-[var(--text-dim)] font-semibold mb-2"><Ico e="🔒" /> 마감 잠금됨</div>
             <p className="text-[10px] text-[var(--text-dim)] mb-2">이 달의 데이터 수정이 잠금되었습니다</p>
             <button onClick={async () => { if (await appConfirm("마감 잠금을 해제하시겠습니까? 데이터 수정이 가능해집니다.", { confirmLabel: "잠금 해제" })) unlockMut.mutate(); }}
               disabled={unlockMut.isPending}
@@ -2296,7 +2297,7 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 ) : (
-                  <span className="text-[9px]">{item.icon}</span>
+                  <span className="text-[9px]"><Ico e={item.icon} /></span>
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -2552,7 +2553,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
               <Link key={type} href={tc.href}
                 className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition hover:opacity-80"
                 style={{ background: `${tc.color}15`, color: tc.color }}>
-                <span>{tc.icon}</span>
+                <span><Ico e={tc.icon} /></span>
                 <span>{tc.label} {count}</span>
               </Link>
             );
@@ -2571,7 +2572,7 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
                 onClick={() => setDetailId(detailId === action.id ? null : action.id)}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs flex-shrink-0">{tc.icon}</span>
+                  <span className="text-xs flex-shrink-0"><Ico e={tc.icon} /></span>
                   <span className="text-[10px] font-bold flex-shrink-0 px-1.5 py-0.5 rounded"
                     style={{ background: `${tc.color}15`, color: tc.color }}>
                     {tc.label}
@@ -2691,7 +2692,7 @@ function EmployeeProjectsWidget() {
                 onClick={() => router.push(`/projects/${d.id}`)}
                 className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[var(--bg-surface)] transition"
               >
-                <span className="text-base shrink-0">📋</span>
+                <span className="text-base shrink-0"><Ico e="📋" /></span>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-[var(--text)] truncate">{d.name}</div>
                   {d.status && (
@@ -3216,7 +3217,7 @@ function EmployeeDashboard({ companyId, userId, userEmail }: {
           ].map(card => (
             <Link key={card.href} href={card.href}
               className="glass-card p-4 active:scale-[0.98] transition hover:shadow-md group touch-card">
-              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-base mb-2 bg-[var(--bg-surface)]">{card.icon}</div>
+              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-base mb-2 bg-[var(--bg-surface)]"><Ico e={card.icon} /></div>
               <div className="text-xs font-bold text-[var(--text)] group-hover:text-[var(--primary)] transition">{card.label}</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
             </Link>

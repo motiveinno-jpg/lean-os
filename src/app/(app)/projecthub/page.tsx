@@ -1,5 +1,6 @@
 "use client";
 import { todayKst } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 프로젝트(라이프사이클·손익 뷰) — 워크플로우(/projects 보드)와 같은 deals 데이터의 다른 렌즈.
@@ -574,7 +575,7 @@ export default function ProjectHubPage() {
       {/* 회사 전체 미수금 롤업(Phase 3) — 수익형/전체 뷰에서 미수 발생 시 노출 */}
       {(typeFilter === "margin" || typeFilter === "all") && settleSummary.totalOutstanding > 1 && (
         <div className="receivables-rollup glass-card">
-          <span className="kpi-icon danger text-base leading-none">💸</span>
+          <span className="kpi-icon danger text-base leading-none"><Ico e="💸" /></span>
           <div className="min-w-0">
             <div className="text-[13px] font-bold text-[var(--text)]">회사 전체 미수금</div>
             <div className="text-[11px] text-[var(--text-muted)]">계산서는 발행했지만 아직 통장에 입금 안 된 금액 (매칭 기준)</div>
@@ -642,9 +643,9 @@ export default function ProjectHubPage() {
                   {childCount[d.id] > 0 && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle">캠페인 {childCount[d.id]}</span>}
                 </div>
                 <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] min-w-0">
-                  <span className="truncate">🏢 {partnerName[d.partner_id] || "—"}</span>
+                  <span className="truncate"><Ico e="🏢" /> {partnerName[d.partner_id] || "—"}</span>
                   <span className="text-[var(--text-dim)]">·</span>
-                  <span className="truncate">👤 {userName[d.internal_manager_id] || "—"}</span>
+                  <span className="truncate"><Ico e="👤" /> {userName[d.internal_manager_id] || "—"}</span>
                 </div>
                 {hero && hero.raw != null && (
                   <div className="flex items-center gap-2" title={`${tc.hero} ${hero.label}`}>
@@ -661,7 +662,7 @@ export default function ProjectHubPage() {
                   const na = nextAction(d);
                   return (
                     <div className={`ph-next-row ph-next-${na.tone}`}>
-                      <span className="text-xs">{na.icon}</span>
+                      <span className="text-xs"><Ico e={na.icon} /></span>
                       <span className="ph-next-txt">다음: {na.text}</span>
                       <span className="ph-next-dday mono-number">{na.dday}</span>
                     </div>
@@ -676,7 +677,7 @@ export default function ProjectHubPage() {
                   {openMenu === d.id && (
                     <div className="ph-card-menu" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => { setOpenMenu(null); setEditDeal(d); }}>✏ 수정</button>
-                      <button onClick={() => { setOpenMenu(null); setDelDeal(d); }} className="!text-[var(--danger)]">🗑 삭제</button>
+                      <button onClick={() => { setOpenMenu(null); setDelDeal(d); }} className="!text-[var(--danger)]"><Ico e="🗑" /> 삭제</button>
                     </div>
                   )}
                 </div>
@@ -832,7 +833,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                   <button key={t} onClick={() => setProjectType(t)}
                     className={`project-type-option ${active ? "border-[var(--primary)] bg-[var(--primary)]/5 ring-1 ring-[var(--primary)]/30" : "border-[var(--border)] hover:bg-[var(--bg-surface)]"}`}>
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{c.icon}</span>
+                      <span className="text-xl"><Ico e={c.icon} /></span>
                       <span className="text-sm font-bold text-[var(--text)]">{c.label}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">히어로: {c.hero}</span>
                     </div>

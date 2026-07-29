@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // 서명된 계약서 뷰어 — 페이지(/contracts/signed/[id])와 공통 모달(DocumentViewerModal) 공용.
 //   id(approvalId 또는 signatureRequestId) prop 으로 dual-mode 조회 → 본문 + 갑/을 서명 박스 + 직인 + 인쇄.
@@ -268,7 +269,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
   if (err || !row) {
     return (
       <div className="p-10 text-center">
-        <div className="text-3xl mb-3">🔒</div>
+        <div className="text-3xl mb-3"><Ico e="🔒" /></div>
         <div className="text-sm text-[var(--text)] font-semibold mb-1">{err || "표시할 수 없습니다"}</div>
         {backHref && (
           <Link href={backHref} className="text-xs text-[var(--primary)] hover:underline mt-3 inline-block">← 돌아가기</Link>
@@ -361,7 +362,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
                     className="px-2 py-0.5 text-[10px] bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded font-semibold print:hidden"
                     title="우리 서명·도장 추가"
                   >
-                    📝 우리 서명
+                    <Ico e="📝" /> 우리 서명
                   </button>
                 )}
               </div>
@@ -419,7 +420,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-              <div className="text-sm font-bold">📝 갑(우리 회사) 서명·도장</div>
+              <div className="text-sm font-bold"><Ico e="📝" /> 갑(우리 회사) 서명·도장</div>
               <button
                 onClick={() => !submittingOurSig && setShowOurSignModal(false)}
                 disabled={submittingOurSig}

@@ -7,6 +7,7 @@
 //   색약 친화: 라벨 텍스트 병기 ("지각 N분"·"연장 Nh Nm"·"야간"·"휴일 근무").
 
 import type { ReactNode } from "react";
+import { Ico } from "@/components/ui-icon";
 
 export type AttendanceRecordBadgeInput = {
   is_late?: boolean | null;
@@ -74,7 +75,7 @@ export function AttendanceBadges({
           className={`attendance-badge-late ${pad}`}
           title={`지각 ${lateMin}분`}
         >
-          🔴 지각 {lateMin}분
+          <Ico e="🔴" /> 지각 {lateMin}분
         </span>
       )}
       {showOt && (
@@ -106,7 +107,7 @@ export function AttendanceBadges({
           className={`attendance-badge-holiday ${pad}`}
           title={`휴일 근무 ${holidayMin}분 (가산 1.5x~2.0x)`}
         >
-          🟢 휴일 {fmtHM(holidayMin)}
+          <Ico e="🟢" /> 휴일 {fmtHM(holidayMin)}
         </span>
       )}
       {typeMeta && (

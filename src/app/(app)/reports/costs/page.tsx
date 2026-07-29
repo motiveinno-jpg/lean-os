@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { Ico } from "@/components/ui-icon";
 import { useQuery } from "@tanstack/react-query";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getCurrentUser } from "@/lib/queries";
@@ -302,7 +303,7 @@ export default function CostsPage() {
                 </div>
                 {breakdown.fixed.length === 0 ? (
                   <div className="py-12 px-5 text-center">
-                    <div className="text-3xl mb-2">🏢</div>
+                    <div className="text-3xl mb-2"><Ico e="🏢" /></div>
                     <div className="text-[13px] font-semibold text-[var(--text)]">등록된 고정비가 없습니다.</div>
                     <div className="text-xs text-[var(--text-dim)] mt-1.5">결제 → 정기결제 등록에서 임차료·급여·4대보험 등을 추가하세요.</div>
                   </div>
@@ -344,7 +345,7 @@ export default function CostsPage() {
                 </div>
                 {breakdown.variable.length === 0 ? (
                   <div className="py-12 px-5 text-center">
-                    <div className="text-3xl mb-2">💳</div>
+                    <div className="text-3xl mb-2"><Ico e="💳" /></div>
                     <div className="text-[13px] font-semibold text-[var(--text)]">집계된 변동비가 없습니다.</div>
                     <div className="text-xs text-[var(--text-dim)] mt-1.5">카드 사용액·일회성 지출이 쌓이면 여기에 집계됩니다.</div>
                   </div>

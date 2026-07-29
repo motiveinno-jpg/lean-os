@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -373,7 +374,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
           className="checkin-prompt-banner"
         >
           <div className="flex items-center gap-3">
-            <span className="text-xl">📝</span>
+            <span className="text-xl"><Ico e="📝" /></span>
             <div>
               <div className="text-sm font-bold text-[var(--text)]">이번 주기 성과 체크인이 필요합니다</div>
               <div className="text-xs text-[var(--text-muted)]">{periodLabel(curPeriod, cadence)}{curDue && <> · 마감 {curDue}</>} — 30초면 끝나요</div>
@@ -524,7 +525,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
                         <span className="text-[var(--text)] font-medium">{k.label}</span>
                         <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">{k.direction === "down" ? "↓좋음" : "↑좋음"}</span>
                         {k.source !== "manual" && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{KPI_SOURCE_LABEL[k.source]}</span>}
-                        {k.owner_id && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">👤 {memberName(k.owner_id)}</span>}
+                        {k.owner_id && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]"><Ico e="👤" /> {memberName(k.owner_id)}</span>}
                       </td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text-muted)]">{fmtNum(Number(k.target_value), k.unit)}</td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{fmtNum(actual, k.unit)}</td>
@@ -645,9 +646,9 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
             <div>
               <label className={LB}>상태(신호등)</label>
               <select value={chkStatus} onChange={(e) => setChkStatus(e.target.value as any)} className={IN}>
-                <option value="green">🟢 정상(순항)</option>
-                <option value="yellow">🟡 주의</option>
-                <option value="red">🔴 위험</option>
+                <option value="green"><Ico e="🟢" /> 정상(순항)</option>
+                <option value="yellow"><Ico e="🟡" /> 주의</option>
+                <option value="red"><Ico e="🔴" /> 위험</option>
               </select>
             </div>
           </div>
@@ -667,14 +668,14 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
             </div>
           )}
           <div>
-            <label className={LB}>✅ 이번 기간 성과·코멘트</label>
+            <label className={LB}><Ico e="✅" /> 이번 기간 성과·코멘트</label>
             <textarea value={chkDid} onChange={(e) => setChkDid(e.target.value)} rows={2} placeholder="한 일·달성한 것·특이사항 한두 줄" className={`${IN} resize-y`} />
           </div>
           {/* 이슈·다음 계획은 재입력하지 않고 구조화 탭(이슈/실행)을 연결 */}
           <div className="checkin-context-grid">
             <div className="open-issues-panel">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-[var(--text-muted)]">🚧 열린 이슈 <span className="text-[var(--danger)]">{(chkOpenIssues as any[]).length}</span></span>
+                <span className="text-xs font-bold text-[var(--text-muted)]"><Ico e="🚧" /> 열린 이슈 <span className="text-[var(--danger)]">{(chkOpenIssues as any[]).length}</span></span>
                 <button onClick={() => onGoTab?.("issues")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ 이슈 등록 →</button>
               </div>
               {(chkOpenIssues as any[]).length === 0 ? (
@@ -734,8 +735,8 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
                   </div>
                   {(u.did || u.issues || u.next_plan) ? (
                     <div className="space-y-1.5 text-sm">
-                      {u.did && <p className="text-[var(--text)] whitespace-pre-wrap break-words"><span className="text-[var(--text-dim)]">✅ </span>{u.did}</p>}
-                      {u.issues && <p className="text-[var(--text)] whitespace-pre-wrap break-words"><span className="text-[var(--text-dim)]">🚧 </span>{u.issues}</p>}
+                      {u.did && <p className="text-[var(--text)] whitespace-pre-wrap break-words"><span className="text-[var(--text-dim)]"><Ico e="✅" /> </span>{u.did}</p>}
+                      {u.issues && <p className="text-[var(--text)] whitespace-pre-wrap break-words"><span className="text-[var(--text-dim)]"><Ico e="🚧" /> </span>{u.issues}</p>}
                       {u.next_plan && <p className="text-[var(--text)] whitespace-pre-wrap break-words"><span className="text-[var(--text-dim)]">➡️ </span>{u.next_plan}</p>}
                     </div>
                   ) : (

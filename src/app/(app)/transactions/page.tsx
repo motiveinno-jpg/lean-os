@@ -1,5 +1,6 @@
 "use client";
 import { todayKst } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -972,7 +973,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
           {/* 도구 드롭다운 — 미분류 정리(inbox)에선 숨김: 동기화·내보내기·업로드는 통장 소관(중복). 전체/카드 뷰에서만. */}
           {tab !== 'inbox' && (
           <button type="button" onClick={() => setToolsOpen(v => !v)} className="btn-secondary rounded-lg text-xs whitespace-nowrap" title="최근 거래 불러오기 · 자동이체 인식 · 내보내기 · 업로드">
-            🛠 도구 {toolsOpen ? '▲' : '▾'}
+            <Ico e="🛠" /> 도구 {toolsOpen ? '▲' : '▾'}
           </button>
           )}
           {toolsOpen && (
@@ -1109,7 +1110,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
             title="이미 자동이체 체크된 거래의 출금처+금액 패턴을 학습해 같은 패턴의 신규 거래를 자동 마킹"
             className="btn-secondary rounded-lg text-xs whitespace-nowrap"
           >
-            🔁 자동이체 자동 인식
+            <Ico e="🔁" /> 자동이체 자동 인식
           </button>
           <button
             onClick={async () => {
@@ -1120,7 +1121,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
             className="btn-secondary rounded-lg text-xs whitespace-nowrap"
             title="현재 보이는 거래내역을 엑셀로 다운로드"
           >
-            📄 엑셀 내보내기
+            <Ico e="📄" /> 엑셀 내보내기
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="btn-secondary rounded-lg text-xs whitespace-nowrap">
@@ -1225,7 +1226,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       {tab === 'inbox' && (bankTx as any[]).some((t) => t.type === 'income') && (
         <div className="no-print mb-4 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--info)]/8 border border-[var(--info)]/25">
           <span className="text-[12px] text-[var(--text)]">
-            💡 <b>입금 {(bankTx as any[]).filter((t) => t.type === 'income').length}건</b>은 여기서 분류하기보다 <b>거래 매칭</b>에서 세금계산서와 정산하면 미수금 차감·회계 전표가 자동 처리됩니다.
+            <Ico e="💡" /> <b>입금 {(bankTx as any[]).filter((t) => t.type === 'income').length}건</b>은 여기서 분류하기보다 <b>거래 매칭</b>에서 세금계산서와 정산하면 미수금 차감·회계 전표가 자동 처리됩니다.
           </span>
           <a href="/partners/reconciliation" className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[var(--info)] text-white hover:opacity-90 transition whitespace-nowrap">거래 매칭에서 정산 →</a>
         </div>
@@ -1695,7 +1696,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                         const label = AI_CATEGORY_LABEL[s.category] || s.category;
                         return (
                           <div className="tx-ai-suggestion">
-                            <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}>🤖 AI 추천</span>
+                            <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}><Ico e="🤖" /> AI 추천</span>
                             <span className="text-[12px] font-bold text-[var(--text)]">{label}</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{s.confidence}%</span>
                             {AI_FIXED_COST_CODES.has(s.category) && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/12 text-orange-500 font-semibold">고정비</span>}
@@ -2424,7 +2425,7 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
                 deletable={catDeletable} />
             </div>
           </div>
-          <div className="caption">💡 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
+          <div className="caption"><Ico e="💡" /> 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
           <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
             <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
             자동이체로 표시 <span className="caption">— 자동이체(반복결제) 거래면 체크</span>
@@ -2550,7 +2551,7 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
                 deletable={catDeletable} />
             </div>
           </div>
-          <div className="caption">💡 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
+          <div className="caption"><Ico e="💡" /> 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
           <div className="flex gap-4 flex-wrap">
             <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />

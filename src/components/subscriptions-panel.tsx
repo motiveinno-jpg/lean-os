@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 구독 관리 패널 — 2026-07-08 "정기 지출" 흡수. /subscriptions 페이지에서 추출(동작 무변경).
@@ -328,7 +329,7 @@ export function SubscriptionsPanel() {
             {activeAccounts.length === 0 && !ovPlan && (
               <tr>
                 <td colSpan={7} className="py-16 text-center">
-                  <div className="text-3xl mb-3">📦</div>
+                  <div className="text-3xl mb-3"><Ico e="📦" /></div>
                   <div className="text-sm font-semibold text-[var(--text-muted)]">등록된 구독이 없습니다.</div>
                   <div className="text-xs text-[var(--text-dim)] mt-1">+ 구독 추가로 Claude·ChatGPT 등을 등록하세요.</div>
                 </td>

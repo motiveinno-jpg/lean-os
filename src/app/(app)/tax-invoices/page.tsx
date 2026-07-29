@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -1445,7 +1446,7 @@ export default function TaxInvoicesPage() {
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">조회기간 매출</span>
-            <span className="kpi-icon success text-base leading-none">📈</span>
+            <span className="kpi-icon success text-base leading-none"><Ico e="📈" /></span>
           </div>
           <div className="flex items-end gap-2">
             <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap text-[var(--text)]">{fmt(totalSales)}</span>
@@ -1462,7 +1463,7 @@ export default function TaxInvoicesPage() {
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">조회기간 매입</span>
-            <span className="kpi-icon warning text-base leading-none">📉</span>
+            <span className="kpi-icon warning text-base leading-none"><Ico e="📉" /></span>
           </div>
           <div className="flex items-end gap-2">
             <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap text-[var(--text)]">{fmt(totalPurchase)}</span>
@@ -1479,7 +1480,7 @@ export default function TaxInvoicesPage() {
         <div className="glass-card p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">딜 미연결 건수</span>
-            <span className={`kpi-icon text-base leading-none ${unmatched > 0 ? "danger" : "success"}`}>🔗</span>
+            <span className={`kpi-icon text-base leading-none ${unmatched > 0 ? "danger" : "success"}`}><Ico e="🔗" /></span>
           </div>
           <div className="flex items-end gap-2">
             <span className={`text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap ${unmatched > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{unmatched}건</span>
@@ -1494,7 +1495,7 @@ export default function TaxInvoicesPage() {
           title="클릭하면 VAT 미리보기(분기별 납부 예상)로 이동">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">예상 부가세 납부액</span>
-            <span className="kpi-icon text-base leading-none">🧾</span>
+            <span className="kpi-icon text-base leading-none"><Ico e="🧾" /></span>
           </div>
           <div className="flex items-end gap-2">
             <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap text-[var(--text)]">{fmt(Math.abs(vatEstimate))}</span>
@@ -1526,7 +1527,7 @@ export default function TaxInvoicesPage() {
           <div className="tax-check-report glass-card no-print">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="kpi-icon text-base leading-none">🔎</span>
+                <span className="kpi-icon text-base leading-none"><Ico e="🔎" /></span>
                 <span className="text-[15px] font-bold text-[var(--text)]">점검 리포트</span>
               </div>
               <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${totalIssues > 0 ? "bg-[var(--warning)]/12 text-[var(--warning)]" : "bg-[var(--success)]/12 text-[var(--success)]"}`}>
@@ -1934,7 +1935,7 @@ export default function TaxInvoicesPage() {
             </div>
           ) : currentList.length === 0 ? (
             <div className="py-16 px-6 text-center">
-              <div className="empty-state-icon mx-auto">🧾</div>
+              <div className="empty-state-icon mx-auto"><Ico e="🧾" /></div>
               <div className="text-base font-semibold text-[var(--text)]">
                 세금계산서가 등록되면 3-Way 매칭이 시작됩니다
               </div>
@@ -2004,7 +2005,7 @@ export default function TaxInvoicesPage() {
                             {inv.nts_confirm_no
                               ? <span className="text-[var(--text-muted)] mono-number text-[11px]">{inv.nts_confirm_no}</span>
                               : notIssued
-                                ? <span className="text-red-500 font-semibold">⚠ 미발행</span>
+                                ? <span className="text-red-500 font-semibold"><Ico e="⚠" /> 미발행</span>
                                 : <span className="text-[var(--text-dim)]">—</span>}
                           </td>
                           <td className="px-3 py-2 border-l border-[var(--border)]/40 max-w-[200px]">
@@ -2209,7 +2210,7 @@ export default function TaxInvoicesPage() {
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : queueItems.length === 0 ? (
             <div className="glass-card py-16 px-6 text-center">
-              <div className="empty-state-icon mx-auto">⚡</div>
+              <div className="empty-state-icon mx-auto"><Ico e="⚡" /></div>
               <div className="text-base font-semibold mb-1.5">대기 중인 자동발행 없음</div>
               <div className="text-xs text-[var(--text-muted)]">프로젝트의 매출 스케줄이 확정되면 여기에 표시됩니다</div>
             </div>
@@ -2287,7 +2288,7 @@ export default function TaxInvoicesPage() {
           {!isHometaxConnected && (
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-5 shadow-md">
               <div className="flex items-start gap-3">
-                <div className="text-2xl">💡</div>
+                <div className="text-2xl"><Ico e="💡" /></div>
                 <div className="flex-1">
                   <div className="text-sm font-bold text-[var(--text)] mb-2">처음 사용하시나요? 홈택스 동기화 3단계 안내</div>
                   <ol className="space-y-2 text-xs text-[var(--text-muted)] leading-relaxed">
@@ -2309,7 +2310,7 @@ export default function TaxInvoicesPage() {
                     </li>
                   </ol>
                   <div className="mt-3 text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)] rounded-lg px-3 py-2">
-                    ⚠️ 공동인증서 로그인은 데스크톱 환경에서만 지원되며, 인증서 파일(.pfx)이 등록되어 있어야 합니다.
+                    <Ico e="⚠" /> 공동인증서 로그인은 데스크톱 환경에서만 지원되며, 인증서 파일(.pfx)이 등록되어 있어야 합니다.
                     문제가 발생하면 <Link href="/guide" className="text-blue-500 hover:underline">가이드 페이지</Link>를 참고하세요.
                   </div>
                 </div>
@@ -2321,7 +2322,7 @@ export default function TaxInvoicesPage() {
           {isHometaxConnected && syncLogs.length === 0 && (
             <div className="bg-emerald-500/10 border border-green-500/30 rounded-2xl p-5 shadow-md">
               <div className="flex items-start gap-3">
-                <div className="text-2xl">✅</div>
+                <div className="text-2xl"><Ico e="✅" /></div>
                 <div className="flex-1">
                   <div className="text-sm font-bold text-[var(--text)] mb-1">
                     홈택스 연결 완료
@@ -2367,7 +2368,7 @@ export default function TaxInvoicesPage() {
                 { icon: "✅", title: "3-Way 매칭", desc: "계약↔계산서↔입금" },
               ].map((step, i) => (
                 <div key={step.title} className="bg-[var(--bg-surface)] rounded-xl p-3 text-center relative">
-                  <div className="text-xl mb-1">{step.icon}</div>
+                  <div className="text-xl mb-1"><Ico e={step.icon} /></div>
                   <div className="text-xs font-bold">{step.title}</div>
                   <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{step.desc}</div>
                   {i < 3 && <div className="hidden sm:block absolute right-[-10px] top-1/2 -translate-y-1/2 text-[var(--text-dim)]">→</div>}
@@ -2383,7 +2384,7 @@ export default function TaxInvoicesPage() {
             </div>
             {syncLogs.length === 0 ? (
               <div className="py-14 px-6 text-center">
-                <div className="text-4xl mb-3">🔄</div>
+                <div className="text-4xl mb-3"><Ico e="🔄" /></div>
                 <div className="text-sm font-semibold text-[var(--text)]">아직 동기화 이력이 없습니다</div>
                 <div className="text-xs text-[var(--text-muted)] mt-1">상단의 홈택스에서 가져오기 버튼으로 첫 동기화를 실행하세요</div>
               </div>
@@ -2512,7 +2513,7 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
       <div className="glass-card overflow-hidden">
         {periodSummary.length === 0 ? (
           <div className="py-16 px-6 text-center">
-            <div className="empty-state-icon mx-auto">📊</div>
+            <div className="empty-state-icon mx-auto"><Ico e="📊" /></div>
             <div className="text-base font-semibold text-[var(--text)]">{currentYear}년 세금계산서 데이터가 없습니다</div>
             <div className="text-xs text-[var(--text-muted)] mt-1.5">세금계산서가 쌓이면 기간별 집계가 자동으로 생성됩니다</div>
           </div>
@@ -3195,7 +3196,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
             {/* 매출인데 국세청 미발행(nts_confirm_no 없음) — 오해 방지 경고 + 실제 발행 버튼 */}
             {inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no && (
               <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2.5 text-xs text-red-500 leading-relaxed">
-                <div>⚠️ 이 세금계산서는 앱에만 기록됐고 <b>아직 국세청에 전자발행되지 않았습니다</b> (승인번호 없음).</div>
+                <div><Ico e="⚠" /> 이 세금계산서는 앱에만 기록됐고 <b>아직 국세청에 전자발행되지 않았습니다</b> (승인번호 없음).</div>
                 <div className="mt-1 text-[10px] text-red-400/90">전자발행은 최초 1회 <b>발행 등록(회원가입+인증서)</b>이 필요합니다. ① 발행 등록 → 인증서 등록 완료 후 → ② 홈택스 발행.</div>
                 <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <button

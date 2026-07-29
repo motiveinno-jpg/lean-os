@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { Ico } from "@/components/ui-icon";
 
 // /cards — 카드 자립 페이지(시안 적용). 시안 3탭: 카드 / 거래내역 / 분석.
 //   기존 컴포넌트(CardBillingSummary·TopCardExpensesThisMonth·CardAutoTransferHistory·CardMonthlyUsage)를
@@ -699,9 +700,9 @@ export default function CardsPage() {
                           <p className="text-xs text-[var(--text-muted)] truncate">{(classificationLabel(tx.classification) || tx.category || "미분류")} · {tx.card_name || "카드"}</p>
                           {(tx.memo || (tx.tags && tx.tags.length) || tx.used_by_employee_id) && (
                             <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                              {tx.used_by_employee_id && empNameById[tx.used_by_employee_id] && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium shrink-0">👤 {empNameById[tx.used_by_employee_id]}</span>}
+                              {tx.used_by_employee_id && empNameById[tx.used_by_employee_id] && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium shrink-0"><Ico e="👤" /> {empNameById[tx.used_by_employee_id]}</span>}
                               {(tx.tags || []).map((t: string) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">#{t}</span>)}
-                              {tx.memo && <span className="text-[10px] text-[var(--text-dim)] truncate max-w-[220px]" title={tx.memo}>📝 {tx.memo}</span>}
+                              {tx.memo && <span className="text-[10px] text-[var(--text-dim)] truncate max-w-[220px]" title={tx.memo}><Ico e="📝" /> {tx.memo}</span>}
                             </div>
                           )}
                         </div>

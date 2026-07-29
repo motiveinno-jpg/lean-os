@@ -1,3 +1,4 @@
+import { Ico } from "@/components/ui-icon";
 "use client";
 
 interface ActionCardProps {
@@ -30,7 +31,7 @@ export function ActionCard({ cardType, status, summaryJson }: ActionCardProps) {
     <div className={`action-card ${style.border}`}>
       <div className="action-card-header">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm">{style.icon}</span>
+          <span className="text-sm"><Ico e={style.icon} /></span>
           <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
             {style.label}
           </span>

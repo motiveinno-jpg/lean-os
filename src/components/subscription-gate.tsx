@@ -9,6 +9,7 @@
 //   허용 라우트(/billing 등)는 차단 중에도 접근 가능 — 결제·계정 관리 동선 보장.
 
 import Link from "next/link";
+import { Ico } from "@/components/ui-icon";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
@@ -101,7 +102,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
           className="subscription-pastdue-banner"
         >
           <span className="text-[12.5px] text-[#ef4444] font-semibold">
-            ⚠️ 결제에 실패했습니다 — 결제 수단을 확인해 주세요. 미해결 시 서비스가 제한될 수 있습니다.
+            <Ico e="⚠" /> 결제에 실패했습니다 — 결제 수단을 확인해 주세요. 미해결 시 서비스가 제한될 수 있습니다.
           </span>
           <span className="text-xs text-[#ef4444] font-bold whitespace-nowrap">결제 관리 →</span>
         </Link>
@@ -110,7 +111,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
         <div
           className="subscription-blocked-banner"
         >
-          🔒 구독이 만료되어 다른 화면은 잠겨 있습니다. {isManager ? "요금제를 선택하면 즉시 복구됩니다." : "관리자에게 문의해 주세요."}
+          <Ico e="🔒" /> 구독이 만료되어 다른 화면은 잠겨 있습니다. {isManager ? "요금제를 선택하면 즉시 복구됩니다." : "관리자에게 문의해 주세요."}
         </div>
       )}
       {children}

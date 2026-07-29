@@ -4,6 +4,7 @@
 //   인사 > 급여 탭에서 마운트. createPayrollBatch → payment_batches 생성 → 승인 → 자동이체 실행.
 
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPayrollBatch, approveBatch, triggerBatchExecution, getPrevMonthPayrollSnapshot, type PayrollItem } from "@/lib/payment-batch";
@@ -195,7 +196,7 @@ export function PayrollBatchTab({ companyId, userId, invalidate }: { companyId: 
       <div className="batch-history-card glass-card">
         {batches.length === 0 ? (
           <div className="batch-empty-state">
-            <div className="text-5xl mb-4">💰</div>
+            <div className="text-5xl mb-4"><Ico e="💰" /></div>
             <div className="text-base font-bold mb-1.5">급여 배치 없음</div>
             <div className="text-sm text-[var(--text-muted)]">"이번 달 급여 배치 생성" 버튼으로 시작하세요</div>
           </div>

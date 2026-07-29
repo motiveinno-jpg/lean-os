@@ -1,5 +1,6 @@
 "use client";
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // /bank — 통장 자립 페이지(시안 그대로). 시안 portfolio 카드 + 시안 거래내역 표 직접 구현.
@@ -807,9 +808,9 @@ export default function BankPage() {
                             <span className="block font-medium text-[var(--text)] truncate">{tx.counterparty || "—"}</span>
                             {(tx.memo || (tx.tags && tx.tags.length) || tx.used_by_employee_id) && (
                               <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                                {tx.used_by_employee_id && bankEmpById[tx.used_by_employee_id] && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium">👤 {bankEmpById[tx.used_by_employee_id]}</span>}
+                                {tx.used_by_employee_id && bankEmpById[tx.used_by_employee_id] && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium"><Ico e="👤" /> {bankEmpById[tx.used_by_employee_id]}</span>}
                                 {(tx.tags || []).map((t: string) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">#{t}</span>)}
-                                {tx.memo && <span className="text-[10px] text-[var(--text-dim)] truncate max-w-[160px]" title={tx.memo}>📝 {tx.memo}</span>}
+                                {tx.memo && <span className="text-[10px] text-[var(--text-dim)] truncate max-w-[160px]" title={tx.memo}><Ico e="📝" /> {tx.memo}</span>}
                               </div>
                             )}
                           </div>

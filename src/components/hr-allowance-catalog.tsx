@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // L 수당 카탈로그 — 회사 설정 패널 (§C-1).
@@ -128,7 +129,7 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
                 <tr key={t.id} className="allowance-row">
                   <td className="px-2 py-2">
                     <div className="flex items-center gap-1.5">
-                      {t.is_legal_mandatory && <span title="법정 수당" className="text-[10px]">🔒</span>}
+                      {t.is_legal_mandatory && <span title="법정 수당" className="text-[10px]"><Ico e="🔒" /></span>}
                       <span className="font-semibold">{t.name}</span>
                     </div>
                     <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{t.code}</div>
@@ -335,7 +336,7 @@ function AllowanceTypeModal({
         <h3 className="section-title">{isEdit ? "수당 수정" : "수당 추가"}</h3>
         {isLegal && (
           <div className="allowance-legal-notice">
-            🔒 법정 수당입니다. 단가·활성·적용대상·표시순서만 수정할 수 있습니다.
+            <Ico e="🔒" /> 법정 수당입니다. 단가·활성·적용대상·표시순서만 수정할 수 있습니다.
           </div>
         )}
 

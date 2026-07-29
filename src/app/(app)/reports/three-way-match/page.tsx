@@ -6,6 +6,7 @@
 //   기존 /tax-invoices·/matching 의 3-way 매칭 UI 는 본 페이지로 일원화.
 
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -229,7 +230,7 @@ function Inner() {
               <div className="p-8 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
             ) : matched.length === 0 ? (
               <div className="py-14 px-4 text-center">
-                <div className="text-3xl mb-2">🧾</div>
+                <div className="text-3xl mb-2"><Ico e="🧾" /></div>
                 <div className="text-xs font-semibold text-[var(--text)]">매칭된 항목 없음</div>
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">가운데 후보를 클릭해 매칭을 확정하면 여기에 쌓입니다</div>
               </div>

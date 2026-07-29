@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
@@ -931,11 +932,11 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               <div className="flex gap-2">
                 {pendingCount > 0 && (
                   <button onClick={sendAllReminders} className="text-[10px] px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-md font-semibold transition border border-amber-500/30">
-                    🔔 전체 리마인더 ({pendingCount})
+                    <Ico e="🔔" /> 전체 리마인더 ({pendingCount})
                   </button>
                 )}
                 <button onClick={() => setShowAuditLog(!showAuditLog)} className="text-[10px] px-2.5 py-1 bg-[var(--bg-surface)] hover:bg-[var(--bg)] text-[var(--text-muted)] rounded-md font-semibold transition border border-[var(--border)]">
-                  📜 감사로그 {showAuditLog ? "닫기" : "보기"}
+                  <Ico e="📜" /> 감사로그 {showAuditLog ? "닫기" : "보기"}
                 </button>
               </div>
             </div>
@@ -958,10 +959,10 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       <span className="font-medium truncate">{sig.signer_name}</span>
                       <span className="text-[var(--text-dim)] truncate">{sig.signer_email}</span>
                       {sig.viewed_at && !sig.signed_at && (
-                        <span className="text-[10px] text-blue-400" title={new Date(sig.viewed_at).toLocaleString("ko")}>👁 열람</span>
+                        <span className="text-[10px] text-blue-400" title={new Date(sig.viewed_at).toLocaleString("ko")}><Ico e="👁" /> 열람</span>
                       )}
                       {reminderCount > 0 && (
-                        <span className="text-[10px] text-amber-400" title={lastReminded || ""}>🔔 {reminderCount}회</span>
+                        <span className="text-[10px] text-amber-400" title={lastReminded || ""}><Ico e="🔔" /> {reminderCount}회</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -1003,7 +1004,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       const meta = ACTION_META[log.action] || { icon: "•", color: "text-[var(--text-muted)]", label: log.action };
                       return (
                         <div key={log.id} className="flex items-start gap-2 text-[11px] py-1.5 px-2 hover:bg-[var(--bg-surface)] rounded">
-                          <span className="text-sm flex-shrink-0">{meta.icon}</span>
+                          <span className="text-sm flex-shrink-0"><Ico e={meta.icon} /></span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className={`font-semibold ${meta.color}`}>{meta.label}</span>
@@ -1081,15 +1082,15 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             return (
               <div className="invoice-issue-modal fixed inset-0" onClick={() => setSavedModal(false)}>
                 <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-                  <div className="text-base font-bold text-[var(--text)] mb-1">✅ 견적서가 저장되었습니다</div>
+                  <div className="text-base font-bold text-[var(--text)] mb-1"><Ico e="✅" /> 견적서가 저장되었습니다</div>
                   <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">매출 세금계산서를 <b className="text-[var(--text)]">견적서 품목대로</b> 발행할까요? (품목 {issItems.length}개)</p>
                   <div className="space-y-2">
                     <button onClick={() => issueInvoices("bulk")} disabled={issuing} className="w-full py-2.5 px-3 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 text-left">
-                      📄 품목 일괄 발행 <span className="text-white/80 text-xs">— 합계 1건{issItems.length > 1 ? ` (${issItems[0]?.name || "품목"} 외 ${issItems.length - 1}건)` : ""}</span>
+                      <Ico e="📄" /> 품목 일괄 발행 <span className="text-white/80 text-xs">— 합계 1건{issItems.length > 1 ? ` (${issItems[0]?.name || "품목"} 외 ${issItems.length - 1}건)` : ""}</span>
                     </button>
                     {issItems.length > 1 && (
                       <button onClick={() => issueInvoices("per-item")} disabled={issuing} className="w-full py-2.5 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] text-sm font-semibold hover:border-[var(--primary)] disabled:opacity-50 text-left">
-                        📑 품목별 개별 발행 <span className="text-[var(--text-muted)] text-xs">— {issItems.length}건 각각(예: 선금/중도금/잔금)</span>
+                        <Ico e="📑" /> 품목별 개별 발행 <span className="text-[var(--text-muted)] text-xs">— {issItems.length}건 각각(예: 선금/중도금/잔금)</span>
                       </button>
                     )}
                     <button onClick={() => setSavedModal(false)} className="w-full py-2 rounded-lg text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">나중에</button>
@@ -1920,7 +1921,7 @@ function DocumentsPageInner() {
         <div className="document-list-table glass-card">
           {filteredDocuments.length === 0 ? (
             <div className="p-16 text-center">
-              <div className="text-4xl mb-4">📄</div>
+              <div className="text-4xl mb-4"><Ico e="📄" /></div>
               <div className="text-sm font-medium text-[var(--text)]">
                 {searchTerm || typeFilter !== "all" ? "검색 결과가 없습니다" : "계약서, NDA 등 문서를 만들어보세요"}
               </div>
@@ -1974,7 +1975,7 @@ function DocumentsPageInner() {
                             title="문서 삭제"
                             aria-label="문서 삭제"
                           >
-                            🗑️
+                            <Ico e="🗑" />
                           </button>
                         </div>
                       </td>
@@ -2263,7 +2264,7 @@ function DocumentsPageInner() {
         <div className="invoice-list-table glass-card">
           {invoices.length === 0 ? (
             <div className="p-16 text-center">
-              <div className="text-4xl mb-4">🧾</div>
+              <div className="text-4xl mb-4"><Ico e="🧾" /></div>
               <div className="text-lg font-bold mb-2">세금계산서가 없습니다</div>
               <div className="text-sm text-[var(--text-muted)]">매출/매입 세금계산서를 등록하세요</div>
             </div>
@@ -2911,7 +2912,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
 
           {folders.length === 0 && (
             <div className="text-center py-8 px-2">
-              <div className="text-2xl mb-2">🗂️</div>
+              <div className="text-2xl mb-2"><Ico e="🗂" /></div>
               <div className="text-xs font-bold text-[var(--text-muted)]">폴더가 없습니다</div>
               <div className="text-[10px] text-[var(--text-dim)] mt-1">+ 새 폴더로 파일을 분류해 보관하세요</div>
             </div>
@@ -3003,7 +3004,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
           return (
             <div key={share.id} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
               <div className="flex items-center gap-3">
-                <span className="text-xs text-[var(--primary)] font-semibold">🔗 공유 링크</span>
+                <span className="text-xs text-[var(--primary)] font-semibold"><Ico e="🔗" /> 공유 링크</span>
                 <span className="caption">
                   {kstDateStr(new Date(share.created_at))} 생성
                 </span>

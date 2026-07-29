@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 거래 대사 — 입금·계산서 자동 매칭 (2026-06-12 메뉴 분리: 구 거래처원장의 작업 화면).
@@ -629,7 +630,7 @@ export default function ReconciliationPage() {
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : queue.length === 0 ? (
             <div className="py-14 px-6 text-center glass-card">
-              <div className="text-4xl mb-3">✅</div>
+              <div className="text-4xl mb-3"><Ico e="✅" /></div>
               <div className="text-sm font-semibold text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 확인 대기 중인 매칭이 없습니다</div>
               {queueRaw.length > queue.length && (
                 <div className="text-[12px] text-[var(--primary)] mt-1.5 font-semibold">이 기간 밖에 미확정 제안 {queueRaw.length - queue.length}건이 있습니다 — 상단에서 기간을 넓혀 보세요.</div>
@@ -756,7 +757,7 @@ export default function ReconciliationPage() {
           </div>
           {openTx.length === 0 ? (
             <div className="py-14 px-6 text-center glass-card">
-              <div className="text-4xl mb-3">🔗</div>
+              <div className="text-4xl mb-3"><Ico e="🔗" /></div>
               <div className="text-sm font-semibold text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다. 상단에서 기간을 조정해 보세요.</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">규칙·AI가 못 잡은 입출금이 있으면 여기서 직접 연결할 수 있습니다</div>
             </div>
@@ -952,7 +953,7 @@ export default function ReconciliationPage() {
           </div>
           {confirmed.length === 0 ? (
             <div className="py-14 px-6 text-center glass-card">
-              <div className="text-4xl mb-3">📂</div>
+              <div className="text-4xl mb-3"><Ico e="📂" /></div>
               <div className="text-sm font-semibold text-[var(--text)]">확정된 매칭이 없습니다.</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">거래 정리 탭에서 매칭을 확정하면 여기에 내역이 쌓입니다</div>
             </div>
