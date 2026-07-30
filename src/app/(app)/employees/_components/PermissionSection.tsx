@@ -10,7 +10,7 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { PERMISSION_CATALOG } from "@/lib/permissions";
 
-export function PermissionSection({ targetUserId, empName }: { targetUserId: string | null; empName: string }) {
+export function PermissionSection({ targetUserId, empName, viewerIsMaster = true }: { targetUserId: string | null; empName: string; viewerIsMaster?: boolean }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -124,9 +124,11 @@ export function PermissionSection({ targetUserId, empName }: { targetUserId: str
                         <div className="member-permission-tabs">
                           {(m.tabs || []).map((t) => {
                             const k = `${m.route}:${t.key}`;
+                            // 위임 권한 자체는 마스터만 조작(서버에서도 강제) — 위임받은 부여자는 비활성 표시
+                            const masterOnlyKey = k === "/employees:permissions" && !viewerIsMaster;
                             return (
-                              <label key={k} className={`flex items-center gap-1.5 cursor-pointer ${!menuOn ? "opacity-50" : ""}`}>
-                                <input type="checkbox" checked={checked.has(k)} disabled={!menuOn}
+                              <label key={k} className={`flex items-center gap-1.5 cursor-pointer ${!menuOn || masterOnlyKey ? "opacity-50" : ""}`} title={masterOnlyKey ? "이 권한은 마스터만 부여/회수할 수 있습니다" : undefined}>
+                                <input type="checkbox" checked={checked.has(k)} disabled={!menuOn || masterOnlyKey}
                                   onChange={(e) => toggle([k], e.target.checked)} className="accent-[var(--primary)]" />
                                 <span className="text-[11px] text-[var(--text-muted)]">{t.label}</span>
                               </label>

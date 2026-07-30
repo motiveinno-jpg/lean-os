@@ -74,6 +74,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "salary", label: "급여" },
         { key: "leave", label: "휴가 관리" },
         { key: "certificates", label: "증명서 발급" },
+        { key: "permissions", label: "권한 부여 (다른 구성원에게 권한 위임 — 마스터만 부여 가능)" },
       ] },
       { route: "/attendance", label: "근태 관리", tabs: [
         { key: "board", label: "워크보드" },

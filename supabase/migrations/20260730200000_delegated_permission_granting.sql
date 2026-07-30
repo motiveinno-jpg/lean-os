@@ -1,0 +1,4 @@
+-- 권한 부여 위임 (2026-07-30) — prod 적용 완료본 보관 (전문: Supabase 히스토리 delegated_permission_granting)
+-- set_member_permissions: 마스터 또는 '/employees:permissions' 보유 멤버가 부여 가능.
+-- 안전장치: 마스터 대상 변경 불가 · 위임 권한 자체는 마스터만 부여/회수(비마스터 저장 시 대상 보유상태 보존).
+-- 검증: 이경원(위임) → 정다정 부여 시뮬레이션 — 몰래 얹은 위임 권한 자동 제거 확인.

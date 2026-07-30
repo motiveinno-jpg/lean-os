@@ -17,6 +17,7 @@ import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { PermissionSection } from "./PermissionSection";
+import { useMyPermissions } from "@/lib/permissions";
 import { LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
@@ -34,9 +35,11 @@ function avatarColor(id: string): string {
 type DetailTab = "info" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave" | "access";
 
 export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab }: { employeeId: string; companyId: string; onClose: () => void; initialTab?: DetailTab }) {
+  const { hasPerm: _panelHasPerm, isMaster: _panelIsMaster } = useMyPermissions();
+  const viewerHasGrantPerm = _panelHasPerm("/employees:permissions");
   const [detailTab, setDetailTab] = useState<DetailTab>(initialTab || "info");
   const { user: viewer } = useUser();
-  const canManageAccess = !!(viewer as any)?.is_master; // (P3) 권한 부여는 마스터만
+  const canManageAccess = !!(viewer as any)?.is_master || viewerHasGrantPerm; // 마스터 또는 위임받은 구성원(2026-07-30)
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
@@ -584,7 +587,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             새 트리는 전 메뉴·세부탭 부여(P2 화면 단일화부터 적용), 아래 기존 탭 권한은 현행 적용분. */}
         {detailTab === "access" && canManageAccess && (
           // (P4) 구 TabAccessSection(tab_access) 제거 — 새 권한 트리 단일화(게이트도 P2부터 전환 완료)
-          <PermissionSection targetUserId={emp?.user_id || null} empName={emp?.name || ""} />
+          <PermissionSection targetUserId={emp?.user_id || null} empName={emp?.name || ""} viewerIsMaster={_panelIsMaster} />
         )}
 
         {/* Contracts Tab — Flex-style 계약서 목록 */}
