@@ -155,21 +155,25 @@ export const FLOW = [
 //   ⚠️ 실제 운영 데이터가 있는 회사만 넣는다. 가입만 하고 안 쓰는 계정을 사례로 올리면
 //      표시·광고법상 허위/과장 소지가 있다. 새 고객이 실제로 쓰기 시작하면 그때 추가할 것.
 //   ⚠️ 세금계산서는 홈택스 '자동 수집' 수치다(직접 발행분 아님). 라벨을 바꾸지 말 것.
+//      → tax_invoices 중 source='codef_hometax' 만 센다(수기 발행 15건은 제외).
+//   ⚠️ 마지막 실측 갱신: 2026-07-30 (prod DB `ownerview`). 갱신 시 쓰는 기준:
+//      거래처=partners / 세금계산서=tax_invoices(codef_hometax) / 전자서명=signature_requests
+//      / 프로젝트=deals / 구성원=users(=employees, 전원 joined). 전부 company_id 기준 count.
 export const CASES_NOTE = "2026년 7월 기준 실제 운영 계정의 수치예요. 회사명은 비공개로 처리했어요.";
 
 export const CASES = [
   {
     masked: "모**",
     industry: "IT · 소프트웨어",
-    size: "구성원 12명",
+    size: "구성원 11명",
     plan: "울트라 플랜",
     // ⚠️ "자기 회사 운영에 직접 쓰고 있어요" 였다 — '자기 회사'가 남 얘기하듯 들린다(사장님).
     //    말하는 주체를 우리로 바꾸면 같은 사실이 훨씬 자연스럽다.
     note: "아래 숫자는 저희 계정에 그대로 쌓인 실제 기록이에요.",
     metrics: [
       { value: "684", label: "거래처 관리" },
-      { value: "1,805", label: "세금계산서 자동 수집" },
-      { value: "744", label: "전자서명 요청" },
+      { value: "1,822", label: "세금계산서 자동 수집" },
+      { value: "748", label: "전자서명 요청" },
       { value: "37", label: "프로젝트 진행" },
     ],
   },
