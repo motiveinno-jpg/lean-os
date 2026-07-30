@@ -3012,13 +3012,13 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
   // 연차 자동 발생(1년 미만 월 1일 + 1주년 법정 부여) — on/off + 기준(입사일/회계연도).
   //   실제 생성은 pg_cron. 설정이 없으면 켬이 기본이라 초기값도 true 로 둔다(로딩 중 잠깐 꺼짐으로 보이지 않게).
-  const { data: accrual = { enabled: true, basis: "hire" as MonthlyAccrualBasis, startDate: "" } } = useQuery({
+  const { data: accrual = { enabled: true, basis: "hire" as MonthlyAccrualBasis } } = useQuery({
     queryKey: ["leave-monthly-accrual", companyId],
     queryFn: () => getMonthlyAccrualSettings(companyId!),
     enabled: !!companyId,
   });
   const saveAccrualMut = useMutation({
-    mutationFn: (next: { enabled: boolean; basis: MonthlyAccrualBasis; startDate: string }) => setMonthlyAccrualSettings(companyId!, next),
+    mutationFn: (next: { enabled: boolean; basis: MonthlyAccrualBasis }) => setMonthlyAccrualSettings(companyId!, next),
     onSuccess: (_d, next) => {
       queryClient.invalidateQueries({ queryKey: ["leave-monthly-accrual", companyId] });
       toast(next.enabled ? `연차 자동 발생 켬 · ${ACCRUAL_BASIS_LABELS[next.basis].label}` : "연차 자동 발생 끔", "success");
@@ -3194,11 +3194,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                 입사 응당일에 자동으로 발생합니다. 근로기준법 60조.
               </p>
               <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                그 해에 총 부여일수를 직접 설정해 둔 직원은 1주년 부여를 건너뜁니다(중복 방지) — 다음 해 응당일부터 자동 부여됩니다.
-              </p>
-              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                <strong>도입일 이전 발생분은 만들지 않습니다.</strong> 지금까지의 잔여 연차는 아래 직원 카드에서 직접 입력해 두시고,
-                그 다음부터 자동 부여가 쌓입니다.
+                총 부여일수는 입사일 기준으로 자동 계산됩니다. 직원 카드에서 남은 연차를 직접 고치면 그 차액만 조정으로 반영됩니다.
               </p>
             </div>
           </label>
@@ -3222,23 +3218,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                   );
                 })}
               </div>
-              <div className="leave-accrual-start">
-                <div className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">자동 부여 도입일</div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <input
-                    type="date"
-                    defaultValue={accrual.startDate}
-                    key={accrual.startDate}
-                    onChange={(e) => saveAccrualMut.mutate({ ...accrual, startDate: e.target.value })}
-                    disabled={saveAccrualMut.isPending}
-                    className="leave-accrual-start-input"
-                  />
-                  <span className="text-[11px] text-[var(--text-dim)]">
-                    이 날짜부터 도래하는 응당일만 자동 부여 — 그 이전 연차는 직원별로 직접 입력한 값이 유지됩니다.
-                  </span>
-                </div>
-              </div>
-
               <div className="flex items-center gap-2 mt-3 flex-wrap">
                 <button
                   onClick={() => syncAccrualMut.mutate()}

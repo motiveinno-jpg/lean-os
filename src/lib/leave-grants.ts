@@ -35,14 +35,13 @@ export const GRANT_TYPE_LABELS: Record<LeaveGrantType, string> = {
 //   실제 발생은 DB 함수 generate_leave_accruals() 를 pg_cron('leave-accrual') 이 매일 KST 00:10 에 실행:
 //     · 1년 미만 — 입사 응당일마다 1일 (최대 11일)
 //     · 1주년부터 — 근속연수별 법정 연차 (1~2년 15일, 3년 이상 2년마다 +1일, 상한 25일)
+//   총부여는 입사일 기준 자동 계산분이 정답이다(2026-07-30 사장님). 관리자가 '남은 연차'를 직접
+//   고치면 그 차액이 base 발생으로 기록돼 자동분과 합산된다.
 //   ⚠️ 기본값은 '켬' — settings 에 'false' 로 명시한 회사만 자동 발생에서 빠진다(DB 함수와 동일 규칙).
 //      과거엔 'true' 를 켠 회사만 대상이라 실제로는 어느 회사도 자동 발생이 안 됐다(2026-07-30 교정).
 
 export type MonthlyAccrualBasis = 'hire' | 'fiscal';
-// startDate = 자동 부여 도입일. 이 날짜 이후 도래하는 응당일만 자동 부여된다.
-//   도입 전 잔여 연차는 직원별 '총 부여일수' 로 입력해 두면 그대로 유지된다(그 위에 자동분이 쌓인다).
-//   비어 있으면 DB 가 회사 생성일을 기준으로 삼는다(leave_accrual_start_date()).
-export type MonthlyAccrualSettings = { enabled: boolean; basis: MonthlyAccrualBasis; startDate: string };
+export type MonthlyAccrualSettings = { enabled: boolean; basis: MonthlyAccrualBasis };
 
 export const ACCRUAL_BASIS_LABELS: Record<MonthlyAccrualBasis, { label: string; desc: string }> = {
   hire: { label: '입사일 기준', desc: '입사 응당일마다 발생 (3/15 입사 → 4/15, 5/15 …)' },
@@ -60,7 +59,6 @@ export async function getMonthlyAccrualSettings(companyId: string): Promise<Mont
     // 설정이 없으면 켬 — 끈 회사만 'false' 로 남는다.
     enabled: s.monthly_leave_accrual_enabled !== 'false' && s.monthly_leave_accrual_enabled !== false,
     basis: s.monthly_leave_accrual_basis === 'fiscal' ? 'fiscal' : 'hire',
-    startDate: typeof s.leave_accrual_start_date === 'string' ? s.leave_accrual_start_date : '',
   };
 }
 
@@ -76,10 +74,7 @@ export async function setMonthlyAccrualSettings(companyId: string, next: Monthly
     // DB 함수가 settings->>'...' 텍스트로 비교하므로 문자열로 저장한다.
     monthly_leave_accrual_enabled: next.enabled ? 'true' : 'false',
     monthly_leave_accrual_basis: next.basis,
-    // 빈 값이면 키를 지워 DB 기본값(회사 생성일)으로 되돌린다.
-    ...(next.startDate ? { leave_accrual_start_date: next.startDate } : {}),
   };
-  if (!next.startDate) delete (nextSettings as Record<string, unknown>).leave_accrual_start_date;
   const { error } = await db
     .from('company_settings')
     .upsert({ company_id: companyId, settings: nextSettings }, { onConflict: 'company_id' });
