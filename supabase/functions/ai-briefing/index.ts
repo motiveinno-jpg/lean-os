@@ -1,5 +1,5 @@
-import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { callClaude } from "../_shared/claude.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -147,7 +147,7 @@ const BRIEF_SCHEMA = {
   },
 } as const;
 
-async function generate(n: Nums | null, a: Actions, companyName: string, snapshot: string): Promise<string> {
+async function generate(n: Nums | null, a: Actions, companyName: string, snapshot: string, admin: ReturnType<typeof createClient>, companyId: string): Promise<string> {
   const facts = n ? [
     `현재 통장 잔고: ${won(n.balance)}`,
     n.forecast30 ? `30일 후 예상 잔고: ${won(n.forecast30)} (증감 ${won(n.forecast30 - n.balance)})` : "",
@@ -162,15 +162,19 @@ async function generate(n: Nums | null, a: Actions, companyName: string, snapsho
   const taxLines = (a.taxDeadlines || []).slice(0, 4).map((t) => `- ${t.title}: ${t.daysLeft <= 0 ? "오늘 마감" : `D-${t.daysLeft}`}`);
   const todoLines = (a.todos || []).slice(0, 8).map((t) => `- [${PRIO[t.priority] || "보통"}] ${t.title}${t.overdue ? " (기한 지남)" : t.dueDate ? ` (마감 ${t.dueDate})` : ""}`);
 
-  const res = await tfetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": anthropicKey!, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
-      model: "claude-opus-4-8",
-      max_tokens: 8000,
-      thinking: { type: "adaptive" },
-      output_config: { format: { type: "json_schema", schema: BRIEF_SCHEMA } },
-      messages: [{
+  // 공용 호출기(callClaude) 이관 (2026-07-30) — 모델(Opus)·max_tokens·깊은 사고(thinking)·
+  //   구조화 출력(output_config)·프롬프트 전부 기존과 동일하게 전달. 달라지는 건
+  //   ai_usage_log 토큰·비용 실측 기록과 429/5xx 재시도뿐(퀄리티 무변).
+  const result = await callClaude({
+    task: "deep_analysis", // = claude-opus-4-8 (기존과 동일 모델)
+    feature: "ai_briefing",
+    maxTokens: 8000,
+    thinking: { type: "adaptive" },
+    outputConfig: { format: { type: "json_schema", schema: BRIEF_SCHEMA } },
+    companyId,
+    admin,
+    promptVersion: "brief-v2-logged",
+    messages: [{
         role: "user",
         content: `너는 중소기업 대표 곁의 유능한 경영 참모다. 우리 회사(${companyName || "회사"})의 오늘 데이터를 보고, 대표가 아침에 읽고 그대로 실행할 수 있는 "오늘의 액션 플랜"을 한국어 존댓말로 만들어라.
 
@@ -192,13 +196,10 @@ ${todoLines.length ? todoLines.join("\n") : "없음"}
 
 [상세 데이터 — 실명·실액 인용 소스]
 ${snapshot || "(상세 데이터 없음)"}`,
-      }],
-    }),
+    }],
   });
-  if (!res.ok) throw new Error(`claude ${res.status}`);
-  const data = await res.json();
-  const textBlock = (data?.content || []).find((b: any) => b.type === "text");
-  const text = String(textBlock?.text || "").trim();
+  if (!result.ok) throw new Error(`claude ${result.errorCode || "error"}`);
+  const text = String(result.text || "").trim();
   if (!text) throw new Error("empty");
   JSON.parse(text); // 구조 검증 (스키마 강제라 통과 예상 — 실패 시 fail-open)
   return text;
@@ -252,7 +253,7 @@ async function runCron(admin: ReturnType<typeof createClient>): Promise<Response
       ].filter((t) => t.daysLeft <= 30);
 
       const snapshot = await collectSnapshot(admin, companyId as string);
-      const content = await generate(nums, { taxDeadlines }, String(comp?.name || ""), snapshot);
+      const content = await generate(nums, { taxDeadlines }, String(comp?.name || ""), snapshot, admin, companyId as string);
       await admin.from("ai_briefings").upsert(
         { company_id: companyId, brief_date: briefDate, content },
         { onConflict: "company_id,brief_date" },
@@ -330,7 +331,7 @@ Deno.serve(withSentry("ai-briefing", async (req) => {
     }
 
     const snapshot = await collectSnapshot(admin, companyId as string);
-    const content = await generate(n, (body?.actions as Actions) || {}, String(body?.companyName || ""), snapshot);
+    const content = await generate(n, (body?.actions as Actions) || {}, String(body?.companyName || ""), snapshot, admin, companyId as string);
     await admin.from("ai_briefings").upsert(
       { company_id: companyId, brief_date: briefDate, content },
       { onConflict: "company_id,brief_date" },

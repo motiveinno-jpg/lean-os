@@ -35,6 +35,11 @@ export interface ClaudeCallOpts {
   tools?: unknown[];            // tool use 필요 시
   toolChoice?: unknown;
   temperature?: number;
+  // 2026-07-30 ai-briefing 이관용 통로 — 값을 그대로 body 에 전달(내용 무가공).
+  //   thinking: 깊은 사고(adaptive). ⚠️ 강제 tool use(schema 옵션)와 병용 불가 — API 가 거부한다.
+  //   outputConfig: output_config(json_schema 등). schema 옵션과 택일.
+  thinking?: unknown;
+  outputConfig?: unknown;
   promptVersion?: string;
   // 로깅 컨텍스트 (서버가 결정한 값만 — 클라 신뢰 금지)
   companyId: string;
@@ -89,6 +94,8 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
   };
   if (opts.system) body.system = opts.system;
   if (typeof opts.temperature === "number") body.temperature = opts.temperature;
+  if (opts.thinking) body.thinking = opts.thinking;
+  if (opts.outputConfig) body.output_config = opts.outputConfig;
   // 구조화 출력: Anthropic 표준인 "강제 tool use" 사용(모델이 input_schema 에 맞는 JSON 을 tool_use.input 으로 반환).
   //   과거 output_config(json_schema) 는 Messages API 가 무시 → 모델이 JSON 을 '텍스트'로 뱉고 truncation 시 파싱 실패했음(2026-07-23 수정).
   const useSchemaTool = !!opts.schema;
