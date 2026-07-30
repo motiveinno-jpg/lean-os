@@ -142,7 +142,7 @@ describe("보기(뷰) 정의", () => {
 
   it("목록 기본 보기는 카드 — 저장값이 깨졌거나 미구현 뷰면 카드로 폴백", () => {
     expect(normalizeListView("board")).toBe("board");
-    expect(normalizeListView("timeline")).toBe("card"); // 아직 미구현(ready:false)
+    expect(normalizeListView("timeline")).toBe("timeline");
     expect(normalizeListView(null)).toBe("card");
     expect(normalizeListView("몰라요")).toBe("card");
     expect(READY_LIST_VIEWS[0].key).toBe("card");

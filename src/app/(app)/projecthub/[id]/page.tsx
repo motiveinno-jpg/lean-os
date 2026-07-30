@@ -37,6 +37,7 @@ import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
 import { createTaxInvoice } from "@/lib/tax-invoice";
 import { deleteDocument } from "@/lib/queries";
 import { TasksTab } from "./_components/TasksTab";
+import { TeamTab } from "./_components/TeamTab";
 import { IssuesTab } from "./_components/IssuesTab";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
@@ -1535,9 +1536,12 @@ export default function ProjectHubDetailPage() {
             다중 담당·부서 롤업·프로젝트 채널은 4단계에서 이 자리에 붙는다. */}
         <PjSection k="team" active={sec === "team"} onSeen={markSecOpen}
           views={SECTION_VIEWS.team} view={viewOf("team")} onView={(v: string) => pickView("team", v)}
-          hint="담당 배정·부서 롤업·프로젝트 채널은 다음 단계에서 이 자리에 붙어요">
+          hint="담당은 여러 명 배정할 수 있어요 · 해제해도 인수인계 기록은 남아요">
           {!openSecs.has("team") ? <p className="pj-sec-empty">불러오는 중…</p>
-            : viewOf("team") === "info" ? (
+            : viewOf("team") === "who" && companyId ? (
+              <TeamTab dealId={dealId} companyId={companyId} users={companyUsers as any[]}
+                managerId={deal.internal_manager_id} managerName={manager?.name} />
+            ) : viewOf("team") === "info" ? (
               <div className="project-basic-info glass-card">
                 <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">기본 정보</h3></div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">

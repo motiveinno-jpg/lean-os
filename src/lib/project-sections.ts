@@ -51,7 +51,7 @@ export const SECTION_VIEWS: Record<SectionKey, SectionView[]> = {
   money: [{ key: "ledger", label: "원장" }, { key: "docs", label: "문서" }, { key: "cost", label: "비용" }],
   work: [{ key: "tasks", label: "할 일" }, { key: "issues", label: "이슈" }],
   goal: [{ key: "score", label: "성과" }, { key: "manage", label: "목표 관리" }],
-  team: [{ key: "activity", label: "활동" }, { key: "info", label: "기본 정보" }],
+  team: [{ key: "who", label: "사람" }, { key: "activity", label: "활동" }, { key: "info", label: "기본 정보" }],
 };
 
 // ── 목록 화면 보기 ──────────────────────────────────────────
@@ -64,9 +64,9 @@ export const LIST_VIEWS: ListView[] = [
   { key: "card", label: "카드", desc: "프로젝트마다 대표 지표와 다음 액션을 한 장으로", ready: true },
   { key: "table", label: "표", desc: "정렬·비교하기 좋은 한 줄 목록", ready: true },
   { key: "board", label: "보드", desc: "회사가 만든 컬럼으로 관리하는 보드(워크플로우)", ready: true },
-  { key: "timeline", label: "타임라인", desc: "프로젝트 기간을 막대로 겹쳐 보기", ready: false },
-  { key: "chart", label: "차트", desc: "파이프라인·손익·미수 분석", ready: false },
-  { key: "cal", label: "캘린더", desc: "청구일·마감·서명 기한을 달에 배치", ready: false },
+  { key: "timeline", label: "타임라인", desc: "프로젝트 기간을 막대로 겹쳐 보기", ready: true },
+  { key: "chart", label: "차트", desc: "파이프라인·마진 순위·미수 에이징 분석", ready: true },
+  { key: "cal", label: "캘린더", desc: "시작일·마감을 달에 배치", ready: true },
 ];
 
 export const READY_LIST_VIEWS = LIST_VIEWS.filter((v) => v.ready);

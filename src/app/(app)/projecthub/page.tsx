@@ -29,6 +29,7 @@ import { PerformanceDashboard } from "./_components/PerformanceDashboard";
 // 워크플로우 보드 — 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
 //   숨어 있던 것을 목록의 '보드' 보기로 끌어올렸다(2026-07-30 사장님 승인).
 import { MondayBoard } from "@/components/monday-board";
+import { ProjectTimeline, PortfolioCharts, ProjectCalendar } from "./_components/ListViews";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
@@ -103,7 +104,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-settle-rollup", companyId],
     queryFn: async () => {
       const data = logRead('projecthub/page:data', await (supabase).from("tax_invoices")
-        .select("deal_id, total_amount, supply_amount, settled_amount, status")
+        .select("deal_id, total_amount, supply_amount, settled_amount, status, issue_date")
         .eq("company_id", companyId!).eq("type", "sales").neq("status", "void").not("deal_id", "is", null));
       return (data || []) as any[];
     },
@@ -119,6 +120,30 @@ export default function ProjectHubPage() {
     }
     return byDeal;
   }, [settleRows]);
+  // 미수 에이징 — 발행일 기준 경과일 구간별 합계. '차트' 보기에서 사용.
+  const agingBuckets = useMemo(() => {
+    const defs = [
+      { label: "0-30일", min: 0, max: 30 },
+      { label: "31-60일", min: 31, max: 60 },
+      { label: "61-90일", min: 61, max: 90 },
+      { label: "90일+", min: 91, max: Infinity },
+    ];
+    const out = defs.map((d) => ({ label: d.label, amount: 0, count: 0 }));
+    const todayMs = new Date(`${todayKst()}T00:00:00`).getTime();
+    for (const r of settleRows as any[]) {
+      if (r.status === "draft") continue;
+      const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
+      if (bal <= 1) continue;
+      const issued = r.issue_date ? String(r.issue_date).slice(0, 10) : null;
+      const days = issued ? Math.floor((todayMs - new Date(`${issued}T00:00:00`).getTime()) / 86_400_000) : 0;
+      const i = defs.findIndex((d) => days >= d.min && days <= d.max);
+      const slot = out[i < 0 ? 0 : i];
+      slot.amount += bal;
+      slot.count += 1;
+    }
+    return out;
+  }, [settleRows]);
+
   const settleSummary = useMemo(() => {
     let totalOutstanding = 0, projects = 0;
     for (const k in outstandingByDeal) { if (outstandingByDeal[k] > 1) { totalOutstanding += outstandingByDeal[k]; projects++; } }
@@ -250,6 +275,7 @@ export default function ProjectHubPage() {
   // 보기 전환(2026-07-30) — 유형 칩이 있던 자리를 대신한다. 카드=기본(처음 쓰는 사람),
   //   표=정렬·비교, 보드=회사가 만든 컬럼(구 워크플로우 탭). 고른 보기는 사람별로 기억한다.
   const [listView, setListView] = useState<string>("card");
+  const [calMonth, setCalMonth] = useState(0); // 캘린더 보기 — 이번 달 기준 오프셋
   useEffect(() => {
     if (typeof window === "undefined") return;
     setListView(normalizeListView(window.localStorage.getItem(viewStorageKey("list", user?.id))));
@@ -596,6 +622,21 @@ export default function ProjectHubPage() {
             <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 프로젝트 생성</button>
           </>}
         </div>
+      ) : listView === "timeline" ? (
+        <ProjectTimeline rows={rows as any[]}
+          headlineOf={(id) => headlineByDeal[id]}
+          outstandingOf={(id) => outstandingByDeal[id] || 0}
+          onOpen={(id) => router.push(`/projecthub/${id}`)} />
+      ) : listView === "chart" ? (
+        <PortfolioCharts rows={rows as any[]}
+          pnlOf={(id) => pnlByDeal[id]}
+          outstandingOf={(id) => outstandingByDeal[id] || 0}
+          agingBuckets={agingBuckets}
+          userName={(id) => userName[id || ""] || ""} />
+      ) : listView === "cal" ? (
+        <ProjectCalendar rows={rows as any[]} monthOffset={calMonth}
+          onMonth={(d) => setCalMonth((m) => m + d)}
+          onOpen={(id) => router.push(`/projecthub/${id}`)} />
       ) : listView === "table" ? (
         /* 표 보기 — 정렬·비교용. 대표 지표는 프로젝트마다 종류가 다르므로 값 옆에 이름을 함께 쓴다. */
         <div className="ph-table-wrap">

@@ -3503,6 +3503,40 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pj-starter > b { @apply text-[13.5px] font-bold text-[var(--text)]; }
 .pj-starter > span:last-child { @apply text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
 .cost-mix { @apply p-4; }
+/* 사람과 기록 — 담당 배정(deal_assignments) 4단계 */
+.pj-team { @apply grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start; }
+.pj-team-owner { @apply lg:col-span-2 p-3 flex flex-wrap items-baseline gap-2; }
+.pj-team-owner-k { @apply text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--text-dim)]; }
+.pj-team-owner b { @apply text-[13.5px] font-bold; }
+.pj-team-owner-note { @apply text-[11px] text-[var(--text-dim)] ml-auto; }
+.pj-team-box { @apply p-4 flex flex-col gap-3; }
+.pj-team-side { @apply flex flex-col gap-3; }
+.pj-team-head { @apply flex items-baseline justify-between gap-2; }
+.pj-team-head h3 { @apply text-[13px] font-bold; }
+.pj-team-head h3 span { @apply font-normal text-[var(--text-dim)] ml-1; }
+.pj-team-hint { @apply text-[11px] text-[var(--text-dim)]; }
+.pj-team-rows { @apply flex flex-col divide-y divide-[var(--border)]/60; }
+.pj-team-row { @apply grid items-center gap-2.5 py-2; grid-template-columns: 2rem minmax(0,1fr) 7.5rem auto; }
+.pj-team-avatar { @apply w-8 h-8 rounded-full grid place-items-center text-[11px] font-extrabold text-white bg-[var(--primary-soft,var(--primary))]; }
+.pj-team-who { @apply flex flex-col min-w-0; }
+.pj-team-who b { @apply text-[12.5px] font-bold truncate; }
+.pj-team-who b em { @apply not-italic ml-1.5 text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] align-middle; }
+.pj-team-who span { @apply text-[11px] text-[var(--text-dim)] truncate; }
+.pj-team-role { @apply h-8 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[12px] text-[var(--text)]; }
+.pj-team-release { @apply text-[11px] font-semibold text-[var(--text-dim)] hover:text-[var(--danger)] px-1.5; }
+.pj-team-add { @apply grid gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto] pt-1 border-t border-[var(--border)]/60; }
+.pj-team-depts { @apply flex flex-col gap-2; }
+.pj-team-dept { @apply flex flex-col; }
+.pj-team-dept b { @apply text-[12px] font-bold; }
+.pj-team-dept span { @apply text-[11px] text-[var(--text-dim)]; }
+.pj-team-channels { @apply flex flex-col gap-1.5; }
+.pj-team-channel { @apply flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg bg-[var(--bg-surface)] text-[12px] hover:bg-[var(--primary)]/10; }
+.pj-team-channel span { @apply text-[11px] text-[var(--primary)] font-semibold; }
+.pj-team-link { @apply text-[var(--primary)] font-semibold hover:underline; }
+.pj-team-past { @apply flex flex-col gap-1.5; }
+.pj-team-past-row { @apply text-[11.5px] text-[var(--text-muted)] flex flex-wrap items-baseline gap-1.5; }
+.pj-team-past-row b { @apply font-bold text-[var(--text)]; }
+.pj-team-past-row em { @apply not-italic text-[var(--text-dim)]; }
 /* 프로젝트 목록 보기 전환(2026-07-30) — 유형 칩(type-filter-chips)을 대체한다.
    카드·표·보드(구 워크플로우). type-filter-chips 정의는 다른 화면 참조 가능성 때문에 남겨둔다. */
 .ph-view-bar { @apply flex flex-wrap items-center gap-1.5; }
@@ -3522,6 +3556,72 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .ph-table-bad { @apply text-[var(--danger)] font-semibold; }
 .ph-table-risk { @apply mr-1 text-[var(--danger)]; }
 .ph-sub-badge { @apply ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle; }
+/* 목록 추가 보기(2026-07-30 3단계) — 타임라인 · 차트 · 캘린더
+   ⚠️ @apply 에 커스텀 클래스(glass-card·mono-number 등)를 넣으면 Tailwind v4 가 빌드를 깬다.
+      숫자 정렬은 font-variant-numeric 을 직접 쓰고, 유리 카드는 className 에 병기한다. */
+.ph-view-empty { @apply text-[12.5px] text-[var(--text-dim)] px-3 py-6 text-center rounded-xl border border-dashed border-[var(--border)]; }
+.ph-timeline { @apply p-4 flex flex-col gap-2 overflow-x-auto; }
+.ph-timeline-axis { @apply relative h-4 min-w-[30rem] text-[10px] text-[var(--text-dim)]; }
+.ph-timeline-tick { @apply absolute top-0 pl-1 border-l border-[var(--border)] whitespace-nowrap; }
+.ph-timeline-rows { @apply flex flex-col gap-1 min-w-[30rem]; }
+.ph-timeline-row { @apply grid items-center gap-2 text-left rounded-lg px-1 py-1 transition hover:bg-[var(--bg-surface)]; grid-template-columns: 9rem minmax(0, 1fr) 4.5rem; }
+.ph-timeline-name { @apply text-[12px] text-[var(--text-muted)] truncate; }
+.ph-timeline-track { @apply relative block h-5 rounded-md bg-[var(--bg-surface)]; }
+.ph-timeline-bar { @apply absolute top-1 h-3 rounded-md bg-[var(--primary)]; }
+.ph-timeline-bar-done { @apply bg-[var(--success)]; }
+.ph-timeline-bar-late { @apply bg-[var(--danger)]; }
+.ph-timeline-today { @apply absolute -top-0.5 -bottom-0.5 w-0.5 bg-[var(--warning)]; }
+.ph-timeline-meta { @apply text-[11px] text-right text-[var(--text-muted)] flex items-center justify-end gap-1; font-variant-numeric: tabular-nums; }
+.ph-timeline-out { @apply text-[9px] font-bold px-1 py-0.5 rounded bg-[var(--danger)]/10 text-[var(--danger)]; }
+.ph-legend { @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)] pt-1; }
+.ph-legend-dot { @apply inline-block w-2.5 h-2.5 rounded-sm mr-1 align-[-1px]; }
+.ph-legend-run { @apply bg-[var(--primary)]; }
+.ph-legend-done { @apply bg-[var(--success)]; }
+.ph-legend-late { @apply bg-[var(--danger)]; }
+.ph-legend-today { @apply bg-[var(--warning)]; }
+.ph-legend-note { @apply text-[var(--text-dim)] ml-auto; }
+.ph-charts { @apply grid gap-3 lg:grid-cols-2; }
+.ph-chart { @apply p-4 flex flex-col gap-2.5; }
+.ph-chart-head { @apply flex items-baseline justify-between gap-2; }
+.ph-chart-head b { @apply text-[13px] font-bold; }
+.ph-chart-head span { @apply text-[11px] text-[var(--text-dim)]; }
+.ph-chart-note { @apply text-[11px] text-[var(--text-dim)] leading-relaxed; }
+.ph-rank { @apply flex flex-col gap-1.5; }
+.ph-rank-row { @apply grid items-center gap-2 text-[11.5px]; grid-template-columns: 8rem minmax(0, 1fr) 3rem; }
+.ph-rank-label { @apply text-[var(--text-muted)] truncate; }
+.ph-rank-bar { @apply block h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.ph-rank-bar > i { @apply block h-full rounded-full; }
+.ph-rank-ok { @apply bg-[var(--success)]; }
+.ph-rank-warn { @apply bg-[var(--warning)]; }
+.ph-rank-bad { @apply bg-[var(--danger)]; }
+.ph-rank-val { @apply text-right font-semibold; font-variant-numeric: tabular-nums; }
+.ph-rank-val-bad { @apply text-[var(--danger)]; }
+.ph-aging { @apply grid grid-cols-4 gap-2 items-end h-40 pt-2; }
+.ph-aging-col { @apply flex flex-col items-center justify-end gap-1 h-full; }
+.ph-aging-amt { @apply text-[10.5px] text-[var(--text-muted)] whitespace-nowrap; font-variant-numeric: tabular-nums; }
+.ph-aging-bar { @apply w-full max-w-[3.5rem] rounded-t-md bg-[var(--primary)]; }
+.ph-aging-030일 { @apply bg-[var(--success)]; }
+.ph-aging-3160일 { @apply bg-[var(--warning)]; }
+.ph-aging-6190일 { @apply bg-[var(--danger)]; }
+.ph-aging-90일 { @apply bg-[var(--text-dim)]; }
+.ph-aging-label { @apply text-[10px] text-center text-[var(--text-dim)] leading-tight; }
+.ph-aging-label em { @apply not-italic; }
+.ph-cal { @apply p-4 flex flex-col gap-2.5; }
+.ph-cal-head { @apply flex flex-wrap items-center gap-2; }
+.ph-cal-head b { @apply text-[13.5px] font-bold; }
+.ph-cal-nav { @apply w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)]; }
+.ph-cal-hint { @apply text-[11px] text-[var(--text-dim)] ml-auto; }
+.ph-cal-grid { @apply grid grid-cols-7 gap-1; }
+.ph-cal-dow { @apply text-[10.5px] font-bold text-center text-[var(--text-dim)] pb-1; }
+.ph-cal-day { @apply min-h-[4.2rem] rounded-lg border border-[var(--border)] p-1 flex flex-col gap-0.5; }
+.ph-cal-day-off { @apply opacity-40 border-dashed; }
+.ph-cal-day-today { @apply border-[var(--primary)] bg-[var(--primary)]/5; }
+.ph-cal-day > b { @apply text-[10px] font-bold text-[var(--text-dim)]; }
+.ph-cal-ev { @apply text-[9.5px] leading-tight text-left truncate rounded px-1 py-0.5 text-white; }
+.ph-cal-ev-start { @apply bg-[var(--primary)]; }
+.ph-cal-ev-end { @apply bg-[var(--success)]; }
+.ph-cal-ev-late { @apply bg-[var(--danger)]; }
+.ph-cal-more { @apply text-[9px] text-[var(--text-dim)] pl-1; }
 /* 카드 상단 상태 칩 — 유형 배지 자리 */
 .ph-card-flag { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--danger)]/10 text-[var(--danger)] whitespace-nowrap; }
 .ph-card-flag-off { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--bg-surface)] text-[var(--text-dim)] whitespace-nowrap; }

@@ -29,15 +29,27 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
   const [view, setView] = useState<View>("briefing");
   const [sending, setSending] = useState<string | null>(null);
 
-  // 목표형 프로젝트
-  const { data: deals = [] } = useQuery({
-    queryKey: ["perf-dash-deals", companyId],
+  // ⚠️ 2026-07-30 유형 폐지 — 예전엔 project_type='goal' 로 걸렀다(목표형 3개만 대상).
+  //    이제 "목표(KPI)가 하나라도 있는 프로젝트" 를 대상으로 한다. 수익형으로 만들었던
+  //    프로젝트도 목표를 정하면 이 대시보드(사람별·부서별·입력률)에 들어온다.
+  const { data: kpiDealIds = [] } = useQuery({
+    queryKey: ["perf-dash-kpi-deals", companyId],
     queryFn: async () => {
-      const data = logRead('_components/PerformanceDashboard:data', await db.from("deals").select("id, name, internal_manager_id, partner_id, checkin_cadence, checkin_due_weekday")
-        .eq("company_id", companyId).eq("project_type", "goal").is("archived_at", null).is("parent_deal_id", null));
-      return (data || []) as any[];
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("project_kpis")
+        .select("deal_id").eq("company_id", companyId));
+      return Array.from(new Set(((data || []) as any[]).map((r) => r.deal_id).filter(Boolean))) as string[];
     },
     enabled: !!companyId,
+  });
+  const { data: deals = [] } = useQuery({
+    queryKey: ["perf-dash-deals", companyId, kpiDealIds.length],
+    queryFn: async () => {
+      if (kpiDealIds.length === 0) return [];
+      const data = logRead('_components/PerformanceDashboard:data', await db.from("deals").select("id, name, internal_manager_id, partner_id, checkin_cadence, checkin_due_weekday")
+        .eq("company_id", companyId).in("id", kpiDealIds).is("archived_at", null).is("parent_deal_id", null));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && kpiDealIds.length > 0,
   });
   const dealIds = useMemo(() => (deals as any[]).map((d) => d.id), [deals]);
 

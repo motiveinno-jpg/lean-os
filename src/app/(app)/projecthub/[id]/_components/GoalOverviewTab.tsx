@@ -3,7 +3,7 @@ import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
-// 목표형 '개요' = 성과 콕핏 (그래프 대시보드). project_type==='goal' overview 에서만 렌더.
+// 성과 콕핏 (그래프 대시보드) — '성과' 자리의 기본 보기. 유형 폐지로 전 프로젝트에서 쓴다(2026-07-30).
 //   히어로(종합 달성률 도넛+상태+예상착지+기간) / ① KPI 스코어카드 / ② 추세 / ③ 분해 / ④ 체크인.
 //   데이터: project_kpis·v_deal_kpi_auto·project_kpi_entries·project_updates·tax_invoices(태깅 매출) — 신규 0.
 
