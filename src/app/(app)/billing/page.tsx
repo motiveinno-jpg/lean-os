@@ -37,7 +37,7 @@ function fmtW(n: number): string {
 
 // 연간 결제 노출 여부. Stripe 라이브 연간 price(STRIPE_PRICE_*_ANNUAL) 등록 전까지는
 //   고르면 서버가 400 으로 막으므로 화면에서도 감춘다. 등록 후 true 로 바꾸면 열린다.
-const ANNUAL_BILLING_AVAILABLE = false;
+const ANNUAL_BILLING_AVAILABLE = true;
 
 export default function BillingPage() {
   const { role } = useUser();
