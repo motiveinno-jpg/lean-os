@@ -1,6 +1,14 @@
 {
-  "generated_at": "2026-07-30T03:12:40.957Z",
+  "generated_at": "2026-07-30T03:13:48.240Z",
   "entries": [
+    {
+      "hash": "66e9d73",
+      "date": "2026-07-30",
+      "type": "fix",
+      "label": "수정",
+      "scope": "platform",
+      "title": "작업일지가 배포에서 갱신 안 되던 원인 — 생성기를 next.config 로 이동"
+    },
     {
       "hash": "ab64b99",
       "date": "2026-07-30",

@@ -6,7 +6,7 @@
 //   출력: src/generated/release-log.json  (초기 1회 커밋해 두고, 빌드 시 덮어씀 —
 //   로컬 `npm run build` 후 이 파일 diff 는 커밋하지 않아도 된다)
 import { execFileSync } from "node:child_process";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -48,6 +48,19 @@ try {
   console.warn("[release-log] git log 실패 — 기존 JSON 유지:", e?.message);
   process.exit(0); // 빌드를 막지 않는다
 }
+
+// Vercel 은 얕은 클론(최근 ~10커밋)이라 git log 만으로는 목록이 10건으로 쪼그라든다
+//   (2026-07-30 확인) — 기존 커밋된 JSON 과 해시 기준 병합해 최신 10건 + 과거 이력을 함께 유지.
+try {
+  if (existsSync(out)) {
+    const prev = JSON.parse(readFileSync(out, "utf8"));
+    const seen = new Set(entries.map((e) => e.hash));
+    for (const e of prev.entries || []) {
+      if (!seen.has(e.hash)) { entries.push(e); seen.add(e.hash); }
+    }
+    entries = entries.slice(0, 120);
+  }
+} catch { /* 병합 실패 시 새로 뽑은 목록만 사용 */ }
 
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify({ generated_at: new Date().toISOString(), entries }, null, 2));
