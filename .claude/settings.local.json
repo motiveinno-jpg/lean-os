@@ -64,5 +64,9 @@
       "mcp__claude_ai_Supabase__search_docs"
     ],
     "defaultMode": "bypassPermissions"
+  },
+  "skillOverrides": {
+    "electron": "off",
+    "slack": "off"
   }
 }

@@ -1,6 +1,278 @@
 {
-  "generated_at": "2026-07-30T03:13:48.240Z",
+  "generated_at": "2026-07-30T08:27:34.209Z",
   "entries": [
+    {
+      "hash": "816f995",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "권한 부여 위임 — 마스터가 지정한 구성원도 권한을 줄 수 있게"
+    },
+    {
+      "hash": "62c1367",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "dashboard",
+      "title": "대외비(금액) 위젯 권한 분리 — 기본은 필수 위젯만"
+    },
+    {
+      "hash": "379317a",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "개편 P4 — RLS 권한 기반 전환 + 초대 개편 + 구 권한 UI 제거"
+    },
+    {
+      "hash": "ab2face",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "개편 P3-6 — 앱셸 레이아웃 통일·온보딩 마스터 전용·잔여 분기 정리"
+    },
+    {
+      "hash": "5c92b54",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "개편 P3-5 — 잔여 role 검사 전환 (컴포넌트류)"
+    },
+    {
+      "hash": "36cda9a",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "개편 P3-4 — 직원 하드블록 해제·관리 뷰 통일·역할 라벨 개편"
+    },
+    {
+      "hash": "d7f38ff",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "개편 P3-3 — 근태 권한 게이트 + 구성원/근태 관리 판정 perm 전환"
+    },
+    {
+      "hash": "c1b158a",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "개편 P3-2 — 설정·통장·세금계산서 세부탭 권한 게이트"
+    },
+    {
+      "hash": "c0b7fd8",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "개편 P3-1 — 결재 허브·구성원 페이지 세부탭 권한 게이트"
+    },
+    {
+      "hash": "b702cd5",
+      "date": "2026-07-30",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "데모 부품을 앱 표준(seg-bar·stat-tile·표)에 맞추고 제품 이미지 56장 전부 재캡처"
+    },
+    {
+      "hash": "9eecf59",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "개편 P2 — 화면 한 벌 통합 (사이드바·라우트 가드·대시보드 단일화)"
+    },
+    {
+      "hash": "c95d69c",
+      "date": "2026-07-30",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "둘러보기·AI 화면 이미지 전부 재캡처 + 데모 통장 패널을 실제 화면 구조로"
+    },
+    {
+      "hash": "5d66850",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "마스터·권한 기반 개편 P1 — DB 기반 + 권한 카탈로그 + 마스터 부여 화면"
+    },
+    {
+      "hash": "16d7c49",
+      "date": "2026-07-30",
+      "type": "fix",
+      "label": "수정",
+      "scope": "hr",
+      "title": "휴가 캘린더 하루 밀림 + 결재허브 휴가 중복 표기 수정"
+    },
+    {
+      "hash": "9711e61",
+      "date": "2026-07-30",
+      "type": "chore",
+      "label": "정비",
+      "scope": "local-env",
+      "title": "로컬 Supabase 테스트 서버 부트스트랩 — 마이그레이션 391개 빈 DB 재생 가능하게"
+    },
+    {
+      "hash": "78dcca6",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "landing",
+      "title": "주요 기능·둘러보기 모바일 통일 + 폰 목업 상단 뚫림 수정 + 가격 FAQ 정리"
+    },
+    {
+      "hash": "1d0ed39",
+      "date": "2026-07-30",
+      "type": "chore",
+      "label": "정비",
+      "scope": "billing",
+      "title": "연간 결제 실검증 라우트 제거 — 검증 완료"
+    },
+    {
+      "hash": "5bae2a5",
+      "date": "2026-07-30",
+      "type": "chore",
+      "label": "정비",
+      "scope": "billing",
+      "title": "연간 결제 경로 실검증 일회성 라우트 — 세션 생성·금액 확인 후 즉시 만료 (청구 없음, 사용 후 삭제)"
+    },
+    {
+      "hash": "c11fd46",
+      "date": "2026-07-30",
+      "type": "chore",
+      "label": "정비",
+      "scope": "billing",
+      "title": "연간가 복구·검증 라우트 제거 — 4개 가격 검증 완료 + env 교체 완료"
+    },
+    {
+      "hash": "67abb43",
+      "date": "2026-07-30",
+      "type": "hotfix",
+      "label": "긴급수정",
+      "scope": "billing",
+      "title": "쿠폰 카드 CSS 빌드 실패 수정 — @apply 에 커스텀 클래스(glass-card) 사용 불가"
+    },
+    {
+      "hash": "afa001a",
+      "date": "2026-07-30",
+      "type": "fix",
+      "label": "수정",
+      "scope": "billing",
+      "title": "연간 기본가 재활성화 라우트 — 아카이브 스윕이 같은 product 의 기본가까지 비활성화한 사고 복구 (reset 라우트 제거)"
+    },
+    {
+      "hash": "7f451b2",
+      "date": "2026-07-30",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "히어로 자동 롤링·문구 3건·폰 목업 프레임 이탈 버그·폰 합쳐지는 시점"
+    },
+    {
+      "hash": "f699787",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "billing",
+      "title": "연간 결제 혜택 — 추가인원 12명 무료 등록 쿠폰"
+    },
+    {
+      "hash": "b8020c2",
+      "date": "2026-07-30",
+      "type": "chore",
+      "label": "정비",
+      "scope": "billing",
+      "title": "연간 좌석가 무할인(120,000원)으로 정정 + 비대상 연간 price 전체 아카이브"
+    },
+    {
+      "hash": "84e7fba",
+      "date": "2026-07-30",
+      "type": "chore",
+      "label": "정비",
+      "scope": "billing",
+      "title": "연간가 10% 할인 재설정용 일회성 라우트 (사용 후 즉시 제거)"
+    },
+    {
+      "hash": "a6fe1ca",
+      "date": "2026-07-30",
+      "type": "chore",
+      "label": "정비",
+      "scope": "billing",
+      "title": "스트라이프 모드 점검 라우트 제거 — 라이브 확인 완료 (rk_live, livemode:true)"
+    },
+    {
+      "hash": "d74c69d",
+      "date": "2026-07-30",
+      "type": "chore",
+      "label": "정비",
+      "scope": "billing",
+      "title": "스트라이프 키 라이브 모드 일회성 점검 라우트 (확인 후 즉시 제거)"
+    },
+    {
+      "hash": "a6bc84b",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "ai",
+      "title": "회사별 월 AI 비용 상한($10) 강제 + 운영자 AI 비용 현황 카드"
+    },
+    {
+      "hash": "bca5762",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "landing",
+      "title": "흩어짐→모임을 \"창 12개 → 오너뷰 한 화면\"으로, 폰 목업을 폰답게"
+    },
+    {
+      "hash": "b0160dc",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "billing",
+      "title": "연간 결제 오픈 — 연간 추가좌석 price 등록 완료 + 설정 라우트 제거"
+    },
+    {
+      "hash": "50b28ef",
+      "date": "2026-07-30",
+      "type": "chore",
+      "label": "정비",
+      "scope": "billing",
+      "title": "연간 추가좌석 price 생성용 일회성 설정 라우트 (사용 후 즉시 제거 예정)"
+    },
+    {
+      "hash": "ff74ff1",
+      "date": "2026-07-30",
+      "type": "feat",
+      "label": "기능",
+      "scope": "ai",
+      "title": "AI 브리핑을 공용 호출기로 이관 — 비용 실측 기록, 퀄리티 조건 동일 (v14)"
+    },
+    {
+      "hash": "44f1c60",
+      "date": "2026-07-30",
+      "type": "fix",
+      "label": "수정",
+      "scope": "notifications",
+      "title": "백그라운드 푸시 브라우저별 편차 해소 — 권한 허용 브라우저 자동 구독"
+    },
+    {
+      "hash": "be48ef0",
+      "date": "2026-07-30",
+      "type": "fix",
+      "label": "수정",
+      "scope": "platform",
+      "title": "작업일지 얕은 클론 대응 — 기존 목록과 해시 병합"
+    },
     {
       "hash": "66e9d73",
       "date": "2026-07-30",
