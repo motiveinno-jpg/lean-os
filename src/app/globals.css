@@ -2143,6 +2143,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 연간 결제 혜택 쿠폰 (2026-07-30) */
 .billing-coupon-section { @apply mb-5; }
 .billing-coupon-list { @apply space-y-2; }
+/* ⚠️ glass-card·mono-number 같은 커스텀 클래스는 @apply 로 못 쓴다(Tailwind v4 —
+   "Cannot apply unknown utility class" 로 전체 빌드가 깨진다). 유리 카드가 필요하면 다른
+   블록들처럼 className 에 `glass-card` 를 함께 적고, 숫자 정렬은 font-variant-numeric 을
+   직접 쓴다. 2026-07-30 에 두 번 발생(쿠폰 카드 · 목록 보기) — 새 @apply 추가 시 build 확인. */
 .billing-coupon-card { @apply flex items-center gap-4 p-4 border border-dashed border-[var(--primary)]/40; }
 .billing-coupon-card-used { @apply border-solid border-[var(--border)] opacity-90; }
 .billing-coupon-used-badge { @apply shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--success-dim)] text-[var(--success)]; }
