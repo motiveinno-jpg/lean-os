@@ -105,16 +105,16 @@ function ShotStack({ items, active, sizes = "(max-width: 999px) 94vw, 1040px" }:
  *   ⚠️ 폰에서 데스크톱 화면을 320px 로 줄이면 글자가 안 읽혀 전달이 0 이 된다.
  *      /demo 를 390px 뷰포트로 열어 실제 앱이 리플로우된 화면을 그대로 찍은 것들이다. */
 const MOBILE_OF: Record<string, string> = {
-  "/product/dashboard-v5.png":   "/product/m-dash-v2.png",
-  "/product/f-estimate-v1.png":  "/product/m-estimate.png",
-  "/product/f-settlement-v1.png":"/product/m-settlement.png",
-  "/product/f-hr-v1.png":        "/product/m-payroll.png",
-  "/product/f-flow-v1.png":      "/product/m-outlook.png",
-  "/product/f-projects-v1.png":  "/product/m-hub.png",
-  "/product/f-acct-v1.png":      "/product/m-analytics.png",
-  "/product/f-bank-v1.png":      "/product/m-bank.png",
-  "/product/f-leave-v1.png":     "/product/m-leave.png",
-  "/product/f-ai-brief-v1.png":  "/product/m-brief.png",
+  "/product/dashboard-v5.png":   "/product/m-dash-v3.png",
+  "/product/f-estimate-v3.png":  "/product/m-estimate-v2.png",
+  "/product/f-settlement-v3.png":"/product/m-settlement-v2.png",
+  "/product/f-payroll-v3.png":        "/product/m-payroll-v2.png",
+  "/product/f-flow-v3.png":      "/product/m-outlook-v2.png",
+  "/product/f-projects-v3.png":  "/product/m-hub-v2.png",
+  "/product/f-acct-v3.png":      "/product/m-analytics-v2.png",
+  "/product/f-bank-v3.png":      "/product/m-bank-v2.png",
+  "/product/f-hr-v3.png":     "/product/m-leave-v2.png",
+  "/product/f-ai-brief-v3.png":  "/product/m-brief-v2.png",
 };
 
 /** 코어 카드 전용 조각 — 패널 헤더를 뺀 "그 기능 블록"만 잘라 둔 캡처.
@@ -124,15 +124,15 @@ const MOBILE_OF: Record<string, string> = {
  *   /features 는 계속 전체 화면(f-*.png)을 쓰므로 파일을 따로 둔다. */
 
 const CORE_SHOT: Record<string, string> = {
-  "/product/f-projects-v1.png":   "/product/c-projects.png",
-  "/product/f-estimate-v1.png":   "/product/c-estimate.png",
-  "/product/f-settlement-v1.png": "/product/c-settlement.png",
-  "/product/f-acct-v1.png":       "/product/c-acct.png",
-  "/product/f-bank-v1.png":       "/product/c-bank.png",
-  "/product/f-tax-v1.png":        "/product/c-tax.png",
-  "/product/f-hr-v1.png":         "/product/c-hr.png",
-  "/product/f-members-v1.png":    "/product/c-members.png",
-  "/product/f-leave-v1.png":      "/product/c-leave.png",
+  "/product/f-projects-v3.png":   "/product/c-projects-v2.png",
+  "/product/f-estimate-v3.png":   "/product/c-estimate-v2.png",
+  "/product/f-settlement-v3.png": "/product/c-settlement-v2.png",
+  "/product/f-acct-v3.png":       "/product/c-acct-v2.png",
+  "/product/f-bank-v3.png":       "/product/c-bank-v2.png",
+  "/product/f-tax-v3.png":        "/product/c-tax-v2.png",
+  "/product/f-payroll-v3.png":         "/product/c-hr-v2.png",
+  "/product/f-members-v3.png":    "/product/c-members-v2.png",
+  "/product/f-hr-v3.png":      "/product/c-leave-v2.png",
 };
 
 /** 화면 다섯 장이 마름모로 펼쳐지는 묶음 — 페이지 최상단.

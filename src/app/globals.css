@@ -1364,7 +1364,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pp-menu { @apply text-[10px] font-bold tracking-wider uppercase text-[var(--primary)]; }
 .pp-title { @apply text-lg font-extrabold text-[var(--text)] mt-1; }
 .pp-sub { @apply text-xs text-[var(--text-muted)] mt-1; }
-.pp-badge { @apply px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0; }
+.pp-badge { @apply px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 leading-none; }
 .pp-badge-p { @apply bg-[var(--primary-light)] text-[var(--primary)]; }
 .pp-badge-s { @apply bg-[var(--success-dim)] text-[var(--success)]; }
 .pp-section-t { @apply text-xs font-bold text-[var(--text-muted)] mt-5 mb-2.5; }
@@ -1374,10 +1374,16 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* ⚠️ 390px 에서 탭 7개가 폭에 맞춰 찌그러지며 글자가 한 자씩 세로로 쪼개졌다
    ("내 결재함" 이 네 줄이 됐다 — 폰 캡처에 그대로 담겼다, 2026-07-29).
    flex 기본값이 shrink:1 이라 칸이 모자라면 항목을 줄여 버린다. 줄이지 말고 옆으로 넘긴다. */
-.pp-subtabs { @apply flex items-center gap-1.5 -mt-1 mb-1 overflow-x-auto; scrollbar-width: none; }
+/* ⚠️ 앱의 실제 탭은 seg-bar(틴트 바 안의 필) 다. 데모가 낱개 알약 + 그라데이션이라
+      캡처가 앱과 다르게 보였다(2026-07-30 사장님: 전 메뉴 화면이 바뀌었다).
+      seg-bar/seg-item 과 같은 시각으로 맞춘다 — 배경 바, 솔리드 프라이머리 활성. */
+.pp-subtabs {
+  @apply inline-flex items-center gap-1 -mt-1 mb-1 p-1 rounded-xl overflow-x-auto;
+  background: var(--bg-surface); border: 1px solid var(--border); scrollbar-width: none;
+}
 .pp-subtabs::-webkit-scrollbar { display: none; }
-.pp-subtab { @apply shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-[11.5px] font-bold text-[var(--text-dim)] bg-[var(--bg-surface)]; }
-.pp-subtab-on { @apply text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.pp-subtab { @apply shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-lg text-[12px] font-semibold text-[var(--text-muted)]; }
+.pp-subtab-on { @apply font-bold text-white; background: var(--primary); }
 
 /* 경영 흐름 */
 .pp-forecast { @apply grid grid-cols-4 gap-3 items-end; }
@@ -1417,13 +1423,19 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pp-pay-cta { @apply flex items-center justify-between gap-2 mt-3 flex-wrap; }
 .pp-chip-ok { @apply text-[10.5px] font-bold px-2 py-1 rounded-full bg-[var(--success-dim)] text-[var(--success)]; }
 .pp-btn { @apply px-3 py-1.5 rounded-lg text-[11px] font-bold text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
-.pp-mini { @apply p-3.5 rounded-xl border border-[var(--border)] flex flex-col; }
-.pp-mini span { @apply text-[10px] text-[var(--text-dim)]; }
-.pp-mini b { @apply text-[16px] font-extrabold text-[var(--text)] mt-0.5; font-variant-numeric: tabular-nums; }
+/* KPI 타일 — 앱의 .stat-tile 과 같은 재질(흰 카드 + 카드 라운드/그림자)로 맞춘다 */
+.pp-mini {
+  @apply p-4 flex flex-col gap-1;
+  background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-card);
+  box-shadow: 0 8px 32px -10px rgba(31,38,75,0.13), 0 2px 8px -3px rgba(31,38,75,0.05), inset 0 1px 0 var(--glass-inner);
+}
+.pp-mini span { @apply text-[11px] font-medium text-[var(--text-dim)]; }
+.pp-mini b { @apply text-[20px] font-extrabold text-[var(--text)] leading-7; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .pp-mini-ok b { color: var(--success); }
-.pp-table { @apply w-full text-[11.5px] border-collapse; }
-.pp-table th { @apply text-left font-semibold text-[var(--text-dim)] py-2 border-b border-[var(--border)] text-[10.5px]; }
-.pp-table td { @apply py-2.5 border-b border-[var(--border)] text-[var(--text-muted)]; }
+/* 표 — 앱의 .table-head-row(헤더 12px dim + 하단선) 위계에 맞춘다 */
+.pp-table { @apply w-full text-[12px] border-collapse; }
+.pp-table th { @apply text-left font-semibold text-[var(--text-dim)] py-2.5 border-b border-[var(--border)] text-[11px]; }
+.pp-table td { @apply py-3 border-b border-[var(--border)] text-[var(--text-muted)]; }
 .pp-table th:last-child, .pp-table td:last-child { @apply text-right; }
 .pp-strong { @apply font-semibold text-[var(--text)]; }
 .pp-num { @apply font-bold; font-variant-numeric: tabular-nums; }
