@@ -631,8 +631,12 @@ export default function ProjectHubPage() {
               ? `계약 ${won(sup)} (VAT별도)`
               : fmtDate(d.start_date) ? `${fmtDate(d.start_date)}${d.end_date ? ` ~ ${fmtDate(d.end_date)}` : ""}` : "기간 미정";
             return (
-              <div key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)}
-                className={`project-card glass-card ${risk ? "!border-[var(--danger)]/40" : ""}`}>
+              <div key={d.id}
+                onClick={() => { if (openMenu) { setOpenMenu(null); return; } router.push(`/projecthub/${d.id}`); }}
+                // 메뉴가 열린 카드는 메뉴닫기 배경막(z-10)보다 위로 — hover transform 이 만드는
+                //   스태킹 컨텍스트 때문에 카드 내부 메뉴(z-20)가 배경막에 덮여 수정·삭제
+                //   클릭이 전부 배경막에 먹히던 버그 (2026-07-30 사장님: "버튼이 반응을 안 해").
+                className={`project-card glass-card ${risk ? "!border-[var(--danger)]/40" : ""} ${openMenu === d.id ? "relative z-20" : ""}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap"><Ico e={tc.icon} /> {tc.label}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
