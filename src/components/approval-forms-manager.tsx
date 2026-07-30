@@ -274,7 +274,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
       {/* 빌더 모달 */}
       {editing && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditing(null)}>
           <div className="form-builder-modal glass-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-icon">
               <span className="w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
@@ -463,7 +463,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       {/* 기본 제공 유형 편집 모달 — 회사 결재 양식 빌더와 동일 구성(이름·입력필드·내용템플릿·결재선·옵션).
           저장은 approval_policies (request_type 값은 그대로 유지 — 연차 차감 등 유형별 로직 보호) */}
       {editingDefaultKey && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditingDefaultKey(null)}>
           <div className="form-builder-modal glass-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-icon">
               <span className="w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
