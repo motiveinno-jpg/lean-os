@@ -135,14 +135,29 @@ export default function EmployeesPage() {
     enabled: !!companyId && tab === "expenses",
   });
 
+  // ── 휴가 탭용 디렉토리 — employees RLS 로 타인 행이 null 될 때 이름 폴백 (team 페이지와 동일 RPC) ──
+  const { data: leaveDirectory = [] } = useQuery({
+    queryKey: ["company-directory", companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_company_directory");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!companyId && tab === "leave",
+  });
+
   const totalSalary = employees.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
   const totalRetirement = employees.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
   const activeCount = employees.filter((e: any) => ["active", "joined"].includes(e.status)).length;
 
   // P1-3: salary/payroll 두 키 → '급여' 단일. 명세는 탭 내부 서브뷰.
+  // 휴가 탭 복원(2026-07-30 사장님): 화면 분리 리팩터 때 LeaveTab 이 고아가 되며 잔여휴가
+  //   입력·승인 화면이 통째로 사라짐 → 관리자/대표에게만 노출.
+  const isManager = role === "owner" || role === "admin";
   const allTabs: { key: Tab; label: string; count?: number }[] = [
     { key: "employees", label: "인력관리", count: activeCount },
     { key: "salary", label: "급여" },
+    ...(isManager ? [{ key: "leave" as Tab, label: "휴가" }] : []),
     { key: "certificates", label: "증명서 발급" },
   ];
   const tabs = isEmployee ? allTabs.filter(t => EMPLOYEE_ROLE_TABS.includes(t.key)) : allTabs;
@@ -261,6 +276,20 @@ export default function EmployeesPage() {
       {/* 경비청구 탭은 구성원에서 제거(2026-06-29) — 경비/지출결의는 결재관리(/approvals)에서 처리(2026-07-08 이관). 미결 경비 요약 카드는 상단 유지. 휴가 탭은 근태관리로 이동. */}
       {/* 계약서 탭은 구성원에서 제거(2026-07-15) — 개별 발송은 인력관리 > 디렉토리에서 직원 선택 후 계약서 탭으로,
           서식 관리/회사 문서/발송 현황(일괄발송)은 인사관리 > 양식 관리(/hr-templates)로 이관됨. */}
+      {/* 휴가 탭 복원(2026-07-30) — 관리자/대표 전용. 직원 딥링크는 S-1 렌더 경계(effectiveTab)가 차단. */}
+      {effectiveTab === "leave" && isManager && (
+        <LeaveTab
+          employees={employees}
+          directory={leaveDirectory}
+          companyId={companyId}
+          userId={userId}
+          queryClient={queryClient}
+          isEmployee={false}
+          autoNew={sp?.get("new") === "1"}
+          focusPending={sp?.get("focus") === "pending"}
+        />
+      )}
+
       {effectiveTab === "certificates" && (
         <>
           <CertificatesHero companyId={companyId} />
