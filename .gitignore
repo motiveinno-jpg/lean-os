@@ -9,6 +9,7 @@
 
 # next.js
 /.next/
+/.next-verify/   # 배포 전 빌드 검증용(dev 서버가 .next 를 잡고 있을 때 BUILD_DIR 로 분리)
 /out/
 
 # production

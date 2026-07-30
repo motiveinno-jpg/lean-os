@@ -9,7 +9,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import { useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
-import { PLANS, COMPETITORS, FEATURES, FAQS, FOOTER } from "@/components/landing/content";
+import { PLANS, COMPETITORS, FEATURES, FOOTER } from "@/components/landing/content";
 
 const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
 
@@ -188,16 +188,16 @@ export default function PricingView() {
         </div>
       </section>
 
-      <section className="lp4-section lp4-bg-canvas" id="faq">
-        <div className="lp4-narrow">
-          <div className="lp4-sec-head"><h2 className="lp4-h2">요금 관련해서 자주 묻는 질문이에요</h2></div>
-          <div>
-            {FAQS.slice(0, 4).map((f, i) => (
-              <div key={i} className="lp4-faq lp4-faq-open">
-                <div className="lp4-faq-btn">{f.q}</div>
-                <div className="lp4-faq-panel"><div className="lp4-faq-a">{f.a}</div></div>
-              </div>
-            ))}
+      {/* ⚠️ 여기 "요금 관련 자주 묻는 질문" 4개가 있었다. 사장님: 가격과 상관없는 내용이고,
+          가격은 글로 읽히기보다 설명으로 듣는 게 낫다(읽다가 이탈한다) → 걷어내고 상담·시작으로 잇는다.
+          FAQ 자체는 메인 랜딩(#faq)에 그대로 있다. */}
+      <section className="lp4-section lp4-bg-tint" id="ask">
+        <div className="lp4-narrow lp4-sec-head-c">
+          <h2 className="lp4-h2">가격이 궁금하면 물어보세요</h2>
+          <p className="lp4-sub">회사 상황에 따라 무엇이 필요한지 같이 정리해 드려요. 먼저 14일 써보셔도 돼요.</p>
+          <div className="lp4-feat-cta">
+            <Link href="/#partner" className="lp4-btn lp4-btn-brand">도입 상담하기</Link>
+            <Link href="/auth" className="lp4-btn lp4-btn-line">무료로 시작하기</Link>
           </div>
         </div>
       </section>

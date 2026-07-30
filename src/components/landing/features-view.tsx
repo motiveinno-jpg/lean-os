@@ -8,10 +8,15 @@
 //   스타일은 랜딩과 같은 lp4- 네임스페이스(landing.css).
 
 import "@/app/landing.css";
+// ⚠️ 랜딩과 같은 조작(스와이프 덱)을 쓰기 위해 v6 를 함께 불러온다. 덱 규칙은 --canvas/--line/--brand
+//    같은 토큰만 쓰고, 그 토큰은 .lp4-root 에도 같은 이름으로 있다(색만 이 페이지 값으로 적용된다).
+import "@/app/landing-v6.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
+import { SwipeDeck } from "@/components/landing/swipe-deck";
+import { useNarrow } from "@/components/landing/scene";
 import { CATALOG, FEATURES, FOOTER } from "@/components/landing/content";
 
 const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
@@ -47,6 +52,7 @@ function MenuGlyph({ n }: { n: string }) {
 export default function FeaturesView() {
   const [cat, setCat] = useState(0);   // 0~3 = 메뉴 그룹, AI_TAB = AI 자동화
   const [menu, setMenu] = useState(0);
+  const narrow = useNarrow();
 
   // 토글을 고르면 그 영역만 보여주고 주소도 같이 바꾼다 — 메뉴마다 하나의 화면이 되게
   const go = (c: number, m: number) => {
@@ -90,6 +96,32 @@ export default function FeaturesView() {
 
             <div className="lp4-cat-panel" key={CATALOG[cat].key}>
               <p className="lp4-cat-lead">{CATALOG[cat].lead}</p>
+              {/* ⚠️ 폰에서는 메뉴 목록을 위에 세로로 쌓고 화면은 한참 아래에 뒀다 — 설명과 화면이
+                  떨어져 있어 무슨 기능인지 확인이 안 됐다(랜딩에서 같은 지적을 받은 구조).
+                  카드 한 장 = 메뉴 하나(설명 + 그 화면)로 바꾸고 조작을 랜딩과 하나로 맞춘다. */}
+              {narrow ? (
+                <SwipeDeck
+                  label={`${CATALOG[cat].group} 메뉴`}
+                  ms={6000}
+                  slides={CATALOG[cat].menus.map((m) => (
+                    <div key={m.name} className="lp5-deck-card">
+                      <div className="lp5-deck-kick">
+                        <span className="lp4-cat-ico"><MenuGlyph n={m.icon} /></span>
+                        <b className="lp5-deck-head">{m.name}</b>
+                      </div>
+                      <p className="lp5-deck-desc"><span>{m.desc}</span></p>
+                      <div className="lp4-cat-feats">
+                        {m.items.map((it) => (
+                          <span key={it} className="lp4-cat-feat"><Check />{it}</span>
+                        ))}
+                      </div>
+                      <div className="lp5-deck-shot-flat">
+                        <Image src={m.src} alt={m.alt} width={1968} height={1320} sizes="580px" />
+                      </div>
+                    </div>
+                  ))}
+                />
+              ) : (
               <div className="lp4-cat-body">
                 <div className="lp4-cat-list">
                   {CATALOG[cat].menus.map((m, i) => (
@@ -126,6 +158,7 @@ export default function FeaturesView() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           )}
         </div>

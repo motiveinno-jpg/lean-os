@@ -684,7 +684,47 @@ const SwipeHint = ({ n }: { n: number }) => (
   </div>
 );
 
+/** 폰에서 본 주요 기능 — 축마다 레일 3개(도트 없음)를 카드 한 벌로 합친다.
+ *  ⚠️ 폰에서 이 구간이 1.82화면이었고, 축 세 줄을 각각 따로 넘겨야 했다. 어디까지 봤는지
+ *     알려주는 표시도 없었다(사장님: 모바일 통일). 조작을 하루·자리에 없어도·AI 와 하나로 맞춘다.
+ *  ⚠️ 화면 칸은 폰 크롬을 씌우지 않는다 — 여기 캡처는 데스크톱 화면이라 폰 목업에 넣으면 거짓이다. */
+function AxesDeck() {
+  const cards = PILLARS.flatMap((P) =>
+    P.blocks.map((b) => (
+      <div key={`${P.kicker}-${b.tab}`} className="lp5-deck-card">
+        <div className="lp5-deck-kick">
+          <span className="lp5-axtag-dot" style={{ background: AXIS_COLOR[P.kicker] ?? "#5B4BE8" }} />
+          <span className="lp5-deck-n">{P.kicker} · {b.tab}</span>
+        </div>
+        <b className="lp5-deck-head">{b.title}</b>
+        <p className="lp5-deck-desc">
+          {b.desc.split(/\.\s+/).filter(Boolean).map((l, j, a) => (
+            <span key={j}>{j < a.length - 1 ? `${l}.` : l}</span>
+          ))}
+        </p>
+        <div className="lp5-deck-shot-flat">
+          <Image src={CORE_SHOT[b.src] ?? b.src} alt={b.alt} width={1968} height={984} sizes="580px" />
+        </div>
+      </div>
+    )),
+  );
+  return (
+    <section id="pillars" className="lp5-sect">
+      <div className="lp5-wrap">
+        <Rise className="lp5-sec-head">
+          <div className="lp5-eyebrow">Core</div>
+          <h2 className="lp5-h lp5-h-sm">일은 줄이고, <span className="lp5-grad">효율과 성과는 높여요</span></h2>
+          <p className="lp5-lead">프로젝트·회계·인사가 하나의 데이터 위에서 같이 움직여요.</p>
+        </Rise>
+      </div>
+      <SwipeDeck label="주요 기능" slides={cards} ms={5600} />
+    </section>
+  );
+}
+
 function SceneAxes() {
+  const narrow = useNarrow();
+  if (narrow) return <AxesDeck />;
   return (
     <section id="pillars" className="lp5-sect">
       <div className="lp5-wrap">

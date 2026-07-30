@@ -475,7 +475,10 @@
 .lp5-phone {
   /* ⚠️ 340px 고정이라 360px 화면에서 그리드 트랙을 밀어 옆 칸 문구까지 샐지게 했다 */
   position: relative; width: min(340px, 74vw); margin: 0 auto; aspect-ratio: 1179 / 2556;
-  --bez: 5px; --sb: 3.6%;
+  /* ⚠️ 상태바 높이(--sb)는 "베젤 안쪽 라운드"(40-5=35px)보다 커야 한다. 작으면 그 아래에서
+        시작하는 이미지의 사각 모서리가 아직 휘어 있는 코너를 뚫고 나온다(사장님: 상단이 뚫고 나옴).
+        실제 iOS 상태바도 화면 높이의 약 6% 라 이 값이 더 자연스럽다. */
+  --bez: 5px; --sb: 5.8%;
   border-radius: 40px; padding: var(--bez);
   background: linear-gradient(150deg, #6B6B78 0%, #1B1B22 26%, #0A0A10 72%, #3A3A46 100%);
   box-shadow: 0 44px 84px -34px rgba(11,11,15,.55), 0 0 0 .5px rgba(255,255,255,.22) inset;

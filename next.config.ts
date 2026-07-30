@@ -55,6 +55,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // 빌드 산출물 폴더를 env 로 갈아끼울 수 있게 둔다 — dev 서버가 .next 를 잡고 있는 동안
+  // 배포 전 빌드 검증을 돌리려면 별도 폴더가 필요하다(BUILD_DIR=.next-verify npx next build).
+  distDir: process.env.BUILD_DIR || ".next",
   trailingSlash: true,
   // 2026-07-20 QA: 홈 디렉터리에 잡 package-lock.json 이 있으면 Next 가 워크스페이스 루트를
   //   홈 전체로 오인해 빌드/dev 가 수 분씩 느려짐 — 프로젝트 루트를 명시 고정.

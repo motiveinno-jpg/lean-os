@@ -801,7 +801,9 @@
 .lp5-deck-shot {
   margin-top: auto; position: relative; overflow: hidden;
   height: clamp(238px, 35vh, 306px);
-  --bez: 5px; --sb: 17px;
+  /* ⚠️ 상태바 높이는 안쪽 라운드(30-5=25px)보다 커야 한다 — 작으면 이미지의 사각 모서리가
+        휘어 있는 코너를 뚫고 나온다(사장님: 상단이 뚫고 나오는 것 같다). */
+  --bez: 5px; --sb: 27px;
   border-radius: 30px 30px 0 0; padding: var(--bez) var(--bez) 0;
   background: linear-gradient(150deg, #6B6B78 0%, #1B1B22 26%, #0A0A10 90%);
   box-shadow: 0 0 0 .5px rgba(255,255,255,.2) inset, 0 -1px 8px rgba(11,11,15,.18);
@@ -814,8 +816,8 @@
   background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='10'%3E%3Cg fill='%2318181B'%3E%3Crect y='6' width='2.4' height='3.6' rx='.6'/%3E%3Crect x='3.6' y='4.4' width='2.4' height='5.2' rx='.6'/%3E%3Crect x='7.2' y='2.6' width='2.4' height='7' rx='.6'/%3E%3Crect x='10.8' y='.8' width='2.4' height='8.8' rx='.6'/%3E%3Crect x='19.2' y='2.9' width='8.2' height='4.4' rx='1'/%3E%3Crect x='32' y='3.7' width='1.2' height='2.8' rx='.6'/%3E%3C/g%3E%3Crect x='18' y='1.7' width='13' height='6.8' rx='2' fill='none' stroke='%2318181B' stroke-width='1'/%3E%3C/svg%3E") no-repeat right 12px center / 30px 9px;
 }
 .lp5-deck-shot::after {
-  content: ""; position: absolute; z-index: 3; top: 9px; left: 50%; transform: translateX(-50%);
-  width: 68px; height: 15px; border-radius: 99px; background: #07070C;
+  content: ""; position: absolute; z-index: 3; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 68px; height: 16px; border-radius: 99px; background: #07070C;
 }
 /* ⚠️ left/right + width:auto 로 두면 대체 요소(img)는 shrink-to-fit 이 되어 원래 크기로
       튀어나간다 — 실제로 오른쪽 베젤을 뚫고 화면이 잘렸다(실측). 폭을 직접 계산해 준다. */
@@ -829,6 +831,32 @@
   height: calc(100% - var(--bez) - var(--sb));
   max-width: none; object-fit: cover; object-position: center top;
 }
+
+/* 데스크톱 캡처를 담는 화면 칸 — 폰 크롬을 씌우지 않는다.
+   ⚠️ 코어(주요 기능)·둘러보기 캡처는 데스크톱 화면이다. 폰 목업에 넣으면 거짓이 된다.
+      대신 코어 카드와 같은 방식으로 왼쪽 위를 잘라 넣어 글자 크기를 지킨다(580px 고정). */
+.lp5-deck-shot-flat {
+  margin-top: auto; position: relative; overflow: hidden;
+  height: clamp(186px, 25vh, 240px);
+  border-radius: 12px 12px 0 0; background: #fff;
+  border: 1px solid rgba(11, 11, 15, .06); border-bottom: 0;
+  box-shadow: 0 2px 10px rgba(11, 11, 15, .06), 0 20px 44px -26px rgba(11, 11, 15, .4);
+}
+.lp5-deck-shot-flat img {
+  display: block; position: absolute; left: 0; top: 0;
+  width: 580px; min-width: 100%; max-width: none; height: auto;
+}
+
+/* 둘러보기(/features) 카드 안의 기능 목록 — lp4 의 큰 알약 버튼이 세로로 쌓여 카드가 길어졌다.
+   카드 안에서는 칩으로 압축한다(같은 클래스를 덱 안에서만 다시 정의). */
+.lp5-deck-card .lp4-cat-feats { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.lp5-deck-card .lp4-cat-feat {
+  font-size: 11.5px; font-weight: 700; padding: 5px 9px; border-radius: 8px; gap: 5px;
+  background: var(--canvas2); border: 1px solid var(--line); box-shadow: none; color: var(--ink2);
+}
+.lp5-deck-card .lp4-cat-feat svg { width: 12px; height: 12px; }
+.lp5-deck-card .lp4-cat-ico { width: 26px; height: 26px; border-radius: 8px; flex: none; }
+.lp5-deck-card .lp4-cat-ico svg { width: 15px; height: 15px; }
 
 /* 하단 컨트롤 — AI 구간과 같은 언어(도트 + 자동 넘김), 밝은 구간용 색 */
 .lp5-deck-ctrl { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
