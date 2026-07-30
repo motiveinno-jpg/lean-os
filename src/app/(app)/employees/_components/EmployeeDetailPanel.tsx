@@ -15,6 +15,7 @@ import { updateEmployee, LEAVE_TYPES, calculateAnnualLeave } from "@/lib/hr";
 import { listLeaveGrants, addLeaveGrant, deleteLeaveGrant, setBaseLeaveGrant, GRANT_TYPE_LABELS, type LeaveGrant, type LeaveGrantType } from "@/lib/leave-grants";
 import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
+import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
@@ -739,8 +740,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         {/* Certificates Tab — 증명서 발급/이력 */}
         {detailTab === "certificates" && (
           <div className="employee-certificates-tab">
-            {/* Quick issue buttons */}
-            <div className="flex gap-3">
+            {/* Quick issue buttons — 용도·제출처 선택 후 발급 (2026-07-30 사장님: 이 경로에만 빠져 있었음) */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start">
               <CertQuickIssue type="employment" label="재직증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
               <CertQuickIssue type="career" label="경력증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
             </div>
@@ -1479,9 +1480,14 @@ function EditField({ label, value, onChange, type, inputMode }: { label: string;
 }
 
 // ── Certificate Quick Issue Button ──
+//   2026-07-30 사장님: 용도·제출처 선택이 증명서 발급 탭/마이페이지엔 있는데 이 빠른 발급엔 빠져
+//   있었다 → 클릭 시 선택 패널을 펼치고, 선택값을 PDF(용도/제출처 행)와 발급 이력에 반영.
 function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "employment" | "career"; label: string; emp: any; companyId: string; queryClient: any }) {
   const { toast } = useToast();
   const [issuing, setIssuing] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [purpose, setPurpose] = useState("");
+  const [submitTo, setSubmitTo] = useState("");
   async function issue() {
     setIssuing(true);
     try {
@@ -1491,13 +1497,16 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
       const companyData = { name: company.name, representative: company.representative || "", address: company.address || "", business_number: company.business_number || "", seal_url: company.seal_url || "" };
 
       let result: { pdf: Blob; certificateNumber: string };
+      const finalPurpose = purpose.trim() || "제출용";
       if (type === "employment") {
-        result = await generateEmploymentCertificate({ employee: empData, company: companyData, purpose: "제출용" });
+        result = await generateEmploymentCertificate({ employee: empData, company: companyData, purpose: finalPurpose, submitTo: submitTo.trim() });
       } else {
         result = await generateCareerCertificate({
           employee: { ...empData, end_date: emp.resignation_date || emp.end_date },
           company: companyData,
           duties: emp.job_title ? [emp.job_title] : [emp.position || emp.department || "업무 전반"],
+          purpose: finalPurpose,
+          submitTo: submitTo.trim(),
         });
       }
 
@@ -1511,7 +1520,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
       const { getCurrentUser } = await import("@/lib/queries");
       const me = await getCurrentUser();
       if (me) {
-        await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: me.id, purpose: "제출용" });
+        await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: me.id, purpose: [purpose.trim() || "제출용", submitTo.trim()].filter(Boolean).join(" / ") });
       }
       queryClient.invalidateQueries({ queryKey: ["emp-cert-logs", emp.id] });
     } catch (err: any) {
@@ -1521,9 +1530,20 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
     }
   }
   return (
-    <button onClick={issue} disabled={issuing} className="flex-1 py-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
-      {issuing ? "생성 중..." : `${label} 발급`}
-    </button>
+    <div className="flex-1 w-full">
+      <button onClick={() => setOpen((v) => !v)} disabled={issuing} className="w-full py-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
+        {issuing ? "생성 중..." : `${label} 발급`}
+      </button>
+      {open && (
+        <div className="mt-2 p-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl space-y-2">
+          <CertChoiceField label="용도" options={CERT_PURPOSE_OPTIONS} value={purpose} onChange={setPurpose} />
+          <CertChoiceField label="제출처" options={CERT_SUBMIT_TO_OPTIONS} value={submitTo} onChange={setSubmitTo} />
+          <button onClick={issue} disabled={issuing} className="w-full py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-bold hover:brightness-110 transition disabled:opacity-50">
+            {issuing ? "생성 중..." : "발급하기"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

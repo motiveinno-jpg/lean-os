@@ -1575,6 +1575,8 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                       </div>
                     ) : fd.type === "date" ? (
                       <DateField value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                    ) : fd.type === "period" ? (
+                      <PeriodFieldInput value={editFieldValues[fd.key] || ""} onChange={(v) => setEditFieldValues((s) => ({ ...s, [fd.key]: v }))} />
                     ) : (
                       <input type={fd.type === "number" ? "number" : "text"} value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
                     )}
@@ -2138,6 +2140,19 @@ const LEAVE_UNIT_OPTIONS = [
 // ══════════════════════════════════════════════
 // Tab 5: 새 요청
 // ══════════════════════════════════════════════
+
+// 기간 필드 (2026-07-30 사장님 — 결재 양식에서 기간 설정): 값은 "시작 ~ 종료" 한 문자열로
+//   customFieldValues 에 저장 — 상세/목록/PDF 등 기존 문자열 표시 경로가 그대로 통한다.
+function PeriodFieldInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [start = "", end = ""] = (value || "").split("~").map((x) => x.trim());
+  const emit = (ns: string, ne: string) => onChange(ns || ne ? `${ns} ~ ${ne}`.trim() : "");
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <DateField value={start} onChange={(e) => emit(e.target.value, end)} className="field-input" />
+      <DateField value={end} min={start || undefined} onChange={(e) => emit(start, e.target.value)} className="field-input" />
+    </div>
+  );
+}
 
 // 입력 필드 블록 재배치 (2026-07-30 사장님 — "사람마다 원하는 배치가 다 달라"):
 //   각 블록을 드래그 핸들(⠿) 또는 ↑↓ 로 옮길 수 있고, 순서는 브라우저(localStorage)에
@@ -2900,6 +2915,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                           </div>
                         ) : fd.type === "date" ? (
                           <DateField value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                        ) : fd.type === "period" ? (
+                          <PeriodFieldInput value={customFieldValues[fd.key] || ""} onChange={(v) => setCustomFieldValues((s) => ({ ...s, [fd.key]: v }))} />
                         ) : (
                           <input type={fd.type === "number" ? "number" : "text"} value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
                         )}

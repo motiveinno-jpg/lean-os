@@ -4204,6 +4204,8 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         result = await generateCareerCertificate({
           employee: empData,
           company: companyData,
+          purpose: purpose || undefined,
+          submitTo: submitTo || undefined,
         });
       }
 

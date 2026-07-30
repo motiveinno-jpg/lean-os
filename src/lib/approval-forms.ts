@@ -6,9 +6,9 @@ import { supabase } from "@/lib/supabase";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
 
-export type ApprovalFieldType = "text" | "number" | "amount" | "date" | "select" | "textarea" | "fixed";
+export type ApprovalFieldType = "text" | "number" | "amount" | "date" | "period" | "select" | "textarea" | "fixed";
 export const FIELD_TYPE_LABEL: Record<ApprovalFieldType, string> = {
-  text: "한 줄 텍스트", number: "숫자", amount: "금액", date: "날짜", select: "선택(드롭다운)", textarea: "여러 줄 텍스트", fixed: "직접입력 고정값",
+  text: "한 줄 텍스트", number: "숫자", amount: "금액", date: "날짜", period: "기간 (시작~종료)", select: "선택(드롭다운)", textarea: "여러 줄 텍스트", fixed: "직접입력 고정값",
 };
 
 export interface ApprovalFormField {

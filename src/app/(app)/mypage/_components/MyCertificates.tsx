@@ -77,7 +77,7 @@ export function MyCertificates({
       const result =
         certType === "employment"
           ? await generateEmploymentCertificate({ employee: empData, company: companyData, purpose: purpose || undefined, submitTo: submitTo || undefined })
-          : await generateCareerCertificate({ employee: empData, company: companyData });
+          : await generateCareerCertificate({ employee: empData, company: companyData, purpose: purpose || undefined, submitTo: submitTo || undefined });
 
       const url = URL.createObjectURL(result.pdf);
       const a = document.createElement("a");

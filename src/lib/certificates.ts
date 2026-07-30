@@ -227,8 +227,12 @@ export async function generateCareerCertificate(params: {
   employee: CertificateEmployee;
   company: CertificateCompany;
   duties?: string[];
+  purpose?: string;  // 용도 (2026-07-30 사장님: 재직증명서와 동일하게 용도·제출처 지원)
+  submitTo?: string; // 제출처
 }): Promise<CertificateResult> {
   const { employee, company } = params;
+  const purpose = params.purpose || '제출용';
+  const submitTo = params.submitTo || '';
   const certNumber = await generateCertificateNumber('CERT-CAR');
   const today = new Date();
   const todayStr = formatKoreanDate(today);
@@ -275,7 +279,11 @@ export async function generateCareerCertificate(params: {
     ['소    속', employee.department || '-'],
     ['직    위', employee.position || '-'],
     ['경력기간', `${formatKoreanDate(hireDate)} ~ ${employee.end_date ? formatKoreanDate(new Date(employee.end_date)) : `${todayStr} (재직중)`} (${tenure})`],
+    ['용    도', purpose],
   );
+  if (submitTo) {
+    personalInfo.push(['제 출 처', submitTo]);
+  }
 
   autoTable(doc, {
     startY: y,
