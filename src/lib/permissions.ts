@@ -61,6 +61,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "policies", label: "결재 정책" },
       ] },
       { route: "/board", label: "게시판", always: true },
+      { route: "/my-contracts", label: "내 서명 요청", always: true },
       { route: "/chat", label: "메신저", always: true },
       { route: "/signatures", label: "전자계약", tabs: [
         { key: "send", label: "서명 요청 보내기" },
@@ -83,6 +84,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       ] },
       { route: "/hr-templates", label: "근로계약·서식" },
       { route: "/documents", label: "파일보관함" },
+      { route: "/team", label: "구성원 디렉토리", always: true },
     ],
   },
   {
@@ -118,6 +120,20 @@ export const PERMISSION_CATALOG: PermGroup[] = [
 export const ALWAYS_ALLOWED_ROUTES = new Set(
   PERMISSION_CATALOG.flatMap((g) => g.menus).filter((m) => m.always).map((m) => m.route),
 );
+
+/** 카탈로그의 모든 메뉴 라우트 (always 포함) */
+export const CATALOG_ROUTES: string[] = PERMISSION_CATALOG.flatMap((g) => g.menus.map((m) => m.route));
+
+/** pathname → 카탈로그 메뉴 라우트(가장 긴 접두 매치). 카탈로그 밖 경로는 null(게이트 비대상). */
+export function matchCatalogRoute(pathname: string): string | null {
+  let best: string | null = null;
+  for (const r of CATALOG_ROUTES) {
+    if (pathname === r || pathname.startsWith(r + "/")) {
+      if (!best || r.length > best.length) best = r;
+    }
+  }
+  return best;
+}
 
 /** 부여 가능한 전체 perm key (always 제외) — 메뉴 키 + 탭 키 */
 export function allGrantableKeys(): string[] {

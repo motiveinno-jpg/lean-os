@@ -12,7 +12,7 @@ import { useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
-import { matchGrantableRoute, effectiveTabAccess, useMyTabOverrides } from "@/lib/tab-access";
+import { useMyPermissions } from "@/lib/permissions";
 import { usePopups } from "@/components/popup-windows";
 
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; match?: string[]; children?: NavItem[] };
@@ -20,7 +20,7 @@ type NavGroup = { label: string; items: NavItem[] };
 
 // ── 사이드바 구조 (2026-06-04 갱신) — 홈 → 파이낸스 → 워크스페이스 → 인사관리 → 자산관리 → 설정.
 //   파이낸스(구 회계관리) 홈 바로 아래. 워크스페이스(구 그룹웨어): 게시판·채팅·승인·일정·프로젝트·전자계약.
-//   인사관리: 구성원·근태·서류. 자산관리: 통장·카드·정기결제 등. (employee 는 EMPLOYEE_NAV_GROUPS 별도 유지)
+//   인사관리: 구성원·근태·서류. 자산관리: 통장·카드·정기결제 등. (2026-07-30 P2: 화면 한 벌 — 권한 기반 노출)
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "홈",
@@ -56,6 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
+      { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3" },
     ],
   },
   {
@@ -65,6 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
       { href: "/hr-templates", label: "근로계약·서식", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/documents", label: "파일보관함", icon: "folder" },
+      { href: "/team", label: "구성원 디렉토리", icon: "users" },
     ],
   },
   {
@@ -93,45 +95,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// ── 직원(employee) 전용 사이드바 — "직원은 단순해야" 원칙.
-//   홈 / 나의 업무 / 소통·도움말 3개 그룹으로 압축. 거래처·프로젝트·회계 미노출.
-const EMPLOYEE_NAV_GROUPS: NavGroup[] = [
-  {
-    label: "홈",
-    items: [
-      { href: "/dashboard", label: "대시보드", icon: "grid" },
-      { href: "/mypage", label: "마이페이지", icon: "user" },
-      { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
-    ],
-  },
-  {
-    label: "워크스페이스",
-    items: [
-      { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
-      { href: "/board", label: "게시판", icon: "message-square" },
-    ],
-  },
-  {
-    label: "나의 업무",
-    items: [
-      { href: "/attendance", label: "근태", icon: "clock" },
-      { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3" },
-      { href: "/signatures", label: "전자계약", icon: "edit-3" },
-      { href: "/approvals", label: "결재 허브", icon: "clipboard-check", badgeKey: "approvals" },
-      { href: "/documents", label: "파일보관함", icon: "folder" },
-    ],
-  },
-  {
-    label: "소통 · 도움말",
-    items: [
-      { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
-      { href: "/team", label: "구성원", icon: "users" },
-      { href: "/announcements", label: "공지사항", icon: "megaphone" },
-      { href: "/guide", label: "사용 가이드", icon: "help-circle" },
-      { href: "/support", label: "고객센터", icon: "headphones" },
-    ],
-  },
-];
+// (2026-07-30 개편 P2) 직원 전용 사이드바 삭제 — 화면 한 벌 + 권한 기반 숨김으로 통합.
 
 // 활성 판정 헬퍼 — 아이템의 match(없으면 [href]) 중 현재 경로에 매치되는 가장 긴 경로 길이.
 //   여러 아이템 중 이 길이가 최댓값인 아이템만 활성 → 접두어가 겹쳐도(예: /partners vs /partners/reconciliation)
@@ -143,47 +107,22 @@ function itemMatchLen(item: NavItem, pathname: string): number {
   return m;
 }
 
-function filterNavForRole(role: UserRole, overrides: Map<string, boolean>, companyName?: string, isOperator?: boolean): NavGroup[] {
-  void companyName;
-  // 직원은 전용 압축 메뉴 + 권한(user_tab_access)으로 부여받은 관리자 탭만 노출.
-  //   메뉴 통일: 같은 구조에서 "권한받은 메뉴만" 보이고 사용 가능(접근은 RouteGuard 이중 게이트).
-  if (role === "employee") {
-    const empGroups = EMPLOYEE_NAV_GROUPS
-      .map((group) => ({ ...group, items: group.items.filter(Boolean) }))
-      .filter((group) => group.items.length > 0);
-    const empHrefs = new Set(empGroups.flatMap((g) => g.items.map((i) => i.href)));
-    // 부여된 관리자 탭만 노출(effectiveTabAccess) — 미부여 탭은 보이지 않음.
-    const granted = (href: string) => !!matchGrantableRoute(href) && !empHrefs.has(href) && effectiveTabAccess(href, "employee", overrides);
-    const adminGroups = NAV_GROUPS
-      .map((group) => ({
-        ...group,
-        items: group.items.flatMap((item) => {
-          const showItem = granted(item.href);
-          const kids = (item.children || []).filter((c) => granted(c.href));
-          if (showItem) return [{ ...item, children: kids.length ? kids : undefined }];
-          return kids;
-        }),
-      }))
-      .filter((group) => group.items.length > 0);
-    // 같은 라벨 그룹 병합(예: 직원 '워크스페이스' + 부여받은 관리자 '워크스페이스') — 헤더 중복 방지.
-    const merged: NavGroup[] = [];
-    for (const g of [...empGroups, ...adminGroups]) {
-      const exist = merged.find((m) => m.label === g.label);
-      if (exist) {
-        const seen = new Set(exist.items.map((i) => i.href));
-        exist.items.push(...g.items.filter((i) => !seen.has(i.href)));
-      } else merged.push({ ...g, items: [...g.items] });
-    }
-    return merged;
-  }
+function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: string) => boolean, isOperator?: boolean): NavGroup[] {
+  // (2026-07-30 개편 P2) 화면 한 벌: 파트너만 기존 roles 필터 유지(별도 협업 화면),
+  //   나머지(마스터·멤버)는 권한 기반 — 마스터는 전 메뉴, 멤버는 부여받은 메뉴 + 기본 제공만 노출.
+  const ok = (i: NavItem) => {
+    if (i.operatorOnly && !isOperator) return false;
+    if (role === "partner") return !i.roles || i.roles.includes(role);
+    if (isMaster) return true;
+    return hasMenu(i.href);
+  };
   return NAV_GROUPS
     .map((group) => ({
       ...group,
       items: group.items.flatMap((item) => {
-        const ok = (i: NavItem) => (!i.operatorOnly || isOperator) && (!i.roles || i.roles.includes(role));
         const kids = (item.children || []).filter(ok);
         if (ok(item)) return [{ ...item, children: kids.length ? kids : undefined }];
-        return kids; // 부모가 role 로 숨겨지면 보이는 자식을 top-level 로 승격
+        return kids; // 부모가 숨겨지면 보이는 자식을 top-level 로 승격
       }),
     }))
     .filter((group) => group.items.length > 0);
@@ -287,8 +226,8 @@ export function Sidebar() {
     return n;
   });
   const isOperator = !!user?.email && /@mo-tive\.com$/i.test(user.email);
-  const { map: tabOverrides } = useMyTabOverrides();
-  const filteredNav = filterNavForRole(role, tabOverrides, user?.companies?.name || undefined, isOperator);
+  const { isMaster, hasMenu } = useMyPermissions();
+  const filteredNav = filterNavUnified(role, isMaster, hasMenu, isOperator);
 
   // Build flat lookup for pinned pages
   const allNavItems = filteredNav.flatMap(g => g.items.flatMap(i => i.children ? [i, ...i.children] : [i]));
@@ -504,9 +443,9 @@ export function Sidebar() {
               <div className="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
                 {user?.name || user?.email?.split("@")[0] || ""}
                 <span className={`sidebar-role-badge ${
-                  role === "owner" ? "bg-[var(--primary-light)] text-[var(--primary)]" : role === "admin" ? "bg-cyan-500/12 text-cyan-600" : role === "partner" ? "bg-violet-500/12 text-violet-600" : "bg-emerald-500/12 text-emerald-600"
+                  isMaster ? "bg-[var(--primary-light)] text-[var(--primary)]" : role === "partner" ? "bg-violet-500/12 text-violet-600" : "bg-emerald-500/12 text-emerald-600"
                 }`}>
-                  {role === "owner" ? "대표" : role === "admin" ? "관리자" : role === "partner" ? "파트너" : "직원"}
+                  {isMaster ? "마스터" : role === "partner" ? "파트너" : "멤버"}
                 </span>
               </div>
             </div>
@@ -721,9 +660,9 @@ export function Sidebar() {
                   <div className="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
                     {user?.name || user?.email?.split("@")[0] || ""}
                     <span className={`sidebar-mobile-role-badge ${
-                      role === "owner" ? "bg-[#2563EB]" : role === "admin" ? "bg-[#0891B2]" : role === "partner" ? "bg-[#7C3AED]" : "bg-[#059669]"
+                      isMaster ? "bg-[#2563EB]" : role === "partner" ? "bg-[#7C3AED]" : "bg-[#059669]"
                     }`}>
-                      {role === "owner" ? "대표" : role === "admin" ? "관리자" : role === "partner" ? "파트너" : "직원"}
+                          {isMaster ? "마스터" : role === "partner" ? "파트너" : "멤버"}
                     </span>
                   </div>
                 </div>

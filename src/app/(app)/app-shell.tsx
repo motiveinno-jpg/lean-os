@@ -24,7 +24,7 @@ import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
 import { PopupProvider, PopupWindowsHost } from "@/components/popup-windows";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { AccessDenied } from "@/components/access-denied";
-import { useMyTabOverrides, effectiveTabAccess, matchGrantableRoute } from "@/lib/tab-access";
+import { matchCatalogRoute, useMyPermissions } from "@/lib/permissions";
 import { isDev } from "@/lib/app-env";
 
 /* ── Mobile Bottom Nav for Partner / Employee ── */
@@ -35,13 +35,7 @@ const PARTNER_TABS = [
   { href: "/chat", label: "메신저", icon: "chat" },
   { href: "/guide", label: "가이드", icon: "book" },
 ];
-const EMPLOYEE_TABS = [
-  { href: "/dashboard", label: "홈", icon: "home" },
-  { href: "/attendance", label: "근태", icon: "clock" },
-  { href: "/leave", label: "휴가", icon: "umbrella" },
-  { href: "/chat", label: "메신저", icon: "chat" },
-  { href: "/documents", label: "서류", icon: "file" },
-];
+// (2026-07-30 개편 P2) EMPLOYEE_TABS 삭제 — 화면 한 벌: 파트너 외 전원 OWNER_TABS(권한 필터).
 const OWNER_TABS = [
   { href: "/dashboard", label: "대시보드", icon: "home" },
   // PR5: owner 의 모바일 진입도 /projects 칸반으로
@@ -70,9 +64,11 @@ function BottomTabIcon({ name, active }: { name: string; active: boolean }) {
 
 function MobileBottomNav() {
   const { role } = useUser();
+  const { isMaster, hasMenu } = useMyPermissions();
   const pathname = usePathname();
-  if (role !== "partner" && role !== "employee" && role !== "owner") return null;
-  const tabs = role === "partner" ? PARTNER_TABS : role === "owner" ? OWNER_TABS : EMPLOYEE_TABS;
+  const tabs = role === "partner"
+    ? PARTNER_TABS
+    : OWNER_TABS.filter((t) => isMaster || hasMenu(t.href));
 
   return (
     // 모바일 첫진입 발견성 — 5개 핵심 메뉴를 같은 폭으로 배치하고 현재 메뉴는 배경까지 강조.
@@ -99,38 +95,15 @@ function MobileBottomNav() {
 /* ── Role-based route guard ── */
 const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
   partner: ["/dashboard", "/projects", "/documents", "/chat", "/guide", "/notifications", "/mypage", "/announcements", "/board", "/error-logs", "/operator-users"],
-  // 직원 화면 — 홈 / 나의 업무 / 소통·도움말 로 압축. 거래처·프로젝트·회계 미노출.
-  //   /employees 는 사이드바에서 제거됐지만 경비·증명서 딥링크 fallback 으로 접근 허용.
-  employee: [
-    "/dashboard",
-    "/schedule",       // 일정 / 할 일
-    "/projects",       // 직원 통일 (관리자와 동일 화면, /projects 안 isEmployeeLimited 가드로 재무 가림 + 본인 담당만)
-    "/announcements",  // 공지사항 (전체 공개, 운영자만 작성)
-    "/board",          // 회사 게시판 (구성원 글·댓글)
-    "/error-logs",     // 에러 모니터링 (운영자 전용 — 페이지 내 이메일 게이트)
-    "/operator-users", // 유저 계정 관리 (운영자 전용 — 페이지 내 이메일 게이트)
-    "/notifications",  // 알림
-    "/team",           // 팀 디렉토리 (직원용 read-only)
-    "/attendance",     // 근태 / 출퇴근
-    "/leave",          // 휴가 신청 (전용 라우트 — '인력관리>휴가 탭' 동선 미로 해소)
-    "/employees",      // 경비청구·증명서 딥링크 fallback (사이드바 미노출)
-    "/documents",      // 서류 / 계약서 / 서명
-    "/signatures",     // 전자계약 (서명 진행)
-    "/my-contracts",   // 내 서명 요청 (모두사인 스타일 인앱 inbox)
-    "/approvals",      // 결재함
-    "/chat",           // 팀 채팅
-    "/mypage",         // 내 계정
-    "/guide",          // 사용 가이드
-    "/onboarding",
-  ],
+  // (2026-07-30 개편 P2) employee 허용목록 삭제 — 권한 기반 가드로 대체. 파트너만 목록 유지.
 };
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const { role, user, loading } = useUser();
   const pathname = usePathname();
   const router = useRouter();
-  // 탭 권한 명시 오버라이드(허용/차단). 실효 접근 판정에 사용(관리자도 명시 차단 가능).
-  const { map: tabOverrides, loading: grantsLoading } = useMyTabOverrides();
+  // (2026-07-30 개편 P2) 권한 기반 가드 — 마스터는 전체, 멤버는 부여받은 메뉴 + 기본 제공만.
+  const { isMaster, hasPerm, loading: permsLoading } = useMyPermissions();
 
   // 온보딩 미완료 직원 → 자동 완료 처리 (직원은 회사 온보딩 대상 아님)
   useEffect(() => {
@@ -152,36 +125,35 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   }, [loading, user, role, pathname, router]);
 
   useEffect(() => {
-    if (loading) return;
-    if (role === "owner") return; // 대표 전체 접근
-    if (matchGrantableRoute(pathname)) return; // 부여 대상 → 화면에서 처리(차단 안내/허용)
-    const allowed = ROLE_ALLOWED_ROUTES[role];
-    if (!allowed) return; // admin → (부여대상 외) 전체 접근
-    const inBase = allowed.some((r) => pathname === r || pathname.startsWith(r + "/"));
-    if (!inBase) router.replace("/dashboard"); // employee/partner 비허용 경로
-  }, [role, pathname, loading, router]);
+    if (loading || permsLoading) return;
+    if (role === "partner") {
+      const allowed = ROLE_ALLOWED_ROUTES.partner;
+      const inBase = allowed.some((r) => pathname === r || pathname.startsWith(r + "/"));
+      if (!inBase) router.replace("/dashboard");
+      return;
+    }
+    if (isMaster) return; // 마스터 전체 접근
+    const route = matchCatalogRoute(pathname);
+    if (route && !hasPerm(route)) {
+      // 대시보드 권한이 없으면 마이페이지로 (리다이렉트 루프 방지)
+      router.replace(hasPerm("/dashboard") ? "/dashboard" : "/mypage");
+    }
+  }, [role, pathname, loading, permsLoading, isMaster, hasPerm, router]);
 
   // 로딩 중이면 렌더링 차단 (비허용 페이지 깜빡임 방지)
   if (loading) return null;
-  if (role === "owner") return <>{children}</>;
-
-  // 부여 대상 라우트 — 실효 접근(명시 차단 시 관리자도 차단) 판정
-  const grantable = matchGrantableRoute(pathname);
-  if (grantable) {
-    if (grantsLoading) return null;
-    if (!effectiveTabAccess(grantable, role, tabOverrides)) {
-      return <AccessDenied detail="이 메뉴에 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
-    }
-    return <>{children}</>;
-  }
-
-  // 그 외: employee/partner 기본 허용목록 밖이면 차단
-  const allowed = ROLE_ALLOWED_ROUTES[role];
-  if (allowed) {
+  if (role === "partner") {
+    const allowed = ROLE_ALLOWED_ROUTES.partner;
     const inBase = allowed.some((r) => pathname === r || pathname.startsWith(r + "/"));
     if (!inBase) return null;
+    return <>{children}</>;
   }
-
+  if (isMaster) return <>{children}</>;
+  if (permsLoading) return null;
+  const route = matchCatalogRoute(pathname);
+  if (route && !hasPerm(route)) {
+    return <AccessDenied detail="이 메뉴에 접근 권한이 없습니다. 마스터에게 권한을 요청하세요." />;
+  }
   return <>{children}</>;
 }
 

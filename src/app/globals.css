@@ -2121,6 +2121,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 }
 .approval-new-request-form { @apply lg:col-span-2; }
 
+/* 마스터 권한 개편 안내 배너 (2026-07-30 P2) */
+.master-perm-notice { @apply mb-5 flex items-start gap-4 flex-wrap p-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--primary)]/5; }
+
 /* 마스터 권한 부여 트리 (2026-07-30 개편 P1) */
 .member-permission-groups { @apply grid grid-cols-1 md:grid-cols-2 gap-3; }
 .member-permission-group { @apply p-4; }

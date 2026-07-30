@@ -19,7 +19,6 @@ import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
 import { CardsSummaryCard, AssetsSummaryCard } from "@/components/dashboard-bottom-cards";
-import { QuickApprovalCard } from "@/components/quick-approval-card";
 import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
 import { FunnelChart, type FunnelStage } from "@/components/funnel-chart";
@@ -394,13 +393,7 @@ export default function DashboardPage() {
 
   const sp = dashboard.sixPack;
 
-  // ── Employee Dashboard ──
-  if (role === "employee") {
-    if (!companyId) return <div className="flex items-center justify-center h-[60vh] text-sm text-[var(--text-muted)]">로딩 중...</div>;
-    return (
-      <EmployeeDashboard userName={userName} companyId={companyId} companyName={companyName} userId={userId} userEmail={userEmail} />
-    );
-  }
+  // (2026-07-30 개편 P2) 직원 분기 삭제 — 파트너 외 전원 동일 대시보드(접근은 권한 가드가 판정).
 
   // ── Partner Dashboard (mobile-first, dynamic counts) ──
   if (role === "partner") {
@@ -479,6 +472,9 @@ export default function DashboardPage() {
       onTouchEnd={onTouchEnd}
     >
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
+
+      {/* (2026-07-30 개편 P2) 마스터 안내 — 권한 미부여 구성원은 기본 메뉴만 보임 */}
+      <MasterPermissionNotice />
 
       {/* ═══ 온보딩 위저드 (신규 가입 시) ═══ */}
       {showOnboarding && companyId && (
@@ -2716,526 +2712,36 @@ function EmployeeProjectsWidget() {
     </div>
   );
 }
+// (2026-07-30 개편 P2) EmployeeDashboard 삭제 — 화면 한 벌: 모든 구성원이 동일 대시보드(권한 게이트는 RouteGuard).
 
-// ═══════════════════════════════════════════
-// Employee Dashboard — 출퇴근/프로젝트/휴가/급여/공지
-// ═══════════════════════════════════════════
-
-function EmployeeDashboard({ companyId, userId, userEmail }: {
-  // userName/companyName 은 라운드6.5 인사말 히어로 제거로 미사용 — 호출부 호환 위해 타입만 유지
-  userName: string; companyId: string | null; companyName: string; userId: string | null; userEmail: string;
-}) {
-  const { toast } = useToast();
-  const db = supabase;
-  const today = todayKst();
-  const yearMonth = today.substring(0, 7);
-  const currentYear = new Date().getFullYear();
-  const [checkingIn, setCheckingIn] = useState(false);
-  const [checkingOut, setCheckingOut] = useState(false);
-  const queryClient = useQueryClient();
-
-  // 직원 ID 가져오기 (auth user → employees 매핑: user_id 또는 email)
-  const { data: employeeId } = useQuery({
-    queryKey: ["emp-id", userId, userEmail],
-    queryFn: async () => {
-      const filters = [`user_id.eq.${userId}`];
-      if (userEmail) filters.push(`email.eq.${userEmail}`);
-      const data = logRead('dashboard/page:data', await db
-        .from("employees")
-        .select("id")
-        .eq("company_id", companyId!)
-        .or(filters.join(","))
-        .limit(1)
-        .maybeSingle());
-      return data?.id || null;
-    },
-    enabled: !!companyId && !!userId,
-  });
-
-  // 결재 대기 건수 — 전자결재 카드 배지용
-  const { data: approvalsPending = 0 } = useQuery({
-    queryKey: ['approvals-pending-emp-dashboard', companyId],
-    queryFn: async () => {
-      if (!companyId) return 0;
-      const db: any = supabase;
-      const [docRes, payRes] = await Promise.all([
-        db.from('doc_approvals').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
-        db.from('payment_queue').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
-      ]);
-      return (docRes.count || 0) + (payRes.count || 0);
-    },
-    enabled: !!companyId,
-    refetchInterval: 60_000,
-  });
-
-  // 오늘 출퇴근 기록
-  const { data: todayAttendance } = useQuery({
-    queryKey: ["emp-attendance-today", employeeId, today],
-    queryFn: async () => {
-      const data = logRead('dashboard/page:data', await db
-        .from("attendance_records")
-        .select("*")
-        .eq("employee_id", employeeId!)
-        .eq("date", today)
-        .maybeSingle());
-      return data;
-    },
-    enabled: !!employeeId,
-    refetchInterval: 30_000,
-  });
-
-  // 이번 달 출근 일수 + 근무시간
-  const { data: monthSummary } = useQuery({
-    queryKey: ["emp-month-summary", employeeId, yearMonth],
-    queryFn: async () => {
-      const startDate = `${yearMonth}-01`;
-      const [y, m] = yearMonth.split('-').map(Number);
-      const lastDay = new Date(y, m, 0).getDate();
-      const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
-      const data = logRead('dashboard/page:data', await db
-        .from("attendance_records")
-        .select("work_hours, overtime_hours, status")
-        .eq("employee_id", employeeId!)
-        .gte("date", startDate)
-        .lte("date", endDate));
-      const records = data || [];
-      const totalDays = records.filter((r: any) => r.status !== "absent").length;
-      const totalHours = records.reduce((s: number, r: any) => s + Number(r.work_hours || 0), 0);
-      const overtimeHours = records.reduce((s: number, r: any) => s + Number(r.overtime_hours || 0), 0);
-      return { totalDays, totalHours: Math.round(totalHours * 10) / 10, overtimeHours: Math.round(overtimeHours * 10) / 10 };
-    },
-    enabled: !!employeeId,
-  });
-
-  // 회사 표준 근무시간 — 게이지 기준(미설정 시 8시간)
-  const { data: workSettings } = useQuery({
-    queryKey: ["emp-work-settings", companyId],
-    queryFn: async () => {
-      const data = logRead('dashboard/page:data', await db
-        .from("company_settings")
-        .select("work_start_time, work_end_time, lunch_minutes")
-        .eq("company_id", companyId ?? "")
-        .maybeSingle());
-      return data as { work_start_time: string | null; work_end_time: string | null; lunch_minutes: number | null } | null;
-    },
-    enabled: !!companyId,
-    staleTime: 5 * 60_000,
-  });
-  // 일 표준 근무(분) = (종료 − 시작) − 점심. 미설정/이상치면 480분(8시간).
-  const dailyStdMin = (() => {
-    const toMin = (t?: string | null) => { if (!t) return null; const [h, m] = t.split(":").map(Number); return (Number.isFinite(h) && Number.isFinite(m)) ? h * 60 + m : null; };
-    const ws = toMin(workSettings?.work_start_time), we = toMin(workSettings?.work_end_time);
-    if (ws != null && we != null && we > ws) return Math.max(60, (we - ws) - Number(workSettings?.lunch_minutes || 0));
-    return 480;
-  })();
-
-  // 휴가 잔여
-  const { data: leaveBalance } = useQuery({
-    queryKey: ["emp-leave-balance", companyId, employeeId, currentYear],
-    queryFn: async () => {
-      const data = logRead('dashboard/page:data', await db
-        .from("leave_balances")
-        .select("total_days, used_days")
-        .eq("company_id", companyId!)
-        .eq("employee_id", employeeId!)
-        .eq("year", currentYear)
-        .maybeSingle());
-      if (!data) return { total: 15, used: 0, remaining: 15 };
-      const t = data.total_days ?? 15, u = data.used_days ?? 0;
-      return { total: t, used: u, remaining: t - u };
-    },
-    enabled: !!companyId && !!employeeId,
-  });
-
-  // 내 결재 요청 (경비 청구 등)
-  const { data: myRequests } = useQuery({
-    queryKey: ["emp-my-requests", userId, companyId],
-    queryFn: async () => {
-      const data = logRead('dashboard/page:data', await db
-        .from("approval_requests")
-        .select("id, title, amount, request_type, status, created_at")
-        .eq("company_id", companyId!)
-        .eq("requester_id", userId!)
-        .order("created_at", { ascending: false })
-        .limit(10));
-      return data || [];
-    },
-    enabled: !!companyId && !!userId,
-  });
-
-  // 알림
-  const { data: notifications = [] } = useQuery({
-    queryKey: ["emp-notifications", userId],
-    queryFn: async () => {
-      const data = logRead('dashboard/page:data', await db
-        .from("notifications")
-        .select("id, type, title, message, is_read, created_at")
-        .eq("user_id", userId!)
-        .eq("is_read", false)
-        .order("created_at", { ascending: false })
-        .limit(5));
-      return data || [];
-    },
-    enabled: !!userId,
-  });
-
-  // 내게 온 서명 요청 대기 건수 (모두사인 스타일 inbox)
-  const { data: signPending = 0 } = useQuery({
-    queryKey: ["emp-sign-pending", employeeId],
-    queryFn: async () => {
-      if (!employeeId) return 0;
-      const { count } = await db
-        .from("hr_contract_packages")
-        .select("id", { count: "exact", head: true })
-        .eq("employee_id", employeeId)
-        .in("status", ["sent", "partially_signed"]);
-      return count ?? 0;
-    },
-    enabled: !!employeeId,
-    refetchInterval: 60_000,
-  });
-
-  // 출근/퇴근 처리
-  const [attendanceStatus, setAttendanceStatus] = useState<string>("present");
-
-  const handleCheckIn = async () => {
-    if (!companyId) return;
-    if (!employeeId) {
-      toast("직원 정보를 찾을 수 없습니다. 관리자에게 직원 등록을 요청하세요.", "error");
-      return;
-    }
-    setCheckingIn(true);
-    try {
-      await hrCheckIn(companyId, employeeId, attendanceStatus);
-      toast("출근 처리 완료", "success");
-      queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
-      queryClient.invalidateQueries({ queryKey: ["my-att-today"] });
-    } catch (err: any) {
-      toast(`출근 처리 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
-    }
-    setCheckingIn(false);
-  };
-
-  const handleCheckOut = async () => {
-    if (!employeeId || !companyId || !todayAttendance?.check_in) return;
-    setCheckingOut(true);
-    try {
-      await hrCheckOut(employeeId, companyId);
-      toast("퇴근 처리 완료", "success");
-      queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
-      queryClient.invalidateQueries({ queryKey: ["my-att-today"] });
-      queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
-    } catch (err: any) {
-      toast(`퇴근 처리 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
-    }
-    setCheckingOut(false);
-  };
-
-  const handleCancelCheckOut = async () => {
-    if (!employeeId || !companyId || !todayAttendance?.check_out) return;
-    if (!(await appConfirm("퇴근 기록을 취소하시겠습니까?"))) return;
-    try {
-      await hrCancelCheckOut(employeeId, companyId);
-      toast("퇴근 취소 완료 — 다시 근무 중입니다", "success");
-      queryClient.invalidateQueries({ queryKey: ["emp-attendance-today"] });
-      queryClient.invalidateQueries({ queryKey: ["my-att-today"] });
-      queryClient.invalidateQueries({ queryKey: ["emp-month-summary"] });
-    } catch (err: any) {
-      toast(`퇴근 취소 실패: ${err.message || ""}`, "error");
-    }
-  };
-
-  const pendingCount = (myRequests || []).filter((r: any) => r.status === "pending").length;
-  const expenseCount = (myRequests || []).filter((r: any) => r.request_type === "expense" || r.request_type === "card_expense").length;
-
-  function fmtTime(iso: string | null): string {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-  }
-
-  function elapsedSince(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    return `${h}h ${m}m`;
-  }
-
-  function timeAgo(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "방금";
-    if (mins < 60) return `${mins}분 전`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}시간 전`;
-    return `${Math.floor(hrs / 24)}일 전`;
-  }
-
-  const isCheckedIn = !!todayAttendance?.check_in;
-  const isCheckedOut = !!todayAttendance?.check_out;
-
+// (2026-07-30 개편 P2) 마스터 안내 배너 — 권한 체계 전환 직후 구성원 권한 부여 유도. 닫으면 다시 안 뜸.
+function MasterPermissionNotice() {
+  const { user } = useUser();
+  const [dismissed, setDismissed] = useState(true);
+  useEffect(() => {
+    if (!(user as any)?.is_master) return;
+    try { setDismissed(localStorage.getItem("ov:master-perm-notice") === "1"); } catch { setDismissed(false); }
+  }, [user]);
+  if (!(user as any)?.is_master || dismissed) return null;
   return (
-    <div className="employee-dashboard-root">
-      {/* 내 업무 — 관리자와 동일한 위젯 추가/삭제 기능. 재무 등 권한 밖 위젯은 카탈로그에서 제외(2026-07-15). */}
-      {companyId && userId && (() => {
-        // 직원 전용 기본 배치 — 사장님용 DEFAULT_WIDGET_POS 는 직원 위젯 4개가 전부
-        //   왼쪽 열(x0~4)에 몰려 있어 오른쪽 2/3 이 통째로 비었다(2026-07-29 사장님 제보).
-        //   12칸을 3열로 나눠 화면을 꽉 채운다: [근태+할일 | 캘린더 | 담당업무+공지]
-        const catalog: CatalogWidget[] = [
-          { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", x: 8, y: 0, w: 4, h: 4, render: () => <MyTasksCard userId={userId} /> },
-          { id: "calendar", name: "일정·캘린더", icon: "📅", desc: "이번 달 일정·할 일", category: "개인", x: 4, y: 0, w: 4, h: 9, render: () => <DashboardCalendar userId={userId} companyId={companyId} /> },
-          { id: "attendance", name: "내 근태", icon: "🕘", desc: "출퇴근 상태", category: "개인", x: 0, y: 0, w: 4, h: 2, render: () => <MyAttendanceCard companyId={companyId} userId={userId} compact /> },
-          { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", x: 0, y: 2, w: 4, h: 7, render: () => <MyTodosWidget userId={userId} companyId={companyId} /> },
-          { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", x: 8, y: 4, w: 4, h: 5, render: () => <AnnouncementsCard /> },
-        ];
-        const defaultActiveIds = ["work-tasks", "calendar", "attendance", "todos", "announcements"];
-        return <DashboardGrid storageKey={`dashboard-grid-emp-${userId}`} catalog={catalog} defaultActiveIds={defaultActiveIds} />;
-      })()}
-      {/* 인사말 히어로 제거(라운드6.5) — 고정 헤더바가 인사·프로필을 대체. 근무 상태 칩은 아래 카드에 동일 표시 */}
-      <div className="grid gap-5 lg:grid-cols-3 items-start">
-      {/* ─ 주 콘텐츠 (좌 2/3) — 오늘 할 일: 출퇴근·결재·서명·휴가 통합 단일 카드 ─ */}
-      <div className="lg:col-span-2 glass-card p-5 md:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-[var(--text)]">오늘 할 일</span>
-          </div>
-          <span className="text-xs text-[var(--text-dim)]">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</span>
-        </div>
-
-        {/* 출퇴근 — 빠른 기록 (상세 관리는 근태 페이지 한 곳에서) */}
-        <div className="employee-attendance-card">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className={`w-2.5 h-2.5 rounded-full ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />
-              <span className="text-sm font-bold text-[var(--text)]">
-                {!isCheckedIn ? "미출근" : isCheckedOut ? "퇴근 완료" : "근무 중"}
-              </span>
-              {isCheckedIn && !isCheckedOut && (
-                <span className="text-xs text-[var(--text-muted)] font-mono">{elapsedSince(todayAttendance.check_in as string)}</span>
-              )}
-            </div>
-            <Link href="/attendance" className="text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] transition">근태 상세 →</Link>
-          </div>
-
-          <div className="flex items-center gap-6 mb-3">
-            <div>
-              <div className="caption mb-0.5">출근</div>
-              <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_in ?? null)}</div>
-            </div>
-            <div className="text-[var(--text-dim)]">→</div>
-            <div>
-              <div className="caption mb-0.5">퇴근</div>
-              <div className="text-lg font-black font-mono">{fmtTime(todayAttendance?.check_out ?? null)}</div>
-            </div>
-            {(todayAttendance?.work_hours ?? 0) > 0 && (
-              <>
-                <div className="text-[var(--border)]">|</div>
-                <div>
-                  <div className="caption mb-0.5">근무시간</div>
-                  <div className="text-lg font-black">{todayAttendance?.work_hours}h</div>
-                </div>
-              </>
-            )}
-            {/* 퇴근하기 — 크기 줄여 퇴근 옆에 배치(근무 중에만) */}
-            {isCheckedIn && !isCheckedOut && (
-              <button onClick={handleCheckOut} disabled={checkingOut}
-                className="ml-auto btn-danger btn-sm font-bold active:scale-[0.98]">
-                {checkingOut ? "처리 중..." : "퇴근하기"}
-              </button>
-            )}
-          </div>
-
-          {!isCheckedIn && (
-            <div className="flex gap-2 mb-3">
-              {([
-                { value: "present", label: "출근", activeClass: "bg-[var(--success-dim)] text-[var(--success)] border border-[var(--success)]/40" },
-                { value: "remote", label: "재택", activeClass: "bg-[var(--info-dim)] text-[var(--info)] border border-[var(--info)]/40" },
-                { value: "half_day", label: "반차", activeClass: "bg-[var(--warning-dim)] text-[var(--warning)] border border-[var(--warning)]/40" },
-                { value: "absent", label: "결근", activeClass: "bg-[var(--danger-dim)] text-[var(--danger)] border border-[var(--danger)]/40" },
-              ] as const).map(({ value, label, activeClass }) => (
-                <button key={value} type="button" onClick={() => setAttendanceStatus(value)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    attendanceStatus === value
-                      ? activeClass
-                      : "bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)]"
-                  }`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-3">
-            {!isCheckedIn ? (
-              <button
-                onClick={handleCheckIn}
-                disabled={checkingIn}
-                className="flex-1 py-3 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-bold transition active:scale-[0.98] disabled:opacity-50"
-              >
-                {checkingIn ? "처리 중..." : attendanceStatus === "present" ? "출근하기" : attendanceStatus === "remote" ? "재택근무 시작" : attendanceStatus === "half_day" ? "반차 출근" : "결근 처리"}
-              </button>
-            ) : !isCheckedOut ? (
-              (() => {
-                // 시간축 타임라인 — 출근~현재를 시간대 위에 바로 표시. 근무종료(설정) 이후는 연장(주황).
-                const toMin = (t?: string | null) => { if (!t) return null; const [h, m] = t.split(":").map(Number); return (Number.isFinite(h) && Number.isFinite(m)) ? h * 60 + m : null; };
-                const ci = todayAttendance?.check_in ? new Date(todayAttendance.check_in) : null;
-                const wsMin = toMin(workSettings?.work_start_time);
-                const weMin = toMin(workSettings?.work_end_time);
-                const checkInMin = ci ? ci.getHours() * 60 + ci.getMinutes() : (wsMin ?? 540);
-                const now = new Date();
-                const nowMin = now.getHours() * 60 + now.getMinutes();
-                const stdWall = (wsMin != null && weMin != null) ? (weMin - wsMin) : (dailyStdMin + 60);
-                const otStartMin = (weMin != null) ? Math.max(checkInMin, weMin) : checkInMin + stdWall;
-                const winStart = Math.floor(Math.min(checkInMin, otStartMin) / 60) * 60 - 60;
-                const winEnd = Math.ceil(Math.max(nowMin, otStartMin) / 60) * 60 + 60;
-                const span = Math.max(120, winEnd - winStart);
-                const pct = (m: number) => ((Math.min(Math.max(m, winStart), winEnd) - winStart) / span) * 100;
-                const clampNow = Math.min(Math.max(nowMin, checkInMin), winEnd);
-                const regL = pct(checkInMin), regW = Math.max(0, pct(Math.min(clampNow, otStartMin)) - regL);
-                const otL = pct(otStartMin), otW = clampNow > otStartMin ? Math.max(0, pct(clampNow) - otL) : 0;
-                const elapsedMin = Math.max(0, nowMin - checkInMin);
-                const otMin = Math.max(0, nowMin - otStartMin);
-                const ticks: number[] = [];
-                for (let h = Math.ceil(winStart / 60); h * 60 <= winEnd; h++) ticks.push(h); // 1시간 단위
-                const fmtHHMM = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-                return (
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1 text-[11px]">
-                      <span className="text-[var(--text-muted)]">근무 <b className="text-[var(--text)] mono-number">{Math.floor(elapsedMin / 60)}시간 {elapsedMin % 60}분</b> <span className="text-[var(--text-dim)]">· 지금 {fmtHHMM(clampNow)}</span></span>
-                      {otMin > 0 && <span className="text-orange-500 font-bold">연장 +{Math.floor(otMin / 60)}시간 {otMin % 60}분</span>}
-                    </div>
-                    <div className="relative h-6 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden">
-                      {ticks.map((h) => (
-                        <div key={h} className="absolute top-0 bottom-0 border-l border-[var(--border)]/40" style={{ left: `${pct(h * 60)}%` }} />
-                      ))}
-                      <div className="absolute top-1 bottom-1 rounded bg-[var(--primary)]/85 transition-all duration-500" style={{ left: `${regL}%`, width: `${regW}%` }} />
-                      {otW > 0 && <div className="absolute top-1 bottom-1 rounded bg-orange-500 transition-all duration-500" style={{ left: `${otL}%`, width: `${otW}%` }} />}
-                      {/* 지금 시각 마커 */}
-                      <div className="absolute -top-0.5 -bottom-0.5 w-0.5 bg-[var(--text)] rounded-full" style={{ left: `${pct(clampNow)}%` }} />
-                    </div>
-                    <div className="relative h-4 mt-1">
-                      {ticks.map((h) => {
-                        const p = pct(h * 60);
-                        const transform = p <= 4 ? "translateX(0)" : p >= 96 ? "translateX(-100%)" : "translateX(-50%)";
-                        return (
-                          <span key={h} className="absolute top-0 text-[10px] text-[var(--text-dim)] mono-number whitespace-nowrap" style={{ left: `${p}%`, transform }}>{h % 24}시</span>
-                        );
-                      })}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 text-[9px] text-[var(--text-dim)]">
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--primary)]/85" />근무</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500" />연장</span>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : (
-              <div className="flex gap-2 flex-1">
-                <div className="flex-1 py-3 rounded-xl bg-[var(--bg-card)] text-center text-sm font-semibold text-[var(--text-muted)]">
-                  오늘 근무 완료
-                </div>
-                <button
-                  onClick={handleCancelCheckOut}
-                  className="btn-secondary btn-sm"
-                >
-                  퇴근 취소
-                </button>
-              </div>
-            )}
-          </div>
-
-          {monthSummary && (
-            <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center gap-4 text-[11px] text-[var(--text-muted)]">
-              <span>이번 달: 출근 <b className="text-[var(--text)]">{monthSummary.totalDays}일</b></span>
-              <span>근무 <b className="text-[var(--text)]">{monthSummary.totalHours}h</b></span>
-              {monthSummary.overtimeHours > 0 && (
-                <span>초과 <b className="text-[var(--warning)]">{monthSummary.overtimeHours}h</b></span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 처리 대기 4종 — 라운드7.2: 파스텔 타일 → 오너 KPI 동일 언어(.stat-tile, 값 색은 의미 있을 때만) */}
-        <div className="employee-task-tiles">
-          {[
-            { href: "/approvals", label: "승인 대기", value: `${pendingCount}건`, alert: pendingCount > 0, tint: "var(--warning)" },
-            { href: "/my-contracts", label: "서명 요청", value: `${signPending}건`, alert: signPending > 0, tint: "var(--primary)" },
-            { href: "/leave", label: "휴가 잔여", value: leaveBalance ? `${leaveBalance.remaining}일` : "—", sub: leaveBalance ? `${leaveBalance.total}일 중 ${leaveBalance.used}일 사용` : undefined, tint: "var(--info)" },
-            { href: "/approvals?new=expense", label: "경비 청구", value: `${expenseCount}건`, alert: expenseCount > 0, tint: "var(--success)" },
-          ].map((t) => (
-            <Link key={t.label} href={t.href} className="stat-tile active:scale-[0.98] transition hover:shadow-md">
-              <span className="stat-tile-label">{t.label}</span>
-              <span className="stat-tile-value" style={t.alert ? { color: t.tint } : undefined}>{t.value}</span>
-              <span className="text-[10px] text-[var(--text-dim)] truncate min-h-[14px]">{t.sub || ""}</span>
-            </Link>
-          ))}
+    <div className="master-perm-notice">
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold text-[var(--text)]">권한 체계가 개편되었습니다 — 마스터가 구성원 권한을 부여해 주세요</div>
+        <div className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">
+          이제 모든 구성원이 같은 화면을 쓰고, 마스터가 부여한 메뉴·기능만 보입니다. 아직 권한을 받지 못한 구성원은
+          기본 메뉴(마이페이지·게시판·메신저 등)만 보입니다. <b>구성원 → 직원 선택 → 탭 권한</b>에서 메뉴별로 체크해 주세요.
         </div>
       </div>
-
-      {/* ─ 보조 위젯 스택 (우 1/3) — 할일·전자결재·급여·알림 ─ */}
-      <div className="space-y-5">
-      {/* R6: 내 할일 — 직원 대시보드엔 그동안 미노출(직원 "어디에서 확인???")
-          → 보조 위젯 스택에 노출해 발견성 확보 */}
-      {userId && <MyTodosWidget userId={userId} companyId={companyId} />}
-
-      {/* 전자결재 — QuickApprovalCard 컴포넌트로 단일 소스 통합(글자/이모지 정렬 일관) */}
-      {companyId && userId && <QuickApprovalCard companyId={companyId} userId={userId} />}
-
-      {/* 공지/알림 */}
-      {notifications.length > 0 && (
-        <div className="employee-notifications-panel">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse" />
-            <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">알림</h2>
-            <span className="text-[10px] text-[var(--warning)] font-bold">{notifications.length}건</span>
-          </div>
-          <div className="employee-notifications-list glass-card">
-            {notifications.map((n: any) => (
-              <div key={n.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs text-[var(--text)] font-medium truncate">{n.title}</div>
-                  {n.message && <div className="text-[10px] text-[var(--text-muted)] truncate">{n.message}</div>}
-                </div>
-                <span className="text-[10px] text-[var(--text-dim)] shrink-0">{timeAgo(n.created_at)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      </div>
-      </div>
-
-      {/* 핸드오프 B-2: 내 프로젝트 (본인 담당/참여만, SECURITY DEFINER RPC) — 하단 풀폭 */}
-      <EmployeeProjectsWidget />
-
-      {/* 빠른 이동 */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-[var(--text-dim)]" />
-          <h2 className="text-xs font-bold text-[var(--text-dim)] tracking-wider">빠른 이동</h2>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { href: "/chat", icon: "💬", label: "팀 채팅", desc: "팀원들과 대화" },
-            { href: "/documents", icon: "📄", label: "문서/계약", desc: "서류 확인 및 서명" },
-            { href: "/approvals", icon: "📋", label: "결재함", desc: "결재 요청 관리" },
-            { href: "/leave", icon: "🏖️", label: "휴가 신청", desc: "연차 및 휴가 관리" },
-          ].map(card => (
-            <Link key={card.href} href={card.href}
-              className="glass-card p-4 active:scale-[0.98] transition hover:shadow-md group touch-card">
-              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-base mb-2 bg-[var(--bg-surface)]"><Ico e={card.icon} /></div>
-              <div className="text-xs font-bold text-[var(--text)] group-hover:text-[var(--primary)] transition">{card.label}</div>
-              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{card.desc}</div>
-            </Link>
-          ))}
-        </div>
+      <div className="flex gap-2 shrink-0">
+        <a href="/employees" className="btn-primary btn-sm">권한 부여하러 가기</a>
+        <button
+          onClick={() => { try { localStorage.setItem("ov:master-perm-notice", "1"); } catch { /* ignore */ } setDismissed(true); }}
+          className="btn-secondary btn-sm"
+        >닫기</button>
       </div>
     </div>
   );
 }
-
-// ═══════════════════════════════════════════
-// Partner Dashboard — 동적 카운트 + 최근 활동
-// ═══════════════════════════════════════════
 
 function PartnerDashboard({ companyId, userId }: {
   // userName/companyName 은 라운드6.5 인사말 헤더 제거로 미사용 — 호출부 호환 위해 타입만 유지
