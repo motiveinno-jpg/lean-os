@@ -19,6 +19,7 @@ import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 import { Scene, Rise, useNarrow } from "@/components/landing/scene";
 import { AiDemoRail } from "@/components/landing/ai-demo-rail";
+import { SwipeDeck } from "@/components/landing/swipe-deck";
 
 import {
   HERO, HERO_INTRO, PAINS, DAY, PILLARS, CATALOG, MOBILE,
@@ -375,7 +376,51 @@ function ScenePains() {
 //      아침(대시보드) · 낮(인사) · 밤(액션 플랜) 세 장면이면 하루가 충분히 그려진다.
 const DAY_3 = DAY.filter((d) => ["09:00", "14:00", "23:00"].includes(d.time));
 
+/** 폰에서 본 하루 — 시간대 한 장이 카드 한 장이 된다(설명 + 그 화면).
+ *  ⚠️ 폰에서 이 구간은 핀 고정 장면이었다. 제목·시간·비포/애프터가 한 화면을 다 먹어
+ *     폰 화면은 접힌 아래에 있었고, 보려고 스크롤하면 다음 시간대로 넘어가 버렸다(사장님 지적).
+ *     스크롤에서 떼어내고 스와이프로 넘기게 한다 — 폰에서는 이게 가장 편하다. */
+function DayDeck() {
+  return (
+    <section id="day" className="lp5-sect">
+      <div className="lp5-wrap">
+        <Rise className="lp5-sec-head">
+          <div className="lp5-eyebrow">Before &amp; After</div>
+          <h2 className="lp5-h lp5-h-sm">오너뷰로 <span className="lp5-grad">달라지는 하루를 보여드려요</span></h2>
+          <p className="lp5-lead">지금 방식과 오너뷰를 시간대별로 나란히 놨어요.</p>
+        </Rise>
+      </div>
+      <SwipeDeck
+        label="시간대별 하루"
+        slides={DAY_3.map((d) => (
+          <div key={d.time} className="lp5-deck-card">
+            <div className="lp5-deck-kick">
+              <span className="lp5-deck-time">{d.time}</span>
+              <span className="lp5-deck-scene">{d.scene}</span>
+            </div>
+            <div className="lp5-day-ba">
+              <div className="lp5-day-row">
+                <span className="lp5-day-tag lp5-day-tag-b">비포</span>
+                <span className="lp5-day-b">{d.before}</span>
+              </div>
+              <div className="lp5-day-row">
+                <span className="lp5-day-tag lp5-day-tag-a">애프터</span>
+                <span className="lp5-day-a">{d.after}</span>
+              </div>
+            </div>
+            <div className="lp5-deck-shot">
+              <Image src={MOBILE_OF[d.src] ?? d.src} alt={d.alt} width={1170} height={2400} sizes="84vw" />
+            </div>
+          </div>
+        ))}
+      />
+    </section>
+  );
+}
+
 function SceneDay() {
+  const narrow = useNarrow();
+  if (narrow) return <DayDeck />;
   // ⚠️ len 은 "시간대 하나 넘기는 데 필요한 스크롤"을 정한다.
   //    고정 이동거리 = (len - 1) × 100vh, 구간당 = 그 값 ÷ 5.
   //    2.4 였을 때 구간당 266px = 휠 2.66칸이라 3·3·3·2 로 들쭉날쭉했다(사장님 지적).
@@ -758,6 +803,7 @@ function SceneProof() {
 //      "틴트 섹션 + 가운데 제목 + 카드" 로 바꾼다 — 이 구간만 무대처럼 떠 있어 더 붕 떴다.
 //   여긴 스크롤이 아니라 시간으로 넘어간다 — 폰 화면은 가만히 두고 봐도 돌아가야 한다.
 function SceneMobile() {
+  const narrow = useNarrow();
   const [i, setI] = useState(0);
   // 한 번이라도 손을 대면 자동 넘김을 멈춘다.
   //   ⚠️ 자동으로만 넘어가면 지나간 단계를 다시 볼 방법이 없다(사장님 지적).
@@ -765,11 +811,11 @@ function SceneMobile() {
   const [manual, setManual] = useState(false);
   const n = MOBILE.steps.length;
   useEffect(() => {
-    if (manual) return;
+    if (manual || narrow) return;      // 폰은 아래 SwipeDeck 이 따로 돈다
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const t = setInterval(() => setI((v) => (v + 1) % n), 3600);
     return () => clearInterval(t);
-  }, [manual, n]);
+  }, [manual, n, narrow]);
 
   const go = (k: number) => { setManual(true); setI(Math.min(n - 1, Math.max(0, k))); };
   // 손가락으로 넘기기 — 세로 스크롤은 막지 않는다(가로 이동이 더 클 때만 넘김으로 친다)
@@ -786,16 +832,47 @@ function SceneMobile() {
   };
   const onTouchEnd = () => { touch.current = null; };
 
+  const head = (
+    <Rise className="lp5-sec-head lp5-sec-head-c">
+      <div className="lp5-eyebrow">{MOBILE.eyebrow}</div>
+      <h2 className="lp5-h lp5-h-sm">
+        {MOBILE.title.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
+      </h2>
+      <Sentences className="lp5-lead lp5-lead-c" text={MOBILE.sub} />
+    </Rise>
+  );
+
+  /* ⚠️ 폰에서는 목업 한 대와 설명 네 줄이 따로 놀아, 지금 보이는 화면이 어느 설명인지
+        맞춰가며 봐야 했다(사장님 지적). 한 카드에 설명과 그 화면을 같이 넣고 스와이프로 넘긴다. */
+  if (narrow) {
+    return (
+      <section id="mobile" className="lp5-sect lp5-sect-tint">
+        <div className="lp5-wrap">{head}</div>
+        <SwipeDeck
+          label="폰으로 오는 일"
+          slides={MOBILE.steps.map((st, k) => (
+            <div key={st.src} className="lp5-deck-card">
+              <div className="lp5-deck-kick">
+                <span className="lp5-deck-n">{String(k + 1).padStart(2, "0")}</span>
+                <b className="lp5-deck-head">{st.head} <em>{st.muted}</em></b>
+              </div>
+              <p className="lp5-deck-desc">
+                {st.desc.split("\n").map((l, j) => <span key={j}>{l}</span>)}
+              </p>
+              <div className="lp5-deck-shot">
+                <Image src={st.src} alt={st.alt} width={1170} height={2400} sizes="84vw" />
+              </div>
+            </div>
+          ))}
+        />
+      </section>
+    );
+  }
+
   return (
     <section id="mobile" className="lp5-sect lp5-sect-tint">
       <div className="lp5-wrap">
-        <Rise className="lp5-sec-head lp5-sec-head-c">
-          <div className="lp5-eyebrow">{MOBILE.eyebrow}</div>
-          <h2 className="lp5-h lp5-h-sm">
-            {MOBILE.title.split("\n").map((l, k) => <span key={k}>{l}<br /></span>)}
-          </h2>
-          <Sentences className="lp5-lead lp5-lead-c" text={MOBILE.sub} />
-        </Rise>
+        {head}
 
         <Rise className="lp5-move" delay={80}>
           <div className="lp5-move-phone" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>

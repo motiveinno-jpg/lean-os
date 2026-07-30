@@ -748,3 +748,93 @@
   .lp5-aid-slide { opacity: 1; }
   .lp5-aid-caret::after { animation: none; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   모바일 스와이프 덱 (lp5-deck-*, 2026-07-30)
+     "하루" 와 "자리에 없어도" 를 폰에서 카드 한 장씩 넘기게 바꾼 자리.
+     카드 = 설명 + 그 화면. 둘이 한 카드에 있어야 무슨 기능인지 확인이 된다.
+     ⚠️ 폰 목업(.lp5-phone)을 또 씌우지 않는다 — 390px 안에서 목업 테두리가
+        화면을 반으로 줄여 앱 글자가 안 읽혔다(실측). 화면은 위에서부터 잘라 보여준다.
+     ⚠️ 레일은 wrap 밖으로 꺼내 화면 폭을 꽉 쓴다(margin-left 트릭). 좌우 패딩 8vw 로
+        카드(84vw)가 가운데 서고 다음 카드가 걸쳐 보인다 — 넘길 게 있다는 신호.
+   ══════════════════════════════════════════════════════════════════════ */
+.lp5-deck { margin-top: clamp(16px, 3.6vw, 26px); }
+.lp5-deck-rail {
+  display: flex; gap: 12px;
+  width: 100vw; margin-left: calc(-50vw + 50%);
+  padding: 4px 8vw 8px;
+  overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scrollbar-width: none; -ms-overflow-style: none;
+}
+.lp5-deck-rail::-webkit-scrollbar { display: none; }
+.lp5-deck-slide {
+  flex: 0 0 84vw; scroll-snap-align: center; display: flex;
+  opacity: .5; transition: opacity .4s ease;
+}
+.lp5-deck-slide-on { opacity: 1; }
+
+.lp5-deck-card {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 11px;
+  background: var(--canvas); border: 1px solid var(--line); border-radius: 20px;
+  padding: 18px 18px 0; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(11,11,15,.04), 0 24px 50px -34px rgba(11,11,15,.35);
+}
+.lp5-deck-dark .lp5-deck-card {
+  background: rgba(255,255,255,.045); border-color: rgba(255,255,255,.09);
+  box-shadow: 0 2px 10px rgba(0,0,0,.34), 0 26px 54px -30px rgba(0,0,0,.8);
+}
+
+.lp5-deck-kick { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.lp5-deck-time { font-size: 26px; font-weight: 800; letter-spacing: -.03em; color: var(--brand); }
+.lp5-deck-scene { font-size: 15px; font-weight: 800; letter-spacing: -.015em; color: var(--ink); }
+.lp5-deck-n { font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--brand); }
+.lp5-deck-head { font-size: 16.5px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); line-height: 1.4; }
+.lp5-deck-head em { font-style: normal; color: var(--ink3); }
+.lp5-deck-desc { margin: 0; font-size: 13.5px; line-height: 1.72; color: var(--ink2); }
+.lp5-deck-desc span { display: block; }
+
+/* 화면 — 위에서부터 잘라 보여준다. 앱 화면의 머리(패널 제목·첫 줄들)가 가장 많은 걸 말한다. */
+.lp5-deck-shot {
+  margin-top: auto; position: relative; overflow: hidden;
+  height: clamp(232px, 34vh, 300px);
+  border-radius: 12px 12px 0 0; background: #fff;
+  border: 1px solid rgba(11,11,15,.06); border-bottom: 0;
+  box-shadow: 0 2px 10px rgba(11,11,15,.06), 0 20px 44px -26px rgba(11,11,15,.4);
+}
+.lp5-deck-shot img { display: block; width: 100%; height: auto; }
+
+/* 하단 컨트롤 — AI 구간과 같은 언어(도트 + 자동 넘김), 밝은 구간용 색 */
+.lp5-deck-ctrl { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
+.lp5-deck-dots {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px;
+  background: rgba(11,11,15,.04); border: 1px solid var(--line);
+}
+.lp5-deck-dot {
+  appearance: none; border: none; padding: 0; cursor: pointer;
+  width: 7px; height: 7px; border-radius: 999px; background: rgba(11,11,15,.22);
+  transition: width .3s ease, background .3s ease;
+}
+.lp5-deck-dot-on { width: 26px; background: var(--brand); }
+.lp5-deck-play {
+  appearance: none; cursor: pointer; display: grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 999px; color: var(--ink);
+  background: rgba(11,11,15,.04); border: 1px solid var(--line);
+}
+.lp5-deck-play svg { width: 11px; height: 11px; fill: currentColor; }
+.lp5-deck-dot:focus-visible, .lp5-deck-play:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.lp5-deck-count { font-size: 12.5px; font-weight: 700; color: var(--ink3); font-variant-numeric: tabular-nums; }
+
+.lp5-deck-dark .lp5-deck-dots { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.1); }
+.lp5-deck-dark .lp5-deck-dot { background: rgba(255,255,255,.3); }
+.lp5-deck-dark .lp5-deck-dot-on { background: #fff; }
+.lp5-deck-dark .lp5-deck-play { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.1); color: #fff; }
+.lp5-deck-dark .lp5-deck-count { color: #8B8B9E; }
+
+/* 카드 안에서 쓰는 비포/애프터는 기존 규칙을 그대로 쓰되 간격만 카드에 맞춘다 */
+.lp5-deck-card .lp5-day-ba { margin-top: 2px; gap: 10px; }
+.lp5-deck-card .lp5-day-row { font-size: 13.5px; line-height: 1.6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp5-deck-slide { opacity: 1; transition: none; }
+  .lp5-deck-rail { scroll-behavior: auto; }
+}
