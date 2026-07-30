@@ -18,9 +18,10 @@ import "@/app/landing-v6.css";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
 import { Scene, Rise, useNarrow } from "@/components/landing/scene";
+import { AiDemoRail } from "@/components/landing/ai-demo-rail";
 
 import {
-  HERO, HERO_INTRO, PAINS, DAY, PILLARS, ENGINES, AI_AUTOMATION, CATALOG, MOBILE,
+  HERO, HERO_INTRO, PAINS, DAY, PILLARS, AI_AUTOMATION, CATALOG, MOBILE,
   PLANS, CASES, CASES_NOTE, FAQS, FOOTER,
 } from "@/components/landing/content";
 
@@ -120,19 +121,6 @@ const MOBILE_OF: Record<string, string> = {
  *      반드시 설명과 어긋났고, 카드 제목과 캡처 안 패널 제목이 같은 말을 두 번 했다.
  *      → 좌표가 아니라 DOM 으로 자른다(.pp-head 를 숨기고 패널을 찍는다). cap 스크립트 참고.
  *   /features 는 계속 전체 화면(f-*.png)을 쓰므로 파일을 따로 둔다. */
-/** AI 카드 — 그 기능이 실제로 동작하는 화면 조각. 코어와 같은 방식으로 .pp-head 를 빼고 찍었다. */
-const AI_SHOT: Record<string, string> = {
-  "생존 레이더": "/product/a-radar.png",
-  "원클릭 파이프라인": "/product/a-pipeline.png",
-  "AI 인사/총무팀": "/product/a-payroll.png",
-  "거래처 자산화": "/product/a-crm.png",
-  "AI 참모": "/product/a-copilot.png",
-  "AI 거래 분류": "/product/a-classify.png",
-  "AI 브리핑": "/product/a-brief.png",
-  "3-Way 자동 매칭": "/product/a-match.png",
-  "영수증 OCR": "/product/a-ocr.png",
-  "계약 갱신 알림": "/product/a-renew.png",
-};
 
 const CORE_SHOT: Record<string, string> = {
   "/product/f-projects-v1.png":   "/product/c-projects.png",
@@ -620,16 +608,21 @@ function SceneAxes() {
   );
 }
 
-// ══════════════════ 5. AI — 엔진 4개 그리드 + 자동화 목록 ══════════════════
-//   ⚠️ 화살표 캐러셀이었다. 10장을 넘겨야 해서 실제로는 2~3장만 전달됐다.
-//      엔진 4개는 한 화면에 펼치고, 자동화는 한 줄씩 목록으로 요약한 뒤 /ai 로 넘긴다.
+// ══════════════════ 5. AI — 데모 카드 6장(1열 캐러셀) + 자동화 목록 ══════════════════
+//   ⚠️ 정지 캡처 4장이었다(a-*.png). 화면만 보여주니 "그래서 뭐가 자동인지"가 안 보였다.
+//      사장님: "애플 인텔리전스처럼 1열로 화면 꽉 차게, 기능이 일하는 모습을 예시로."
+//      → 기능이 일하는 모습을 코드로 그려 재생한다(ai-demo-rail.tsx). 영상 파일이 아니다.
+//   ⚠️ 카드 6장의 kind 는 정직하게 쓴다 — 모델이 판단하는 4개만 "AI 판단",
+//      현금 예측·계약 초안은 "자동 처리"(계산·서식 치환이므로 AI라고 말하지 않는다).
+//   레일은 화면 폭을 꽉 써야 해서 lp5-wrap 밖에 둔다.
 function SceneAI() {
-  const covered = new Set(["현금 소진 예측", "휴면 감지"]);
+  // 데모 카드가 다루는 것은 목록에서 뺀다 — 같은 걸 두 번 말하지 않는다.
+  const covered = new Set(["AI 참모", "AI 거래 분류", "3-Way 자동 매칭", "현금 소진 예측", "영수증 OCR"]);
   const autos = AI_AUTOMATION.filter((a) => !covered.has(a.name));
   return (
     <section id="engines" className="lp5-sect lp5-sect-dark">
       <div className="lp5-eng-bg" />
-      <div className="lp5-wrap" style={{ position: "relative", zIndex: 1 }}>
+      <div className="lp5-wrap lp5-eng-layer">
         <Rise className="lp5-sec-head">
           <div className="lp5-eyebrow">AI Automation</div>
           <h2 className="lp5-h lp5-h-sm lp5-eng-h">반복되던 일,<br /><span className="lp5-grad">이제 AI 몫이에요</span></h2>
@@ -639,26 +632,13 @@ function SceneAI() {
           <Sentences className="lp5-lead"
             text="사람을 대체하는 게 아니에요. 매번 되풀이되는 일을 AI가 먼저 해두고, 판단이 필요한 것만 남겨요." />
         </Rise>
+      </div>
 
-        <div className="lp5-eng-grid2 lp5-swipe">
-          {ENGINES.map((e, i) => (
-            <Rise key={e.num} delay={(i % 2) * 60} className="lp5-engc">
-              <div className="lp5-engc-copy">
-                <span className="lp5-engc-num">{e.num} · {e.eng}</span>
-                <h3 className="lp5-engc-name">{e.name}</h3>
-                <Sentences className="lp5-engc-desc" text={e.short} />
-              </div>
-              <div className="lp5-engc-shot">
-                {AI_SHOT[e.name] && (
-                  <Image src={AI_SHOT[e.name]} alt={`오너뷰 ${e.name} 화면`} width={1968} height={1000}
-                    sizes="(max-width: 999px) 92vw, 660px" />
-                )}
-              </div>
-            </Rise>
-          ))}
-        </div>
-        <SwipeHint n={ENGINES.length} />
+      <div className="lp5-eng-layer">
+        <AiDemoRail />
+      </div>
 
+      <div className="lp5-wrap lp5-eng-layer">
         <Rise className="lp5-autos">
           <div className="lp5-autos-h">이 밖에도 AI가 알아서 하는 일 {autos.length}가지</div>
           <ul className="lp5-autos-list">
