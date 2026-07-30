@@ -149,6 +149,30 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targets, attByEmpDate, startStr]);
 
+  // 이번주 결근 집계 — 셀의 결근 배지와 동일 규칙(지난 평일 + 무기록 + 휴가 아님 + 입사 이후).
+  //   요약 칩 클릭 시 명단 펼침 (2026-07-30 사장님: 결근자 이름을 클릭으로 확인).
+  const [showAbsent, setShowAbsent] = useState(false);
+  const absentList = useMemo(() => {
+    const m = new Map<string, { name: string; dates: string[] }>();
+    const todayS = todayStr;
+    for (const { emp } of rows) {
+      for (let i = 0; i < 5; i++) {
+        const dstr = ymd(days[i]);
+        if (dstr >= todayS) continue;
+        if (emp.hire_date && dstr < emp.hire_date) continue;
+        const key = `${emp.id}|${dstr}`;
+        if (leaveByEmpDate.has(key)) continue;
+        const a = attByEmpDate.get(key);
+        if (a && (a.check_in || minutesOf(a))) continue;
+        const cur = m.get(emp.id) || { name: emp.name, dates: [] };
+        cur.dates.push(`${days[i].getMonth() + 1}/${days[i].getDate()}`);
+        m.set(emp.id, cur);
+      }
+    }
+    return [...m.values()];
+  }, [rows, days, attByEmpDate, leaveByEmpDate, todayStr]);
+  const absentDayCount = absentList.reduce((s, x) => s + x.dates.length, 0);
+
   const teamAvg = rows.length ? Math.round(rows.reduce((s, r) => s + r.total, 0) / rows.length) : 0;
   const over52 = rows.filter((r) => r.total > LIMIT_MIN).length;
   const totalOt = rows.reduce((s, r) => s + r.overtime, 0);
@@ -190,9 +214,37 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
             <span className={`px-2.5 py-1 rounded-full font-semibold`} style={over52 > 0 ? { background: FLEX.redDim, color: FLEX.red } : { background: "var(--bg-surface)", color: "var(--text-dim)" }}>
               52시간 초과 {over52}명
             </span>
+            <button
+              type="button"
+              onClick={() => setShowAbsent((v) => !v)}
+              className={`px-2.5 py-1 rounded-full font-semibold transition ${showAbsent ? "ring-2 ring-inset ring-[var(--danger)]" : ""}`}
+              style={absentDayCount > 0 ? { background: FLEX.redDim, color: FLEX.red } : { background: "var(--bg-surface)", color: "var(--text-dim)" }}
+              title="클릭하면 이번주 결근자 명단이 아래에 표시됩니다"
+            >
+              결근 {absentDayCount}건 {showAbsent ? "▴" : "▾"}
+            </button>
           </div>
         )}
       </div>
+
+      {/* 결근자 명단 — 결근 칩 클릭 시 (2026-07-30 사장님) */}
+      {!isEmployee && showAbsent && (
+        <div className="glass-card p-4">
+          <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">이번주 결근 — {absentList.length}명 · {absentDayCount}건</div>
+          {absentList.length === 0 ? (
+            <div className="text-xs text-[var(--text-dim)]">이번주 결근자가 없습니다</div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {absentList.map((x, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--danger-dim)] text-xs font-medium text-[var(--danger)]">
+                  {x.name}
+                  <span className="text-[10px] font-normal opacity-80">({x.dates.join(", ")})</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── 워크보드 ── */}
       <div className="flex-work-board-table-card glass-card">
