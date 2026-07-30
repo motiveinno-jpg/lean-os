@@ -23,11 +23,6 @@
    실측: 시작 후 약 2.0초 동안 칩이 멈춰 있고(지연 1.5s + 구간 .18), 그 뒤 1.5초에 걸쳐 모인다. */
 .lp5-stage.lp5-play { animation: lp5-play-p 2.9s cubic-bezier(.28,.62,.24,1) 1.5s both; }
 @media (prefers-reduced-motion: reduce) { .lp5-stage.lp5-play { animation: none; --p: 1; } }
-/* 소개 3줄은 재생이 시작되면 계단식으로 뜬다 */
-.lp5-play .lp5-unify-line { opacity: 1; transform: none; transition: opacity .6s ease, transform .6s ease; }
-.lp5-play .lp5-unify-line:nth-child(1) { transition-delay: 2.2s; }
-.lp5-play .lp5-unify-line:nth-child(2) { transition-delay: 2.5s; }
-.lp5-play .lp5-unify-line:nth-child(3) { transition-delay: 2.8s; }
 
 .lp5-root {
   --ink: #0B0B0F;
@@ -162,52 +157,10 @@
 .lp5-hero-hint i { display: block; width: 1px; height: 22px; background: linear-gradient(var(--ink3), transparent); }
 
 /* ══ 2. 통합 — 흩어진 도구들이 가운데로 빨려들어와 오너뷰가 된다 ══ */
-.lp5-unify { justify-content: center; }
-.lp5-unify-in { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; }
-/* ⚠️ 궤도는 무대(100vh) 전체를 기준으로 잡는다. 문구 박스 안에 두면 그 박스 높이의
-   가운데를 중심으로 삼아 칩이 제목 위로 겹친다 (첫 구현에서 실제로 겹쳤다). */
-.lp5-orbit { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.lp5-chip {
-  position: absolute; left: 50%; top: 50%;
-  display: inline-flex; align-items: center; gap: 9px;
-  padding: 9px 15px 9px 9px; border-radius: 15px; white-space: nowrap;
-  font-size: 14px; font-weight: 700; color: var(--ink);
-  background: rgba(255,255,255,.94); border: 1px solid rgba(11,11,15,.07);
-  box-shadow: 0 1px 2px rgba(11,11,15,.05), 0 16px 34px -16px rgba(11,11,15,.34);
-  /* --x/--y 만큼 밖에 있다가 진행률에 따라 가운데로 모이며 사라진다.
-     ⚠️ 칩이 다 사라지기 전에 화면이 떠오르면 칩이 화면 위에 얹혀 지저분해진다.
-        칩은 .40 에서 끝내고 화면은 .34 부터 시작 — 겹치는 구간을 최소로 둔다.
-     ⚠️ --d(칩마다 다른 출발 시점) 덕에 한 덩어리로 움직이지 않고 따로따로 빨려들어간다.
-        전부 같은 식으로 움직이면 "흩어진" 게 아니라 "정렬된" 것으로 보인다. */
-  /* ⚠️ 구간을 .34 로 짧게 잡아 칩이 순식간에 사라졌다. .46 으로 늘려 여유를 준다. */
-  /* ⚠️ p 0 부터 바로 모이면 흩어진 상태를 볼 시간이 없다. .18 까지는 멈춰 있게 하고
-     그 뒤 .5 구간에 걸쳐 모인다. --d 로 칩마다 출발 시점을 다르게 둔다. */
-  --k: calc(1 - clamp(0, calc((var(--p) - .18 - var(--d, 0)) / .5), 1));
-  /* ⚠️ --x/--y 는 컴포넌트가 인라인 style 로 박는다 — 인라인은 CSS 보다 세서 미디어쿼리로
-     못 덮는다. 폰 전용 좌표를 주려고 CSS 에서 --x 를 바꿔 봤지만 아무 일도 일어나지 않았고,
-     반경(--r)만 1 로 돌아가 칩 10개가 화면 밖으로 나갔다(실측).
-     → CSS 만 건드릴 수 있는 --mx/--my 를 앞에 두고, 없으면 인라인 값을 쓴다. */
-  transform: translate(-50%, -50%)
-             translate(calc(var(--mx, var(--x)) * var(--k) * var(--r, 1)),
-                       calc(var(--my, var(--y)) * var(--k) * var(--r, 1)))
-             rotate(calc(var(--rot, 0deg) * var(--k)))
-             scale(calc(.55 + var(--k) * var(--sc, 1) * .45));
-  /* ⚠️ k 제곱은 끝에서 급격히 0 으로 떨어져 "툭" 꺼지는 느낌을 준다 — 완만하게. */
-  opacity: calc(var(--k) * 1.25);
-}
 .lp5-chip-ico {
   display: inline-flex; align-items: center; justify-content: center;
   width: 27px; height: 27px; border-radius: 9px; flex: none;
   box-shadow: 0 2px 6px -1px rgba(11,11,15,.32);
-}
-.lp5-unify-core {
-  /* ⚠️ 760px 로 두면 그 안의 부채꼴(1000px)이 부모보다 넓어 margin:auto 가 안 먹고
-     오른쪽으로 밀린다. 부채꼴을 담을 만큼 넓혀 두고 크기는 .lp5-fan 이 정한다. */
-  position: relative; z-index: 2; width: min(1040px, 92vw);
-  /* ⚠️ 칩이 다 사라진 뒤에 화면이 시작하면 중간에 빈 구간이 생겨 끊겨 보인다.
-     칩이 옅어지는 동안 화면이 겹쳐 올라오게 시작점을 앞당기고 구간을 늘린다. */
-  transform: scale(calc(.9 + clamp(0, calc((var(--p) - .46) / .44), 1) * .1));
-  opacity: clamp(0, calc((var(--p) - .46) / .34), 1);
 }
 /* ── 화면 다섯 장이 부채꼴로 펼쳐지는 묶음 ──
    처음엔 가운데 겹쳐 있다가 --p 에 따라 좌우로 벌어진다.
@@ -251,13 +204,6 @@
   display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top;
 }
 
-.lp5-unify-copy { position: relative; z-index: 3; margin-bottom: 34px; }
-.lp5-unify-lines { margin-top: 16px; min-height: 96px; }
-.lp5-unify-line {
-  font-size: clamp(14px, calc(10px + .78vw), 21px); line-height: 1.7; color: var(--ink2);
-  opacity: 0; transform: translateY(10px); transition: opacity .55s ease, transform .55s ease;
-}
-.lp5-unify-line-on { opacity: 1; transform: none; }
 
 /* ── 섹션 후킹 문구 ──
    ⚠️ v5 초안에서 이게 통째로 빠져 있었다. 장면 연출이 아무리 좋아도 "이 섹션이 무슨 말을
@@ -521,23 +467,49 @@
 .lp5-cov-d { font-size: 12px; line-height: 1.55; color: var(--ink3); margin-top: 5px; }
 
 /* ══ 7. 모바일 ══ */
+/* ⚠️ 사장님: "핸드폰에서 볼 때 모바일 목업이 전혀 모바일스럽지 않다."
+   두꺼운 프레임(9px)에 노치 하나뿐이라 검은 판으로 읽혔다. 폰이라는 신호를 제대로 준다 —
+   얇은 베젤 + 다이나믹 아일랜드 + 상태바(시간·신호·배터리) + 홈 인디케이터.
+   ⚠️ 상태바는 가짜 띠가 아니라 화면을 그만큼 아래로 밀고 그 자리를 차지한다. 캡처 위에
+      덮으면 앱 헤더(홈 › 대시보드)가 가려진다. */
 .lp5-phone {
   /* ⚠️ 340px 고정이라 360px 화면에서 그리드 트랙을 밀어 옆 칸 문구까지 샐지게 했다 */
-  position: relative; width: min(340px, 74vw); margin: 0 auto; aspect-ratio: 1170 / 2400;
-  border-radius: 46px; padding: 9px; background: linear-gradient(160deg, #2B2B36, #0C0C12 62%);
-  box-shadow: 0 50px 90px -34px rgba(11,11,15,.6), 0 0 0 1px rgba(255,255,255,.08) inset;
+  position: relative; width: min(340px, 74vw); margin: 0 auto; aspect-ratio: 1179 / 2556;
+  --bez: 5px; --sb: 3.6%;
+  border-radius: 40px; padding: var(--bez);
+  background: linear-gradient(150deg, #6B6B78 0%, #1B1B22 26%, #0A0A10 72%, #3A3A46 100%);
+  box-shadow: 0 44px 84px -34px rgba(11,11,15,.55), 0 0 0 .5px rgba(255,255,255,.22) inset;
   transform: rotate(-3deg) translateY(calc((1 - clamp(0, calc(var(--p) / .35), 1)) * 40px));
 }
+/* 상태바 — 시간은 텍스트로, 신호·배터리는 배경 SVG 로(요소를 더 만들지 않는다) */
+.lp5-phone::before {
+  content: "9:41"; position: absolute; z-index: 2;
+  left: var(--bez); right: var(--bez); top: var(--bez); height: var(--sb);
+  border-radius: 35px 35px 0 0;
+  display: flex; align-items: center; padding: 0 13px;
+  font-size: 9px; font-weight: 800; color: #18181B; letter-spacing: .01em;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='10'%3E%3Cg fill='%2318181B'%3E%3Crect y='6' width='2.4' height='3.6' rx='.6'/%3E%3Crect x='3.6' y='4.4' width='2.4' height='5.2' rx='.6'/%3E%3Crect x='7.2' y='2.6' width='2.4' height='7' rx='.6'/%3E%3Crect x='10.8' y='.8' width='2.4' height='8.8' rx='.6'/%3E%3Crect x='19.2' y='2.9' width='8.2' height='4.4' rx='1'/%3E%3Crect x='32' y='3.7' width='1.2' height='2.8' rx='.6'/%3E%3C/g%3E%3Crect x='18' y='1.7' width='13' height='6.8' rx='2' fill='none' stroke='%2318181B' stroke-width='1'/%3E%3C/svg%3E") no-repeat right 12px center / 30px 9px;
+}
+/* 홈 인디케이터 */
+.lp5-phone::after {
+  content: ""; position: absolute; z-index: 3; bottom: 2%; left: 50%; transform: translateX(-50%);
+  width: 33%; height: 3px; border-radius: 99px; background: rgba(17,20,45,.3);
+}
 .lp5-phone-notch {
-  position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-  width: 96px; height: 22px; border-radius: 99px; background: #0C0C12; z-index: 3;
+  position: absolute; top: 2.1%; left: 50%; transform: translateX(-50%);
+  width: 26%; height: 3.1%; border-radius: 99px; background: #07070C; z-index: 4;
 }
 .lp5-phone img {
-  position: absolute; inset: 9px; width: calc(100% - 18px); height: calc(100% - 18px);
-  object-fit: cover; object-position: top center; border-radius: 38px;
+  position: absolute; left: var(--bez); right: var(--bez); bottom: var(--bez);
+  top: calc(var(--bez) + var(--sb)); width: auto; height: auto;
+  object-fit: cover; object-position: center top; border-radius: 0 0 35px 35px;
   opacity: 0; transition: opacity .6s ease;
 }
 .lp5-phone-on { opacity: 1 !important; }
+/* 앱이 "쓰이는 중"으로 보이게 화면이 아주 느리게 흐른다(사장님이 목업에서 고른 동작) */
+.lp5-phone-on { animation: lp5-phone-pan 12s ease-in-out 1.8s infinite alternate; }
+@keyframes lp5-phone-pan { from { object-position: center top; } to { object-position: center 24%; } }
+@media (prefers-reduced-motion: reduce) { .lp5-phone-on { animation: none; } }
 
 /* ══ 8. 마무리 ══ */
 .lp5-end { justify-content: center; text-align: center; }
@@ -582,38 +554,28 @@
   .lp5-hero { padding-top: 96px; }
   .lp5-day-grid, .lp5-ax-grid, .lp5-eng-grid { grid-template-columns: 1fr; gap: 34px; }
   .lp5-cov-grid { grid-template-columns: repeat(2, 1fr); }
-  .lp5-orbit { display: none; }
   .lp5-hero-copy, .lp5-hero-shot, .lp5-phone, .lp5-hero-bg { transform: none; opacity: 1; }
   /* ⚠️ 좁은 화면에서 가운데 한 장만 남기고 부채꼴을 껐었는데, 사장님이 "메인은 웹과 동일하게
      마름모 형태로" 를 요청했다. 카드만 작게 하고 연출은 그대로 둔다. */
   .lp5-fan { aspect-ratio: 16 / 9; }
   .lp5-fan-item { width: 62%; }
-  /* 통합 연출(흩어졌다 모임)도 웹과 같게 — 궤도 반경만 줄인다 */
-  .lp5-orbit { display: block; }
-  .lp5-chip { --r: .28; font-size: 11px; padding: 6px 10px 6px 6px; gap: 6px; border-radius: 11px; }
-  .lp5-chip-ico { width: 20px; height: 20px; border-radius: 7px; }
-  .lp5-unify-core { width: 96vw; }
   .lp5-hero-hint { display: none; }
   .lp5-shot-stack { aspect-ratio: 16 / 11; }
 }
 @media (max-width: 1200px) and (min-width: 1000px) {
   .lp5-cov-grid { grid-template-columns: repeat(4, 1fr); }
   .lp5-day-grid, .lp5-ax-grid, .lp5-eng-grid { grid-template-columns: 320px 1fr; gap: 40px; }
-  /* ⚠️ 칩 궤도(±650px)가 1024px 화면 밖으로 나간다 — 반경을 같이 줄인다 */
-  .lp5-chip { --r: .64; font-size: 12.5px; padding: 7px 12px 7px 7px; }
-  .lp5-chip-ico { width: 23px; height: 23px; border-radius: 8px; }
 }
-/* ⚠️ 1201~1440 구간에도 축소가 필요하다 — 1280px 에서 "카드사 앱"·"수기 장부"가 화면 밖으로 나갔다 */
-@media (max-width: 1440px) and (min-width: 1201px) { .lp5-chip { --r: .82; } }
 /* 좁은 화면에서 히어로·통합에 들어가는 폰 목업 (데스크톱 캡처 대체) */
-.lp5-phone-solo { width: min(300px, 66vw); transform: none; margin-top: 8px; }
+.lp5-phone-solo { transform: none; margin-top: 8px; }
 /* ⚠️ 그냥 `.lp5-phone-solo img` 였다. 폰 한 대에 화면 한 장만 넣는 자리(PhoneShot)를 겨냥한
    규칙인데, 화면 여러 장을 겹쳐 두고 하나씩 보여주는 자리(ShotStack 의 좁은 화면 분기)까지
    걸려 세 장이 전부 겹쳐 보였다 — 폰에서 하루 구간이 뭉개져 있던 원인(2026-07-29 실측).
    img 가 하나뿐일 때만 적용한다(형제 중 notch 는 div 라 :only-of-type 로 잡힌다). */
 .lp5-phone-solo img:only-of-type { opacity: 1; }
-/* ⚠️ 폰은 세로가 길다(1170x2400). 무대 높이를 넘지 않게 천장을 둔다 */
-.lp5-phone-solo { max-height: 52vh; aspect-ratio: 1170 / 2400; }
+/* ⚠️ 폰은 세로가 길다. 폭 기준(66vw)으로 잡으면 좁은 화면에서 세로로 넘쳐 카피와 한 화면에
+   들어오지 못하고 잘린 채 보였다(사장님 지적) — 높이를 기준으로 두고 폭은 비율이 정한다. */
+.lp5-phone-solo { height: min(56vh, 470px); width: auto; aspect-ratio: 1179 / 2556; }
 
 /* ⚠️ 좁은 화면에서 세 축 카드 안의 데스크톱 캡처를 통째로 줄이면 아무것도 안 읽힌다.
    AI 카드와 같은 방식으로 좌상단(헤더+핵심 카드)을 확대해 잘라 보여준다.
@@ -627,26 +589,6 @@
 /* 아주 좁은 화면 — 여백·칸수를 줄여 내용이 뭉개지지 않게 */
 @media (max-width: 620px) {
   .lp5-wrap { padding: 0 20px; }
-  /* ⚠️ 반경만 .17 로 줄여 화면 안에 넣었더니, 칩 12개가 가운데 한 덩어리로 겹쳐
-     "흩어져 있다"가 아니라 "뭉쳐 있다"로 보였다(사장님 스크린샷, 2026-07-29).
-     데스크톱 좌표(x 최대 ±655px)를 6분의 1로 줄이는 방식 자체가 틀렸다 —
-     폰에는 폰의 좌표를 따로 준다. 반경은 1로 되돌리고 위치를 직접 지정한다.
-     2열 6줄로 벌리되 x·y 를 조금씩 어긋나게 둬 격자로 보이지 않게 한다.
-     (기울기 --rot 은 인라인이라 CSS 로 못 덮는다 — 그 흔들림이 그대로 남아 도움이 된다) */
-  .lp5-chip { --r: 1; font-size: 10.5px; padding: 5px 9px 5px 5px; gap: 6px; border-radius: 10px; }
-  .lp5-chip-ico { width: 18px; height: 18px; border-radius: 6px; }
-  .lp5-orbit .lp5-chip:nth-child(1)  { --mx: -84px; --my: -158px; }
-  .lp5-orbit .lp5-chip:nth-child(2)  { --mx:  92px; --my: -148px; }
-  .lp5-orbit .lp5-chip:nth-child(3)  { --mx: -98px; --my:  -98px; }
-  .lp5-orbit .lp5-chip:nth-child(4)  { --mx:  86px; --my:  -90px; }
-  .lp5-orbit .lp5-chip:nth-child(5)  { --mx: -88px; --my:  -38px; }
-  .lp5-orbit .lp5-chip:nth-child(6)  { --mx:  94px; --my:  -30px; }
-  .lp5-orbit .lp5-chip:nth-child(7)  { --mx: -94px; --my:   22px; }
-  .lp5-orbit .lp5-chip:nth-child(8)  { --mx:  82px; --my:   32px; }
-  .lp5-orbit .lp5-chip:nth-child(9)  { --mx: -86px; --my:   82px; }
-  .lp5-orbit .lp5-chip:nth-child(10) { --mx:  90px; --my:   90px; }
-  .lp5-orbit .lp5-chip:nth-child(11) { --mx: -96px; --my:  142px; }
-  .lp5-orbit .lp5-chip:nth-child(12) { --mx:  88px; --my:  150px; }
   .lp5-fan-item { width: 66%; }
   .lp5-stage { padding: 68px 0; }
   .lp5-cov-grid { grid-template-columns: 1fr; gap: 9px; }

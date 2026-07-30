@@ -17,7 +17,7 @@ import "@/app/landing-v5.css";
 import "@/app/landing-v6.css";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
-import { Scene, Rise, useNarrow } from "@/components/landing/scene";
+import { Scene, Rise, useNarrow, useScene } from "@/components/landing/scene";
 import { AiDemoRail } from "@/components/landing/ai-demo-rail";
 import { SwipeDeck } from "@/components/landing/swipe-deck";
 
@@ -135,16 +135,6 @@ const CORE_SHOT: Record<string, string> = {
   "/product/f-leave-v1.png":      "/product/c-leave.png",
 };
 
-/** 폰 목업 한 대 — 좁은 화면에서 데스크톱 캡처 대신 들어간다. */
-function PhoneShot({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
-  return (
-    <div className="lp5-phone lp5-phone-solo">
-      <div className="lp5-phone-notch" />
-      <Image src={src} alt={alt} width={1170} height={2400} sizes="74vw" priority={priority} className="lp5-phone-on" />
-    </div>
-  );
-}
-
 /** 화면 다섯 장이 마름모로 펼쳐지는 묶음 — 페이지 최상단.
  *  ⚠️ 스크롤이 아니라 "페이지가 열리면" 퍼진다. 첫 화면에서 바로 보여야 하는 연출이라
  *     스크롤을 기다리게 하면 아무도 못 본다. --sp 를 CSS 애니메이션이 0→1 로 올린다.
@@ -252,21 +242,6 @@ function SceneHero() {
 //      d 가 다르면 칩들이 한 덩어리로 움직이지 않고 따로따로 빨려들어간다.
 //   ⚠️ 아이콘은 실제 서비스 로고를 쓰지 않는다 — 남의 상표를 "불편하다"는 맥락에 쓰면
 //      분쟁 소지가 있다. 색·형태만으로 무엇인지 알아보게 만든다.
-const SCATTER = [
-  { t: "엑셀 견적서",    i: "sheet",  c: "#1D8A54", x: "-598px", y: "18px",   rot: "-7deg",  sc: 1.06, d: 0.00 },
-  { t: "카톡 결재",      i: "chat",   c: "#E5B800", x: "512px",  y: "-8px",   rot: "6deg",   sc: 1.02, d: 0.06 },
-  { t: "통장 앱",        i: "bank",   c: "#2F6FED", x: "-352px", y: "148px",  rot: "4deg",   sc: 0.93, d: 0.11 },
-  { t: "카드사 앱",      i: "card",   c: "#5B4BE8", x: "643px",  y: "176px",  rot: "-5deg",  sc: 0.97, d: 0.03 },
-  { t: "수기 장부",      i: "book",   c: "#B4762A", x: "-655px", y: "232px",  rot: "8deg",   sc: 1.09, d: 0.14 },
-  { t: "메일 계약서",    i: "mail",   c: "#D94A3D", x: "266px",  y: "104px",  rot: "-3deg",  sc: 0.9,  d: 0.09 },
-  { t: "급여 대장",      i: "won",    c: "#0E8F6F", x: "-142px", y: "268px",  rot: "-9deg",  sc: 1.04, d: 0.17 },
-  { t: "세무 자료 폴더", i: "folder", c: "#E08422", x: "398px",  y: "312px",  rot: "5deg",   sc: 0.95, d: 0.05 },
-  { t: "종이 근태표",    i: "clock",  c: "#5B6472", x: "-480px", y: "372px",  rot: "-4deg",  sc: 0.88, d: 0.2 },
-  // ⚠️ 원래 (620,-26) 이라 "카톡 결재"(512,-8) 와 가로 108px 밖에 안 떨어져 겹쳤다
-  { t: "드라이브 서류함", i: "drive", c: "#2C9C63", x: "318px",  y: "-34px",  rot: "9deg",   sc: 0.91, d: 0.13 },
-  { t: "달력 일정",      i: "cal",    c: "#C93B3B", x: "96px",   y: "382px",  rot: "7deg",   sc: 1.0,  d: 0.08 },
-  { t: "문자 알림",      i: "bell",   c: "#3AA35C", x: "-268px", y: "56px",   rot: "3deg",   sc: 0.86, d: 0.16 },
-];
 
 /** 칩 아이콘 — 색 있는 타일. 로고가 아니라 "무슨 도구인지" 알아보게 하는 형태다. */
 function ChipIcon({ n, c }: { n: string; c: string }) {
@@ -290,42 +265,114 @@ function ChipIcon({ n, c }: { n: string; c: string }) {
   return <span className="lp5-chip-ico" style={{ background: c }}>{g}</span>;
 }
 
-function SceneUnify() {
-  // ⚠️ 좁은 화면에서 데스크톱 대시보드(1968px)를 96vw 로 욱여넣어 0.19배가 됐다 —
-  //    "하나로 모인 결과"가 정작 아무것도 안 읽히는 회색 판이었다. 폰 캡처로 바꿔 끼운다.
-  const narrow = useNarrow();
+/** 열어둔 창 12개 — 창마다 실제 데이터가 들어 있다. 앞 4개는 타일로, 뒤 8개는 행으로 앉는다
+ *  (순서가 곧 도착지 순서다 — 시점은 landing-v6.css 의 nth-child 로 맞춘다).
+ *  ⚠️ 창 안의 값과 도착지의 값은 반드시 같아야 한다. 사장님: "12개에 있던 데이터가 깔끔하게
+ *     정리되어 한눈에 보인다는 게 보여야 신뢰가 생긴다." 숫자가 달라지면 그 신뢰가 깨진다. */
+const WINDOWS = [
+  { app: "문자 알림",       i: "bell",   c: "#3AA35C", src: "잔고 알림",     dest: "통장 잔액",      val: "2억 3,040만" },
+  { app: "엑셀 견적서",     i: "sheet",  c: "#1D8A54", src: "이번 달 합계",  dest: "이번 달 매출",   val: "4,500만" },
+  { app: "수기 장부",       i: "book",   c: "#B4762A", src: "못 받은 돈",    dest: "미수금",         val: "1,200만" },
+  { app: "카톡 결재",       i: "chat",   c: "#E5B800", src: "결재 요청",     dest: "결재 대기",      val: "3건" },
+  { app: "통장 앱",         i: "bank",   c: "#2F6FED", src: "입금",          dest: "입금 · 기업은행", val: "3,300,000" },
+  { app: "카드사 앱",       i: "card",   c: "#5B4BE8", src: "카드 승인",     dest: "카드 승인 · AWS", val: "412,300" },
+  { app: "세무 자료 폴더",  i: "folder", c: "#E08422", src: "발행 건수",     dest: "세금계산서 발행", val: "12건" },
+  { app: "메일 계약서",     i: "mail",   c: "#D94A3D", src: "체결 건수",     dest: "용역계약 체결",   val: "2건" },
+  { app: "급여 대장",       i: "won",    c: "#0E8F6F", src: "7월 급여",      dest: "7월 급여 지급",   val: "4,830,000" },
+  { app: "종이 근태표",     i: "clock",  c: "#5B6472", src: "이번 주 근태",  dest: "이번 주 근태",    val: "5명" },
+  { app: "달력 일정",       i: "cal",    c: "#C93B3B", src: "다가오는 일정", dest: "다가오는 일정",   val: "3건" },
+  { app: "드라이브 서류함", i: "drive",  c: "#2C9C63", src: "보관 문서",     dest: "보관 문서",       val: "8건" },
+];
+
+/** 창 12개 → 오너뷰 창 하나. 무대 안에 들어가는 본체(데스크톱·폰 공용). */
+function UnifyStage() {
   return (
-    <Scene len={1.6} playOnView pinMobile className="lp5-unify">
-      {() => (
-        <>
-          {/* ⚠️ 궤도는 무대(100vh) 기준이어야 한다. 문구 박스 안에 두면 칩이 제목 위로 겹친다. */}
-          <div className="lp5-orbit" aria-hidden>
-            {SCATTER.map((s) => (
-              <span key={s.t} className="lp5-chip" style={{
-                ["--x" as string]: s.x, ["--y" as string]: s.y,
-                ["--rot" as string]: s.rot, ["--sc" as string]: s.sc, ["--d" as string]: s.d,
-              }}>
-                <ChipIcon n={s.i} c={s.c} />{s.t}
-              </span>
-            ))}
-          </div>
-          <div className="lp5-wrap lp5-unify-in">
-          <div className="lp5-unify-copy">
-            <div className="lp5-eyebrow">One Place</div>
-            <h2 className="lp5-h lp5-h-sm">흩어져 있던 회사 일이<br /><span className="lp5-grad">하나로 모여요</span></h2>
-            <div className="lp5-unify-lines">
-              {/* 재생이 시작되면 계단식으로 한 줄씩 뜬다 — beat 대신 CSS 지연으로 처리한다 */}
-              {HERO_INTRO.map((l) => <p key={l} className="lp5-unify-line">{l}</p>)}
+    <div className="lp5-uni-stage">
+      <div className="lp5-uni-wins" aria-hidden>
+        {WINDOWS.map((w) => (
+          <div key={w.app} className="lp5-uni-win">
+            <div className="lp5-uni-win-bar">
+              <ChipIcon n={w.i} c={w.c} /><span>{w.app}</span><b>×</b>
+            </div>
+            <div className="lp5-uni-win-body">
+              <span className="lp5-uni-win-k">{w.src}</span>
+              <span className="lp5-uni-win-v">{w.val}</span>
             </div>
           </div>
-          <div className="lp5-unify-core">
-            {/* 좁은 화면에서도 웹과 같은 "흩어졌다 모이는" 연출을 그대로 쓴다 — 담기는 화면만 바꾼다 */}
-            {narrow
-              ? <PhoneShot src={MOBILE_OF["/product/dashboard-v5.png"]} alt="휴대폰에서 본 오너뷰 대시보드" />
-              : <Shot src="/product/dashboard-v5.png" alt="오너뷰 대시보드" sizes="(max-width: 999px) 94vw, 1100px" />}
+        ))}
+      </div>
+
+      <div className="lp5-uni-own">
+        <div className="lp5-uni-own-bar">
+          <span className="lp5-uni-own-tab"><i />오너뷰</span>
+          <span className="lp5-uni-own-note">같은 숫자가 제자리에 정리돼요</span>
+        </div>
+        <div className="lp5-uni-own-body">
+          <div className="lp5-uni-tiles">
+            {WINDOWS.slice(0, 4).map((w) => (
+              <div key={w.dest} className="lp5-uni-tile">
+                <span className="lp5-uni-tile-k"><i style={{ background: w.c }} />{w.dest}</span>
+                <span className="lp5-uni-tile-v">{w.val}</span>
+              </div>
+            ))}
           </div>
+          <div className="lp5-uni-rows">
+            {WINDOWS.slice(4).map((w) => (
+              <div key={w.dest} className="lp5-uni-row">
+                <i style={{ background: w.c }} /><span>{w.dest}</span><b>{w.val}</b>
+              </div>
+            ))}
           </div>
-        </>
+        </div>
+        <span className="lp5-uni-count">창 12개 → 1개</span>
+      </div>
+    </div>
+  );
+}
+
+function UnifyHead() {
+  return (
+    <>
+      <div className="lp5-eyebrow">One Place</div>
+      <h2 className="lp5-h lp5-h-sm">흩어져 있던 회사 일이<br /><span className="lp5-grad">하나로 모여요</span></h2>
+      <div className="lp5-uni-lines">
+        {/* 재생이 시작되면 계단식으로 한 줄씩 뜬다 — beat 대신 CSS 지연으로 처리한다 */}
+        {HERO_INTRO.map((l) => <p key={l} className="lp5-uni-line">{l}</p>)}
+      </div>
+    </>
+  );
+}
+
+// ⚠️ 이전 연출(칩 12개가 중앙으로 모여 사라지고 그 자리에 대시보드 캡처가 뜨는 방식)은
+//    1512px·390px 실측에서 ① 시작이 빈 화면 ② 칩이 모이는 게 아니라 사라짐 ③ 도착한 캡처는
+//    글자가 안 읽힘 — "사라졌다 + 다른 게 나타났다"로 읽혀 폐기했다(사장님: 웹도 부자연스럽다).
+/** 폰 전용 — 핀을 쓰지 않는다. 무대(100vh, overflow:hidden)에 세로 내용이 다 안 들어가 잘린다.
+ *  ⚠️ 훅을 부모(SceneUnify)에 두면 안 된다. narrow 는 마운트 뒤에 true 가 되므로 첫 렌더에서는
+ *     이 분기가 없고, 그때 만들어진 옵저버는 붙을 요소가 없다 — 그 뒤로 다시 만들지 않아
+ *     폰에서 연출이 아예 멈춰 있었다(실측). 분기를 컴포넌트로 떼어 마운트 시점에 훅이 돌게 한다.
+ *  ⚠️ 폰 무대는 한 화면보다 크다 — 기본 임계값(85%)은 영원히 만족되지 않으므로 낮춘다. */
+function UnifyFlat() {
+  const { trackRef, stageRef } = useScene(1, true, 0.22);
+  return (
+    <section id="unify" ref={trackRef} className="lp5-sect">
+      <div ref={stageRef} className="lp5-wrap lp5-uni-flat">
+        <UnifyHead />
+        <UnifyStage />
+      </div>
+    </section>
+  );
+}
+
+function SceneUnify() {
+  const narrow = useNarrow();
+  if (narrow) return <UnifyFlat />;
+  return (
+    <Scene id="unify" len={1.0} playOnView className="lp5-uni">
+      {() => (
+        <div className="lp5-wrap lp5-uni-in">
+          <UnifyHead />
+          <UnifyStage />
+        </div>
       )}
     </Scene>
   );

@@ -794,14 +794,36 @@
 .lp5-deck-desc span { display: block; }
 
 /* 화면 — 위에서부터 잘라 보여준다. 앱 화면의 머리(패널 제목·첫 줄들)가 가장 많은 걸 말한다. */
+/* ⚠️ 프레임 없이 잘라 넣었더니 "폰 화면"이 아니라 이미지 조각으로 읽혔다
+      (사장님: 모바일 목업이 전혀 모바일스럽지 않다). 폰 상단(얇은 베젤 + 상태바 +
+      다이나믹 아일랜드)을 씌우고 아래는 카드 밖으로 흘려보낸다.
+   ⚠️ 폭은 카드 폭 그대로 둔다 — 실제 폰 비율로 좁히면 앱 글자가 0.66배로 작아진다(실측). */
 .lp5-deck-shot {
   margin-top: auto; position: relative; overflow: hidden;
-  height: clamp(232px, 34vh, 300px);
-  border-radius: 12px 12px 0 0; background: #fff;
-  border: 1px solid rgba(11,11,15,.06); border-bottom: 0;
-  box-shadow: 0 2px 10px rgba(11,11,15,.06), 0 20px 44px -26px rgba(11,11,15,.4);
+  height: clamp(238px, 35vh, 306px);
+  --bez: 5px; --sb: 17px;
+  border-radius: 30px 30px 0 0; padding: var(--bez) var(--bez) 0;
+  background: linear-gradient(150deg, #6B6B78 0%, #1B1B22 26%, #0A0A10 90%);
+  box-shadow: 0 0 0 .5px rgba(255,255,255,.2) inset, 0 -1px 8px rgba(11,11,15,.18);
 }
-.lp5-deck-shot img { display: block; width: 100%; height: auto; }
+.lp5-deck-shot::before {
+  content: "9:41"; position: absolute; z-index: 2;
+  left: var(--bez); right: var(--bez); top: var(--bez); height: var(--sb);
+  border-radius: 25px 25px 0 0; display: flex; align-items: center; padding: 0 13px;
+  font-size: 9px; font-weight: 800; color: #18181B; letter-spacing: .01em;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='10'%3E%3Cg fill='%2318181B'%3E%3Crect y='6' width='2.4' height='3.6' rx='.6'/%3E%3Crect x='3.6' y='4.4' width='2.4' height='5.2' rx='.6'/%3E%3Crect x='7.2' y='2.6' width='2.4' height='7' rx='.6'/%3E%3Crect x='10.8' y='.8' width='2.4' height='8.8' rx='.6'/%3E%3Crect x='19.2' y='2.9' width='8.2' height='4.4' rx='1'/%3E%3Crect x='32' y='3.7' width='1.2' height='2.8' rx='.6'/%3E%3C/g%3E%3Crect x='18' y='1.7' width='13' height='6.8' rx='2' fill='none' stroke='%2318181B' stroke-width='1'/%3E%3C/svg%3E") no-repeat right 12px center / 30px 9px;
+}
+.lp5-deck-shot::after {
+  content: ""; position: absolute; z-index: 3; top: 9px; left: 50%; transform: translateX(-50%);
+  width: 68px; height: 15px; border-radius: 99px; background: #07070C;
+}
+/* ⚠️ left/right + width:auto 로 두면 대체 요소(img)는 shrink-to-fit 이 되어 원래 크기로
+      튀어나간다 — 실제로 오른쪽 베젤을 뚫고 화면이 잘렸다(실측). 폭을 직접 계산해 준다. */
+.lp5-deck-shot img {
+  display: block; position: absolute; z-index: 1;
+  left: var(--bez); top: calc(var(--bez) + var(--sb));
+  width: calc(100% - var(--bez) * 2); height: auto; max-width: none;
+}
 
 /* 하단 컨트롤 — AI 구간과 같은 언어(도트 + 자동 넘김), 밝은 구간용 색 */
 .lp5-deck-ctrl { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
@@ -837,4 +859,162 @@
 @media (prefers-reduced-motion: reduce) {
   .lp5-deck-slide { opacity: 1; transition: none; }
   .lp5-deck-rail { scroll-behavior: auto; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   흩어짐 → 모임: "창 12개 → 오너뷰 한 화면" (lp5-uni-*, 2026-07-30)
+     사장님 결정(1안 + 보완): "열어둔 창에 데이터가 가득 차 있다가, 마지막 오너뷰에 모였을 때
+     12개에 있던 데이터가 깔끔하게 정리되어 한눈에 보인다는 게 보여야 신뢰가 생긴다."
+     ⚠️ 그래서 창을 닫을 때 값이 사라지지 않는다. 창에 있던 그 숫자가 오너뷰 창의 제자리
+        (타일·행)에 그대로 앉고, 왼쪽 색 점이 어느 앱에서 온 값인지 알려준다.
+     ⚠️ 이전 연출(칩 12개가 중앙으로 모여 0.55배로 사라지고 그 자리에 캡처가 뜨는 방식)은
+        "사라졌다 + 다른 게 나타났다"로 읽혀 인과가 끊겼다. 실측으로 확인해 폐기.
+     ⚠️ 무대(.lp5-stage)는 100vh 에 overflow:hidden 이다. 내용이 그보다 크면 위아래가 잘린다
+        (이전 구성에서 제목이 상단바에 잘려 보인 진짜 이유). 높이를 vh 로 묶어 둔다.
+     ⚠️ 연출 시점은 전부 이 파일에 모은다 — 창 i 가 닫히는 순간 도착지 i 가 뜬다.
+   ══════════════════════════════════════════════════════════════════════ */
+.lp5-uni { justify-content: flex-start; }
+.lp5-uni-in, .lp5-uni-flat { width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.lp5-uni-lines { margin-top: clamp(10px, 1.2vw, 16px); display: flex; flex-direction: column; gap: 1px; }
+.lp5-uni-line {
+  margin: 0; font-size: clamp(13.5px, calc(11px + .5vw), 18px); line-height: 1.7;
+  color: var(--ink2); opacity: 0; transform: translateY(6px); word-break: keep-all;
+}
+.lp5-play .lp5-uni-line { opacity: 1; transform: none; transition: opacity .6s ease, transform .6s ease; }
+.lp5-play .lp5-uni-line:nth-child(1) { transition-delay: .08s; }
+.lp5-play .lp5-uni-line:nth-child(2) { transition-delay: .2s; }
+.lp5-play .lp5-uni-line:nth-child(3) { transition-delay: .32s; }
+
+.lp5-uni-stage {
+  margin-top: clamp(16px, 2vw, 28px); width: 100%; text-align: left;
+  display: grid; grid-template-columns: minmax(0, 352px) minmax(0, 1fr);
+  gap: clamp(14px, 1.8vw, 26px); align-items: stretch;
+  height: clamp(370px, 43vh, 458px);
+}
+
+/* 창이 다 닫히면 왼쪽 자리를 오너뷰 창이 가져간다 — 안 그러면 절반이 빈 채로 끝난다(실측).
+   ⚠️ grid-template-columns 애니메이션은 최신 브라우저만 지원한다. 지원하지 않으면
+      마지막에 한 번 툭 넓어질 뿐이라 깨지지는 않는다. */
+.lp5-play .lp5-uni-stage { animation: lp5-uni-collapse .75s cubic-bezier(.4, .1, .3, 1) 2.5s both; }
+@keyframes lp5-uni-collapse {
+  from { grid-template-columns: minmax(0, 352px) minmax(0, 1fr); column-gap: 26px; }
+  to { grid-template-columns: minmax(0, 0px) minmax(0, 1fr); column-gap: 0px; }
+}
+
+/* ── 왼쪽: 열어둔 창 12개(데이터가 들어 있다) ── */
+.lp5-uni-wins { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 7px; min-width: 0; overflow: hidden; }
+.lp5-uni-win {
+  background: var(--canvas); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  display: flex; flex-direction: column; box-shadow: 0 6px 14px -12px rgba(11, 11, 15, .5);
+}
+.lp5-uni-win-bar {
+  display: flex; align-items: center; gap: 5px; padding: 4px 6px;
+  background: #F1F2F8; border-bottom: 1px solid var(--line);
+  font-size: 9.5px; font-weight: 700; color: var(--ink3);
+}
+.lp5-uni-win-bar .lp5-chip-ico { width: 14px; height: 14px; border-radius: 4px; box-shadow: none; }
+.lp5-uni-win-bar .lp5-chip-ico svg { width: 9px; height: 9px; }
+.lp5-uni-win-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp5-uni-win-bar b { margin-left: auto; color: #C2C6D2; font-weight: 800; }
+.lp5-uni-win-body { flex: 1; padding: 4px 8px; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+.lp5-uni-win-k { font-size: 9px; font-weight: 700; color: var(--ink3); }
+.lp5-uni-win-v { font-size: 12.5px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.lp5-play .lp5-uni-win { animation: lp5-uni-close .45s cubic-bezier(.4, 0, .3, 1) both; }
+@keyframes lp5-uni-close { to { opacity: 0; transform: scale(.86) translateY(-7px); } }
+
+/* ── 오른쪽: 오너뷰 창 하나(그 값들이 제자리에 앉는다) ── */
+.lp5-uni-own {
+  position: relative; background: var(--canvas); border: 1px solid var(--line);
+  border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: 0 2px 8px rgba(11, 11, 15, .05), 0 30px 60px -34px rgba(11, 11, 15, .45);
+}
+.lp5-uni-own-bar {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+  background: #EDEFF6; border-bottom: 1px solid var(--line);
+}
+.lp5-uni-own-tab {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
+  background: var(--canvas); border-radius: 7px 7px 0 0; margin-bottom: -8px;
+  font-size: 11px; font-weight: 800; color: var(--ink);
+}
+.lp5-uni-own-tab i { width: 9px; height: 9px; border-radius: 3px; background: var(--brand); }
+.lp5-uni-own-note { font-size: 10px; font-weight: 700; color: var(--ink3); }
+.lp5-uni-own-body {
+  flex: 1; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-height: 0;
+}
+.lp5-uni-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.lp5-uni-tile { background: var(--canvas2); border-radius: 9px; padding: 8px 9px; opacity: 0; }
+.lp5-uni-tile-k { display: flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 700; color: var(--ink3); }
+.lp5-uni-tile-k i { width: 6px; height: 6px; border-radius: 2px; flex: none; }
+.lp5-uni-tile-v { font-size: clamp(13px, 1.1vw, 16px); font-weight: 800; letter-spacing: -.025em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.lp5-uni-rows { display: flex; flex-direction: column; }
+.lp5-uni-row {
+  display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  padding: 5px 2px; border-bottom: 1px solid #F1F2F7; font-size: 11px; opacity: 0;
+}
+.lp5-uni-row i { width: 7px; height: 7px; border-radius: 2px; }
+.lp5-uni-row span { font-weight: 700; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp5-uni-row b { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 값이 "앉는" 순간 — 잠깐 인디고로 번지고 원래 색으로 돌아온다(어디에 들어갔는지 눈이 따라간다) */
+.lp5-play .lp5-uni-tile, .lp5-play .lp5-uni-row { animation: lp5-uni-land .6s cubic-bezier(.22, .68, .3, 1) both; }
+@keyframes lp5-uni-land {
+  0% { opacity: 0; transform: translateY(-5px); background: rgba(79, 70, 229, .16); }
+  55% { opacity: 1; transform: none; background: rgba(79, 70, 229, .1); }
+  100% { opacity: 1; transform: none; }
+}
+.lp5-uni-count {
+  position: absolute; right: 12px; bottom: 11px; opacity: 0;
+  font-size: 11px; font-weight: 800; color: var(--brand);
+  background: var(--primary-light, #EEF2FF); padding: 4px 11px; border-radius: 999px;
+}
+.lp5-play .lp5-uni-count { animation: lp5-uni-pop .45s cubic-bezier(.2, 1.45, .4, 1) 2.75s both; }
+@keyframes lp5-uni-pop { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: none; } }
+
+/* ── 시점 — 창 i 가 닫히면 도착지 i 가 뜬다(앞 4개는 타일, 뒤 8개는 행) ── */
+.lp5-play .lp5-uni-win:nth-child(1) { animation-delay: .55s; }
+.lp5-play .lp5-uni-win:nth-child(2) { animation-delay: .71s; }
+.lp5-play .lp5-uni-win:nth-child(3) { animation-delay: .87s; }
+.lp5-play .lp5-uni-win:nth-child(4) { animation-delay: 1.03s; }
+.lp5-play .lp5-uni-win:nth-child(5) { animation-delay: 1.19s; }
+.lp5-play .lp5-uni-win:nth-child(6) { animation-delay: 1.35s; }
+.lp5-play .lp5-uni-win:nth-child(7) { animation-delay: 1.51s; }
+.lp5-play .lp5-uni-win:nth-child(8) { animation-delay: 1.67s; }
+.lp5-play .lp5-uni-win:nth-child(9) { animation-delay: 1.83s; }
+.lp5-play .lp5-uni-win:nth-child(10) { animation-delay: 1.99s; }
+.lp5-play .lp5-uni-win:nth-child(11) { animation-delay: 2.15s; }
+.lp5-play .lp5-uni-win:nth-child(12) { animation-delay: 2.31s; }
+
+.lp5-play .lp5-uni-tile:nth-child(1) { animation-delay: .68s; }
+.lp5-play .lp5-uni-tile:nth-child(2) { animation-delay: .84s; }
+.lp5-play .lp5-uni-tile:nth-child(3) { animation-delay: 1.0s; }
+.lp5-play .lp5-uni-tile:nth-child(4) { animation-delay: 1.16s; }
+
+.lp5-play .lp5-uni-row:nth-child(1) { animation-delay: 1.32s; }
+.lp5-play .lp5-uni-row:nth-child(2) { animation-delay: 1.48s; }
+.lp5-play .lp5-uni-row:nth-child(3) { animation-delay: 1.64s; }
+.lp5-play .lp5-uni-row:nth-child(4) { animation-delay: 1.8s; }
+.lp5-play .lp5-uni-row:nth-child(5) { animation-delay: 1.96s; }
+.lp5-play .lp5-uni-row:nth-child(6) { animation-delay: 2.12s; }
+.lp5-play .lp5-uni-row:nth-child(7) { animation-delay: 2.28s; }
+.lp5-play .lp5-uni-row:nth-child(8) { animation-delay: 2.44s; }
+
+/* ── 폰: 무대를 세로로. 핀을 쓰지 않으므로(컴포넌트에서 분기) 잘림 없이 흐른다 ── */
+@media (max-width: 860px) {
+  .lp5-uni-stage { grid-template-columns: 1fr; height: auto; gap: 12px; }
+  .lp5-play .lp5-uni-stage { animation: none; }   /* 세로 배치라 열을 접을 필요가 없다 */
+  .lp5-play .lp5-uni-wins { animation: lp5-uni-fold .6s cubic-bezier(.4, .1, .3, 1) 2.5s both; }
+  @keyframes lp5-uni-fold { to { grid-auto-rows: 0px; gap: 0px; opacity: 0; } }
+  .lp5-uni-wins { grid-auto-rows: 46px; gap: 6px; }
+  .lp5-uni-win-bar { font-size: 9px; padding: 3px 5px; }
+  .lp5-uni-win-v { font-size: 12px; }
+  .lp5-uni-tiles { grid-template-columns: 1fr 1fr; }
+  .lp5-uni-own-body { padding: 9px 10px; gap: 7px; }
+  .lp5-uni-row { font-size: 10.5px; padding: 4px 2px; }
+  .lp5-uni-count { position: static; align-self: flex-end; margin: 0 12px 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp5-uni-line, .lp5-uni-tile, .lp5-uni-row, .lp5-uni-count { opacity: 1; transform: none; }
+  .lp5-play .lp5-uni-win { animation: none; opacity: 0; }   /* 결과 화면만 보여준다 */
+  .lp5-play .lp5-uni-tile, .lp5-play .lp5-uni-row, .lp5-play .lp5-uni-count { animation: none; }
 }
