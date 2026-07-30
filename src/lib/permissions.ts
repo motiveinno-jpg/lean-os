@@ -18,7 +18,10 @@ export const PERMISSION_CATALOG: PermGroup[] = [
   {
     group: "홈",
     menus: [
-      { route: "/dashboard", label: "대시보드" },
+      // 대시보드 자체는 전원 기본 제공(필수 위젯: 출근·할일·캘린더) — 금액 위젯은 세부 권한
+      { route: "/dashboard", label: "대시보드", always: true, tabs: [
+        { key: "finance", label: "재무·경영 위젯 (현금펄스·매출·잔액 등 금액 정보)" },
+      ] },
       { route: "/copilot", label: "AI 참모" },
       { route: "/mypage", label: "마이페이지", always: true },
       { route: "/notifications", label: "알림", always: true },
@@ -143,8 +146,8 @@ export function allGrantableKeys(): string[] {
   const keys: string[] = [];
   for (const g of PERMISSION_CATALOG) {
     for (const m of g.menus) {
-      if (m.always) continue;
-      keys.push(m.route);
+      if (!m.always) keys.push(m.route);
+      // 기본 제공 메뉴여도 세부탭은 부여 대상 (예: 대시보드 재무 위젯)
       for (const t of m.tabs || []) keys.push(`${m.route}:${t.key}`);
     }
   }
@@ -173,7 +176,9 @@ export function useMyPermissions(): {
     staleTime: 60_000,
   });
   const set = perms || new Set<string>();
-  const hasPerm = (key: string) => isMaster || ALWAYS_ALLOWED_ROUTES.has(key.split(":")[0]) || set.has(key);
+  // ⚠️ 기본 제공(always) 단축은 메뉴 키에만 — 세부탭 키(:포함)는 반드시 명시 부여 필요
+  //   (예: /dashboard 는 전원 기본이지만 /dashboard:finance 재무 위젯은 부여자만).
+  const hasPerm = (key: string) => isMaster || (!key.includes(":") && ALWAYS_ALLOWED_ROUTES.has(key)) || set.has(key);
   return {
     isMaster,
     loading: userLoading || (!isMaster && isLoading),

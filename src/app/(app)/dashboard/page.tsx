@@ -35,6 +35,7 @@ import { getMonthlyTotalSalary } from "@/lib/payroll";
 import { getTodos, toggleTodoDone, PRIORITY_LABEL, getMonthEvents, type ScheduleTodo } from "@/lib/schedule";
 import Link from "next/link";
 import { useUser } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
 import { useBoard } from "@/components/board-context";
 import { useSidebar } from "@/components/sidebar-context"; // 2026-07-24 sidebar collapsed 감지
 import { PRESET_VIEWS, WIDGET_REGISTRY, ROLE_PRESETS } from "@/lib/widget-registry";
@@ -393,6 +394,11 @@ export default function DashboardPage() {
 
   const sp = dashboard.sixPack;
 
+  // (2026-07-30 사장님) 대외비(금액) 위젯 게이트 — 기본 대시보드는 전원(필수 위젯만),
+  //   재무·경영 위젯은 /dashboard:finance 권한 보유자(또는 마스터)만 추가·표시 가능.
+  const { isMaster: dashMaster, hasPerm: dashPerm } = useMyPermissions();
+  const canFinance = dashMaster || dashPerm("/dashboard:finance");
+
   // (2026-07-30 개편 P2) 직원 분기 삭제 — 파트너 외 전원 동일 대시보드(접근은 권한 가드가 판정).
 
   // ── Partner Dashboard (mobile-first, dynamic counts) ──
@@ -505,7 +511,7 @@ export default function DashboardPage() {
         <div className="dashboard-owner-widgets-section">
           {/* (0) AI 브리핑 + 오늘의 액션 — 라운드7.1(컨셉 1안). 문장 요약은 MorningBrief(규칙 기반) 재사용,
                버튼은 이미 계산된 sixPack·세금 마감에서 파생 — 신규 쿼리 0. */}
-          <div>
+          {canFinance && (<div>
             <MorningBrief
               userName={userName}
               companyName={companyName}
@@ -515,15 +521,15 @@ export default function DashboardPage() {
               userId={userId ?? undefined}
               aiBriefingEnabled={aiBriefingEnabled}
             />
-          </div>
+          </div>)}
 
-          {/* 데이터 신선도 + 미분류 정리 — owner·admin 공용(admin도 자금 데이터 관리). */}
-          {companyId && (
+          {/* 데이터 신선도 + 미분류 정리 — 재무 권한 보유자만 */}
+          {canFinance && companyId && (
             <div className="flex items-center justify-end">
               <SyncFreshness companyId={companyId} />
             </div>
           )}
-          {companyId && <UnclassifiedPrompt companyId={companyId} />}
+          {canFinance && companyId && <UnclassifiedPrompt companyId={companyId} />}
 
           {/* 대시보드 통합 위젯 그리드 — 카탈로그 기반: 개인별 위젯 추가/삭제 자유(2026-07-15).
               기본 활성 위젯 = 사장님 확정 배치(DEFAULT_WIDGET_POS), 그 외는 편집 모드 '위젯 추가'로. */}
@@ -553,12 +559,16 @@ export default function DashboardPage() {
               { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", w: 4, h: 4, render: () => <AnnouncementsCard /> },
               { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 5, render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
             ];
-            const defaultActiveIds = ["attendance", "calendar", "work-tasks", "projects", "revenue", "tax", "biz", "receivables", "assets", "cards"];
+            // (2026-07-30 사장님) 금액 위젯(경영·자금·프로젝트 계약액)은 재무 권한 보유자만 카탈로그에 노출.
+            //   기본 활성은 전원 필수 위젯(근태·캘린더·담당업무·할일·공지)만 — 나머지는 편집 모드에서 직접 추가.
+            const FINANCE_WIDGET_IDS = new Set(["biz", "revenue", "receivables", "tax", "cards", "assets", "bank", "invoices", "projects"]);
+            const visibleCatalog = canFinance ? catalog : catalog.filter((w) => !FINANCE_WIDGET_IDS.has(w.id));
+            const defaultActiveIds = ["attendance", "calendar", "work-tasks", "todos", "announcements"];
             // 상황 기반 추천 — 신호가 있는 위젯을 편집모드에서 추천(비활성일 때만 칩 노출).
             const recommended: string[] = [];
             if ((dashboard.sixPack.arOver30 ?? 0) > 0) recommended.push("receivables");
             if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
-            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={catalog} defaultActiveIds={defaultActiveIds} recommended={recommended} sidebarCollapsed={sidebarCollapsed} />;
+            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds} recommended={recommended} sidebarCollapsed={sidebarCollapsed} />;
           })()}
         </div>
       )}
@@ -567,7 +577,7 @@ export default function DashboardPage() {
            2026-07-15 하단 단독 '상세 분석·추이 보기' 링크는 경영 요약(biz) 위젯 안으로 이동. ═══ */}
 
       {/* ═══ 경영 종합 — CEO 커맨드 센터(액션·펄스·목표·리스크). owner 전용, 상시 노출. ═══ */}
-      {(<>
+      {canFinance && (<>
       <div className="dashboard-toolbar">
         {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
         <div className="mb-3">

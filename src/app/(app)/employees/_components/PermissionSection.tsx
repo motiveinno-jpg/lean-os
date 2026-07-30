@@ -56,9 +56,8 @@ export function PermissionSection({ targetUserId, empName }: { targetUserId: str
   const allKeys = useMemo(() => {
     const keys: string[] = [];
     for (const g of PERMISSION_CATALOG) for (const m of g.menus) {
-      if (m.always) continue;
-      keys.push(m.route);
-      for (const t of m.tabs || []) keys.push(`${m.route}:${t.key}`);
+      if (!m.always) keys.push(m.route);
+      for (const t of m.tabs || []) keys.push(`${m.route}:${t.key}`); // always 메뉴의 세부탭도 부여 대상
     }
     return keys;
   }, []);
@@ -98,7 +97,7 @@ export function PermissionSection({ targetUserId, empName }: { targetUserId: str
 
       <div className="member-permission-groups">
         {PERMISSION_CATALOG.map((g) => {
-          const groupKeys = g.menus.filter((m) => !m.always).flatMap((m) => [m.route, ...(m.tabs || []).map((t) => `${m.route}:${t.key}`)]);
+          const groupKeys = g.menus.flatMap((m) => [...(m.always ? [] : [m.route]), ...(m.tabs || []).map((t) => `${m.route}:${t.key}`)]);
           if (groupKeys.length === 0) return null;
           const groupAll = groupKeys.every((k) => checked.has(k));
           return (
@@ -108,16 +107,17 @@ export function PermissionSection({ targetUserId, empName }: { targetUserId: str
                 <span className="text-xs font-bold text-[var(--text)]">{g.group}</span>
               </label>
               <div className="space-y-2">
-                {g.menus.filter((m) => !m.always).map((m) => {
-                  const menuKeys = [m.route, ...(m.tabs || []).map((t) => `${m.route}:${t.key}`)];
-                  const menuOn = checked.has(m.route);
+                {g.menus.filter((m) => !m.always || (m.tabs || []).length > 0).map((m) => {
+                  const menuKeys = [...(m.always ? [] : [m.route]), ...(m.tabs || []).map((t) => `${m.route}:${t.key}`)];
+                  const menuOn = m.always ? true : checked.has(m.route); // 기본 제공 메뉴는 항상 열림 — 세부탭만 부여
                   return (
                     <div key={m.route} className="member-permission-menu">
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={menuOn}
-                          onChange={(e) => toggle(e.target.checked ? menuKeys : menuKeys, e.target.checked)}
+                        <input type="checkbox" checked={menuOn} disabled={!!m.always}
+                          onChange={(e) => toggle(menuKeys, e.target.checked)}
                           className="accent-[var(--primary)]" />
                         <span className="text-xs font-semibold text-[var(--text)]">{m.label}</span>
+                        {m.always && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--success-dim)] text-[var(--success)]">기본 제공</span>}
                         <span className="text-[10px] text-[var(--text-dim)] mono-number">{m.route}</span>
                       </label>
                       {(m.tabs || []).length > 0 && (
