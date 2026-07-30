@@ -10,6 +10,13 @@ try {
   execFileSync(process.execPath, [resolve(__dirname, "scripts/generate-release-log.mjs")], { stdio: "inherit" });
 } catch { /* git 없음 등 — 기존 커밋된 JSON 으로 빌드 진행 */ }
 
+// 로컬 Supabase(도커, http://127.0.0.1:54321)로 띄운 경우에만 CSP connect-src 에 로컬 주소 허용.
+//   운영/프리뷰(*.supabase.co)에서는 빈 문자열 — 헤더가 기존과 바이트 단위로 동일하다.
+const supaUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+const localSupaCsp = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(supaUrl)
+  ? ` ${supaUrl} ${supaUrl.replace("http://", "ws://")}`
+  : "";
+
 const securityHeaders = [
   {
     key: "Content-Security-Policy",
@@ -19,7 +26,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://*.daumcdn.net https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net",
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net",
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net${localSupaCsp}`,
       "frame-src 'self' blob: https://*.daumcdn.net https://*.daum.net https://*.kakao.com",
       // 'self' — 자사 페이지가 자사 페이지를 iframe 으로 임베드(메뉴 팝업 기능) 허용. 외부 출처 임베드는 여전히 차단.
       "frame-ancestors 'self'",

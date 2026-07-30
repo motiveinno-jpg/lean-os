@@ -82,6 +82,9 @@ ALTER TABLE public.payment_queue
   ADD COLUMN IF NOT EXISTS n8n_execution_id text;
 
 -- 5) 기본 승인 정책 시드 (모티브이노베이션)
+--    2026-07-30 로컬 부트스트랩 대응: 빈 DB(로컬/신규 환경)엔 이 회사가 없어 FK 위반 →
+--    DO 블록으로 감싸 FK 위반만 무시(prod 에는 이미 적용된 내용이라 의미 동일).
+DO $seed$ BEGIN
 INSERT INTO public.approval_policies (company_id, entity_type, min_amount, max_amount, required_role, auto_approve, auto_approve_threshold)
 VALUES
   ('c361afb9-8a52-4cac-add9-8992f0f7c09c', 'expense', 0, 100000, 'owner', true, 100000),
@@ -89,3 +92,5 @@ VALUES
   ('c361afb9-8a52-4cac-add9-8992f0f7c09c', 'payment', 0, 999999999, 'owner', false, 0),
   ('c361afb9-8a52-4cac-add9-8992f0f7c09c', 'document', 0, 999999999, 'owner', false, 0),
   ('c361afb9-8a52-4cac-add9-8992f0f7c09c', 'leave', 0, 999999999, 'owner', false, 0);
+EXCEPTION WHEN foreign_key_violation THEN NULL;
+END $seed$;

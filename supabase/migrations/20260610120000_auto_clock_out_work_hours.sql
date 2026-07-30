@@ -100,7 +100,7 @@ begin
 
   return coalesce(v_count, 0);
 end;
-$function$
+$function$;
 
 -- 백필: 자동퇴근됐는데 work_hours=0 인 과거 기록 식대로 재계산
 update public.attendance_records
