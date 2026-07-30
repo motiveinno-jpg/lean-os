@@ -1,5 +1,14 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
+
+// 작업일지(release-log) 생성 — Vercel 이 package.json build 스크립트 대신 `next build` 를
+//   직접 실행해 생성기가 배포에서 한 번도 안 돌던 문제(2026-07-30 사장님: 오늘 커밋이 작업일지에
+//   없음). next.config 는 어떤 빌드 명령이든 로드되므로 여기서 실행 — 실패해도 빌드는 막지 않음.
+try {
+  execFileSync(process.execPath, [resolve(__dirname, "scripts/generate-release-log.mjs")], { stdio: "inherit" });
+} catch { /* git 없음 등 — 기존 커밋된 JSON 으로 빌드 진행 */ }
 
 const securityHeaders = [
   {
