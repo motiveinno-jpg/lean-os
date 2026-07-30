@@ -2107,6 +2107,12 @@ thead th { white-space: nowrap; word-break: keep-all; }
 }
 .approval-new-request-form { @apply lg:col-span-2; }
 
+/* 마스터 권한 부여 트리 (2026-07-30 개편 P1) */
+.member-permission-groups { @apply grid grid-cols-1 md:grid-cols-2 gap-3; }
+.member-permission-group { @apply p-4; }
+.member-permission-menu { @apply pl-1; }
+.member-permission-tabs { @apply mt-1 ml-6 flex flex-wrap gap-x-4 gap-y-1; }
+
 /* 연간 결제 혜택 쿠폰 (2026-07-30) */
 .billing-coupon-section { @apply mb-5; }
 .billing-coupon-list { @apply space-y-2; }

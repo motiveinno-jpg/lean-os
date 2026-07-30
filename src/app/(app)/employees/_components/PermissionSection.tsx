@@ -1,0 +1,148 @@
+"use client";
+
+// ── 마스터 권한 부여 트리 (2026-07-30 개편 P1) ──
+//   마스터가 구성원에게 전 메뉴·세부탭 권한을 체크박스로 부여. 저장은 set_member_permissions RPC(전체 교체).
+//   P1 단계에서는 저장만 되고 화면 게이트는 P2(사이드바 단일화)부터 이 권한을 소비한다.
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/toast";
+import { friendlyError } from "@/lib/friendly-error";
+import { PERMISSION_CATALOG } from "@/lib/permissions";
+
+export function PermissionSection({ targetUserId, empName }: { targetUserId: string | null; empName: string }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [dirty, setDirty] = useState(false);
+
+  const { data: saved, isLoading } = useQuery({
+    queryKey: ["member-permissions", targetUserId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("member_permissions").select("perm_key").eq("user_id", targetUserId!);
+      return new Set<string>((data || []).map((r: any) => r.perm_key));
+    },
+    enabled: !!targetUserId,
+  });
+  useEffect(() => { if (saved && !dirty) setChecked(new Set(saved)); }, [saved, dirty]);
+
+  const { data: targetIsMaster = false } = useQuery({
+    queryKey: ["target-is-master", targetUserId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("users").select("is_master").eq("id", targetUserId!).maybeSingle();
+      return !!data?.is_master;
+    },
+    enabled: !!targetUserId,
+  });
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase as any).rpc("set_member_permissions", {
+        p_user_id: targetUserId, p_perm_keys: Array.from(checked),
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "저장 실패");
+      return data;
+    },
+    onSuccess: () => {
+      toast(`${empName}님의 권한이 저장되었습니다`, "success");
+      setDirty(false);
+      qc.invalidateQueries({ queryKey: ["member-permissions", targetUserId] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "권한 저장 실패"), "error"),
+  });
+
+  const allKeys = useMemo(() => {
+    const keys: string[] = [];
+    for (const g of PERMISSION_CATALOG) for (const m of g.menus) {
+      if (m.always) continue;
+      keys.push(m.route);
+      for (const t of m.tabs || []) keys.push(`${m.route}:${t.key}`);
+    }
+    return keys;
+  }, []);
+
+  const toggle = (keys: string[], on: boolean) => {
+    setChecked((cur) => {
+      const next = new Set(cur);
+      for (const k of keys) { if (on) next.add(k); else next.delete(k); }
+      return next;
+    });
+    setDirty(true);
+  };
+
+  if (!targetUserId) {
+    return <div className="text-xs text-[var(--text-dim)] py-4">아직 계정에 연결되지 않은 구성원입니다 — 초대 수락 후 권한을 부여할 수 있습니다.</div>;
+  }
+  if (targetIsMaster) {
+    return <div className="text-xs text-[var(--text-muted)] py-4">이 구성원은 <b>마스터</b>입니다 — 모든 메뉴·기능 권한을 항상 보유합니다.</div>;
+  }
+  if (isLoading) return <div className="text-xs text-[var(--text-dim)] py-4">권한 불러오는 중...</div>;
+
+  return (
+    <div className="member-permission-tree">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <div>
+          <div className="text-sm font-bold text-[var(--text)]">메뉴·기능 권한</div>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">체크된 메뉴와 세부 기능만 {empName}님에게 표시·허용됩니다. (마이페이지·알림·게시판 등 개인 영역은 기본 제공)</div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => toggle(allKeys, true)} className="btn-secondary btn-sm">전체 선택</button>
+          <button onClick={() => toggle(allKeys, false)} className="btn-secondary btn-sm">전체 해제</button>
+          <button onClick={() => saveMut.mutate()} disabled={!dirty || saveMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
+            {saveMut.isPending ? "저장 중..." : "저장"}
+          </button>
+        </div>
+      </div>
+
+      <div className="member-permission-groups">
+        {PERMISSION_CATALOG.map((g) => {
+          const groupKeys = g.menus.filter((m) => !m.always).flatMap((m) => [m.route, ...(m.tabs || []).map((t) => `${m.route}:${t.key}`)]);
+          if (groupKeys.length === 0) return null;
+          const groupAll = groupKeys.every((k) => checked.has(k));
+          return (
+            <div key={g.group} className="member-permission-group glass-card">
+              <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                <input type="checkbox" checked={groupAll} onChange={(e) => toggle(groupKeys, e.target.checked)} className="accent-[var(--primary)]" />
+                <span className="text-xs font-bold text-[var(--text)]">{g.group}</span>
+              </label>
+              <div className="space-y-2">
+                {g.menus.filter((m) => !m.always).map((m) => {
+                  const menuKeys = [m.route, ...(m.tabs || []).map((t) => `${m.route}:${t.key}`)];
+                  const menuOn = checked.has(m.route);
+                  return (
+                    <div key={m.route} className="member-permission-menu">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={menuOn}
+                          onChange={(e) => toggle(e.target.checked ? menuKeys : menuKeys, e.target.checked)}
+                          className="accent-[var(--primary)]" />
+                        <span className="text-xs font-semibold text-[var(--text)]">{m.label}</span>
+                        <span className="text-[10px] text-[var(--text-dim)] mono-number">{m.route}</span>
+                      </label>
+                      {(m.tabs || []).length > 0 && (
+                        <div className="member-permission-tabs">
+                          {(m.tabs || []).map((t) => {
+                            const k = `${m.route}:${t.key}`;
+                            return (
+                              <label key={k} className={`flex items-center gap-1.5 cursor-pointer ${!menuOn ? "opacity-50" : ""}`}>
+                                <input type="checkbox" checked={checked.has(k)} disabled={!menuOn}
+                                  onChange={(e) => toggle([k], e.target.checked)} className="accent-[var(--primary)]" />
+                                <span className="text-[11px] text-[var(--text-muted)]">{t.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {dirty && <div className="text-[11px] text-[var(--warning)] mt-2">변경사항이 있습니다 — 저장을 눌러야 반영됩니다.</div>}
+    </div>
+  );
+}

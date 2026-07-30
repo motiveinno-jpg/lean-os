@@ -16,6 +16,7 @@ import { listLeaveGrants, addLeaveGrant, deleteLeaveGrant, setBaseLeaveGrant, GR
 import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
+import { PermissionSection } from "./PermissionSection";
 import { LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
@@ -580,9 +581,15 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
           <EmploymentHistorySection employeeId={employeeId} emp={emp} queryClient={queryClient} />
         )}
 
-        {/* 탭 권한 (관리자/대표 전용) */}
+        {/* 탭 권한 (관리자/대표 전용) — 2026-07-30 개편 P1: 마스터에게는 새 권한 트리 병기.
+            새 트리는 전 메뉴·세부탭 부여(P2 화면 단일화부터 적용), 아래 기존 탭 권한은 현행 적용분. */}
         {detailTab === "access" && canManageAccess && (
-          <TabAccessSection companyId={companyId} targetUserId={emp?.user_id || null} grantedBy={viewer?.id || ""} empName={emp?.name || ""} />
+          <div className="space-y-6">
+            {(viewer as any)?.is_master && (
+              <PermissionSection targetUserId={emp?.user_id || null} empName={emp?.name || ""} />
+            )}
+            <TabAccessSection companyId={companyId} targetUserId={emp?.user_id || null} grantedBy={viewer?.id || ""} empName={emp?.name || ""} />
+          </div>
         )}
 
         {/* Contracts Tab — Flex-style 계약서 목록 */}

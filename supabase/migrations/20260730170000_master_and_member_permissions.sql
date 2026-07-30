@@ -1,0 +1,5 @@
+-- 마스터·권한 기반 개편 P1 (2026-07-30 사장님 결정) — prod 적용 완료본 보관
+--   회사당 마스터 1명(최초 가입자) + 나머지는 멤버 — 마스터가 메뉴·세부탭 권한을 부여.
+--   내용: users.is_master(+회사당 1명 유니크·백필), member_permissions(+RLS),
+--   has_perm()/is_company_master(), set_member_permissions(), transfer_master()
+--   전문은 Supabase migrations 히스토리(master_and_member_permissions) 참조.
