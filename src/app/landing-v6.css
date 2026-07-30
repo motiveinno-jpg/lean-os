@@ -349,10 +349,14 @@
 .lp5-aid-rail:focus-visible { outline: 2px solid var(--brand2); outline-offset: 6px; border-radius: 24px; }
 
 /* 높이는 전부 같게(한 줄 선반처럼 읽히게), 폭만 기능에 맞춰 다르게.
-   표·가로 흐름은 폭이 있어야 읽히고, 영수증처럼 세로로 읽는 화면은 좁은 게 낫다. */
+   표·가로 흐름은 폭이 있어야 읽히고, 영수증처럼 세로로 읽는 화면은 좁은 게 낫다.
+   ⚠️ 높이를 못박았더니 내용이 박스보다 커진 카드에서 화면이 잘렸다 —
+      세로 배치(3-Way·문서 읽기)는 위 설명이 높이를 먹어 58px, 1280px 구간에선
+      레이더·파이프라인도 20~30px 넘쳤다(실측). 레일이 flex 라 height:auto 로 두면
+      가장 높은 카드에 나머지가 늘어나 맞춰진다 — 높이는 여전히 같고, 잘림은 사라진다. */
 .lp5-aid-slide {
   scroll-snap-align: center; flex: 0 0 auto;
-  height: clamp(392px, 30vw, 452px);
+  height: auto; min-height: clamp(392px, 30vw, 452px);
   background: rgba(255,255,255,.042); border: 1px solid rgba(255,255,255,.085); border-radius: 22px;
   padding: clamp(20px, 2.2vw, 32px); overflow: hidden;
   display: grid; grid-template-columns: minmax(0, 37fr) minmax(0, 63fr); gap: clamp(18px, 2vw, 30px);
@@ -396,7 +400,7 @@
   padding: clamp(12px, 1.3vw, 18px) clamp(13px, 1.4vw, 20px);
   font-size: clamp(11.5px, .92vw, 13.5px);
   display: flex; flex-direction: column; gap: clamp(8px, .85vw, 12px);
-  min-width: 0; min-height: 0;
+  min-width: 0; min-height: 0; overflow: hidden;
 }
 .lp5-aid-top {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -459,7 +463,7 @@
 
 /* ── 02 AI 거래 분류 ── */
 .lp5-aid-txbody { display: flex; flex-direction: column; }
-.lp5-aid-txrow { display: grid; grid-template-columns: 3.6em minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 6px 2px; }
+.lp5-aid-txrow { display: grid; grid-template-columns: 3.6em minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 5px 2px; }
 .lp5-aid-txrow + .lp5-aid-txrow { border-top: 1px solid var(--s-hair); }
 .lp5-aid-txdate { font-size: .86em; color: var(--s-dim); }
 .lp5-aid-txname { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

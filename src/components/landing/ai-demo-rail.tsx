@@ -51,18 +51,19 @@ function ScreenCopilot() {
   );
 }
 
+// ⚠️ 행 수를 늘리지 말 것 — 5행(4건 + 확인 필요 1건)이 화면 박스에 들어가는 한계다.
+//    6행이었을 때 마지막 줄이 흰 패널 밖 어두운 배경에 찍혔다(실측 1512x900).
 const TX_ROWS = [
   { d: "07·28", n: "(주)디자인랩", a: "매출 · 과세", v: "+8,800,000", out: false },
   { d: "07·28", n: "아마존웹서비스", a: "지급수수료 · 불공제", v: "−412,300", out: true },
   { d: "07·27", n: "스타벅스 역삼점", a: "복리후생비 · 과세", v: "−38,000", out: true },
-  { d: "07·27", n: "한국전력공사", a: "수도광열비 · 과세", v: "−286,410", out: true },
   { d: "07·26", n: "(주)위드파트너스", a: "매출 · 과세", v: "+3,300,000", out: false },
 ];
 
 function ScreenTx() {
   return (
     <div className="lp5-aid-screen lp5-aid-tx" data-demo="tx" data-len={3700}>
-      <div className="lp5-aid-top"><span className="lp5-aid-tab">거래 장부</span><span className="lp5-aid-meta">신규 6건</span></div>
+      <div className="lp5-aid-top"><span className="lp5-aid-tab">거래 장부</span><span className="lp5-aid-meta">신규 5건</span></div>
       <div className="lp5-aid-txbody">
         {TX_ROWS.map((r) => (
           <div key={r.n} className="lp5-aid-txrow">
@@ -80,7 +81,7 @@ function ScreenTx() {
         </div>
       </div>
       <div className="lp5-aid-txfoot lp5-aid-anim">
-        <b>5건 분류 완료.</b><span className="lp5-aid-type" data-type="1건은 대표님 확인 후 확정" data-delay={3000} />
+        <b>4건 분류 완료.</b><span className="lp5-aid-type" data-type="1건은 대표님 확인 후 확정" data-delay={3000} />
       </div>
     </div>
   );

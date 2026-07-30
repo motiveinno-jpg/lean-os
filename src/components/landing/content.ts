@@ -64,7 +64,7 @@ export const STATS = [
   {
     value: 4, suffix: "", label: "자동화 엔진",
     head: "분류도 대조도\nAI가 먼저 해둬요",
-    desc: "통장·카드 거래를 읽고 계정과목까지 지정해요. 애매한 건만 확인해 달라고 남겨둬요.",
+    desc: "통장·카드 거래를 읽고 계정과목까지 지정해요. 결정이 필요한 건만 확인해 달라고 남겨둬요.",
     kind: "ai",
   },
   {
@@ -95,7 +95,7 @@ export const PAINS = [
   {
     quote: "세무사에게 넘길 자료 정리에만\n이틀이 가요",
     detail: "계정과목을 거래마다 손으로 붙이고 있어요.",
-    solve: "AI가 먼저 분류하고 애매한 것만 남겨요",
+    solve: "AI가 먼저 분류하고 결정이 필요한 것만 남겨요",
     icon: "sort",
   },
   {
@@ -286,7 +286,7 @@ export const PILLARS = [
       {
         tab: "거래 장부", before: "/product/f-bank-b-v1.png",
         title: "계정과목은 AI가 나눠줘요",
-        desc: "은행·카드 실계좌가 하루 두 번 동기화되고, AI가 계정과목을 지정해요. 애매한 것만 확인해 달라고 해요.",
+        desc: "은행·카드 실계좌가 하루 두 번 동기화되고, AI가 계정과목을 지정해요. 결정이 필요한 것만 확인해 달라고 해요.",
         src: "/product/f-bank-v1.png",
         alt: "오너뷰 거래 장부 자동 분류",
       },
@@ -601,8 +601,8 @@ export const AI_DEMOS = [
     beat: "질문 → 판단 → 한 줄 결론·순서·근거", where: "홈 › AI 참모" },
   { key: "tx", num: "02", eng: "Auto Classify", kind: "ai", size: "lg", len: 3700,
     name: "거래를 읽고 계정과목까지",
-    desc: "통장·카드 거래를 읽어 계정과목과 부가세 구분을 지정해요. 애매한 건만 남겨 확인을 요청해요.",
-    beat: "행마다 분류 → 애매한 한 건만 사람에게", where: "파이낸스 › 거래 장부 · 확정은 대표님 버튼" },
+    desc: "통장·카드 거래를 읽어 계정과목과 부가세 구분을 지정해요. 결정이 필요한 건만 남겨 확인을 요청해요.",
+    beat: "행마다 분류 → 결정이 필요한 건만 사람에게", where: "파이낸스 › 거래 장부 · 확정은 대표님 버튼" },
   { key: "way", num: "03", eng: "3-Way Match", kind: "ai", size: "md", stack: true, len: 4000,
     name: "계약·계산서·입금 세 금액 대조",
     desc: "세 금액이 맞는지 자동으로 맞춰보고, 맞으면 전표 초안까지 만들어 둬요. 확정은 대표님이 눌러요.",
@@ -631,7 +631,7 @@ export const AI_AUTOMATION = [
     where: "홈 › AI 참모",
     src: "/product/f-ai-copilot-v1.png", alt: "오너뷰 AI 참모 — 미수금 회수 우선순위 답변" },
   { name: "AI 거래 분류", tag: "계정과목 자동 지정",
-    desc: "통장·카드 거래를 읽고 계정과목과 부가세 구분을 지정해요. 애매한 건만 확인을 요청해요.",
+    desc: "통장·카드 거래를 읽고 계정과목과 부가세 구분을 지정해요. 결정이 필요한 건만 확인을 요청해요.",
     where: "파이낸스 › 거래 장부",
     src: "/product/f-bank-v1.png", alt: "오너뷰 거래 장부 — AI 계정과목 자동 분류" },
   { name: "AI 브리핑", tag: "매일 우선순위",
