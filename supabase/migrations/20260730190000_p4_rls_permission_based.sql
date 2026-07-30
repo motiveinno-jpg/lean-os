@@ -1,0 +1,7 @@
+-- 개편 P4 (2026-07-30) — prod 적용 완료본 보관 (전문은 Supabase 히스토리
+-- p4_rls_permission_based_access / p4_rls_restrictive_perm_widen 참조)
+-- ① is_company_admin() 에 is_master 포함  ② has_menu_perm(route) 신설
+-- ③ 도메인별 가산 permissive 정책 20개 (근태/인사/카드/양식/프로젝트/서식/AI/설정/요금제/장부)
+-- ④ RESTRICTIVE 관리 게이트 13개에 OR has_perm(도메인) 확장 (원조건 보존)
+-- 검증: 권순철(멤버) 시뮬레이션 — 권한 부여 시 카드 14/14·근태 155/155·구성원 전체,
+--   미부여 영역(급여·자격증명) 차단 유지.

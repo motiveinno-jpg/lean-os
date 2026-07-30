@@ -127,7 +127,7 @@ function InviteContent() {
     );
   }
 
-  const roleLabel = invite?.type === "partner" ? "파트너" : invite?.data.role === "admin" ? "관리자" : "직원";
+  const roleLabel = invite?.type === "partner" ? "파트너" : "멤버"; // (P4) 역할 개편
   const roleColor = invite?.type === "partner" ? "#7C3AED" : "#2563EB";
 
   return (

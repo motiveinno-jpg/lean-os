@@ -20,7 +20,6 @@ import { PermissionSection } from "./PermissionSection";
 import { LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
-import { GRANTABLE_TABS, getUserTabAccess, setTabAccess, effectiveTabAccess } from "@/lib/tab-access";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getContractTemplates, createContractPackage, sendContractPackage, buildDefaultContractFields, type ContractField } from "@/lib/hr-contracts";
 
@@ -584,12 +583,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         {/* 탭 권한 (관리자/대표 전용) — 2026-07-30 개편 P1: 마스터에게는 새 권한 트리 병기.
             새 트리는 전 메뉴·세부탭 부여(P2 화면 단일화부터 적용), 아래 기존 탭 권한은 현행 적용분. */}
         {detailTab === "access" && canManageAccess && (
-          <div className="space-y-6">
-            {(viewer as any)?.is_master && (
-              <PermissionSection targetUserId={emp?.user_id || null} empName={emp?.name || ""} />
-            )}
-            <TabAccessSection companyId={companyId} targetUserId={emp?.user_id || null} grantedBy={viewer?.id || ""} empName={emp?.name || ""} />
-          </div>
+          // (P4) 구 TabAccessSection(tab_access) 제거 — 새 권한 트리 단일화(게이트도 P2부터 전환 완료)
+          <PermissionSection targetUserId={emp?.user_id || null} empName={emp?.name || ""} />
         )}
 
         {/* Contracts Tab — Flex-style 계약서 목록 */}
@@ -1554,81 +1549,5 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
   );
 }
 
-// 탭 권한 부여 — 관리자/대표가 해당 구성원(로그인 계정)에 탭별 접근을 ON/OFF
-function TabAccessSection({ companyId, targetUserId, grantedBy, empName }: {
-  companyId: string; targetUserId: string | null; grantedBy: string; empName: string;
-}) {
-  const { toast } = useToast();
-  const qc = useQueryClient();
-  const [busy, setBusy] = useState<string | null>(null);
-  const { data: overrides } = useQuery<Map<string, boolean>>({
-    queryKey: ["user-tab-access", targetUserId],
-    queryFn: () => getUserTabAccess(targetUserId!),
-    enabled: !!targetUserId,
-  });
-  const overrideMap = overrides ?? new Map<string, boolean>();
-  // 대상 계정 역할 — 대표(owner)는 항상 전체 접근(끌 수 없음). 관리자/직원은 기본 켜진 것도 끌 수 있음.
-  const { data: targetRole } = useQuery<string | null>({
-    queryKey: ["target-user-role", targetUserId],
-    queryFn: async () => {
-      const data = logRead('_components/EmployeeDetailPanel:data', await (supabase).from("users").select("role").eq("id", targetUserId ?? "").maybeSingle());
-      return (data?.role as string) ?? null;
-    },
-    enabled: !!targetUserId,
-  });
-  const isOwner = targetRole === "owner";
-
-  if (!targetUserId) {
-    return (
-      <div className="text-sm text-[var(--text-muted)] py-8 text-center leading-relaxed">
-        이 구성원은 로그인 계정과 연결돼 있지 않아 탭 권한을 부여할 수 없습니다.<br />
-        먼저 직원 초대 / 계정 연결을 진행해 주세요.
-      </div>
-    );
-  }
-
-  const toggle = async (route: string, nextOn: boolean) => {
-    setBusy(route);
-    try {
-      await setTabAccess(companyId, targetUserId, route, nextOn, grantedBy);
-      qc.invalidateQueries({ queryKey: ["user-tab-access", targetUserId] });
-      qc.invalidateQueries({ queryKey: ["my-tab-access"] });
-    } catch (e: any) { toast(e?.message || "변경 실패", "error"); }
-    finally { setBusy(null); }
-  };
-
-  const groups = [...new Set(GRANTABLE_TABS.map((t) => t.group))];
-  return (
-    <div className="employee-tab-access-section">
-      <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-        {isOwner ? (
-          <><b className="text-[var(--text)]">{empName}</b> 님은 <b className="text-[var(--primary)]">대표</b>라 모든 탭에 접근합니다(끌 수 없음).</>
-        ) : (
-          <><b className="text-[var(--text)]">{empName}</b> 님의 탭 접근을 켜고/끌 수 있습니다. 기본 켜진 탭(관리자·기본 제공)도 끄면 접근이 차단됩니다.</>
-        )}
-      </p>
-      {groups.map((g) => (
-        <div key={g}>
-          <div className="text-[11px] font-bold text-[var(--text-dim)] mb-1.5">{g}</div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {GRANTABLE_TABS.filter((t) => t.group === g).map((t) => {
-              const on = effectiveTabAccess(t.route, targetRole, overrideMap);
-              const locked = isOwner; // 대표만 잠금(끌 수 없음). 관리자/직원은 기본도 토글 가능.
-              return (
-                <button key={t.route} disabled={locked || busy === t.route} onClick={() => { if (!locked) toggle(t.route, !on); }}
-                  title={locked ? "대표 — 전체 접근" : ""}
-                  className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold border transition ${locked ? "opacity-90 cursor-default" : "disabled:opacity-50"} ${on ? "bg-[var(--primary)]/10 border-[var(--primary)]/40 text-[var(--primary)]" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-                  <span className="truncate">{locked && ""}{t.label}</span>
-                  <span className={`shrink-0 w-7 h-4 rounded-full relative transition ${on ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>
-                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${on ? "left-[14px]" : "left-0.5"}`} />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// (P4) TabAccessSection 삭제 — PermissionSection(권한 트리)으로 대체.
 

@@ -560,10 +560,10 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">이메일 *</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="user@company.com" className="field-input" /></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">이름</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="홍길동" className="field-input" /></div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">역할</label>
-              <div className="flex gap-2">
-                <button onClick={() => setForm({...form, role: "employee"})} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${form.role === "employee" ? "bg-[var(--success)] text-white border-[var(--success)]" : "text-[var(--text-muted)] border-[var(--border)]"}`}>직원</button>
-                <button onClick={() => setForm({...form, role: "admin"})} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition ${form.role === "admin" ? "bg-[var(--info)] text-white border-[var(--info)]" : "text-[var(--text-muted)] border-[var(--border)]"}`}>관리자</button>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">권한</label>
+              {/* (P4) 역할 선택 제거 — 전원 멤버로 합류, 메뉴·기능 권한은 합류 후 마스터가 부여 */}
+              <div className="px-3 py-2.5 rounded-xl text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)]">
+                멤버로 합류 — 합류 후 구성원 상세의 <b>탭 권한</b>에서 마스터가 메뉴·기능을 부여합니다
               </div>
             </div>
           </div>
@@ -586,7 +586,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             </div>
           </div>
           {addExisting ? (
-            <p className="text-[10px] text-[var(--warning)]">이미 가입한 회원의 이메일로 바로 추가합니다. <b>해당 회원의 계정 소속이 우리 회사로 변경되고 직원 권한이 됩니다.</b> (초대 이메일 없이 즉시 적용)</p>
+            <p className="text-[10px] text-[var(--warning)]">이미 가입한 회원의 이메일로 바로 추가합니다. <b>해당 회원의 계정 소속이 우리 회사로 변경되고 멤버로 합류합니다(권한은 마스터가 부여).</b> (초대 이메일 없이 즉시 적용)</p>
           ) : (
             <p className="caption">초대 이메일이 발송되며, 직원이 가입 후 계약서 서명까지 완료하면 급여가 자동 반영됩니다.</p>
           )}
@@ -602,7 +602,7 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
               <div key={inv.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--warning)]/5 border border-[var(--warning)]/10">
                 <div>
                   <div className="text-sm font-medium">{inv.name || inv.email}</div>
-                  <div className="text-xs text-[var(--text-dim)]">{inv.email} · {inv.role === "admin" ? "관리자" : "직원"}</div>
+                  <div className="text-xs text-[var(--text-dim)]">{inv.email} · 멤버</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => resend(inv)} disabled={resending === inv.invite_token} className="text-xs text-[var(--primary)] hover:underline disabled:opacity-50">
