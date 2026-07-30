@@ -3317,7 +3317,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           </div>
         )}
 
-        {visibleBalances.length === 0 ? (
+        {visibleBalances.length === 0 && (isEmployee || employeesWithoutBalance.length === 0) ? (
           <div className="glass-card p-8 text-center text-sm text-[var(--text-muted)]">
             연차 데이터가 없습니다. 위 &quot;입사일 기준 자동 부여&quot; 를 눌러주세요.
           </div>
@@ -3400,6 +3400,64 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                     >
                       ↻ 입사일 기준 재계산 (권장 {calc.totalDays}일)
                     </button>
+                  )}
+                </div>
+              );
+            })}
+            {/* 연차 미설정 직원도 같은 그리드에 카드로 (2026-07-30 사장님 — 신규 입사자가 안 보인다는 제보 2차):
+                작은 안내줄만으로는 눈에 안 띄어, 미설정 직원을 점선 카드로 직접 노출 */}
+            {!isEmployee && employeesWithoutBalance.map((e: any) => {
+              const calc = e.hire_date ? calculateAnnualLeave(e.hire_date, `${currentYear}-12-31`) : null;
+              const editKey = `nb-${e.id}`;
+              const isEditingNew = editingBalanceId === editKey;
+              return (
+                <div key={editKey} className="glass-card p-4 border border-dashed border-[var(--warning)]/50">
+                  <div className="text-sm font-medium mb-1">{e.name}</div>
+                  <div className="text-xs text-[var(--text-dim)] mb-2 flex items-center gap-1">
+                    {e.department || "미배정"}
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--warning)]/10 text-[var(--warning)]">연차 미설정</span>
+                  </div>
+                  {isEditingNew ? (
+                    <span className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editingBalanceVal}
+                        autoFocus
+                        onChange={(ev) => setEditingBalanceVal(ev.target.value.replace(/[^0-9.]/g, ""))}
+                        onKeyDown={(ev) => {
+                          if (ev.key === "Enter") {
+                            const v = Number(editingBalanceVal);
+                            if (v >= 0) initBalance.mutate({ employeeId: e.id, totalDays: v });
+                            setEditingBalanceId(null);
+                          } else if (ev.key === "Escape") setEditingBalanceId(null);
+                        }}
+                        className="w-14 px-1 py-0.5 text-xs text-center bg-[var(--bg)] border border-[var(--primary)]/50 rounded"
+                      />
+                      <span className="text-xs text-[var(--text-dim)]">일</span>
+                      <button
+                        onClick={() => {
+                          const v = Number(editingBalanceVal);
+                          if (v >= 0) initBalance.mutate({ employeeId: e.id, totalDays: v });
+                          setEditingBalanceId(null);
+                        }}
+                        className="text-[10px] text-[var(--primary)] font-semibold"
+                      >저장</button>
+                    </span>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => { setEditingBalanceId(editKey); setEditingBalanceVal(String(calc?.totalDays ?? 15)); }}
+                        className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-[var(--primary)]/50 transition font-semibold"
+                      >일수 입력</button>
+                      {e.hire_date && calc && (
+                        <button
+                          onClick={() => autoInitMut.mutate({ employeeId: e.id, hireDate: e.hire_date })}
+                          className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-[var(--warning)]/50 transition"
+                          title={calc.formula}
+                        >자동 {calc.totalDays}일 부여</button>
+                      )}
+                    </div>
                   )}
                 </div>
               );
