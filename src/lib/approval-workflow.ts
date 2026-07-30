@@ -976,8 +976,16 @@ export async function getReferencedRequests(
     .contains('cc_user_ids', [userId])
     .order('created_at', { ascending: false })
     .limit(50);
+  // 신청자 이름 — 직원 계정은 employees RLS 로 타인 행이 null 이라 "구성원/알 수 없음"으로
+  //   깨져 보였다(2026-07-30 정다정 계정 실사례) → 안전 필드만 반환하는 디렉토리 RPC 로 보강.
+  let dirNameById: Record<string, string> = {};
+  if ((leaveCc || []).length > 0) {
+    const { data: dir } = await db.rpc('get_company_directory');
+    (dir || []).forEach((d: any) => { if (d?.id && d?.name) dirNameById[d.id] = d.name; });
+  }
   const LEAVE_KO: Record<string, string> = { annual: '연차', half_day: '반차', sick: '병가', family_event: '경조사' };
   const mappedLeaves = (leaveCc || []).map((r: any) => {
+    const empName = r.employees?.name || dirNameById[r.employee_id] || '';
     const label = LEAVE_KO[r.leave_type] || '휴가';
     const period = r.end_date && r.end_date !== r.start_date ? `${r.start_date} ~ ${r.end_date}` : r.start_date;
     return {
@@ -985,7 +993,7 @@ export async function getReferencedRequests(
       company_id: companyId,
       requester_id: null,
       request_type: 'leave',
-      title: `${r.employees?.name || '구성원'} ${label} 신청 (${period}, ${Number(r.days)}일)`,
+      title: `${empName || '구성원'} ${label} 신청 (${period}, ${Number(r.days)}일)`,
       status: r.status,
       amount: 0,
       current_stage: 1,
@@ -998,7 +1006,7 @@ export async function getReferencedRequests(
       attachments: [],
       reference_user_ids: r.cc_user_ids || [],
       created_at: r.created_at,
-      users: { name: r.employees?.name || null, email: null },
+      users: { name: empName || null, email: null },
       is_native_leave: true,
     };
   });
