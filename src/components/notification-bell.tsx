@@ -37,6 +37,25 @@ export function NotificationBell() {
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
+  // 백그라운드 푸시 자동 구독 (2026-07-30 사장님 — "권한 승인했으면 모든 알림이 백그라운드로"):
+  //   푸시 구독은 브라우저별인데 설정>알림 토글을 누른 브라우저에만 생겨, 같은 사람이
+  //   엣지에선 받고 크롬에선 못 받는 편차가 났다. 알림 권한이 이미 허용된 브라우저면
+  //   접속 시 조용히 구독(멱등·프롬프트 없음)하고, 만료로 끊긴 구독도 재생성한다.
+  //   설정에서 푸시를 명시적으로 끈 사용자(prefs.push.enabled=false)는 건드리지 않는다.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const { webPushSupported, subscribeWebPush } = await import("@/lib/web-push");
+        if (!webPushSupported() || Notification.permission !== "granted") return;
+        const { data: prefRow } = await supabase
+          .from("notification_prefs").select("prefs").eq("user_id", user.id).maybeSingle();
+        if ((prefRow?.prefs as any)?.push?.enabled === false) return;
+        await subscribeWebPush(user.company_id ?? null);
+      } catch { /* 비차단 — 구독 실패해도 인앱 알림은 정상 */ }
+    })();
+  }, [user]);
+
   // 안읽음 배지 — 기존 app-shell 로직 이관 (60초 폴링 + sidebar-refresh-badges 이벤트)
   useEffect(() => {
     let alive = true;

@@ -35,6 +35,10 @@ Deno.serve(async (req) => {
   //   미매핑 타입(signature_request 등)은 마스터 토글만 따름.
   const TYPE_TO_EVENT: Record<string, string> = {
     approval: "approval_pending",
+    // 결재 계열 타입 누락 보완 (2026-07-30) — 설정>알림의 '결재' 토글이 실제 결재 알림에 적용되게
+    approval_request: "approval_pending",
+    approval_approved: "approval_pending",
+    approval_rejected: "approval_pending",
     overtime_request: "approval_pending",
     overtime_approved: "approval_pending",
     overtime_rejected: "approval_pending",
