@@ -18,7 +18,7 @@ const FLEX = {
   violetDim: "var(--primary-light)", greenDim: "var(--success-dim)", amberDim: "var(--warning-dim)", redDim: "var(--danger-dim)",
 };
 
-type Emp = { id: string; name: string; department?: string | null; position?: string | null; status?: string | null; user_id?: string | null };
+type Emp = { id: string; name: string; department?: string | null; position?: string | null; status?: string | null; user_id?: string | null; hire_date?: string | null };
 type Att = {
   employee_id: string; date: string; check_in: string | null; check_out: string | null;
   regular_minutes: number | null; overtime_minutes: number | null; night_minutes: number | null;
@@ -248,7 +248,17 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
                       );
                     }
                     if (!a || (!a.check_in && !minutesOf(a))) {
-                      return <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}><span className="text-[var(--text-dim)]">—</span></td>;
+                      // 결근 표시 — 지난 평일인데 기록·휴가가 없으면 공백 대신 "결근"
+                      //   (2026-07-30 사장님). 오늘/미래·주말·입사 전 날짜는 제외.
+                      const dstr = ymd(d);
+                      const absent = !weekend && dstr < todayStr && (!emp.hire_date || dstr >= emp.hire_date);
+                      return (
+                        <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
+                          {absent
+                            ? <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold bg-[var(--danger-dim)] text-[var(--danger)]">결근</span>
+                            : <span className="text-[var(--text-dim)]">—</span>}
+                        </td>
+                      );
                     }
                     const pos = barPos(a);
                     const ci = timeOf(a.check_in), co = timeOf(a.check_out);
@@ -284,7 +294,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
           </table>
         </div>
         <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
-          타임라인 = 출근~퇴근 (07~22시 스케일) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가 · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
+          타임라인 = 출근~퇴근 (07~22시 스케일) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가 <span className="text-[var(--danger)]">■</span> 결근(지난 평일 무기록) · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
         </div>
       </div>
     </div>

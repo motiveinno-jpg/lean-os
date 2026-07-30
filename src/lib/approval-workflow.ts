@@ -483,8 +483,26 @@ async function applyLeaveDeduction(request: any): Promise<void> {
         .update({ used_days: Number(balance.used_days) + days })
         .eq('id', balance.id);
     }
+
+    // 승인 확정된 휴가를 leave_requests 에도 기록 — 근태 워크보드·휴가 현황이
+    //   이 테이블(status=approved)만 읽어서, 결재허브 경로 휴가가 화면에 안 보였다
+    //   (2026-07-30 사장님: "결재허브에서 휴가 써도 워크보드에 휴가라고 나와야").
+    const startDate = (leave?.start_date || rawStart).replace(/\./g, '-');
+    const endDate = (leave?.end_date || startDate).replace(/\./g, '-');
+    await db.from('leave_requests').insert({
+      company_id: request.company_id,
+      employee_id: employeeId,
+      leave_type: leave?.leave_type || 'annual',
+      leave_unit: leave?.leave_unit || 'full_day',
+      start_date: startDate,
+      end_date: endDate,
+      days,
+      reason: request.title || '전자결재 휴가',
+      status: 'approved',
+      approved_at: new Date().toISOString(),
+    });
   } catch {
-    // 연차 차감 실패는 승인 자체를 막지 않는다(비차단).
+    // 연차 차감·기록 실패는 승인 자체를 막지 않는다(비차단).
   }
 }
 
