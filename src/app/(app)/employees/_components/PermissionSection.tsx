@@ -27,6 +27,55 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
   });
   useEffect(() => { if (saved && !dirty) setChecked(new Set(saved)); }, [saved, dirty]);
 
+  // 권한 템플릿 (2026-07-30 사장님) — 팀별 세트 저장·즉시 적용
+  const [templateNameInput, setTemplateNameInput] = useState("");
+  const [showTemplateSave, setShowTemplateSave] = useState(false);
+  const { data: templates = [] } = useQuery({
+    queryKey: ["permission-templates"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("permission_templates").select("id, name, perm_keys").order("name");
+      return data || [];
+    },
+  });
+  const saveTemplateMut = useMutation({
+    mutationFn: async (name: string) => {
+      const { data: me } = await (supabase as any).auth.getUser();
+      const { error } = await (supabase as any).from("permission_templates")
+        .upsert({
+          company_id: (await (supabase as any).rpc("get_my_company_id")).data,
+          name,
+          perm_keys: Array.from(checked),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "company_id,name" });
+      if (error) throw error;
+      void me;
+    },
+    onSuccess: (_d, name) => {
+      toast(`템플릿 "${name}" 저장됨 — 다른 구성원에게 바로 적용할 수 있습니다`, "success");
+      setShowTemplateSave(false); setTemplateNameInput("");
+      qc.invalidateQueries({ queryKey: ["permission-templates"] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "템플릿 저장 실패"), "error"),
+  });
+  const applyTemplate = async (tpl: { name: string; perm_keys: string[] }) => {
+    // 체크 상태 교체 + 즉시 저장(서버 RPC — 위임 권한 보호 규칙 동일 적용)
+    setChecked(new Set(tpl.perm_keys || []));
+    setDirty(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("set_member_permissions", {
+        p_user_id: targetUserId, p_perm_keys: tpl.perm_keys || [],
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "적용 실패");
+      setDirty(false);
+      toast(`"${tpl.name}" 템플릿이 ${empName}님에게 적용되었습니다`, "success");
+      qc.invalidateQueries({ queryKey: ["member-permissions", targetUserId] });
+    } catch (e: any) {
+      toast(friendlyError(e, "템플릿 적용 실패"), "error");
+    }
+  };
+
   const { data: targetIsMaster = false } = useQuery({
     queryKey: ["target-is-master", targetUserId],
     queryFn: async () => {
@@ -86,7 +135,21 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
           <div className="text-sm font-bold text-[var(--text)]">메뉴·기능 권한</div>
           <div className="text-[11px] text-[var(--text-muted)] mt-0.5">체크된 메뉴와 세부 기능만 {empName}님에게 표시·허용됩니다. (마이페이지·알림·게시판 등 개인 영역은 기본 제공)</div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
+          {templates.length > 0 && (
+            <select
+              className="h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+              value=""
+              onChange={(e) => {
+                const tpl = (templates as any[]).find((t) => t.id === e.target.value);
+                if (tpl) applyTemplate(tpl);
+              }}
+            >
+              <option value="">템플릿 적용...</option>
+              {(templates as any[]).map((t) => <option key={t.id} value={t.id}>{t.name} ({(t.perm_keys || []).length})</option>)}
+            </select>
+          )}
+          <button onClick={() => setShowTemplateSave((v) => !v)} className="btn-secondary btn-sm">템플릿 만들기</button>
           <button onClick={() => toggle(allKeys, true)} className="btn-secondary btn-sm">전체 선택</button>
           <button onClick={() => toggle(allKeys, false)} className="btn-secondary btn-sm">전체 해제</button>
           <button onClick={() => saveMut.mutate()} disabled={!dirty || saveMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
@@ -94,6 +157,23 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
           </button>
         </div>
       </div>
+      {showTemplateSave && (
+        <div className="flex items-center gap-2 mb-3 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+          <span className="text-xs text-[var(--text-muted)] shrink-0">현재 체크된 권한 {checked.size}개를 템플릿으로 저장:</span>
+          <input
+            value={templateNameInput}
+            onChange={(e) => setTemplateNameInput(e.target.value)}
+            placeholder="예: 마케팅팀, 회계팀"
+            className="flex-1 h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+            onKeyDown={(e) => { if (e.key === "Enter" && templateNameInput.trim()) saveTemplateMut.mutate(templateNameInput.trim()); }}
+          />
+          <button onClick={() => templateNameInput.trim() && saveTemplateMut.mutate(templateNameInput.trim())}
+            disabled={!templateNameInput.trim() || saveTemplateMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
+            {saveTemplateMut.isPending ? "저장 중..." : "저장"}
+          </button>
+          <span className="text-[10px] text-[var(--text-dim)]">같은 이름이면 덮어씁니다</span>
+        </div>
+      )}
 
       <div className="member-permission-groups">
         {PERMISSION_CATALOG.map((g) => {

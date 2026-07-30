@@ -1,0 +1,3 @@
+-- 권한 템플릿 (2026-07-30) — prod 적용 완료본 보관 (전문: Supabase 히스토리 permission_templates)
+-- permission_templates(company_id, name 유니크, perm_keys[]) + RLS(읽기=회사, 쓰기=마스터/위임자)
+-- 시드: 모티브 '일반 직원 기본' = 정다정 부여 세트(결재 전체·거래처·프로젝트·전자계약)
