@@ -1,0 +1,10 @@
+-- AI 참모 스냅샷 데이터 소스 교정 (2026-07-30, 이미 MCP 로 prod 적용 — 기록용)
+--   사장님: "AI 참모가 쌩뚱맞은/틀린 답변" — 원인은 모델이 아니라 스냅샷 숫자 5곳.
+--   모티브 실데이터 대조 결과:
+--   1) 이번 달 손익: transactions(수기 장부, 7월 0건) 집계 → "매출 0" 헛답변.
+--      → bank_transactions(통장 실데이터: 7월 816건, 입금 6.75억/출금 6.96억) 기준으로 교체
+--   2) 이번 달 매출 세금계산서: nts_issued_at(대부분 null) 기준 4건 → issue_date 기준 118건·1.9억
+--   3) 미수금: 부분정산 미반영 → total_amount - settled_amount (18.72억 → 19.65억)
+--   4) 결재 대기: doc_approvals(폐기 경로, 0건) → approval_requests(실사용, 2건)
+--   5) 서명 대기: 전체 누적 214건(옛 발송 잔해 → "서명 병목" 허위 리스크) → 최근 30일 17건
+--   전체 정의는 MCP 마이그레이션 copilot_snapshot_fix_sources 와 동일 (create or replace).
