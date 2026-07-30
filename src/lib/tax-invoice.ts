@@ -534,6 +534,14 @@ export async function syncHomeTaxInvoices(params: {
   errors: Array<{ code: string; message: string; hint: string; organization: string; accountNo: string }>;
   notes: Array<{ code: string; message: string; hint: string; organization: string; accountNo: string }>;
 }> {
+  // 홈택스 연동 일시정지 중이면 중단 (2026-07-30 — 통장 정지와 동일 UX)
+  const { getHometaxPausedUntil } = await import('./data-sync');
+  const hometaxPaused = await getHometaxPausedUntil(params.companyId);
+  if (hometaxPaused) {
+    const t = new Date(hometaxPaused).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    const msg = `홈택스 연동 일시정지 중 (${t}까지) — 정지 해제 후 다시 시도하세요.`;
+    return { success: false, status: 'error', synced: 0, responseCount: 0, errors: [{ code: 'PAUSED', message: msg, hint: '동기화 바의 정지 해제 버튼을 누른 뒤 다시 시도하세요.', organization: '0004', accountNo: '' }], notes: [] };
+  }
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('로그인이 필요합니다');
 

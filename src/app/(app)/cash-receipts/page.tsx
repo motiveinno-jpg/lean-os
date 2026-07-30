@@ -407,6 +407,14 @@ export default function CashReceiptsPage() {
       toast("시작일이 종료일보다 이전이어야 합니다", "error");
       return;
     }
+    // 홈택스 연동 일시정지 중이면 시작하지 않음 (2026-07-30 — 세금계산서 탭 정지 버튼과 연동)
+    const { getHometaxPausedUntil } = await import("@/lib/data-sync");
+    const hometaxPaused = await getHometaxPausedUntil(companyId);
+    if (hometaxPaused) {
+      const t = new Date(hometaxPaused).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+      toast(`홈택스 연동 일시정지 중 (${t}까지) — 세금계산서 화면의 정지 해제 후 다시 시도하세요.`, "info");
+      return;
+    }
     setSyncStarting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();

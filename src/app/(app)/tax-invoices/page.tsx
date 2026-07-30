@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { getHometaxPausedUntil, setHometaxPause, clearHometaxPause } from "@/lib/data-sync";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
@@ -264,6 +265,25 @@ export default function TaxInvoicesPage() {
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const hometaxCd = useSyncCooldown(companyId, "hometax");
+  // 홈택스 연동 일시정지 — 통장 정지 버튼과 동일 UX (2026-07-30 사장님)
+  const { data: hometaxPausedUntil } = useQuery({
+    queryKey: ["hometax-sync-paused", companyId],
+    queryFn: () => getHometaxPausedUntil(companyId!),
+    enabled: !!companyId,
+    refetchInterval: 30000,
+  });
+  const isHometaxPaused = !!hometaxPausedUntil;
+  const hometaxPauseMut = useMutation({
+    mutationFn: async () => {
+      if (isHometaxPaused) { await clearHometaxPause(companyId!); return false; }
+      await setHometaxPause(companyId!, 30); return true;
+    },
+    onSuccess: (paused) => {
+      queryClient.invalidateQueries({ queryKey: ["hometax-sync-paused", companyId] });
+      toast(paused ? "홈택스 연동을 30분간 정지했습니다 — 홈택스에 직접 로그인해도 동기화가 겹치지 않습니다" : "홈택스 연동 정지를 해제했습니다", "success");
+    },
+    onError: (e: any) => toast(friendlyError(e, "정지 처리 실패"), "error"),
+  });
   // 2026-05-21 사장님 요청: "matching" 탭 통째 제거. ?tab=matching 딥링크는 분석 허브로 리다이렉트(별건 — 우선 sales 폴백).
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<"sales" | "purchase" | "vat" | "summary" | "queue" | "sync">(() => {
@@ -1303,6 +1323,21 @@ export default function TaxInvoicesPage() {
             <input type="checkbox" checked={backgroundMode} onChange={(e) => setBackgroundMode(e.target.checked)} disabled={syncing || !!activeJobId} />
             백그라운드
           </label>
+          <button
+            type="button"
+            onClick={() => hometaxPauseMut.mutate()}
+            disabled={hometaxPauseMut.isPending}
+            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition ${
+              isHometaxPaused
+                ? "bg-amber-500/15 border-amber-500/40 text-amber-600 hover:bg-amber-500/25"
+                : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+            }`}
+            title="홈택스 연동 잠시 멈추기 (30분) — 홈택스 사이트에 직접 로그인할 때 우리 앱의 동기화 로그인이 겹치는 것을 막습니다"
+          >
+            {isHometaxPaused
+              ? <>▶ 정지 해제 ({new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)</>
+              : <>⏸ 연동 정지</>}
+          </button>
           <span
             className={`px-2 py-1 text-[11px] rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] ${incrementalMode ? "opacity-50" : ""}`}
             title="동기화 기간은 상단 '조회기간'과 동일합니다 — 기간을 바꾸려면 위의 조회기간을 수정하세요.">

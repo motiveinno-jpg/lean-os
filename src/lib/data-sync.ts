@@ -833,6 +833,41 @@ export async function clearSyncPause(companyId: string): Promise<void> {
   await db.from('company_settings').update({ settings }).eq('company_id', companyId);
 }
 
+// ── 홈택스 연동 일시정지 (2026-07-30 사장님 — 통장 정지 버튼과 동일 UX) ──
+//   사용자가 홈택스에 직접 로그인하는 동안 우리 앱의 홈택스 스크래핑 로그인이 겹치지
+//   않게 막는다. company_settings.settings.hometax_sync_paused_until (ISO).
+
+export async function getHometaxPausedUntil(companyId: string): Promise<string | null> {
+  try {
+    const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
+    const until = (data?.settings as any)?.hometax_sync_paused_until as string | undefined;
+    if (!until) return null;
+    return new Date(until).getTime() > Date.now() ? until : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setHometaxPause(companyId: string, minutes = 30): Promise<string> {
+  const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+  const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
+  const settings = { ...((data?.settings as any) || {}), hometax_sync_paused_until: until };
+  if (data) {
+    await db.from('company_settings').update({ settings }).eq('company_id', companyId);
+  } else {
+    await db.from('company_settings').insert({ company_id: companyId, settings });
+  }
+  return until;
+}
+
+export async function clearHometaxPause(companyId: string): Promise<void> {
+  const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
+  if (!data) return;
+  const settings = { ...((data.settings as any) || {}) };
+  delete settings.hometax_sync_paused_until;
+  await db.from('company_settings').update({ settings }).eq('company_id', companyId);
+}
+
 // ── CODEF API Sync ──
 
 export type CodefSyncError = {
@@ -864,12 +899,19 @@ export async function syncCodefData(
     const msg = "개발 환경에서는 외부 연동(CODEF)이 비활성화돼 있습니다.";
     return { success: false, status: "error", error: msg, message: msg, errors: [], notes: [], bankSynced: 0, cardSynced: 0 };
   }
-  // 연동 일시정지(중복 로그인 방지) 중이면 은행/카드 sync skip — 홈택스는 무관.
+  // 연동 일시정지(중복 로그인 방지) — 은행/카드는 sync_paused_until, 홈택스는 전용 키.
   if (syncType !== 'hometax') {
     const pausedUntil = await getSyncPausedUntil(companyId);
     if (pausedUntil) {
       const t = new Date(pausedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
       const msg = `연동 일시정지 중 (${t}까지) — 은행 중복 로그인 방지. 정지 해제 후 다시 시도하세요.`;
+      return { success: false, status: "error", error: msg, message: msg, errors: [], notes: [], bankSynced: 0, cardSynced: 0 };
+    }
+  } else {
+    const pausedUntil = await getHometaxPausedUntil(companyId);
+    if (pausedUntil) {
+      const t = new Date(pausedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      const msg = `홈택스 연동 일시정지 중 (${t}까지) — 정지 해제 후 다시 시도하세요.`;
       return { success: false, status: "error", error: msg, message: msg, errors: [], notes: [], bankSynced: 0, cardSynced: 0 };
     }
   }
