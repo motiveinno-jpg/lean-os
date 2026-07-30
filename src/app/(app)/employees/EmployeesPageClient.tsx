@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr, kstDateTimeLocal, kstLocalToIso } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
@@ -65,7 +66,7 @@ type Tab = "employees" | "salary" | "payroll" | "expenses" | "leave" | "certific
 
 // Employee 역할은 자기 관련 탭만 접근 가능
 // 근태 관리는 /attendance 별도 페이지로 분리됨. employees 페이지엔 휴가/경비/증명서만.
-const EMPLOYEE_ROLE_TABS: Tab[] = ["certificates"];
+// (P3) EMPLOYEE_ROLE_TABS 삭제 — 권한 기반 탭 게이트로 대체.
 
 export default function EmployeesPage() {
   const { toast } = useToast();
@@ -91,15 +92,7 @@ export default function EmployeesPage() {
     setTab(normalizeTab(urlTab));
   }, [urlTab]);
 
-  // S-1(보안): 직원 비허용 탭 차단은 아래 effectiveTab 렌더 가드가 본 경계다.
-  //   이 useEffect 단독(사후 setTab)이면 한 프레임 SalaryTab/PayrollPreviewTab
-  //   가 마운트돼 회사 전체 급여 쿼리가 발사될 수 있어, 상태/하이라이트 동기화
-  //   보조용으로만 둔다(/employees 는 직원 딥링크 fallback 허용 라우트).
-  useEffect(() => {
-    if (isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab)) {
-      setTab("certificates");
-    }
-  }, [isEmployee, tab]);
+  // (P3) 구 직원 탭 리셋 effect 제거 — 권한 기반 effectiveTab 렌더 경계가 대체.
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -150,20 +143,21 @@ export default function EmployeesPage() {
   const totalRetirement = employees.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
   const activeCount = employees.filter((e: any) => ["active", "joined"].includes(e.status)).length;
 
-  // P1-3: salary/payroll 두 키 → '급여' 단일. 명세는 탭 내부 서브뷰.
-  // 휴가 탭 복원(2026-07-30 사장님): 화면 분리 리팩터 때 LeaveTab 이 고아가 되며 잔여휴가
-  //   입력·승인 화면이 통째로 사라짐 → 관리자/대표에게만 노출.
-  const isManager = role === "owner" || role === "admin";
+  // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여받은 탭만.
+  //   카탈로그 키: /employees:employees|salary|leave|certificates. 구 role 분기 대체.
+  const { isMaster, hasPerm } = useMyPermissions();
+  const tabAllowed = (k: Tab) => isMaster || hasPerm(`/employees:${k === "payroll" ? "salary" : k}`);
+  const isManager = isMaster || hasPerm("/employees:employees");
   const allTabs: { key: Tab; label: string; count?: number }[] = [
     { key: "employees", label: "인력관리", count: activeCount },
     { key: "salary", label: "급여" },
-    ...(isManager ? [{ key: "leave" as Tab, label: "휴가" }] : []),
+    { key: "leave", label: "휴가" },
     { key: "certificates", label: "증명서 발급" },
   ];
-  const tabs = isEmployee ? allTabs.filter(t => EMPLOYEE_ROLE_TABS.includes(t.key)) : allTabs;
-  // S-1: 렌더 경계 — 직원 비허용 탭은 어떤 경로(딥링크 초기 state 포함)로도
-  //   해당 Tab 컴포넌트를 마운트하지 않는다(useEffect 사후 리셋 이전 프레임 차단).
-  const effectiveTab: Tab = isEmployee && !EMPLOYEE_ROLE_TABS.includes(tab) ? "certificates" : tab;
+  const tabs = allTabs.filter((t) => tabAllowed(t.key));
+  // S-1: 렌더 경계 — 미허용 탭은 어떤 경로(딥링크 초기 state 포함)로도 해당 Tab 컴포넌트를
+  //   마운트하지 않는다. 허용 탭이 하나도 없으면 certificates 자리(빈 안내)로.
+  const effectiveTab: Tab = tabAllowed(tab === "payroll" ? "salary" : tab) ? tab : (tabs[0]?.key ?? "certificates");
 
   if (userLoading || mainLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">회사 정보를 불러올 수 없습니다. 새로고침 해주세요.</div>;
@@ -277,7 +271,7 @@ export default function EmployeesPage() {
       {/* 계약서 탭은 구성원에서 제거(2026-07-15) — 개별 발송은 인력관리 > 디렉토리에서 직원 선택 후 계약서 탭으로,
           서식 관리/회사 문서/발송 현황(일괄발송)은 인사관리 > 양식 관리(/hr-templates)로 이관됨. */}
       {/* 휴가 탭 복원(2026-07-30) — 관리자/대표 전용. 직원 딥링크는 S-1 렌더 경계(effectiveTab)가 차단. */}
-      {effectiveTab === "leave" && isManager && (
+      {effectiveTab === "leave" && (
         <LeaveTab
           employees={employees}
           directory={leaveDirectory}

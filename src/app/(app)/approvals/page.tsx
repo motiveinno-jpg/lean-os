@@ -4,6 +4,7 @@ import { kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 import { appConfirm } from "@/components/global-confirm";
+import { useMyPermissions } from "@/lib/permissions";
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
@@ -499,22 +500,28 @@ export default function ApprovalsPage() {
     enabled: !!userId && !!companyId,
   });
 
-  const isAdmin = userRole === "admin" || userRole === "owner";
-
-  // 연장근무 결재는 근태관리로 이관 — approvals 에서 제거(2026-07-01)
+  // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여받은 탭만.
+  //   perm key 는 카탈로그(/approvals:내부탭키)와 1:1. 구 isAdmin 분기 대체.
+  const { isMaster, hasPerm } = useMyPermissions();
+  const tabAllowed = (k: Tab) => isMaster || hasPerm(`/approvals:${k}`);
+  const isAdmin = isMaster || hasPerm("/approvals:all"); // 전체 현황 권한 = 관리 조회 성격 분기 유지용
 
   // 탭 순서(2026-07-23 재편) — 개인 업무 3종(받고·보내고·올리고) → 회사 전체 → 설정.
-  //   개인(내 결재함·내 요청·새 요청)을 왼쪽에 연속 배치, 관리자 조회(전체 현황) 뒤, 설정(양식·정책) 맨 끝.
-  const TABS: { key: Tab; label: string; icon: string; count?: number }[] = [
+  const TABS: { key: Tab; label: string; icon: string; count?: number }[] = ([
     { key: "my-approvals", label: "내 결재함", icon: "inbox", count: myPendingCount },
     { key: "my-requests", label: "내 요청", icon: "send" },
     // 참조로 걸린 문서 열람 — 결재선에 없는 참조자는 여기서만 내용을 볼 수 있다(2026-07-27)
     { key: "references", label: "참조", icon: "eye" },
     { key: "new-request", label: "새 요청", icon: "plus" },
-    ...(isAdmin ? [{ key: "all" as Tab, label: "전체 현황", icon: "chart" }] : []),
-    ...(isAdmin ? [{ key: "forms" as Tab, label: "양식 관리", icon: "layout" }] : []),
-    ...(isAdmin ? [{ key: "policies" as Tab, label: "정책 관리", icon: "route" }] : []),
-  ];
+    { key: "all", label: "전체 현황", icon: "chart" },
+    { key: "forms", label: "양식 관리", icon: "layout" },
+    { key: "policies", label: "정책 관리", icon: "route" },
+  ] as { key: Tab; label: string; icon: string; count?: number }[]).filter((t) => tabAllowed(t.key));
+  // 현재 탭이 미허용(권한 없음)이면 첫 허용 탭으로 — 딥링크/기본값 가드
+  useEffect(() => {
+    if (TABS.length > 0 && !TABS.some((t) => t.key === tab)) setTab(TABS[0].key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [TABS.map((t) => t.key).join(","), tab]);
   const tabIcon = (name: string) => {
     const p = { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
     switch (name) {
@@ -1801,7 +1808,9 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
 
 function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { companyId: string; initialStatusFilter?: string; userId?: string | null; userRole?: string | null }) {
   // 직원 계정은 회사 전체가 아니라 본인이 신청한 요청만 조회 (관리자/대표는 전체)
-  const restrictToOwn = userRole === "employee";
+  // (P3) 전체 현황 권한(:all)이 없으면 본인 신청분만 — 구 employee 분기 대체
+  const { isMaster: rMaster, hasPerm: rHasPerm } = useMyPermissions();
+  const restrictToOwn = !(rMaster || rHasPerm("/approvals:all"));
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const queryClient = useQueryClient();
