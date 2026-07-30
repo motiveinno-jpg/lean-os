@@ -571,7 +571,7 @@ export default function BillingPage() {
               <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">내 쿠폰</div>
               <div className="billing-coupon-list">
                 {(seatCoupons as any[]).map((c: any) => (
-                  <div key={c.id} className={`billing-coupon-card ${c.status === "redeemed" ? "billing-coupon-card-used" : ""}`}>
+                  <div key={c.id} className={`billing-coupon-card glass-card ${c.status === "redeemed" ? "billing-coupon-card-used" : ""}`}>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold text-[var(--text)]">추가인원 {c.free_seats}명 무료 등록 쿠폰</div>
                       <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
