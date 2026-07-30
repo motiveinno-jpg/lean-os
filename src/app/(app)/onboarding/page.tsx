@@ -230,7 +230,7 @@ export default function OnboardingPage() {
     if (userLoading || !companyId) return;
 
     // 직원/파트너 역할은 온보딩 불필요 → 대시보드로
-    if (user?.role === "employee" || user?.role === "partner") {
+    if (user && !(user as any).is_master) { // (P3) 회사 온보딩은 마스터만 — 멤버·파트너는 스킵
       router.replace("/dashboard");
       return;
     }

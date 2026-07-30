@@ -351,7 +351,7 @@ export function Sidebar() {
           .eq("approver_id", u.id).eq("status", "pending");
         // 지급 대기(payment_queue)는 회사 전체 건이라 본인 필터가 없음 — 승인 권한 있는
         // 대표/관리자만 카운트. 직원은 결재자도 참조자도 아닌 건이 배지에 잡히던 버그(2026-07-29).
-        const canApprovePayments = u.role === "owner" || u.role === "admin";
+        const canApprovePayments = !!(u as any).is_master; // (P3) 결제 승인 배지 — 마스터 기준(멤버 perm 연동은 P4)
         let payQ = db.from("payment_queue").select("id", { count: "exact", head: true })
           .eq("company_id", u.company_id).eq("status", "pending");
         let stepQ = db.from("approval_steps")

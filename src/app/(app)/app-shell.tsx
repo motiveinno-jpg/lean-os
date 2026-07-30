@@ -162,7 +162,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const { open: guideOpen } = useGuide();
   const { role, user } = useUser();
   const pathname = usePathname();
-  const isLimitedRole = role === "partner" || role === "employee";
+  const isLimitedRole = role === "partner"; // (P3) 멤버는 전원 동일 레이아웃
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   // 팝업 임베드 모드 — 메뉴 팝업 iframe(`?embed=1`)로 열렸을 땐 셸 크롬(사이드바/헤더/네비/플로팅) 숨기고
@@ -361,7 +361,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <main
         className={`flex-1 min-w-0 transition-[margin] duration-200 pt-[80px] md:pt-[88px] ${
           collapsed ? "md:ml-[92px]" : "md:ml-[264px]"
-        } ml-0 ${guideOpen ? "md:mr-[412px]" : ""} ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pl-8 md:pr-3 md:pb-3" : role === "owner" ? "p-6 pb-20 md:pb-3 md:pr-3 md:pl-8" : "p-6 md:pr-3 md:pb-3 md:pl-8"}`}
+        } ml-0 ${guideOpen ? "md:mr-[412px]" : ""} ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pl-8 md:pr-3 md:pb-3" : "p-6 pb-20 md:pb-3 md:pr-3 md:pl-8"}`}
       >
         {/* 2026-07-14 콘텐츠 좌측 정렬 + 우측 여백 + 전체 축소(사장님 요청, 오너뷰사이즈.PNG).
             max-width 로 좌측 정렬(오른쪽 여백) + zoom 으로 스퀘어·글씨를 전체적으로 살짝 작게.

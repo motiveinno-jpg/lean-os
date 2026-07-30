@@ -459,7 +459,7 @@ export default function ApprovalsPage() {
         setUserRole(u.role);
         // 직원 계정은 결재 권한이 거의 없어 '내 결재함'이 비어있음 → 기본 탭을 '새 요청'으로.
         //   단, 알림에서 ?tab=... 로 명시 진입한 경우는 그 탭을 유지.
-        if (!newType && !tabParam && u.role === "employee") setTab("new-request");
+        // (P3) 구 직원 기본탭 분기 제거 — 미허용 탭 자동 이동 effect 가 첫 허용 탭으로 보정
       }
     });
   }, []);
