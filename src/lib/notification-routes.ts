@@ -69,6 +69,11 @@ export function resolveNotificationHref(
     const { deal_id, stage } = quoteMap[n.entity_id];
     return `/projects/${encodeURIComponent(deal_id)}?action=${stageToAction(stage)}`;
   }
+  // 네이티브 휴가 참조 통보([참조] 접두) — 직원 계정이 /approvals 로만 가면 기본 탭(새 요청)에
+  //   떨어져 내용을 못 본다(2026-07-30 사장님 제보: 연준호 건). 참조함으로 직행.
+  if (n.entity_type === "leave_request" && (n.title || "").startsWith("[참조]")) {
+    return "/approvals?tab=references";
+  }
   if (n.entity_type && n.entity_id && ENTITY_HREF[n.entity_type]) {
     return ENTITY_HREF[n.entity_type](n.entity_id);
   }

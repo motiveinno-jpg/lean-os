@@ -1723,7 +1723,9 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
       {requests.map((req: any) => {
         const m = typeMeta(req.request_type);
         const open = expandedId === req.id;
-        const formFields = resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
+        // 네이티브 휴가 건은 양식 필드·결재 타임라인이 없음(내용은 description 으로 전달)
+        const isNativeLeave = !!req.is_native_leave;
+        const formFields = isNativeLeave ? [] : resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
         const contentText = contentWithoutFieldLines(req.description || "", formFields);
         const requesterName = req.users?.name || req.users?.email || "알 수 없음";
         return (
@@ -1769,15 +1771,17 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
                   <DescriptionContent text={contentText} className="mb-3 text-sm text-[var(--text)] leading-8" />
                 )}
                 <AttachmentList attachments={req.attachments} />
-                <div className="mt-5 pt-4 border-t border-[var(--border)]">
-                  <ApprovalTimelineView
-                    requestId={req.id}
-                    currentStage={req.current_stage}
-                    totalStages={req.total_stages}
-                    requestStatus={req.status}
-                    currentUserId={userId}
-                  />
-                </div>
+                {!isNativeLeave && (
+                  <div className="mt-5 pt-4 border-t border-[var(--border)]">
+                    <ApprovalTimelineView
+                      requestId={req.id}
+                      currentStage={req.current_stage}
+                      totalStages={req.total_stages}
+                      requestStatus={req.status}
+                      currentUserId={userId}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

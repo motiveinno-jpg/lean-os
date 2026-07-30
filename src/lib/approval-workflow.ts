@@ -965,7 +965,46 @@ export async function getReferencedRequests(
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
-  return (data || []) as ApprovalRequest[];
+
+  // 네이티브 휴가(leave_requests)에 참조로 걸린 건도 병합 (2026-07-30 사장님):
+  //   휴가 탭(관리자 수동 등록·구버전 신청) 경로의 참조 통보를 눌렀을 때 전자결재 건처럼
+  //   참조함에서 내용이 보여야 한다. 직원은 휴가 관리 화면 접근이 없어 여기가 유일한 열람처.
+  const { data: leaveCc } = await db
+    .from('leave_requests')
+    .select('*, employees:employee_id(name)')
+    .eq('company_id', companyId)
+    .contains('cc_user_ids', [userId])
+    .order('created_at', { ascending: false })
+    .limit(50);
+  const LEAVE_KO: Record<string, string> = { annual: '연차', half_day: '반차', sick: '병가', family_event: '경조사' };
+  const mappedLeaves = (leaveCc || []).map((r: any) => {
+    const label = LEAVE_KO[r.leave_type] || '휴가';
+    const period = r.end_date && r.end_date !== r.start_date ? `${r.start_date} ~ ${r.end_date}` : r.start_date;
+    return {
+      id: `leave:${r.id}`,
+      company_id: companyId,
+      requester_id: null,
+      request_type: 'leave',
+      title: `${r.employees?.name || '구성원'} ${label} 신청 (${period}, ${Number(r.days)}일)`,
+      status: r.status,
+      amount: 0,
+      current_stage: 1,
+      total_stages: 1,
+      form_id: null,
+      custom_fields: {},
+      description: `기간: ${period}
+일수: ${Number(r.days)}일${r.reason ? `
+사유: ${r.reason}` : ''}`,
+      attachments: [],
+      reference_user_ids: r.cc_user_ids || [],
+      created_at: r.created_at,
+      users: { name: r.employees?.name || null, email: null },
+      is_native_leave: true,
+    };
+  });
+
+  return ([...(data || []), ...mappedLeaves] as any[])
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))) as ApprovalRequest[];
 }
 
 /**
