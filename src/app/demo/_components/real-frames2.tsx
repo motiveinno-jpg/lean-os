@@ -7,7 +7,7 @@ import { Ico } from "@/components/ui-icon";
 //   ⚠️ 실화면이 바뀌면 여기도 같이 고칠 것. 근거 라우트는 각 컴포넌트 주석 참고.
 //   ⚠️ before 프롭은 랜딩 "처리 전 → 처리 후" 크로스페이드용. 값이 없는 자리는 "—" 로 둔다.
 
-function Head({ crumb, title, sub, tabs }: { crumb: string; title: string; sub: string; tabs: string[] }) {
+function Head({ crumb, title, sub, tabs, active = 0 }: { crumb: string; title: string; sub: string; tabs: string[]; active?: number }) {
   return (
     <>
       <div className="pp-head">
@@ -19,7 +19,7 @@ function Head({ crumb, title, sub, tabs }: { crumb: string; title: string; sub: 
       {tabs.length > 0 && (
         <div className="pp-subtabs">
           {tabs.map((t, i) => (
-            <span key={t} className={`pp-subtab ${i === 0 ? "pp-subtab-on" : ""}`}>{t}</span>
+            <span key={t} className={`pp-subtab ${i === active ? "pp-subtab-on" : ""}`}>{t}</span>
           ))}
         </div>
       )}
@@ -267,37 +267,39 @@ export function AttendanceRealPanel({ before = false }: { before?: boolean }) {
 export function BankRealPanel({ before = false }: { before?: boolean }) {
   const v = (x: string) => (before ? D : x);
   const accts = [
-    { n: "운영계좌", b: "국민은행", no: "•••• 4821", amt: "₩148,200,000" },
-    { n: "기업자유예금", b: "기업은행", no: "•••• 0317", amt: "₩62,400,000" },
-    { n: "보조금 전용", b: "농협은행", no: "•••• 2210", amt: "₩19,800,000" },
+    { n: "운영계좌", b: "국민은행", no: "•••• 4821", amt: "₩148,200,000", chg: "+₩9,200,000", up: true },
+    { n: "기업자유예금", b: "기업은행", no: "•••• 0317", amt: "₩62,400,000", chg: "+₩3,800,000", up: true },
+    { n: "보조금 전용", b: "농협은행", no: "•••• 2210", amt: "₩19,800,000", chg: "변화 없음", up: false },
   ];
   return (
     <section className="pp glass-card" id={before ? "pp-bankr-b" : "pp-bankr"}>
+      {/* ⚠️ 2026-07-30: 실제 /bank 과 어긋나 있었다(사장님: 둘러보기 통장 이미지가 예전 화면).
+          실제는 탭 3개(개요·통장·거래내역) + KPI 4장(총 자산·이번 달 수익·이번 달 지출·분류 완료율)
+          + 통장 "카드" 그리드(이름·잔액·증감칩)다. 표가 아니라 카드다. 그 구조로 맞춘다. */}
       <Head
         crumb="자산관리 › 통장"
         title="계좌를 연결하면 알아서 들어와요"
         sub="잔액과 거래내역이 하루 2회 자동으로 동기화돼요."
-        tabs={["계좌", "거래내역", "분석"]}
+        tabs={["개요", "통장", "거래내역"]}
+        active={1}
       />
-      <div className="pp-grid3 pp-mt">
+      <div className="pp-grid4 pp-mt">
         <div className="pp-mini"><span>총 자산</span><b>{v("₩230,400,000")}</b><i>{before ? "" : "3개 계좌"}</i></div>
         <div className="pp-mini pp-mini-ok"><span>이번 달 수익</span><b>{v("+₩13,000,000")}</b></div>
-        <div className="pp-mini"><span>동기화</span><b>{before ? "진행 중" : "07-28 18:00"}</b></div>
+        <div className="pp-mini"><span>이번 달 지출</span><b>{v("-₩8,420,000")}</b></div>
+        <div className="pp-mini"><span>분류 완료율</span><b>{before ? D : "98%"}</b><i>{before ? "" : "412/420건"}</i></div>
       </div>
-      <div className="pp-section-t">계좌</div>
-      <table className="pp-table">
-        <thead><tr><th>계좌명</th><th>은행</th><th>계좌번호</th><th>잔액</th></tr></thead>
-        <tbody>
-          {accts.map((a) => (
-            <tr key={a.n}>
-              <td className="pp-strong">{a.n}</td>
-              <td>{a.b}</td>
-              <td>{a.no}</td>
-              <td className="pp-num">{v(a.amt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="pp-section-t">통장</div>
+      <div className="pp-acctgrid">
+        {accts.map((a) => (
+          <div key={a.n} className="pp-acct">
+            <div className="pp-acct-h"><b>{a.n}</b><span>{a.b} {a.no}</span></div>
+            <div className="pp-acct-amt">{v(a.amt)}</div>
+            <span className={`pp-acct-chip ${a.up ? "pp-acct-chip-up" : "pp-acct-chip-flat"}`}>{before ? "—" : a.chg}</span>
+            <div className="pp-acct-hint">클릭 → 이 통장 거래내역</div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

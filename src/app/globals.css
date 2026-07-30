@@ -1482,6 +1482,20 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pp-state-line { @apply text-[15px] font-extrabold text-[var(--text)] mt-1.5; }
 .pp-grid4 { @apply grid grid-cols-2 md:grid-cols-4 gap-3; }
 .pp-mini i { @apply not-italic text-[9.5px] text-[var(--text-dim)] mt-1; }
+
+/* 데모 › 자산관리 통장 — 실제 /bank 의 "통장 카드 그리드"를 그대로 재현 (2026-07-30).
+   ⚠️ 실제 화면은 표가 아니라 카드다. 캡처가 예전 표 화면이라 둘러보기에 옛 화면이 나갔다.
+   ⚠️ .pp-grid4 는 위(.pp-state-line 부근)에 이미 있다 — 다시 정의하지 말 것(같은 이름 두 번 = 충돌). */
+.pp-acctgrid { @apply grid grid-cols-3 gap-3; }
+.pp-acct { @apply p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] flex flex-col; }
+.pp-acct-h { @apply flex flex-col gap-0.5; }
+.pp-acct-h b { @apply text-[12px] font-semibold text-[var(--text)]; }
+.pp-acct-h span { @apply text-[10px] text-[var(--text-dim)]; }
+.pp-acct-amt { @apply text-[17px] font-extrabold text-[var(--text)] mt-2 mb-1.5; font-variant-numeric: tabular-nums; }
+.pp-acct-chip { @apply self-start text-[10px] font-bold px-2 py-0.5 rounded-full; font-variant-numeric: tabular-nums; }
+.pp-acct-chip-up { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.pp-acct-chip-flat { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+.pp-acct-hint { @apply text-[9.5px] text-[var(--text-dim)] mt-2; }
 .pp-dim { @apply text-[var(--text-dim)] font-normal; }
 .pp-statbar { @apply flex flex-wrap items-stretch gap-0 rounded-xl border border-[var(--border)] overflow-hidden mb-3; }
 .pp-statbar > span { @apply flex-1 min-w-[80px] flex flex-col items-center gap-0.5 px-3 py-3 border-r border-[var(--border)] last:border-r-0; }
