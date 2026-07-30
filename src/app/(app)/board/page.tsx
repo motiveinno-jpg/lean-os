@@ -77,7 +77,7 @@ export default function BoardPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const companyId = user?.company_id ?? null;
-  const canPin = role === "owner" || role === "admin";
+  const canPin = role !== "partner"; // (P3) 게시판 고정은 파트너 외 전원 — 세분화 필요 시 perm 추가
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Post | null>(null);

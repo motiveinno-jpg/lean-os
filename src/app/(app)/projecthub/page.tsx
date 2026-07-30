@@ -30,7 +30,7 @@ const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : 
 export default function ProjectHubPage() {
   const { user, role } = useUser();
   const companyId = user?.company_id ?? null;
-  const isManager = role === "owner" || role === "admin";
+  const isManager = true; // (P3) 프로젝트 권한 보유자 전원 관리 뷰
   const router = useRouter();
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
   const qc = useQueryClient();

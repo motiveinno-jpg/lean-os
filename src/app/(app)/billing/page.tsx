@@ -41,7 +41,7 @@ const ANNUAL_BILLING_AVAILABLE = true;
 
 export default function BillingPage() {
   const { role } = useUser();
-  if (role === "employee" || role === "partner") {
+  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
     return <AccessDenied detail="요금제 / 결제는 대표·관리자 전용입니다." />;
   }
   const { toast } = useToast();

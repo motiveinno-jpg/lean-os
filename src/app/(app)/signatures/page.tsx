@@ -76,7 +76,7 @@ export default function SignaturesDashboardPage() {
   // 일괄 PDF 저장 — 현재 필터+검색 결과 중 서명완료 건을 한 zip 으로 (서버 네이티브 렌더)
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null);
-  const isManager = role === "owner" || role === "admin";
+  const isManager = true; // (P3) 전자계약 권한 보유자 전원 관리 뷰 (진입 자체가 권한 게이트)
   useEffect(() => { setPage(1); }, [statusFilter, search, pageSize]);
 
   useEffect(() => {

@@ -930,7 +930,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
   const categoryTotal = categoryEntries.reduce((s, [, v]) => s + v, 0);
 
   // 권한 게이트는 모든 훅 이후에 — early return 이 훅보다 위면 Rules of Hooks 위반(크래시)
-  if (role === "employee" || role === "partner") {
+  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
     return <AccessDenied detail="통장 거래 내역은 대표·관리자 전용입니다." />;
   }
 

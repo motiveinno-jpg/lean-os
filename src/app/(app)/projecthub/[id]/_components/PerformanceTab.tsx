@@ -42,7 +42,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
   const { user, role } = useUser();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const isManager = role === "owner" || role === "admin";
+  const isManager = true; // (P3) 프로젝트 권한 보유자 전원 관리 뷰
 
   const { data: kpis = [] } = useQuery({
     queryKey: ["project-kpis", dealId],

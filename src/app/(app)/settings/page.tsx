@@ -85,7 +85,7 @@ function groupOfLeaf(leaf: LeafKey): string {
 
 export default function SettingsPage() {
   const { role } = useUser();
-  if (role === "employee" || role === "partner") {
+  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
     return <AccessDenied detail="회사 설정은 대표·관리자 전용입니다." />;
   }
   const { toast } = useToast();

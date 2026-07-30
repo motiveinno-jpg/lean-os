@@ -39,7 +39,7 @@ export default function MyPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<MyPageTab>("records");
-  const { role, refresh } = useUser();
+  const { role, user: ctxUser, refresh } = useUser();
   // 회원 탈퇴
   const [withdrawText, setWithdrawText] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
@@ -293,7 +293,7 @@ export default function MyPage() {
     ? (leaveBalance.remaining_days ?? (Number(leaveBalance.total_days) - Number(leaveBalance.used_days)))
     : null;
 
-  const roleLabel = role === "owner" ? "대표" : role === "admin" ? "관리자" : "직원";
+  const roleLabel = (ctxUser as any)?.is_master ? "마스터" : role === "partner" ? "파트너" : "멤버"; // (P3) 역할 라벨 개편
 
   return (
     <div className="mypage-page">
@@ -488,7 +488,7 @@ export default function MyPage() {
         <h2 className="text-sm font-bold mb-2 text-[var(--danger)]">회원 탈퇴</h2>
         <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
           탈퇴하면 <b>로그인 계정이 영구 삭제</b>되고 이름·이메일 등 개인정보가 파기됩니다. <b>되돌릴 수 없습니다.</b>
-          {role === "owner" && <span className="block mt-1 text-amber-500">※ 대표 계정입니다. 탈퇴해도 회사·직원·거래 데이터는 남으니, 회사 정리가 필요하면 먼저 처리하세요.</span>}
+          {(ctxUser as any)?.is_master && <span className="block mt-1 text-amber-500">※ 마스터 계정입니다. 탈퇴해도 회사·직원·거래 데이터는 남으니, 회사 정리가 필요하면 먼저 처리하세요.</span>}
         </p>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <input

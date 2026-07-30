@@ -500,7 +500,8 @@ export default function DashboardPage() {
 
       {/* ═══ 시안 메인 (라운드6.5 레퍼런스 골격) — KPI 4카드 행 → 본문 2/3+1/3 그리드 → 하단 풀폭.
            owner/admin 기본 노출(뷰 토글과 무관). ═══ */}
-      {(role === "owner" || role === "admin") && companyId && (
+      {/* (P3) 대시보드 권한 보유자 전원 노출 — 구 owner/admin 분기 제거 */}
+      {companyId && (
         <div className="dashboard-owner-widgets-section">
           {/* (0) AI 브리핑 + 오늘의 액션 — 라운드7.1(컨셉 1안). 문장 요약은 MorningBrief(규칙 기반) 재사용,
                버튼은 이미 계산된 sixPack·세금 마감에서 파생 — 신규 쿼리 0. */}
@@ -566,13 +567,13 @@ export default function DashboardPage() {
            2026-07-15 하단 단독 '상세 분석·추이 보기' 링크는 경영 요약(biz) 위젯 안으로 이동. ═══ */}
 
       {/* ═══ 경영 종합 — CEO 커맨드 센터(액션·펄스·목표·리스크). owner 전용, 상시 노출. ═══ */}
-      {role === "owner" && (<>
+      {(<>
       <div className="dashboard-toolbar">
         {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
         <div className="mb-3">
           {/* 라운드7.1 — MorningBrief 는 대시보드 최상단(시안 메인)으로 이동. 여기엔 도구 버튼만 유지 */}
           <div className="dashboard-toolbar-actions">
-            {role === "owner" && (
+            {(
               <button onClick={handleDataSync} disabled={syncing}
                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 ${
                   syncing

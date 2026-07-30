@@ -16,7 +16,7 @@ const DOCS = [
 
 export default function StatementsHub() {
   const { role } = useUser();
-  if (role === "partner" || role === "employee") {
+  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
     return <AccessDenied detail="회계 자료는 대표·관리자 전용입니다." />;
   }
   return (
