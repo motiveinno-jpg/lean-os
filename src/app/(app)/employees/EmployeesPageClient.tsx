@@ -3288,10 +3288,14 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           )}
         </p>
 
-        {/* 아직 연차 미설정 직원 — 자동 부여 안내 (자동부여 모드 전용) */}
-        {!isEmployee && grantMethod === "auto" && employeesWithoutBalance.length > 0 && (
+        {/* 아직 연차 미설정 직원 — 2026-07-30 사장님: 직접입력 모드에서 이 블록이 숨어
+            신규 입사자가 휴가 탭 어디에도 안 보이던 버그 → 부여 방식과 무관하게 항상 표시 */}
+        {!isEmployee && employeesWithoutBalance.length > 0 && (
           <div className="mb-3 bg-[var(--warning)]/5 border border-[var(--warning)]/20 rounded-xl p-3 shadow-sm">
-            <div className="text-xs text-[var(--warning)] font-medium mb-2">연차 미설정 {employeesWithoutBalance.length}명</div>
+            <div className="text-xs text-[var(--warning)] font-medium mb-2">
+              연차 미설정 {employeesWithoutBalance.length}명
+              {grantMethod === "manual" && <span className="text-[var(--text-dim)] font-normal"> — 부여 후 카드의 /총일수를 눌러 수정할 수 있습니다</span>}
+            </div>
             <div className="flex flex-wrap gap-2">
               {employeesWithoutBalance.map((e: any) => {
                 const calc = e.hire_date ? calculateAnnualLeave(e.hire_date, `${currentYear}-12-31`) : null;
