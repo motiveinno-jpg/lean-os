@@ -21,7 +21,7 @@ import {
   recomputeAttendance,
   calculateWeeklyHours,
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
-  getLeaveBalances, initLeaveBalance, correctAttendanceRecord,
+  getLeaveBalances, correctAttendanceRecord,
   autoInitLeaveBalance, bulkAutoInitLeaveBalances, calculateAnnualLeave,
   cancelLeaveRequest, getCompanyMembers,
   getLeaveGrantMethod, setLeaveGrantMethod, type LeaveGrantMethod,
@@ -30,7 +30,7 @@ import {
   getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
 } from "@/lib/hr";
 import {
-  getMonthlyAccrualSettings, setMonthlyAccrualSettings, syncLeaveAccruals,
+  getMonthlyAccrualSettings, setMonthlyAccrualSettings, syncLeaveAccruals, setRemainingLeaveDays,
   ACCRUAL_BASIS_LABELS, type MonthlyAccrualBasis,
 } from "@/lib/leave-grants";
 import { EmployeeDetailPanel } from "./_components/EmployeeDetailPanel";
@@ -2954,12 +2954,24 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     onError: (err: any) => toast("휴가 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // Init balance mutation (수동 부여 일수)
-  const initBalance = useMutation({
-    mutationFn: (params: { employeeId: string; totalDays: number }) =>
-      initLeaveBalance(companyId!, params.employeeId, currentYear, params.totalDays),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leave-balances"] }),
-    onError: (err: any) => toast("휴가 잔여일 설정 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
+  // 남은 연차 직접 입력 (사장님 지시 2026-07-30) — 입력값은 '지금 남은 연차'다.
+  //   내부적으로 총부여 = 남은 + 사용 을 'base' 발생으로 기록한다. leave_balances 를 직접 쓰면
+  //   자동 발생 cron 이 매일 자정 grants 합계로 되돌려 손으로 넣은 값이 사라진다.
+  const setRemaining = useMutation({
+    mutationFn: (params: { employeeId: string; remainingDays: number; usedDays: number }) =>
+      setRemainingLeaveDays({
+        companyId: companyId!,
+        employeeId: params.employeeId,
+        year: currentYear,
+        remainingDays: params.remainingDays,
+        usedDays: params.usedDays,
+        createdBy: userId,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["emp-leave-grants"] });
+    },
+    onError: (err: any) => toast("남은 연차 설정 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
   // 입사일 기준 자동 부여 (1년 미만 = 월 1일 만근, 1년+ = 근로기준법 기본)
@@ -3347,7 +3359,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           <div className="mb-3 bg-[var(--warning)]/5 border border-[var(--warning)]/20 rounded-xl p-3 shadow-sm">
             <div className="text-xs text-[var(--warning)] font-medium mb-2">
               연차 미설정 {employeesWithoutBalance.length}명
-              {grantMethod === "manual" && <span className="text-[var(--text-dim)] font-normal"> — 부여 후 카드의 /총일수를 눌러 수정할 수 있습니다</span>}
+              {grantMethod === "manual" && <span className="text-[var(--text-dim)] font-normal"> — 부여 후 카드의 남은 일수를 눌러 수정할 수 있습니다</span>}
             </div>
             <div className="flex flex-wrap gap-2">
               {employeesWithoutBalance.map((e: any) => {
@@ -3357,7 +3369,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                     key={e.id}
                     onClick={() => {
                       if (e.hire_date) autoInitMut.mutate({ employeeId: e.id, hireDate: e.hire_date });
-                      else initBalance.mutate({ employeeId: e.id, totalDays: 15 });
+                      else setRemaining.mutate({ employeeId: e.id, remainingDays: 15, usedDays: 0 });
                     }}
                     className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-[var(--warning)]/50 transition"
                     title={calc ? calc.formula : "입사일 미등록 — 기본 15일"}
@@ -3394,15 +3406,10 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                       </span>
                     )}
                   </div>
-                  <div className="flex items-end gap-1 mb-2">
-                    <span className={`text-xl font-bold ${
-                      remaining <= 0 ? "text-[var(--danger)]" : remaining <= 3 ? "text-yellow-400" : "text-[var(--success)]"
-                    }`}>
-                      {remaining}
-                    </span>
+                  {/* 편집 대상은 '남은 연차' — 총부여는 남은 + 사용 으로 자동 계산해 저장한다 */}
+                  <div className="flex items-end gap-1 mb-2 flex-wrap">
                     {isEditing ? (
-                      <span className="flex items-center gap-1 mb-0.5">
-                        <span className="text-xs text-[var(--text-dim)]">/</span>
+                      <>
                         <input
                           type="text"
                           inputMode="numeric"
@@ -3412,33 +3419,42 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               const v = Number(editingBalanceVal);
-                              if (v >= 0) initBalance.mutate({ employeeId: b.employee_id, totalDays: v });
+                              if (v >= 0) setRemaining.mutate({ employeeId: b.employee_id, remainingDays: v, usedDays: Number(b.used_days || 0) });
                               setEditingBalanceId(null);
                             } else if (e.key === "Escape") setEditingBalanceId(null);
                           }}
-                          className="w-12 px-1 py-0.5 text-xs text-center bg-[var(--bg)] border border-[var(--primary)]/50 rounded"
+                          className="leave-remaining-input"
                         />
+                        <span className="text-xs text-[var(--text-dim)] mb-0.5">
+                          / 총 {Math.round((Number(editingBalanceVal || 0) + Number(b.used_days || 0)) * 10) / 10}일
+                        </span>
                         <button
                           onClick={() => {
                             const v = Number(editingBalanceVal);
-                            if (v >= 0) initBalance.mutate({ employeeId: b.employee_id, totalDays: v });
+                            if (v >= 0) setRemaining.mutate({ employeeId: b.employee_id, remainingDays: v, usedDays: Number(b.used_days || 0) });
                             setEditingBalanceId(null);
                           }}
-                          className="text-[10px] text-[var(--primary)] font-semibold"
+                          className="text-[10px] text-[var(--primary)] font-semibold mb-0.5"
                         >저장</button>
-                        {/* 입력값이 '잔여'가 아니라 '총 부여'임을 명시 — 사용일수가 있으면 잔여는 그만큼 줄어든다 */}
-                        <span className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">
-                          총 부여{Number(b.used_days) > 0 ? ` · 사용 ${b.used_days}일 차감` : ""}
+                        <span className="text-[10px] text-[var(--text-dim)] w-full">
+                          남은 연차{Number(b.used_days) > 0 ? ` (사용 ${b.used_days}일 포함해 총부여 계산)` : ""}
                         </span>
-                      </span>
+                      </>
                     ) : (
-                      <button
-                        onClick={() => { if (!isEmployee) { setEditingBalanceId(b.id); setEditingBalanceVal(String(b.total_days)); } }}
-                        className={`text-xs text-[var(--text-dim)] mb-0.5 ${!isEmployee ? "hover:text-[var(--primary)] hover:underline" : ""}`}
-                        title={!isEmployee ? "클릭하여 총 부여일수 수정" : ""}
-                      >
-                        / {b.total_days}일 {!isEmployee && <span className="text-[9px]">✏</span>}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => { if (!isEmployee) { setEditingBalanceId(b.id); setEditingBalanceVal(String(remaining)); } }}
+                          className={`text-xl font-bold ${
+                            remaining <= 0 ? "text-[var(--danger)]" : remaining <= 3 ? "text-yellow-400" : "text-[var(--success)]"
+                          } ${!isEmployee ? "hover:underline" : ""}`}
+                          title={!isEmployee ? "클릭하여 남은 연차 수정" : ""}
+                        >
+                          {remaining}
+                        </button>
+                        <span className="text-xs text-[var(--text-dim)] mb-0.5">
+                          / {b.total_days}일 {!isEmployee && <span className="text-[9px]">✏</span>}
+                        </span>
+                      </>
                     )}
                   </div>
                   <div className="w-full h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
@@ -3485,17 +3501,17 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                         onKeyDown={(ev) => {
                           if (ev.key === "Enter") {
                             const v = Number(editingBalanceVal);
-                            if (v >= 0) initBalance.mutate({ employeeId: e.id, totalDays: v });
+                            if (v >= 0) setRemaining.mutate({ employeeId: e.id, remainingDays: v, usedDays: 0 });
                             setEditingBalanceId(null);
                           } else if (ev.key === "Escape") setEditingBalanceId(null);
                         }}
                         className="w-14 px-1 py-0.5 text-xs text-center bg-[var(--bg)] border border-[var(--primary)]/50 rounded"
                       />
-                      <span className="text-xs text-[var(--text-dim)]">일</span>
+                      <span className="text-xs text-[var(--text-dim)]">일 남음</span>
                       <button
                         onClick={() => {
                           const v = Number(editingBalanceVal);
-                          if (v >= 0) initBalance.mutate({ employeeId: e.id, totalDays: v });
+                          if (v >= 0) setRemaining.mutate({ employeeId: e.id, remainingDays: v, usedDays: 0 });
                           setEditingBalanceId(null);
                         }}
                         className="text-[10px] text-[var(--primary)] font-semibold"
@@ -3506,7 +3522,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                       <button
                         onClick={() => { setEditingBalanceId(editKey); setEditingBalanceVal(String(calc?.totalDays ?? 15)); }}
                         className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-[var(--primary)]/50 transition font-semibold"
-                      >일수 입력</button>
+                      >남은 연차 입력</button>
                       {e.hire_date && calc && (
                         <button
                           onClick={() => autoInitMut.mutate({ employeeId: e.id, hireDate: e.hire_date })}

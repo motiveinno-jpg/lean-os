@@ -1976,6 +1976,31 @@ export function calculateAnnualLeave(hireDate: string, referenceDate?: string): 
   return { totalDays, yearsWorked, monthsWorked, formula };
 }
 
+// 목표 총부여일수를 'base' 발생 1건으로 기록한다(그 해 base 는 대체). leave-grants.ts 의
+//   setBaseLeaveGrant 와 같은 규칙이지만, hr.ts ↔ leave-grants.ts 순환 import 를 피하려고 여기 둔다.
+async function setBaseGrantForTotal(companyId: string, employeeId: string, year: number, totalDays: number) {
+  const grants = logRead('lib/hr:grants', await db
+    .from('leave_grants')
+    .select('days, grant_type')
+    .eq('employee_id', employeeId)
+    .eq('year', year));
+  const auto = (grants || [])
+    .filter((g: any) => g.grant_type !== 'base')
+    .reduce((s: number, g: any) => s + Number(g.days || 0), 0);
+  const base = Math.round((totalDays - auto) * 10) / 10;
+
+  await db.from('leave_grants').delete().eq('employee_id', employeeId).eq('year', year).eq('grant_type', 'base');
+  const { error } = await db.from('leave_grants').insert({
+    company_id: companyId,
+    employee_id: employeeId,
+    year,
+    grant_date: `${year}-01-01`,
+    days: base,
+    grant_type: 'base',
+  });
+  if (error) throw error;
+}
+
 /**
  * 직원의 연차를 입사일 기반으로 자동 세팅 (사용연차 수동 지정 가능)
  */
@@ -1997,6 +2022,11 @@ export async function autoInitLeaveBalance(
     .maybeSingle());
 
   const usedDays = usedDaysOverride ?? existing?.used_days ?? 0;
+
+  // 총부여의 단일 출처는 leave_grants 합계다 — balances.total_days 만 고쳐두면 자동 발생 cron 이
+  //   매일 자정 grants 합계로 재동기화하면서 이 값을 되돌린다. 그래서 'base' 발생으로 기록한다.
+  //   base = 목표 총부여 − 자동 발생분(월 발생·1주년·이월·조정).
+  await setBaseGrantForTotal(companyId, employeeId, year, totalDays);
 
   if (existing) {
     const { data, error } = await db

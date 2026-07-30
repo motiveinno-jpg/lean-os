@@ -145,6 +145,34 @@ export async function deleteLeaveGrant(grant: Pick<LeaveGrant, 'id' | 'company_i
   await syncLeaveBalanceTotal(grant.company_id, grant.employee_id, grant.year);
 }
 
+// ── 남은 연차로 직접 입력 (관리자 화면의 기본 진입점) ──
+//   사장님 지시(2026-07-30): "총 부여" 말고 "지금 남은 연차"를 입력하게 한다.
+//   총부여 = 남은 + 사용 이고, 총부여의 단일 출처는 grants 합계이므로
+//   base = (남은 + 사용) − 자동 발생분(월 발생·1주년·이월·조정) 으로 역산해 저장한다.
+//   ⚠️ leave_balances.total_days 를 직접 쓰면 안 된다 — 자동 발생 cron 이 매일 자정
+//      grants 합계로 재동기화해서 손으로 넣은 값이 되돌아간다.
+export async function setRemainingLeaveDays(params: {
+  companyId: string;
+  employeeId: string;
+  year: number;
+  remainingDays: number;
+  usedDays: number;
+  createdBy?: string | null;
+}): Promise<void> {
+  const grants = await listLeaveGrants(params.employeeId, params.year);
+  const auto = grants
+    .filter((g) => g.grant_type !== 'base')
+    .reduce((s, g) => s + Number(g.days || 0), 0);
+  const base = Math.round((params.remainingDays + params.usedDays - auto) * 10) / 10;
+  await setBaseLeaveGrant({
+    companyId: params.companyId,
+    employeeId: params.employeeId,
+    year: params.year,
+    days: base,
+    createdBy: params.createdBy,
+  });
+}
+
 // ── 그 해 기본 부여일수 설정 — 기존 'base' 발생을 대체하고 합계를 다시 맞춘다 ──
 //   (관리자 화면의 "총 부여일수 설정" 진입점. 월 발생·이월·조정 건은 건드리지 않는다.)
 export async function setBaseLeaveGrant(params: {

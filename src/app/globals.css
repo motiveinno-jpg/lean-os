@@ -2495,6 +2495,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 자동 부여 도입일 — 이 날짜 이후 응당일만 발생 */
 .leave-accrual-start { @apply mt-3 pt-3 border-t border-[var(--border)]; }
 .leave-accrual-start-input { @apply px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text)]; }
+/* 직원 카드 — 남은 연차 직접 입력 */
+.leave-remaining-input { @apply w-14 px-1 py-0.5 text-lg font-bold text-center bg-[var(--bg)] border border-[var(--primary)]/50 rounded; }
 
 /* 구성원 상세 — 연차 발생 이력 목록/추가 폼 */
 .employee-leave-grants { @apply p-4; }
