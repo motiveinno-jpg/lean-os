@@ -19,11 +19,16 @@ const MODEL_BY_TASK: Record<ClaudeTask, string> = {
 };
 
 // 토큰당 대략 단가(USD, 추정치 — 비용 표시용. 정확 청구 아님). input/output 백만토큰당.
+//   2026-07-30 opus-4-8 단가 교정: 15/75 → 5/25 (공식 단가) — 상한 계산이 이 추정치를 쓰므로 중요.
 const PRICE_PER_MTOK: Record<string, { in: number; out: number }> = {
   "claude-haiku-4-5-20251001": { in: 1.0, out: 5.0 },
   "claude-sonnet-4-6": { in: 3.0, out: 15.0 },
-  "claude-opus-4-8": { in: 15.0, out: 75.0 },
+  "claude-opus-4-8": { in: 5.0, out: 25.0 },
 };
+
+// 회사별 월 AI 비용 상한 — 기능 불문 합산 (2026-07-30 사장님: "회사별 월 15,000원 이하").
+//   $10 ≈ 14,000원(환율 1,400 기준) — 진행 중 요청 여유분을 남긴 값. env 로 조정 가능.
+const MONTHLY_COST_CAP_USD = Number(Deno.env.get("AI_MONTHLY_COST_CAP_USD") || "10");
 
 export interface ClaudeCallOpts {
   task: ClaudeTask;
@@ -111,6 +116,16 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
   if (!apiKey) {
     return { ...base, error: "AI 설정 오류(관리자 문의)", errorCode: "NO_KEY", latencyMs: Date.now() - t0 };
   }
+
+  // 회사별 월 비용 상한 — 호출 전에 당월 누적 비용을 확인, 초과 시 API 를 부르지 않는다.
+  //   조회 실패 시엔 차단하지 않음(가용성 우선 — 상한은 안전망이지 게이트웨이가 아님).
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: spent } = await (opts.admin as any).rpc("ai_cost_used_this_month", { p_company_id: opts.companyId });
+    if (Number(spent || 0) >= MONTHLY_COST_CAP_USD) {
+      return { ...base, error: "이번 달 AI 사용 한도를 모두 사용했습니다. 다음 달에 초기화됩니다.", errorCode: "COST_CAP", latencyMs: Date.now() - t0 };
+    }
+  } catch { /* 조회 실패 — 차단 안 함 */ }
 
   let lastErr = "AI 응답 실패";
   let lastCode = "UNKNOWN";

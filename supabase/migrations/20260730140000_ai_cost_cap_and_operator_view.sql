@@ -1,0 +1,7 @@
+-- AI 비용 상한·운영자 조회 RPC (2026-07-30, 이미 MCP 로 prod 적용 — 기록용)
+--   사장님: "회사별 월 15,000원 이하 보장 + 운영자 페이지에서 API 비용 확인".
+-- 1) ai_cost_used_this_month(company_id) — 당월(KST) AI 비용 합계.
+--    공용 호출기(_shared/claude.ts)가 매 호출 전 검사, $10(≈14,000원) 이상이면 API 호출 차단.
+-- 2) platform_ai_costs() — 운영자 전용: 당월 회사별·기능별 비용/호출수/토큰 + 총계 + 상한.
+--    /platform/system 의 "AI 비용" 카드가 사용.
+--    전문은 MCP 마이그레이션 ai_cost_cap_and_operator_view 와 동일.

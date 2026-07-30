@@ -2816,6 +2816,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-role-count-row { @apply flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]; }
 .platform-plans-card { @apply p-5; }
 .platform-plan-row { @apply p-4 rounded-xl bg-[var(--bg-surface)]; }
+/* 시스템 현황 — AI 비용 카드 (2026-07-30) */
+.platform-ai-costs-card { @apply p-5; }
+.platform-ai-cost-row { @apply p-3 rounded-xl bg-[var(--bg-surface)]; }
 .platform-env-card { @apply p-5 md:col-span-2; }
 .platform-env-item { @apply p-3 rounded-xl bg-[var(--bg-surface)]; }
 .platform-release-log-card { @apply p-5 md:col-span-2; }

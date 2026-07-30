@@ -49,6 +49,27 @@ export default function SystemPage() {
     },
   });
 
+  // 이번 달 AI 비용 — 참모·브리핑 등 모든 AI 호출의 실측 합계(ai_usage_log 기반 RPC).
+  //   회사별 상한($10/월 ≈ 14,000원)은 공용 호출기(claude.ts)가 강제한다 (2026-07-30 사장님).
+  type AiCosts = {
+    month: string; total_usd: number; total_calls: number; cap_usd: number;
+    companies: { company: string | null; company_id: string; usd: number; calls: number; tokens: number; by_feature: Record<string, number> }[];
+  };
+  const { data: aiCosts } = useQuery<AiCosts | null>({
+    queryKey: ["p-sys-ai-costs"],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (db as any).rpc("platform_ai_costs");
+      if (error) return null;
+      return (data as AiCosts) ?? null;
+    },
+    staleTime: 60_000,
+  });
+  const FX = 1400; // 표시용 환산 환율(고정 안내)
+  const FEATURE_LABEL: Record<string, string> = {
+    owner_copilot: "AI 참모", ai_briefing: "AI 브리핑", classify_tx: "거래 분류", settlement_match: "정산 매칭",
+  };
+
   // 릴리스 로그 — 빌드 시 git 에서 자동 생성된 JSON. 날짜별 그룹.
   const releaseByDate = (releaseLogJson.entries as { hash: string; date: string; type: string; label: string; scope: string | null; title: string }[])
     .reduce<Record<string, typeof releaseLogJson.entries>[string][]>((acc: any, e: any) => {
@@ -182,6 +203,54 @@ export default function SystemPage() {
               ))
             )}
           </div>
+        </div>
+
+        {/* AI 비용 — 이번 달 실측(ai_usage_log) */}
+        <div className="platform-ai-costs-card glass-card">
+          <h3 className="section-title text-[var(--text)]">AI 비용 ({aiCosts?.month || "이번 달"})</h3>
+          {!aiCosts ? (
+            <div className="text-center py-8 text-sm text-[var(--text-dim)]">집계를 불러오는 중…</div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
+                <span className="text-sm text-[var(--text-muted)]">전체 (호출 {aiCosts.total_calls}회)</span>
+                <span className="font-bold mono-number text-[var(--text)]">
+                  ${aiCosts.total_usd.toFixed(2)} <span className="text-xs text-[var(--text-dim)]">≈ ₩{Math.round(aiCosts.total_usd * FX).toLocaleString()}</span>
+                </span>
+              </div>
+              {aiCosts.companies.length === 0 ? (
+                <div className="text-center py-4 text-xs text-[var(--text-dim)]">이번 달 AI 사용 내역이 없습니다</div>
+              ) : (
+                aiCosts.companies.map((c) => (
+                  <div key={c.company_id} className="platform-ai-cost-row">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-[var(--text)] truncate">{c.company || "(회사 미상)"}</span>
+                      <span className="text-sm font-bold mono-number text-[var(--primary)] shrink-0">
+                        ₩{Math.round(c.usd * FX).toLocaleString()}
+                        <span className="text-[10px] text-[var(--text-dim)] font-normal"> / 한도 ₩{Math.round(aiCosts.cap_usd * FX / 1000)}천</span>
+                      </span>
+                    </div>
+                    {/* 한도 대비 게이지 */}
+                    <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mb-1">
+                      <div className="h-full rounded-full" style={{
+                        width: `${Math.min(100, (c.usd / aiCosts.cap_usd) * 100)}%`,
+                        background: c.usd / aiCosts.cap_usd > 0.8 ? "var(--danger)" : c.usd / aiCosts.cap_usd > 0.5 ? "var(--warning)" : "var(--primary)",
+                      }} />
+                    </div>
+                    <div className="text-xs text-[var(--text-dim)]">
+                      호출 {c.calls}회 · 토큰 {Number(c.tokens || 0).toLocaleString()}
+                      {c.by_feature && " · " + Object.entries(c.by_feature)
+                        .map(([f, usd]) => `${FEATURE_LABEL[f] || f} ₩${Math.round(Number(usd) * FX).toLocaleString()}`)
+                        .join(" · ")}
+                    </div>
+                  </div>
+                ))
+              )}
+              <p className="text-[10px] text-[var(--text-dim)]">
+                Anthropic 공식 단가 기반 실측 추정 · ₩ 환산은 환율 1,400 고정 표기 · 회사별 월 한도 초과 시 AI 호출이 자동 차단됩니다
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Environment */}
