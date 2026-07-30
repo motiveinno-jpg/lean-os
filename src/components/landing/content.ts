@@ -595,26 +595,30 @@ export const CATALOG = [
 //   size 는 콘텐츠가 요구하는 폭이다. 표·가로 흐름은 넓게, 세로로 읽는 화면은 좁게(stack).
 //   len 은 연출이 끝나는 시점(ms). 이 뒤 2초 머문 다음 장으로 넘어간다.
 export const AI_DEMOS = [
+  // ⚠️ 순서 = 강한 카드 4장 먼저(사장님 지시 2026-07-30).
+  //    01~04 대화형 참모 → 현금 바닥 예측 → 견적에서 계약까지 → 세 금액 대조.
+  //    05~09 는 매일 도는 일들. 폭(lg/md/sm)도 번갈아 놓아 넘길 때 리듬이 생긴다.
+  //    ⚠️ 순서를 바꿀 때 num 도 함께 고칠 것 — 화면에 그대로 찍힌다.
   { key: "copilot", num: "01", eng: "Owner Copilot", kind: "ai", size: "lg", len: 4100,
     name: "물어보면 답하는 AI 참모",
     desc: "회사 실데이터를 근거로 지금 무엇을 먼저 해야 하는지 순서까지 정해줘요. 실행은 대표님이 확인한 뒤에 일어나요.",
     beat: "질문 → 판단 → 한 줄 결론·순서·근거", where: "홈 › AI 참모" },
-  { key: "tx", num: "02", eng: "Auto Classify", kind: "ai", size: "lg", len: 3700,
-    name: "거래를 읽고 계정과목까지",
-    desc: "통장·카드 거래를 읽어 계정과목과 부가세 구분을 지정해요. 결정이 필요한 건만 남겨 확인을 요청해요.",
-    beat: "행마다 분류 → 결정이 필요한 건만 사람에게", where: "파이낸스 › 거래 장부 · 확정은 대표님 버튼" },
-  { key: "way", num: "03", eng: "3-Way Match", kind: "ai", size: "md", stack: true, len: 4000,
-    name: "계약·계산서·입금 세 금액 대조",
-    desc: "세 금액이 맞는지 자동으로 맞춰보고, 맞으면 전표 초안까지 만들어 둬요. 확정은 대표님이 눌러요.",
-    beat: "세 줄 대조 → 일치 → 전표 초안", where: "분석 › 3-Way 매칭" },
-  { key: "radar", num: "04", eng: "Survival Radar", kind: "auto", size: "md", len: 3100,
+  { key: "radar", num: "02", eng: "Survival Radar", kind: "auto", size: "md", len: 3100,
     name: "현금이 언제 바닥나는지 먼저 알려드려요",
     desc: "계좌를 연결하면 잔고와 거래가 하루 2회 자동으로 들어와요. 고정비를 감지해 90일 뒤까지 예측해요.",
     beat: "잔고 유입 → 고정비 → 예측선 → 판정", where: "분석 › 경영 흐름" },
-  { key: "pipe", num: "05", eng: "Auto Pipeline", kind: "auto", size: "lg", len: 3700,
+  { key: "pipe", num: "03", eng: "Auto Pipeline", kind: "auto", size: "lg", len: 3700,
     name: "견적이 승인되면 계약서 초안까지",
     desc: "회사 서식 그대로 초안이 만들어지고 서명 요청까지 이어져요. 서명이 끝나면 계약서는 잠기고 알림이 가요.",
     beat: "승인 → 초안 → 서명 요청 → 완료", where: "프로젝트 › 파이프라인 · 전자계약" },
+  { key: "way", num: "04", eng: "3-Way Match", kind: "ai", size: "md", stack: true, len: 4000,
+    name: "계약·계산서·입금 세 금액 대조",
+    desc: "세 금액이 맞는지 자동으로 맞춰보고, 맞으면 전표 초안까지 만들어 둬요. 확정은 대표님이 눌러요.",
+    beat: "세 줄 대조 → 일치 → 전표 초안", where: "분석 › 3-Way 매칭" },
+  { key: "tx", num: "05", eng: "Auto Classify", kind: "ai", size: "lg", len: 3700,
+    name: "거래를 읽고 계정과목까지",
+    desc: "통장·카드 거래를 읽어 계정과목과 부가세 구분을 지정해요. 결정이 필요한 건만 남겨 확인을 요청해요.",
+    beat: "행마다 분류 → 결정이 필요한 건만 사람에게", where: "파이낸스 › 거래 장부 · 확정은 대표님 버튼" },
   { key: "doc", num: "06", eng: "Document Vision", kind: "ai", size: "sm", stack: true, len: 3300,
     name: "찍으면 읽어서 채워요",
     desc: "영수증에서 상호·날짜·금액·사업자번호를 읽어 경비로 넘겨요. 회사 양식 PDF도 그대로 읽어 서식으로 만들어요.",
