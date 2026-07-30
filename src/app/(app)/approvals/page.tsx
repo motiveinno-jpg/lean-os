@@ -2200,7 +2200,16 @@ function OrderableFieldBlocks({ storageKey, blocks }: { storageKey: string; bloc
         return (
           <div
             key={k}
+            draggable
             className={`orderable-field-block ${dragKey === k ? "orderable-field-block-dragging" : ""}`}
+            onDragStart={(e) => {
+              // 입력창·에디터·버튼 위에서 시작한 드래그는 이동이 아니라 입력 동작 — 차단
+              const t = e.target as HTMLElement;
+              if (t !== e.currentTarget && t.closest("input, textarea, select, button, a, label, [contenteditable], .rich-editor")) { e.preventDefault(); return; }
+              setDragKey(k);
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onDragEnd={() => setDragKey(null)}
             onDragOver={(e) => { if (dragKey) e.preventDefault(); }}
             onDrop={(e) => { e.preventDefault(); dropOn(k); }}
           >
@@ -2717,7 +2726,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
                 {/* 휴가 입력 블록 — 재배치 가능 (2026-07-30, 사용자별 localStorage 저장) */}
                 <OrderableFieldBlocks
-                  storageKey={`ov-req-block-order-${userId}-leave`}
+                  storageKey={`ov-req-block-order-v2-${userId}-leave`}
                   blocks={[
                     {
                       key: "leave-type-unit",
@@ -2843,7 +2852,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             ) : (
               /* ── Non-leave fields — 블록 재배치 가능 (2026-07-30, 사용자·양식별 localStorage 저장) ── */
               <OrderableFieldBlocks
-                storageKey={`ov-req-block-order-${userId}-${form.requestType}`}
+                storageKey={`ov-req-block-order-v2-${userId}-${form.requestType}`}
                 blocks={[
                   {
                     key: "title",
@@ -2874,25 +2883,6 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       </div>
                     ),
                   }] : []),
-                  {
-                    key: "description",
-                    node: (
-                      // Description with template — 2026-07-16: 표·서식 지원 리치에디터 (사장님 요청)
-                      <div>
-                        <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
-                        {/* 표는 한글(HWP) 문서 서식 그대로 — .approval-desc-editor 스코프에서 globals.css 가 적용 (2026-07-27) */}
-                        <div className="approval-desc-editor">
-                          <RichEditor
-                            ref={descEditorRef}
-                            content={form.description}
-                            onChange={(html) => setForm((prev) => ({ ...prev, description: html }))}
-                            placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
-                            maxHeight="320px"
-                          />
-                        </div>
-                      </div>
-                    ),
-                  },
                   ...activeFields.map((fd) => ({
                     key: `cf:${fd.key}`,
                     node: (
@@ -2927,6 +2917,25 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       </div>
                     ),
                   })),
+                  {
+                    key: "description",
+                    node: (
+                      // Description with template — 2026-07-16: 표·서식 지원 리치에디터 (사장님 요청)
+                      <div>
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
+                        {/* 표는 한글(HWP) 문서 서식 그대로 — .approval-desc-editor 스코프에서 globals.css 가 적용 (2026-07-27) */}
+                        <div className="approval-desc-editor">
+                          <RichEditor
+                            ref={descEditorRef}
+                            content={form.description}
+                            onChange={(html) => setForm((prev) => ({ ...prev, description: html }))}
+                            placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
+                            maxHeight="320px"
+                          />
+                        </div>
+                      </div>
+                    ),
+                  },
                 ]}
               />
             )}
