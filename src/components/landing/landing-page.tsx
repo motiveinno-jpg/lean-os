@@ -17,7 +17,7 @@ import "@/app/landing-v5.css";
 import "@/app/landing-v6.css";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { PartnershipForm } from "@/components/landing/partnership-form";
-import { Scene, Rise, useNarrow, useScene } from "@/components/landing/scene";
+import { Scene, Rise, useNarrow } from "@/components/landing/scene";
 import { AiDemoRail } from "@/components/landing/ai-demo-rail";
 import { SwipeDeck } from "@/components/landing/swipe-deck";
 
@@ -162,11 +162,21 @@ const FAN_SLOTS = [
 function Fan({ priority = false }: { priority?: boolean }) {
   const [active, setActive] = useState(2);   // 가운데 자리에 앉을 화면
   const [ready, setReady] = useState(false); // 펼침 애니메이션이 끝나야 전환을 켠다
+  const [manual, setManual] = useState(false);
+  const n = FAN.length;
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 1900);
     return () => clearTimeout(t);
   }, []);
-  const n = FAN.length;
+  /* 자동 롤링 — 펼침이 끝나면 가운데 화면이 저절로 넘어간다(웹·폰 동일, 사장님 지시 2026-07-30).
+     ⚠️ 한 번이라도 손을 대면 멈춘다 — 보고 있는 화면이 저절로 바뀌면 오히려 방해가 된다.
+     ⚠️ 모션 최소화 설정이면 돌리지 않는다. */
+  useEffect(() => {
+    if (!ready || manual) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setActive((v) => (v + 1) % n), 3400);
+    return () => clearInterval(t);
+  }, [ready, manual, n]);
   return (
     <div className={`lp5-fan lp5-fan-in ${ready ? "lp5-fan-ready" : ""}`}>
       {FAN.map((f, i) => {
@@ -178,7 +188,7 @@ function Fan({ priority = false }: { priority?: boolean }) {
           <button
             key={f.src} type="button"
             className={`lp5-fan-item ${center ? "lp5-fan-center" : ""}`}
-            onClick={() => setActive(i)}
+            onClick={() => { setManual(true); setActive(i); }}
             aria-label={`${f.alt} 크게 보기`} aria-current={center}
             style={{
               ["--fx" as string]: S.fx, ["--fs" as string]: S.fs,
@@ -284,11 +294,13 @@ const WINDOWS = [
   { app: "드라이브 서류함", i: "drive",  c: "#2C9C63", src: "보관 문서",     dest: "보관 문서",       val: "8건" },
 ];
 
-/** 창 12개 → 오너뷰 창 하나. 무대 안에 들어가는 본체(데스크톱·폰 공용). */
-function UnifyStage() {
+/** 창 12개 → 오너뷰 창 하나. 무대 안에 들어가는 본체(데스크톱·폰 공용).
+ *  winsRef — 폰에서 "언제 합쳐질지"를 정하는 기준점(창 묶음). 사용자가 창까지 스크롤해
+ *  내려온 순간부터 합쳐져야 "모이는 모습"을 볼 수 있다. */
+function UnifyStage({ winsRef }: { winsRef?: React.Ref<HTMLDivElement> }) {
   return (
     <div className="lp5-uni-stage">
-      <div className="lp5-uni-wins" aria-hidden>
+      <div className="lp5-uni-wins" ref={winsRef} aria-hidden>
         {WINDOWS.map((w) => (
           <div key={w.app} className="lp5-uni-win">
             <div className="lp5-uni-win-bar">
@@ -305,7 +317,7 @@ function UnifyStage() {
       <div className="lp5-uni-own">
         <div className="lp5-uni-own-bar">
           <span className="lp5-uni-own-tab"><i />오너뷰</span>
-          <span className="lp5-uni-own-note">같은 숫자가 제자리에 정리돼요</span>
+          <span className="lp5-uni-own-note">여러 앱의 데이터가 한번에 정리돼요</span>
         </div>
         <div className="lp5-uni-own-body">
           <div className="lp5-uni-tiles">
@@ -352,12 +364,34 @@ function UnifyHead() {
  *     폰에서 연출이 아예 멈춰 있었다(실측). 분기를 컴포넌트로 떼어 마운트 시점에 훅이 돌게 한다.
  *  ⚠️ 폰 무대는 한 화면보다 크다 — 기본 임계값(85%)은 영원히 만족되지 않으므로 낮춘다. */
 function UnifyFlat() {
-  const { trackRef, stageRef } = useScene(1, true, 0.22);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const winsRef = useRef<HTMLDivElement>(null);
+  /* ⚠️ 구간에 발만 걸쳐도 재생되면, 사용자가 창까지 스크롤해 내려왔을 때는 이미 다 합쳐져 있다
+        (사장님: "모바일에서는 이미 합쳐져 있어서, 스크롤 내린 이후 합쳐지는 모습이 보여야 한다").
+        · 트리거: 창 묶음이 화면 "가운데 밴드"에 들어왔을 때. rootMargin 으로 위 25%·아래 35% 를
+          잘라내면, 화면 아래쪽에 살짝 걸친 상태로는 안 걸린다.
+        · 그 뒤로도 0.7초를 더 기다린다 — 창 12개를 먼저 보고 나서 닫히기 시작해야 한다. */
+  useEffect(() => {
+    const stage = stageRef.current, wins = winsRef.current;
+    if (!stage || !wins) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      stage.classList.add("lp5-play");
+      return;
+    }
+    let t = 0;
+    const io = new IntersectionObserver((es) => {
+      if (!es[0].isIntersecting) return;
+      io.disconnect();
+      t = window.setTimeout(() => stage.classList.add("lp5-play"), 700);
+    }, { rootMargin: "-25% 0px -35% 0px" });
+    io.observe(wins);
+    return () => { io.disconnect(); clearTimeout(t); };
+  }, []);
   return (
-    <section id="unify" ref={trackRef} className="lp5-sect">
+    <section id="unify" className="lp5-sect">
       <div ref={stageRef} className="lp5-wrap lp5-uni-flat">
         <UnifyHead />
-        <UnifyStage />
+        <UnifyStage winsRef={winsRef} />
       </div>
     </section>
   );
@@ -756,7 +790,7 @@ function SceneCoverage() {
               제목도 같은 방향으로 옮기고, 리드는 아래 네 카드를 직접 가리키게 한다. */}
           <h2 className="lp5-h lp5-h-sm">필요한 기능은 <span className="lp5-grad">이미 다 들어 있어요</span></h2>
           <Sentences className="lp5-lead lp5-lead-c"
-            text={`이게 다가 아니에요. 아래 네 영역에 메뉴 ${total}개, 기능 30가지가 있어요. 새로 붙일 도구가 없어요.`} />
+            text={`이게 다가 아니에요. 아래 네 영역에 메뉴 ${total}개, 기능 30가지가 있어요. 앱을 더 쓰지 않아도 돼요.`} />
         </Rise>
         <div className="lp5-cov4 lp5-swipe">
           {CATALOG.map((g, i) => (
@@ -817,8 +851,10 @@ function SceneProof() {
                 사장님: "5명이 강조되면 가입률이 떨어진다. 팩트는 좋지만 가입을 망설이게 하는 건
                 여기서 굳이 앞세우지 말고, 회사 규모·일하는 방식에 맞춰 고른다는 느낌으로."
                 → 거짓말은 하지 않되 인원 조건을 제목에서 내리고, 정확한 조건은 요금제로 보낸다.
-                  (지금 문구는 "그대로" 같은 약속을 하지 않으므로 조건을 숨겨도 오해가 안 생긴다) */}
-            <h3 className="lp5-case-h">회사 규모와 일하는 방식에 맞게</h3>
+                  (지금 문구는 "그대로" 같은 약속을 하지 않으므로 조건을 숨겨도 오해가 안 생긴다)
+                ⚠️ "회사 규모" 도 뺐다(2026-07-30) — 규모는 곧 인원이고, 인원은 곧 비용이라
+                   읽혀 같은 망설임을 만든다. "일하는 방식에 맞게" 는 사장님이 좋다고 한 표현이라 남긴다. */}
+            <h3 className="lp5-case-h">필요한 만큼, 일하는 방식에 맞게</h3>
             <div className="lp5-price-rows">
               {shown.map((p) => (
                 <div key={p.name} className={`lp5-price-row ${p.hl ? "lp5-price-hl" : ""}`}>

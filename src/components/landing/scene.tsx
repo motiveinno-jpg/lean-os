@@ -15,7 +15,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  * 트랙(높이 = len × 100vh)이 뷰포트를 지나는 동안 무대는 sticky 로 붙어 있는다.
  * @param beats 1보다 크면 진행률을 등분한 구간 인덱스를 함께 돌려준다(내용 교체용).
  */
-export function useScene(beats = 1, playOnView = false, viewThreshold = 0.85) {
+export function useScene(beats = 1, playOnView = false) {
   const trackRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [beat, setBeat] = useState(0);
@@ -37,9 +37,10 @@ export function useScene(beats = 1, playOnView = false, viewThreshold = 0.85) {
         //    흩어진 칩을 보기도 전에 화면이 떠 있었다(사장님 지적).
         //    무대가 거의 다 들어온 뒤(85%) 시작한다. 시작 직후 잠깐은 칩만 보이게
         //    CSS 쪽에서 재생을 조금 늦춘다(animation-delay).
-        // ⚠️ 무대가 화면보다 크면 85% 는 영원히 만족되지 않아 재생이 아예 안 걸린다 —
-        //    폰에서 통합 구간(1.2화면)이 멈춰 있던 원인. 그 경우 호출부가 임계값을 낮춘다.
-      }, { threshold: viewThreshold });
+        // ⚠️ 85% 는 "무대가 한 화면에 들어오는" 장면에서만 쓸 수 있다. 무대가 화면보다 크면
+        //    이 조건이 영원히 만족되지 않아 재생이 아예 안 걸린다 — 그런 자리는 이 훅을 쓰지 말고
+        //    호출부에서 기준 요소를 정해 직접 관찰한다(통합 구간의 폰 분기가 그 예다).
+      }, { threshold: 0.85 });
       io.observe(stage);
       return () => io.disconnect();
     }
@@ -95,7 +96,7 @@ export function useScene(beats = 1, playOnView = false, viewThreshold = 0.85) {
       window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [beats, playOnView, viewThreshold]);
+  }, [beats, playOnView]);
 
   return { trackRef, stageRef, beat };
 }

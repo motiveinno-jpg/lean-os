@@ -499,10 +499,15 @@
   position: absolute; top: 2.1%; left: 50%; transform: translateX(-50%);
   width: 26%; height: 3.1%; border-radius: 99px; background: #07070C; z-index: 4;
 }
+/* ⚠️ 사장님: "목업 이미지가 틀을 벗어나고 위 모서리가 튀어나온다" — 버그였다.
+      절대배치된 img(대체 요소)에 left/right + width:auto 를 주면 박스 폭이 아니라
+      원본 비율로 shrink-to-fit 되어 프레임을 5px 뚫고 나간다(실측: 프레임 300, 이미지 300).
+      폭·높이를 직접 계산해 넣는다. */
 .lp5-phone img {
-  position: absolute; left: var(--bez); right: var(--bez); bottom: var(--bez);
-  top: calc(var(--bez) + var(--sb)); width: auto; height: auto;
-  object-fit: cover; object-position: center top; border-radius: 0 0 35px 35px;
+  position: absolute; left: var(--bez); top: calc(var(--bez) + var(--sb));
+  width: calc(100% - var(--bez) * 2);
+  height: calc(100% - var(--bez) * 2 - var(--sb));
+  object-fit: cover; object-position: center top; border-radius: 0 0 34px 34px;
   opacity: 0; transition: opacity .6s ease;
 }
 .lp5-phone-on { opacity: 1 !important; }

@@ -819,10 +819,15 @@
 }
 /* ⚠️ left/right + width:auto 로 두면 대체 요소(img)는 shrink-to-fit 이 되어 원래 크기로
       튀어나간다 — 실제로 오른쪽 베젤을 뚫고 화면이 잘렸다(실측). 폭을 직접 계산해 준다. */
+/* ⚠️ height:auto 로 두면 이미지가 프레임보다 300px 길어 아래로 흘러나간다. overflow:hidden 이
+      막아 주지만 엔진에 따라(iOS Safari) 라운드+overflow 조합에서 클립이 새서 틀 밖으로 보인다.
+      높이도 직접 계산해 프레임 안에서 끝나게 한다(잘라 보여주는 건 object-fit 이 맡는다). */
 .lp5-deck-shot img {
   display: block; position: absolute; z-index: 1;
   left: var(--bez); top: calc(var(--bez) + var(--sb));
-  width: calc(100% - var(--bez) * 2); height: auto; max-width: none;
+  width: calc(100% - var(--bez) * 2);
+  height: calc(100% - var(--bez) - var(--sb));
+  max-width: none; object-fit: cover; object-position: center top;
 }
 
 /* 하단 컨트롤 — AI 구간과 같은 언어(도트 + 자동 넘김), 밝은 구간용 색 */
