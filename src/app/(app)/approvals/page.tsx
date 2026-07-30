@@ -1522,6 +1522,10 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
                   currentUserId={userId}
                 />
               </div>
+              {/* 본인 요청 건 댓글 — 진행중/완료 무관, 사진·파일 첨부 가능 (2026-07-30 사장님) */}
+              <div className="mt-5 pt-4 border-t border-[var(--border)]/60">
+                <ApprovalCommentThread requestId={req.id} />
+              </div>
             </div>
           </div>
         );
@@ -3865,44 +3869,8 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
     enabled: !!requestId,
   });
 
-  // 결재 댓글 스레드 — 승인/반려 후에도 회사 구성원 누구든 대화 (approval_comments, 2026-07-10)
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const [commentText, setCommentText] = useState("");
-  const [me, setMe] = useState<{ id: string; company_id: string } | null>(null);
-  useEffect(() => { getCurrentUser().then((u) => u && setMe({ id: u.id, company_id: u.company_id })).catch(() => {}); }, []);
-  const { data: comments = [] } = useQuery({
-    queryKey: ["approval-comments", requestId],
-    queryFn: async () => {
-      const data = logRead('approvals/page:comments', await (supabase)
-        .from("approval_comments")
-        .select("id, user_id, body, created_at, users:user_id(name, email, avatar_url)")
-        .eq("request_id", requestId)
-        .order("created_at", { ascending: true }));
-      return (data || []) as any[];
-    },
-    enabled: !!requestId,
-  });
-  const postComment = async () => {
-    if (!me || !commentText.trim()) return;
-    const { error } = await (supabase).from("approval_comments").insert({
-      company_id: me.company_id, request_id: requestId, user_id: me.id, body: commentText.trim(),
-    });
-    if (error) { toast("댓글 등록 실패: " + error.message, "error"); return; }
-    setCommentText("");
-    qc.invalidateQueries({ queryKey: ["approval-comments", requestId] });
-  };
-  const deleteComment = async (id: string) => {
-    await (supabase).from("approval_comments").delete().eq("id", id);
-    qc.invalidateQueries({ queryKey: ["approval-comments", requestId] });
-  };
-
   if (isLoading) {
     return <div className="text-xs text-[var(--text-muted)] py-2">활동 이력 로딩 중...</div>;
-  }
-
-  if (steps.length === 0 && comments.length === 0) {
-    return <div className="text-xs text-[var(--text-muted)] py-2">활동 이력이 없습니다</div>;
   }
 
   // 상태별 아이콘 서클 (체크/엑스/시계)
@@ -3948,38 +3916,124 @@ function ActivityTimeline({ requestId }: { requestId: string }) {
       </div>
 
       {/* 댓글 스레드 — 결정 후에도 대화 가능 */}
-      <div className="approval-comment-thread">
-        <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">댓글 {comments.length > 0 && <span className="text-[var(--text-dim)]">{comments.length}</span>}</div>
-        {comments.length > 0 && (
-          <div className="space-y-2 mb-3">
-            {comments.map((c: any) => (
-              <div key={c.id} className="flex items-start gap-2">
-                <Avatar name={c.users?.name || c.users?.email || "?"} src={c.users?.avatar_url} size={22} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-[var(--text)]">{c.users?.name || c.users?.email || "구성원"}</span>
-                    <span className="text-[10px] text-[var(--text-dim)] mono-number">{formatDateTime(c.created_at)}</span>
-                    {me?.id === c.user_id && (
-                      <button onClick={() => deleteComment(c.id)} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--danger)]">삭제</button>
-                    )}
-                  </div>
-                  <div className="mt-0.5 inline-block px-3 py-1.5 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-xs text-[var(--text)] whitespace-pre-wrap">{c.body}</div>
+      <ApprovalCommentThread requestId={requestId} />
+    </div>
+  );
+}
+
+// ── 결재 댓글 스레드 (공용) — 승인/반려 후에도 대화 (approval_comments, 2026-07-10)
+//   2026-07-30 사장님: 관리자 화면(전체 현황)에만 있어 직원은 댓글을 못 달았다 →
+//   '내 요청' 상세에도 부착(본인 요청 건 한정), 사진·파일 첨부 지원.
+function ApprovalCommentThread({ requestId }: { requestId: string }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [commentText, setCommentText] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [posting, setPosting] = useState(false);
+  const [me, setMe] = useState<{ id: string; company_id: string } | null>(null);
+  useEffect(() => { getCurrentUser().then((u) => u && setMe({ id: u.id, company_id: u.company_id })).catch(() => {}); }, []);
+  const { data: comments = [] } = useQuery({
+    queryKey: ["approval-comments", requestId],
+    queryFn: async () => {
+      const data = logRead('approvals/page:comments', await (supabase)
+        .from("approval_comments")
+        .select("id, user_id, body, attachments, created_at, users:user_id(name, email, avatar_url)")
+        .eq("request_id", requestId)
+        .order("created_at", { ascending: true }));
+      return (data || []) as any[];
+    },
+    enabled: !!requestId,
+  });
+  const isImageUrl = (url: string) => /\.(png|jpe?g|gif|webp|heic|bmp)$/i.test(attachmentFileName(url));
+  const postComment = async () => {
+    if (!me || (!commentText.trim() && pendingFiles.length === 0) || posting) return;
+    setPosting(true);
+    try {
+      const urls: string[] = [];
+      for (const file of pendingFiles) {
+        const path = `approvals/${me.company_id}/comments/${Date.now()}_${toBase64Url(file.name)}`;
+        const { error } = await supabase.storage.from("documents").upload(path, file);
+        if (error) { toast(`첨부 업로드 실패 — ${file.name}: ${error.message}`, "error"); return; }
+        const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
+        urls.push(urlData.publicUrl);
+      }
+      // attachments 컬럼은 2026-07-30 마이그레이션 추가분 — database.ts 타입 재생성 전까지 캐스팅
+      const { error } = await (supabase).from("approval_comments").insert({
+        company_id: me.company_id, request_id: requestId, user_id: me.id, body: commentText.trim(), attachments: urls,
+      } as any);
+      if (error) { toast("댓글 등록 실패: " + error.message, "error"); return; }
+      setCommentText(""); setPendingFiles([]);
+      qc.invalidateQueries({ queryKey: ["approval-comments", requestId] });
+    } finally { setPosting(false); }
+  };
+  const deleteComment = async (id: string) => {
+    await (supabase).from("approval_comments").delete().eq("id", id);
+    qc.invalidateQueries({ queryKey: ["approval-comments", requestId] });
+  };
+  return (
+    <div className="approval-comment-thread">
+      <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">댓글 {comments.length > 0 && <span className="text-[var(--text-dim)]">{comments.length}</span>}</div>
+      {comments.length > 0 && (
+        <div className="space-y-2 mb-3">
+          {comments.map((c: any) => (
+            <div key={c.id} className="flex items-start gap-2">
+              <Avatar name={c.users?.name || c.users?.email || "?"} src={c.users?.avatar_url} size={22} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-[var(--text)]">{c.users?.name || c.users?.email || "구성원"}</span>
+                  <span className="text-[10px] text-[var(--text-dim)] mono-number">{formatDateTime(c.created_at)}</span>
+                  {me?.id === c.user_id && (
+                    <button onClick={() => deleteComment(c.id)} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--danger)]">삭제</button>
+                  )}
                 </div>
+                {c.body && (
+                  <div className="mt-0.5 inline-block px-3 py-1.5 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-xs text-[var(--text)] whitespace-pre-wrap">{c.body}</div>
+                )}
+                {(c.attachments || []).length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap items-start gap-1.5">
+                    {(c.attachments as string[]).map((url, i) => isImageUrl(url) ? (
+                      <button key={i} type="button" onClick={() => openStoredFile(url, attachmentFileName(url))} className="block" title={attachmentFileName(url)}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={attachmentFileName(url)} className="max-h-28 max-w-[180px] rounded-lg border border-[var(--border)] object-cover" />
+                      </button>
+                    ) : (
+                      <button key={i} type="button" onClick={() => openStoredFile(url, attachmentFileName(url))}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40">
+                        <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                        <span className="truncate max-w-[160px]">{attachmentFileName(url)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <input
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) postComment(); }}
-            placeholder="댓글을 입력하세요 (Enter로 등록)"
-            className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-[var(--primary)]"
-          />
-          <button onClick={postComment} disabled={!commentText.trim()}
-            className="px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">등록</button>
+            </div>
+          ))}
         </div>
+      )}
+      {pendingFiles.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {pendingFiles.map((f, i) => (
+            <span key={i} className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
+              {f.name}
+              <button type="button" onClick={() => setPendingFiles((arr) => arr.filter((_, j) => j !== i))} className="px-1 text-[var(--text-dim)] hover:text-[var(--danger)]">✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <label className="shrink-0 w-8 h-8 rounded-xl border border-[var(--border)] bg-[var(--bg)] flex items-center justify-center cursor-pointer text-[var(--text-dim)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40" title="사진/파일 첨부">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+          <input type="file" multiple className="hidden" onChange={(e) => { const fs = Array.from(e.target.files || []); if (fs.length) setPendingFiles((arr) => [...arr, ...fs]); e.target.value = ""; }} />
+        </label>
+        <input
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) postComment(); }}
+          placeholder="댓글을 입력하세요 (Enter로 등록)"
+          className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-[var(--primary)]"
+        />
+        <button onClick={postComment} disabled={posting || (!commentText.trim() && pendingFiles.length === 0)}
+          className="px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">{posting ? "등록 중..." : "등록"}</button>
       </div>
     </div>
   );
