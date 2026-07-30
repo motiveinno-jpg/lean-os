@@ -49,7 +49,7 @@ export const SECTION_VIEWS: Record<SectionKey, SectionView[]> = {
   todo: [{ key: "queue", label: "급한 순" }],
   flow: [{ key: "ribbon", label: "흐름" }],
   money: [{ key: "ledger", label: "원장" }, { key: "docs", label: "문서" }, { key: "cost", label: "비용" }],
-  work: [{ key: "tasks", label: "할 일" }, { key: "issues", label: "이슈" }],
+  work: [{ key: "tasks", label: "할 일" }, { key: "schedule", label: "마일스톤" }, { key: "issues", label: "이슈" }],
   goal: [{ key: "score", label: "성과" }, { key: "manage", label: "목표 관리" }],
   team: [{ key: "who", label: "사람" }, { key: "activity", label: "활동" }, { key: "info", label: "기본 정보" }],
 };

@@ -23,6 +23,9 @@ import { seedDefaultDocTemplates, STANDARD_CONTRACT_CONTENT } from "@/lib/defaul
 import { useTabParam } from "@/lib/use-tab-param";
 import { DateField } from "@/components/date-field";
 import { ProjectSlideOver } from "@/components/project-slide-over";
+// 마일스톤(deal_milestones) 체크리스트·간트·캘린더 — 구 '프로젝트 운영' 탭 안에 묻혀 있던 것을
+//   이름이 맞는 '일' 자리로 옮긴다(2026-07-30). 실데이터 9건이 여기에 있다.
+import { ProjectScheduleTab } from "@/components/project-schedule-tab";
 import { SubDealsTab } from "./_components/SubDealsTab";
 import { type ProjectTabKey } from "@/lib/project-types";
 import {
@@ -1498,7 +1501,9 @@ export default function ProjectHubDetailPage() {
           hint={signals.hasWork ? "진행률은 완료된 할 일에서 자동 계산돼요" : undefined}>
           {!openSecs.has("work") ? <p className="pj-sec-empty">불러오는 중…</p>
             : !companyId ? null
-            : viewOf("work") === "issues" ? (
+            : viewOf("work") === "schedule" ? (
+              <ProjectScheduleTab dealId={dealId} />
+            ) : viewOf("work") === "issues" ? (
               <IssuesTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
             ) : !signals.hasWork ? (
               <div className="pj-sec-cta">
