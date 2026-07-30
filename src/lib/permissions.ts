@@ -40,10 +40,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/cash-receipts", label: "현금영수증" },
       { route: "/transactions", label: "거래 장부" },
       { route: "/partners/reconciliation/voucher-entry", label: "전표입력" },
-      { route: "/reports", label: "분석·리포트", tabs: [
-        { key: "flow", label: "경영 흐름" },
-        { key: "closing", label: "월 결산" },
-      ] },
+      { route: "/reports", label: "분석·리포트" },
     ],
   },
   {
@@ -63,10 +60,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/board", label: "게시판", always: true },
       { route: "/my-contracts", label: "내 서명 요청", always: true },
       { route: "/chat", label: "메신저", always: true },
-      { route: "/signatures", label: "전자계약", tabs: [
-        { key: "send", label: "서명 요청 보내기" },
-        { key: "inbox", label: "받은 요청" },
-      ] },
+      { route: "/signatures", label: "전자계약" },
     ],
   },
   {

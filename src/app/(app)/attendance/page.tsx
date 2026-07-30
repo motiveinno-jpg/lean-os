@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { useMyPermissions } from "@/lib/permissions";
 
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,11 +29,17 @@ export default function AttendancePage() {
   //   employees 캐시와 공유되지 않게 한다. AttendanceTab/QuickAttendanceButtons
   //   이 읽는 컬럼: id·name·status·user_id·email (+department/position 비민감).
   const ATT_EMP_COLS = "id,name,department,position,user_id,email,hire_date,status";
-  const isEmployee = role === "employee";
-  const isManager = role !== "employee";
+  // (2026-07-30 개편 P3) 관리 판정을 권한 기반으로 — 마스터 또는 '기록 상세·수정' 권한 보유자가 관리자급.
+  //   본인 출퇴근(개인 동선)은 권한 무관 항상 가능.
+  const { isMaster, hasPerm } = useMyPermissions();
+  const canManage = isMaster || hasPerm("/attendance:records");
+  const canBoard = isMaster || hasPerm("/attendance:board");
+  const isEmployee = !canManage;
+  const isManager = canManage;
   // 보드 스타일 워크보드(주간 52h·타임라인) ↔ 기존 기록 상세 토글.
   //   관리자 기본 = 워크보드(조망), 직원 기본 = 기록 상세(본인 출퇴근/수정 동선 유지).
-  const [attView, setAttView] = useState<"work" | "records">(isEmployee ? "records" : "work");
+  const [attView, setAttView] = useState<"work" | "records">("records");
+  useEffect(() => { if (canBoard && canManage) setAttView((v) => (v === "records" && !new URLSearchParams(window.location.search).get("view") ? "work" : v)); }, [canBoard, canManage]);
   // 상위 섹션: 근무현황 / 연장근무. 휴가 신청·승인은 전자결재로, 연차 설정은 인사관리로 이관(2026-07-15).
   const [section, setSection] = useState<"work" | "overtime">("work");
   // ?view=records/work + ?section=overtime/work 딥링크(근태 수정요청 알림 → records).
@@ -84,7 +91,7 @@ export default function AttendancePage() {
         <>
           {/* 보드 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
           <div className="attendance-view-tabbar seg-bar">
-            {([["work", "워크보드 (주간)"], ["records", "기록 상세"]] as const).map(([k, l]) => (
+            {([["work", "워크보드 (주간)"], ["records", "기록 상세"]] as const).filter(([k]) => (k === "work" ? canBoard : true)).map(([k, l]) => (
               <button key={k} onClick={() => setAttView(k)}
                 className={`seg-item ${attView === k ? "seg-item-active" : ""}`}>
                 {l}
@@ -97,7 +104,7 @@ export default function AttendancePage() {
             <EditRequestInbox companyId={companyId} reviewerId={userId} />
           )}
           {attView === "work" ? (
-            <FlexWorkBoard companyId={companyId} employees={employees} role={role} userId={userId} />
+            <FlexWorkBoard companyId={companyId} employees={employees} role={canManage ? "owner" : "employee"} userId={userId} />
           ) : (
             <AttendanceTab
               employees={employees}
@@ -105,7 +112,7 @@ export default function AttendancePage() {
               userId={userId}
               userEmail={userEmail}
               queryClient={queryClient}
-              role={role}
+              role={canManage ? "owner" : "employee"}
             />
           )}
         </>

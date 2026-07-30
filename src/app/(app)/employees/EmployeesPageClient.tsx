@@ -84,7 +84,9 @@ export default function EmployeesPage() {
   const [tab, setTab] = useState<Tab>(isValidTab(urlTab) ? normalizeTab(urlTab) : "employees");
   const [showForm, setShowForm] = useState(false);
   const queryClient = useQueryClient();
-  const isEmployee = role === "employee";
+  // (P3) 관리 판정 권한 기반 — 인력관리 권한 보유(또는 마스터)=관리자급, 그 외=본인 스코프
+  const { isMaster, hasPerm } = useMyPermissions();
+  const isEmployee = !(isMaster || hasPerm("/employees:employees"));
 
   // URL ?tab=... 동기화. payroll/salary → '급여' 탭(명세).
   useEffect(() => {
@@ -145,9 +147,8 @@ export default function EmployeesPage() {
 
   // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여받은 탭만.
   //   카탈로그 키: /employees:employees|salary|leave|certificates. 구 role 분기 대체.
-  const { isMaster, hasPerm } = useMyPermissions();
   const tabAllowed = (k: Tab) => isMaster || hasPerm(`/employees:${k === "payroll" ? "salary" : k}`);
-  const isManager = isMaster || hasPerm("/employees:employees");
+  const isManager = !isEmployee;
   const allTabs: { key: Tab; label: string; count?: number }[] = [
     { key: "employees", label: "인력관리", count: activeCount },
     { key: "salary", label: "급여" },
